@@ -1,0 +1,200 @@
+# FIX D-25: previously there was no docker-compose file that brought up
+# frontend + backend together — only this repo's docker-compose.yml
+# (backend + db + redis + db_backup). The frontend's Dockerfile (in the
+# marketplace-ux repo) existed and was production-ready, but nothing
+# wired the two projects into one runnable stack, leaving that assembly
+# work to whoever deploys this.
+#
+# EXPECTED DIRECTORY LAYOUT — this file assumes both repos are checked
+# out as sibling directories:
+#
+#   workspace/
+#   ├── backend/              (this repo — contains this file)
+#   └── marketplace-ux/       (the frontend repo)
+#
+# If your layout differs, adjust the frontend service's `build.context`
+# path below accordingly.
+#
+# USAGE:
+#   cd backend/
+#   docker compose -f docker-compose.full.yml up -d --build
+#
+# This extends (not replaces) docker-compose.yml — db, redis, and
+# db_backup are identical to that file; this just adds the frontend
+# service and points the backend's CORS/cookie config at it. For a
+# backend-only stack (e.g. if the frontend is deployed separately on
+# Vercel/Netlify), keep using docker-compose.yml as-is.
+
+services:
+  app:
+    build:
+      context: .
+      target: production
+    container_name: classifieds-backend
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-classifieds_db}?connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=30
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_EXPIRES_IN=15m
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      # FIX D-25: points at the frontend service below (same Docker
+      # network) instead of an externally-managed FRONTEND_URL — used
+      # for CORS origin matching. Override via .env if the frontend is
+      # actually deployed elsewhere (e.g. behind a different domain/CDN
+      # in front of this same container).
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - TRUST_PROXY=1
+      - BLACKLIST_STRICT=true
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-no-reply@example.com}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-سوق غزة}
+      - SECURITY_ALERT_WEBHOOK_URL=${SECURITY_ALERT_WEBHOOK_URL:-}
+      - ERROR_REPORTER_WEBHOOK_URL=${ERROR_REPORTER_WEBHOOK_URL:-}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - classifieds-network
+
+  # FIX D-25: the frontend, built from the sibling marketplace-ux
+  # directory. NEXT_PUBLIC_* vars are build-time (baked into the
+  # JS bundle at build, per Next.js convention) — changing them requires
+  # a rebuild, not just a container restart.
+  web:
+    build:
+      context: ../marketplace-ux
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+    container_name: classifieds-frontend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    depends_on:
+      - app
+    networks:
+      - classifieds-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: classifieds-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-classifieds_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - classifieds-network
+
+  db_backup:
+    image: prodrigestivill/postgres-backup-local:15-alpine
+    container_name: classifieds-db-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-classifieds_db}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SCHEDULE: ${BACKUP_SCHEDULE:-@daily}
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      HEALTHCHECK_PORT: 8080
+    volumes:
+      - db_backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - classifieds-network
+
+  # FIX BACKUP-03: same off-host sync sidecar as docker-compose.yml —
+  # see that file's own comment on this service for the full rationale
+  # (local-only backups don't survive a full host loss). Kept identical
+  # between the two files on purpose, same as db_backup above it,
+  # per this file's own top-of-file comment that db/db_backup are meant
+  # to stay identical between the backend-only and full-stack compose
+  # files.
+  db_backup_offsite_sync:
+    image: amazon/aws-cli:2.17.62
+    container_name: classifieds-db-backup-offsite-sync
+    restart: unless-stopped
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        if [ -z "$$BACKUP_OFFSITE_BUCKET" ]; then
+          echo "[offsite-sync] BACKUP_OFFSITE_BUCKET not set — off-host sync disabled. Set it to enable (see .env.example)."
+          exit 0
+        fi
+        while true; do
+          echo "[offsite-sync] $$(date -u +%Y-%m-%dT%H:%M:%SZ) syncing /backups to s3://$$BACKUP_OFFSITE_BUCKET/ ..."
+          if aws s3 sync /backups "s3://$$BACKUP_OFFSITE_BUCKET/" --only-show-errors; then
+            echo "[offsite-sync] sync completed successfully."
+          else
+            echo "[offsite-sync] sync FAILED — see error output above. This means recent backups may NOT be protected off-host right now; investigate before assuming disaster-recovery coverage." >&2
+          fi
+          sleep "${BACKUP_OFFSITE_SYNC_INTERVAL_SECONDS:-21600}" # default: every 6h
+        done
+    environment:
+      AWS_ACCESS_KEY_ID: ${BACKUP_OFFSITE_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_OFFSITE_SECRET_ACCESS_KEY:-}
+      AWS_ENDPOINT_URL: ${BACKUP_OFFSITE_ENDPOINT_URL:-}
+      AWS_DEFAULT_REGION: ${BACKUP_OFFSITE_REGION:-us-east-1}
+      BACKUP_OFFSITE_BUCKET: ${BACKUP_OFFSITE_BUCKET:-}
+      BACKUP_OFFSITE_SYNC_INTERVAL_SECONDS: ${BACKUP_OFFSITE_SYNC_INTERVAL_SECONDS:-21600}
+    volumes:
+      - db_backups:/backups:ro
+    depends_on:
+      - db_backup
+    networks:
+      - classifieds-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: classifieds-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory ${REDIS_MAXMEMORY:-1gb} --maxmemory-policy noeviction
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - classifieds-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  db_backups:
+
+networks:
+  classifieds-network:
+    driver: bridge

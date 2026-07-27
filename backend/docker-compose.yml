@@ -1,0 +1,271 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      target: production
+    container_name: classifieds-backend
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-classifieds_db}?connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=30
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_EXPIRES_IN=15m
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - TRUST_PROXY=1
+      - BLACKLIST_STRICT=true
+      # FIX AUDIT-V4-13: previously missing from this file (only present
+      # in docker-compose.full.yml) — without these, emailService.ts and
+      # securityAlert.ts silently fall back to logging-only even though
+      # the actual sending code is implemented, because env.email.isConfigured
+      # requires SMTP_HOST+SMTP_USER+SMTP_PASSWORD to all be set.
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-no-reply@example.com}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-سوق غزة}
+      - SECURITY_ALERT_WEBHOOK_URL=${SECURITY_ALERT_WEBHOOK_URL:-}
+      - ERROR_REPORTER_WEBHOOK_URL=${ERROR_REPORTER_WEBHOOK_URL:-}
+      # PROD-FIX-03: protects GET /metrics — see .env.example for details.
+      # Strongly recommended in production if this service is reachable
+      # on a public network without a reverse-proxy allowlist in front of it.
+      - METRICS_TOKEN=${METRICS_TOKEN:-}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - classifieds-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: classifieds-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-classifieds_db}
+    # PROD-FIX-04: max_connections previously ran at Postgres's stock
+    # default (100). capacityCheck.ts (src/shared/utils/capacityCheck.ts)
+    # already computed and warned about this at boot — PM2 cluster mode
+    # (ecosystem.config.js) runs `instances: 'max'` (one process per
+    # CPU core) × connection_limit=20 (.env.example's DATABASE_URL) per
+    # process. On anything above a 4-core host that product exceeds
+    # 100 - the 20-connection safety margin capacityCheck.ts reserves
+    # for migrations/psql/backups, i.e. real connection exhaustion risk
+    # on a common production instance size, not just a 32-core edge
+    # case. 200 gives headroom up to an 8-core host at the documented
+    # connection_limit=20 (8 × 20 = 160, well under 200 - 20 margin)
+    # without raising Postgres's own memory footprint enough to matter
+    # at this traffic scale (each connection reserves ~innodb-style
+    # per-connection working memory; the jump from 100→200 costs low
+    # tens of MB, not GBs). If DB_CONNECTION_LIMIT, PM2_INSTANCES, or
+    # host core count changes, re-run the capacityCheck.ts math (it
+    # logs the exact estimated total at every boot) rather than assuming
+    # 200 is still enough.
+    command: postgres -c max_connections=200
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - classifieds-network
+
+  # FIX D-21: previously there was no backup/disaster-recovery strategy
+  # at all — named volumes (postgres_data) with no scheduled dump, no
+  # snapshot automation, and no documented restore procedure anywhere in
+  # the repo. A lost/corrupted Docker volume (host disk failure,
+  # accidental `docker volume rm`, a bad migration) had no recovery path.
+  # Redis data (sessions, rate limits, caches) is all TTL'd and
+  # regenerable, so it's intentionally NOT backed up here — only
+  # Postgres holds data that can't be reconstructed.
+  #
+  # This runs a scheduled pg_dump (default: daily at 2am, configurable
+  # via SCHEDULE) with a retention policy (default: 7 daily / 4 weekly /
+  # 6 monthly, configurable below), writing compressed dumps to the
+  # db_backups volume.
+  #
+  # RESTORE PROCEDURE (documented here since there's nowhere else to
+  # find it during an actual incident):
+  #   1. List available backups:
+  #        docker compose exec db_backup ls -la /backups
+  #   2. Stop the app so nothing writes during restore:
+  #        docker compose stop app
+  #   3. Restore the chosen dump (replace FILENAME):
+  #        docker compose exec -T db psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
+  #          < <(docker compose exec db_backup gunzip -c /backups/FILENAME)
+  #   4. Restart the app:
+  #        docker compose start app
+  #
+  # FIX BACKUP-01: the restore procedure above was, until now, entirely
+  # untested — a backup file existing and a backup file actually
+  # restoring correctly are different claims, and the gap between them
+  # is exactly where you don't want to discover a problem for the first
+  # time. scripts/verify-backup-restore.sh actually performs steps 1+3
+  # above against a disposable, isolated Postgres container (never the
+  # real `db` service) and checks the result, on a schedule via
+  # .github/workflows/verify-backup-restore.yml. Run it manually
+  # (`npm run backup:verify-restore`) any time you want to double-check
+  # before relying on this procedure for real.
+  #
+  # FIX BACKUP-03: for off-host durability (surviving total host loss,
+  # not just volume corruption) — see the db_backup_offsite_sync service
+  # below, which syncs this same db_backups volume to S3-compatible
+  # storage on its own schedule. Opt-in via BACKUP_OFFSITE_BUCKET (see
+  # .env.example); does nothing extra if left unset.
+  db_backup:
+    image: prodrigestivill/postgres-backup-local:15-alpine
+    container_name: classifieds-db-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-classifieds_db}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SCHEDULE: ${BACKUP_SCHEDULE:-@daily}
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      HEALTHCHECK_PORT: 8080
+    volumes:
+      - db_backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - classifieds-network
+
+  # FIX BACKUP-03: db_backup above only ever wrote to the db_backups
+  # named volume — the same host as the live `db` service. A host-level
+  # failure (disk failure, the whole VM/instance being lost, accidental
+  # `docker volume rm`) would take out the live database AND every
+  # backup of it simultaneously; a local backup alone only protects
+  # against in-place data corruption or an accidental `DROP TABLE`, not
+  # a full host loss. This sidecar syncs the SAME db_backups volume to
+  # S3-compatible off-host storage on its own schedule, independent of
+  # the app's own image/dependencies (no new npm package, no code
+  # change in src/ — this is infra-only, matching how db_backup itself
+  # is already a separate container rather than logic bolted onto the
+  # app).
+  #
+  # Uses the official amazon/aws-cli image's `aws s3 sync` — works
+  # against real AWS S3 or any S3-compatible provider (Backblaze B2,
+  # Cloudflare R2, MinIO, DigitalOcean Spaces, etc.) via AWS_ENDPOINT_URL,
+  # so this isn't an AWS-only lock-in choice. Only enabled if
+  # BACKUP_OFFSITE_BUCKET is actually set — unset by default, so this
+  # adds no new external dependency or cost for anyone who hasn't
+  # configured it, same "opt-in, does nothing extra by default" pattern
+  # as SENTRY_DSN/ERROR_REPORTER_WEBHOOK_URL elsewhere in this repo.
+  #
+  # This has NOT been run against a real S3 bucket in the environment
+  # this was authored in (no network access to test against real AWS).
+  # Do one real sync + restore-from-sync dry run before trusting this
+  # for actual disaster recovery — see scripts/verify-backup-restore.sh's
+  # own comment on the same caveat for the restore side.
+  db_backup_offsite_sync:
+    image: amazon/aws-cli:2.17.62
+    container_name: classifieds-db-backup-offsite-sync
+    restart: unless-stopped
+    entrypoint: ['/bin/sh', '-c']
+    # go-cron isn't available in this image (unlike
+    # prodrigestivill/postgres-backup-local, which bundles it) — a
+    # plain shell loop with `sleep` is a deliberately simple substitute
+    # for a cron daemon here, not worth adding a second scheduler
+    # dependency just for this one sidecar. Syncs after backup's own
+    # daily run has had time to complete, then re-checks periodically
+    # in case BACKUP_SCHEDULE is more frequent than daily.
+    command:
+      - |
+        if [ -z "$$BACKUP_OFFSITE_BUCKET" ]; then
+          echo "[offsite-sync] BACKUP_OFFSITE_BUCKET not set — off-host sync disabled. Set it to enable (see .env.example)."
+          exit 0
+        fi
+        while true; do
+          echo "[offsite-sync] $$(date -u +%Y-%m-%dT%H:%M:%SZ) syncing /backups to s3://$$BACKUP_OFFSITE_BUCKET/ ..."
+          if aws s3 sync /backups "s3://$$BACKUP_OFFSITE_BUCKET/" --only-show-errors; then
+            echo "[offsite-sync] sync completed successfully."
+          else
+            echo "[offsite-sync] sync FAILED — see error output above. This means recent backups may NOT be protected off-host right now; investigate before assuming disaster-recovery coverage." >&2
+          fi
+          sleep "${BACKUP_OFFSITE_SYNC_INTERVAL_SECONDS:-21600}" # default: every 6h
+        done
+    environment:
+      AWS_ACCESS_KEY_ID: ${BACKUP_OFFSITE_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_OFFSITE_SECRET_ACCESS_KEY:-}
+      AWS_ENDPOINT_URL: ${BACKUP_OFFSITE_ENDPOINT_URL:-} # unset = real AWS S3; set for S3-compatible providers (R2, B2, MinIO, Spaces)
+      AWS_DEFAULT_REGION: ${BACKUP_OFFSITE_REGION:-us-east-1}
+      BACKUP_OFFSITE_BUCKET: ${BACKUP_OFFSITE_BUCKET:-}
+      BACKUP_OFFSITE_SYNC_INTERVAL_SECONDS: ${BACKUP_OFFSITE_SYNC_INTERVAL_SECONDS:-21600}
+    volumes:
+      - db_backups:/backups:ro # read-only — this sidecar only ever reads/uploads, never writes into the shared backup volume
+    depends_on:
+      - db_backup
+    networks:
+      - classifieds-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: classifieds-redis
+    restart: unless-stopped
+    # FIX D-15: allkeys-lru evicted indiscriminately across the entire
+    # keyspace once maxmemory was hit — including refresh-token sessions
+    # and rate-limit counters, not just disposable caches (categories,
+    # user profile cache). An idle session sitting in Redis was a
+    # legitimate LRU eviction candidate under cache-traffic-driven memory
+    # pressure, silently logging users out with no error or signal.
+    #
+    # Every key this app writes already carries an explicit TTL (sessions,
+    # locks, caches alike — see SETEX/EXPIRE usage throughout
+    # shared/utils/), so volatile-lru wouldn't actually distinguish
+    # "safe to drop" from "must not drop" either, since both categories
+    # have a TTL. noeviction rejects new writes once maxmemory is hit
+    # instead of silently dropping existing data — an explicit, debuggable
+    # failure (visible in app error rates/logs) rather than an invisible
+    # one. maxmemory raised to give real headroom before that point is hit;
+    # tune based on observed production usage.
+    #
+    # PROD-FIX-11: this tradeoff is only actually safe if something is
+    # watching usage relative to maxmemory — src/shared/utils/
+    # redisMemoryMonitor.ts now polls INFO memory every 30s, exposes
+    # redis_memory_used_bytes/redis_memory_max_bytes on /metrics, and
+    # logs a warning once usage crosses 80% of maxmemory, so this stops
+    # being a silent cliff and becomes something an alert rule (or just
+    # the boot/runtime logs) can catch before writes start failing.
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory ${REDIS_MAXMEMORY:-1gb} --maxmemory-policy noeviction
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - classifieds-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  db_backups:
+
+networks:
+  classifieds-network:
+    driver: bridge

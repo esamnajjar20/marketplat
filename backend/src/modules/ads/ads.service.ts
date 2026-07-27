@@ -1,0 +1,394 @@
+import { adsRepository, AdWithAuthor, AdListRow } from './ads.repository';
+import { CreateAdInput, UpdateAdInput, GetAdsQuery, GetMyAdsQuery } from './ads.validation';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { ROLES } from '../../shared/constants/roles';
+import { uploadImage, deleteImage } from '../../config/cloudinary';
+import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import { viewsBuffer } from '../../shared/utils/viewsBuffer';
+import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
+import { redis } from '../../config/redis';
+import { logger } from '../../shared/utils/logger';
+import { env } from '../../config/env';
+import { AdStatus } from '@prisma/client';
+import { sellersRepository } from '../sellers/sellers.repository';
+import { prisma } from '../../config/prisma';
+
+/**
+ * FIX AUDIT-V4-06: GET /ads previously hit Postgres on every single
+ * request with no caching layer at all (unlike /categories, which
+ * already had a Redis cache-aside pattern). Adds the same kind of
+ * caching here, with two adaptations specific to ads:
+ *
+ * 1. The list is heavily filtered/paginated/sorted, so there's no
+ *    single cache key like categories:all — the key is derived from
+ *    the actual query params.
+ * 2. Ads change far more often than categories (new ads, sold, edited,
+ *    images added/removed), so instead of deleting every possible
+ *    filtered cache key on every mutation (which would require an
+ *    expensive Redis SCAN to even find them), a version number is
+ *    bumped on every mutation and baked into the cache key itself.
+ *    Old-version keys simply age out via their own short TTL rather
+ *    than being actively deleted — cheap, correct, and self-healing
+ *    even if a mutation's invalidation call itself fails.
+ */
+const ADS_CACHE_VERSION_KEY = 'ads:cache_version';
+const ADS_LIST_TTL = 30; // seconds — short, since ads change frequently
+
+async function getAdsCacheVersion(): Promise<number> {
+  try {
+    const v = await redis.get(ADS_CACHE_VERSION_KEY);
+    return v ? parseInt(v, 10) : 0;
+  } catch {
+    return 0; // cache miss on the version itself just means key "v0" — harmless
+  }
+}
+
+// BUGFIX (found during a post-implementation code audit): exported —
+// previously module-private, only ever called from within this file's
+// own createAd/updateAd/deleteAd/addImages/removeImage. admin.service.ts's
+// forceDeleteAd/setAdFeatured/setAdPinned mutate the exact same `Ad` rows
+// this cache is built from, but never invalidated it — an admin
+// force-deleting an ad for a genuinely urgent reason (fraud, policy
+// violation, a legal takedown request) could still see that ad served
+// from the GET /ads list cache to other users for up to its full 30s
+// TTL, directly undermining the "urgent" part of an urgent removal.
+// Exporting this one function (rather than duplicating the same
+// redis.incr(ADS_CACHE_VERSION_KEY) logic in admin.service.ts, which
+// would reintroduce the exact kind of silently-divergible duplicate
+// this audit already found and removed once — see tokenStore.ts's
+// getBlacklistKey) keeps a single source of truth for how this cache is
+// invalidated, regardless of which module ends up mutating an ad.
+export async function bumpAdsCacheVersion(): Promise<void> {
+  try {
+    await redis.incr(ADS_CACHE_VERSION_KEY);
+  } catch {
+    // If this fails, old cached pages simply live out their 30s TTL —
+    // worst case is briefly stale list data, not incorrect data.
+    logger.warn('Failed to bump ads cache version — stale reads possible for up to 30s');
+  }
+}
+
+function buildAdsListCacheKey(version: number, query: GetAdsQuery): string {
+  // Stable key regardless of object key insertion order.
+  const sorted = Object.keys(query).sort().map(k => `${k}=${(query as any)[k]}`).join('&');
+  return `ads:list:v${version}:${sorted}`;
+}
+
+export const adsService = {
+  createAd: async (
+    userId: string,
+    input: CreateAdInput,
+    files: Express.Multer.File[]
+  ): Promise<AdWithAuthor> => {
+    // AUDIT-FIX M-02: countActiveByUserId() then create() with nothing
+    // in between was a TOCTOU race — two concurrent createAd calls for
+    // the same user could both read a count one under env.ads.maxPerUser
+    // and both pass the check before either had committed its insert,
+    // letting a user exceed the cap by up to N-1 ads for N concurrent
+    // requests. This is the exact same class of bug FIX D-10 already
+    // fixed for addImages (see adLock.ts) — same fix here, applied to
+    // ad *creation* instead of ad *images*, via a lock scoped to the
+    // user rather than to a single ad (there's no ad yet to lock).
+    //
+    // FIX AUDIT-V5-01's original intent — don't burn Cloudinary uploads
+    // on a request that's going to be rejected anyway — is preserved by
+    // doing an unlocked pre-check here (cheap, no lock contention with
+    // other requests) before the slow uploads. This pre-check can still
+    // race and pass when the cap is actually full; that's fine, because
+    // the authoritative check happens again below, inside the lock,
+    // immediately before the insert — that second check is the one
+    // that actually closes the race, and it's what a client relying on
+    // correctness (rather than just the fast-fail optimization) should
+    // expect to be enforced.
+    // Ad.sellerProfileId is optional (see schema.prisma) — a plain
+    // classifieds ad never requires the poster to have onboarded as a
+    // seller. When a SellerProfile does exist for this user, the ad is
+    // still linked to it and seller stats still increment, so the
+    // seller-side dashboards/stats stay accurate for users who *have*
+    // onboarded — this lookup just no longer blocks the ones who haven't.
+    const sellerProfile = await sellersRepository.findByUserId(userId);
+
+    const preCheckCount = await adsRepository.countActiveByUserId(userId);
+    if (preCheckCount >= env.ads.maxPerUser) {
+      throw new BadRequestError(
+        `لقد وصلت إلى الحد الأقصى لعدد الإعلانات النشطة (${env.ads.maxPerUser}). يرجى حذف أو تعليم إعلان قديم كمباع لإضافة إعلان جديد.`
+      );
+    }
+
+    // P-01: parallel uploads — 10x faster than sequential for loop
+    const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'ads')));
+    try {
+      // Authoritative check-and-insert, serialized per-user so no two
+      // concurrent createAd calls for the same user can both pass the
+      // count check before either has committed its insert.
+      const ad = await withUserAdCreationLock(userId, async () => {
+        const activeCount = await adsRepository.countActiveByUserId(userId);
+        if (activeCount >= env.ads.maxPerUser) {
+          throw new BadRequestError(
+            `لقد وصلت إلى الحد الأقصى لعدد الإعلانات النشطة (${env.ads.maxPerUser}). يرجى حذف أو تعليم إعلان قديم كمباع لإضافة إعلان جديد.`
+          );
+        }
+        // NEW: ad insert + SellerProfile stats increment happen in one
+        // transaction — either both commit or neither does, so
+        // totalAds/activeAds can never drift from the actual ad count
+        // (seller-profile-design.md §15).
+        return prisma.$transaction(async tx => {
+          const created = await tx.ad.create({
+            data: {
+              ...input,
+              userId,
+              images: uploads.map(upload => upload.url),
+              sellerProfileId: sellerProfile?.id,
+            },
+            include: {
+              user: { select: { id: true, name: true, city: true, avatarUrl: true } },
+              category: { select: { id: true, name: true, nameAr: true } },
+            },
+          });
+          if (sellerProfile) {
+            await sellersRepository.incrementStatsOnAdCreated(tx, sellerProfile.id);
+          }
+          return created;
+        });
+      });
+      // FIX AUDIT-V4-06: invalidate cached listings — a newly created
+      // active ad must appear in /ads results immediately, not after
+      // up to 30s of TTL expiry.
+      await bumpAdsCacheVersion();
+      return ad;
+    } catch (error) {
+      await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+      throw error;
+    }
+  },
+
+  getAds: async (query: GetAdsQuery): Promise<PaginatedResult<AdListRow>> => {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+
+    // FIX AUDIT-V4-06: cache-aside read. Cache failures (Redis down,
+    // parse error) fall through to the DB silently — caching is
+    // strictly a performance optimization here, never a correctness
+    // dependency.
+    const version = await getAdsCacheVersion();
+    const cacheKey = buildAdsListCacheKey(version, query);
+
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached) as PaginatedResult<AdListRow>;
+    } catch {
+      logger.warn('Ads list cache read failed, falling back to DB');
+    }
+
+    const { ads, total } = await adsRepository.findMany(query);
+    const result = { items: ads, meta: buildPaginationMeta(total, page, limit) };
+
+    try {
+      await redis.setex(cacheKey, ADS_LIST_TTL, JSON.stringify(result));
+    } catch {
+      // Fail silently — DB result is still returned
+    }
+
+    return result;
+  },
+
+  getAdById: async (id: string, viewerIp?: string): Promise<AdWithAuthor> => {
+    const ad = await adsRepository.findById(id);
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+
+    // P-06: buffered view counting — deduped per IP, flushed to DB every 60s
+    // Prevents N DB writes per N pageviews; Redis absorbs the burst
+    if (viewerIp) {
+      await viewsBuffer.increment(id, viewerIp);
+    }
+
+    return ad;
+  },
+
+  getMyAds: async (userId: string, query: GetMyAdsQuery): Promise<PaginatedResult<AdListRow>> => {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    // FIX D-24: query.status (validated by getMyAdsSchema, scoped to
+    // this user's own ads via userId in findManyByUserId's WHERE clause)
+    // is now passed through to the repository instead of being dropped —
+    // previously findManyByUserId only ever accepted an internal
+    // 'ACTIVE'-only statusFilter, never a user-supplied value.
+    const { ads, total } = await adsRepository.findManyByUserId(userId, {
+      ...query,
+      statusFilter: query.status,
+    });
+    return { items: ads, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  getRelatedAds: async (adId: string): Promise<AdListRow[]> => {
+    const ad = await adsRepository.findById(adId);
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    return adsRepository.findRelated(adId, ad.categoryId, ad.city);
+  },
+
+  // A-01: public profile ads — only ACTIVE, total matches items count (no S-05 leak)
+  getUserAdsForProfile: async (
+    userId: string,
+    query: { page?: number; limit?: number }
+  ): Promise<{ ads: AdListRow[]; total: number }> => {
+    return adsRepository.findManyByUserId(userId, {
+      page: query.page,
+      limit: query.limit,
+      statusFilter: 'ACTIVE',
+    });
+  },
+
+  // A-01: facade for cross-module use — returns ad without side effects (no view increment)
+  // Use this instead of importing adsRepository directly from other modules
+  findAdForReference: async (
+    adId: string
+  ): Promise<import('./ads.repository').AdWithAuthor | null> => {
+    const ad = await adsRepository.findById(adId);
+    if (!ad || ad.status === 'DELETED') return null;
+    return ad;
+  },
+
+  updateAd: async (
+    adId: string,
+    userId: string,
+    userRole: string,
+    input: UpdateAdInput
+  ): Promise<AdWithAuthor> => {
+    const ad = await adsRepository.findById(adId);
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+      throw new ForbiddenError('You do not have permission to update this ad');
+    }
+    if (input.status && userRole !== ROLES.ADMIN && input.status !== AdStatus.SOLD) {
+      throw new ForbiddenError('You cannot set this ad status');
+    }
+
+    // NEW: transitioning ACTIVE -> SOLD is the one ad-status change that
+    // also moves a SellerProfile stat (activeAds down, totalSales up —
+    // see sellers.repository.ts's decrementActiveAdsOnSold). Only fires
+    // on that specific transition, not on every update, and not more
+    // than once per ad (guarded by ad.status !== SOLD already, since
+    // findById above would have returned the pre-update status).
+    const justSold =
+      input.status === AdStatus.SOLD && ad.status !== AdStatus.SOLD && ad.sellerProfileId;
+
+    const updated = justSold
+      ? await prisma.$transaction(async tx => {
+          const result = await tx.ad.update({
+            where: { id: adId },
+            data: input,
+            include: {
+              user: { select: { id: true, name: true, city: true, avatarUrl: true } },
+              category: { select: { id: true, name: true, nameAr: true } },
+            },
+          });
+          await sellersRepository.decrementActiveAdsOnSold(tx, ad.sellerProfileId as string);
+          return result;
+        })
+      : await adsRepository.update(adId, input);
+
+    // FIX AUDIT-V4-06: covers both field edits and status changes
+    // (e.g. mark-as-sold) — a sold ad must stop appearing as available
+    // in cached /ads results immediately, not after up to 30s.
+    await bumpAdsCacheVersion();
+    return updated;
+  },
+
+  addImages: async (
+    adId: string,
+    userId: string,
+    userRole: string,
+    files: Express.Multer.File[]
+  ): Promise<AdWithAuthor> => {
+    const ad = await adsRepository.findById(adId);
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+      throw new ForbiddenError('You do not have permission to update this ad');
+    }
+    if (ad.images.length + files.length > 10) {
+      throw new BadRequestError('An ad can have a maximum of 10 images');
+    }
+
+    // FIX D-10: serialize concurrent addImages/removeImage calls for the
+    // same ad. Without this, two concurrent requests can both read the
+    // same (stale) image count above, both pass the <=10 check, both
+    // upload to Cloudinary, and both write — bypassing the cap and
+    // leaving the truncated images as orphaned Cloudinary assets, since
+    // cleanupUploadedImages only runs on a thrown error, not on a
+    // "succeeded but silently truncated by the DB-level LIMIT" outcome.
+    return withAdImagesLock(adId, async () => {
+      // Re-check with a fresh read now that we hold the lock — the
+      // pre-lock check above is just a fast-fail for the common case;
+      // this is the authoritative check.
+      const freshAd = await adsRepository.findById(adId);
+      if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found');
+      if (freshAd.images.length + files.length > 10) {
+        throw new BadRequestError('An ad can have a maximum of 10 images');
+      }
+
+      // P-01: parallel uploads
+      const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'ads')));
+      try {
+        const updated = await adsRepository.addImages(
+          adId,
+          uploads.map(upload => upload.url)
+        );
+        // FIX AUDIT-V4-06: cached listing payloads include `images` —
+        // without this, a newly added photo wouldn't show up in /ads
+        // results for up to 30s.
+        await bumpAdsCacheVersion();
+        return updated;
+      } catch (error) {
+        await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+        throw error;
+      }
+    });
+  },
+
+  removeImage: async (
+    adId: string,
+    userId: string,
+    userRole: string,
+    imageUrl: string
+  ): Promise<AdWithAuthor> => {
+    const ad = await adsRepository.findById(adId);
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+      throw new ForbiddenError('You do not have permission to update this ad');
+    }
+    if (!ad.images.includes(imageUrl)) throw new BadRequestError('Image not found in this ad');
+
+    // FIX D-10: same lock as addImages — keeps add/remove for one ad
+    // from interleaving in a way that could resurrect a just-removed
+    // image or miscount against the 10-image cap.
+    return withAdImagesLock(adId, async () => {
+      try {
+        const publicId = extractCloudinaryPublicId(imageUrl);
+        if (publicId) await deleteImage(publicId);
+      } catch {
+        /* continue even if Cloudinary delete fails */
+      }
+      const updated = await adsRepository.removeImage(adId, imageUrl);
+      // FIX AUDIT-V4-06: same reasoning as addImages — keep cached
+      // listing payloads from showing a just-removed image.
+      await bumpAdsCacheVersion();
+      return updated;
+    });
+  },
+
+  deleteAd: async (adId: string, userId: string, userRole: string): Promise<void> => {
+    const ad = await adsRepository.findById(adId);
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+      throw new ForbiddenError('You do not have permission to delete this ad');
+    }
+    await adsRepository.softDelete(adId);
+    // FIX AUDIT-V4-06: a deleted ad must stop appearing in /ads results
+    // immediately, not after up to 30s of cache TTL.
+    await bumpAdsCacheVersion();
+  },
+};

@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Design tokens — سوق غزة brand palette.
+ *
+ * FIX UX-01: replaced the unmodified shadcn/ui default palette (the
+ * exact stock HSL values every fresh shadcn install ships with —
+ * primary 221.2 83.2% 53.3%, the generic "shadcn blue") with an
+ * identity grounded in the product itself: a warm olive green (rooted
+ * in the olive tree as a recurring Palestinian motif, without being a
+ * literal illustration of one) paired with a warm terracotta accent.
+ * Warm off-white/near-black neutrals replace the cold pure-white/
+ * blue-grey defaults so the whole palette reads as one deliberate,
+ * warm system rather than assorted stock tokens.
+ *
+ * All pairs kept at or above WCAG AA (4.5:1) for text use; the one
+ * exception (accent, ~3.9:1) is reserved for large text, borders and
+ * iconography rather than small body copy — see the accent-foreground
+ * comment below.
+ */
+@layer base {
+  :root {
+    --background: 40 60% 98%;
+    --foreground: 33.3 15.8% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 33.3 15.8% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 33.3 15.8% 11.2%;
+
+    /* Warm olive — the brand's primary. */
+    --primary: 148.7 32.9% 27.5%;
+    --primary-foreground: 40 60% 98%;
+
+    --secondary: 36.9 35.1% 92.7%;
+    --secondary-foreground: 33.3 15.8% 11.2%;
+    --muted: 36.9 35.1% 92.7%;
+    --muted-foreground: 34.7 9.7% 38.2%;
+
+    /* Terracotta — used for the "featured" signature and CTA accents,
+       never as a background for small body text (see contrast note above). */
+    --accent: 20.8 51.6% 49.4%;
+    --accent-foreground: 40 60% 98%;
+
+    --destructive: 4.4 53.8% 49.2%;
+    --destructive-foreground: 40 60% 98%;
+
+    /* FIX UX-01: dedicated success/warning tokens so ad-status colors
+       (active/sold/featured badges) stop being hand-picked Tailwind
+       stock colors (bg-amber-400, bg-green-*) scattered across
+       individual components — see AdCard.tsx, StatusBadge.tsx. */
+    --success: 142.6 33.3% 35.9%;
+    --success-foreground: 40 60% 98%;
+    --warning: 37.7 61.7% 52.9%;
+    --warning-foreground: 33.3 15.8% 11.2%;
+
+    --border: 37.9 27.5% 86.5%;
+    --input: 37.9 27.5% 86.5%;
+    --ring: 148.7 32.9% 27.5%;
+    --radius: 0.6rem;
+  }
+
+  .dark {
+    --background: 150 12% 8%;
+    --foreground: 40 30% 94%;
+    --card: 150 12% 11%;
+    --card-foreground: 40 30% 94%;
+    --popover: 150 12% 11%;
+    --popover-foreground: 40 30% 94%;
+
+    --primary: 148 38% 52%;
+    --primary-foreground: 150 20% 8%;
+
+    --secondary: 150 10% 17%;
+    --secondary-foreground: 40 30% 94%;
+    --muted: 150 10% 17%;
+    --muted-foreground: 36 12% 65%;
+
+    --accent: 21 55% 58%;
+    --accent-foreground: 150 20% 8%;
+
+    --destructive: 4 55% 55%;
+    --destructive-foreground: 40 30% 94%;
+
+    --success: 143 35% 48%;
+    --success-foreground: 150 20% 8%;
+    --warning: 38 65% 58%;
+    --warning-foreground: 33 16% 11%;
+
+    --border: 150 10% 20%;
+    --input: 150 10% 20%;
+    --ring: 148 38% 52%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+}
+
+/**
+ * FIX PWA-08: دعم Safe Area — ضروري عند تشغيل التطبيق كـ standalone PWA
+ * (بدون شريط متصفح) على أجهزة بها notch/الحافة المستديرة أو شريط سفلي
+ * للإيماءات (iPhone الحديثة، وبعض أجهزة Android). بدون هذا، عناصر ثابتة
+ * (Header علوي، Bottom navigation) قد تُخفى جزئيًا خلف تلك المناطق.
+ * viewport.viewportFit = 'cover' في app/layout.tsx يفعّل env(safe-area-inset-*)
+ * أدناه؛ بدونه تكون قيمتها صفرًا دائمًا فلا ضرر في تركها مفعّلة دومًا.
+ */
+.pwa-safe-top {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+
+.pwa-safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+}

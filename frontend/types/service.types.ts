@@ -1,0 +1,264 @@
+/**
+ * Service provider / listing / request / review / appointment types.
+ * Mirrors backend's actual Prisma models — verified directly against
+ * backend-v17's prisma/schema.prisma and each module's *.validation.ts /
+ * *.controller.ts (NOT services-design.md's assumed shapes; the real
+ * backend was uploaded this round and several details differ — see the
+ * inline notes below each time that happened).
+ *
+ * A ServiceProviderDetails row hangs off SellerProfile (see
+ * seller.types.ts) — a user must already be a seller (own a
+ * SellerProfile) before they can become a service provider. There is
+ * no standalone "service provider role".
+ */
+import type { SellerProfile } from './seller.types';
+
+export type ServiceBusinessType = 'INDIVIDUAL' | 'SMALL_BUSINESS';
+export type ServiceAvailability = 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE';
+export type ServicePricingType = 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE';
+export type ServiceListingStatus = 'ACTIVE' | 'PAUSED' | 'DELETED';
+export type ServiceLocationType = 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE';
+export type ServiceRequestStatus =
+  | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+/** Action values accepted by PATCH /service-requests/:id/respond. PENDING is
+ * never a valid target — only ever the creation default. */
+export type ServiceRequestAction =
+  | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+
+export type WorkingHours = Record<
+  'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat',
+  { open: string; close: string } | null
+>;
+
+export interface ServiceProviderDetails {
+  id: string;
+  sellerProfileId: string;
+  businessName: string;
+  businessType: ServiceBusinessType;
+  logoUrl: string | null;
+  description: string;
+  serviceAreaCities: string[];
+  workingHours: WorkingHours;
+  contactPhone: string;
+  availabilityStatus: ServiceAvailability;
+  completedRequestsCount: number;
+  /** Prisma Decimal(5,2) — string in JSON, same convention as SellerProfile.averageRating. */
+  fulfillmentRate: string | null;
+  /** Optional pin for "nearby me" search — real schema field, not in services-design.md. */
+  latitude: string | null;
+  longitude: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** GET /service-providers/:id — public page, includes parent seller trust data. */
+export type ServiceProviderPublic = ServiceProviderDetails & {
+  sellerProfile: Pick<SellerProfile, 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings'>;
+  listings: ServiceListing[];
+};
+
+export interface ServiceCategory {
+  id: string;
+  name: string;
+  nameAr: string;
+  slug: string;
+  icon: string | null;
+  parentId: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ServiceListing {
+  id: string;
+  providerId: string;
+  categoryId: string;
+  title: string;
+  description: string;
+  images: string[];
+  pricingType: ServicePricingType;
+  /** Prisma Decimal(10,2) — string in JSON, or null when pricingType is NEGOTIABLE. */
+  price: string | null;
+  durationEstimate: string | null;
+  serviceLocation: ServiceLocationType;
+  status: ServiceListingStatus;
+  views: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Listing card in browse/search results — includes provider summary to avoid N+1 fetches. */
+export type ServiceListingWithProvider = ServiceListing & {
+  provider: Pick<ServiceProviderDetails, 'id' | 'businessName' | 'logoUrl' | 'availabilityStatus'> & {
+    sellerProfile: Pick<SellerProfile, 'displayName' | 'verified' | 'averageRating'>;
+  };
+};
+
+export interface ServiceRequest {
+  id: string;
+  listingId: string;
+  customerId: string;
+  status: ServiceRequestStatus;
+  details: string;
+  attachedImages: string[];
+  /** Prisma Decimal(10,2) — string in JSON, or null until quoted/agreed. */
+  quotedPrice: string | null;
+  agreedPrice: string | null;
+  createdAt: string;
+  updatedAt: string;
+  respondedAt: string | null;
+}
+
+export interface Appointment {
+  id: string;
+  providerId: string;
+  requestId: string | null;
+  scheduledStart: string;
+  scheduledEnd: string;
+  status: AppointmentStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceReview {
+  id: string;
+  score: number;
+  comment: string | null;
+  requestId: string;
+  raterId: string;
+  sellerProfileId: string;
+  createdAt: string;
+}
+
+// ── Payloads ─────────────────────────────────────────────────────
+
+/** POST /service-providers/me. */
+export interface CreateServiceProviderPayload {
+  businessName: string;
+  businessType: ServiceBusinessType;
+  description: string;
+  serviceAreaCities: string[];
+  workingHours: WorkingHours;
+  contactPhone: string;
+  logoUrl?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+/** PATCH /service-providers/me. */
+export type UpdateServiceProviderPayload = Partial<CreateServiceProviderPayload> & {
+  availabilityStatus?: ServiceAvailability;
+};
+
+/** GET /service-providers/nearby query params — real endpoint, no plan equivalent. */
+export interface NearbyServiceProvidersParams {
+  lat: number;
+  lng: number;
+  /** km, server default 10, capped 100. */
+  radius?: number;
+  page?: number;
+  limit?: number;
+}
+
+/** POST /service-listings (multipart/form-data — images come from files, not this payload). */
+export interface CreateServiceListingPayload {
+  categoryId: string;
+  title: string;
+  description: string;
+  pricingType: ServicePricingType;
+  /** Required when pricingType is FIXED or STARTING_FROM; omit for NEGOTIABLE. */
+  price?: number;
+  durationEstimate?: string;
+  serviceLocation: ServiceLocationType;
+  images: File[];
+}
+
+/** PATCH /service-listings/:id — JSON, not multipart. The backend's update
+ * schema has no images field at all — there is no image-replace endpoint
+ * for service listings (unlike ads' dedicated /ads/:id/images routes). */
+export interface UpdateServiceListingPayload {
+  categoryId?: string;
+  title?: string;
+  description?: string;
+  pricingType?: ServicePricingType;
+  price?: number | null;
+  durationEstimate?: string | null;
+  serviceLocation?: ServiceLocationType;
+  status?: ServiceListingStatus;
+}
+
+export type ServiceListingSortField = 'createdAt' | 'price' | 'views';
+
+export interface ServiceListingsQuery {
+  page?: number;
+  limit?: number;
+  categoryId?: string;
+  providerId?: string;
+  city?: string;
+  serviceLocation?: ServiceLocationType;
+  minPrice?: number;
+  maxPrice?: number;
+  search?: string;
+  sortBy?: ServiceListingSortField;
+  sortOrder?: 'asc' | 'desc';
+  /** Used by my-listings (GET /service-listings/me); ignored by the public browse endpoint. */
+  status?: ServiceListingStatus;
+}
+
+/** POST /service-requests. */
+export interface CreateServiceRequestPayload {
+  listingId: string;
+  details: string;
+  attachedImages?: string[];
+}
+
+/** PATCH /service-requests/:id/respond. */
+export interface RespondToServiceRequestPayload {
+  action: ServiceRequestAction;
+  quotedPrice?: number;
+  agreedPrice?: number;
+}
+
+export interface ServiceRequestsQuery {
+  page?: number;
+  limit?: number;
+  status?: ServiceRequestStatus;
+}
+
+/** POST /service-reviews. */
+export interface CreateServiceReviewPayload {
+  requestId: string;
+  score: 1 | 2 | 3 | 4 | 5;
+  comment?: string;
+}
+
+/** POST /appointments. */
+export interface CreateAppointmentPayload {
+  requestId?: string;
+  /** ISO datetime — must be in the future. */
+  scheduledStart: string;
+  scheduledEnd: string;
+  notes?: string;
+}
+
+/** PATCH /appointments/:id/status — only these three are ever posted here;
+ * SCHEDULED is only the creation default. */
+export type UpdateAppointmentStatusPayload = {
+  status: Exclude<AppointmentStatus, 'SCHEDULED'>;
+};
+
+export interface AppointmentsQuery {
+  page?: number;
+  limit?: number;
+  from?: string;
+  to?: string;
+}
+
+/** GET /appointments/availability/:providerId?date=YYYY-MM-DD response shape
+ * is service-defined, not in schema — treated as opaque slot list until the
+ * appointments module (phase 4) is implemented in detail. */
+export interface AvailabilitySlot {
+  start: string;
+  end: string;
+}

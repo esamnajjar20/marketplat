@@ -1,0 +1,139 @@
+# PROD-FIX-16: previously no reverse-proxy config existed anywhere in
+# this repo — every deployment had to build one from scratch, and in
+# particular GET /metrics (see shared/utils/metrics.ts's own comment)
+# explicitly recommended a "reverse-proxy allowlist" that had nothing
+# to actually point at. This file is that missing piece: a reference
+# nginx config that TLS-terminates, proxies to the backend app service,
+# and — the specific gap this was written to close — blocks /metrics
+# from anything outside a private/internal network range at the
+# network layer, on top of (not instead of) the application-level
+# METRICS_TOKEN gate added in the same fix.
+#
+# This is a STARTING POINT, not a finished production config: replace
+# example.com, the TLS cert paths, and the allowlisted CIDR ranges
+# under "location /metrics" with your actual scraper network before
+# using this for real. Assumes it sits in front of the `app` service
+# from docker-compose.yml/docker-compose.full.yml (upstream name
+# "backend" below matches docker-compose.full.yml's service name).
+
+upstream backend {
+    # PM2 cluster mode (ecosystem.config.js) already load-balances
+    # across CPU cores INSIDE one container on one port — nginx here is
+    # balancing across container instances if you run more than one
+    # (e.g. `docker compose up --scale app=3`), not across PM2 workers,
+    # which are invisible to nginx (all reachable through the same
+    # container port).
+    server app:5000;
+    keepalive 32;
+}
+
+# Rate limiting zone as defense-in-depth alongside the app's own
+# rateLimit.middleware.ts (Redis-backed, per-route). This one is
+# nginx-local (per-nginx-instance, not shared across a multi-node
+# nginx fleet) and cheap to check before a request even reaches Node —
+# it exists to blunt very large floods before they cost a Redis round
+# trip, not to replace the app's own limits.
+limit_req_zone $binary_remote_addr zone=general:10m rate=20r/s;
+
+server {
+    listen 80;
+    server_name example.com; # CHANGE ME
+
+    # Redirect all HTTP to HTTPS.
+    location / {
+        return 301 https://$host$request_uri;
+    }
+
+    # Let Let's Encrypt / ACME challenges through over plain HTTP.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name example.com; # CHANGE ME
+
+    # CHANGE ME — paths to your actual certificate/key (e.g. issued by
+    # certbot, or mounted from a secrets manager).
+    ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 60m; # headroom above upload.middleware.ts's 55MB Content-Length pre-check
+
+    # L-1 (audit fix): gzip at the edge — cheaper than letting every
+    # request reach Node just to be compressed there (app.ts also runs
+    # the `compression` middleware as a fallback for any deployment that
+    # doesn't sit behind this nginx config). Off by default in nginx
+    # otherwise. gzip_proxied/gzip_vary matter here because every
+    # response in this block already goes through proxy_pass.
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 512;
+    gzip_types application/json application/javascript text/css text/plain
+               text/xml application/xml application/xml+rss image/svg+xml;
+
+    # PROD-FIX-16: the actual fix — /metrics restricted to a private
+    # network range at the nginx layer, on top of the application-level
+    # METRICS_TOKEN check (metrics.ts). Replace these example ranges
+    # with your real scraper network (a Prometheus server's IP/subnet,
+    # a VPN CIDR, etc.) — 10.0.0.0/8 and 172.16.0.0/12 are common
+    # private-network defaults, not a guarantee they match your setup.
+    #
+    # BUGFIX (found during a post-implementation code audit): uses `=`
+    # (exact match) rather than a bare prefix match. Without it, this
+    # block's IP allowlist would also apply — harmlessly today, since
+    # metrics.ts defines no other route starting with "/metrics" for a
+    # prefix match to expose — but ANY future route accidentally named
+    # e.g. "/metrics-internal" or "/metricsSomething" would silently
+    # inherit this restrictive allowlist too, which is very likely NOT
+    # the intent for an unrelated route. Exact match keeps this
+    # allowlist scoped to precisely the one path it's meant to guard.
+    location = /metrics {
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        deny all;
+
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+    }
+
+    # Health/readiness checks — deliberately no rate limiting or IP
+    # restriction here, matching health.routes.ts's own reasoning
+    # (meant to be reachable by any infra layer: a load balancer's
+    # health check, an orchestrator's liveness probe, etc. — mirrors
+    # /metrics's PREVIOUS unauthenticated-by-design behavior, which is
+    # still correct for these two, just not for /metrics).
+    location ~ ^/(health|ready|live)$ {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        limit_req zone=general burst=40 nodelay;
+
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # PROD-FIX-02 added explicit timeouts to Cloudinary/SMTP calls
+        # inside the app itself; these nginx-level timeouts are the
+        # matching outer bound so a proxied request can't hang past
+        # what the app's own logic would already have given up at.
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+}

@@ -1,0 +1,85 @@
+/**
+ * Admin API — maps to backend /api/v1/admin/* and /api/v1/reports/* endpoints.
+ *
+ * FIX C-08: updateReportStatus now calls PATCH /reports/:id/status
+ *           (was incorrectly PATCH /admin/reports/:id).
+ *           Backend route: PATCH /reports/:id/status in reportsRouter.
+ *
+ * FIX T-03: ReportStatus uses 'RESOLVED' (not 'REVIEWED').
+ *           Backend Prisma enum: PENDING | RESOLVED | DISMISSED.
+ *
+ * FIX API-SHAPE-01: getAds/getUsers/getReports now unwrap the backend's
+ *   real response shape via unwrapPaginated — see lib/apiPagination.ts.
+ */
+import { apiClient } from './client';
+import { unwrapPaginated } from '@/lib/apiPagination';
+import type {
+  AdminUser,
+  AdminAd,
+  AdminGetAdsParams,
+  AdminGetUsersParams,
+  SetFeaturedPayload,
+  SetPinnedPayload,
+  ToggleActivePayload,
+  Report,
+  ReportStatus,
+  AdminStats,
+} from '@/types/admin.types';
+import type { ApiResponse } from '@/types/api.types';
+
+export const adminApi = {
+  /**
+   * FIX FEAT-05: GET /admin/stats — replaces the previous client-side
+   * workaround of firing getAds/getUsers/getReports with limit=1 just
+   * to read each response's meta.total.
+   */
+  getStats: () =>
+    apiClient.get<ApiResponse<AdminStats>>('/admin/stats'),
+
+  // ── Ads ──────────────────────────────────────────────────────────
+
+  getAds: (params?: AdminGetAdsParams) =>
+    apiClient
+      .get<ApiResponse<AdminAd[]>>('/admin/ads', { params })
+      .then((r) => unwrapPaginated<AdminAd>(r)),
+
+  setFeatured: (adId: string, payload: SetFeaturedPayload) =>
+    apiClient.patch<ApiResponse<AdminAd>>(`/admin/ads/${adId}/featured`, payload),
+
+  setPinned: (adId: string, payload: SetPinnedPayload) =>
+    apiClient.patch<ApiResponse<AdminAd>>(`/admin/ads/${adId}/pinned`, payload),
+
+  forceDeleteAd: (adId: string) =>
+    apiClient.delete<ApiResponse<null>>(`/admin/ads/${adId}`),
+
+  // ── Users ─────────────────────────────────────────────────────────
+
+  getUsers: (params?: AdminGetUsersParams) =>
+    apiClient
+      .get<ApiResponse<AdminUser[]>>('/admin/users', { params })
+      .then((r) => unwrapPaginated<AdminUser>(r)),
+
+  toggleUserActive: (userId: string, payload: ToggleActivePayload) =>
+    apiClient.patch<ApiResponse<AdminUser>>(`/admin/users/${userId}/active`, payload),
+
+  /** FIX AUDIT-V3-05: PATCH /admin/users/:id/role */
+  changeRole: (userId: string, role: 'USER' | 'ADMIN') =>
+    apiClient.patch<ApiResponse<AdminUser>>(`/admin/users/${userId}/role`, { role }),
+
+  // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
+
+  getReports: (params?: { status?: ReportStatus; page?: number; limit?: number }) =>
+    apiClient
+      .get<ApiResponse<Report[]>>('/reports', { params })
+      .then((r) => unwrapPaginated<Report>(r)),
+
+  getReportById: (reportId: string) =>
+    apiClient.get<ApiResponse<Report>>(`/reports/${reportId}`),
+
+  /**
+   * FIX C-08: Backend route is PATCH /reports/:id/status (in reportsRouter).
+   * FIX T-03: status is 'RESOLVED' | 'DISMISSED' (not 'REVIEWED').
+   */
+  updateReportStatus: (reportId: string, status: Extract<ReportStatus, 'RESOLVED' | 'DISMISSED'>) =>
+    apiClient.patch<ApiResponse<Report>>(`/reports/${reportId}/status`, { status }),
+};

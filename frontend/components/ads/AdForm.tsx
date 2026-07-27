@@ -1,0 +1,276 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { Button }     from '@/components/shared/ui/Button';
+import { Input }      from '@/components/shared/ui/Input';
+import { FormField }  from '@/components/shared/forms/FormField';
+import { ImageUpload } from '@/components/shared/forms/ImageUpload';
+import { PriceInput }  from '@/components/shared/forms/PriceInput';
+import { CITIES, CONDITION_LABELS, MAX_IMAGES } from '@/lib/constants';
+import { useCategories } from '@/hooks/queries/useCategories';
+import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage } from '@/hooks/mutations/useAdMutations';
+import { parseApiError } from '@/lib/errorParser';
+import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
+
+interface Props {
+  mode: AdFormMode;
+  ad?: Ad;
+}
+
+const EMPTY: AdFormValues = {
+  title: '', description: '', price: '', isNegotiable: false,
+  condition: '', city: '', categoryId: '', images: [], existingImages: [],
+};
+
+interface Errors {
+  title?: string; description?: string; city?: string;
+  images?: string; condition?: string;
+}
+
+export function AdForm({ mode, ad }: Props) {
+  const { data: categories } = useCategories();
+  const createAd = useCreateAd();
+  const updateAd = useUpdateAd(ad?.id ?? '');
+  const addImages = useAddAdImages();
+  const removeImage = useRemoveAdImage();
+  const [isSavingImages, setIsSavingImages] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isPending = createAd.isPending || updateAd.isPending
+    || addImages.isPending || removeImage.isPending || isSavingImages;
+
+  // FIX I-04: snapshot of the ad's images as they were when the form
+  // mounted, so we can diff against `values.existingImages` on submit
+  // to know which ones the user actually removed.
+  const [originalImages] = useState<string[]>(() => ad?.images ?? []);
+
+  const [values, setValues] = useState<AdFormValues>(() =>
+    ad ? {
+      title: ad.title, description: ad.description,
+      price: ad.price ?? '', isNegotiable: ad.isNegotiable,
+      condition: ad.condition ?? '', city: ad.city,
+      categoryId: ad.categoryId ?? '', images: [],
+      existingImages: ad.images,
+    } : EMPTY
+  );
+  const [errors, setErrors] = useState<Errors>({});
+  // FIX M-1: field-level errors from the backend's Zod validation (400
+  // responses), separate from `errors` (client-side pre-submit checks).
+  // Kept apart so a fresh submit attempt clears stale server errors via
+  // validate()'s own setErrors() without this needing to know about that
+  // state, and so a field can show either source without one silently
+  // overwriting the other. See the field lookup helper below.
+  const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  // Field-level errors come from the mutation's own `error` state rather
+  // than a per-call onError passed to mutate(): useCreateAd/useUpdateAd
+  // already toast a generic message via their own onError, and mutate()
+  // here is called with just the payload (single argument).
+  useEffect(() => {
+    const err = mode === 'create' ? createAd.error : updateAd.error;
+    if (err) setServerErrors(parseApiError(err).fieldErrors);
+  }, [createAd.error, updateAd.error, mode]);
+
+  // Release the re-entrancy guard once the create mutation settles either
+  // way (the edit-mode path resets it itself in submitEdit's finally).
+  useEffect(() => {
+    if (mode === 'create' && !createAd.isPending) {
+      isSubmittingRef.current = false;
+    }
+  }, [mode, createAd.isPending]);
+
+  /** Client-side error takes priority (it's live, pre-submit); falls back to the backend's. */
+  function fieldError(field: keyof Errors): string | undefined {
+    return errors[field] ?? serverErrors?.[field]?.[0];
+  }
+
+  function set<K extends keyof AdFormValues>(key: K, val: AdFormValues[K]) {
+    setValues((v) => ({ ...v, [key]: val }));
+  }
+
+  function validate() {
+    const e: Errors = {};
+    if (!values.title.trim())        e.title       = 'عنوان الإعلان مطلوب';
+    else if (values.title.length < 5) e.title      = 'العنوان قصير جداً (5 أحرف على الأقل)';
+    if (!values.description.trim())  e.description = 'وصف الإعلان مطلوب';
+    else if (values.description.length < 20) e.description = 'الوصف قصير جداً (20 حرفاً على الأقل)';
+    if (!values.city)                e.city        = 'المدينة مطلوبة';
+    if (mode === 'create' && values.images.length === 0 && values.existingImages.length === 0)
+      e.images = 'أضف صورة واحدة على الأقل';
+    setErrors(e);
+    setServerErrors(undefined);
+    return Object.keys(e).length === 0;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (isSubmittingRef.current) return;
+    if (!validate()) return;
+
+    if (mode === 'create') {
+      isSubmittingRef.current = true;
+      const payload = {
+        title:        values.title.trim(),
+        description:  values.description.trim(),
+        price:        values.price ? parseFloat(values.price) : undefined,
+        isNegotiable: values.isNegotiable,
+        condition:    values.condition || undefined,
+        city:         values.city,
+        categoryId:   values.categoryId || undefined,
+        images:       values.images,
+      };
+      createAd.mutate(payload);
+      return;
+    }
+
+    if (!ad) return;
+
+    // FIX BUG-07: this used to fire removeImage/addImages inside
+    // updateAd's onSuccess without awaiting either — but updateAd's own
+    // onSuccess (in useAdMutations.ts) already navigates away as soon
+    // as the PATCH resolves, before the image calls had any chance to
+    // finish. One could silently fail after the user had already left
+    // the page, with no visible error and a half-applied edit. Now the
+    // image changes are awaited first (each still reports its own
+    // error via its hook's onError if it fails), and updateAd — the
+    // step that actually navigates — only runs once both have
+    // resolved, so a failure surfaces on the page the user is still
+    // looking at, and the successful case updates the ad's fields last
+    // (so the images we just confirmed are already what a subsequent
+    // getAdById would return, rather than the redirect racing ahead).
+    isSubmittingRef.current = true;
+    void submitEdit(ad);
+  }
+
+  async function submitEdit(currentAd: Ad) {
+    setIsSavingImages(true);
+    try {
+      const removedUrls = originalImages.filter(
+        (url) => !values.existingImages.includes(url),
+      );
+      for (const imageUrl of removedUrls) {
+        await removeImage.mutateAsync({ id: currentAd.id, imageUrl });
+      }
+      if (values.images.length > 0) {
+        await addImages.mutateAsync({ id: currentAd.id, files: values.images });
+      }
+    } catch {
+      // Each mutation's own onError already toasted a specific message
+      // and invalidated whatever partially succeeded; stop here so a
+      // failed image step doesn't still trigger the ad-details PATCH
+      // and navigate the user away from a half-applied edit.
+      return;
+    } finally {
+      setIsSavingImages(false);
+      isSubmittingRef.current = false;
+    }
+
+    const payload = {
+      title:        values.title.trim(),
+      description:  values.description.trim(),
+      price:        values.price ? parseFloat(values.price) : undefined,
+      isNegotiable: values.isNegotiable,
+      condition:    values.condition || undefined,
+      city:         values.city,
+      categoryId:   values.categoryId || undefined,
+    } satisfies UpdateAdPayload;
+
+    updateAd.mutate(payload);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {/* Basic info */}
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h2 className="font-semibold">معلومات الإعلان</h2>
+
+        <FormField label="عنوان الإعلان" htmlFor="title" required error={fieldError('title')}>
+          <Input id="title" value={values.title} maxLength={100}
+            onChange={(e) => set('title', e.target.value)}
+            placeholder="مثال: سيارة تويوتا كامري 2019 نظيفة" />
+        </FormField>
+
+        <FormField label="الوصف" htmlFor="desc" required error={fieldError('description')}>
+          <textarea id="desc" value={values.description} maxLength={5000} rows={5}
+            onChange={(e) => set('description', e.target.value)}
+            placeholder="اكتب تفاصيل الإعلان بوضوح..."
+            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
+          <p className="text-xs text-muted-foreground text-end">{values.description.length}/5000</p>
+        </FormField>
+      </div>
+
+      {/* Classification */}
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h2 className="font-semibold">التصنيف والموقع</h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label htmlFor="categoryId" className="text-sm font-medium">الفئة</label>
+            <select id="categoryId" value={values.categoryId}
+              onChange={(e) => set('categoryId', e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="">اختر فئة</option>
+              {categories?.map((cat) => (
+                <optgroup key={cat.id} label={cat.nameAr}>
+                  <option value={cat.id}>{cat.nameAr}</option>
+                  {cat.children?.map((c) => <option key={c.id} value={c.id}>— {c.nameAr}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
+          <FormField label="المدينة" htmlFor="city" required error={fieldError('city')}>
+            <select id="city" value={values.city} onChange={(e) => set('city', e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="">اختر مدينتك</option>
+              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </FormField>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="condition" className="text-sm font-medium">حالة المنتج</label>
+          <select id="condition" value={values.condition}
+            onChange={(e) => set('condition', e.target.value as typeof values.condition)}
+            className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+            <option value="">غير محدد</option>
+            {Object.entries(CONDITION_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Pricing */}
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h2 className="font-semibold">السعر</h2>
+        <PriceInput
+          value={values.price}
+          onChange={(v) => set('price', v)}
+          isNegotiable={values.isNegotiable}
+          onNegotiableChange={(v) => set('isNegotiable', v)}
+        />
+      </div>
+
+      {/* Images */}
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h2 className="font-semibold">الصور</h2>
+        {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
+        <ImageUpload
+          value={values.images}
+          existingUrls={values.existingImages}
+          maxFiles={MAX_IMAGES}
+          onChange={(files) => set('images', files)}
+          onRemoveExisting={(url) => set('existingImages', values.existingImages.filter((u) => u !== url))}
+        />
+      </div>
+
+      {/* Submit */}
+      <div className="flex justify-end gap-3">
+        <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
+        </Button>
+      </div>
+    </form>
+  );
+}

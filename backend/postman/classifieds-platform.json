@@ -1,0 +1,389 @@
+{
+  "info": {
+    "name": "Classifieds Platform API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api/v1"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Test User\",\"email\":\"test@example.com\",\"password\":\"password123\",\"city\":\"الرياض\"}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"test@example.com\",\"password\":\"password123\"}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/logout",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ads",
+      "item": [
+        {
+          "name": "Get All Ads",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/ads"
+          }
+        },
+        {
+          "name": "Get Ads with Filters",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/ads?city=الرياض&minPrice=100&maxPrice=1000&page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ads"
+              ],
+              "query": [
+                {
+                  "key": "city",
+                  "value": "الرياض"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "100"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "1000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ad by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/ads/:id"
+          }
+        },
+        {
+          "name": "Get My Ads",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/ads/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Ad",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ads",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "iPhone 14 Pro للبيع"
+                },
+                {
+                  "key": "description",
+                  "value": "جهاز بحالة ممتازة، استخدام 6 أشهر فقط"
+                },
+                {
+                  "key": "price",
+                  "value": "3500"
+                },
+                {
+                  "key": "city",
+                  "value": "الرياض"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Ad",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/ads/:id",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Updated Title\",\"price\":3200}"
+            }
+          }
+        },
+        {
+          "name": "Add Images",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ads/:id/images",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Image",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/ads/:id/images",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"imageUrl\":\"https://res.cloudinary.com/...\"}"
+            }
+          }
+        },
+        {
+          "name": "Delete Ad",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/ads/:id",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "Get My Favorites",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/favorites",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Toggle Favorite",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/favorites/:adId",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search Ads",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/ads/search?q=iPhone&city=الرياض",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ads",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "iPhone"
+                },
+                {
+                  "key": "city",
+                  "value": "الرياض"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/categories"
+          }
+        },
+        {
+          "name": "Create Category (Admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/categories",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Electronics\",\"nameAr\":\"إلكترونيات\",\"slug\":\"electronics\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Report Ad",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/reports/ads/:adId",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\":\"SCAM\",\"notes\":\"This ad looks fraudulent\"}"
+            }
+          }
+        },
+        {
+          "name": "Get Reports (Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/reports",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
