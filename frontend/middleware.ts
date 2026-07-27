@@ -175,8 +175,12 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // entirely outside dev so older-browser fallback behavior can't
     // silently widen the policy back open.
     `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    // FIX OFFLINE-01: fonts.googleapis.com/fonts.gstatic.com dropped —
+    // fonts are now self-hosted via @fontsource (see app/layout.tsx)
+    // and served from this app's own origin, not Google's CDN, so
+    // there's nothing left that needs either host allow-listed.
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co",
     `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو

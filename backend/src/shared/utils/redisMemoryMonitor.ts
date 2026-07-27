@@ -83,7 +83,7 @@ async function pollOnce(): Promise<void> {
     const ratio = usedBytes / maxBytes;
     const now = Date.now();
 
-    if (ratio >= WARNING_THRESHOLD_RATIO && now - lastWarnedAt > WARNING_COOLDOWN_MS) {
+    if (ratio >= WARNING_THRESHOLD_RATIO && now - lastWarnedAt >= WARNING_COOLDOWN_MS) {
       lastWarnedAt = now;
       logger.warn(
         `⚠️  Redis memory usage at ${(ratio * 100).toFixed(1)}% of maxmemory ` +
@@ -126,3 +126,4 @@ export const redisMemoryMonitor = {
     }
   },
 };
+

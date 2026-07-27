@@ -59,6 +59,17 @@
     --input: 37.9 27.5% 86.5%;
     --ring: 148.7 32.9% 27.5%;
     --radius: 0.6rem;
+
+    /* FIX OFFLINE-01: previously generated automatically by
+       next/font/google (Cairo/IBM_Plex_Mono/IBM_Plex_Sans_Arabic in
+       app/layout.tsx). Now that those fonts load via @fontsource's own
+       CSS imports instead (see app/layout.tsx), these three variables
+       are declared explicitly here, pointing at the exact font-family
+       names @fontsource's @font-face rules register. Consumed by
+       tailwind.config.ts's fontFamily.sans/cairo/sans-arabic/mono. */
+    --font-cairo: 'Cairo', sans-serif;
+    --font-ibm-plex-sans-arabic: 'IBM Plex Sans Arabic', sans-serif;
+    --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
   }
 
   .dark {

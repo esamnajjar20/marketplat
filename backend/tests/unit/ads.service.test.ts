@@ -254,12 +254,19 @@ describe('AdsService', () => {
     });
 
     it('invalidates the cache (version bump) after createAd, so a subsequent getAds re-hits the repository', async () => {
+      // createAd's transaction path calls tx.ad.create() directly against
+      // the real (unmocked) prisma client — a fake hardcoded 'user-1'
+      // string violates the ads_userId_fkey constraint. adsRepository.create
+      // is never called on this path either, so mocking it did nothing.
+      const { id: realUserId } = await createTestUser({
+        email: `ads-cache-test-${Date.now()}-${Math.random()}@example.com`,
+      });
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
-      (adsRepository.create as jest.Mock).mockResolvedValue(mockAd);
+      (adsRepository.countActiveByUserId as jest.Mock).mockResolvedValue(0);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'https://example.com/x.jpg', publicId: 'x' });
 
       await adsService.getAds(query); // populates cache, 1 repository call
-      await adsService.createAd('user-1', { title: 'New', description: 'desc', city: 'غزة' } as any, []);
+      await adsService.createAd(realUserId, { title: 'New', description: 'desc', city: 'غزة' } as any, []);
       await adsService.getAds(query); // must NOT be served from the now-stale cache
 
       expect(adsRepository.findMany).toHaveBeenCalledTimes(2);
