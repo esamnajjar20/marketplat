@@ -32,6 +32,28 @@ const eslintConfig = [
   // Next.js recommended rules (Core Web Vitals + TypeScript).
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
 
+  // FIX ESLINT-05: '@typescript-eslint/no-floating-promises' and
+  // 'await-thenable' are type-aware rules — they need real TS type
+  // info (which requires knowing the type of every expression they
+  // inspect), not just syntax. Without `parserOptions.project` telling
+  // typescript-eslint which tsconfig to build a type-checker from,
+  // ESLint has no type information at all and errors out the moment it
+  // hits a file governed by either rule, instead of actually linting
+  // it. Scoped to `files: ['**/*.ts', '**/*.tsx']` (rather than every
+  // file ESLint touches) because project-aware parsing only works for
+  // files tsconfig.json's `include` covers — pointing it at config
+  // files like eslint.config.mjs itself would throw a
+  // "file not found in project" parser error.
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parserOptions: {
+        project: './tsconfig.json',
+        tsconfigRootDir: __dirname,
+      },
+    },
+  },
+
   {
     rules: {
       // ── TypeScript ─────────────────────────────────────────────

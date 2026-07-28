@@ -20,11 +20,11 @@ export function PwaBootstrap() {
   // الحدث بصمت. لا تُعِد ترتيب <UpdatePrompt/> ليصبح خارج هذا المكوّن أو
   // قبل تركيبه دون مراعاة هذا الترتيب.
   useEffect(() => {
-    registerServiceWorker();
+    void registerServiceWorker();
 
     // fallback لإعادة إرسال الطابور عند عودة الاتصال في المتصفحات التي لا
     // تدعم Background Sync (انظر تعليق requestQueueReplay).
-    const handleOnline = () => requestQueueReplay();
+    const handleOnline = () => void requestQueueReplay();
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
   }, []);

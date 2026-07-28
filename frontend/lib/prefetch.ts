@@ -27,7 +27,7 @@
  * client-side counterpart's `.then(r => r.data.data)` would produce,
  * so hydration hands off a value of the same shape either way.
  */
-import { dehydrate, QueryClient } from '@tanstack/react-query';
+import { dehydrate, type QueryClient } from '@tanstack/react-query';
 import { cache }        from 'react';
 import { queryKeys }    from './queryKeys';
 import { API_BASE_URL } from './constants';
@@ -158,7 +158,7 @@ function fetchAdDetailDeduped(id: string): Promise<Ad> {
 
   const promise = fetchAdDetailCached(id);
   adDetailPromises.set(id, promise);
-  promise.finally(() => {
+  void promise.finally(() => {
     setTimeout(() => adDetailPromises.delete(id), 0);
   });
   return promise;

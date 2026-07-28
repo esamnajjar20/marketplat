@@ -94,7 +94,7 @@ export function getFieldError(error: ParsedError | undefined, field: string): st
 export function parseApiError(error: unknown): ParsedError {
   if (axios.isAxiosError(error)) {
     const status  = error.response?.status  ?? 0;
-    const data    = error.response?.data    as any;
+    const data    = error.response?.data    as Record<string, unknown>;
     const headers = error.response?.headers ?? {};
 
     // Use the backend's message when available — sanitised.

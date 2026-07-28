@@ -31,7 +31,7 @@ export default function OfflinePage() {
 
     const handleOnline = () => {
       setIsOnline(true);
-      requestQueueReplay();
+      void requestQueueReplay();
       // FIX OFFLINE-02: router.refresh() فقط يُعيد جلب بيانات المسار
       // الحالي (/offline نفسها) — لا ينقل المستخدم لأي مكان، خلافًا لما
       // كان التعليق يوحي به سابقًا. الانتقال الفعلي للرئيسية يتطلب

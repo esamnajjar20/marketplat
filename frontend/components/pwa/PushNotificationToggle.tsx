@@ -31,7 +31,17 @@ export function PushNotificationToggle() {
       setState('unsupported');
       return;
     }
-    getPushSubscriptionState().then(setState);
+    // FIX ESLINT-06: previously `getPushSubscriptionState().then(setState)`
+    // with no error handling — a floating promise (now caught by
+    // no-floating-promises now that eslint.config.mjs has type info to
+    // run that rule at all). If the promise ever rejects (e.g. the
+    // Notification/PushManager API throws inside the async function),
+    // it becomes an unhandled rejection instead of just leaving the
+    // toggle stuck on 'loading'. Falls back to 'unsupported' on error,
+    // same as the already-handled !isPushSupported() branch above.
+    getPushSubscriptionState()
+      .then(setState)
+      .catch(() => setState('unsupported'));
   }, []);
 
   const handleToggle = async () => {
@@ -47,7 +57,7 @@ export function PushNotificationToggle() {
         if (success) toast.success('تم تفعيل إشعارات الجهاز');
         else toast.error('لم يتم منح إذن الإشعارات');
       }
-    } catch (err) {
+    } catch {
       toast.error('تعذّر تحديث إعدادات الإشعارات');
       setState(await getPushSubscriptionState());
     }

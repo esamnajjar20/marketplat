@@ -32,10 +32,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicProfilePage({ params }: Props) {
   const { id } = await params;
-  let user: { name: string; city: string | null; bio: string | null; avatarUrl: string | null; createdAt: string; _count: { ads: number } } | null = null;
+  type ProfileUser = { name: string; city: string | null; bio: string | null; avatarUrl: string | null; createdAt: string; _count: { ads: number } };
+  let user: ProfileUser | null = null;
   try {
     const res = await getCachedUser(id);
-    user = (res.data.data as typeof user) ?? null;
+    user = (res.data.data as ProfileUser | undefined) ?? null;
   } catch { /* user 404 */ }
 
   if (!user) {
