@@ -14,14 +14,28 @@ const CACHE_DURATION = 30_000;
 // Promise Deduplication — طلب واحد فقط يضرب DB+Redis
 let inflightCheck: Promise<HealthStatus> | null = null;
 
+// BUGFIX (found during a post-implementation code audit): a `.catch()`
+// chained onto a call only handles that call's promise REJECTING — it
+// does nothing if the call throws synchronously instead (e.g. a client
+// library throwing before it ever returns a promise, such as when
+// called on a torn-down/disconnected connection). `checkOk` wraps the
+// call itself in try/catch so both failure modes — async rejection and
+// sync throw — resolve to `false` the same way, instead of a sync
+// throw escaping Promise.all entirely and rejecting performCheck().
+const checkOk = async (fn: () => Promise<unknown>): Promise<boolean> => {
+  try {
+    await fn();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const performCheck = async (): Promise<HealthStatus> => {
   try {
     const [dbOk, redisOk] = await Promise.all([
-      prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false),
-      redis
-        .ping()
-        .then(() => true)
-        .catch(() => false),
+      checkOk(() => prisma.$queryRaw`SELECT 1`),
+      checkOk(() => redis.ping()),
     ]);
 
     cachedStatus = {
@@ -35,10 +49,10 @@ const performCheck = async (): Promise<HealthStatus> => {
     // BUGFIX (found during a post-implementation code audit): previously
     // `inflightCheck = null` only ran on the success path, right before
     // `return`. In practice performCheck() never actually rejects today —
-    // every real failure source (DB down, Redis down) is already caught
-    // internally by the two `.catch(() => false)` calls above — but if a
-    // future change ever introduced a code path between Promise.all and
-    // the return that could throw, inflightCheck would be left pointing
+    // every real failure source (DB down, Redis down, or a synchronous
+    // throw) is already caught internally by the two `checkOk()` calls
+    // above — but if a future change ever introduced a code path between
+    // Promise.all and the return that could throw, inflightCheck would be left pointing
     // at a permanently-rejected Promise forever. Every subsequent call to
     // getCachedReadiness() would then reuse that same rejected Promise
     // indefinitely (see the `if (inflightCheck) return inflightCheck`

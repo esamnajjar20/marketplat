@@ -34,6 +34,12 @@ const ROTATE_SCRIPT = `
   return 'SUCCESS'
 `;
 
+const VALID_ROTATE_RESULTS: ReadonlySet<string> = new Set([
+  RotateResult.SUCCESS,
+  RotateResult.TOKEN_MISMATCH,
+  RotateResult.TOKEN_NOT_FOUND,
+]);
+
 export const atomicRefreshRotate = async (
   userId: string,
   sessionId: string,
@@ -50,7 +56,21 @@ export const atomicRefreshRotate = async (
       hashToken(newToken),
       REFRESH_TTL.toString()
     );
-    return result as RotateResult;
+    // BUGFIX (found while re-verifying this suite): previously cast
+    // whatever `eval` returned straight to RotateResult with no
+    // validation — if the underlying eval call ever resolved to
+    // something unexpected (undefined, an unrecognized string, a
+    // stale/misconfigured mock in tests, or a future Lua-script typo),
+    // that value would silently flow out of this function as if it
+    // were a legitimate RotateResult, masking the failure instead of
+    // surfacing it. Any value outside the three real outcomes the
+    // script can return is now treated as REDIS_ERROR — the same
+    // "something went wrong talking to Redis" signal callers already
+    // handle for an actual eval() rejection.
+    if (typeof result === 'string' && VALID_ROTATE_RESULTS.has(result)) {
+      return result as RotateResult;
+    }
+    return RotateResult.REDIS_ERROR;
   } catch {
     return RotateResult.REDIS_ERROR;
   }

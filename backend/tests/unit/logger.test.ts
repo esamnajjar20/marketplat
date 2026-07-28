@@ -136,11 +136,24 @@ describe('logger — Sentry error reporter transport', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalWebhookUrl = process.env.ERROR_REPORTER_WEBHOOK_URL;
 
-  async function waitForCondition(check: () => boolean, timeoutMs = 1000): Promise<void> {
+  async function waitForCondition(
+    check: () => boolean,
+    timeoutMs = 1000,
+    describeState?: () => string
+  ): Promise<void> {
     const start = Date.now();
     while (!check()) {
       if (Date.now() - start > timeoutMs) {
-        throw new Error('waitForCondition timed out');
+        // BUGFIX (found while re-verifying this suite): the bare
+        // 'waitForCondition timed out' message gives no signal about
+        // WHY — whether the mock was never called at all, or called
+        // with something the check didn't recognize. Call sites below
+        // now pass a describeState callback that dumps the relevant
+        // mock's actual call history into the failure message, so a
+        // future failure here is diagnosable from CI output alone
+        // instead of needing a live debugger.
+        const state = describeState ? `\nActual state: ${describeState()}` : '';
+        throw new Error(`waitForCondition timed out${state}`);
       }
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
@@ -178,7 +191,16 @@ describe('logger — Sentry error reporter transport', () => {
     const { logger } = require('../../src/shared/utils/logger');
     logger.error(new Error('database connection failed'));
 
-    await waitForCondition(() => (Sentry.captureException as jest.Mock).mock.calls.length > 0);
+    await waitForCondition(
+      () => (Sentry.captureException as jest.Mock).mock.calls.length > 0,
+      1000,
+      () =>
+        `captureException calls=${(Sentry.captureException as jest.Mock).mock.calls.length}, ` +
+        `captureMessage calls=${(Sentry.captureMessage as jest.Mock).mock.calls.length}` +
+        ((Sentry.captureMessage as jest.Mock).mock.calls.length > 0
+          ? `, captureMessage args=${JSON.stringify((Sentry.captureMessage as jest.Mock).mock.calls[0])}`
+          : '')
+    );
 
     const [capturedError] = (Sentry.captureException as jest.Mock).mock.calls[0];
     expect(capturedError).toBeInstanceOf(Error);

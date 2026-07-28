@@ -6,12 +6,27 @@ import { redis } from '../../src/config/redis';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { AdCreationLockedError } from '../../src/shared/utils/adLock';
 import { ROLES } from '../../src/shared/constants/roles';
 import { createTestUser } from '../helpers/auth.helper';
 
 jest.mock('../../src/modules/ads/ads.repository');
 jest.mock('../../src/config/env', () => ({
-  env: { cloudinary: { cloudName: 'demo' }, ads: { maxPerUser: 50 } },
+  env: {
+    cloudinary: { cloudName: 'demo' },
+    ads: { maxPerUser: 50 },
+    // createTestUser() (via tests/helpers/auth.helper.ts) calls the real
+    // signTokenPair/signAccessToken/signRefreshToken, which read
+    // env.jwt.secret/refreshSecret/expiresIn — without these the mock
+    // above (originally cloudinary/ads-only) left env.jwt undefined,
+    // crashing every test in this file that goes through createTestUser
+    // with "Cannot read properties of undefined (reading 'secret')".
+    jwt: {
+      secret: 'test-only-jwt-secret-not-for-real-use-0000000000000000',
+      refreshSecret: 'test-only-jwt-refresh-secret-not-for-real-use-000000',
+      expiresIn: '15m',
+    },
+  },
 }));
 jest.mock('../../src/config/cloudinary', () => ({
   uploadImage: jest.fn(),
@@ -51,7 +66,6 @@ describe('AdsService', () => {
         url: 'https://cdn.example.com/img.jpg',
         publicId: 'classifieds/ads/img',
       });
-      (adsRepository.create as jest.Mock).mockResolvedValue(mockAd);
 
       const files = [{ buffer: Buffer.from('fake') }] as Express.Multer.File[];
       const result = await adsService.createAd(userId, {
@@ -62,8 +76,20 @@ describe('AdsService', () => {
         isNegotiable: false,
       }, files);
 
+      // BUGFIX (found while re-verifying this suite): createAd's real
+      // implementation inserts via `prisma.$transaction(tx => tx.ad.create(...))`
+      // directly — it has never called adsRepository.create (that
+      // method now has zero call sites in src/, confirmed by grep).
+      // The old assertion `expect(result.id).toBe('ad-1')` only ever
+      // passed because it read a value off a mocked adsRepository.create
+      // that wasn't actually on the code path being exercised — masking
+      // that this test wasn't testing what it claimed to. It's a real
+      // DB row now, so assert against the fields we actually control
+      // (userId, uploaded image URL) rather than a hardcoded fake id.
       expect(uploadImage).toHaveBeenCalled();
-      expect(result.id).toBe('ad-1');
+      expect(result.id).toEqual(expect.any(String));
+      expect(result.userId).toBe(userId);
+      expect(result.images).toEqual(['https://cdn.example.com/img.jpg']);
     });
 
     it('cleans up uploaded images when ad creation fails', async () => {
@@ -72,8 +98,16 @@ describe('AdsService', () => {
         publicId: 'classifieds/ads/img',
       });
       (deleteImage as jest.Mock).mockResolvedValue(undefined);
-      (adsRepository.create as jest.Mock).mockRejectedValue(new Error('DB error'));
-
+      // BUGFIX: createAd's insert goes through the real Prisma client
+      // (see comment above), so forcing a failure means making the
+      // real tx.ad.create() call reject — mocking adsRepository.create
+      // to reject had no effect on this code path at all. A
+      // categoryId that doesn't exist violates the real FK constraint
+      // on Ad.categoryId (schema.prisma) — a genuine insert failure
+      // without needing to mock Prisma itself. (A negative price
+      // won't do this: there's no DB-level check constraint on price,
+      // and the positive-number validation lives in Zod at the route
+      // layer, which calling adsService.createAd directly bypasses.)
       const files = [{ buffer: Buffer.from('fake') }] as Express.Multer.File[];
 
       await expect(
@@ -84,11 +118,12 @@ describe('AdsService', () => {
             description: 'Description long enough',
             price: 100,
             city: 'Riyadh',
+            categoryId: 'nonexistent-category-id',
             isNegotiable: false,
           },
           files
         )
-      ).rejects.toThrow('DB error');
+      ).rejects.toThrow();
 
       expect(deleteImage).toHaveBeenCalledWith('classifieds/ads/img');
     });
@@ -116,7 +151,6 @@ describe('AdsService', () => {
       // Must fail fast — no Cloudinary upload should be attempted once
       // the cap check has already failed.
       expect(uploadImage).not.toHaveBeenCalled();
-      expect(adsRepository.create).not.toHaveBeenCalled();
     });
 
     it('allows creation when the user is just under the active-ad cap', async () => {
@@ -125,7 +159,6 @@ describe('AdsService', () => {
         url: 'https://cdn.example.com/img.jpg',
         publicId: 'classifieds/ads/img',
       });
-      (adsRepository.create as jest.Mock).mockResolvedValue(mockAd);
 
       const files = [{ buffer: Buffer.from('fake') }] as Express.Multer.File[];
       const result = await adsService.createAd(
@@ -140,27 +173,33 @@ describe('AdsService', () => {
         files
       );
 
-      expect(result.id).toBe('ad-1');
+      expect(result.id).toEqual(expect.any(String));
+      expect(result.userId).toBe(userId);
     });
 
     // AUDIT-FIX M-02 coverage: proves the count-check-then-create
-    // sequence is now actually serialized per-user, not just correct
-    // when called sequentially (which the tests above already covered
-    // but couldn't have caught a TOCTOU race even if one existed).
-    it('serializes two concurrent createAd calls for the same user so the second sees the first’s committed count', async () => {
-      // Simulate a real DB: countActiveByUserId reflects how many
-      // `create` calls have actually completed so far, not a fixed
-      // mocked value — this is what makes the test able to detect a
-      // race (a broken, unlocked version of createAd would have both
-      // calls read the pre-creation count and both pass).
-      let committedCount = 0;
-      (adsRepository.countActiveByUserId as jest.Mock).mockImplementation(
-        async () => committedCount
-      );
-      (adsRepository.create as jest.Mock).mockImplementation(async () => {
-        committedCount += 1;
-        return mockAd;
-      });
+    // sequence is now actually serialized per-user via a Redis lock
+    // (withUserAdCreationLock), not just correct when called
+    // sequentially (which the tests above already covered but
+    // couldn't have caught a TOCTOU race even if one existed).
+    //
+    // BUGFIX (found while re-verifying this suite): the previous
+    // version of this test simulated "concurrency" entirely through a
+    // mocked adsRepository.create incrementing a local counter — but
+    // createAd never calls adsRepository.create (see the comment on
+    // the first test in this block), so that mock was inert and the
+    // test wasn't exercising the real lock at all. It also asserted
+    // the losing call rejects with BadRequestError (cap exceeded),
+    // which is the wrong failure mode for genuine concurrent
+    // callers: withUserAdCreationLock's Redis NX lock means the
+    // second caller to arrive while the first still holds the lock
+    // is rejected with AdCreationLockedError (409, "try again"), not
+    // a cap-exceeded error — the cap check inside the lock only ever
+    // runs for whichever caller actually acquires it. Two genuinely
+    // concurrent createAd calls (no `await` between dispatching them)
+    // now assert that real behavior instead.
+    it('serializes two concurrent createAd calls for the same user so only one acquires the creation lock', async () => {
+      (adsRepository.countActiveByUserId as jest.Mock).mockResolvedValue(0);
       (uploadImage as jest.Mock).mockResolvedValue({
         url: 'https://cdn.example.com/img.jpg',
         publicId: 'classifieds/ads/img',
@@ -169,12 +208,6 @@ describe('AdsService', () => {
       // which calls deleteImage on the (wasted) upload — must resolve,
       // not return undefined, or the cleanup call itself would throw.
       (deleteImage as jest.Mock).mockResolvedValue(undefined);
-
-      // maxPerUser is mocked to 50 above; simulate the user already
-      // sitting one below the cap so a single successful create should
-      // push them to the cap and a concurrent second one must be
-      // rejected rather than both succeeding.
-      committedCount = 49;
 
       const files = [{ buffer: Buffer.from('fake') }] as Express.Multer.File[];
       const input = {
@@ -185,6 +218,8 @@ describe('AdsService', () => {
         isNegotiable: false,
       };
 
+      // No `await` between dispatching the two calls — genuinely
+      // concurrent, both racing for the same per-user Redis lock.
       const results = await Promise.allSettled([
         adsService.createAd(userId, input, files),
         adsService.createAd(userId, input, files),
@@ -193,12 +228,11 @@ describe('AdsService', () => {
       const fulfilled = results.filter(r => r.status === 'fulfilled');
       const rejected = results.filter(r => r.status === 'rejected');
 
-      // Exactly one of the two concurrent requests may succeed — the
-      // race this fix closes would otherwise let both through.
+      // Exactly one of the two concurrent requests may hold the lock
+      // and succeed — the other must be rejected, not both let through.
       expect(fulfilled).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(BadRequestError);
-      expect(adsRepository.create).toHaveBeenCalledTimes(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(AdCreationLockedError);
     });
   });
 

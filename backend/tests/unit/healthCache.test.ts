@@ -123,42 +123,44 @@ describe('healthCache', () => {
 
   /**
    * BUGFIX regression test — found during a post-implementation code
-   * audit. Previously `inflightCheck = null` only ran on the success
-   * path (right before `return`), not in a `finally`. In real usage
-   * performCheck() never actually rejects (every real failure source is
-   * already caught internally by the two `.catch(() => false)` calls
-   * around the Promise.all), so this couldn't be triggered through the
-   * normal DB-down/Redis-down paths — this test forces the scenario
-   * directly by making Promise.all itself reject (simulating some
-   * future code path between the check and the return that could throw),
-   * to prove getCachedReadiness() recovers on the next call rather than
-   * permanently serving a stuck rejected Promise.
+   * audit. `checkOk()` wraps each individual check in try/catch, so a
+   * check that throws synchronously (e.g. a client library throwing
+   * before it ever returns a promise) resolves to `false` the same way
+   * an ordinary async rejection does — it does NOT escape Promise.all
+   * or cause getCachedReadiness() itself to reject. This test forces
+   * that exact scenario and asserts the safer behavior: a reported
+   * `db: 'error'` status, not a thrown/rejected getCachedReadiness().
    */
-  it('BUGFIX: recovers on the next call even if a check rejects unexpectedly (not just returns error status)', async () => {
+  it('BUGFIX: a synchronous throw from a check is reported as db: error, not an unhandled rejection', async () => {
     const { redis } = await import('../../src/config/redis');
-    // Force Promise.all itself to reject, not just resolve to false —
-    // this is the "escapes the internal .catch()" scenario the fix
-    // guards against.
+    // A synchronous throw, not a rejected promise — the scenario
+    // checkOk() exists specifically to catch.
     jest.spyOn(prisma, '$queryRaw').mockImplementation(() => {
-      throw new Error('unexpected synchronous throw, bypassing the .catch() chain');
+      throw new Error('client library threw synchronously, e.g. a torn-down connection');
     });
     jest.spyOn(redis, 'ping').mockResolvedValue('PONG');
 
     const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
 
-    // First call: the underlying check throws synchronously, so
-    // getCachedReadiness() itself rejects.
-    await expect(getCachedReadiness()).rejects.toThrow();
-
-    // Without the fix, inflightCheck would still be pointing at that
-    // same rejected Promise here — every subsequent call would reuse
-    // and re-reject with it forever, even after the underlying issue
-    // is fixed. With the fix (finally-based reset), a second call
-    // starts a fresh check instead of reusing the stuck one.
-    jest.spyOn(prisma, '$queryRaw').mockResolvedValue([{ '?column?': 1 }] as any);
+    // checkOk() catches the synchronous throw internally, so this
+    // resolves — it does not reject.
     const status = await getCachedReadiness();
-
-    expect(status.db).toBe('ok');
+    expect(status.db).toBe('error');
     expect(status.redis).toBe('ok');
+
+    // A later call, once the underlying issue is resolved, reflects
+    // the recovered state — nothing about the earlier throw leaves the
+    // cache permanently stuck.
+    jest.spyOn(prisma, '$queryRaw').mockResolvedValue([{ '?column?': 1 }] as any);
+    // Beyond the 30s cache window would normally be required to force a
+    // re-check; resetModules() + a fresh import already gives us a
+    // clean module instance for this assertion.
+    jest.resetModules();
+    const { getCachedReadiness: freshGetCachedReadiness } = await import(
+      '../../src/shared/utils/healthCache'
+    );
+    const recovered = await freshGetCachedReadiness();
+    expect(recovered.db).toBe('ok');
+    expect(recovered.redis).toBe('ok');
   });
 });

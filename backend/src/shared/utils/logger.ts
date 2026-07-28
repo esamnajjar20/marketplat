@@ -45,6 +45,12 @@ if (!isDev) {
 
 export const logger = winston.createLogger({
   level: isDev ? 'debug' : 'info',
+  // BUGFIX: must run at the core logger level, not only inside each
+  // transport's own format — see comment above WebhookErrorReporterTransport
+  // and SentryErrorReporterTransport below for why an Error passed as
+  // the sole log argument (logger.error(someError)) needs this here to
+  // be normalized correctly before any transport sees it.
+  format: errors({ stack: true }),
   transports,
   exitOnError: false,
 });
@@ -135,16 +141,19 @@ if (process.env.SENTRY_DSN) {
     log(info: winston.LogEntry, callback: () => void) {
       const { level, message, stack, ...meta } = info;
 
-      // FIX APM-03: winston.createLogger() itself has no base-level
-      // `format` — errors({ stack: true }) is only applied per-transport
-      // (see the Console/DailyRotateFile transports above, each of
-      // which sets it explicitly). A transport added via logger.add()
-      // with no format of its own would NOT get a populated `stack`
-      // field even when a real Error was logged, silently falling
-      // through to captureMessage every time — which is exactly why
-      // this transport is constructed below with its own explicit
-      // `format: errors({ stack: true })`, not relying on some assumed
-      // global default that doesn't actually exist in this file.
+      // FIX APM-03 (updated): winston.createLogger() now applies
+      // errors({ stack: true }) as its own base-level `format` (see the
+      // logger definition above) — BUGFIX: previously that base format
+      // didn't exist and errors() was only applied per-transport, which
+      // meant an Error passed as the sole log argument (e.g.
+      // logger.error(someError)) wasn't reliably normalized into a
+      // plain-string `message` + `stack` before reaching a transport
+      // with no format of its own, silently falling through to
+      // captureMessage every time. This transport's own explicit
+      // `format: errors({ stack: true })` below is now redundant with
+      // the base format but kept anyway as belt-and-suspenders, so this
+      // transport doesn't silently regress if the base format is ever
+      // removed.
       //
       // FIX APM-04: even with that format applied, Winston's errors()
       // formatter ONLY auto-detects an Error passed directly as an

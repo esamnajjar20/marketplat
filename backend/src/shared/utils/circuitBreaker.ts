@@ -96,20 +96,36 @@ export class CircuitBreaker {
    * the breaker's state based on whether it resolves or rejects.
    */
   async execute<T>(fn: () => Promise<T>): Promise<T> {
+    // BUGFIX (found by actually running this suite, not just reading
+    // the source — a hand-trace of "does this guard work" looked
+    // correct but missed a real ordering bug): the halfOpenTrialInFlight
+    // check used to live INSIDE `if (this.state === 'OPEN')`. That's
+    // exactly wrong for the concurrent-arrival case this guard exists
+    // for: caller A (arriving first, synchronously, before any
+    // `await`) passes the OPEN check, immediately sets
+    // `this.halfOpenTrialInFlight = true` AND `this.state = 'HALF_OPEN'`,
+    // then hits `await fn()` and suspends. Caller B, arriving in the
+    // same tick right after, now sees `this.state === 'HALF_OPEN'` —
+    // not 'OPEN' — so it skips the entire guard block (including the
+    // halfOpenTrialInFlight check nested inside it) and falls straight
+    // through to `await fn()` completely unguarded, becoming a second
+    // trial call. The flag was being set correctly; it just wasn't
+    // being consulted for a caller that arrives after state has
+    // already flipped. Checking halfOpenTrialInFlight unconditionally,
+    // before ever looking at which state we're in, closes that gap:
+    // whichever caller sets the flag first blocks every other
+    // concurrent caller regardless of whether they still see OPEN or
+    // already see HALF_OPEN.
+    if (this.halfOpenTrialInFlight) {
+      throw new CircuitBreakerOpenError(this.name);
+    }
+
     if (this.state === 'OPEN') {
       if (Date.now() < this.nextAttemptAt) {
         throw new CircuitBreakerOpenError(this.name);
       }
 
       // Reset timeout elapsed — allow exactly ONE trial call through.
-      // See halfOpenTrialInFlight's own doc comment above for why this
-      // check exists: without it, concurrent callers arriving here in
-      // the same tick would each independently pass this check and
-      // all become "trial calls", not just the first one.
-      if (this.halfOpenTrialInFlight) {
-        throw new CircuitBreakerOpenError(this.name);
-      }
-
       this.halfOpenTrialInFlight = true;
       this.state = 'HALF_OPEN';
       logger.info(`Circuit breaker "${this.name}" moving to HALF_OPEN — allowing a trial call`);
