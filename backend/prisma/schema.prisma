@@ -1,25 +1,3 @@
-// TERMUX/PROOT-UBUNTU ARM64 SUPPORT:
-// Prisma's own OS/libc auto-detection can misresolve inside a proot
-// sandbox (proot intercepts syscalls Prisma's detection logic uses to
-// probe the host, e.g. reading /etc/os-release or glibc version markers),
-// so the engine binary `prisma generate` fetches by auto-detect alone is
-// not reliable on Android ARM64 + Termux + proot-distro Ubuntu. Listing
-// targets explicitly makes `prisma generate` fetch a matching engine
-// regardless of what auto-detection guesses:
-//   - "native"                    → whatever host actually runs the generate step (covers normal dev machines/CI unchanged)
-//   - "linux-arm64-openssl-3.0.x" → proot-distro Ubuntu 22.04+ (OpenSSL 3.0 — the current proot-distro default), the ARM64 target that actually matters on-device
-//   - "linux-arm64-openssl-1.1.x" → proot-distro Ubuntu 20.04 / older images (OpenSSL 1.1), also ARM64
-//   - "debian-openssl-1.1.x"      → x86_64 Debian/OpenSSL 1.1 target — NOT selected on an ARM64 device (Prisma binaryTargets are architecture-specific, "debian-*" is always x86_64), included here only in case a build step ever cross-builds on/for an x86_64 Debian host (e.g. a CI runner) rather than running natively on the ARM64 device
-// Harmless on non-matching hosts: unused targets are simply not selected
-// at runtime, they just add a few MB to `prisma generate`'s one-time download.
-//
-// NOTE — Dockerfile is unaffected by any of this: it's Alpine-based
-// (node:20-alpine), which uses musl libc, not glibc — none of the
-// glibc targets above (arm64, debian) apply there. Docker's build runs
-// `prisma generate` directly inside the Alpine container itself (not
-// cross-compiling), so "native" alone already resolves correctly to
-// the right linux-musl target at build time regardless of what else is
-// listed here.
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-1.1.x"]
@@ -28,6 +6,320 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                        String               @id @default(cuid())
+  name                      String
+  email                     String               @unique
+  phone                     String?              @unique
+  passwordHash              String
+  role                      Role                 @default(USER)
+  city                      String?
+  bio                       String?
+  avatarUrl                 String?
+  isActive                  Boolean              @default(true)
+  notificationPreferences   Json                 @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true}")
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  ads                       Ad[]
+  auditLogs                 AuditLog[]
+  favorites                 Favorite[]
+  passwordResetTokens       PasswordResetToken[]
+  reports                   Report[]
+  sellerProfile             SellerProfile?
+  sellerRatingsGiven        SellerRating[]
+  serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
+  serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
+
+  @@index([isActive, createdAt])
+  @@map("users")
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  nameAr    String     @unique
+  slug      String     @unique
+  parentId  String?
+  createdAt DateTime   @default(now())
+  ads       Ad[]
+  parent    Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryParent")
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Ad {
+  id              String         @id @default(cuid())
+  title           String
+  description     String
+  price           Decimal?       @db.Decimal(10, 2)
+  images          String[]
+  city            String
+  condition       AdCondition?
+  isNegotiable    Boolean        @default(false)
+  status          AdStatus       @default(ACTIVE)
+  views           Int            @default(0)
+  isFeatured      Boolean        @default(false)
+  isPinned        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  userId          String
+  categoryId      String?
+  sellerProfileId String?
+  category        Category?      @relation(fields: [categoryId], references: [id])
+  sellerProfile   SellerProfile? @relation(fields: [sellerProfileId], references: [id])
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites       Favorite[]
+  reports         Report[]
+  ratings         SellerRating[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([sellerProfileId])
+  @@index([status, userId, createdAt])
+  @@index([status, createdAt])
+  @@index([status, city])
+  @@index([userId, status])
+  @@index([isFeatured, isPinned])
+  @@map("ads")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  adId      String
+  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, adId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+model Report {
+  id        String       @id @default(cuid())
+  reason    ReportReason
+  notes     String?      @db.VarChar(500)
+  status    ReportStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  adId      String
+  userId    String
+  ad        Ad           @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([adId, userId])
+  @@index([status])
+  @@map("reports")
+}
+
+model SellerProfile {
+  id                     String                   @id @default(cuid())
+  userId                 String                   @unique
+  displayName            String
+  bio                    String?
+  avatarUrl              String?
+  verified               Boolean                  @default(false)
+  verificationStatus     SellerVerificationStatus @default(UNVERIFIED)
+  verifiedAt             DateTime?
+  suspended              Boolean                  @default(false)
+  suspendedAt            DateTime?
+  trustScore             Int                      @default(0)
+  averageRating          Decimal                  @default(0) @db.Decimal(3, 2)
+  totalRatings           Int                      @default(0)
+  totalAds               Int                      @default(0)
+  activeAds              Int                      @default(0)
+  totalSales             Int                      @default(0)
+  responseRate           Decimal?                 @db.Decimal(5, 2)
+  responseTimeMinutes    Int?
+  joinedSellingAt        DateTime                 @default(now())
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  ads                    Ad[]
+  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ratings                SellerRating[]
+  serviceProviderDetails ServiceProviderDetails?
+  serviceReviews         ServiceReview[]
+
+  @@index([verified, trustScore])
+  @@index([trustScore])
+  @@map("seller_profiles")
+}
+
+model SellerRating {
+  id              String        @id @default(cuid())
+  score           Int
+  comment         String?       @db.VarChar(500)
+  sellerProfileId String
+  raterId         String
+  adId            String?
+  createdAt       DateTime      @default(now())
+  ad              Ad?           @relation(fields: [adId], references: [id])
+  rater           User          @relation(fields: [raterId], references: [id], onDelete: Cascade)
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerProfileId, raterId, adId])
+  @@index([sellerProfileId])
+  @@map("seller_ratings")
+}
+
+model ServiceProviderDetails {
+  id                     String              @id @default(cuid())
+  sellerProfileId        String              @unique
+  businessName           String
+  businessType           ServiceBusinessType @default(INDIVIDUAL)
+  logoUrl                String?
+  description            String              @db.VarChar(1000)
+  serviceAreaCities      String[]
+  workingHours           Json
+  contactPhone           String
+  availabilityStatus     ServiceAvailability @default(AVAILABLE)
+  latitude               Decimal?            @db.Decimal(9, 6)
+  longitude              Decimal?            @db.Decimal(9, 6)
+  completedRequestsCount Int                 @default(0)
+  fulfillmentRate        Decimal?            @db.Decimal(5, 2)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  appointments           Appointment[]
+  listings               ServiceListing[]
+  sellerProfile          SellerProfile       @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([availabilityStatus])
+  @@index([latitude, longitude])
+  @@map("service_provider_details")
+}
+
+model ServiceCategory {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  nameAr    String            @unique
+  slug      String            @unique
+  icon      String?
+  parentId  String?
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  parent    ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id])
+  children  ServiceCategory[] @relation("ServiceCategoryParent")
+  listings  ServiceListing[]
+
+  @@index([parentId])
+  @@map("service_categories")
+}
+
+model ServiceListing {
+  id               String                 @id @default(cuid())
+  providerId       String
+  categoryId       String
+  title            String
+  description      String                 @db.VarChar(2000)
+  images           String[]
+  pricingType      ServicePricingType     @default(NEGOTIABLE)
+  price            Decimal?               @db.Decimal(10, 2)
+  durationEstimate String?
+  serviceLocation  ServiceLocationType    @default(AT_PROVIDER)
+  status           ServiceListingStatus   @default(ACTIVE)
+  views            Int                    @default(0)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  category         ServiceCategory        @relation(fields: [categoryId], references: [id])
+  provider         ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  requests         ServiceRequest[]
+
+  @@index([categoryId, status])
+  @@index([providerId, status])
+  @@index([status, createdAt])
+  @@map("service_listings")
+}
+
+model ServiceRequest {
+  id             String               @id @default(cuid())
+  listingId      String
+  customerId     String
+  status         ServiceRequestStatus @default(PENDING)
+  details        String               @db.VarChar(1000)
+  attachedImages String[]
+  quotedPrice    Decimal?             @db.Decimal(10, 2)
+  agreedPrice    Decimal?             @db.Decimal(10, 2)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  respondedAt    DateTime?
+  appointment    Appointment?
+  customer       User                 @relation("ServiceRequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  listing        ServiceListing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  review         ServiceReview?
+
+  @@index([listingId, status])
+  @@index([customerId])
+  @@index([status, createdAt])
+  @@map("service_requests")
+}
+
+model Appointment {
+  id             String                 @id @default(cuid())
+  providerId     String
+  requestId      String?                @unique
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  status         AppointmentStatus      @default(SCHEDULED)
+  notes          String?                @db.VarChar(500)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  provider       ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  request        ServiceRequest?        @relation(fields: [requestId], references: [id])
+
+  @@index([providerId, scheduledStart, scheduledEnd])
+  @@map("appointments")
+}
+
+model ServiceReview {
+  id              String         @id @default(cuid())
+  score           Int
+  comment         String?        @db.VarChar(500)
+  requestId       String         @unique
+  raterId         String
+  sellerProfileId String
+  createdAt       DateTime       @default(now())
+  rater           User           @relation("ServiceReviewsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+  request         ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  sellerProfile   SellerProfile  @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([sellerProfileId])
+  @@map("service_reviews")
+}
+
+model AuditLog {
+  id        String         @id @default(cuid())
+  event     AuditEventType
+  userId    String?
+  sessionId String?
+  ip        String?
+  userAgent String?
+  details   Json?
+  createdAt DateTime       @default(now())
+  user      User?          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([event])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 enum Role {
@@ -129,476 +421,4 @@ enum AuditEventType {
   ADMIN_AD_PINNED
   ADMIN_AD_DELETED
   ADMIN_USER_STATUS_CHANGED
-}
-
-model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  phone        String?  @unique
-  passwordHash String
-  role         Role     @default(USER)
-  city         String?
-  bio          String?
-  avatarUrl    String?
-  isActive     Boolean  @default(true)
-  // FIX FEAT-02: previously NotificationSettingsForm.tsx's save button
-  // only showed a success toast with no backing storage anywhere — the
-  // "saved" preferences were never persisted, so reloading the page
-  // always reset to the hardcoded defaults. Stored as JSON rather than
-  // one boolean column per preference so adding/removing notification
-  // types later doesn't require a migration each time; the API layer
-  // (users.validation.ts) is the source of truth for which keys are
-  // currently valid.
-  notificationPreferences Json @default("{\"newMessage\": true, \"adViews\": false, \"favAdUpdated\": true, \"promotions\": false}")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  ads                Ad[]
-  reports            Report[]
-  favorites          Favorite[]
-  auditLogs          AuditLog[]
-  passwordResetTokens PasswordResetToken[]
-  // Seller Profile: reverse relation only — no new field on User itself.
-  // Seller-ness is a derived state (does sellerProfile exist?), not a
-  // Role or boolean stored on this model. See seller-profile-design.md §4.
-  sellerProfile      SellerProfile?
-  sellerRatingsGiven SellerRating[]
-
-  // Services system: reverse relations only, no new column on User —
-  // same "capability, not identity" rule as sellerProfile above.
-  serviceRequestsAsCustomer ServiceRequest[] @relation("ServiceRequestsAsCustomer")
-  serviceReviewsGiven       ServiceReview[]  @relation("ServiceReviewsGiven")
-
-  // FIX D-16: admin.service.ts's getAllUsers filters by isActive and
-  // always sorts by createdAt desc. The single-column isActive index
-  // alone lets Postgres filter via the index but still requires a
-  // separate sort step on the matching rows. This composite covers
-  // both the filter and the sort order in one index scan.
-  @@index([isActive, createdAt])
-  @@map("users")
-}
-
-model Category {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  nameAr    String    @unique
-  slug      String    @unique
-  parentId  String?
-  parent    Category? @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
-  children  Category[] @relation("CategoryParent")
-  createdAt DateTime  @default(now())
-
-  ads Ad[]
-
-  @@index([parentId])
-  @@map("categories")
-}
-
-model Ad {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  price       Decimal?  @db.Decimal(10, 2)
-  images      String[]
-  city         String
-  condition    AdCondition?
-  isNegotiable Boolean      @default(false)
-  status       AdStatus     @default(ACTIVE)
-  views        Int          @default(0)
-  isFeatured   Boolean      @default(false)
-  isPinned     Boolean      @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  reports    Report[]
-  favorites  Favorite[]
-
-  // Seller Profile: statistical/relational reference only. userId above
-  // stays the sole source of truth for ownership and permission checks
-  // (ad.userId !== userId) — this column is additive, never replaces it.
-  // Nullable because ads created before a user had a seller profile (or,
-  // going forward, briefly during the create-ad flow) may not have one.
-  sellerProfileId String?
-  sellerProfile   SellerProfile? @relation(fields: [sellerProfileId], references: [id], onDelete: SetNull)
-  ratings         SellerRating[]
-
-  @@index([userId])
-  @@index([categoryId])
-  @@index([sellerProfileId])
-  // FIX D-17: admin.service.ts's getAllAds filters by an optional
-  // combination of status/userId and always sorts by createdAt desc.
-  // The existing [userId, status] and [status, createdAt] indexes each
-  // cover part of that shape but not status+userId+createdAt together.
-  // This composite serves the admin "all ads, optionally filtered"
-  // query whether status, userId, both, or neither is supplied —
-  // Postgres can use a leading subset of a composite index, so this
-  // also still helps status-only or status+userId-only lookups.
-  @@index([status, userId, createdAt])
-  @@index([status, createdAt])
-  @@index([status, city])
-  @@index([userId, status])
-  @@index([isFeatured, isPinned])
-  @@map("ads")
-}
-
-model Favorite {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  adId   String
-  ad     Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, adId])
-  @@index([userId])
-  @@map("favorites")
-}
-
-model Report {
-  id        String       @id @default(cuid())
-  reason    ReportReason
-  notes     String?      @db.VarChar(500)
-  status    ReportStatus @default(PENDING)
-  createdAt DateTime     @default(now())
-
-  adId   String
-  ad     Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([adId, userId])
-  @@index([status])
-  @@map("reports")
-}
-
-// Seller Profile system — see seller-profile-design.md.
-// Seller is a state (owning a SellerProfile row), not a Role: `Role`
-// stays exactly USER | ADMIN, and User gains no new field beyond the
-// reverse relations declared on `model User` above.
-model SellerProfile {
-  id String @id @default(cuid())
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  displayName String
-  bio         String?
-  avatarUrl   String?
-
-  verified           Boolean                   @default(false)
-  verificationStatus SellerVerificationStatus  @default(UNVERIFIED)
-  verifiedAt         DateTime?
-
-  // AUDIT-FIX: previously there was no way to remove/pause a user's
-  // seller status short of disabling their whole account via
-  // User.isActive — no middle ground for "stop this person from
-  // selling, but leave their account otherwise intact". A soft flag
-  // rather than deleting the row: SellerProfile is referenced by
-  // Ad, SellerRating, ServiceProviderDetails (onDelete: Cascade on
-  // all of them) — deleting it would destroy real ad/rating/review
-  // history. suspended sellers keep their public profile and past
-  // ratings visible, but are blocked from new writes (see
-  // requireOwnProvider / ensureSellerProfileForAdCreation-equivalent
-  // checks in each module).
-  suspended   Boolean   @default(false)
-  suspendedAt DateTime?
-
-  // 0-1000 int scale (not float) to avoid rounding drift and to allow
-  // precise index-backed sort/filter. See trustScore.ts for how this
-  // is computed — never written to directly from a client-facing route.
-  trustScore Int @default(0)
-
-  averageRating Decimal @default(0) @db.Decimal(3, 2) // 0.00 - 5.00
-  totalRatings  Int     @default(0)
-
-  totalAds   Int @default(0)
-  activeAds  Int @default(0)
-  totalSales Int @default(0)
-
-  responseRate        Decimal? @db.Decimal(5, 2) // percentage 0.00-100.00
-  responseTimeMinutes Int?
-
-  joinedSellingAt DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  ads     Ad[]
-  ratings SellerRating[]
-
-  // Services system (services-design.md §1, §3): ServiceProviderDetails
-  // is an optional 1:1 extension of SellerProfile, not a parallel
-  // entity — a seller "becomes" a service provider by acquiring this
-  // row, the same way a User "becomes" a seller by acquiring a
-  // SellerProfile row. No new field here beyond this reverse relation.
-  serviceProviderDetails ServiceProviderDetails?
-  serviceReviews         ServiceReview[]
-
-  // Backs "verified sellers" / trust leaderboard listing pages and
-  // admin sort-by-trust views.
-  @@index([verified, trustScore])
-  @@index([trustScore])
-  @@map("seller_profiles")
-}
-
-model SellerRating {
-  id    String @id @default(cuid())
-  score Int // 1-5, validated in the Zod layer
-
-  comment String? @db.VarChar(500)
-
-  sellerProfileId String
-  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-
-  raterId String
-  rater   User   @relation(fields: [raterId], references: [id], onDelete: Cascade)
-
-  adId String?
-  ad   Ad?     @relation(fields: [adId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-
-  // One rater can't rate the same seller more than once for the same deal
-  // (or more than once overall, when adId is null).
-  @@unique([sellerProfileId, raterId, adId])
-  @@index([sellerProfileId])
-  @@map("seller_ratings")
-}
-
-// Services system — see services-design.md §1-§3. Built directly on top
-// of SellerProfile (never a parallel identity): "service provider" is a
-// capability a seller optionally acquires, exactly like "seller" itself
-// is a capability a User optionally acquires. Ratings/trust/verification
-// all stay centralized on SellerProfile — this table holds only data
-// specific to offering services (working hours, service areas, etc.).
-model ServiceProviderDetails {
-  id String @id @default(cuid())
-
-  sellerProfileId String        @unique
-  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-
-  businessName String
-  businessType ServiceBusinessType @default(INDIVIDUAL)
-  logoUrl      String?
-  description  String              @db.VarChar(1000)
-
-  // Array of city names — same lightweight pattern as Ad.city (no
-  // separate Location table yet; see services-design.md §3 for why).
-  serviceAreaCities String[]
-
-  // JSON rather than one column per weekday, mirroring
-  // User.notificationPreferences: flexible without a migration for
-  // every shape change. Expected shape:
-  // { "sun": {"open":"09:00","close":"18:00"}, "mon": null, ... }
-  workingHours Json
-
-  contactPhone       String
-  availabilityStatus ServiceAvailability @default(AVAILABLE)
-
-  // services-design.md §11: optional — powers the "nearby me" map search
-  // via a Haversine query. serviceAreaCities remains the primary/required
-  // geo mechanism; these are additive for providers who supply a pin.
-  latitude  Decimal? @db.Decimal(9, 6)
-  longitude Decimal? @db.Decimal(9, 6)
-
-  // Updated only internally (future service-requests module) — never
-  // written to directly from a client-facing route.
-  completedRequestsCount Int      @default(0)
-  fulfillmentRate        Decimal? @db.Decimal(5, 2)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  listings ServiceListing[]
-  appointments Appointment[]
-
-  @@index([availabilityStatus])
-  @@index([latitude, longitude])
-  @@map("service_provider_details")
-}
-
-// services-design.md §3-4: admin-managed taxonomy for services, kept as
-// its own table (not reusing Category) because service taxonomy and
-// product taxonomy evolve independently — same self-relation tree shape
-// as Category, same admin CRUD pattern as categories.service.ts.
-model ServiceCategory {
-  id        String            @id @default(cuid())
-  name      String            @unique
-  nameAr    String            @unique
-  slug      String            @unique
-  icon      String?
-  parentId  String?
-  parent    ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
-  children  ServiceCategory[] @relation("ServiceCategoryParent")
-  // Deactivate without deleting, so existing listings referencing this
-  // category stay intact (services-design.md §3).
-  isActive  Boolean           @default(true)
-  createdAt DateTime          @default(now())
-
-  listings ServiceListing[]
-
-  @@index([parentId])
-  @@map("service_categories")
-}
-
-// services-design.md §3: a service provider's published offering.
-// images[] is a portfolio/past-work gallery — same lightweight String[]
-// pattern as Ad.images, uploaded through the same Cloudinary path.
-model ServiceListing {
-  id String @id @default(cuid())
-
-  providerId String
-  provider   ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  categoryId String
-  category   ServiceCategory        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-
-  title       String
-  description String   @db.VarChar(2000)
-  images      String[]
-
-  pricingType ServicePricingType @default(NEGOTIABLE)
-  // Used as the fixed price when pricingType=FIXED, or as the minimum
-  // when pricingType=STARTING_FROM. Null when NEGOTIABLE.
-  price       Decimal?           @db.Decimal(10, 2)
-
-  // Deliberately free text ("يوم عمل واحد", "3-5 أيام") rather than a
-  // strict unit — services-design.md §3: too varied to force one shape.
-  durationEstimate String?
-  serviceLocation  ServiceLocationType @default(AT_PROVIDER)
-
-  status ServiceListingStatus @default(ACTIVE)
-  views  Int                  @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  requests ServiceRequest[]
-
-  @@index([categoryId, status])
-  @@index([providerId, status])
-  @@index([status, createdAt])
-  @@map("service_listings")
-}
-
-// services-design.md §5-§7: explicit state machine, not scattered ifs —
-// ALLOWED_TRANSITIONS in service-requests.service.ts is the single
-// source of truth for which status changes are legal.
-model ServiceRequest {
-  id String @id @default(cuid())
-
-  listingId String
-  listing   ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  customerId String
-  customer   User   @relation("ServiceRequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
-
-  status  ServiceRequestStatus @default(PENDING)
-  details String               @db.VarChar(1000)
-  // "send photos of the problem" — services-design.md §10 requirement.
-  attachedImages String[]
-
-  quotedPrice Decimal? @db.Decimal(10, 2)
-  agreedPrice Decimal? @db.Decimal(10, 2)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  // Set on the PENDING -> ACCEPTED/REJECTED transition — feeds
-  // SellerProfile.responseTimeMinutes the same way ad-side signals do.
-  respondedAt DateTime?
-
-  appointment Appointment?
-  review      ServiceReview?
-
-  @@index([listingId, status])
-  @@index([customerId])
-  @@index([status, createdAt])
-  @@map("service_requests")
-}
-
-// services-design.md §8: two-layer race protection (Redis lock +
-// DB-backed overlap check), same philosophy as the ad-creation and
-// seller-profile-creation locks.
-model Appointment {
-  id String @id @default(cuid())
-
-  providerId String
-  provider   ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  requestId  String?                @unique
-  request    ServiceRequest?        @relation(fields: [requestId], references: [id], onDelete: SetNull)
-
-  scheduledStart DateTime
-  scheduledEnd   DateTime
-  status         AppointmentStatus @default(SCHEDULED)
-  notes          String?           @db.VarChar(500)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Makes the "is there a conflict?" overlap query fast; the index alone
-  // does not prevent the race — see withProviderScheduleLock.
-  @@index([providerId, scheduledStart, scheduledEnd])
-  @@map("appointments")
-}
-
-// services-design.md §10: structurally (not just app-logic) prevented
-// from attaching to anything but a COMPLETED request, via the
-// @unique(requestId) constraint below — one review per real completed
-// interaction, no fake/unlinked reviews possible.
-model ServiceReview {
-  id      String  @id @default(cuid())
-  score   Int
-  comment String? @db.VarChar(500)
-
-  requestId String         @unique
-  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  raterId String
-  rater   User   @relation("ServiceReviewsGiven", fields: [raterId], references: [id], onDelete: Cascade)
-
-  // Denormalized on purpose — speeds up "all reviews for this seller"
-  // reads without an extra join through request -> listing -> provider.
-  sellerProfileId String
-  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([sellerProfileId])
-  @@map("service_reviews")
-}
-
-model AuditLog {
-  id        String         @id @default(cuid())
-  event     AuditEventType
-  userId    String?
-  sessionId String?
-  ip        String?
-  userAgent String?
-  details   Json?
-  createdAt DateTime       @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([event])
-  @@index([createdAt])
-  @@index([userId, createdAt])  // D-08: composite index for "user's logs since date" queries
-  @@map("audit_logs")
-}
-
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("password_reset_tokens")
 }
