@@ -258,7 +258,7 @@ export const adminService = {
   toggleUserActive: async (userId: string, isActive: boolean, adminUserId = 'unknown') => {
     // Guard: prevent self-deactivation.
     if (!isActive && userId === adminUserId) {
-      throw new ForbiddenError('لا يمكنك تعطيل حسابك الخاص');
+      throw new ForbiddenError('You cannot deactivate your own account', 'CANNOT_DEACTIVATE_SELF');
     }
 
     try {
@@ -283,7 +283,7 @@ export const adminService = {
               where: { role: 'ADMIN', isActive: true },
             });
             if (activeAdminCount <= 1) {
-              throw new BadRequestError('لا يمكن تعطيل آخر مدير نشط في النظام');
+              throw new BadRequestError('Cannot deactivate the last active admin in the system', 'CANNOT_DEACTIVATE_LAST_ADMIN');
             }
           }
         }
@@ -317,7 +317,7 @@ export const adminService = {
       // change racing this one. Safe to surface as a client-retryable
       // error rather than a generic 500.
       if (e?.code === 'P2034') {
-        throw new BadRequestError('حدث تعارض مع عملية أخرى، يرجى إعادة المحاولة');
+        throw new BadRequestError('This action conflicted with another operation, please try again', 'CONCURRENT_UPDATE_CONFLICT');
       }
       throw e;
     }
@@ -336,7 +336,7 @@ export const adminService = {
    */
   changeRole: async (userId: string, role: Role, adminUserId = 'unknown') => {
     if (role === 'USER' && userId === adminUserId) {
-      throw new ForbiddenError('لا يمكنك تنزيل صلاحياتك الخاصة');
+      throw new ForbiddenError('You cannot demote your own privileges', 'CANNOT_DEMOTE_SELF');
     }
 
     try {
@@ -356,7 +356,7 @@ export const adminService = {
               where: { role: 'ADMIN', isActive: true },
             });
             if (activeAdminCount <= 1) {
-              throw new BadRequestError('لا يمكن تنزيل صلاحيات آخر مدير نشط في النظام');
+              throw new BadRequestError('Cannot demote the last active admin in the system', 'CANNOT_DEMOTE_LAST_ADMIN');
             }
           }
         }
@@ -387,7 +387,7 @@ export const adminService = {
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('User not found');
       if (e?.code === 'P2034') {
-        throw new BadRequestError('حدث تعارض مع عملية أخرى، يرجى إعادة المحاولة');
+        throw new BadRequestError('This action conflicted with another operation, please try again', 'CONCURRENT_UPDATE_CONFLICT');
       }
       throw e;
     }

@@ -102,11 +102,11 @@ export const authService = {
     ]);
 
     if (isEmailLocked) {
-      throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes');
+      throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes', 'ACCOUNT_LOCKED');
     }
 
     if (ipAttempts >= MAX_IP_ATTEMPTS) {
-      throw new TooManyRequestsError('Too many requests from this network. Please try again later');
+      throw new TooManyRequestsError('Too many requests from this network. Please try again later', 'TOO_MANY_ATTEMPTS_FROM_IP');
     }
 
     const user = await authRepository.findByEmail(input.email);
@@ -116,10 +116,10 @@ export const authService = {
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(input.email, LOCKOUT_DURATION);
       }
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
-    if (!user.isActive) throw new UnauthorizedError('Account is deactivated');
+    if (!user.isActive) throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
 
     const isPasswordValid = await comparePassword(input.password, user.passwordHash);
 
@@ -145,9 +145,9 @@ export const authService = {
           details: { email: input.email },
         }).catch(() => {});
 
-        throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes');
+        throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes', 'ACCOUNT_LOCKED');
       }
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
     await tokenStore.clearFailedLogins(input.email, ip);
@@ -166,8 +166,8 @@ export const authService = {
   },
 
   refresh: async (refreshToken: string): Promise<Omit<TokenPair, 'sessionId'>> => {
-    // رسالة موحدة لجميع حالات الفشل — لا نكشف السبب
-    const genericError = new UnauthorizedError('Session expired. Please login again');
+    // Unified message for every failure case — we don't reveal the reason
+    const genericError = new UnauthorizedError('Session expired. Please login again', 'SESSION_EXPIRED');
 
     let payload;
     try {
@@ -381,7 +381,7 @@ export const authService = {
     });
 
     if (!record || record.expiresAt < new Date() || record.used) {
-      throw new BadRequestError('رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية');
+      throw new BadRequestError('Password reset link is invalid or has expired', 'INVALID_RESET_TOKEN');
     }
 
     const passwordHash = await hashPassword(newPassword);

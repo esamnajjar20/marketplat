@@ -88,7 +88,7 @@ export const usersController = {
       // blacklist it — same extraction pattern as authController.logoutAll.
       const accessToken = req.headers.authorization?.split(' ')[1];
       await usersService.changePassword(user.userId, body.currentPassword, body.newPassword, accessToken);
-      res.status(200).json(successResponse('تم تغيير كلمة المرور بنجاح'));
+      res.status(200).json(successResponse('Password changed successfully'));
     } catch (error) {
       next(error);
     }
@@ -97,10 +97,10 @@ export const usersController = {
   uploadAvatar: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      if (!req.file) throw new BadRequestError('لم يتم إرفاق أي صورة');
+      if (!req.file) throw new BadRequestError('No image file was attached', 'NO_FILE_ATTACHED');
 
       const result = await usersService.uploadAvatar(user.userId, req.file);
-      res.status(200).json(successResponse('تم تحديث الصورة الشخصية', result));
+      res.status(200).json(successResponse('Profile picture updated', result));
     } catch (error) {
       next(error);
     }

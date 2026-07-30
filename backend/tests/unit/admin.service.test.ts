@@ -382,7 +382,7 @@ describe('AdminService', () => {
 
       await expect(
         adminService.toggleUserActive('u1', false, 'admin-1'),
-      ).rejects.toThrow('حدث تعارض مع عملية أخرى، يرجى إعادة المحاولة');
+      ).rejects.toThrow('This action conflicted with another operation, please try again');
     });
 
     // --- New guards added in this round ---
@@ -393,7 +393,7 @@ describe('AdminService', () => {
 
       await expect(
         adminService.toggleUserActive('admin-1', false, 'admin-1'),
-      ).rejects.toThrow('لا يمكنك تعطيل حسابك الخاص');
+      ).rejects.toThrow('You cannot deactivate your own account');
 
       // Should fail fast — never even queries the target user.
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
@@ -407,7 +407,7 @@ describe('AdminService', () => {
 
       await expect(
         adminService.toggleUserActive('admin-2', false, 'admin-1'),
-      ).rejects.toThrow('لا يمكن تعطيل آخر مدير نشط في النظام');
+      ).rejects.toThrow('Cannot deactivate the last active admin in the system');
 
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
@@ -454,7 +454,7 @@ describe('AdminService', () => {
 
       await expect(
         adminService.changeRole('admin-1', 'USER', 'admin-1'),
-      ).rejects.toThrow('لا يمكنك تنزيل صلاحياتك الخاصة');
+      ).rejects.toThrow('You cannot demote your own privileges');
 
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
       expect(prisma.user.update).not.toHaveBeenCalled();
@@ -467,7 +467,7 @@ describe('AdminService', () => {
 
       await expect(
         adminService.changeRole('admin-2', 'USER', 'admin-1'),
-      ).rejects.toThrow('لا يمكن تنزيل صلاحيات آخر مدير نشط في النظام');
+      ).rejects.toThrow('Cannot demote the last active admin in the system');
 
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
@@ -530,7 +530,7 @@ describe('AdminService', () => {
 
       await expect(
         adminService.changeRole('u1', 'ADMIN', 'admin-1'),
-      ).rejects.toThrow('حدث تعارض مع عملية أخرى، يرجى إعادة المحاولة');
+      ).rejects.toThrow('This action conflicted with another operation, please try again');
     });
   });
 });

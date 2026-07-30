@@ -218,7 +218,7 @@ describe('Ads API — extended coverage', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
-      expect(res.body.message).toMatch(/الحد الأقصى/);
+      expect(res.body.code).toBe('AD_LIMIT_REACHED');
     });
 
     it('does NOT count SOLD or DELETED ads against the cap', async () => {

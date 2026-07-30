@@ -127,7 +127,7 @@ describe('UsersService', () => {
 
       await expect(
         usersService.changePassword('user-1', 'wrong-password', 'newPassword123'),
-      ).rejects.toThrow('كلمة المرور الحالية غير صحيحة');
+      ).rejects.toThrow('Current password is incorrect');
       expect(updateSpy).not.toHaveBeenCalled();
     });
 

@@ -116,7 +116,7 @@ export const usersService = {
     if (!user) throw new NotFoundError('User not found');
 
     const valid = await comparePassword(currentPassword, user.passwordHash);
-    if (!valid) throw new BadRequestError('كلمة المرور الحالية غير صحيحة');
+    if (!valid) throw new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID');
 
     const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });

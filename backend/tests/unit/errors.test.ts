@@ -16,6 +16,6 @@ describe('Error classes', () => {
 
   it('accepts custom messages and status codes', () => {
     expect(new BadRequestError('Invalid input').statusCode).toBe(400);
-    expect(new AppError('Server error', 500, false).isOperational).toBe(false);
+    expect(new AppError('Server error', 500, undefined, undefined, false).isOperational).toBe(false);
   });
 });

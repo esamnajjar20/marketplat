@@ -324,7 +324,7 @@ describe('authController', () => {
       const res = mockResponse();
       const next = mockNext();
       (authService.resetPassword as jest.Mock).mockRejectedValue(
-        new BadRequestError('رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية')
+        new BadRequestError('Password reset link is invalid or has expired')
       );
 
       await authController.resetPassword(req, res, next);

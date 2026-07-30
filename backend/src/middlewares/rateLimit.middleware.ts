@@ -2,7 +2,7 @@ import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import { redis } from '../config/redis';
 
-const msg = (message: string) => ({ success: false, message });
+const msg = (message: string, code = 'RATE_LIMIT_EXCEEDED') => ({ success: false, message, code });
 
 // FIX TEST-V4-05: extracted from createRedisStore so the actual
 // security-relevant logic (does a Redis outage silently let every
@@ -137,7 +137,7 @@ export const forgotPasswordRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore('forgot_pw', false), // fail-closed (strict)
-  message: msg('لقد تجاوزت الحد المسموح لطلبات إعادة تعيين كلمة المرور، يرجى المحاولة بعد ساعة'),
+  message: msg('Too many password reset requests, please try again in an hour'),
 });
 
 export const favoritesRateLimit = rateLimit({

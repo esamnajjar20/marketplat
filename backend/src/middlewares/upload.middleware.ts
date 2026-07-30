@@ -30,7 +30,7 @@ const verifyFileContent = (req: Request, res: Response, next: NextFunction): voi
 
   for (const file of files) {
     if (!isAllowedImageContent(file.buffer)) {
-      next(new BadRequestError('Uploaded file is not a valid JPEG, PNG, or WebP image'));
+      next(new BadRequestError('Uploaded file is not a valid JPEG, PNG, or WebP image', 'INVALID_FILE_TYPE'));
       return;
     }
   }
@@ -97,7 +97,7 @@ export const uploadMiddleware = (req: Request, res: Response, next: NextFunction
     upload.single('image')(req, res, (uploadErr: unknown) => {
       if (uploadErr instanceof multer.MulterError) {
         if (uploadErr.code === 'LIMIT_FILE_SIZE')
-          return next(new BadRequestError('File size must be less than 5MB'));
+          return next(new BadRequestError('File size must be less than 5MB', 'FILE_TOO_LARGE'));
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
           return next(new BadRequestError('Unexpected file field'));
         return next(new BadRequestError(uploadErr.message));
@@ -115,7 +115,7 @@ export const uploadMultipleMiddleware = (req: Request, res: Response, next: Next
     upload.array('images', 10)(req, res, (uploadErr: unknown) => {
       if (uploadErr instanceof multer.MulterError) {
         if (uploadErr.code === 'LIMIT_FILE_SIZE')
-          return next(new BadRequestError('Each file must be less than 5MB'));
+          return next(new BadRequestError('Each file must be less than 5MB', 'FILE_TOO_LARGE'));
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
           return next(new BadRequestError('Maximum 10 images allowed'));
         if (uploadErr.code === 'LIMIT_FILE_COUNT')

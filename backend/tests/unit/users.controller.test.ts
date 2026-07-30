@@ -290,7 +290,7 @@ describe('usersController', () => {
       const res = mockResponse();
       const next = mockNext();
       (usersService.changePassword as jest.Mock).mockRejectedValue(
-        new BadRequestError('كلمة المرور الحالية غير صحيحة')
+        new BadRequestError('Current password is incorrect')
       );
 
       await usersController.changePassword(req, res, next);

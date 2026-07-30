@@ -115,7 +115,9 @@ export const adsService = {
     const preCheckCount = await adsRepository.countActiveByUserId(userId);
     if (preCheckCount >= env.ads.maxPerUser) {
       throw new BadRequestError(
-        `لقد وصلت إلى الحد الأقصى لعدد الإعلانات النشطة (${env.ads.maxPerUser}). يرجى حذف أو تعليم إعلان قديم كمباع لإضافة إعلان جديد.`
+        `You have reached the maximum number of active ads (${env.ads.maxPerUser}). Please delete or mark an old ad as sold to add a new one.`,
+        'AD_LIMIT_REACHED',
+        { maxPerUser: env.ads.maxPerUser },
       );
     }
 
@@ -129,7 +131,9 @@ export const adsService = {
         const activeCount = await adsRepository.countActiveByUserId(userId);
         if (activeCount >= env.ads.maxPerUser) {
           throw new BadRequestError(
-            `لقد وصلت إلى الحد الأقصى لعدد الإعلانات النشطة (${env.ads.maxPerUser}). يرجى حذف أو تعليم إعلان قديم كمباع لإضافة إعلان جديد.`
+            `You have reached the maximum number of active ads (${env.ads.maxPerUser}). Please delete or mark an old ad as sold to add a new one.`,
+            'AD_LIMIT_REACHED',
+            { maxPerUser: env.ads.maxPerUser },
           );
         }
         // NEW: ad insert + SellerProfile stats increment happen in one

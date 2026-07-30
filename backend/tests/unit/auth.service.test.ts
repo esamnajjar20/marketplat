@@ -170,7 +170,7 @@ describe('AuthService', () => {
       jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue(null);
 
       await expect(authService.resetPassword('bad-token', 'newPassword123'))
-        .rejects.toThrow('رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية');
+        .rejects.toThrow('Password reset link is invalid or has expired');
     });
 
     it('rejects an expired token', async () => {
@@ -180,7 +180,7 @@ describe('AuthService', () => {
       } as any);
 
       await expect(authService.resetPassword('expired-token', 'newPassword123'))
-        .rejects.toThrow('رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية');
+        .rejects.toThrow('Password reset link is invalid or has expired');
     });
 
     it('rejects an already-used token (prevents replay)', async () => {
@@ -190,7 +190,7 @@ describe('AuthService', () => {
       } as any);
 
       await expect(authService.resetPassword('used-token', 'newPassword123'))
-        .rejects.toThrow('رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية');
+        .rejects.toThrow('Password reset link is invalid or has expired');
     });
 
     it('does not call deleteAllRefreshTokens when the token is invalid', async () => {

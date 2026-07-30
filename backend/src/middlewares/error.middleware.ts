@@ -8,22 +8,51 @@ interface ErrorResponse {
   success: false;
   message: string;
   statusCode: number;
+  // Stable, machine-readable code (see shared/errors/errorCodes.ts).
+  // Additive: existing consumers reading `message`/`statusCode` are
+  // unaffected. New frontend code should switch on `code` rather than
+  // comparing the English `message` string, since messages may be
+  // reworded without that being a breaking API change.
+  code: string;
   requestId?: string;
   errors?: Record<string, string[]>;
+  // Structured values (e.g. a numeric limit) for errors whose Arabic
+  // translation needs to interpolate data. Lets the frontend build the
+  // localized message from `meta` instead of parsing it out of the
+  // English `message` text.
+  meta?: Record<string, unknown>;
 }
 
 const buildErrorResponse = (
   message: string,
   statusCode: number,
+  code: string,
   requestId?: string,
-  errors?: Record<string, string[]>
+  errors?: Record<string, string[]>,
+  meta?: Record<string, unknown>,
 ): ErrorResponse => ({
   success: false,
   message,
   statusCode,
+  code,
   ...(requestId && { requestId }),
   ...(errors && { errors }),
+  ...(meta && { meta }),
 });
+
+// Fallback codes for errors that don't carry an explicit AppError.code —
+// e.g. a raw ZodError, an unmapped Prisma error, or a truly unexpected
+// exception. Keeps `code` always present in the response body even when
+// no call site set one explicitly.
+const CODE_BY_STATUS: Record<number, string> = {
+  400: 'VALIDATION_ERROR',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'RESOURCE_NOT_FOUND',
+  409: 'CONFLICT',
+  429: 'RATE_LIMIT_EXCEEDED',
+  503: 'SERVICE_UNAVAILABLE',
+};
 
 export const errorMiddleware = (
   err: Error,
@@ -40,7 +69,9 @@ export const errorMiddleware = (
       if (!errors[field]) errors[field] = [];
       errors[field].push(e.message);
     });
-    res.status(400).json(buildErrorResponse('Validation failed', 400, requestId, errors));
+    res.status(400).json(
+      buildErrorResponse('Validation failed', 400, 'VALIDATION_ERROR', requestId, errors),
+    );
     return;
   }
 
@@ -52,7 +83,10 @@ export const errorMiddleware = (
         requestId,
       });
     }
-    res.status(err.statusCode).json(buildErrorResponse(err.message, err.statusCode, requestId));
+    const code = err.code ?? CODE_BY_STATUS[err.statusCode] ?? 'INTERNAL_ERROR';
+    res.status(err.statusCode).json(
+      buildErrorResponse(err.message, err.statusCode, code, requestId, undefined, err.meta),
+    );
     return;
   }
 
@@ -73,22 +107,26 @@ export const errorMiddleware = (
 
     if (err.code === 'P2002') {
       res.status(409).json(
-        buildErrorResponse('A record with this value already exists', 409, requestId),
+        buildErrorResponse('A record with this value already exists', 409, 'CONFLICT', requestId),
       );
       return;
     }
     if (err.code === 'P2025') {
-      res.status(404).json(buildErrorResponse('Record not found', 404, requestId));
+      res.status(404).json(
+        buildErrorResponse('Record not found', 404, 'RESOURCE_NOT_FOUND', requestId),
+      );
       return;
     }
     if (err.code === 'P2003') {
       res.status(409).json(
-        buildErrorResponse('This action conflicts with related data', 409, requestId),
+        buildErrorResponse('This action conflicts with related data', 409, 'CONFLICT', requestId),
       );
       return;
     }
 
-    res.status(500).json(buildErrorResponse('Internal server error', 500, requestId));
+    res.status(500).json(
+      buildErrorResponse('Internal server error', 500, 'INTERNAL_ERROR', requestId),
+    );
     return;
   }
 
@@ -100,5 +138,7 @@ export const errorMiddleware = (
     method: req.method,
   });
 
-  res.status(500).json(buildErrorResponse('Internal server error', 500, requestId));
+  res.status(500).json(
+    buildErrorResponse('Internal server error', 500, 'INTERNAL_ERROR', requestId),
+  );
 };

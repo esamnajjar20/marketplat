@@ -177,7 +177,7 @@ export const authController = {
       await authService.forgotPassword(body.email);
       // Always return 200 to prevent email enumeration
       res.status(200).json(successResponse(
-        'إذا كان البريد الإلكتروني مسجلاً، ستصلك رسالة لإعادة تعيين كلمة المرور خلال دقائق',
+        'If this email is registered, a password reset link will arrive within minutes',
       ));
     } catch (error) {
       next(error);
@@ -188,7 +188,7 @@ export const authController = {
     try {
       const { body } = resetPasswordSchema.parse({ body: req.body });
       await authService.resetPassword(body.token, body.newPassword);
-      res.status(200).json(successResponse('تم تعيين كلمة المرور الجديدة بنجاح'));
+      res.status(200).json(successResponse('Password reset successfully'));
     } catch (error) {
       next(error);
     }
