@@ -188,7 +188,12 @@ describe('MyAdsList', () => {
     // (non-suffixed) accessible name.
     await user.click(screen.getByRole('button', { name: 'حذف' }));
 
-    expect(mockDeleteMutate).toHaveBeenCalledWith('ad-7');
+    // UX-FIX P1-3: ConfirmDialog now waits for the mutation to resolve
+    // before closing, so the caller passes an onSuccess callback
+    // alongside the id.
+    expect(mockDeleteMutate).toHaveBeenCalledWith('ad-7', expect.objectContaining({
+      onSuccess: expect.any(Function),
+    }));
   });
 
   it('cancelling the dialog does not call deleteAd.mutate', async () => {
@@ -220,6 +225,8 @@ describe('MyAdsList', () => {
     await user.click(screen.getByRole('button', { name: 'حذف الثاني' }));
     await user.click(screen.getByRole('button', { name: 'حذف' }));
 
-    expect(mockDeleteMutate).toHaveBeenCalledWith('ad-2');
+    expect(mockDeleteMutate).toHaveBeenCalledWith('ad-2', expect.objectContaining({
+      onSuccess: expect.any(Function),
+    }));
   });
 });

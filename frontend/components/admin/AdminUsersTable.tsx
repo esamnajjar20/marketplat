@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldOff, ShieldCheck, Crown, UserMinus } from 'lucide-react';
+import { ShieldOff, ShieldCheck, Crown, UserMinus, AlertTriangle } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Input }        from '@/components/shared/ui/Input';
@@ -19,7 +19,7 @@ export function AdminUsersTable() {
   const page   = Number(sp.get('page') ?? 1);
   const q      = sp.get('q') ?? '';
 
-  const { data, isLoading }      = useAdminUsers({ page, q });
+  const { data, isLoading, isError, refetch } = useAdminUsers({ page, q });
   const changeUserStatus = useAdminToggleUserActive();
   const changeRole       = useAdminChangeRole();
 
@@ -56,6 +56,17 @@ export function AdminUsersTable() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><LoadingSpinner /></div>
+      ) : isError ? (
+        // UX-FIX P1-9 (admin variant): a failed fetch must not render as
+        // "لا يوجد مستخدمون" — an admin reading that could wrongly
+        // conclude the user table is genuinely empty.
+        <div className="flex flex-col items-center gap-3 py-12 text-center rounded-lg border">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+          <p className="text-destructive">حدث خطأ أثناء تحميل المستخدمين</p>
+          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+            إعادة المحاولة
+          </button>
+        </div>
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
@@ -166,8 +177,13 @@ export function AdminUsersTable() {
         }
         confirmLabel={roleTarget?.nextRole === 'ADMIN' ? 'ترقية' : 'تنزيل'}
         destructive={roleTarget?.nextRole === 'USER'}
+        isPending={changeRole.isPending}
         onConfirm={() => {
-          if (roleTarget) changeRole.mutate({ userId: roleTarget.id, role: roleTarget.nextRole });
+          if (!roleTarget) return;
+          changeRole.mutate(
+            { userId: roleTarget.id, role: roleTarget.nextRole },
+            { onSuccess: () => setRoleTarget(null) },
+          );
         }}
       />
     </div>

@@ -170,4 +170,30 @@ describe('LoginForm', () => {
       );
     });
   });
+
+  // UX-FIX P0-2: client.ts's response interceptor appends
+  // ?reason=session_expired when it force-redirects here after a failed
+  // silent token refresh, so the user sees why they landed on the login
+  // page instead of it looking like an ordinary, unexplained visit.
+  describe('session-expired notice (UX-FIX P0-2)', () => {
+    it('shows a session-expired banner when ?reason=session_expired is present', () => {
+      mockSearchParams = new URLSearchParams({ reason: 'session_expired' });
+      render(<LoginForm />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('انتهت جلستك');
+    });
+
+    it('does not show the banner on an ordinary visit with no reason param', () => {
+      render(<LoginForm />);
+
+      expect(screen.queryByText(/انتهت جلستك/)).not.toBeInTheDocument();
+    });
+
+    it('does not show the banner for an unrelated reason value', () => {
+      mockSearchParams = new URLSearchParams({ reason: 'something_else' });
+      render(<LoginForm />);
+
+      expect(screen.queryByText(/انتهت جلستك/)).not.toBeInTheDocument();
+    });
+  });
 });

@@ -25,13 +25,19 @@ import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
 
-export function useCreateAd() {
+/**
+ * UX-FIX P3-10b: accepts an optional onUploadProgress callback so callers
+ * (AdForm) can drive a real progress bar in ImageUpload during the actual
+ * multipart upload, instead of only a static "جارٍ الحفظ…" button label
+ * for however long the upload takes on a slow connection.
+ */
+export function useCreateAd(onUploadProgress?: (percent: number) => void) {
   const queryClient = useQueryClient();
   const router      = useRouter();
 
   return useMutation({
     mutationFn: (payload: Parameters<typeof adsApi.create>[0]) =>
-      adsApi.create(payload).then((r) => r.data.data),
+      adsApi.create(payload, onUploadProgress).then((r) => r.data.data),
     onSuccess: (ad) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       toast.success('تم نشر الإعلان بنجاح');
@@ -106,12 +112,12 @@ export function useMarkAsSold() {
  * stale image until staleTime expired. Now invalidates the whole prefix
  * like its siblings.
  */
-export function useAddAdImages() {
+export function useAddAdImages(onUploadProgress?: (percent: number) => void) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
-      adsApi.addImages(id, files).then((r) => r.data.data),
+      adsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
     onSuccess: (_ad, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });

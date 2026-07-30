@@ -43,6 +43,14 @@ interface ImageUploadProps {
   existingUrls?: string[];
   /** Called when the user removes one of the existing images. */
   onRemoveExisting?: (url: string) => void;
+  /**
+   * UX-FIX P3-10b: 0-100 while the parent form's actual multipart upload
+   * of these images is in flight, or null/undefined the rest of the
+   * time. One combined percentage for the whole request (axios reports
+   * progress at the request level, not per file within one FormData) —
+   * still real signal, not a fake/simulated bar.
+   */
+  uploadProgress?: number | null;
 }
 
 export function ImageUpload({
@@ -52,6 +60,7 @@ export function ImageUpload({
   error,
   existingUrls = [],
   onRemoveExisting,
+  uploadProgress,
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const maxBytes  = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -181,6 +190,25 @@ export function ImageUpload({
         onChange={(e) => addFiles(e.target.files)}
       />
 
+      {/*
+        UX-FIX P3-10b: real upload progress for the images in this
+        submission — previously there was no indication at all of how
+        far along a multi-photo upload was on a slow connection, only
+        the submit button's static "جارٍ الحفظ…" label for however long
+        it took.
+      */}
+      {uploadProgress != null && (
+        <div className="space-y-1" role="status" aria-live="polite">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">جارٍ رفع الصور… {uploadProgress}%</p>
+        </div>
+      )}
+
       {/* Existing images (already uploaded to Cloudinary — edit mode) */}
       {existingUrls.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -192,7 +220,14 @@ export function ImageUpload({
                 <button
                   type="button"
                   onClick={() => onRemoveExisting(url)}
-                  className="absolute end-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white group-hover:flex"
+                  // UX-FIX P3-10: this was only ever revealed on
+                  // `group-hover`, which has no equivalent on touch — a
+                  // mobile user (the majority of traffic for a listings
+                  // marketplace) had no way to reveal it at all. Always
+                  // visible now; still gets a subtle hover-opacity bump on
+                  // devices that do support hover, but that's cosmetic,
+                  // not a requirement to use the feature.
+                  className="absolute end-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white opacity-90 transition-opacity hover:opacity-100"
                   aria-label="إزالة الصورة"
                 >
                   ×
@@ -217,7 +252,10 @@ export function ImageUpload({
               <button
                 type="button"
                 onClick={() => onChange(value.filter((_, j) => j !== i))}
-                className="absolute end-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white group-hover:flex"
+                // UX-FIX P3-10: same touch-accessibility fix as the
+                // existing-images remove button above — always visible
+                // instead of group-hover-only.
+                className="absolute end-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white opacity-90 transition-opacity hover:opacity-100"
                 aria-label={`إزالة الصورة ${i + 1}`}
               >
                 ×

@@ -96,6 +96,15 @@ export function useLogin() {
         })
         .catch(() => { /* non-critical — minimal user still set */ });
 
+      // UX-FIX P-LOGIN-1: same gap as register had before UX-FIX
+      // P-REG-1 — the only "did this work?" signal was the page
+      // changing underneath the user. Every other success path in the
+      // app confirms with a toast; login was the remaining silent
+      // exception. Uses the minimal user set by setAuth above (name is
+      // always present on AuthResultUser), so this doesn't wait on the
+      // background getMe() enrichment call.
+      toast.success(`مرحبًا بعودتك، ${data.user.name}!`);
+
       // FIX AUTH-06: previously always pushed ROUTES.dashboard, ignoring
       // the ?from= redirect target middleware.ts attaches when bouncing
       // an unauthenticated user away from a protected page. getSafeRedirectPath
@@ -124,6 +133,14 @@ export function useRegister() {
     onSuccess: (data) => {
       setAuth(data.user, data.tokens);
       setAuthCookies(data.user, data.tokens);
+      // UX-FIX P-REG-1: previously navigated to /dashboard with zero
+      // feedback — the only "did this work?" signal was the page
+      // changing underneath the user. Every other success path in the
+      // app (create ad, update profile, change password, ...) confirms
+      // with a toast before/alongside navigating; register was the one
+      // silent exception despite being a bigger, one-time moment for a
+      // new user.
+      toast.success(`مرحبًا ${data.user.name}! تم إنشاء حسابك بنجاح`);
       router.push(ROUTES.dashboard);
     },
 
@@ -165,6 +182,21 @@ export function useLogoutAll() {
 
   return useMutation({
     mutationFn: () => authApi.logoutAll(),
+    // UX-FIX P1-7: previously only onSettled cleared local state, with no
+    // onSuccess/onError at all — the confirmation dialog promises "all
+    // sessions will be ended" but the user had no way to tell whether the
+    // server actually honored that or the request failed outright (the
+    // local logout always happens regardless, per the comment below, so
+    // an API failure was invisible).
+    onSuccess: () => {
+      toast.success('تم تسجيل الخروج من جميع الأجهزة');
+    },
+    onError: (err) => {
+      toast.error(parseApiError(err).message);
+    },
+    // Always clear local state regardless of server response — this
+    // browser's own session should end either way, even if the
+    // server-side revocation of *other* devices failed.
     onSettled: clearLocalSession,
   });
 }

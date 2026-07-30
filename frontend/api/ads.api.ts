@@ -66,8 +66,19 @@ export const adsApi = {
       .get<ApiResponse<AdListItem[]>>('/ads/me', { params })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
-  /** POST /ads — create new ad (multipart/form-data) */
-  create: (payload: CreateAdPayload) => {
+  /**
+   * POST /ads — create new ad (multipart/form-data).
+   *
+   * UX-FIX P3-10b: accepts an optional onUploadProgress callback so
+   * ImageUpload can show a real progress bar during the actual upload
+   * (create/edit ad submission) instead of no feedback at all between
+   * "Publish" and the success toast. This is one combined percentage for
+   * the whole multipart request — axios reports progress at the request
+   * level, not per-file within a single FormData — but that's still a
+   * large, honest improvement over a multi-second silent wait on a slow
+   * connection with several photos attached.
+   */
+  create: (payload: CreateAdPayload, onUploadProgress?: (percent: number) => void) => {
     const form = new FormData();
     (Object.keys(payload) as (keyof CreateAdPayload)[]).forEach((key) => {
       const value = payload[key];
@@ -80,6 +91,9 @@ export const adsApi = {
     });
     return apiClient.post<ApiResponse<Ad>>('/ads', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onUploadProgress
+        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
+        : undefined,
     });
   },
 
@@ -98,12 +112,19 @@ export const adsApi = {
   delete: (id: string) =>
     apiClient.delete<ApiResponse<null>>(`/ads/${id}`),
 
-  /** POST /ads/:id/images — add images to existing ad */
-  addImages: (id: string, files: File[]) => {
+  /**
+   * POST /ads/:id/images — add images to existing ad.
+   * UX-FIX P3-10b: same onUploadProgress support as create(), for the
+   * edit-ad flow.
+   */
+  addImages: (id: string, files: File[], onUploadProgress?: (percent: number) => void) => {
     const form = new FormData();
     files.forEach((f) => form.append('images', f));
     return apiClient.post<ApiResponse<Ad>>(`/ads/${id}/images`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onUploadProgress
+        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
+        : undefined,
     });
   },
 

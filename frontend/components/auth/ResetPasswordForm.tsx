@@ -26,6 +26,17 @@ export function ResetPasswordForm({ token }: Props) {
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
   const [loading,   setLoading]   = useState(false);
 
+  // UX-FIX P2-12: there's no dedicated "verify reset token" endpoint on
+  // the backend (only POST /auth/reset-password validates it, as part of
+  // actually applying the new password — see auth.service.ts), so full
+  // pre-validation would require a new backend route and is out of scope
+  // here. The one thing the frontend CAN catch immediately, without any
+  // extra request, is a token that's missing entirely — a common case
+  // when an email client mangles or truncates the reset link — instead
+  // of letting the user fill in and submit a full password form first
+  // only to be told afterward that the link was never valid.
+  const missingToken = !token;
+
   function fieldError(field: 'password' | 'confirm'): string | undefined {
     return errors[field] ?? serverErrors?.[field === 'password' ? 'newPassword' : field]?.[0];
   }
@@ -56,6 +67,19 @@ export function ResetPasswordForm({ token }: Props) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (missingToken) {
+    return (
+      <div className="space-y-4 text-center">
+        <p className="text-sm text-destructive">
+          رابط إعادة تعيين كلمة المرور غير صالح. يرجى طلب رابط جديد.
+        </p>
+        <Link href={ROUTES.forgotPassword} className="text-sm text-primary hover:underline">
+          طلب رابط جديد
+        </Link>
+      </div>
+    );
   }
 
   return (

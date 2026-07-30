@@ -9,6 +9,7 @@ import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { ROUTES } from '@/lib/constants';
 import { getSafeRedirectPath } from '@/lib/cookies';
+import { parseApiError } from '@/lib/errorParser';
 
 export function LoginForm() {
   const searchParams = useSearchParams();
@@ -17,6 +18,12 @@ export function LoginForm() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors]     = useState<{ email?: string; password?: string }>({});
+
+  // UX-FIX P0-2: client.ts's response interceptor appends
+  // ?reason=session_expired when it force-redirects here after a failed
+  // silent refresh, so a user who was actively signed in and got kicked
+  // out sees why, instead of landing on an ordinary-looking login form.
+  const sessionExpired = searchParams.get('reason') === 'session_expired';
 
   function validate() {
     const e: typeof errors = {};
@@ -58,6 +65,12 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      {sessionExpired && (
+        <p role="alert" className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-center">
+          انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
+        </p>
+      )}
+
       <FormField label="البريد الإلكتروني" htmlFor="email" required error={errors.email}>
         <Input
           id="email"
@@ -90,7 +103,14 @@ export function LoginForm() {
 
       {error && (
         <p role="alert" className="text-sm text-destructive text-center">
-          {error.message || 'البريد الإلكتروني أو كلمة المرور غير صحيحة'}
+          {/* FIX FRIENDLY-01: error here is the raw mutation error object —
+              error.message is the underlying Axios/JS message ("Request
+              failed with status code 401", "Network Error", ...), never
+              meant to reach the user (see app/error.tsx's SEC-06 rule,
+              which this line previously violated). parseApiError() maps it
+              to the same Arabic message the toast in useLogin's onError
+              already shows. */}
+          {parseApiError(error).message}
         </p>
       )}
 

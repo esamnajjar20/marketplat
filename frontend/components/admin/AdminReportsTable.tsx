@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle, ExternalLink } from 'lucide-react';
+import { CheckCircle, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Pagination }   from '@/components/shared/ui/Pagination';
@@ -24,8 +24,16 @@ export function AdminReportsTable() {
     ? (statusParam as ReportStatus)
     : 'PENDING';
 
-  const { data, isLoading }  = useAdminReports({ page, status });
+  const { data, isLoading, isError, refetch } = useAdminReports({ page, status });
   const resolveReport = useAdminUpdateReportStatus();
+
+  // UX-FIX (same pattern as AdminUsersTable's FIX UX-11): resolveReport's
+  // isPending is shared across every row (one mutation instance), so
+  // without tracking which specific report id is in flight, a click on
+  // one row's "حل"/"رفض" left every other row's buttons live too — an
+  // admin could double-click, or fire two different rows' mutations
+  // concurrently, with no visual feedback that anything was in progress.
+  const pendingReportId = resolveReport.isPending ? resolveReport.variables?.reportId : undefined;
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -50,6 +58,17 @@ export function AdminReportsTable() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><LoadingSpinner /></div>
+      ) : isError ? (
+        // UX-FIX P1-9 (admin variant): must not render as "لا توجد
+        // بلاغات" on a failed fetch — an admin could wrongly conclude
+        // the queue is genuinely empty and stop checking it.
+        <div className="flex flex-col items-center gap-3 py-12 text-center rounded-lg border">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+          <p className="text-destructive">حدث خطأ أثناء تحميل البلاغات</p>
+          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+            إعادة المحاولة
+          </button>
+        </div>
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
@@ -99,10 +118,12 @@ export function AdminReportsTable() {
                     {report.status === 'PENDING' && (
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" className="h-7 text-success"
+                          disabled={pendingReportId === report.id}
                           onClick={() => resolveReport.mutate({ reportId: report.id, status: 'RESOLVED' })}>
                           <CheckCircle className="h-3.5 w-3.5 me-1" />حل
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 text-muted-foreground"
+                          disabled={pendingReportId === report.id}
                           onClick={() => resolveReport.mutate({ reportId: report.id, status: 'DISMISSED' })}>
                           رفض
                         </Button>

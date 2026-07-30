@@ -12,13 +12,18 @@ import type {
   UpdateServiceListingPayload,
 } from '@/types/service.types';
 
-export function useCreateServiceListing() {
+/**
+ * UX-FIX P3-10b: accepts an optional onUploadProgress callback, same
+ * pattern as useCreateAd, so ServiceListingForm can drive a real
+ * progress bar in ImageUpload during the multipart upload.
+ */
+export function useCreateServiceListing(onUploadProgress?: (percent: number) => void) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
     mutationFn: (payload: CreateServiceListingPayload) =>
-      serviceListingsApi.create(payload).then((r) => r.data.data),
+      serviceListingsApi.create(payload, onUploadProgress).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
       toast.success('تم نشر الخدمة بنجاح');

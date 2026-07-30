@@ -243,6 +243,30 @@ describe('useLogout / useLogoutAll', () => {
 
     await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
   });
+
+  // UX-FIX P1-7: previously useLogoutAll had no onSuccess/onError at all —
+  // only onSettled clearing local state — so a failed server-side
+  // revocation was completely invisible to the user despite the
+  // confirmation dialog promising "all sessions will be ended."
+  it('UX-FIX P1-7: shows a success toast when the server call succeeds', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, mockAuthResult.tokens);
+    (authApi.logoutAll as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true } });
+    const { result } = renderHook(() => useLogoutAll(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate(); });
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  });
+
+  it('UX-FIX P1-7: shows an error toast when the server call fails', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, mockAuthResult.tokens);
+    (authApi.logoutAll as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+    const { result } = renderHook(() => useLogoutAll(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate(); });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+  });
 });
 
 describe('useRevokeSession', () => {

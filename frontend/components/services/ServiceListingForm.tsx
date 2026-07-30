@@ -54,7 +54,11 @@ const LOCATION_LABELS: Record<ServiceLocationType, string> = {
 
 export function ServiceListingForm({ mode, listing }: Props) {
   const { data: categories } = useServiceCategories();
-  const create = useCreateServiceListing();
+  // UX-FIX P3-10b: same real upload-progress pattern as AdForm — 0-100
+  // while the create request's images are actually uploading, null the
+  // rest of the time.
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const create = useCreateServiceListing((p) => setUploadProgress(p));
   const update = useUpdateServiceListing(listing?.id ?? '');
   const isPending = create.isPending || update.isPending;
 
@@ -115,6 +119,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
     if (!validate()) return;
 
     if (mode === 'create') {
+      setUploadProgress(values.images.length > 0 ? 0 : null);
       create.mutate(
         {
           categoryId: values.categoryId,
@@ -126,7 +131,10 @@ export function ServiceListingForm({ mode, listing }: Props) {
           serviceLocation: values.serviceLocation,
           images: values.images,
         },
-        { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) }
+        {
+          onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+          onSettled: () => setUploadProgress(null),
+        }
       );
       return;
     }
@@ -271,6 +279,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
             value={values.images}
             maxFiles={MAX_IMAGES}
             onChange={(files) => set('images', files)}
+            uploadProgress={uploadProgress}
           />
         </div>
       )}

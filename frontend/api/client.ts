@@ -37,6 +37,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { API_BASE_URL }  from '@/lib/constants';
 import { setCookie, deleteCookie, AUTH_COOKIE_MAX_AGE, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { getCsrfToken } from '@/lib/csrf';
+import { toast } from 'sonner';
 
 export const apiClient = axios.create({
   baseURL:         API_BASE_URL,
@@ -155,10 +156,22 @@ apiClient.interceptors.response.use(
       deleteCookie('app_has_session');
 
       if (typeof window !== 'undefined') {
+        // UX-FIX P0-1: previously redirected instantly with zero feedback,
+        // silently discarding any unsaved form state (e.g. a long ad draft).
+        // Show a toast first, then give it a brief moment to actually be
+        // seen before the hard navigation tears the page down.
+        toast.error('انتهت جلستك، الرجاء تسجيل الدخول مجددًا');
+
         const from = encodeURIComponent(
           window.location.pathname + window.location.search,
         );
-        window.location.href = `/login?from=${from}`;
+        // UX-FIX P0-2: `reason=session_expired` lets the login page (and
+        // LoginForm) distinguish "you were logged out" from an ordinary
+        // visit, instead of only ever using `from` for the post-login
+        // redirect target.
+        setTimeout(() => {
+          window.location.href = `/login?from=${from}&reason=session_expired`;
+        }, 1200);
       }
 
       return Promise.reject(parseApiError(error));

@@ -50,7 +50,28 @@ export function RegisterForm() {
     if (!validate()) return;
     register(
       { name: name.trim(), email: email.trim(), password, phone: phone || undefined, city: city || undefined },
-      { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) },
+      {
+        // UX-FIX P-REG-2: "email already in use" / "phone already in
+        // use" arrive as a plain BadRequestError (400, general
+        // `message`, not Zod field-level `errors`) — auth.service.ts's
+        // register() throws before it ever gets to Zod, so
+        // parsed.fieldErrors is empty for this case and the field-level
+        // FormFields below stayed blank. useRegister's own onError still
+        // shows the toast (same pattern as useCreateAd + AdForm — the
+        // toast is the immediate signal, the field message is where to
+        // actually look). This just additionally points at the specific
+        // input so the user doesn't have to guess which of email/phone
+        // was the duplicate.
+        onError: (err) => {
+          const parsed = parseApiError(err);
+          setServerErrors(parsed.fieldErrors);
+          if (parsed.statusCode === 400 && parsed.message.includes('البريد الإلكتروني')) {
+            setErrors((prev) => ({ ...prev, email: parsed.message }));
+          } else if (parsed.statusCode === 400 && parsed.message.includes('الهاتف')) {
+            setErrors((prev) => ({ ...prev, phone: parsed.message }));
+          }
+        },
+      },
     );
   }
 

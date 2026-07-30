@@ -132,7 +132,12 @@ describe('AdminCategoriesTree', () => {
       // aria-label, so no ambiguity between the two.
       await user.click(screen.getByRole('button', { name: 'حذف' }));
 
-      expect(mockDeleteMutate).toHaveBeenCalledWith('cat-1');
+      // UX-FIX P1-3: ConfirmDialog now waits for the mutation to resolve
+      // before closing, so the caller passes an onSuccess callback
+      // alongside the id.
+      expect(mockDeleteMutate).toHaveBeenCalledWith('cat-1', expect.objectContaining({
+        onSuccess: expect.any(Function),
+      }));
     });
 
     it('does not delete when cancelled', async () => {

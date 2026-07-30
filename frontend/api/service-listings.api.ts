@@ -39,8 +39,15 @@ export const serviceListingsApi = {
   getById: (id: string) =>
     apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`),
 
-  /** POST /service-listings — multipart/form-data, same field-append pattern as ads.api.ts. */
-  create: (payload: CreateServiceListingPayload) => {
+  /**
+   * POST /service-listings — multipart/form-data, same field-append
+   * pattern as ads.api.ts.
+   * UX-FIX P3-10b: accepts an optional onUploadProgress callback, same
+   * as ads.api.ts's create(), so ServiceListingForm can show a real
+   * progress bar during the multipart upload instead of only a static
+   * "جارٍ الحفظ…" button label.
+   */
+  create: (payload: CreateServiceListingPayload, onUploadProgress?: (percent: number) => void) => {
     const form = new FormData();
     form.append('categoryId', payload.categoryId);
     form.append('title', payload.title);
@@ -53,6 +60,9 @@ export const serviceListingsApi = {
 
     return apiClient.post<ApiResponse<ServiceListing>>('/service-listings', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onUploadProgress
+        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
+        : undefined,
     });
   },
 

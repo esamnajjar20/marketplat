@@ -10,7 +10,7 @@
  * /ads/search — the browse result was computed and simply thrown away.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SearchResults } from '@/components/ads/SearchResults';
 import { adsApi } from '@/api/ads.api';
@@ -75,5 +75,30 @@ describe('SearchResults', () => {
 
     await waitFor(() => expect(adsApi.getAll).toHaveBeenCalled());
     expect(adsApi.searchAds).not.toHaveBeenCalled();
+  });
+
+  // UX-FIX P1-4: previously a failed fetch just showed a static line of
+  // red text with no way to recover short of a full page reload.
+  describe('error state with retry (UX-FIX P1-4)', () => {
+    it('shows an error message with a retry button when the browse query fails', async () => {
+      (adsApi.getAll as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+      mockSearchParams = new URLSearchParams({ page: '1' });
+      renderWithClient(<SearchResults />);
+
+      expect(await screen.findByText('حدث خطأ أثناء تحميل الإعلانات')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'إعادة المحاولة' })).toBeInTheDocument();
+    });
+
+    it('re-fetches when the retry button is clicked', async () => {
+      (adsApi.getAll as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+      mockSearchParams = new URLSearchParams({ page: '1' });
+      renderWithClient(<SearchResults />);
+
+      const retryButton = await screen.findByRole('button', { name: 'إعادة المحاولة' });
+      (adsApi.getAll as ReturnType<typeof vi.fn>).mockClear();
+      fireEvent.click(retryButton);
+
+      await waitFor(() => expect(adsApi.getAll).toHaveBeenCalled());
+    });
   });
 });

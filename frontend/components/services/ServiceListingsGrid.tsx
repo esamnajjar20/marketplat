@@ -23,7 +23,7 @@ export function ServiceListingsGrid() {
   const sortBy = (sp.get('sortBy') as ServiceListingSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
 
-  const { data, isLoading, isError } = useServiceListings({
+  const { data, isLoading, isError, refetch } = useServiceListings({
     search, page, categoryId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
   });
 
@@ -33,7 +33,23 @@ export function ServiceListingsGrid() {
   const searchParams = Object.fromEntries(sp.entries());
 
   if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
-  if (isError) return <div className="text-center py-12 text-destructive">حدث خطأ أثناء تحميل الخدمات</div>;
+  if (isError) {
+    // UX-FIX P1-4: mirrors the same fix in SearchResults — a static red
+    // line with no way to recover from a transient failure short of a
+    // full reload.
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <p className="text-destructive">حدث خطأ أثناء تحميل الخدمات</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-sm text-primary hover:underline"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

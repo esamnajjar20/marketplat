@@ -2,12 +2,28 @@
 
 import { useAdminStats } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { ShoppingBag, Users, Flag, Eye } from 'lucide-react';
+import { ShoppingBag, Users, Flag, Eye, AlertTriangle } from 'lucide-react';
 
 export function AdminStatsGrid() {
-  const { data, isLoading } = useAdminStats();
+  const { data, isLoading, isError, refetch } = useAdminStats();
 
   if (isLoading) return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
+
+  // UX-FIX P1-11 (admin variant of the DashboardStats fix): the `?? 0`
+  // fallbacks below meant a failed fetch rendered as "0" across every
+  // metric with no indication anything was wrong — an admin could
+  // misread that as "zero open reports" rather than "stats didn't load".
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
+        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل الإحصائيات</p>
+        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   const stats = [
     // FIX A11Y/UX-01: blue-500/purple-500 were stock Tailwind colors

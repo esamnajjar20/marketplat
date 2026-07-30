@@ -67,6 +67,8 @@ function mockAdsData(items: AdminAd[]) {
   vi.mocked(useAdminAds).mockReturnValue({
     data: { items, meta: { totalPages: 1 } },
     isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
   } as never);
 }
 
@@ -76,7 +78,7 @@ describe('AdminAdsTable', () => {
     mockSearchParams = new URLSearchParams();
     vi.mocked(useAdminSetFeatured).mockReturnValue({ mutate: mockFeatureMutate } as never);
     vi.mocked(useAdminSetPinned).mockReturnValue({ mutate: mockPinMutate } as never);
-    vi.mocked(useAdminForceDeleteAd).mockReturnValue({ mutate: mockDeleteMutate } as never);
+    vi.mocked(useAdminForceDeleteAd).mockReturnValue({ mutate: mockDeleteMutate, isPending: false } as never);
     mockAdsData([baseAd]);
   });
 
@@ -121,7 +123,12 @@ describe('AdminAdsTable', () => {
 
       await user.click(screen.getByRole('button', { name: `تمييز ${baseAd.title}` }));
 
-      expect(mockFeatureMutate).toHaveBeenCalledWith({ adId: 'ad-1', value: true });
+      // UX-FIX P1-5/P2-11: per-row pending tracking needs an onSettled
+      // callback (to clear pendingToggle) alongside the mutate payload.
+      expect(mockFeatureMutate).toHaveBeenCalledWith(
+        { adId: 'ad-1', value: true },
+        expect.objectContaining({ onSettled: expect.any(Function) }),
+      );
     });
 
     it('uses the "un-feature" label and inverts back to false when already featured', async () => {
@@ -131,7 +138,10 @@ describe('AdminAdsTable', () => {
 
       await user.click(screen.getByRole('button', { name: `إلغاء تمييز ${baseAd.title}` }));
 
-      expect(mockFeatureMutate).toHaveBeenCalledWith({ adId: 'ad-1', value: false });
+      expect(mockFeatureMutate).toHaveBeenCalledWith(
+        { adId: 'ad-1', value: false },
+        expect.objectContaining({ onSettled: expect.any(Function) }),
+      );
     });
   });
 
@@ -142,7 +152,10 @@ describe('AdminAdsTable', () => {
 
       await user.click(screen.getByRole('button', { name: `تثبيت ${baseAd.title}` }));
 
-      expect(mockPinMutate).toHaveBeenCalledWith({ adId: 'ad-1', value: true });
+      expect(mockPinMutate).toHaveBeenCalledWith(
+        { adId: 'ad-1', value: true },
+        expect.objectContaining({ onSettled: expect.any(Function) }),
+      );
     });
   });
 
@@ -157,7 +170,7 @@ describe('AdminAdsTable', () => {
       expect(await screen.findByText('حذف هذا الإعلان نهائياً؟')).toBeInTheDocument();
     });
 
-    it('calls useAdminForceDeleteAd.mutate with the ad id only after confirming', async () => {
+    it('calls useAdminForceDeleteAd.mutate with the ad id after confirming', async () => {
       const user = userEvent.setup();
       render(<AdminAdsTable />);
 
@@ -165,7 +178,13 @@ describe('AdminAdsTable', () => {
       const confirmButton = await screen.findByRole('button', { name: 'حذف', exact: true });
       await user.click(confirmButton);
 
-      expect(mockDeleteMutate).toHaveBeenCalledWith('ad-1');
+      // UX-FIX P1-3: ConfirmDialog now stays open until the mutation
+      // actually resolves rather than closing immediately on click, so
+      // the caller passes an onSuccess callback (to close the dialog)
+      // alongside the id — hence the second argument here.
+      expect(mockDeleteMutate).toHaveBeenCalledWith('ad-1', expect.objectContaining({
+        onSuccess: expect.any(Function),
+      }));
     });
 
     it('does not call mutate when the confirmation is cancelled', async () => {

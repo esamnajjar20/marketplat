@@ -5,12 +5,28 @@ import { useAdminAds } from '@/hooks/queries/useAdmin';
 import { ROUTES }      from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { AlertTriangle } from 'lucide-react';
 
 export function AdminRecentActivity() {
-  const { data, isLoading } = useAdminAds({ page: 1, limit: 8 });
+  const { data, isLoading, isError, refetch } = useAdminAds({ page: 1, limit: 8 });
   const items = data?.items ?? [];
 
   if (isLoading) return <div className="flex justify-center py-6"><LoadingSpinner size="sm" /></div>;
+
+  // UX-FIX P1-9 (admin variant): don't render "لا توجد نشاطات" on a
+  // failed fetch — an admin could wrongly read that as "the platform
+  // is quiet" rather than "this widget couldn't load".
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-center text-sm rounded-lg border">
+        <AlertTriangle className="h-6 w-6 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل النشاط الأخير</p>
+        <button type="button" onClick={() => refetch()} className="text-primary hover:underline">
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="divide-y rounded-lg border overflow-hidden">

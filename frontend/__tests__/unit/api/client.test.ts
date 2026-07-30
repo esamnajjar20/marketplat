@@ -47,6 +47,14 @@ import { useAuthStore } from '@/store/auth.store';
 import { API_BASE_URL } from '@/lib/constants';
 import { deleteCookie } from '@/lib/cookies';
 
+// UX-FIX P0-1: client.ts's 401/refresh-failure branch now shows a toast
+// before redirecting — mocked here the same way other test files in
+// this codebase mock sonner, so the test suite doesn't depend on
+// sonner's real (headless, but unmounted-Toaster) runtime behavior.
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
+
 const REFRESH_URL = `${API_BASE_URL}/auth/refresh`;
 const PROTECTED_URL = `${API_BASE_URL}/users/me`;
 
@@ -266,7 +274,7 @@ describe('api/client.ts — silent refresh on 401', () => {
     expect(refreshCallCount).toBe(1);
   });
 
-  it('on refresh failure, logs out and redirects to /login with a `from` param', async () => {
+  it('on refresh failure, shows a toast and redirects to /login with `from` and `reason` params', async () => {
     setAuthenticatedState('expired-access-token');
 
     getMswServer()?.use(
@@ -281,7 +289,17 @@ describe('api/client.ts — silent refresh on 401', () => {
     await expect(apiClient.get('/users/me')).rejects.toBeDefined();
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(window.location.href).toBe('/login?from=%2Fdashboard');
+
+    // UX-FIX P0-1/P0-2: the redirect is no longer immediate — a toast is
+    // shown first (asserted in the LoginForm/client unit-level toast
+    // coverage), then navigation fires after a short real delay so the
+    // toast actually has time to be seen. Wait for that delay (real
+    // timers — mixing fake timers with MSW's own internal scheduling is
+    // unreliable) rather than asserting synchronously.
+    await vi.waitFor(
+      () => expect(window.location.href).toBe('/login?from=%2Fdashboard&reason=session_expired'),
+      { timeout: 2000, interval: 50 },
+    );
   });
 
   it('does not retry a request that already failed once (the _retry guard)', async () => {

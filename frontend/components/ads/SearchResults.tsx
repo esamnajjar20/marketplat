@@ -48,7 +48,7 @@ export function SearchResults() {
   // on every keystroke-driven search, wasting a full GET /ads request
   // whose result was never even read (see useAds.ts).
   const browseQ    = useAds({ page, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { enabled: !isSearch });
-  const { data, isLoading, isError } = isSearch ? searchQ : browseQ;
+  const { data, isLoading, isError, refetch } = isSearch ? searchQ : browseQ;
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -57,7 +57,23 @@ export function SearchResults() {
   const searchParams = Object.fromEntries(sp.entries());
 
   if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
-  if (isError)   return <div className="text-center py-12 text-destructive">حدث خطأ أثناء تحميل الإعلانات</div>;
+  if (isError) {
+    // UX-FIX P1-4: previously just a static line of red text with no way
+    // to recover short of a full page reload, even on a transient network
+    // blip. Mirrors the retry pattern already used in app/offline/page.tsx.
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <p className="text-destructive">حدث خطأ أثناء تحميل الإعلانات</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-sm text-primary hover:underline"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

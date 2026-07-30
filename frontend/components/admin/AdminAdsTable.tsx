@@ -24,16 +24,34 @@ export function AdminAdsTable() {
   const q      = sp.get('q') ?? '';
   const status = sp.get('status') ?? '';
 
-  const { data, isLoading } = useAdminAds({ page, q, status });
+  const { data, isLoading, isError, refetch } = useAdminAds({ page, q, status });
   const featureAd = useAdminSetFeatured();
   const pinAd     = useAdminSetPinned();
   const deleteAd  = useAdminForceDeleteAd();
+
+  // UX-FIX P1-5 / P2-11: featureAd/pinAd are each a single shared mutation
+  // instance (see useToggleAdField), so isPending alone can't tell us
+  // *which* row is in flight, and previously there was no disabled state
+  // at all on these two buttons — a fast repeat click could fire the
+  // toggle multiple times before the optimistic update even settled.
+  // Track (adId, field) pairs currently in flight instead.
+  const [pendingToggle, setPendingToggle] = useState<{ adId: string; field: 'featured' | 'pinned' } | null>(null);
 
   // Tracks which ad the delete-confirmation dialog applies to (null = closed).
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
+
+  function toggleFeatured(adId: string, next: boolean) {
+    setPendingToggle({ adId, field: 'featured' });
+    featureAd.mutate({ adId, value: next }, { onSettled: () => setPendingToggle(null) });
+  }
+
+  function togglePinned(adId: string, next: boolean) {
+    setPendingToggle({ adId, field: 'pinned' });
+    pinAd.mutate({ adId, value: next }, { onSettled: () => setPendingToggle(null) });
+  }
 
   function search(value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -65,7 +83,16 @@ export function AdminAdsTable() {
         </select>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        // UX-FIX P1-4: previously a failed fetch fell straight through to
+        // the `items.length === 0` empty-state row below, indistinguishable
+        // from "no ads exist" — an admin had no way to tell a real fetch
+        // failure apart from a genuinely empty result set.
+        <div className="rounded-lg border p-12 text-center text-muted-foreground space-y-3">
+          <p>تعذّر تحميل الإعلانات. يرجى المحاولة مرة أخرى.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>إعادة المحاولة</Button>
+        </div>
+      ) : isLoading ? (
         <div className="flex justify-center py-12"><LoadingSpinner /></div>
       ) : (
         <div className="rounded-lg border overflow-hidden">
@@ -116,13 +143,15 @@ export function AdminAdsTable() {
                         <Button variant="ghost" size="icon" className="h-7 w-7"
                           title="تمييز"
                           aria-label={ad.isFeatured ? `إلغاء تمييز ${ad.title}` : `تمييز ${ad.title}`}
-                          onClick={() => featureAd.mutate({ adId: ad.id, value: !ad.isFeatured })}>
+                          disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'featured'}
+                          onClick={() => toggleFeatured(ad.id, !ad.isFeatured)}>
                           <Star className={`h-3.5 w-3.5 ${ad.isFeatured ? 'fill-warning text-warning' : ''}`} />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7"
                           title="تثبيت"
                           aria-label={ad.isPinned ? `إلغاء تثبيت ${ad.title}` : `تثبيت ${ad.title}`}
-                          onClick={() => pinAd.mutate({ adId: ad.id, value: !ad.isPinned })}>
+                          disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'pinned'}
+                          onClick={() => togglePinned(ad.id, !ad.isPinned)}>
                           <Pin className={`h-3.5 w-3.5 ${ad.isPinned ? 'text-primary' : ''}`} />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
@@ -156,7 +185,11 @@ export function AdminAdsTable() {
         description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
         confirmLabel="حذف"
         destructive
-        onConfirm={() => { if (deleteTargetId) deleteAd.mutate(deleteTargetId); }}
+        isPending={deleteAd.isPending}
+        onConfirm={() => {
+          if (!deleteTargetId) return;
+          deleteAd.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
+        }}
       />
     </div>
   );

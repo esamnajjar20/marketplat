@@ -16,7 +16,7 @@ import { useDeleteAd, useMarkAsSold } from '@/hooks/mutations/useAdMutations';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, AlertTriangle } from 'lucide-react';
 import type { AdStatus } from '@/types/ad.types';
 
 export function MyAdsList() {
@@ -25,7 +25,7 @@ export function MyAdsList() {
   const page   = Number(sp.get('page') ?? 1);
   const status = (sp.get('status') ?? undefined) as AdStatus | undefined;
 
-  const { data, isLoading } = useMyAds({ page, limit: 10, status });
+  const { data, isLoading, isError, refetch } = useMyAds({ page, limit: 10, status });
   const deleteAd   = useDeleteAd();
   const markAsSold = useMarkAsSold();
 
@@ -64,6 +64,29 @@ export function MyAdsList() {
 
   if (isLoading || isOutOfRange) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+  }
+
+  // UX-FIX P1-9: `items = data?.items ?? []` meant a failed fetch fell
+  // straight into the items.length === 0 empty state ("لم تنشر أي
+  // إعلانات بعد") — actively misleading for a seller who has real ads
+  // but hit a network/server error, since it reads as "your ads are
+  // gone" rather than "we couldn't load them". Checked after the
+  // isOutOfRange redirect-in-progress case above, since that one still
+  // needs `data` to have resolved successfully first.
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل إعلاناتك</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-sm text-primary hover:underline"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -148,7 +171,15 @@ export function MyAdsList() {
         description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
         confirmLabel="حذف"
         destructive
-        onConfirm={() => { if (deleteTargetId) deleteAd.mutate(deleteTargetId); }}
+        isPending={deleteAd.isPending}
+        onConfirm={() => {
+          if (!deleteTargetId) return;
+          // UX-FIX P1-3: close only once the delete actually succeeds
+          // (useDeleteAd's own onSuccess still handles the toast +
+          // redirect + cache invalidation — this just also closes the
+          // dialog so it doesn't linger if navigation is ever delayed).
+          deleteAd.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
+        }}
       />
     </div>
   );

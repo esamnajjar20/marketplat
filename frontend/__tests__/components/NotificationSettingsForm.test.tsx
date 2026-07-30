@@ -89,7 +89,13 @@ describe('NotificationSettingsForm', () => {
     await user.click(adViewsSwitch);
 
     expect(adViewsSwitch).toHaveAttribute('aria-checked', 'true');
-    expect(mockMutate).toHaveBeenCalledWith({ adViews: true });
+    // UX-FIX P2-9: toggle() now also passes an onError rollback callback
+    // alongside the payload, so a failed save reverts the switch instead
+    // of leaving it visually "on" forever.
+    expect(mockMutate).toHaveBeenCalledWith(
+      { adViews: true },
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
     // Only the toggled key is sent — a partial update, not the whole object.
     expect(mockMutate).toHaveBeenCalledTimes(1);
     expect(mockMutate.mock.calls[0][0]).toEqual({ adViews: true });
@@ -105,7 +111,10 @@ describe('NotificationSettingsForm', () => {
 
     await user.click(screen.getByRole('switch', { name: 'رسائل جديدة' }));
 
-    expect(mockMutate).toHaveBeenCalledWith({ newMessage: false });
+    expect(mockMutate).toHaveBeenCalledWith(
+      { newMessage: false },
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
   });
 
   it('disables all switches while a save is pending', () => {
@@ -120,5 +129,28 @@ describe('NotificationSettingsForm', () => {
     render(<NotificationSettingsForm />);
 
     screen.getAllByRole('switch').forEach((sw) => expect(sw).toBeDisabled());
+  });
+
+  it('reverts the switch to its previous state when the save fails (UX-FIX P2-9)', async () => {
+    (useMe as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { notificationPreferences: { newMessage: true, adViews: false, favAdUpdated: true, promotions: false } },
+      isLoading: false,
+    });
+    // Simulate a failed save by invoking the onError callback the
+    // component passes, the same way react-query would on rejection.
+    mockMutate.mockImplementation((_payload, options) => {
+      options?.onError?.(new Error('network error'));
+    });
+    const user = userEvent.setup();
+    render(<NotificationSettingsForm />);
+
+    const adViewsSwitch = screen.getByRole('switch', { name: 'مشاهدات الإعلان' });
+    expect(adViewsSwitch).toHaveAttribute('aria-checked', 'false');
+
+    await user.click(adViewsSwitch);
+
+    // Optimistically flips to true first, then reverts back to false
+    // once onError fires — never left stuck in the wrong, unsaved state.
+    expect(adViewsSwitch).toHaveAttribute('aria-checked', 'false');
   });
 });

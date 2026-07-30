@@ -33,6 +33,13 @@ export function NotificationSettingsForm() {
   // server data once it loads/refetches.
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
 
+  // UX-FIX P3-12: updatePrefs.isPending was shared across every switch —
+  // toggling one preference disabled ALL of them until that single
+  // request resolved, which looks like the whole form froze for an
+  // unrelated toggle. Track which key is actually in flight and disable
+  // only that one switch.
+  const [pendingKey, setPendingKey] = useState<keyof NotificationPreferences | null>(null);
+
   useEffect(() => {
     if (me?.notificationPreferences) {
       setPrefs(me.notificationPreferences);
@@ -42,11 +49,26 @@ export function NotificationSettingsForm() {
   function toggle(key: keyof NotificationPreferences) {
     const next = !prefs[key];
     setPrefs((p) => ({ ...p, [key]: next }));
+    setPendingKey(key);
     // FIX FEAT-02: each switch saves immediately (matches the
     // immediate-feedback feel of a toggle UI) rather than requiring a
     // separate "save" click — the form below still allows a final
     // explicit save for users who prefer that flow.
-    updatePrefs.mutate({ [key]: next });
+    //
+    // UX-FIX P2-9: previously only toasted on error (see
+    // useUpdateNotificationPreferences's own onError) with no rollback —
+    // the switch stayed visually "on" even though the server rejected the
+    // change, so the UI silently lied about the saved state until the
+    // next full reload/refetch. Revert the optimistic flip here, on the
+    // same pattern useFavoriteMutations.ts already uses for its own
+    // optimistic toggle.
+    updatePrefs.mutate(
+      { [key]: next },
+      {
+        onError: () => setPrefs((p) => ({ ...p, [key]: !next })),
+        onSettled: () => setPendingKey(null),
+      },
+    );
   }
 
   if (isLoading) {
@@ -65,7 +87,7 @@ export function NotificationSettingsForm() {
             </div>
             <button
               role="switch" aria-checked={prefs[key]} aria-label={label}
-              disabled={updatePrefs.isPending}
+              disabled={pendingKey === key}
               onClick={() => toggle(key)}
               className={`relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50
                 ${prefs[key] ? 'bg-primary' : 'bg-input'}`}>

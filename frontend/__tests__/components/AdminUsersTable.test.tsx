@@ -149,7 +149,13 @@ describe('AdminUsersTable', () => {
       await user.click(screen.getByRole('button', { name: 'ترقية أحمد محمد إلى مدير' }));
       await user.click(screen.getByRole('button', { name: 'ترقية' }));
 
-      expect(mockChangeRoleMutate).toHaveBeenCalledWith({ userId: 'user-1', role: 'ADMIN' });
+      // UX-FIX P1-3: ConfirmDialog now waits for the mutation to resolve
+      // before closing, so the caller passes an onSuccess callback
+      // alongside the payload.
+      expect(mockChangeRoleMutate).toHaveBeenCalledWith(
+        { userId: 'user-1', role: 'ADMIN' },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
     });
 
     it('calls useAdminChangeRole.mutate with role: USER after confirming a demotion', async () => {
@@ -160,7 +166,10 @@ describe('AdminUsersTable', () => {
       await user.click(screen.getByRole('button', { name: 'تنزيل سارة المشرفة إلى مستخدم' }));
       await user.click(screen.getByRole('button', { name: 'تنزيل' }));
 
-      expect(mockChangeRoleMutate).toHaveBeenCalledWith({ userId: 'admin-1', role: 'USER' });
+      expect(mockChangeRoleMutate).toHaveBeenCalledWith(
+        { userId: 'admin-1', role: 'USER' },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
     });
 
     it('does not call mutate when the confirmation is cancelled', async () => {

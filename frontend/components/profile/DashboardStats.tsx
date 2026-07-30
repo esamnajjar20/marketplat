@@ -2,7 +2,7 @@
 
 import { useMyAds }      from '@/hooks/queries/useAds';
 import { useFavorites }  from '@/hooks/queries/useFavorites';
-import { Eye, Heart, ShoppingBag, TrendingUp } from 'lucide-react';
+import { Eye, Heart, ShoppingBag, TrendingUp, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 
 /**
@@ -27,10 +27,35 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 const MAX_ADS_FOR_STATS = 100;
 
 export function DashboardStats() {
-  const { data: myAds,    isLoading: adsLoading }  = useMyAds({ limit: MAX_ADS_FOR_STATS });
-  const { data: favorites, isLoading: favLoading } = useFavorites({ limit: MAX_ADS_FOR_STATS });
+  const { data: myAds,    isLoading: adsLoading, isError: adsError, refetch: refetchAds }
+    = useMyAds({ limit: MAX_ADS_FOR_STATS });
+  const { data: favorites, isLoading: favLoading, isError: favError, refetch: refetchFav }
+    = useFavorites({ limit: MAX_ADS_FOR_STATS });
 
   if (adsLoading || favLoading) return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
+
+  // UX-FIX P1-11: this is the most silent failure mode found in the
+  // whole audit — a failed fetch produced no empty state at all, just
+  // every stat quietly computed as 0 via the `?? 0` fallbacks below.
+  // A seller would see "0 إعلانات نشطة، 0 مشاهدات" and could reasonably
+  // read that as their real numbers rather than "we couldn't load
+  // this". Surfacing the failure explicitly, with a retry that re-fires
+  // whichever query(ies) actually failed.
+  if (adsError || favError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
+        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل الإحصائيات</p>
+        <button
+          type="button"
+          onClick={() => { if (adsError) refetchAds(); if (favError) refetchFav(); }}
+          className="text-sm text-primary hover:underline"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   const activeAds  = myAds?.items?.filter((a) => a.status === 'ACTIVE').length  ?? 0;
   const soldAds    = myAds?.items?.filter((a) => a.status === 'SOLD').length    ?? 0;

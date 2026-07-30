@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Pencil, Trash2, Eye, Briefcase } from 'lucide-react';
+import { Pencil, Trash2, Eye, Briefcase, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -36,7 +36,7 @@ export function MyServiceListingsList() {
   const page = Number(sp.get('page') ?? 1);
   const status = (sp.get('status') ?? undefined) as ServiceListingStatus | undefined;
 
-  const { data, isLoading } = useMyServiceListings({ page, limit: 10, status });
+  const { data, isLoading, isError, refetch } = useMyServiceListings({ page, limit: 10, status });
   const deleteListing = useDeleteServiceListing();
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -66,6 +66,25 @@ export function MyServiceListingsList() {
 
   if (isLoading || isOutOfRange) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+  }
+
+  // UX-FIX P1-9 (services variant of the MyAdsList fix): a failed fetch
+  // must not be misread as "you have no services" — it means we
+  // couldn't load them.
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل خدماتك</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-sm text-primary hover:underline"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -155,7 +174,11 @@ export function MyServiceListingsList() {
         description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
         confirmLabel="حذف"
         destructive
-        onConfirm={() => { if (deleteTargetId) deleteListing.mutate(deleteTargetId); }}
+        isPending={deleteListing.isPending}
+        onConfirm={() => {
+          if (!deleteTargetId) return;
+          deleteListing.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
+        }}
       />
     </div>
   );

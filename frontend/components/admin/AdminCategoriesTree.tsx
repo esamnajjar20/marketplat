@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronRight, Tag, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Tag, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useDeleteCategory } from '@/hooks/mutations/useCategoryMutations';
@@ -19,12 +19,27 @@ import type { Category } from '@/types/category.types';
  * consistent with the rest of the admin UI (see MyAdsList, AdminAdsTable).
  */
 export function AdminCategoriesTree() {
-  const { data: categories, isLoading } = useCategories();
+  const { data: categories, isLoading, isError, refetch } = useCategories();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const deleteCategory = useDeleteCategory();
 
   if (isLoading) return <div className="flex justify-center py-6"><LoadingSpinner size="sm" /></div>;
+
+  // UX-FIX P1-9 (admin variant): a failed fetch must not render as an
+  // empty tree — an admin seeing zero categories could be misled into
+  // thinking the taxonomy was wiped and try to recreate it from scratch.
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
+        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل الفئات</p>
+        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   const roots = (categories ?? []).filter((c) => !c.parentId);
 
@@ -37,7 +52,7 @@ export function AdminCategoriesTree() {
           <div key={cat.id}>
             <div className="flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors">
               <button
-                onClick={() => setExpanded((s) => { const n = new Set(s); if (isOpen) { n.delete(cat.id); } else { n.add(cat.id); } return n; })}
+                onClick={() => setExpanded((s) => { const n = new Set(s); isOpen ? n.delete(cat.id) : n.add(cat.id); return n; })}
                 aria-expanded={hasChildren ? isOpen : undefined}
                 aria-label={hasChildren ? `${cat.nameAr} — ${isOpen ? 'إغلاق' : 'فتح'} الفئات الفرعية` : cat.nameAr}
                 className="flex flex-1 items-center gap-2 text-sm font-medium text-start"
@@ -91,7 +106,11 @@ export function AdminCategoriesTree() {
         description="لا يمكن التراجع عن هذا الإجراء. لا يمكن حذف فئة تحتوي على إعلانات نشطة."
         confirmLabel="حذف"
         destructive
-        onConfirm={() => deleteTarget && deleteCategory.mutate(deleteTarget.id)}
+        isPending={deleteCategory.isPending}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteCategory.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
       />
     </div>
   );

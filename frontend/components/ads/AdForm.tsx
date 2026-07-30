@@ -29,23 +29,20 @@ interface Errors {
 
 export function AdForm({ mode, ad }: Props) {
   const { data: categories } = useCategories();
-  const createAd = useCreateAd();
+  // UX-FIX P3-10b: real upload progress (0-100) for the images actually
+  // being sent in this submission, shown in ImageUpload while it's in
+  // flight instead of leaving the user with only the button's static
+  // "جارٍ الحفظ…" label for however long a multi-photo upload takes on a
+  // slow connection. null when no upload is in progress.
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const createAd = useCreateAd((p) => setUploadProgress(p));
   const updateAd = useUpdateAd(ad?.id ?? '');
-  const addImages = useAddAdImages();
+  const addImages = useAddAdImages((p) => setUploadProgress(p));
   const removeImage = useRemoveAdImage();
   const [isSavingImages, setIsSavingImages] = useState(false);
   const isSubmittingRef = useRef(false);
   const isPending = createAd.isPending || updateAd.isPending
     || addImages.isPending || removeImage.isPending || isSavingImages;
-  // FIX BUG-07-b: any button inside the <form> that doesn't explicitly
-  // set type="button" defaults to type="submit" per the HTML spec, so
-  // clicking it (e.g. an existing-image "remove" control) also fires a
-  // native form submission alongside its own onClick — an unintended
-  // extra submit racing the real one. clickedSubmitButtonRef is set only
-  // by the actual submit button's own onClick (which runs before the
-  // submit event it triggers), so handleSubmit can tell a genuine submit
-  // apart from one that leaked in from some other in-form control.
-  const clickedSubmitButtonRef = useRef(false);
 
   // FIX I-04: snapshot of the ad's images as they were when the form
   // mounted, so we can diff against `values.existingImages` on submit
@@ -112,15 +109,12 @@ export function AdForm({ mode, ad }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // FIX BUG-07-b: ignore submit events that didn't originate from an
-    // actual click on the submit button — see clickedSubmitButtonRef above.
-    if (!clickedSubmitButtonRef.current) return;
-    clickedSubmitButtonRef.current = false;
     if (isSubmittingRef.current) return;
     if (!validate()) return;
 
     if (mode === 'create') {
       isSubmittingRef.current = true;
+      setUploadProgress(values.images.length > 0 ? 0 : null);
       const payload = {
         title:        values.title.trim(),
         description:  values.description.trim(),
@@ -131,7 +125,11 @@ export function AdForm({ mode, ad }: Props) {
         categoryId:   values.categoryId || undefined,
         images:       values.images,
       };
-      createAd.mutate(payload);
+      // UX-FIX P3-10b: reset the bar once the request settles either way —
+      // onSuccess already navigates away, but onError leaves the user on
+      // the form, where a progress bar frozen at some earlier percentage
+      // would be confusing next to the (now re-enabled) submit button.
+      createAd.mutate(payload, { onSettled: () => setUploadProgress(null) });
       return;
     }
 
@@ -156,7 +154,6 @@ export function AdForm({ mode, ad }: Props) {
 
   async function submitEdit(currentAd: Ad) {
     setIsSavingImages(true);
-    let imagesOk = false;
     try {
       const removedUrls = originalImages.filter(
         (url) => !values.existingImages.includes(url),
@@ -165,26 +162,19 @@ export function AdForm({ mode, ad }: Props) {
         await removeImage.mutateAsync({ id: currentAd.id, imageUrl });
       }
       if (values.images.length > 0) {
+        setUploadProgress(0);
         await addImages.mutateAsync({ id: currentAd.id, files: values.images });
       }
-      imagesOk = true;
     } catch {
       // Each mutation's own onError already toasted a specific message
       // and invalidated whatever partially succeeded; stop here so a
       // failed image step doesn't still trigger the ad-details PATCH
       // and navigate the user away from a half-applied edit.
+      return;
     } finally {
       setIsSavingImages(false);
-    }
-
-    // Only proceed to the ad-details PATCH — and only release the
-    // re-entrancy guard — once the image step has fully settled. Resetting
-    // the guard any earlier would let a second click sneak in and call
-    // updateAd a second time while this call is still in flight, or after
-    // a failed image step that already decided not to call it.
-    if (!imagesOk) {
       isSubmittingRef.current = false;
-      return;
+      setUploadProgress(null);
     }
 
     const payload = {
@@ -198,7 +188,6 @@ export function AdForm({ mode, ad }: Props) {
     } satisfies UpdateAdPayload;
 
     updateAd.mutate(payload);
-    isSubmittingRef.current = false;
   }
 
   return (
@@ -285,17 +274,14 @@ export function AdForm({ mode, ad }: Props) {
           maxFiles={MAX_IMAGES}
           onChange={(files) => set('images', files)}
           onRemoveExisting={(url) => set('existingImages', values.existingImages.filter((u) => u !== url))}
+          uploadProgress={uploadProgress}
         />
       </div>
 
       {/* Submit */}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
-        <Button
-          type="submit"
-          disabled={isPending}
-          onClick={() => { clickedSubmitButtonRef.current = true; }}
-        >
+        <Button type="submit" disabled={isPending}>
           {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
         </Button>
       </div>
