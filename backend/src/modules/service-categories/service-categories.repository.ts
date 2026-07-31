@@ -19,6 +19,34 @@ export const serviceCategoriesRepository = {
       orderBy: { name: 'asc' },
     }),
 
+  // EPIC 1.2: admin management view — unlike the public findMany above,
+  // this must NOT filter by isActive (an admin needs to see and
+  // re-activate a deactivated category, not just the public subset),
+  // and includes ad counts per category the same way
+  // categoriesRepository's admin tree does (see AdminCategoriesTree.tsx's
+  // cat._count.ads usage) so the admin UI can warn before a delete that
+  // would be rejected by the listingsCount > 0 guard in
+  // service-categories.service.ts's deleteServiceCategory.
+  findManyForAdmin: async (): Promise<
+    Array<
+      ServiceCategory & {
+        children: Array<ServiceCategory & { _count: { listings: number } }>;
+        _count: { listings: number };
+      }
+    >
+  > =>
+    prisma.serviceCategory.findMany({
+      where: { parentId: null },
+      include: {
+        children: {
+          orderBy: { name: 'asc' },
+          include: { _count: { select: { listings: true } } },
+        },
+        _count: { select: { listings: true } },
+      },
+      orderBy: { name: 'asc' },
+    }),
+
   findById: async (id: string): Promise<ServiceCategory | null> =>
     prisma.serviceCategory.findUnique({ where: { id }, include: { children: true } }),
 

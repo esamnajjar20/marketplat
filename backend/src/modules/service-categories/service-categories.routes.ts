@@ -12,6 +12,17 @@ serviceCategoriesRouter.get(
   CACHE.LONG,
   serviceCategoriesController.getServiceCategoryBySlug
 );
+// EPIC 1.2: registered before /:id so "admin" is never swallowed as an
+// :id param — same convention noted in service-listings.routes.ts's /me
+// route. CACHE.NONE since this always needs the live, uncached state
+// (see service-categories.service.ts's getServiceCategoriesForAdmin).
+serviceCategoriesRouter.get(
+  '/admin/all',
+  authenticate,
+  requireAdmin,
+  CACHE.NONE,
+  serviceCategoriesController.getServiceCategoriesForAdmin
+);
 serviceCategoriesRouter.get('/:id', CACHE.LONG, serviceCategoriesController.getServiceCategoryById);
 serviceCategoriesRouter.post(
   '/',

@@ -46,9 +46,19 @@ test.describe('Admin dashboard', () => {
       'href',
       '/admin/reports',
     );
-    await expect(page.getByRole('link', { name: 'الفئات' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'فئات الإعلانات' })).toHaveAttribute(
       'href',
       '/admin/categories',
+    );
+    // Epic 1.1: verify/suspend sellers admin UI — was entirely missing.
+    await expect(page.getByRole('link', { name: 'البائعون' })).toHaveAttribute(
+      'href',
+      '/admin/sellers',
+    );
+    // Epic 1.2: service-categories admin UI — was entirely missing.
+    await expect(page.getByRole('link', { name: 'فئات الخدمات' })).toHaveAttribute(
+      'href',
+      '/admin/service-categories',
     );
   });
 });

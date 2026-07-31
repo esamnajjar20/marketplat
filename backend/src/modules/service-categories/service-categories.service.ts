@@ -72,6 +72,18 @@ export const serviceCategoriesService = {
     return categories;
   },
 
+  // EPIC 1.2: admin management list — deliberately bypasses the
+  // service-categories cache (SERVICE_CATEGORIES_CACHE_KEY) used by
+  // getServiceCategories above. That cache is public-facing and only
+  // ever holds the isActive-filtered tree; an admin toggling a
+  // category's isActive or editing it needs the live, uncached, full
+  // set (including inactive categories) every time, and this is a
+  // low-traffic admin-only endpoint where the 1-hour cache would only
+  // cause confusion (edit a category, still see the stale version).
+  getServiceCategoriesForAdmin: async () => {
+    return serviceCategoriesRepository.findManyForAdmin();
+  },
+
   getServiceCategoryById: async (id: string): Promise<ServiceCategory> => {
     const category = await serviceCategoriesRepository.findById(id);
     if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');

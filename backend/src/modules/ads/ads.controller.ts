@@ -28,7 +28,13 @@ export const adsController = {
       // script hitting this endpoint directly is exactly this kind of
       // client) could publish an ad with zero images, bypassing what
       // every real user going through the UI is required to provide.
-      if (files.length === 0) throw new BadRequestError('At least one image is required');
+      //
+      // TEMPORARY (remove once image hosting, e.g. Cloudinary, is
+      // configured): this check is disabled below so ads can be
+      // created and tested end-to-end (including checking indexing/
+      // appearance on Google) without a working upload service. Revert
+      // by uncommenting the throw and removing this block.
+      // if (files.length === 0) throw new BadRequestError('At least one image is required');
       const ad = await adsService.createAd(user.userId, body, files);
       res.status(201).json(successResponse('Ad created', ad));
     } catch (error) {

@@ -14,6 +14,57 @@ export const sellersRepository = {
   findById: (id: string): Promise<SellerProfile | null> =>
     prisma.sellerProfile.findUnique({ where: { id } }),
 
+  // EPIC 1.1: admin sellers list — mirrors adminService.getAllAds/
+  // getAllUsers's where/skip/take + count-in-parallel shape exactly
+  // (see admin.service.ts). Needed so an admin can find a seller to
+  // verify/suspend at all; PATCH /admin/sellers/:id/verify and
+  // /suspend already existed with no way to discover a seller's id
+  // from the UI.
+  findMany: (params: {
+    skip: number;
+    take: number;
+    verified?: boolean;
+    suspended?: boolean;
+    q?: string;
+  }): Promise<
+    Array<SellerProfile & { user: { id: string; name: string; email: string } }>
+  > =>
+    prisma.sellerProfile.findMany({
+      where: {
+        ...(params.verified !== undefined && { verified: params.verified }),
+        ...(params.suspended !== undefined && { suspended: params.suspended }),
+        // Same tradeoff noted in admin.service.ts's getAllAds/getAllUsers:
+        // no index covers this pattern-match, acceptable for a
+        // low-QPS admin-only endpoint.
+        ...(params.q && {
+          OR: [
+            { displayName: { contains: params.q, mode: 'insensitive' as const } },
+            { user: { name: { contains: params.q, mode: 'insensitive' as const } } },
+            { user: { email: { contains: params.q, mode: 'insensitive' as const } } },
+          ],
+        }),
+      },
+      include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip: params.skip,
+      take: params.take,
+    }),
+
+  count: (params: { verified?: boolean; suspended?: boolean; q?: string }): Promise<number> =>
+    prisma.sellerProfile.count({
+      where: {
+        ...(params.verified !== undefined && { verified: params.verified }),
+        ...(params.suspended !== undefined && { suspended: params.suspended }),
+        ...(params.q && {
+          OR: [
+            { displayName: { contains: params.q, mode: 'insensitive' as const } },
+            { user: { name: { contains: params.q, mode: 'insensitive' as const } } },
+            { user: { email: { contains: params.q, mode: 'insensitive' as const } } },
+          ],
+        }),
+      },
+    }),
+
   create: (
     tx: Prisma.TransactionClient,
     userId: string,

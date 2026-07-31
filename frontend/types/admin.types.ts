@@ -101,3 +101,40 @@ export interface AdminStats {
   openReports: number;
   viewsToday:  number;
 }
+
+// ── Sellers (Epic 1.1) ──────────────────────────────────────────────
+// The report's finding: verified/suspended exist on SellerProfile and are
+// already enforced in ads.service.ts (a suspended seller can't publish),
+// but there was no admin UI at all to ever set them — the "verified"
+// badge shown everywhere (SellerProfileHeader, ServiceProviderHeader)
+// could never actually become true through any reachable screen. This
+// type matches sellers.repository.ts's findMany select exactly (only
+// user.id/name/email — no email verification status, no full user record).
+
+export interface AdminSeller {
+  id:                 string;
+  displayName:        string;
+  verified:            boolean;
+  verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  suspended:           boolean;
+  trustScore:          number;
+  averageRating:       string; // Prisma Decimal serializes as a string over JSON
+  totalRatings:        number;
+  activeAds:           number;
+  totalSales:          number;
+  createdAt:           string;
+  user: {
+    id:    string;
+    name:  string;
+    email: string;
+  };
+}
+
+export interface AdminGetSellersParams extends PaginationParams {
+  verified?:  boolean;
+  suspended?: boolean;
+  q?: string;
+}
+
+export interface SetSellerVerifiedPayload  { verified:  boolean; }
+export interface SetSellerSuspendedPayload { suspended: boolean; }

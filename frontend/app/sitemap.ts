@@ -97,14 +97,12 @@ async function fetchActiveAdIds(): Promise<AdApiItem[]> {
         { next: { revalidate } },
       );
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[sitemap] network error fetching ads page', page, err);
+            console.error('[sitemap] network error fetching ads page', page, err);
       break;
     }
 
     if (!res.ok) {
-      // eslint-disable-next-line no-console
-      console.error('[sitemap] non-OK response fetching ads page', page, res.status);
+            console.error('[sitemap] non-OK response fetching ads page', page, res.status);
       break;
     }
 

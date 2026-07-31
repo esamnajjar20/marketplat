@@ -64,3 +64,41 @@ export function useDeleteServiceListing() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+/**
+ * EPIC 1.3: pause/resume a listing. The report's finding: PATCH
+ * /service-listings/:id already accepts status (including PAUSED) —
+ * "the backend PATCH ... does accept status ... it's fully functional
+ * server-side, but the frontend's ServiceListingForm.tsx never sends a
+ * status field, and MyServiceListingsList.tsx has no 'pause' button."
+ * This is that missing button's mutation. Deliberately separate from
+ * useUpdateServiceListing above (same endpoint, different UX): that
+ * hook redirects to /my-services and shows a generic save toast, both
+ * wrong for a one-click toggle fired from a row the user is already
+ * looking at. Optimistic update mirrors
+ * useToggleServiceCategoryActive's pattern in useServiceCategoryMutations.ts.
+ */
+export function useToggleServiceListingStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'PAUSED' }) =>
+      serviceListingsApi.update(id, { status }).then((r) => r.data.data),
+    onMutate: async ({ id, status }) => {
+      const snapshots = queryClient.getQueriesData({ queryKey: queryKeys.serviceListings.all() });
+      queryClient.setQueriesData({ queryKey: queryKeys.serviceListings.all() }, (old: any) => {
+        if (!old?.items) return old;
+        return { ...old, items: old.items.map((l: any) => (l.id === id ? { ...l, status } : l)) };
+      });
+      await queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.all() });
+      return { snapshots };
+    },
+    onSuccess: (_data, { status }) =>
+      toast.success(status === 'PAUSED' ? 'تم إيقاف الخدمة مؤقتاً' : 'تمت إعادة تفعيل الخدمة'),
+    onError: (err, _vars, context) => {
+      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast.error(parseApiError(err).message);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() }),
+  });
+}

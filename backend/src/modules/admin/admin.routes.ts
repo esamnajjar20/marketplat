@@ -23,6 +23,10 @@ adminRouter.get('/users', adminController.getAllUsers);
 adminRouter.patch('/users/:id/active', adminController.toggleUserActive);
 adminRouter.patch('/users/:id/role', adminController.changeRole);
 
+// EPIC 1.1: GET /admin/sellers — was missing entirely, so there was no
+// way to discover a sellerProfileId to pass into verify/suspend below.
+adminRouter.get('/sellers', sellersController.getAllSellers);
+
 // Seller verification — separate from any public/self-service seller
 // route; only an admin can flip `verified`. See seller-profile-design.md
 // §12: no route anywhere lets a client write trustScore/stats directly.

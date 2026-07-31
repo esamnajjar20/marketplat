@@ -24,6 +24,10 @@ import type {
   Report,
   ReportStatus,
   AdminStats,
+  AdminSeller,
+  AdminGetSellersParams,
+  SetSellerVerifiedPayload,
+  SetSellerSuspendedPayload,
 } from '@/types/admin.types';
 import type { ApiResponse } from '@/types/api.types';
 
@@ -65,6 +69,24 @@ export const adminApi = {
   /** FIX AUDIT-V3-05: PATCH /admin/users/:id/role */
   changeRole: (userId: string, role: 'USER' | 'ADMIN') =>
     apiClient.patch<ApiResponse<AdminUser>>(`/admin/users/${userId}/role`, { role }),
+
+  // ── Sellers (Epic 1.1) ───────────────────────────────────────────
+  // The report's finding: verifySeller/suspendSeller existed on the
+  // backend with zero reachable UI — no way to even list sellers to
+  // act on. GET /admin/sellers, PATCH /admin/sellers/:id/verify, and
+  // PATCH /admin/sellers/:id/suspend now all exist server-side
+  // (admin.routes.ts) — this wires the frontend to them.
+
+  getSellers: (params?: AdminGetSellersParams) =>
+    apiClient
+      .get<ApiResponse<AdminSeller[]>>('/admin/sellers', { params })
+      .then((r) => unwrapPaginated<AdminSeller>(r)),
+
+  setSellerVerified: (sellerProfileId: string, payload: SetSellerVerifiedPayload) =>
+    apiClient.patch<ApiResponse<AdminSeller>>(`/admin/sellers/${sellerProfileId}/verify`, payload),
+
+  setSellerSuspended: (sellerProfileId: string, payload: SetSellerSuspendedPayload) =>
+    apiClient.patch<ApiResponse<AdminSeller>>(`/admin/sellers/${sellerProfileId}/suspend`, payload),
 
   // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
 

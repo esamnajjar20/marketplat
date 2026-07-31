@@ -16,7 +16,7 @@
  */
 
 import type { AdSearchParams, AdSearchQuery } from '@/types/ad.types';
-import type { AdminGetAdsParams, AdminGetUsersParams } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams } from '@/types/admin.types';
 
 export const queryKeys = {
   // ── Ads ────────────────────────────────────────────────────────
@@ -52,8 +52,13 @@ export const queryKeys = {
 
   // ── Service categories ────────────────────────────────────────
   serviceCategories: {
-    all:  ()             => ['service-categories'] as const,
-    slug: (slug: string) => ['service-categories', 'slug', slug] as const,
+    all:      ()             => ['service-categories'] as const,
+    slug:     (slug: string) => ['service-categories', 'slug', slug] as const,
+    // EPIC 1.2: separate key from `all` above — admin.all() includes
+    // inactive categories and is never cached server-side (see
+    // service-categories.service.ts's getServiceCategoriesForAdmin),
+    // so it must never share a cache entry with the public tree.
+    adminAll: ()             => ['service-categories', 'admin', 'all'] as const,
   },
 
   // ── Service listings ──────────────────────────────────────────
@@ -102,6 +107,7 @@ export const queryKeys = {
     stats:        ()                              => ['admin', 'stats'] as const,
     ads:          (params?: AdminGetAdsParams)   => ['admin', 'ads',     params ?? {}] as const,
     users:        (params?: AdminGetUsersParams) => ['admin', 'users',   params ?? {}] as const,
+    sellers:      (params?: AdminGetSellersParams) => ['admin', 'sellers', params ?? {}] as const,
     reports:      (params?: object)              => ['admin', 'reports', params ?? {}] as const,
     reportDetail: (id: string)                   => ['admin', 'reports', 'detail', id] as const,
   },

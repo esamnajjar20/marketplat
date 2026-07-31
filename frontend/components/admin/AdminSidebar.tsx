@@ -3,16 +3,20 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Menu, X } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
-  { href: ROUTES.admin.dashboard,  label: 'الرئيسية',    icon: LayoutDashboard },
-  { href: ROUTES.admin.ads,        label: 'الإعلانات',    icon: ShoppingBag },
-  { href: ROUTES.admin.users,      label: 'المستخدمون',  icon: Users },
-  { href: ROUTES.admin.reports,    label: 'البلاغات',     icon: Flag },
-  { href: ROUTES.admin.categories, label: 'الفئات',       icon: FolderTree },
+  { href: ROUTES.admin.dashboard,         label: 'الرئيسية',       icon: LayoutDashboard },
+  { href: ROUTES.admin.ads,               label: 'الإعلانات',      icon: ShoppingBag },
+  { href: ROUTES.admin.users,             label: 'المستخدمون',     icon: Users },
+  // EPIC 1.1: was entirely missing — see AdminSellersTable.tsx.
+  { href: ROUTES.admin.sellers,           label: 'البائعون',       icon: UserCheck },
+  { href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag },
+  { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree },
+  // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
+  { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

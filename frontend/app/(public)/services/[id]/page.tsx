@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { buildMetadata } from '@/lib/seo';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
+import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -41,7 +42,10 @@ export default async function ServiceListingPage({ params }: Props) {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
       <ServiceListingDetail listing={listing} />
-      {/* زر إرسال طلب سيُضاف في المرحلة 3 (ServiceRequestButton) — غير متوفر بعد */}
+      <ServiceRequestButton
+        listingId={listing.id}
+        providerUserId={listing.provider.sellerProfile.userId}
+      />
     </div>
   );
 }

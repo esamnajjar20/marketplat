@@ -27,6 +27,20 @@ export const serviceCategoriesController = {
     }
   },
 
+  // EPIC 1.2: GET /service-categories/admin/all
+  getServiceCategoriesForAdmin: async (
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const categories = await serviceCategoriesService.getServiceCategoriesForAdmin();
+      res.status(200).json(successResponse('Service categories fetched', categories));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getServiceCategoryById: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { params } = serviceCategoryIdSchema.parse({ params: req.params });

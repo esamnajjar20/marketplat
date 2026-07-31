@@ -6,6 +6,7 @@ import {
   createRatingSchema,
   verifySellerSchema,
   suspendSellerSchema,
+  adminGetSellersSchema,
 } from './sellers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -53,10 +54,26 @@ export const sellersController = {
     }
   },
 
+  // EPIC 1.1: GET /admin/sellers — was entirely missing; there was no
+  // way for an admin to even discover a sellerProfileId to pass into
+  // verifySeller/suspendSeller below.
+  getAllSellers: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { query } = adminGetSellersSchema.parse({ query: req.query });
+      const result = await sellersService.getAllSellers(query);
+      res
+        .status(200)
+        .json(successResponse('Sellers fetched', result.items, { pagination: result.meta }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   verifySeller: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const admin = requireUser(req);
       const { params, body } = verifySellerSchema.parse({ params: req.params, body: req.body });
-      const profile = await sellersService.setVerification(params.id, body.verified);
+      const profile = await sellersService.setVerification(params.id, body.verified, admin.userId);
       res.status(200).json(successResponse('Seller verification updated', profile));
     } catch (error) {
       next(error);
@@ -68,8 +85,9 @@ export const sellersController = {
   // (behind adminRouter.use(authenticate, requireAdmin)).
   suspendSeller: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const admin = requireUser(req);
       const { params, body } = suspendSellerSchema.parse({ params: req.params, body: req.body });
-      const profile = await sellersService.setSuspension(params.id, body.suspended);
+      const profile = await sellersService.setSuspension(params.id, body.suspended, admin.userId);
       res.status(200).json(successResponse('Seller suspension updated', profile));
     } catch (error) {
       next(error);

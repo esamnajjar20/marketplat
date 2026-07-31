@@ -100,8 +100,13 @@ export function AdForm({ mode, ad }: Props) {
     if (!values.description.trim())  e.description = 'وصف الإعلان مطلوب';
     else if (values.description.length < 20) e.description = 'الوصف قصير جداً (20 حرفاً على الأقل)';
     if (!values.city)                e.city        = 'المدينة مطلوبة';
-    if (mode === 'create' && values.images.length === 0 && values.existingImages.length === 0)
-      e.images = 'أضف صورة واحدة على الأقل';
+    // TEMPORARY (remove once image hosting is configured — mirrors the
+    // matching disable in backend/ads.controller.ts's createAd): image
+    // is optional for now so ads can be created and tested end-to-end
+    // without a working upload service. Revert by restoring the check
+    // below in both places together.
+    // if (values.images.length === 0 && values.existingImages.length === 0)
+    //   e.images = 'أضف صورة واحدة على الأقل';
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
@@ -158,12 +163,30 @@ export function AdForm({ mode, ad }: Props) {
       const removedUrls = originalImages.filter(
         (url) => !values.existingImages.includes(url),
       );
-      for (const imageUrl of removedUrls) {
-        await removeImage.mutateAsync({ id: currentAd.id, imageUrl });
-      }
-      if (values.images.length > 0) {
+
+      // EPIC 1.5: if removing these would leave the ad with zero images
+      // even momentarily, and the user has staged replacement uploads,
+      // add the replacements first so removeImage's min-1-image guard
+      // (backend) never sees a would-be-empty ad. Safe to reorder only
+      // in this specific case — reversing the order in general would
+      // risk momentarily exceeding addImages' 10-image cap instead.
+      const wouldGoToZero =
+        removedUrls.length > 0 && values.existingImages.length === 0;
+
+      if (wouldGoToZero && values.images.length > 0) {
         setUploadProgress(0);
         await addImages.mutateAsync({ id: currentAd.id, files: values.images });
+        for (const imageUrl of removedUrls) {
+          await removeImage.mutateAsync({ id: currentAd.id, imageUrl });
+        }
+      } else {
+        for (const imageUrl of removedUrls) {
+          await removeImage.mutateAsync({ id: currentAd.id, imageUrl });
+        }
+        if (values.images.length > 0) {
+          setUploadProgress(0);
+          await addImages.mutateAsync({ id: currentAd.id, files: values.images });
+        }
       }
     } catch {
       // Each mutation's own onError already toasted a specific message
@@ -267,6 +290,9 @@ export function AdForm({ mode, ad }: Props) {
       {/* Images */}
       <div className="rounded-lg border bg-card p-4 space-y-4">
         <h2 className="font-semibold">الصور</h2>
+        {/* TEMPORARY: remove this note once image hosting is configured
+            and the required-image check above is restored. */}
+        <p className="text-xs text-muted-foreground">الصور اختيارية مؤقتاً</p>
         {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
         <ImageUpload
           value={values.images}

@@ -52,7 +52,11 @@ export function AdminCategoriesTree() {
           <div key={cat.id}>
             <div className="flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors">
               <button
-                onClick={() => setExpanded((s) => { const n = new Set(s); isOpen ? n.delete(cat.id) : n.add(cat.id); return n; })}
+                onClick={() => setExpanded((s) => { const n = new Set(s); if (isOpen) {
+      n.delete(cat.id);
+    } else {
+      n.add(cat.id);
+    } return n; })}
                 aria-expanded={hasChildren ? isOpen : undefined}
                 aria-label={hasChildren ? `${cat.nameAr} — ${isOpen ? 'إغلاق' : 'فتح'} الفئات الفرعية` : cat.nameAr}
                 className="flex flex-1 items-center gap-2 text-sm font-medium text-start"

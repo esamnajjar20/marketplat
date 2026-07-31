@@ -367,6 +367,21 @@ export const adsService = {
     }
     if (!ad.images.includes(imageUrl)) throw new BadRequestError('Image not found in this ad');
 
+    // EPIC 1.5: ad creation enforces "at least 1 image" (see the
+    // createAd schema's images.min(1)), but that rule was never
+    // re-checked here — a seller could delete an ad's last remaining
+    // image via this endpoint and leave a live ACTIVE ad with zero
+    // images, since PATCH /:id doesn't touch images at all (images are
+    // only ever added/removed through the two dedicated endpoints
+    // below). Blocking the delete up front, before touching Cloudinary
+    // or the lock, means a rejected request costs nothing.
+    if (ad.images.length <= 1) {
+      throw new BadRequestError(
+        'Cannot remove the last image — an ad must have at least one image. Add a replacement image first.',
+        'MIN_IMAGES_REQUIRED'
+      );
+    }
+
     // FIX D-10: same lock as addImages — keeps add/remove for one ad
     // from interleaving in a way that could resurrect a just-removed
     // image or miscount against the 10-image cap.

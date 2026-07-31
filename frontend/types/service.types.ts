@@ -67,7 +67,28 @@ export interface ServiceCategory {
   parentId: string | null;
   isActive: boolean;
   createdAt: string;
+  // EPIC 1.2: only present on the admin listing (GET /service-categories/admin/all —
+  // service-categories.repository.ts's findManyForAdmin), not on the public
+  // GET /service-categories tree. Optional so the existing public-facing
+  // callers of the base type keep compiling unchanged.
+  children?: ServiceCategory[];
+  _count?: { listings: number };
 }
+
+export interface CreateServiceCategoryPayload {
+  name:      string;
+  nameAr:    string;
+  slug:      string;
+  icon?:     string;
+  parentId?: string;
+}
+
+/** isActive is only ever settable via update — matches
+ * service-categories.validation.ts's updateServiceCategorySchema, where
+ * only PATCH accepts isActive (POST/create always defaults to active). */
+export type UpdateServiceCategoryPayload = Partial<CreateServiceCategoryPayload> & {
+  isActive?: boolean;
+};
 
 export interface ServiceListing {
   id: string;
@@ -90,7 +111,9 @@ export interface ServiceListing {
 /** Listing card in browse/search results — includes provider summary to avoid N+1 fetches. */
 export type ServiceListingWithProvider = ServiceListing & {
   provider: Pick<ServiceProviderDetails, 'id' | 'businessName' | 'logoUrl' | 'availabilityStatus'> & {
-    sellerProfile: Pick<SellerProfile, 'displayName' | 'verified' | 'averageRating'>;
+    // Epic 3.1: userId added so ServiceRequestButton can hide itself on
+    // one's own listing — same self-request guard as ads/sellers already have.
+    sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'verified' | 'averageRating'>;
   };
 };
 
@@ -107,6 +130,20 @@ export interface ServiceRequest {
   createdAt: string;
   updatedAt: string;
   respondedAt: string | null;
+  // Epic 3.1: verified against service-requests.repository.ts's
+  // `requestWithRelations` — every list/detail endpoint always includes
+  // these two relations (there is no "bare" ServiceRequest response on
+  // the wire), so they're required here rather than optional.
+  listing: Pick<ServiceListing, 'id' | 'title' | 'images' | 'providerId'> & {
+    provider: Pick<ServiceProviderDetails, 'id' | 'businessName'> & {
+      sellerProfile: Pick<SellerProfile, 'userId' | 'displayName'>;
+    };
+  };
+  customer: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
 }
 
 export interface Appointment {

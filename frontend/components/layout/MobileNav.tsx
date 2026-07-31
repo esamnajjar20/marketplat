@@ -103,11 +103,16 @@ export function MobileNav() {
         />
       )}
 
-      {/* Drawer — UX-07 FIX: end-0 is logical (right in LTR, left in RTL) */}
+      {/* Drawer — end-0 is logical (right in LTR, left in RTL).
+          translate-x-full is a PHYSICAL property (always moves toward
+          +X / visual right) — it does NOT flip with dir="rtl" the way
+          end-0 does. Since this app is RTL-only (dir="rtl" on <html>),
+          the closed state must slide toward the left (-translate-x-full)
+          to match the drawer's left-anchored (end-0) position. */}
       <nav
         id={NAV_ID}
-        className={`fixed inset-y-0 end-0 z-50 w-72 bg-background p-6 shadow-xl transition-transform duration-200 ${
-          isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed inset-y-0 end-0 z-[60] w-72 bg-background p-6 shadow-xl transition-transform duration-200 ${
+          isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="القائمة الرئيسية"
         aria-hidden={!isMobileNavOpen}

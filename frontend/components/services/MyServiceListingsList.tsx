@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Pencil, Trash2, Eye, Briefcase, AlertTriangle } from 'lucide-react';
+import { Pencil, Trash2, Eye, Briefcase, AlertTriangle, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
-import { useDeleteServiceListing } from '@/hooks/mutations/useServiceListingMutations';
+import { useDeleteServiceListing, useToggleServiceListingStatus } from '@/hooks/mutations/useServiceListingMutations';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -38,6 +38,7 @@ export function MyServiceListingsList() {
 
   const { data, isLoading, isError, refetch } = useMyServiceListings({ page, limit: 10, status });
   const deleteListing = useDeleteServiceListing();
+  const toggleStatus  = useToggleServiceListingStatus();
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -124,7 +125,14 @@ export function MyServiceListingsList() {
                     <Link href={ROUTES.serviceDetail(listing.id)} className="font-medium text-sm hover:underline line-clamp-1">
                       {listing.title}
                     </Link>
-                    <Badge variant={listing.status === 'ACTIVE' ? 'default' : 'secondary'} className="shrink-0 text-xs">
+                    <Badge
+                      variant={
+                        listing.status === 'ACTIVE' ? 'default'
+                        : listing.status === 'PAUSED' ? 'secondary'
+                        : 'destructive'
+                      }
+                      className="shrink-0 text-xs"
+                    >
                       {STATUS_LABELS[listing.status]}
                     </Badge>
                   </div>
@@ -142,6 +150,32 @@ export function MyServiceListingsList() {
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
+                  {/*
+                    EPIC 1.3: the report's finding — "PAUSED only
+                    appears as a filter tab label, never as an action a
+                    user can trigger... no way at all to set a service
+                    listing to PAUSED anywhere in the frontend." Only
+                    shown for ACTIVE/PAUSED — a DELETED listing has no
+                    meaningful pause/resume action.
+                  */}
+                  {listing.status !== 'DELETED' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label={listing.status === 'PAUSED' ? `إعادة تفعيل ${listing.title}` : `إيقاف ${listing.title} مؤقتاً`}
+                      title={listing.status === 'PAUSED' ? 'إعادة تفعيل' : 'إيقاف مؤقت'}
+                      disabled={toggleStatus.isPending && toggleStatus.variables?.id === listing.id}
+                      onClick={() => toggleStatus.mutate({
+                        id: listing.id,
+                        status: listing.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED',
+                      })}
+                    >
+                      {listing.status === 'PAUSED'
+                        ? <Play className="h-3.5 w-3.5 text-success" />
+                        : <Pause className="h-3.5 w-3.5" />}
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

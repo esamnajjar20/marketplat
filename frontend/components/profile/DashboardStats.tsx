@@ -48,7 +48,11 @@ export function DashboardStats() {
         <p className="text-destructive">حدث خطأ أثناء تحميل الإحصائيات</p>
         <button
           type="button"
-          onClick={() => { if (adsError) refetchAds(); if (favError) refetchFav(); }}
+          onClick={() => { if (adsError) {
+            void refetchAds();
+          } if (favError) {
+            void refetchFav();
+          } }}
           className="text-sm text-primary hover:underline"
         >
           إعادة المحاولة

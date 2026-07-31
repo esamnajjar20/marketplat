@@ -1,5 +1,29 @@
 import { z } from 'zod';
 
+// EPIC 1.1: mirrors admin.validation.ts's optionalQueryNumber helper
+// exactly, so GET /admin/sellers behaves identically to GET /admin/ads
+// and GET /admin/users for page/limit query parsing.
+const optionalQueryNumber = (schema: z.ZodNumber) =>
+  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+
+export const adminGetSellersSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    verified: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform(v => (v === undefined ? undefined : v === 'true')),
+    suspended: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform(v => (v === undefined ? undefined : v === 'true')),
+    q: z.string().trim().min(1).max(200).optional(),
+  }),
+});
+
+export type AdminGetSellersQuery = z.infer<typeof adminGetSellersSchema>['query'];
+
 export const createSellerProfileSchema = z.object({
   body: z.object({
     displayName: z.string().min(2, 'Display name must be at least 2 characters').max(50).optional(),

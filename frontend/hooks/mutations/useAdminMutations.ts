@@ -119,6 +119,73 @@ export function useAdminToggleUserActive() {
 }
 
 /**
+ * Epic 1.1: PATCH /admin/sellers/:id/verify — the report's finding was
+ * that this endpoint existed fully server-side (including the
+ * SellerProfile.verified badge shown throughout the app) but could
+ * never actually be flipped to true through any reachable screen.
+ * Mirrors useAdminToggleUserActive's optimistic update exactly.
+ */
+export function useAdminSetSellerVerified() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sellerProfileId, verified }: { sellerProfileId: string; verified: boolean }) =>
+      adminApi.setSellerVerified(sellerProfileId, { verified }).then((r) => r.data.data),
+    onMutate: async ({ sellerProfileId, verified }) => {
+      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'sellers'] });
+      queryClient.setQueriesData({ queryKey: ['admin', 'sellers'] }, (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((s: any) => (s.id === sellerProfileId ? { ...s, verified } : s)),
+        };
+      });
+      await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
+      return { snapshots };
+    },
+    onSuccess: (_data, { verified }) =>
+      toast.success(verified ? 'تم توثيق البائع' : 'تم إلغاء توثيق البائع'),
+    onError: (err, _vars, context) => {
+      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast.error(parseApiError(err).message);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+  });
+}
+
+/**
+ * Epic 1.1: PATCH /admin/sellers/:id/suspend — same missing-UI gap as
+ * verify above. A suspended seller is already blocked server-side from
+ * publishing new ads (see ads.service.ts's ensureSellerProfileForAdCreation),
+ * this just gives an admin a way to actually set that flag.
+ */
+export function useAdminSetSellerSuspended() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sellerProfileId, suspended }: { sellerProfileId: string; suspended: boolean }) =>
+      adminApi.setSellerSuspended(sellerProfileId, { suspended }).then((r) => r.data.data),
+    onMutate: async ({ sellerProfileId, suspended }) => {
+      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'sellers'] });
+      queryClient.setQueriesData({ queryKey: ['admin', 'sellers'] }, (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((s: any) => (s.id === sellerProfileId ? { ...s, suspended } : s)),
+        };
+      });
+      await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
+      return { snapshots };
+    },
+    onSuccess: (_data, { suspended }) =>
+      toast.success(suspended ? 'تم إيقاف البائع' : 'تم رفع الإيقاف عن البائع'),
+    onError: (err, _vars, context) => {
+      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast.error(parseApiError(err).message);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+  });
+}
+
+/**
  * FIX AUDIT-V3-05: previously there was no way for an admin to
  * promote/demote a user's role from the UI at all — only direct DB
  * access. Mirrors useAdminToggleUserActive's optimistic update.

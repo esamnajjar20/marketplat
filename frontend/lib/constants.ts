@@ -22,10 +22,14 @@ export const ROUTES = {
   dashboard:     '/dashboard',
   services:            '/services',
   serviceDetail:        (id: string) => `/services/${id}`,
+  serviceProviders:      '/service-providers',
   serviceProvider:       (id: string) => `/service-providers/${id}`,
   myServices:           '/my-services',
   myServiceCreate:      '/my-services/new',
   myServiceEdit:         (id: string) => `/my-services/${id}/edit`,
+  // Epic 3.1: customer-side "my requests" list, and provider-side inbox.
+  myServiceRequests:     '/my-requests',
+  incomingServiceRequests: '/my-services/requests',
   settings: {
     root:          '/settings',
     profile:       '/settings/profile',
@@ -36,12 +40,16 @@ export const ROUTES = {
     serviceProvider: '/settings/service-provider',
   },
   admin: {
-    root:       '/admin',
-    dashboard:  '/admin/dashboard',
-    ads:        '/admin/ads',
-    users:      '/admin/users',
-    reports:    '/admin/reports',
-    categories: '/admin/categories',
+    root:              '/admin',
+    dashboard:         '/admin/dashboard',
+    ads:               '/admin/ads',
+    users:             '/admin/users',
+    reports:           '/admin/reports',
+    categories:        '/admin/categories',
+    // Epic 1.1: admin verify/suspend UI — was entirely missing.
+    sellers:           '/admin/sellers',
+    // Epic 1.2: admin service-categories management — was entirely missing.
+    serviceCategories: '/admin/service-categories',
   },
 } as const;
 
@@ -105,4 +113,8 @@ export const CACHE_TTL = {
   sessions:    60_000,   //  60 s
   favorites:   60_000,   //  60 s
   adminList:   30_000,   //  30 s
+  // Epic 3.1: service requests move through PENDING/ACCEPTED/etc fairly
+  // often (a provider can respond any time), so keep this shorter than
+  // myAds — same reasoning as adsList's 30s over categories' 5m.
+  serviceRequests: 20_000, // 20 s
 } as const;

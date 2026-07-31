@@ -8,6 +8,8 @@ import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { withSellerProfileCreationLock } from '../../shared/utils/sellerLock';
 import { usersRepository } from '../users/users.repository';
 import { SellerProfile } from '@prisma/client';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 
 export const sellersService = {
   createSellerProfile: async (
@@ -124,10 +126,48 @@ export const sellersService = {
     }
   },
 
-  setVerification: async (sellerProfileId: string, verified: boolean): Promise<SellerProfile> => {
+  // EPIC 1.1: admin sellers list — the report's finding was that
+  // verify/suspend existed with "zero frontend UI" and no way to even
+  // discover a seller's id. Mirrors adminService.getAllAds/getAllUsers's
+  // shape exactly (skip/take + count in parallel, buildPaginationMeta).
+  getAllSellers: async (query: {
+    page?: number;
+    limit?: number;
+    verified?: boolean;
+    suspended?: boolean;
+    q?: string;
+  }) => {
+    const { page = 1, limit = 20, verified, suspended, q } = query;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      sellersRepository.findMany({ skip, take: limit, verified, suspended, q }),
+      sellersRepository.count({ verified, suspended, q }),
+    ]);
+
+    return { items, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  setVerification: async (
+    sellerProfileId: string,
+    verified: boolean,
+    adminUserId?: string
+  ): Promise<SellerProfile> => {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
-    return sellersRepository.setVerification(sellerProfileId, verified);
+    const updated = await sellersRepository.setVerification(sellerProfileId, verified);
+
+    // EPIC 1.1: this admin action previously left no audit trail at
+    // all — every other admin.service.ts mutation (feature/pin/delete
+    // ad, activate/deactivate user, change role) calls auditLog, but
+    // verifySeller/suspendSeller were added later and missed it.
+    auditLog({
+      event: AuditEvent.ADMIN_SELLER_VERIFIED,
+      userId: adminUserId,
+      details: { sellerProfileId, verified },
+    }).catch(() => {});
+
+    return updated;
   },
 
   // AUDIT-FIX: admin-only. Answers "how do we remove seller status?" —
@@ -138,9 +178,22 @@ export const sellersService = {
   // service-provider, and service-listing modules (see
   // ensureSellerProfileForAdCreation above and requireOwnProvider in
   // service-listings.service.ts).
-  setSuspension: async (sellerProfileId: string, suspended: boolean): Promise<SellerProfile> => {
+  setSuspension: async (
+    sellerProfileId: string,
+    suspended: boolean,
+    adminUserId?: string
+  ): Promise<SellerProfile> => {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
-    return sellersRepository.setSuspension(sellerProfileId, suspended);
+    const updated = await sellersRepository.setSuspension(sellerProfileId, suspended);
+
+    // EPIC 1.1: same missing-audit-trail gap as setVerification above.
+    auditLog({
+      event: AuditEvent.ADMIN_SELLER_SUSPENDED,
+      userId: adminUserId,
+      details: { sellerProfileId, suspended },
+    }).catch(() => {});
+
+    return updated;
   },
 };

@@ -14,7 +14,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { adminApi }  from '@/api/admin.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { AdminGetAdsParams, AdminGetUsersParams, ReportStatus } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, ReportStatus } from '@/types/admin.types';
 
 /**
  * GET /admin/ads
@@ -37,6 +37,20 @@ export function useAdminUsers(params?: AdminGetUsersParams) {
   return useQuery({
     queryKey:        queryKeys.admin.users(params),
     queryFn:         () => adminApi.getUsers(params).then((r) => r.data.data),
+    placeholderData: keepPreviousData,
+    staleTime:       CACHE_TTL.adminList,
+  });
+}
+
+/**
+ * GET /admin/sellers (Epic 1.1)
+ * The report's finding: verify/suspend existed server-side with no way
+ * to even list sellers to act on. Mirrors useAdminUsers exactly.
+ */
+export function useAdminSellers(params?: AdminGetSellersParams) {
+  return useQuery({
+    queryKey:        queryKeys.admin.sellers(params),
+    queryFn:         () => adminApi.getSellers(params).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });
