@@ -76,6 +76,12 @@ export const queryKeys = {
     incoming: (params?: object) => ['service-requests', 'incoming', params ?? {}] as const,
   },
 
+  // ── Service reviews (مرحلة 3.2/3.3) ───────────────────────────
+  serviceReviews: {
+    forSeller: (sellerProfileId: string, params?: object) =>
+      ['service-reviews', 'seller', sellerProfileId, params ?? {}] as const,
+  },
+
   // ── Auth / current user ────────────────────────────────────────
   auth: {
     me:       ()               => ['auth', 'me']        as const,

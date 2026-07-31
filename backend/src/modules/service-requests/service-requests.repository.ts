@@ -10,12 +10,17 @@ export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
       };
     };
     customer: { select: { id: true; name: true; avatarUrl: true } };
+    review: { select: { id: true } };
   };
 }>;
 
 const requestWithRelations = {
   listing: { include: { provider: { include: { sellerProfile: true } } } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
+  // Epic 3.2/3.3: lets the customer-side list/detail UI show "review
+  // submitted" instead of a review button without a second round-trip —
+  // { select: { id: true } } keeps this cheap since only presence matters.
+  review: { select: { id: true } },
 } as const;
 
 export const serviceRequestsRepository = {

@@ -117,4 +117,7 @@ export const CACHE_TTL = {
   // often (a provider can respond any time), so keep this shorter than
   // myAds — same reasoning as adsList's 30s over categories' 5m.
   serviceRequests: 20_000, // 20 s
+  // Reviews are append-only and change far less often than a request's
+  // live status — closer to sellerProfile's 60s than serviceRequests' 20s.
+  serviceReviews: 60_000, // 60 s
 } as const;

@@ -17,6 +17,7 @@ import type {
   CreateServiceProviderPayload,
   UpdateServiceProviderPayload,
   NearbyServiceProvidersParams,
+  NearbyServiceProviderRow,
 } from '@/types/service.types';
 
 export const serviceProvidersApi = {
@@ -39,8 +40,8 @@ export const serviceProvidersApi = {
   /** GET /service-providers/nearby — Haversine search around a lat/lng pin. */
   getNearby: (params: NearbyServiceProvidersParams) =>
     apiClient
-      .get<ApiResponse<ServiceProviderDetails[]>>('/service-providers/nearby', { params })
-      .then((r) => unwrapPaginated<ServiceProviderDetails>(r)),
+      .get<ApiResponse<NearbyServiceProviderRow[]>>('/service-providers/nearby', { params })
+      .then((r) => unwrapPaginated<NearbyServiceProviderRow>(r)),
 };
 
 // Re-exported for callers that only need the meta type alongside this file.

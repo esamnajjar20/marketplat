@@ -144,6 +144,11 @@ export interface ServiceRequest {
     name: string;
     avatarUrl: string | null;
   };
+  // Epic 3.2/3.3: added to service-requests.repository.ts's
+  // requestWithRelations include so the UI can show "reviewed" without
+  // a second request — null until the customer submits a ServiceReview
+  // for this request (unique per requestId, so at most one ever exists).
+  review: { id: string } | null;
 }
 
 export interface Appointment {
@@ -166,6 +171,19 @@ export interface ServiceReview {
   raterId: string;
   sellerProfileId: string;
   createdAt: string;
+  // Epic 3.2/3.3: verified against service-reviews.repository.ts's
+  // `ServiceReviewWithRater` — GET /service-reviews/seller/:id always
+  // includes this relation (there is no bare-review list response), so
+  // it's required rather than optional. POST /service-reviews response
+  // (createReview) returns the bare Prisma row without it, but the
+  // create flow never renders the review it just created — it redirects
+  // to the seller's review list, which refetches through the paginated
+  // endpoint and gets the full shape.
+  rater: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
 }
 
 // ── Payloads ─────────────────────────────────────────────────────
@@ -197,6 +215,16 @@ export interface NearbyServiceProvidersParams {
   page?: number;
   limit?: number;
 }
+
+// Epic 4.3: verified against service-providers.repository.ts's
+// NearbyServiceProviderRow — GET /service-providers/nearby returns bare
+// ServiceProviderDetails rows plus a computed distanceKm, with no
+// sellerProfile join (unlike ServiceListingWithProvider). A nearby-search
+// card therefore only has businessName/logoUrl/availabilityStatus/
+// distance to show — not the seller's displayName or rating.
+export type NearbyServiceProviderRow = ServiceProviderDetails & {
+  distanceKm: number;
+};
 
 /** POST /service-listings (multipart/form-data — images come from files, not this payload). */
 export interface CreateServiceListingPayload {

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { SellerProfileHeader } from '@/components/sellers/SellerProfileHeader';
 import { SellerProfileAds } from '@/components/sellers/SellerProfileAds';
+import { ServiceReviewsList } from '@/components/services/ServiceReviewsList';
 import { buildMetadata } from '@/lib/seo';
 import { sellersApi } from '@/api/sellers.api';
 
@@ -49,6 +50,10 @@ export default async function SellerProfilePage({ params }: Props) {
       <section className="space-y-3">
         <h2 className="font-semibold text-lg">إعلانات البائع</h2>
         <SellerProfileAds ads={seller.ads} />
+      </section>
+      <section className="space-y-3">
+        <h2 className="font-semibold text-lg">تقييمات الخدمات</h2>
+        <ServiceReviewsList sellerProfileId={seller.id} />
       </section>
     </div>
   );

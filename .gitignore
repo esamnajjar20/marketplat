@@ -49,3 +49,5 @@ tmp/
 
 # TypeScript
 *.tsbuildinfo
+frontend/playwright-report/
+frontend/test-results/

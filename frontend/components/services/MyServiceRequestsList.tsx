@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AlertTriangle, MessageSquare, X } from 'lucide-react';
+import { AlertTriangle, MessageSquare, X, Star } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceRequestDialog';
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
@@ -40,6 +41,7 @@ export function MyServiceRequestsList() {
   const { data, isLoading, isError, refetch } = useMyServiceRequests({ page, limit: 10, status });
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const respond = useRespondToServiceRequest(cancelTargetId ?? '');
+  const [reviewTarget, setReviewTarget] = useState<{ id: string; title: string } | null>(null);
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -109,6 +111,7 @@ export function MyServiceRequestsList() {
               ? getThumbnailUrl(request.listing.images[0], 120, 90)
               : PLACEHOLDER_SVG;
             const canCancel = request.status === 'PENDING' || request.status === 'ACCEPTED' || request.status === 'IN_PROGRESS';
+            const canReview = request.status === 'COMPLETED' && request.review === null;
 
             return (
               <div key={request.id} className="flex gap-3 p-3 rounded-lg border bg-card">
@@ -138,6 +141,21 @@ export function MyServiceRequestsList() {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
+                  {request.status === 'COMPLETED' && !canReview && (
+                    <p className="text-xs text-amber-600 flex items-center gap-1">
+                      <Star className="h-3 w-3 fill-amber-400 text-amber-400" />تم إرسال تقييمك
+                    </p>
+                  )}
+                  {canReview && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 mt-1"
+                      onClick={() => setReviewTarget({ id: request.id, title: request.listing.title })}
+                    >
+                      <Star className="h-3.5 w-3.5" />قيّم الخدمة
+                    </Button>
+                  )}
                 </div>
                 {canCancel && (
                   <div className="flex flex-col gap-1 shrink-0">
@@ -181,6 +199,15 @@ export function MyServiceRequestsList() {
           respond.mutate({ action: 'CANCELLED' }, { onSuccess: () => setCancelTargetId(null) });
         }}
       />
+
+      {reviewTarget && (
+        <ReviewServiceRequestDialog
+          requestId={reviewTarget.id}
+          listingTitle={reviewTarget.title}
+          open={reviewTarget !== null}
+          onOpenChange={(open) => { if (!open) setReviewTarget(null); }}
+        />
+      )}
     </div>
   );
 }

@@ -5,10 +5,10 @@ import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
+import type { NearbyServiceProviderRow, ServiceAvailability } from '@/types/service.types';
 
 interface Props {
-  provider: ServiceProviderDetails;
+  provider: NearbyServiceProviderRow;
   className?: string;
 }
 
@@ -25,15 +25,19 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
 };
 
 /**
- * Card for /service-providers/nearby results. Deliberately only reads
- * fields present on ServiceProviderDetails (businessName, logoUrl,
- * description, serviceAreaCities, contactPhone, availabilityStatus) —
- * unlike ServiceListingCard/ServiceProviderHeader, the nearby endpoint's
- * response has no nested sellerProfile, so there's no verified badge or
- * rating to show here.
+ * Card for /service-providers (nearby results). Deliberately only reads
+ * fields present on NearbyServiceProviderRow (businessName, logoUrl,
+ * description, serviceAreaCities, contactPhone, availabilityStatus,
+ * distanceKm) — unlike ServiceListingCard/ServiceProviderHeader, the
+ * nearby endpoint's response has no nested sellerProfile, so there's no
+ * verified badge or rating to show here.
  */
 export function ServiceProviderCard({ provider, className }: Props) {
   const avatar = getAvatarUrl(provider.logoUrl ?? '', 96);
+  const distanceLabel =
+    provider.distanceKm < 1
+      ? `${Math.round(provider.distanceKm * 1000)} م`
+      : `${provider.distanceKm.toFixed(1)} كم`;
 
   return (
     <Link
@@ -50,6 +54,7 @@ export function ServiceProviderCard({ provider, className }: Props) {
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center gap-2">
           <h3 className="truncate font-medium">{provider.businessName}</h3>
+          <span className="shrink-0 text-xs font-medium text-primary">{distanceLabel}</span>
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
             <span className={cn('h-1.5 w-1.5 rounded-full', AVAILABILITY_DOT[provider.availabilityStatus])} />
             {AVAILABILITY_LABEL[provider.availabilityStatus]}
