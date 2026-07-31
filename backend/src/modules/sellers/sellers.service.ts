@@ -18,11 +18,11 @@ export const sellersService = {
     // lock. The authoritative check is the one inside the lock below.
     const existing = await sellersRepository.findByUserId(userId);
     if (existing) {
-      throw new ConflictError('You already have a seller profile.');
+      throw new ConflictError('You already have a seller profile.', 'SELLER_PROFILE_ALREADY_EXISTS');
     }
 
     const user = await usersRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
     // Eligibility checks happen before any transaction starts — no need
     // to roll back on a plain business-logic rejection.
@@ -38,7 +38,7 @@ export const sellersService = {
       // race the unlocked pre-check above can't close on its own.
       const stillExisting = await sellersRepository.findByUserId(userId);
       if (stillExisting) {
-        throw new ConflictError('You already have a seller profile.');
+        throw new ConflictError('You already have a seller profile.', 'SELLER_PROFILE_ALREADY_EXISTS');
       }
 
       try {
@@ -55,7 +55,7 @@ export const sellersService = {
         // constraint on userId is the last line of defense — surfaced as
         // a clean business error, not a raw Prisma P2002 leak.
         if (error?.code === 'P2002') {
-          throw new ConflictError('You already have a seller profile.');
+          throw new ConflictError('You already have a seller profile.', 'SELLER_PROFILE_ALREADY_EXISTS');
         }
         throw error;
       }
@@ -64,13 +64,13 @@ export const sellersService = {
 
   getMySellerProfile: async (userId: string): Promise<SellerProfile> => {
     const profile = await sellersRepository.findByUserId(userId);
-    if (!profile) throw new NotFoundError('Seller profile not found');
+    if (!profile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
     return profile;
   },
 
   getPublicSellerProfile: async (sellerProfileId: string): Promise<SellerProfileWithAds> => {
     const profile = await sellersRepository.findPublicProfile(sellerProfileId);
-    if (!profile) throw new NotFoundError('Seller not found');
+    if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
     return profile;
   },
 
@@ -84,7 +84,7 @@ export const sellersService = {
     // AUDIT-FIX: a suspended seller keeps their profile/history visible
     // (see schema.prisma comment) but is blocked from new writes.
     if (profile.suspended) {
-      throw new ForbiddenError('Your seller account has been suspended.');
+      throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
     }
     return profile;
   },
@@ -95,11 +95,11 @@ export const sellersService = {
     input: CreateRatingInput
   ): Promise<void> => {
     const profile = await sellersRepository.findById(sellerProfileId);
-    if (!profile) throw new NotFoundError('Seller not found');
+    if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
 
     // Self-rating guard — a seller can never rate their own profile.
     if (profile.userId === raterId) {
-      throw new ForbiddenError('You cannot rate your own seller profile.');
+      throw new ForbiddenError('You cannot rate your own seller profile.', 'CANNOT_RATE_OWN_PROFILE');
     }
 
     try {
@@ -118,7 +118,7 @@ export const sellersService = {
       // this is the DB-level backstop against duplicate ratings for the
       // same seller+deal from the same rater.
       if (error?.code === 'P2002') {
-        throw new ConflictError('You have already rated this seller for this transaction.');
+        throw new ConflictError('You have already rated this seller for this transaction.', 'ALREADY_RATED');
       }
       throw error;
     }
@@ -126,7 +126,7 @@ export const sellersService = {
 
   setVerification: async (sellerProfileId: string, verified: boolean): Promise<SellerProfile> => {
     const profile = await sellersRepository.findById(sellerProfileId);
-    if (!profile) throw new NotFoundError('Seller not found');
+    if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
     return sellersRepository.setVerification(sellerProfileId, verified);
   },
 
@@ -140,7 +140,7 @@ export const sellersService = {
   // service-listings.service.ts).
   setSuspension: async (sellerProfileId: string, suspended: boolean): Promise<SellerProfile> => {
     const profile = await sellersRepository.findById(sellerProfileId);
-    if (!profile) throw new NotFoundError('Seller not found');
+    if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
     return sellersRepository.setSuspension(sellerProfileId, suspended);
   },
 };

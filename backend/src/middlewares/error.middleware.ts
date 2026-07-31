@@ -16,6 +16,19 @@ interface ErrorResponse {
   code: string;
   requestId?: string;
   errors?: Record<string, string[]>;
+  // FIX I18N-01: structured, per-field validation detail alongside the
+  // English `errors` strings above. `errors` is kept exactly as before
+  // (existing consumers, including the frontend test suite, depend on
+  // its literal English text) — this is purely additive. Each entry
+  // mirrors the corresponding Zod issue's own `code` (Zod's
+  // ZodIssueCode, e.g. 'too_small' / 'too_big' / 'invalid_string' /
+  // 'invalid_type' / 'custom' / 'invalid_enum_value') plus whatever
+  // numeric/string params that issue carries (minimum/maximum/type/
+  // validation/etc.), so a translator can build a real Arabic sentence
+  // from structure instead of pattern-matching English prose — which
+  // breaks the moment a message here is reworded, and can't handle a
+  // field with no custom message at all (Zod's own default English).
+  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>;
   // Structured values (e.g. a numeric limit) for errors whose Arabic
   // translation needs to interpolate data. Lets the frontend build the
   // localized message from `meta` instead of parsing it out of the
@@ -30,6 +43,7 @@ const buildErrorResponse = (
   requestId?: string,
   errors?: Record<string, string[]>,
   meta?: Record<string, unknown>,
+  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>,
 ): ErrorResponse => ({
   success: false,
   message,
@@ -37,6 +51,7 @@ const buildErrorResponse = (
   code,
   ...(requestId && { requestId }),
   ...(errors && { errors }),
+  ...(errorMeta && { errorMeta }),
   ...(meta && { meta }),
 });
 
@@ -64,13 +79,31 @@ export const errorMiddleware = (
 
   if (err instanceof ZodError) {
     const errors: Record<string, string[]> = {};
+    // FIX I18N-01: errorMeta carries the same per-field issues as
+    // `errors` above, but as structured { code, params } instead of an
+    // already-rendered English sentence — see the ErrorResponse
+    // interface for why. Built in lockstep with `errors` (same field
+    // key, same push order) so index i in one array always corresponds
+    // to index i in the other for a given field.
+    const errorMeta: Record<string, { code: string; params?: Record<string, unknown> }[]> = {};
     err.errors.forEach(e => {
       const field = e.path.join('.') || 'general';
       if (!errors[field]) errors[field] = [];
       errors[field].push(e.message);
+      if (!errorMeta[field]) errorMeta[field] = [];
+      // `e` (a ZodIssue) always has `.code`; the remaining fields vary
+      // by issue type (minimum/maximum/type/expected/received/options/
+      // validation/...). Spreading everything except the ones already
+      // surfaced elsewhere (code, message, path) keeps this generic
+      // across all ZodIssueCode variants without a per-type switch.
+      const { code: issueCode, message: _msg, path: _path, ...params } = e as unknown as Record<string, unknown>;
+      errorMeta[field].push({
+        code: String(issueCode),
+        ...(Object.keys(params).length > 0 && { params: params as Record<string, unknown> }),
+      });
     });
     res.status(400).json(
-      buildErrorResponse('Validation failed', 400, 'VALIDATION_ERROR', requestId, errors),
+      buildErrorResponse('Validation failed', 400, 'VALIDATION_ERROR', requestId, errors, undefined, errorMeta),
     );
     return;
   }

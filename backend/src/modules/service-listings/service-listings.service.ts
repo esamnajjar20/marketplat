@@ -34,7 +34,7 @@ const requireOwnProvider = async (userId: string) => {
   // create/edit/delete service listings — mirrors the same check in
   // sellersService.ensureSellerProfileForAdCreation for the ads side.
   if (sellerProfile.suspended) {
-    throw new ForbiddenError('Your seller account has been suspended.');
+    throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
   }
 
   const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
@@ -127,7 +127,7 @@ export const serviceListingsService = {
   getServiceListingById: async (id: string): Promise<ServiceListingWithProvider> => {
     const listing = await serviceListingsRepository.findPublicById(id);
     if (!listing || listing.status === 'DELETED') {
-      throw new NotFoundError('Service listing not found');
+      throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
     serviceListingsRepository.incrementViews(id).catch(() => undefined);
@@ -141,9 +141,9 @@ export const serviceListingsService = {
   ): Promise<ServiceListing> => {
     const provider = await requireOwnProvider(userId);
     const listing = await serviceListingsRepository.findById(id);
-    if (!listing) throw new NotFoundError('Service listing not found');
+    if (!listing) throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
     if (listing.providerId !== provider.id) {
-      throw new ForbiddenError('You do not own this service listing.');
+      throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
     }
 
     if (input.categoryId) {
@@ -159,9 +159,9 @@ export const serviceListingsService = {
   deleteServiceListing: async (userId: string, id: string): Promise<void> => {
     const provider = await requireOwnProvider(userId);
     const listing = await serviceListingsRepository.findById(id);
-    if (!listing) throw new NotFoundError('Service listing not found');
+    if (!listing) throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
     if (listing.providerId !== provider.id) {
-      throw new ForbiddenError('You do not own this service listing.');
+      throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
     }
 
     await serviceListingsRepository.softDelete(id);

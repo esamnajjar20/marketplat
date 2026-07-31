@@ -71,19 +71,19 @@ export const categoriesService = {
 
   getCategoryById: async (id: string): Promise<Category> => {
     const category = await categoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Category not found');
+    if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
     return category;
   },
 
   getCategoryBySlug: async (slug: string): Promise<Category> => {
     const category = await categoriesRepository.findBySlug(slug);
-    if (!category) throw new NotFoundError('Category not found');
+    if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
     return category;
   },
 
   updateCategory: async (id: string, input: UpdateCategoryInput): Promise<Category> => {
     const category = await categoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Category not found');
+    if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
 
     if (input.slug && input.slug !== category.slug) {
       const existing = await categoriesRepository.findBySlug(input.slug);
@@ -112,7 +112,7 @@ export const categoriesService = {
 
   deleteCategory: async (id: string): Promise<void> => {
     const category = await categoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Category not found');
+    if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
     const adsCount = await categoriesRepository.countAds(id);
     if (adsCount > 0) {
       throw new BadRequestError(`Cannot delete category with ${adsCount} active ads`);

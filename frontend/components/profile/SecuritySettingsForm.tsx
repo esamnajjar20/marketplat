@@ -47,9 +47,17 @@ export function SecuritySettingsForm() {
     // proper fieldErrors.newPassword, not fieldErrors.current, so hardcoding
     // it onto `current` pointed the user at the wrong field entirely.
     // fieldErrors is only ever present for genuine Zod validation failures
-    // (see parseApiError), so when it exists we trust it over the guess;
-    // the wrong-current-password case has no fieldErrors (BadRequestError,
-    // not ZodError) and falls through to the same hardcoded field as before.
+    // (see parseApiError), so when it exists we trust it over the guess.
+    //
+    // Now switches on parsed.code === 'CURRENT_PASSWORD_INVALID' (the code
+    // users.service.ts's changePassword() actually attaches) instead of
+    // guessing from statusCode alone — the old statusCode-only check
+    // happened to be correct today only because no other bare
+    // BadRequestError exists on this endpoint's 400 path, but it would
+    // silently mis-target `current` again the moment one is added (the
+    // same class of bug RegisterForm.tsx had). parsed.message is used
+    // directly rather than a second hardcoded copy of the same string,
+    // since errorParser.ts now resolves it from the shared i18n dictionary.
     changePassword.mutate({ currentPassword: current, newPassword: newPass }, {
       onError: (err) => {
         const parsed = parseApiError(err);
@@ -58,8 +66,8 @@ export function SecuritySettingsForm() {
             current: parsed.fieldErrors.currentPassword?.[0],
             newPass: parsed.fieldErrors.newPassword?.[0],
           });
-        } else if (parsed.statusCode === 400) {
-          setErrors({ current: 'كلمة المرور الحالية غير صحيحة' });
+        } else if (parsed.code === 'CURRENT_PASSWORD_INVALID') {
+          setErrors({ current: parsed.message });
         } else {
           toast.error(parsed.message);
         }

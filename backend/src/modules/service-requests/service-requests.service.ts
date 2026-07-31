@@ -68,7 +68,7 @@ export const serviceRequestsService = {
     // not just fake reviews.
     const provider = await serviceProvidersRepository.findPublicById(listing.providerId);
     if (provider && provider.sellerProfile.userId === customerId) {
-      throw new ForbiddenError('You cannot request your own service listing.');
+      throw new ForbiddenError('You cannot request your own service listing.', 'CANNOT_REQUEST_OWN_LISTING');
     }
 
     return prisma.$transaction(async tx =>
@@ -81,12 +81,12 @@ export const serviceRequestsService = {
 
   getRequestById: async (userId: string, id: string): Promise<ServiceRequestWithListing> => {
     const request = await serviceRequestsRepository.findById(id);
-    if (!request) throw new NotFoundError('Service request not found');
+    if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
 
     const isCustomer = request.customerId === userId;
     const isProvider = request.listing.provider.sellerProfile.userId === userId;
     if (!isCustomer && !isProvider) {
-      throw new ForbiddenError('You do not have permission to view this request.');
+      throw new ForbiddenError('You do not have permission to view this request.', 'NOT_YOUR_SERVICE_REQUEST');
     }
     return request;
   },
@@ -110,10 +110,10 @@ export const serviceRequestsService = {
     query: GetServiceRequestsQuery
   ): Promise<PaginatedResult<ServiceRequestWithListing>> => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
-    if (!sellerProfile) throw new NotFoundError('Seller profile not found');
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!provider) throw new NotFoundError('Service provider profile not found');
+    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     const { requests, total } = await serviceRequestsRepository.findManyByProviderId(
       provider.id,
@@ -135,12 +135,12 @@ export const serviceRequestsService = {
     extra?: { quotedPrice?: number; agreedPrice?: number }
   ): Promise<ServiceRequest> => {
     const request = await serviceRequestsRepository.findById(requestId);
-    if (!request) throw new NotFoundError('Service request not found');
+    if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
 
     const isCustomer = request.customerId === userId;
     const isProvider = request.listing.provider.sellerProfile.userId === userId;
     if (!isCustomer && !isProvider) {
-      throw new ForbiddenError('You do not have permission to act on this request.');
+      throw new ForbiddenError('You do not have permission to act on this request.', 'NOT_YOUR_SERVICE_REQUEST_ACTION');
     }
 
     if (!ALLOWED_TRANSITIONS[request.status].includes(action)) {
@@ -167,7 +167,7 @@ export const serviceRequestsService = {
         // Status changed between the read above and this write (rare
         // race) — same "authoritative check at write time" philosophy
         // as createAd.
-        throw new ConflictError('Request status has changed — please refresh and try again');
+        throw new ConflictError('Request status has changed — please refresh and try again', 'SERVICE_REQUEST_CHANGED');
       }
       return tx.serviceRequest.findUniqueOrThrow({ where: { id: requestId } });
     });

@@ -62,12 +62,22 @@ export function RegisterForm() {
         // actually look). This just additionally points at the specific
         // input so the user doesn't have to guess which of email/phone
         // was the duplicate.
+        //
+        // Switches on parsed.code (EMAIL_ALREADY_EXISTS /
+        // PHONE_ALREADY_EXISTS — see errorCodes.ts), not on the Arabic
+        // message text: this used to compare
+        // parsed.message.includes('البريد الإلكتروني'), which could never
+        // match because auth.service.ts's register() sent an English
+        // message ('Email already in use') that errorParser.ts only
+        // translated to Arabic starting from a status-code fallback —
+        // never containing that exact Arabic substring. The field-specific
+        // error silently never fired; only the generic toast did.
         onError: (err) => {
           const parsed = parseApiError(err);
           setServerErrors(parsed.fieldErrors);
-          if (parsed.statusCode === 400 && parsed.message.includes('البريد الإلكتروني')) {
+          if (parsed.code === 'EMAIL_ALREADY_EXISTS') {
             setErrors((prev) => ({ ...prev, email: parsed.message }));
-          } else if (parsed.statusCode === 400 && parsed.message.includes('الهاتف')) {
+          } else if (parsed.code === 'PHONE_ALREADY_EXISTS') {
             setErrors((prev) => ({ ...prev, phone: parsed.message }));
           }
         },

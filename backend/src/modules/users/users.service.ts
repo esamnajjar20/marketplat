@@ -17,13 +17,13 @@ import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/u
 export const usersService = {
   getMe: async (userId: string): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     return user;
   },
 
   getUserById: async (id: string): Promise<PublicUser> => {
     const user = await usersRepository.findPublicById(id);
-    if (!user || !user.isActive) throw new NotFoundError('User not found');
+    if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     return {
       id: user.id,
       name: user.name,
@@ -36,7 +36,7 @@ export const usersService = {
 
   getUserAds: async (userId: string, query: { page?: number; limit?: number }) => {
     const user = await usersRepository.findById(userId);
-    if (!user || !user.isActive) throw new NotFoundError('User not found');
+    if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     const page = query.page || 1;
     const limit = query.limit || 20;
     // S-05: statusFilter pushed to DB — total now only counts ACTIVE ads
@@ -47,7 +47,7 @@ export const usersService = {
 
   updateMe: async (userId: string, input: UpdateProfileInput): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     if (input.phone && input.phone !== user.phone) {
       const existing = await usersRepository.findByPhone(input.phone);
       if (existing) throw new BadRequestError('Phone number already in use');
@@ -67,7 +67,7 @@ export const usersService = {
     input: UpdateNotificationPreferencesInput,
   ): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     const updated = await usersRepository.updateNotificationPreferences(userId, input);
     await userCache.invalidate(userId);
     return updated;
@@ -76,7 +76,7 @@ export const usersService = {
   // D-01: cascade ACTIVE ads to DELETED + S-04: revoke all tokens
   deleteMe: async (userId: string): Promise<void> => {
     const user = await usersRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
     // Deactivate user + hide all their active ads atomically
     await prisma.$transaction([
@@ -113,7 +113,7 @@ export const usersService = {
     currentAccessToken?: string,
   ): Promise<void> => {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, passwordHash: true } });
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
     const valid = await comparePassword(currentPassword, user.passwordHash);
     if (!valid) throw new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID');
@@ -147,7 +147,7 @@ export const usersService = {
    */
   uploadAvatar: async (userId: string, file: Express.Multer.File): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
     const { url, publicId } = await uploadAvatar(file.buffer);
 

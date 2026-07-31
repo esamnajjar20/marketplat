@@ -19,18 +19,37 @@
  * getFieldError() gives forms a one-line way to consume it.
  */
 import axios from 'axios';
+import { getErrorMessage, type ErrorMeta } from './i18n/ar/errors';
+import {
+  translateFieldIssue,
+  translateLiteralFallback,
+  type FieldIssueMeta,
+} from './i18n/ar/fieldErrors';
 
 export interface ParsedError {
   message:      string;
   statusCode:   number;
   /**
-   * Field-keyed validation messages from the backend, when the failure was
-   * a Zod validation error (400 with a body.errors object). Keys are the
+   * The backend's stable machine-readable code (see
+   * backend/src/shared/errors/errorCodes.ts), when the response included
+   * one. UI code that needs to distinguish between error cases (e.g.
+   * which form field a 400 refers to) should switch on this, never on
+   * `message` — the Arabic message text is free to be reworded without
+   * that being a breaking change for such comparisons.
+   */
+  code?: string;
+  /**
+   * Field-keyed validation messages, when the failure was a Zod
+   * validation error (400 with a body.errors object). Keys are the
    * bare field name (e.g. "title", "sortBy") — the "body."/"query."/
    * "params." prefix Zod's path produces from the wrapped schema shape
    * (`z.object({ body: z.object({...}) })`) is stripped, since it reflects
    * how the backend nests its schemas, not anything the UI's field names
    * should ever need to know about.
+   *
+   * FIX I18N-01: values are now Arabic, translated from the backend's
+   * structured errorMeta (Zod issue code/params) — never the raw
+   * English Zod message. See i18n/ar/fieldErrors.ts.
    */
   fieldErrors?: Record<string, string[]>;
 }
@@ -70,14 +89,63 @@ function stripWrapperPrefix(field: string): string {
   return field;
 }
 
-function parseFieldErrors(raw: unknown): Record<string, string[]> | undefined {
+/**
+ * FIX I18N-01: parses the structured errorMeta object (see
+ * error.middleware.ts) into the same field-keyed shape as `errors`,
+ * so it can be zipped against `errors` by (field, index) below.
+ */
+function parseFieldErrorMeta(raw: unknown): Record<string, FieldIssueMeta[]> | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const entries = Object.entries(raw as Record<string, unknown>)
-    .filter((entry): entry is [string, string[]] => Array.isArray(entry[1]))
-    .map(([field, messages]) => [
+    .filter((entry): entry is [string, unknown[]] => Array.isArray(entry[1]))
+    .map(([field, issues]) => [
       stripWrapperPrefix(field),
-      messages.filter((m): m is string => typeof m === 'string').map(sanitiseMsg),
-    ] as [string, string[]]);
+      issues
+        .filter((i): i is FieldIssueMeta => !!i && typeof i === 'object' && typeof (i as FieldIssueMeta).code === 'string')
+    ] as [string, FieldIssueMeta[]]);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+/**
+ * FIX I18N-01: field-level validation messages are now translated to
+ * Arabic before reaching the UI. Previously this only stripped HTML
+ * and the Zod wrapper prefix, passing the backend's raw English
+ * `issue.message` straight through — every form consuming
+ * `getFieldError()` showed English text under Arabic labels,
+ * including Zod's own untranslated default wording for fields with no
+ * custom message (e.g. "city").
+ *
+ * Preferred path: translate each issue from the structured
+ * `errorMeta` (Zod issue code + params) that error.middleware.ts now
+ * sends alongside `errors` — this covers every field generically,
+ * custom message or not. If `errorMeta` is missing for a given
+ * message (e.g. an older cached response shape), falls back to a
+ * small literal-string table, and only as an absolute last resort
+ * keeps the sanitised English so the UI never renders nothing.
+ */
+function parseFieldErrors(
+  raw: unknown,
+  rawMeta: unknown,
+): Record<string, string[]> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const metaByField = parseFieldErrorMeta(rawMeta);
+
+  const entries = Object.entries(raw as Record<string, unknown>)
+    .filter((entry): entry is [string, string[]] => Array.isArray(entry[1]))
+    .map(([rawField, messages]) => {
+      const field = stripWrapperPrefix(rawField);
+      const issues = metaByField?.[field];
+      const translated = messages
+        .filter((m): m is string => typeof m === 'string')
+        .map((m, i) => {
+          const issue = issues?.[i];
+          const arabic = issue
+            ? translateFieldIssue(field, issue)
+            : translateLiteralFallback(m);
+          return sanitiseMsg(arabic);
+        });
+      return [field, translated] as [string, string[]];
+    });
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
@@ -92,12 +160,53 @@ export function getFieldError(error: ParsedError | undefined, field: string): st
 }
 
 export function parseApiError(error: unknown): ParsedError {
+  // FIX AUTH-MSG-01: apiClient's response interceptor (client.ts) already
+  // calls parseApiError itself before rejecting — every promise rejection
+  // that comes out of apiClient is already a ParsedError, never a raw
+  // AxiosError. Call sites that catch that rejection and call
+  // parseApiError(err) again (useLogin/useRegister's onError, LoginForm,
+  // RegisterForm, and other mutation hooks) were feeding an already-parsed
+  // object back in: axios.isAxiosError() is false for it, and
+  // `error instanceof Error` is also false (it's a plain
+  // {message, statusCode, ...} object literal, not a thrown Error) — so
+  // every double-parsed error fell through to the final generic
+  // "حدث خطأ غير متوقع" fallback below, discarding the specific Arabic
+  // message, the `code`, and any `fieldErrors` already resolved on the
+  // first pass. Recognising and returning an already-parsed error
+  // unchanged fixes every such call site at once, without changing
+  // behaviour anywhere a raw AxiosError/Error is passed in for the
+  // first time.
+  if (
+    error &&
+    typeof error === 'object' &&
+    !(error instanceof Error) &&
+    typeof (error as Record<string, unknown>).message === 'string' &&
+    typeof (error as Record<string, unknown>).statusCode === 'number'
+  ) {
+    return error as ParsedError;
+  }
+
   if (axios.isAxiosError(error)) {
     const status  = error.response?.status  ?? 0;
     const data    = error.response?.data    as Record<string, unknown>;
     const headers = error.response?.headers ?? {};
 
-    // Use the backend's message when available — sanitised.
+    // Stable machine-readable code from error.middleware.ts (always present
+    // on API error responses; CODE_BY_STATUS gives it a value even for
+    // errors that didn't set one explicitly). Kept optional here anyway —
+    // a network error or a non-API 4xx from some other layer won't have it.
+    const code: string | undefined = typeof data?.code === 'string' ? data.code : undefined;
+    const meta: ErrorMeta | undefined =
+      data?.meta && typeof data.meta === 'object' ? (data.meta as ErrorMeta) : undefined;
+
+    // Looked up from our own static Arabic dictionary — never derived from
+    // the backend's English `message` text, so this can't reintroduce the
+    // backendMsg-leak problem for statuses (401/5xx) that must never show
+    // server-authored text.
+    const codeMsg = getErrorMessage(code, meta);
+
+    // Use the backend's message when available — sanitised. Only used as a
+    // fallback when `code` didn't resolve to a known translation.
     const rawMsg: string | undefined =
       typeof data?.message === 'string' ? data.message : undefined;
     const backendMsg = rawMsg ? sanitiseMsg(rawMsg) : undefined;
@@ -106,28 +215,34 @@ export function parseApiError(error: unknown): ParsedError {
     // attaches `errors` to — ZodError). Deliberately not attempted for 4xx/5xx
     // in general so a coincidental `errors`-shaped field in some other error
     // body isn't misread as field-level validation detail.
-    const fieldErrors = status === 400 ? parseFieldErrors(data?.errors) : undefined;
+    const fieldErrors = status === 400 ? parseFieldErrors(data?.errors, data?.errorMeta) : undefined;
 
     switch (status) {
       case 400:
-        return { message: backendMsg ?? 'البيانات المرسلة غير صحيحة', statusCode: 400, fieldErrors };
+        return { message: codeMsg ?? backendMsg ?? 'البيانات المرسلة غير صحيحة', statusCode: 400, code, fieldErrors };
       case 401:
-        return { message: 'انتهت جلستك، يرجى تسجيل الدخول مجدداً', statusCode: 401 };
+        // Deliberately never falls back to backendMsg — only a known code's
+        // static Arabic translation, or the generic session-expired string.
+        // A 401 body's English message may carry session/token internals
+        // that must never reach the UI.
+        return { message: codeMsg ?? 'انتهت جلستك، يرجى تسجيل الدخول مجدداً', statusCode: 401, code };
       case 403:
-        return { message: backendMsg ?? 'لا تملك صلاحية لهذا الإجراء', statusCode: 403 };
+        return { message: codeMsg ?? backendMsg ?? 'لا تملك صلاحية لهذا الإجراء', statusCode: 403, code };
       case 404:
-        return { message: backendMsg ?? 'العنصر المطلوب غير موجود', statusCode: 404 };
+        return { message: codeMsg ?? backendMsg ?? 'العنصر المطلوب غير موجود', statusCode: 404, code };
       case 409:
-        return { message: backendMsg ?? 'يوجد تعارض في البيانات', statusCode: 409 };
+        return { message: codeMsg ?? backendMsg ?? 'يوجد تعارض في البيانات', statusCode: 409, code };
       case 422:
-        return { message: backendMsg ?? 'تحقق من صحة البيانات المدخلة', statusCode: 422 };
+        return { message: codeMsg ?? backendMsg ?? 'تحقق من صحة البيانات المدخلة', statusCode: 422, code };
       case 429: {
+        if (codeMsg) return { message: codeMsg, statusCode: 429, code };
         const retryAfter = headers[RETRY_AFTER_HEADER];
         const parsed      = retryAfter ? Number(retryAfter) : NaN;
         const minutes    = Number.isFinite(parsed) ? Math.ceil(parsed / 60) : 15;
         return {
           message:    `طلبات كثيرة جداً، يرجى المحاولة بعد ${minutes} دقيقة`,
           statusCode: 429,
+          code,
         };
       }
       // FIX SEC-04: this used to only special-case `case 500` — status codes
@@ -139,16 +254,18 @@ export function parseApiError(error: unknown): ParsedError {
       // Arabic string" — this makes that actually true for every 5xx, not
       // only 500.
       case 500:
-        return { message: 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: 500 };
+        // Same rule as 401: never backendMsg, even if a code happens to be
+        // unrecognised — only the static dictionary or the hardcoded string.
+        return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: 500, code };
       default:
         if (!error.response) {
           return { message: 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت', statusCode: 0 };
         }
         if (status >= 500) {
-          return { message: 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: status };
+          return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: status, code };
         }
         // For unexpected non-5xx status codes, use backendMsg but still sanitised.
-        return { message: backendMsg ?? 'حدث خطأ غير متوقع', statusCode: status };
+        return { message: codeMsg ?? backendMsg ?? 'حدث خطأ غير متوقع', statusCode: status, code };
     }
   }
 

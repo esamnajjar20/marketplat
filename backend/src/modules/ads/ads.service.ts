@@ -15,6 +15,7 @@ import { logger } from '../../shared/utils/logger';
 import { env } from '../../config/env';
 import { AdStatus } from '@prisma/client';
 import { sellersRepository } from '../sellers/sellers.repository';
+import { sellersService } from '../sellers/sellers.service';
 import { prisma } from '../../config/prisma';
 
 /**
@@ -104,13 +105,15 @@ export const adsService = {
     // that actually closes the race, and it's what a client relying on
     // correctness (rather than just the fast-fail optimization) should
     // expect to be enforced.
-    // Ad.sellerProfileId is optional (see schema.prisma) — a plain
-    // classifieds ad never requires the poster to have onboarded as a
-    // seller. When a SellerProfile does exist for this user, the ad is
-    // still linked to it and seller stats still increment, so the
-    // seller-side dashboards/stats stay accurate for users who *have*
-    // onboarded — this lookup just no longer blocks the ones who haven't.
-    const sellerProfile = await sellersRepository.findByUserId(userId);
+    // Ad creation is seller-only: ensureSellerProfileForAdCreation throws
+    // a BadRequestError if the user has no SellerProfile yet, and a
+    // ForbiddenError if their SellerProfile is suspended — both before
+    // any Cloudinary upload happens, so a request that's going to be
+    // rejected anyway doesn't burn upload cost. sellerProfile is always
+    // defined past this point, so the later tx.ad.create's
+    // sellerProfileId: sellerProfile.id is never null for a newly
+    // created ad.
+    const sellerProfile = await sellersService.ensureSellerProfileForAdCreation(userId);
 
     const preCheckCount = await adsRepository.countActiveByUserId(userId);
     if (preCheckCount >= env.ads.maxPerUser) {
@@ -146,16 +149,14 @@ export const adsService = {
               ...input,
               userId,
               images: uploads.map(upload => upload.url),
-              sellerProfileId: sellerProfile?.id,
+              sellerProfileId: sellerProfile.id,
             },
             include: {
               user: { select: { id: true, name: true, city: true, avatarUrl: true } },
               category: { select: { id: true, name: true, nameAr: true } },
             },
           });
-          if (sellerProfile) {
-            await sellersRepository.incrementStatsOnAdCreated(tx, sellerProfile.id);
-          }
+          await sellersRepository.incrementStatsOnAdCreated(tx, sellerProfile.id);
           return created;
         });
       });
@@ -202,7 +203,7 @@ export const adsService = {
 
   getAdById: async (id: string, viewerIp?: string): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(id);
-    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
 
     // P-06: buffered view counting — deduped per IP, flushed to DB every 60s
     // Prevents N DB writes per N pageviews; Redis absorbs the burst
@@ -230,7 +231,7 @@ export const adsService = {
 
   getRelatedAds: async (adId: string): Promise<AdListRow[]> => {
     const ad = await adsRepository.findById(adId);
-    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
     return adsRepository.findRelated(adId, ad.categoryId, ad.city);
   },
 
@@ -263,12 +264,12 @@ export const adsService = {
     input: UpdateAdInput
   ): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(adId);
-    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
     if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
-      throw new ForbiddenError('You do not have permission to update this ad');
+      throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
     if (input.status && userRole !== ROLES.ADMIN && input.status !== AdStatus.SOLD) {
-      throw new ForbiddenError('You cannot set this ad status');
+      throw new ForbiddenError('You cannot set this ad status', 'CANNOT_SET_AD_STATUS');
     }
 
     // NEW: transitioning ACTIVE -> SOLD is the one ad-status change that
@@ -309,9 +310,9 @@ export const adsService = {
     files: Express.Multer.File[]
   ): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(adId);
-    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
     if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
-      throw new ForbiddenError('You do not have permission to update this ad');
+      throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
     if (ad.images.length + files.length > 10) {
       throw new BadRequestError('An ad can have a maximum of 10 images');
@@ -329,7 +330,7 @@ export const adsService = {
       // pre-lock check above is just a fast-fail for the common case;
       // this is the authoritative check.
       const freshAd = await adsRepository.findById(adId);
-      if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found');
+      if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       if (freshAd.images.length + files.length > 10) {
         throw new BadRequestError('An ad can have a maximum of 10 images');
       }
@@ -360,9 +361,9 @@ export const adsService = {
     imageUrl: string
   ): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(adId);
-    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
     if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
-      throw new ForbiddenError('You do not have permission to update this ad');
+      throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
     if (!ad.images.includes(imageUrl)) throw new BadRequestError('Image not found in this ad');
 
@@ -386,9 +387,9 @@ export const adsService = {
 
   deleteAd: async (adId: string, userId: string, userRole: string): Promise<void> => {
     const ad = await adsRepository.findById(adId);
-    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found');
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
     if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
-      throw new ForbiddenError('You do not have permission to delete this ad');
+      throw new ForbiddenError('You do not have permission to delete this ad', 'NOT_YOUR_AD');
     }
     await adsRepository.softDelete(adId);
     // FIX AUDIT-V4-06: a deleted ad must stop appearing in /ads results

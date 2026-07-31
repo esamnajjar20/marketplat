@@ -22,11 +22,18 @@ function makeAxiosError(
   message?: string,
   headers: Record<string, string> = {},
   errors?: Record<string, string[]>,
+  code?: string,
+  meta?: Record<string, unknown>,
 ): AxiosError {
   const response = {
     status,
     statusText: String(status),
-    data:    { ...(message !== undefined && { message }), ...(errors && { errors }) },
+    data:    {
+      ...(message !== undefined && { message }),
+      ...(errors && { errors }),
+      ...(code !== undefined && { code }),
+      ...(meta && { meta }),
+    },
     headers: new AxiosHeaders(headers),
     config:  { headers: new AxiosHeaders() } as AxiosError['config'],
   };
@@ -166,6 +173,74 @@ describe('parseApiError — HTTP status codes', () => {
     const err = makeAxiosError(418);
     expect(parseApiError(err).message).toBe('حدث خطأ غير متوقع');
     expect(parseApiError(err).statusCode).toBe(418);
+  });
+});
+
+// ── code-based translation (data.code from error.middleware.ts) ────
+
+describe('parseApiError — error code translation', () => {
+  it('translates a known code to its Arabic dictionary entry, taking priority over backendMsg', () => {
+    const err = makeAxiosError(400, 'Email already in use', {}, undefined, 'EMAIL_ALREADY_EXISTS');
+    const result = parseApiError(err);
+    expect(result.message).toBe('البريد الإلكتروني مستخدم بالفعل');
+    expect(result.code).toBe('EMAIL_ALREADY_EXISTS');
+  });
+
+  it('translates PHONE_ALREADY_EXISTS', () => {
+    const err = makeAxiosError(400, 'Phone number already in use', {}, undefined, 'PHONE_ALREADY_EXISTS');
+    expect(parseApiError(err).message).toBe('رقم الهاتف مستخدم بالفعل');
+  });
+
+  it('falls back to backendMsg when the code is unrecognised (400)', () => {
+    const err = makeAxiosError(400, 'حقل مخصص غير معروف', {}, undefined, 'SOME_UNMAPPED_CODE');
+    const result = parseApiError(err);
+    expect(result.message).toBe('حقل مخصص غير معروف');
+    expect(result.code).toBe('SOME_UNMAPPED_CODE');
+  });
+
+  it('exposes `code` even when it resolves via the status-code default fallback', () => {
+    const err = makeAxiosError(404, 'Ad not found', {}, undefined, 'AD_NOT_FOUND');
+    const result = parseApiError(err);
+    expect(result.message).toBe('الإعلان غير موجود');
+    expect(result.code).toBe('AD_NOT_FOUND');
+  });
+
+  it('interpolates meta.maxPerUser into the AD_LIMIT_REACHED message', () => {
+    const err = makeAxiosError(
+      400,
+      'You have reached the maximum number of active ads (5).',
+      {},
+      undefined,
+      'AD_LIMIT_REACHED',
+      { maxPerUser: 5 },
+    );
+    const result = parseApiError(err);
+    expect(result.message).toContain('5');
+    expect(result.message).toContain('الحد الأقصى');
+  });
+
+  it('401 never leaks backendMsg even when the code is unrecognised', () => {
+    const err = makeAxiosError(401, 'JWT malformed: unexpected token', {}, undefined, 'SOME_FUTURE_AUTH_CODE');
+    const result = parseApiError(err);
+    expect(result.message).toBe('انتهت جلستك، يرجى تسجيل الدخول مجدداً');
+    expect(result.message).not.toContain('JWT');
+  });
+
+  it('401 uses the dictionary translation for a recognised auth code', () => {
+    const err = makeAxiosError(401, 'Account is locked', {}, undefined, 'ACCOUNT_LOCKED');
+    expect(parseApiError(err).message).toBe('تم قفل الحساب مؤقتاً بسبب محاولات دخول متكررة، حاول لاحقاً');
+  });
+
+  it('500 never leaks backendMsg even when the code is unrecognised', () => {
+    const err = makeAxiosError(500, 'PostgreSQL connection refused', {}, undefined, 'SOME_FUTURE_500_CODE');
+    const result = parseApiError(err);
+    expect(result.message).toBe('خطأ في الخادم، يرجى المحاولة لاحقاً');
+    expect(result.message).not.toContain('PostgreSQL');
+  });
+
+  it('code is undefined when the backend response has no code field', () => {
+    const err = makeAxiosError(400, 'Some message');
+    expect(parseApiError(err).code).toBeUndefined();
   });
 });
 
@@ -404,6 +479,52 @@ describe('parseApiError — fieldErrors (FIX M-1)', () => {
     });
     expect(() => parseApiError(err)).not.toThrow();
     expect(parseApiError(err).fieldErrors).toBeUndefined();
+  });
+});
+
+describe('parseApiError idempotency (FIX AUTH-MSG-01)', () => {
+  // Regression coverage for the "double-parse" bug: apiClient's response
+  // interceptor (client.ts) already calls parseApiError before rejecting,
+  // so every rejection reaching a mutation's onError/a form's error prop is
+  // already a ParsedError. Feeding that ParsedError into parseApiError a
+  // second time must return it unchanged — not fall through to the generic
+  // "حدث خطأ غير متوقع" fallback, which is what happened before this fix
+  // (a ParsedError is neither an AxiosError nor an `instanceof Error`).
+
+  it('returns an already-parsed 401 unchanged instead of the generic fallback', () => {
+    const firstPass = parseApiError(makeAxiosError(401, 'ignored', {}, undefined, 'INVALID_CREDENTIALS'));
+    const secondPass = parseApiError(firstPass);
+    expect(secondPass).toEqual(firstPass);
+    expect(secondPass.message).not.toBe('حدث خطأ غير متوقع');
+    expect(secondPass.message).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+  });
+
+  it('preserves code and fieldErrors through a second parse (RegisterForm flow)', () => {
+    const firstPass = parseApiError(
+      makeAxiosError(400, 'Email already in use', {}, undefined, 'EMAIL_ALREADY_EXISTS'),
+    );
+    const secondPass = parseApiError(firstPass);
+    expect(secondPass.code).toBe('EMAIL_ALREADY_EXISTS');
+    expect(secondPass.message).toBe(firstPass.message);
+  });
+
+  it('preserves a 429 rate-limit message through a second parse', () => {
+    const firstPass = parseApiError(makeAxiosError(429, 'ignored', { 'retry-after': '120' }));
+    const secondPass = parseApiError(firstPass);
+    expect(secondPass.message).toBe(firstPass.message);
+    expect(secondPass.statusCode).toBe(429);
+  });
+
+  it('still parses a raw AxiosError normally (does not treat every object as pre-parsed)', () => {
+    const err = makeAxiosError(500, 'db exploded');
+    const parsed = parseApiError(err);
+    expect(parsed.message).toBe('خطأ في الخادم، يرجى المحاولة لاحقاً');
+    expect(parsed.statusCode).toBe(500);
+  });
+
+  it('still falls through to the generic message for a truly unknown value', () => {
+    expect(parseApiError({ foo: 'bar' }).message).toBe('حدث خطأ غير متوقع');
+    expect(parseApiError(null).message).toBe('حدث خطأ غير متوقع');
   });
 });
 

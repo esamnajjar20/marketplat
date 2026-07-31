@@ -54,12 +54,30 @@ describe('AuthService', () => {
         .rejects.toThrow('Email already in use');
     });
 
+    // Frontend distinguishes the email-taken vs phone-taken case (which
+    // FormField gets the error) by `error.code`, not by parsing the
+    // English message — asserting the code here is what actually pins
+    // down the register() -> RegisterForm.tsx contract.
+    it('should attach the EMAIL_ALREADY_EXISTS code when email exists', async () => {
+      (authRepository.findByEmail as jest.Mock).mockResolvedValue(mockUser);
+      await expect(authService.register({ name: 'Test', email: 'test@example.com', password: 'password123' }))
+        .rejects.toMatchObject({ code: 'EMAIL_ALREADY_EXISTS', statusCode: 400 });
+    });
+
     it('should throw if phone exists', async () => {
       (authRepository.findByEmail as jest.Mock).mockResolvedValue(null);
       (authRepository.findByPhone as jest.Mock).mockResolvedValue(mockUser);
       await expect(
         authService.register({ name: 'Test', email: 'new@example.com', password: 'password123', phone: '+966501111111' })
       ).rejects.toThrow('Phone number already in use');
+    });
+
+    it('should attach the PHONE_ALREADY_EXISTS code when phone exists', async () => {
+      (authRepository.findByEmail as jest.Mock).mockResolvedValue(null);
+      (authRepository.findByPhone as jest.Mock).mockResolvedValue(mockUser);
+      await expect(
+        authService.register({ name: 'Test', email: 'new@example.com', password: 'password123', phone: '+966501111111' })
+      ).rejects.toMatchObject({ code: 'PHONE_ALREADY_EXISTS', statusCode: 400 });
     });
   });
 

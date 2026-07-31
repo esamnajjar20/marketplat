@@ -72,11 +72,11 @@ export const authService = {
     userAgent = 'unknown'
   ): Promise<AuthResult> => {
     const existingEmail = await authRepository.findByEmail(input.email);
-    if (existingEmail) throw new BadRequestError('Email already in use');
+    if (existingEmail) throw new BadRequestError('Email already in use', 'EMAIL_ALREADY_EXISTS');
 
     if (input.phone) {
       const existingPhone = await authRepository.findByPhone(input.phone);
-      if (existingPhone) throw new BadRequestError('Phone number already in use');
+      if (existingPhone) throw new BadRequestError('Phone number already in use', 'PHONE_ALREADY_EXISTS');
     }
 
     const passwordHash = await hashPassword(input.password);

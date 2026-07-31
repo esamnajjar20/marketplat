@@ -14,7 +14,14 @@ import { ROUTES } from '@/lib/constants';
  * before the (heavier, multi-field, image-upload) CreateAdForm ever
  * mounts, rather than letting the user fill the whole form and only
  * then hit the backend's BadRequestError from
- * ensureSellerProfileForAdCreation.
+ * ensureSellerProfileForAdCreation (ads.service.ts's createAd).
+ *
+ * Only sellers may publish ads — this is intentional product behavior,
+ * not a bug. Keep this gate and the backend's
+ * ensureSellerProfileForAdCreation call in sync: removing one without
+ * the other reopens the exact mismatch this component's history has
+ * already hit once (frontend blocking everyone vs. backend allowing
+ * everyone).
  */
 export function CreateAdGate() {
   const { data: profile, isLoading, isError } = useMySellerProfile();

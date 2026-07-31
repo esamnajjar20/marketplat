@@ -37,14 +37,14 @@ export const serviceProvidersService = {
     // AUDIT-FIX: same suspension gate as service-listings.service.ts's
     // requireOwnProvider and sellersService.ensureSellerProfileForAdCreation.
     if (sellerProfile.suspended) {
-      throw new ForbiddenError('Your seller account has been suspended.');
+      throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
     }
 
     // Unlocked pre-check: cheap fast-fail before taking the lock, mirroring
     // sellersService.createSellerProfile's own pattern.
     const existing = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
     if (existing) {
-      throw new ConflictError('You already have a service provider profile.');
+      throw new ConflictError('You already have a service provider profile.', 'SERVICE_PROVIDER_ALREADY_EXISTS');
     }
 
     return withServiceProviderCreationLock(sellerProfile.id, async () => {
@@ -52,7 +52,7 @@ export const serviceProvidersService = {
         sellerProfile.id
       );
       if (stillExisting) {
-        throw new ConflictError('You already have a service provider profile.');
+        throw new ConflictError('You already have a service provider profile.', 'SERVICE_PROVIDER_ALREADY_EXISTS');
       }
 
       try {
@@ -74,7 +74,7 @@ export const serviceProvidersService = {
         // sellersService guards against — the DB's @unique on
         // sellerProfileId is the last line of defense.
         if (error?.code === 'P2002') {
-          throw new ConflictError('You already have a service provider profile.');
+          throw new ConflictError('You already have a service provider profile.', 'SERVICE_PROVIDER_ALREADY_EXISTS');
         }
         throw error;
       }
@@ -83,10 +83,10 @@ export const serviceProvidersService = {
 
   getMyServiceProvider: async (userId: string): Promise<ServiceProviderDetails> => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
-    if (!sellerProfile) throw new NotFoundError('Seller profile not found');
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const details = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!details) throw new NotFoundError('Service provider profile not found');
+    if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
     return details;
   },
 
@@ -95,17 +95,17 @@ export const serviceProvidersService = {
     input: UpdateServiceProviderInput
   ): Promise<ServiceProviderDetails> => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
-    if (!sellerProfile) throw new NotFoundError('Seller profile not found');
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const details = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!details) throw new NotFoundError('Service provider profile not found');
+    if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     return serviceProvidersRepository.update(details.id, input);
   },
 
   getPublicServiceProvider: async (id: string): Promise<ServiceProviderWithSeller> => {
     const details = await serviceProvidersRepository.findPublicById(id);
-    if (!details) throw new NotFoundError('Service provider not found');
+    if (!details) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     return details;
   },
 

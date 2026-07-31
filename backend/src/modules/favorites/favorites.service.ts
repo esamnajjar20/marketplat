@@ -15,7 +15,7 @@ export const favoritesService = {
     adId: string
   ): Promise<{ action: 'added' | 'removed' }> => {
     const ad = await adsService.findAdForReference(adId);
-    if (!ad) throw new NotFoundError('Ad not found');
+    if (!ad) throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
 
     const existing = await favoritesRepository.findByUserAndAd(userId, adId);
     if (existing) {

@@ -37,9 +37,22 @@ const verifyFileContent = (req: Request, res: Response, next: NextFunction): voi
   next();
 };
 
+/**
+ * FIX UPLOAD-01: this used to call back with a bare `new Error(...)`,
+ * which — once wrapped downstream as `new BadRequestError(uploadErr.message)`
+ * with no explicit code — fell back to the generic VALIDATION_ERROR
+ * dictionary entry ("البيانات المرسلة غير صحيحة") instead of the
+ * INVALID_FILE_TYPE entry ("نوع الملف غير مدعوم") already used two
+ * lines below in verifyFileContent() for the equivalent real-content
+ * check. Passing a BadRequestError with the code set here means both
+ * the declared-Content-Type check (this function) and the actual-
+ * file-bytes check (verifyFileContent) now resolve to the same, more
+ * specific Arabic message instead of the declared-type check alone
+ * being generic.
+ */
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-    cb(new Error('Only JPEG, PNG and WebP images are allowed'));
+    cb(new BadRequestError('Only JPEG, PNG and WebP images are allowed', 'INVALID_FILE_TYPE'));
     return;
   }
   cb(null, true);
@@ -84,7 +97,9 @@ export const MAX_TOTAL_REQUEST_BYTES = 55 * 1024 * 1024; // 10 files × 5MB + fo
 export const rejectOversizedContentLength = (req: Request, res: Response, next: NextFunction): void => {
   const contentLength = req.headers['content-length'];
   if (contentLength && Number(contentLength) > MAX_TOTAL_REQUEST_BYTES) {
-    next(new BadRequestError('Request too large'));
+    // FIX UPLOAD-01: was a bare BadRequestError with no code, falling
+    // back to the generic VALIDATION_ERROR message.
+    next(new BadRequestError('Request too large', 'REQUEST_TOO_LARGE'));
     return;
   }
   next();
@@ -98,11 +113,18 @@ export const uploadMiddleware = (req: Request, res: Response, next: NextFunction
       if (uploadErr instanceof multer.MulterError) {
         if (uploadErr.code === 'LIMIT_FILE_SIZE')
           return next(new BadRequestError('File size must be less than 5MB', 'FILE_TOO_LARGE'));
+        // FIX UPLOAD-01: was a bare BadRequestError with no code.
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
-          return next(new BadRequestError('Unexpected file field'));
-        return next(new BadRequestError(uploadErr.message));
+          return next(new BadRequestError('Unexpected file field', 'UNEXPECTED_FILE_FIELD'));
+        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       }
-      if (uploadErr instanceof Error) return next(new BadRequestError(uploadErr.message));
+      // fileFilter's own BadRequestError (already coded) and any other
+      // Error land here — the `instanceof BadRequestError` check keeps
+      // its explicit code instead of double-wrapping it into a fresh,
+      // uncoded BadRequestError (which used to silently discard the
+      // code fileFilter had just set).
+      if (uploadErr instanceof BadRequestError) return next(uploadErr);
+      if (uploadErr instanceof Error) return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       verifyFileContent(req, res, next);
     });
   });
@@ -116,15 +138,21 @@ export const uploadMultipleMiddleware = (req: Request, res: Response, next: Next
       if (uploadErr instanceof multer.MulterError) {
         if (uploadErr.code === 'LIMIT_FILE_SIZE')
           return next(new BadRequestError('Each file must be less than 5MB', 'FILE_TOO_LARGE'));
+        // FIX UPLOAD-01: these three were bare BadRequestErrors with no
+        // code, all falling back to the generic VALIDATION_ERROR
+        // message despite each being a distinct, nameable failure.
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
-          return next(new BadRequestError('Maximum 10 images allowed'));
+          return next(new BadRequestError('Maximum 10 images allowed', 'TOO_MANY_FILES'));
         if (uploadErr.code === 'LIMIT_FILE_COUNT')
-          return next(new BadRequestError('Maximum 10 images allowed'));
+          return next(new BadRequestError('Maximum 10 images allowed', 'TOO_MANY_FILES'));
         if (uploadErr.code === 'LIMIT_FIELD_COUNT')
-          return next(new BadRequestError('Too many form fields'));
-        return next(new BadRequestError(uploadErr.message));
+          return next(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
+        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       }
-      if (uploadErr instanceof Error) return next(new BadRequestError(uploadErr.message));
+      // See uploadMiddleware above for why BadRequestError is passed
+      // through as-is rather than re-wrapped without its code.
+      if (uploadErr instanceof BadRequestError) return next(uploadErr);
+      if (uploadErr instanceof Error) return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       verifyFileContent(req, res, next);
     });
   });

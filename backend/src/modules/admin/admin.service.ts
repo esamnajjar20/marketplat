@@ -164,7 +164,7 @@ export const adminService = {
       }).catch(() => {});
       return ad;
     } catch (e: any) {
-      if (e?.code === 'P2025') throw new NotFoundError('Ad not found');
+      if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       throw e;
     }
   },
@@ -181,7 +181,7 @@ export const adminService = {
       }).catch(() => {});
       return ad;
     } catch (e: any) {
-      if (e?.code === 'P2025') throw new NotFoundError('Ad not found');
+      if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       throw e;
     }
   },
@@ -205,7 +205,7 @@ export const adminService = {
         details: { adId },
       }).catch(() => {});
     } catch (e: any) {
-      if (e?.code === 'P2025') throw new NotFoundError('Ad not found');
+      if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       throw e;
     }
   },
@@ -311,7 +311,7 @@ export const adminService = {
 
       return user;
     } catch (e: any) {
-      if (e?.code === 'P2025') throw new NotFoundError('User not found');
+      if (e?.code === 'P2025') throw new NotFoundError('User not found', 'USER_NOT_FOUND');
       // P2034: Postgres detected a serialization conflict with a
       // concurrent transaction — most likely another admin-status
       // change racing this one. Safe to surface as a client-retryable
@@ -385,7 +385,7 @@ export const adminService = {
 
       return user;
     } catch (e: any) {
-      if (e?.code === 'P2025') throw new NotFoundError('User not found');
+      if (e?.code === 'P2025') throw new NotFoundError('User not found', 'USER_NOT_FOUND');
       if (e?.code === 'P2034') {
         throw new BadRequestError('This action conflicted with another operation, please try again', 'CONCURRENT_UPDATE_CONFLICT');
       }

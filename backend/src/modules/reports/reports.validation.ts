@@ -20,18 +20,23 @@ export const updateReportStatusSchema = z.object({
 
 export const getReportsSchema = z.object({
   query: z.object({
+    // FIX BUG-FAV-01 (same bug, same fix, as favorites.validation.ts):
+    // .optional() must come after .pipe(), not on the inner string
+    // schema — otherwise an absent page/limit transforms `undefined`
+    // into NaN via Number(undefined), which then fails the piped
+    // z.number() check instead of being treated as "not provided".
     page: z
       .string()
       .regex(/^\d+$/)
-      .optional()
       .transform(Number)
-      .pipe(z.number().min(1).max(1000).optional()),
+      .pipe(z.number().int().min(1).max(1000))
+      .optional(),
     limit: z
       .string()
       .regex(/^\d+$/)
-      .optional()
       .transform(Number)
-      .pipe(z.number().min(1).max(100).optional()),
+      .pipe(z.number().int().min(1).max(100))
+      .optional(),
     status: z.nativeEnum(ReportStatus).optional(),
   }),
 });

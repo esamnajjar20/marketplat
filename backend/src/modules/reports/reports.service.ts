@@ -15,7 +15,7 @@ const isPrismaError = (err: unknown, code: string): boolean =>
 export const reportsService = {
   createReport: async (userId: string, adId: string, input: CreateReportInput): Promise<Report> => {
     const ad = await adsService.findAdForReference(adId);
-    if (!ad) throw new NotFoundError('Ad not found');
+    if (!ad) throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
     if (ad.userId === userId) throw new BadRequestError('You cannot report your own ad');
 
     const existing = await reportsRepository.findByUserAndAd(userId, adId);

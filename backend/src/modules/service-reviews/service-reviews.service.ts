@@ -24,17 +24,17 @@ export const serviceReviewsService = {
     input: CreateServiceReviewInput
   ): Promise<ServiceReview> => {
     const request = await serviceRequestsRepository.findById(input.requestId);
-    if (!request) throw new NotFoundError('Service request not found');
+    if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
 
     if (request.customerId !== raterId) {
-      throw new ForbiddenError('Only the customer of this request can leave a review.');
+      throw new ForbiddenError('Only the customer of this request can leave a review.', 'NOT_YOUR_REQUEST_TO_REVIEW');
     }
     if (request.status !== 'COMPLETED') {
       throw new BadRequestError('You can only review a completed service request.');
     }
 
     const existing = await serviceReviewsRepository.findByRequestId(input.requestId);
-    if (existing) throw new ConflictError('This request has already been reviewed.');
+    if (existing) throw new ConflictError('This request has already been reviewed.', 'ALREADY_REVIEWED');
 
     const sellerProfileId = request.listing.provider.sellerProfileId;
 
@@ -52,7 +52,7 @@ export const serviceReviewsService = {
       });
     } catch (error: any) {
       if (error?.code === 'P2002') {
-        throw new ConflictError('This request has already been reviewed.');
+        throw new ConflictError('This request has already been reviewed.', 'ALREADY_REVIEWED');
       }
       throw error;
     }

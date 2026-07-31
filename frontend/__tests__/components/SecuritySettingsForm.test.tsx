@@ -122,10 +122,11 @@ describe('SecuritySettingsForm', () => {
       );
     });
 
-    it('shows "incorrect current password" under the current-password field on a 400 response — not a generic toast', async () => {
+    it('shows "incorrect current password" under the current-password field on a CURRENT_PASSWORD_INVALID code — not a generic toast', async () => {
       (parseApiError as ReturnType<typeof vi.fn>).mockReturnValue({
         statusCode: 400,
-        message: 'Current password is incorrect',
+        code: 'CURRENT_PASSWORD_INVALID',
+        message: 'كلمة المرور الحالية غير صحيحة',
       });
       // Simulate the mutation invoking the onError callback passed by
       // the component, the same way react-query would on failure.
@@ -141,6 +142,32 @@ describe('SecuritySettingsForm', () => {
 
       expect(await screen.findByText('كلمة المرور الحالية غير صحيحة')).toBeInTheDocument();
       expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    // Regression coverage: this used to key off `statusCode === 400` alone,
+    // which would have mis-targeted the `current` field for *any* future
+    // bare-400 error this endpoint might grow (the same class of bug
+    // RegisterForm.tsx had with its dead Arabic-substring match). A 400
+    // without the CURRENT_PASSWORD_INVALID code and without fieldErrors
+    // must fall through to the generic toast, not the current-password field.
+    it('falls back to a generic toast for a 400 that is not CURRENT_PASSWORD_INVALID', async () => {
+      (parseApiError as ReturnType<typeof vi.fn>).mockReturnValue({
+        statusCode: 400,
+        code: 'SOME_OTHER_400_CODE',
+        message: 'رسالة غير متعلقة بكلمة المرور',
+      });
+      mockMutate.mockImplementation((_payload, opts?: { onError?: (err: unknown) => void }) => {
+        opts?.onError?.(new Error('bad request'));
+      });
+
+      const user = userEvent.setup();
+      render(<SecuritySettingsForm />);
+      await fillForm(user);
+
+      await user.click(screen.getByRole('button', { name: 'تغيير كلمة المرور' }));
+
+      expect(toast.error).toHaveBeenCalledWith('رسالة غير متعلقة بكلمة المرور');
+      expect(screen.queryByText('كلمة المرور الحالية غير صحيحة')).not.toBeInTheDocument();
     });
 
     it('shows a generic toast (not a field error) for a non-400 failure, e.g. 500', async () => {
@@ -163,7 +190,11 @@ describe('SecuritySettingsForm', () => {
     });
 
     it('does not clear the form fields when the request fails (user stays on the page)', async () => {
-      (parseApiError as ReturnType<typeof vi.fn>).mockReturnValue({ statusCode: 400, message: 'x' });
+      (parseApiError as ReturnType<typeof vi.fn>).mockReturnValue({
+        statusCode: 400,
+        code: 'CURRENT_PASSWORD_INVALID',
+        message: 'كلمة المرور الحالية غير صحيحة',
+      });
       mockMutate.mockImplementation((_payload, opts?: { onError?: (err: unknown) => void }) => {
         opts?.onError?.(new Error('bad request'));
       });

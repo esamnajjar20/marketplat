@@ -40,9 +40,9 @@ export const appointmentsService = {
 
     if (input.requestId) {
       const request = await serviceRequestsRepository.findById(input.requestId);
-      if (!request) throw new NotFoundError('Service request not found');
+      if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
       if (request.listing.providerId !== provider.id) {
-        throw new ForbiddenError('This request does not belong to your listings.');
+        throw new ForbiddenError('This request does not belong to your listings.', 'NOT_YOUR_SERVICE_REQUEST');
       }
       if (!['ACCEPTED', 'IN_PROGRESS'].includes(request.status)) {
         throw new BadRequestError('Can only schedule an appointment for an accepted request.');
@@ -54,7 +54,7 @@ export const appointmentsService = {
       input.scheduledStart,
       input.scheduledEnd
     );
-    if (conflict) throw new ConflictError('This time slot is already booked');
+    if (conflict) throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
 
     return withProviderScheduleLock(provider.id, async () => {
       const stillConflict = await appointmentsRepository.findOverlapping(
@@ -62,7 +62,7 @@ export const appointmentsService = {
         input.scheduledStart,
         input.scheduledEnd
       );
-      if (stillConflict) throw new ConflictError('This time slot is already booked');
+      if (stillConflict) throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
 
       return appointmentsRepository.create(provider.id, {
         requestId: input.requestId,
@@ -95,12 +95,12 @@ export const appointmentsService = {
   ): Promise<Appointment> => {
     const provider = await requireOwnProvider(userId);
     const appointment = await appointmentsRepository.findById(id);
-    if (!appointment) throw new NotFoundError('Appointment not found');
+    if (!appointment) throw new NotFoundError('Appointment not found', 'BOOKING_NOT_FOUND');
     if (appointment.providerId !== provider.id) {
-      throw new ForbiddenError('You do not own this appointment.');
+      throw new ForbiddenError('You do not own this appointment.', 'NOT_YOUR_APPOINTMENT');
     }
     if (appointment.status !== 'SCHEDULED') {
-      throw new ConflictError('Only a scheduled appointment can change status.');
+      throw new ConflictError('Only a scheduled appointment can change status.', 'APPOINTMENT_NOT_SCHEDULED');
     }
     return appointmentsRepository.updateStatus(id, status);
   },
@@ -113,7 +113,7 @@ export const appointmentsService = {
     dateStr: string
   ): Promise<{ date: string; available: boolean; freeRanges: { start: string; end: string }[] }> => {
     const provider = await serviceProvidersRepository.findById(providerId);
-    if (!provider) throw new NotFoundError('Service provider not found');
+    if (!provider) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     const date = new Date(`${dateStr}T00:00:00.000Z`);
     const dayKey = DAY_KEYS[date.getUTCDay()];

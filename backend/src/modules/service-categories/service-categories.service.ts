@@ -74,13 +74,13 @@ export const serviceCategoriesService = {
 
   getServiceCategoryById: async (id: string): Promise<ServiceCategory> => {
     const category = await serviceCategoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Service category not found');
+    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
     return category;
   },
 
   getServiceCategoryBySlug: async (slug: string): Promise<ServiceCategory> => {
     const category = await serviceCategoriesRepository.findBySlug(slug);
-    if (!category) throw new NotFoundError('Service category not found');
+    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
     return category;
   },
 
@@ -89,7 +89,7 @@ export const serviceCategoriesService = {
     input: UpdateServiceCategoryInput
   ): Promise<ServiceCategory> => {
     const category = await serviceCategoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Service category not found');
+    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
 
     if (input.slug && input.slug !== category.slug) {
       const existing = await serviceCategoriesRepository.findBySlug(input.slug);
@@ -124,7 +124,7 @@ export const serviceCategoriesService = {
   // service-listings exists).
   deleteServiceCategory: async (id: string): Promise<void> => {
     const category = await serviceCategoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Service category not found');
+    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
 
     const listingsCount = await serviceCategoriesRepository.countListings(id);
     if (listingsCount > 0) {
