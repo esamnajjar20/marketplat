@@ -51,3 +51,5 @@ tmp/
 *.tsbuildinfo
 frontend/playwright-report/
 frontend/test-results/
+
+backend/scripts/make-admin.ts
