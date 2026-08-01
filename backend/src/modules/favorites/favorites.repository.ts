@@ -79,13 +79,25 @@ export const favoritesRepository = {
     await prisma.favorite.delete({ where: { userId_adId: { userId, adId } } });
   },
 
+  // FIX FAV-01 (plan's "favorites deleted ads" item): findManyByUserId
+  // previously filtered only by `{ userId }`, with no check on the
+  // linked Ad's status — toggleFavorite/findAdForReference already
+  // block favoriting an ad that's ALREADY deleted (adsService's own
+  // findAdForReference), but that guard only fires at favorite-creation
+  // time. If an ad you favorited earlier gets deleted afterward, the
+  // Favorite row itself is untouched (no cascade/cleanup on Ad status
+  // changes), so it kept showing up here indefinitely — a dead ad
+  // sitting in "المفضلة" the user can never act on. Excluding
+  // ad.status: 'DELETED' at the query level (not filtered client-side
+  // after the fact) means both the returned rows AND the pagination
+  // total/count are correct together.
   findManyByUserId: async (
     userId: string,
     query: GetFavoritesQuery
   ): Promise<{ favorites: FavoriteListRow[]; total: number }> => {
     const { page = 1, limit = 20 } = query;
     const { skip, take } = getPaginationParams(page, limit); // A-06
-    const where: Prisma.FavoriteWhereInput = { userId };
+    const where: Prisma.FavoriteWhereInput = { userId, ad: { status: { not: 'DELETED' } } };
 
     // D-05: read-only batch — Promise.all is sufficient, no transaction needed
     const [favorites, total] = await Promise.all([

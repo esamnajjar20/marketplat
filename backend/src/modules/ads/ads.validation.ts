@@ -57,6 +57,20 @@ export const createAdSchema = z.object({
 
 export const updateAdSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
+  // FIX FAV-02 (plan's "images:[] validation" item): verified this
+  // schema has no `images` field, and nothing in this file uses
+  // .passthrough()/.strict() to change Zod's default behavior — an
+  // object schema without .passthrough() silently STRIPS any key not
+  // explicitly declared, before the parsed body ever reaches
+  // adsService.updateAd/adsRepository.update. A client sending
+  // `images: []` (or any images value) in a PATCH /ads/:id body has
+  // that field dropped here; it can never reach the Prisma `data`
+  // object and can never overwrite the images array. Images are only
+  // ever mutated through the dedicated addImages (atomic append,
+  // capped at 10, lock-guarded — see ads.service.ts) and removeImage
+  // (single-image removal) endpoints, never through this general PATCH.
+  // No code change was needed for this item — recorded here so a
+  // future pass doesn't re-flag it without re-checking.
   body: z.object({
     title: z.string().min(3).max(200).optional(),
     description: z.string().min(10).max(5000).optional(),
