@@ -19,6 +19,7 @@ export const ROUTES = {
   myAds:         '/my-ads',
   favorites:     '/favorites',
   messages:      '/messages',
+  conversationDetail: (id: string) => `/messages/${id}`,
   dashboard:     '/dashboard',
   services:            '/services',
   serviceDetail:        (id: string) => `/services/${id}`,
@@ -130,4 +131,10 @@ export const CACHE_TTL = {
   // is the real source of truth at booking time regardless.
   appointments: 20_000,    // 20 s
   availability: 10_000,    // 10 s
+  // Epic 5: polling-based (no WebSocket yet) — short enough that an
+  // open thread feels responsive without hammering the API. Matches
+  // this codebase's existing shortest TTLs (serviceRequests/appointments
+  // at 20s) since a conversation is exactly as live as those.
+  conversations: 20_000,   // 20 s
+  messages: 5_000,         // 5 s — the actively-open thread polls faster
 } as const;

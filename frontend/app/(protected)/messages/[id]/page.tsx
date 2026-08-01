@@ -1,12 +1,26 @@
 /**
- * FIX AUDIT-V4-03: previously rendered MessageThread + ConversationList
- * for an arbitrary :id with no backend to actually resolve it against
- * (no Conversation model/endpoint exists). Redirects to the parent
- * /messages page, which now shows an explicit "coming soon" state
- * instead of a fake per-conversation UI that could never show real data.
+ * Epic 5: replaces the redirect-to-/messages stub described in this
+ * file's own pre-Epic-5 FIX AUDIT-V4-03 comment ("لا يوجد Conversation/
+ * Message Prisma models") — that note is now stale; the conversations
+ * module exists end-to-end, so this renders the real thread instead.
  */
-import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { ChatWindow } from '@/components/messages/ChatWindow';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { buildMetadata } from '@/lib/seo';
 
-export default function ConversationPage() {
-  redirect('/messages');
+export const metadata: Metadata = buildMetadata({ title: 'المحادثة', noIndex: true });
+
+interface Props {
+  params: Promise<{ id: string }>;
+}
+
+export default async function ConversationPage({ params }: Props) {
+  const { id } = await params;
+  return (
+    <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+      <ChatWindow conversationId={id} />
+    </Suspense>
+  );
 }

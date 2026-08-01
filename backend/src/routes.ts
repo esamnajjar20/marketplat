@@ -13,6 +13,7 @@ import { serviceListingsRouter } from './modules/service-listings';
 import { serviceRequestsRouter } from './modules/service-requests';
 import { appointmentsRouter } from './modules/appointments';
 import { serviceReviewsRouter } from './modules/service-reviews';
+import { conversationsRouter } from './modules/conversations';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -45,3 +46,4 @@ router.use('/service-listings', serviceListingsRouter);
 router.use('/service-requests', serviceRequestsRouter);
 router.use('/appointments', appointmentsRouter);
 router.use('/service-reviews', serviceReviewsRouter);
+router.use('/conversations', conversationsRouter);

@@ -31,6 +31,9 @@ model User {
   sellerRatingsGiven        SellerRating[]
   serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
   serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
+  conversationsAsBuyer      Conversation[]       @relation("ConversationsAsBuyer")
+  conversationsAsSeller     Conversation[]       @relation("ConversationsAsSeller")
+  messagesSent              Message[]            @relation("MessagesSent")
 
   @@index([isActive, createdAt])
   @@map("users")
@@ -75,6 +78,7 @@ model Ad {
   favorites       Favorite[]
   reports         Report[]
   ratings         SellerRating[]
+  conversations   Conversation[]
 
   @@index([userId])
   @@index([categoryId])
@@ -288,6 +292,54 @@ model ServiceReview {
 
   @@index([sellerProfileId])
   @@map("service_reviews")
+}
+
+// Messaging (Epic 5): a Conversation always starts from an Ad (the
+// disabled "مراسلة البائع" button in SellerCard.tsx is the only entry
+// point in the current UI), but adId is nullable so the thread survives
+// the ad being deleted/sold later — same "outlives its origin" shape as
+// ServiceRequest.appointment, just the reverse direction (Conversation
+// doesn't disappear if the Ad does; onDelete: SetNull, not Cascade).
+//
+// The @@unique([adId, buyerId, sellerId]) constraint prevents duplicate
+// threads for the same (ad, buyer, seller) triple — re-clicking "مراسلة
+// البائع" on an ad you already messaged about reopens the same
+// Conversation instead of creating a new one. Postgres treats each NULL
+// in a unique index as distinct, so this does NOT also collapse two
+// *different* ad-less conversations between the same pair into one row —
+// every ad-qualified thread is still deduplicated correctly, which is
+// the actual goal; a second ad-less thread between the same two users
+// is a follow-up decision, not this migration's concern.
+model Conversation {
+  id        String    @id @default(cuid())
+  adId      String?
+  buyerId   String
+  sellerId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  ad        Ad?       @relation(fields: [adId], references: [id], onDelete: SetNull)
+  buyer     User      @relation("ConversationsAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller    User      @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@unique([adId, buyerId, sellerId])
+  @@index([buyerId, updatedAt])
+  @@index([sellerId, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String       @db.VarChar(2000)
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }
 
 model AuditLog {

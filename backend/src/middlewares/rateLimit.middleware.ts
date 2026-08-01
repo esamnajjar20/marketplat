@@ -216,3 +216,32 @@ export const serviceReviewRateLimit = rateLimit({
   store: createRedisStore('service_review'),
   message: msg('Too many reviews submitted, please try again later'),
 });
+
+// Epic 5: opening a new thread is a one-off per (ad, buyer, seller)
+// triple (startFromAd reuses the existing row instead of creating a
+// duplicate), but still worth guarding — same rationale as
+// createServiceRequestRateLimit: bounds scripted spam against many
+// different sellers' ads without punishing normal multi-ad browsing.
+export const startConversationRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('start_conversation'),
+  message: msg('Too many conversations started, please try again later'),
+});
+
+// Epic 5: the actual spam vector — unlike starting a thread, sending
+// messages has no natural per-resource ceiling, so this is the primary
+// control against flooding another user's inbox. Tighter window (15min)
+// than most create-limits here since a real conversation can legitimately
+// involve many messages in a short burst; 60/15min still comfortably
+// covers that while bounding scripted flooding.
+export const sendMessageRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('send_message'),
+  message: msg('Too many messages sent, please slow down'),
+});

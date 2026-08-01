@@ -1,26 +1,25 @@
 /**
- * FIX AUDIT-V4-03: previously rendered ConversationList + MessageThread
- * (now deleted — both were explicitly documented as placeholders with
- * no real backend: no Conversation/Message Prisma models, no
- * endpoints). A user who reached this page directly (bypassing the
- * disabled "مراسلة البائع" button in SellerCard.tsx) saw what looked
- * like a real, functioning messaging UI that always showed zero
- * conversations — indistinguishable from "you have no messages yet"
- * when the actual situation is "this feature doesn't exist yet."
- * Replaced with an explicit, honest "coming soon" state matching the
- * language already used on the disabled button elsewhere in the app.
+ * Epic 5: replaces the "ميزة المراسلة قيد التطوير" placeholder that's
+ * been here since FIX AUDIT-V4-03 (see the original comment this
+ * replaced — that fix pulled a UI with no real backend behind it; the
+ * conversations module now exists end-to-end, so this wires the real
+ * thing instead of continuing to hide it).
  */
-import { MessageSquare } from 'lucide-react';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { ConversationList } from '@/components/messages/ConversationList';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { buildMetadata } from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({ title: 'الرسائل', noIndex: true });
 
 export default function MessagesPage() {
   return (
-    <div className="h-[calc(100vh-8rem)] flex items-center justify-center rounded-lg border bg-card">
-      <EmptyState
-        icon={<MessageSquare className="h-10 w-10" />}
-        title="ميزة المراسلة قيد التطوير"
-        description="نعمل على إضافة نظام المراسلة بين المشترين والبائعين. سيتم إعلامك عند توفره."
-      />
+    <div className="space-y-4">
+      <h1 className="text-xl font-bold">الرسائل</h1>
+      <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+        <ConversationList />
+      </Suspense>
     </div>
   );
 }

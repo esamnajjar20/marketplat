@@ -89,6 +89,14 @@ export const queryKeys = {
       ['appointments', 'availability', providerId, date] as const,
   },
 
+  // ── Conversations / Messages (Epic 5) ────────────────────────────
+  conversations: {
+    mine:     (params?: object) => ['conversations', 'me', params ?? {}] as const,
+    detail:   (id: string)      => ['conversations', 'detail', id] as const,
+    messages: (id: string, params?: object) =>
+      ['conversations', 'detail', id, 'messages', params ?? {}] as const,
+  },
+
   // ── Auth / current user ────────────────────────────────────────
   auth: {
     me:       ()               => ['auth', 'me']        as const,
