@@ -138,3 +138,23 @@ export interface AdminGetSellersParams extends PaginationParams {
 
 export interface SetSellerVerifiedPayload  { verified:  boolean; }
 export interface SetSellerSuspendedPayload { suspended: boolean; }
+
+// ── Broadcast notifications ─────────────────────────────────────────
+// Backend: POST /admin/notifications/broadcast (broadcastNotificationSchema).
+// `userIds` is required by the schema even when `allUsers` is true — the
+// backend ignores it and resolves the recipient list itself in that case
+// (adminService.getAllActiveUserIds) — see admin.controller.ts's
+// broadcastNotification doc comment. The frontend only exposes the
+// "send to all active users" path, so it always sends a placeholder
+// array to satisfy the min(1) validation.
+
+export interface BroadcastNotificationPayload {
+  userIds:   string[];
+  allUsers?: boolean;
+  title:     string;
+  body:      string;
+}
+
+export interface BroadcastNotificationResult {
+  recipientCount: number;
+}

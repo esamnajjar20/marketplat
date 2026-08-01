@@ -28,6 +28,8 @@ import type {
   AdminGetSellersParams,
   SetSellerVerifiedPayload,
   SetSellerSuspendedPayload,
+  BroadcastNotificationPayload,
+  BroadcastNotificationResult,
 } from '@/types/admin.types';
 import type { ApiResponse } from '@/types/api.types';
 
@@ -104,4 +106,15 @@ export const adminApi = {
    */
   updateReportStatus: (reportId: string, status: Extract<ReportStatus, 'RESOLVED' | 'DISMISSED'>) =>
     apiClient.patch<ApiResponse<Report>>(`/reports/${reportId}/status`, { status }),
+
+  // ── Notifications ────────────────────────────────────────────────
+  // Backend: POST /admin/notifications/broadcast. Existed fully
+  // server-side (controller/service/validation) with no frontend
+  // caller at all — this wires it up.
+
+  broadcastNotification: (payload: BroadcastNotificationPayload) =>
+    apiClient.post<ApiResponse<BroadcastNotificationResult>>(
+      '/admin/notifications/broadcast',
+      payload,
+    ),
 };

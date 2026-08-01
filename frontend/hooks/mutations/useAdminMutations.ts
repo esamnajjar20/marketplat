@@ -214,6 +214,25 @@ export function useAdminChangeRole() {
   });
 }
 
+/**
+ * POST /admin/notifications/broadcast — existed fully server-side with
+ * no reachable UI (see admin.api.ts's broadcastNotification doc
+ * comment). No optimistic update here: unlike the toggles above there
+ * is no cached list entry to patch, and a broadcast isn't idempotent,
+ * so it's a plain mutation.
+ */
+export function useAdminBroadcastNotification() {
+  return useMutation({
+    mutationFn: (payload: { title: string; body: string }) =>
+      adminApi
+        .broadcastNotification({ userIds: ['all'], allUsers: true, ...payload })
+        .then((r) => r.data.data),
+    onSuccess: (result) =>
+      toast.success(`تم إرسال الإشعار إلى ${result?.recipientCount ?? 0} مستخدم`),
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
 export function useAdminUpdateReportStatus() {
   const queryClient = useQueryClient();
   return useMutation({

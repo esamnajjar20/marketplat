@@ -1,6 +1,7 @@
 import type { Metadata }   from 'next';
 import { AdminStatsGrid }  from '@/components/admin/AdminStatsGrid';
 import { AdminRecentActivity } from '@/components/admin/AdminRecentActivity';
+import { BroadcastNotificationButton } from '@/components/admin/BroadcastNotificationButton';
 import { buildMetadata }   from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'لوحة الإدارة', noIndex: true });
@@ -8,7 +9,14 @@ export const metadata: Metadata = buildMetadata({ title: 'لوحة الإدار�
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">نظرة عامة</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">نظرة عامة</h1>
+        {/*
+         * FEAT: closes the gap where POST /admin/notifications/broadcast
+         * existed fully server-side with no reachable UI anywhere.
+         */}
+        <BroadcastNotificationButton />
+      </div>
       <AdminStatsGrid />
       {/*
        * FIX DEAD-04: AdminRecentActivity was fully built and tested but
