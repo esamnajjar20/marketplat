@@ -59,6 +59,8 @@ model User {
   savedSearches             SavedSearch[]
   serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
   serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
+  storeFollows              StoreFollower[]
+  storeReviewsGiven         StoreReview[]        @relation("StoreReviewsGiven")
 
   @@index([isActive, createdAt])
   @@map("users")
@@ -172,6 +174,8 @@ model SellerProfile {
   ratings                SellerRating[]
   serviceProviderDetails ServiceProviderDetails?
   serviceReviews         ServiceReview[]
+  storeDetails           StoreDetails?
+  storeReviews           StoreReview[]
 
   @@index([verified, trustScore])
   @@index([trustScore])
@@ -319,6 +323,112 @@ model ServiceReview {
   @@map("service_reviews")
 }
 
+// ---------------------------------------------------------------------
+// Stores module: local shops, built on top of an existing SellerProfile
+// — same "extension" relationship ServiceProviderDetails already has,
+// not a standalone User→Store link. A seller can hold a StoreDetails
+// and/or ServiceProviderDetails at once; both share the same
+// verification/suspension/trust-score gate on SellerProfile.
+// ---------------------------------------------------------------------
+model StoreDetails {
+  id              String          @id @default(cuid())
+  sellerProfileId String          @unique
+  name            String
+  description     String          @db.VarChar(1000)
+  logoUrl         String?
+  coverImageUrl   String?
+  city            String
+  address         String?
+  phone           String
+  status          StoreStatus     @default(PENDING)
+  plan            StorePlan       @default(FREE)
+  latitude        Decimal?        @db.Decimal(9, 6)
+  longitude       Decimal?        @db.Decimal(9, 6)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  sellerProfile   SellerProfile   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  products        Product[]
+  followers       StoreFollower[]
+
+  @@index([status, city])
+  @@index([status, plan])
+  @@map("store_details")
+}
+
+model ProductCategory {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  nameAr    String            @unique
+  slug      String            @unique
+  icon      String?
+  parentId  String?
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  parent    ProductCategory?  @relation("ProductCategoryParent", fields: [parentId], references: [id])
+  children  ProductCategory[] @relation("ProductCategoryParent")
+  products  Product[]
+
+  @@index([parentId])
+  @@map("product_categories")
+}
+
+model Product {
+  id              String              @id @default(cuid())
+  storeId         String
+  categoryId      String
+  name            String
+  description     String              @db.VarChar(2000)
+  images          String[]
+  price           Decimal             @db.Decimal(10, 2)
+  wholesalePrice  Decimal?            @db.Decimal(10, 2)
+  wholesaleMinQty Int?
+  discountPrice   Decimal?            @db.Decimal(10, 2)
+  availability    ProductAvailability @default(IN_STOCK)
+  status          ProductStatus       @default(ACTIVE)
+  views           Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  store           StoreDetails        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category        ProductCategory     @relation(fields: [categoryId], references: [id])
+
+  @@index([storeId, status])
+  @@index([categoryId, status])
+  @@index([status, createdAt])
+  @@map("products")
+}
+
+model StoreFollower {
+  id        String       @id @default(cuid())
+  userId    String
+  storeId   String
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     StoreDetails @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@index([storeId])
+  @@map("store_followers")
+}
+
+model StoreReview {
+  id              String        @id @default(cuid())
+  score           Int
+  comment         String?       @db.VarChar(500)
+  sellerProfileId String
+  raterId         String
+  createdAt       DateTime      @default(now())
+  rater           User          @relation("StoreReviewsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  // One review per (user, store) — same shape as SellerRating's
+  // per-rater uniqueness, simpler than ServiceReview's per-request
+  // uniqueness since a store review isn't tied to a single transaction
+  // record the way a completed ServiceRequest is.
+  @@unique([sellerProfileId, raterId])
+  @@index([sellerProfileId])
+  @@map("store_reviews")
+}
+
 model Conversation {
   id        String    @id @default(cuid())
   adId      String?
@@ -405,6 +515,7 @@ enum NotificationType {
   PROMOTION
   WEEKLY_AD_VIEWS_REPORT
   SAVED_SEARCH_MATCH
+  STORE_NEW_PRODUCT
 }
 
 enum Role {
@@ -487,6 +598,35 @@ enum AppointmentStatus {
   COMPLETED
   CANCELLED
   NO_SHOW
+}
+
+enum StoreStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+}
+
+// Free/Featured mirror the plan described in the stores proposal
+// (20-product cap + normal ranking vs. unlimited + boosted ranking).
+// No payment gateway exists in this codebase yet, so `plan` is a plain
+// column an admin (or a future billing webhook) flips — enforcement of
+// the product-count cap and any ranking boost lives in application
+// code, not here.
+enum StorePlan {
+  FREE
+  FEATURED
+}
+
+enum ProductAvailability {
+  IN_STOCK
+  LIMITED
+  OUT_OF_STOCK
+}
+
+enum ProductStatus {
+  ACTIVE
+  PAUSED
+  DELETED
 }
 
 enum AuditEventType {

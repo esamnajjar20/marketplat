@@ -260,3 +260,49 @@ export const sendMessageRateLimit = rateLimit({
   store: createRedisStore('send_message'),
   message: msg('Too many messages sent, please slow down'),
 });
+
+// Stores module: same rationale as createSellerProfileRateLimit /
+// createServiceProviderRateLimit — a one-time (per seller profile)
+// write, still worth guarding against scripted retry storms against
+// the create-store lock/transaction path.
+export const createStoreRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('create_store'),
+  message: msg('Too many attempts, please try again later'),
+});
+
+// Stores module: same rate-limit rationale as createServiceListingRateLimit
+// — guards the upload + DB-write path from scripted retry storms.
+export const createProductRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('create_product'),
+  message: msg('Too many attempts, please try again later'),
+});
+
+// Stores module: mirrors favoritesRateLimit — following/unfollowing a
+// store is a cheap toggle, but still bounded against scripted abuse.
+export const storeFollowRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('store_follow'),
+  message: msg('Too many requests, please try again later'),
+});
+
+// Stores module: mirrors sellerRatingRateLimit — guards against bulk
+// fake reviews against a store.
+export const storeReviewRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('store_review'),
+  message: msg('Too many reviews submitted, please try again later'),
+});

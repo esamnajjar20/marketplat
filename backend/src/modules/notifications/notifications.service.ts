@@ -121,4 +121,26 @@ export const notificationEvents = {
       }))
     );
   },
+
+  /** products.service.ts's createProduct calls this after a new product
+   * is published — one notification per store follower, fanned out via
+   * createMany. Same shape as onFavoritedAdPriceChanged, just keyed by
+   * store follow instead of ad favorite. */
+  onStoreNewProduct: (
+    followerUserIds: string[],
+    storeId: string,
+    storeName: string,
+    productName: string
+  ): Promise<{ count: number }> => {
+    if (followerUserIds.length === 0) return Promise.resolve({ count: 0 });
+    return notificationsRepository.createMany(
+      followerUserIds.map((userId) => ({
+        userId,
+        type: 'STORE_NEW_PRODUCT' as const,
+        title: 'منتج جديد',
+        body: `متجر "${storeName}" أضاف منتجًا جديدًا: ${productName}`,
+        data: { storeId },
+      }))
+    );
+  },
 };

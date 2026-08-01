@@ -154,7 +154,7 @@ export const sellersRepository = {
     tx: Prisma.TransactionClient,
     sellerProfileId: string
   ): Promise<SellerProfile> => {
-    const [adAgg, serviceAgg] = await Promise.all([
+    const [adAgg, serviceAgg, storeAgg] = await Promise.all([
       tx.sellerRating.aggregate({
         where: { sellerProfileId },
         _sum: { score: true },
@@ -165,9 +165,20 @@ export const sellersRepository = {
         _sum: { score: true },
         _count: { score: true },
       }),
+      // Stores module: a store's reviews feed into the same unified
+      // trust score as ad ratings and service reviews — one
+      // averageRating/totalRatings per SellerProfile, regardless of
+      // which of the three product surfaces (ad, service, store) the
+      // rating came from.
+      tx.storeReview.aggregate({
+        where: { sellerProfileId },
+        _sum: { score: true },
+        _count: { score: true },
+      }),
     ]);
-    const totalCount = adAgg._count.score + serviceAgg._count.score;
-    const totalSum = (adAgg._sum.score ?? 0) + (serviceAgg._sum.score ?? 0);
+    const totalCount = adAgg._count.score + serviceAgg._count.score + storeAgg._count.score;
+    const totalSum =
+      (adAgg._sum.score ?? 0) + (serviceAgg._sum.score ?? 0) + (storeAgg._sum.score ?? 0);
     return tx.sellerProfile.update({
       where: { id: sellerProfileId },
       data: {
