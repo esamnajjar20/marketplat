@@ -18,6 +18,7 @@ export const ROUTES = {
   sellerProfile: (id: string)   => `/sellers/${id}`,
   myAds:         '/my-ads',
   favorites:     '/favorites',
+  savedSearches: '/saved-searches',
   messages:      '/messages',
   conversationDetail: (id: string) => `/messages/${id}`,
   dashboard:     '/dashboard',
@@ -142,4 +143,9 @@ export const CACHE_TTL = {
   // reload) but doesn't need messages' 5s aggressiveness — nobody is
   // staring at the bell waiting the way they stare at an open thread.
   notifications: 15_000,   // 15 s
+  // A user's saved-search list changes only when they explicitly
+  // create/delete one — no server-side process mutates it in the
+  // background the way a conversation or notification does. Matches
+  // categories' 5m as a "rarely changes, safe to cache long" TTL.
+  savedSearches: 300_000,  // 5 m
 } as const;

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck } from 'lucide-react';
+import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -26,6 +26,7 @@ const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   FAV_AD_PRICE_CHANGED: Tag,
   PROMOTION: Megaphone,
   WEEKLY_AD_VIEWS_REPORT: BarChart3,
+  SAVED_SEARCH_MATCH: Search,
 };
 
 /** Where clicking a notification row should navigate — null means the
@@ -35,7 +36,10 @@ function hrefFor(notification: Notification): string | null {
   if (notification.type === 'NEW_MESSAGE' && notification.data?.conversationId) {
     return ROUTES.conversationDetail(notification.data.conversationId);
   }
-  if (notification.type === 'FAV_AD_PRICE_CHANGED' && notification.data?.adId) {
+  if (
+    (notification.type === 'FAV_AD_PRICE_CHANGED' || notification.type === 'SAVED_SEARCH_MATCH') &&
+    notification.data?.adId
+  ) {
     return ROUTES.adDetail(notification.data.adId);
   }
   return null;

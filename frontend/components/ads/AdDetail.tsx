@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Share2 } from 'lucide-react';
+import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart } from 'lucide-react';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
 import { SellerCard } from '@/components/ads/SellerCard';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
+import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
 import { formatPrice, formatDate } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -34,12 +35,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     toggleFavorite.mutate(ad.id, {
       onError: () => setFavorited((p) => !p),
     });
-  }
-
-  function handleShare() {
-    navigator.share?.({ title: ad.title, url: window.location.href })
-      .catch(() => navigator.clipboard?.writeText(window.location.href)
-        .then(() => toast.success('تم نسخ الرابط')));
   }
 
   return (
@@ -101,9 +96,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               <Button variant="ghost" size="icon" onClick={handleFavorite} aria-label="حفظ">
                 <Heart className={cn('h-5 w-5', favorited && 'fill-destructive text-destructive')} />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleShare} aria-label="مشاركة">
-                <Share2 className="h-5 w-5" />
-              </Button>
+              <ShareAdButton title={ad.title} />
             </div>
           </div>
 

@@ -8,6 +8,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String
+  // Search filters, same shape as GET /ads's query params (q/city/
+  // categoryId/condition/minPrice/maxPrice) — stored as-is rather than
+  // as separate columns so this stays in lockstep with getAdsSchema
+  // without a migration every time a new filter is added. Matching
+  // logic (savedSearches.service.ts) reads known keys back out of this
+  // JSON defensively.
+  filters   Json
+  createdAt DateTime @default(now())
+  // Bumped every time this search matches a newly created ad, so a
+  // user isn't re-notified for the exact same ad if matching logic
+  // ever runs more than once for it (defensive; matching currently only
+  // runs once, at ad-creation time).
+  lastNotifiedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("saved_searches")
+}
+
 model User {
   id                        String               @id @default(cuid())
   name                      String
@@ -33,6 +56,7 @@ model User {
   reports                   Report[]
   sellerProfile             SellerProfile?
   sellerRatingsGiven        SellerRating[]
+  savedSearches             SavedSearch[]
   serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
   serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
 
@@ -380,6 +404,7 @@ enum NotificationType {
   FAV_AD_PRICE_CHANGED
   PROMOTION
   WEEKLY_AD_VIEWS_REPORT
+  SAVED_SEARCH_MATCH
 }
 
 enum Role {

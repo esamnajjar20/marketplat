@@ -93,4 +93,32 @@ export const notificationEvents = {
       }))
     );
   },
+
+  /** saved-searches.service.ts's onAdCreated calls this after finding
+   * every SavedSearch a newly created ad matches — one notification per
+   * (user, savedSearch) match, fanned out via createMany. A user with
+   * two saved searches that both match the same ad gets two
+   * notifications, one per search, since each carries a different
+   * savedSearchId/label context ("your search 'iPhone in Deir al-Balah'
+   * matched a new ad" reads differently from "your search 'used
+   * laptops under 500' matched a new ad" even for the same underlying
+   * ad) — the same one-row-per-recipient shape as
+   * onFavoritedAdPriceChanged, just keyed by search match instead of
+   * favorite. */
+  onSavedSearchMatched: (
+    matches: { userId: string; savedSearchId: string; label: string }[],
+    adId: string,
+    adTitle: string
+  ): Promise<{ count: number }> => {
+    if (matches.length === 0) return Promise.resolve({ count: 0 });
+    return notificationsRepository.createMany(
+      matches.map(({ userId, savedSearchId, label }) => ({
+        userId,
+        type: 'SAVED_SEARCH_MATCH' as const,
+        title: 'إعلان جديد يطابق بحثك المحفوظ',
+        body: `"${adTitle}" يطابق بحثك المحفوظ "${label}"`,
+        data: { adId, savedSearchId },
+      }))
+    );
+  },
 };

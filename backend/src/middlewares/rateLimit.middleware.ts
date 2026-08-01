@@ -149,6 +149,21 @@ export const favoritesRateLimit = rateLimit({
   message: msg('Too many favorite updates, please try again later'),
 });
 
+// A saved search is a low-frequency, deliberate action (unlike
+// favoriting, which can be a quick per-ad toggle) — a tighter budget
+// than favoritesRateLimit is still generous for legitimate use while
+// bounding a script that tries to create hundreds of throwaway searches
+// (each one gets checked against every future ad — see
+// saved-searches.service.ts's onAdCreated scale note).
+export const savedSearchRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('saved_search'),
+  message: msg('Too many saved searches created, please try again later'),
+});
+
 // Seller profile creation is a one-time (per user) write, but still
 // worth guarding — see seller-profile-design.md §17: prevents scripted
 // retry storms against the create-profile lock/transaction path.

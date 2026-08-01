@@ -15,6 +15,7 @@ import { appointmentsRouter } from './modules/appointments';
 import { serviceReviewsRouter } from './modules/service-reviews';
 import { conversationsRouter } from './modules/conversations';
 import { notificationsRouter } from './modules/notifications';
+import { savedSearchesRouter } from './modules/saved-searches';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -49,3 +50,4 @@ router.use('/appointments', appointmentsRouter);
 router.use('/service-reviews', serviceReviewsRouter);
 router.use('/conversations', conversationsRouter);
 router.use('/notifications', notificationsRouter);
+router.use('/saved-searches', savedSearchesRouter);

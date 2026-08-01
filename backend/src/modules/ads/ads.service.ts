@@ -18,6 +18,7 @@ import { sellersRepository } from '../sellers/sellers.repository';
 import { sellersService } from '../sellers/sellers.service';
 import { favoritesRepository } from '../favorites/favorites.repository';
 import { notificationEvents } from '../notifications';
+import { savedSearchEvents } from '../saved-searches';
 import { prisma } from '../../config/prisma';
 
 /**
@@ -166,6 +167,17 @@ export const adsService = {
       // active ad must appear in /ads results immediately, not after
       // up to 30s of TTL expiry.
       await bumpAdsCacheVersion();
+
+      // Notify saved-search owners whose criteria match this new ad.
+      // Fire-and-forget, same contract as onFavoritedAdPriceChanged
+      // above (and conversations.service.ts's onNewMessage): a
+      // notification failure must never fail ad creation itself, so
+      // this runs after the transaction has already committed and is
+      // not awaited inline with it.
+      savedSearchEvents.onAdCreated(ad).catch((err) =>
+        logger.error('Failed to process saved-search matches for new ad', { err, adId: ad.id })
+      );
+
       return ad;
     } catch (error) {
       await cleanupUploadedImages(uploads.map(upload => upload.publicId));

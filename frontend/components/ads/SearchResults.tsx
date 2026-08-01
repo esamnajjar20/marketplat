@@ -7,6 +7,7 @@ import { Pagination }     from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAds, useSearchAds } from '@/hooks/queries/useAds';
+import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { ROUTES } from '@/lib/constants';
 import type { AdSortField } from '@/types/ad.types';
 import { LayoutGrid, LayoutList, Search } from 'lucide-react';
@@ -83,17 +84,20 @@ export function SearchResults() {
           {total > 0 ? `${total} إعلان` : 'لا توجد نتائج'}
           {q && <> بحثاً عن «<span className="font-medium text-foreground">{q}</span>»</>}
         </p>
-        <div className="flex gap-1" role="group" aria-label="طريقة العرض">
-          <button onClick={() => setView('grid')}
-            aria-label="عرض شبكي" aria-pressed={view === 'grid'}
-            className={cn('p-1.5 rounded', view === 'grid' ? 'bg-muted' : 'hover:bg-muted/50')}>
-            <LayoutGrid className="h-4 w-4" />
-          </button>
-          <button onClick={() => setView('list')}
-            aria-label="عرض قائمة" aria-pressed={view === 'list'}
-            className={cn('p-1.5 rounded', view === 'list' ? 'bg-muted' : 'hover:bg-muted/50')}>
-            <LayoutList className="h-4 w-4" />
-          </button>
+        <div className="flex items-center gap-2">
+          <SaveSearchButton />
+          <div className="flex gap-1" role="group" aria-label="طريقة العرض">
+            <button onClick={() => setView('grid')}
+              aria-label="عرض شبكي" aria-pressed={view === 'grid'}
+              className={cn('p-1.5 rounded', view === 'grid' ? 'bg-muted' : 'hover:bg-muted/50')}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button onClick={() => setView('list')}
+              aria-label="عرض قائمة" aria-pressed={view === 'list'}
+              className={cn('p-1.5 rounded', view === 'list' ? 'bg-muted' : 'hover:bg-muted/50')}>
+              <LayoutList className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 

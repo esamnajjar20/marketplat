@@ -128,6 +128,12 @@ export const queryKeys = {
     ids:  ()                 => ['favorites', 'ids']               as const,
   },
 
+  // ── Saved Searches ─────────────────────────────────────────────
+  savedSearches: {
+    /** The current user's full list — capped at 20 server-side, no pagination. */
+    all: () => ['savedSearches', 'list'] as const,
+  },
+
   // ── Admin ──────────────────────────────────────────────────────
   admin: {
     /** FIX Q-04: parameterised so prefix invalidation matches these entries */

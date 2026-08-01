@@ -13,7 +13,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LayoutDashboard, Heart, ListOrdered, Settings, Shield, LogOut } from 'lucide-react';
+import { LayoutDashboard, Heart, BellPlus, ListOrdered, Settings, Shield, LogOut } from 'lucide-react';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
@@ -72,6 +72,13 @@ export function UserMenu() {
           <Link href={ROUTES.favorites} className="flex items-center gap-2 cursor-pointer">
             <Heart className="h-4 w-4" />
             المفضلة
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href={ROUTES.savedSearches} className="flex items-center gap-2 cursor-pointer">
+            <BellPlus className="h-4 w-4" />
+            البحثات المحفوظة
           </Link>
         </DropdownMenuItem>
 
