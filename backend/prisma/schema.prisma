@@ -24,17 +24,17 @@ model User {
   updatedAt                 DateTime             @updatedAt
   ads                       Ad[]
   auditLogs                 AuditLog[]
+  conversationsAsBuyer      Conversation[]       @relation("ConversationsAsBuyer")
+  conversationsAsSeller     Conversation[]       @relation("ConversationsAsSeller")
   favorites                 Favorite[]
+  messagesSent              Message[]            @relation("MessagesSent")
+  notifications             Notification[]
   passwordResetTokens       PasswordResetToken[]
   reports                   Report[]
   sellerProfile             SellerProfile?
   sellerRatingsGiven        SellerRating[]
   serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
   serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
-  conversationsAsBuyer      Conversation[]       @relation("ConversationsAsBuyer")
-  conversationsAsSeller     Conversation[]       @relation("ConversationsAsSeller")
-  messagesSent              Message[]            @relation("MessagesSent")
-  notifications             Notification[]
 
   @@index([isActive, createdAt])
   @@map("users")
@@ -76,10 +76,10 @@ model Ad {
   category        Category?      @relation(fields: [categoryId], references: [id])
   sellerProfile   SellerProfile? @relation(fields: [sellerProfileId], references: [id])
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations   Conversation[]
   favorites       Favorite[]
   reports         Report[]
   ratings         SellerRating[]
-  conversations   Conversation[]
 
   @@index([userId])
   @@index([categoryId])
@@ -295,22 +295,6 @@ model ServiceReview {
   @@map("service_reviews")
 }
 
-// Messaging (Epic 5): a Conversation always starts from an Ad (the
-// disabled "مراسلة البائع" button in SellerCard.tsx is the only entry
-// point in the current UI), but adId is nullable so the thread survives
-// the ad being deleted/sold later — same "outlives its origin" shape as
-// ServiceRequest.appointment, just the reverse direction (Conversation
-// doesn't disappear if the Ad does; onDelete: SetNull, not Cascade).
-//
-// The @@unique([adId, buyerId, sellerId]) constraint prevents duplicate
-// threads for the same (ad, buyer, seller) triple — re-clicking "مراسلة
-// البائع" on an ad you already messaged about reopens the same
-// Conversation instead of creating a new one. Postgres treats each NULL
-// in a unique index as distinct, so this does NOT also collapse two
-// *different* ad-less conversations between the same pair into one row —
-// every ad-qualified thread is still deduplicated correctly, which is
-// the actual goal; a second ad-less thread between the same two users
-// is a follow-up decision, not this migration's concern.
 model Conversation {
   id        String    @id @default(cuid())
   adId      String?
@@ -318,7 +302,7 @@ model Conversation {
   sellerId  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  ad        Ad?       @relation(fields: [adId], references: [id], onDelete: SetNull)
+  ad        Ad?       @relation(fields: [adId], references: [id])
   buyer     User      @relation("ConversationsAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   seller    User      @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   messages  Message[]
@@ -343,40 +327,12 @@ model Message {
   @@map("messages")
 }
 
-// Epic 6 (Notification Center): a general-purpose in-app notification —
-// NOT push (see PushNotificationToggle.tsx's own doc comment: that's a
-// separate, still-unwired subsystem requiring VAPID keys + a service
-// worker + its own endpoint). This is the bell/dropdown inside the app.
-//
-// Of the four NotificationType values, only NEW_MESSAGE and
-// FAV_AD_PRICE_CHANGED are actually generated anywhere right now
-// (conversations.service.ts's sendMessage, and ads.service.ts's
-// updateAd on a price change to a favorited ad). PROMOTION is generated
-// only through the admin broadcast endpoint (POST /admin/notifications/
-// broadcast) — never automatically. WEEKLY_AD_VIEWS_REPORT has NO
-// generator at all yet: it's a batch job ("تقرير أسبوعي بمشاهدات
-// إعلاناتك" in NotificationSettingsForm.tsx) and this codebase has no
-// cron/scheduler infrastructure to run one. The enum value and the
-// notificationPreferences.adViews toggle both exist so the UI's four
-// settings map onto four real types, but nothing currently writes a
-// WEEKLY_AD_VIEWS_REPORT row — that's future work, not a bug here.
-enum NotificationType {
-  NEW_MESSAGE
-  FAV_AD_PRICE_CHANGED
-  PROMOTION
-  WEEKLY_AD_VIEWS_REPORT
-}
-
 model Notification {
   id        String           @id @default(cuid())
   userId    String
   type      NotificationType
   title     String
   body      String           @db.VarChar(500)
-  // Free-form per-type payload the frontend uses to deep-link — e.g.
-  // { conversationId } for NEW_MESSAGE, { adId } for
-  // FAV_AD_PRICE_CHANGED. Same "flexible Json, not a dozen nullable
-  // columns" shape as AuditLog.details.
   data      Json?
   readAt    DateTime?
   createdAt DateTime         @default(now())
@@ -417,6 +373,13 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  FAV_AD_PRICE_CHANGED
+  PROMOTION
+  WEEKLY_AD_VIEWS_REPORT
 }
 
 enum Role {
