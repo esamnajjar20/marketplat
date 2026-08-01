@@ -137,4 +137,9 @@ export const CACHE_TTL = {
   // at 20s) since a conversation is exactly as live as those.
   conversations: 20_000,   // 20 s
   messages: 5_000,         // 5 s — the actively-open thread polls faster
+  // Epic 6: the unread count badge needs to feel live (a new message's
+  // notification should show up on the bell without a full page
+  // reload) but doesn't need messages' 5s aggressiveness — nobody is
+  // staring at the bell waiting the way they stare at an open thread.
+  notifications: 15_000,   // 15 s
 } as const;

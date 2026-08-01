@@ -34,6 +34,7 @@ model User {
   conversationsAsBuyer      Conversation[]       @relation("ConversationsAsBuyer")
   conversationsAsSeller     Conversation[]       @relation("ConversationsAsSeller")
   messagesSent              Message[]            @relation("MessagesSent")
+  notifications             Notification[]
 
   @@index([isActive, createdAt])
   @@map("users")
@@ -340,6 +341,50 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+// Epic 6 (Notification Center): a general-purpose in-app notification —
+// NOT push (see PushNotificationToggle.tsx's own doc comment: that's a
+// separate, still-unwired subsystem requiring VAPID keys + a service
+// worker + its own endpoint). This is the bell/dropdown inside the app.
+//
+// Of the four NotificationType values, only NEW_MESSAGE and
+// FAV_AD_PRICE_CHANGED are actually generated anywhere right now
+// (conversations.service.ts's sendMessage, and ads.service.ts's
+// updateAd on a price change to a favorited ad). PROMOTION is generated
+// only through the admin broadcast endpoint (POST /admin/notifications/
+// broadcast) — never automatically. WEEKLY_AD_VIEWS_REPORT has NO
+// generator at all yet: it's a batch job ("تقرير أسبوعي بمشاهدات
+// إعلاناتك" in NotificationSettingsForm.tsx) and this codebase has no
+// cron/scheduler infrastructure to run one. The enum value and the
+// notificationPreferences.adViews toggle both exist so the UI's four
+// settings map onto four real types, but nothing currently writes a
+// WEEKLY_AD_VIEWS_REPORT row — that's future work, not a bug here.
+enum NotificationType {
+  NEW_MESSAGE
+  FAV_AD_PRICE_CHANGED
+  PROMOTION
+  WEEKLY_AD_VIEWS_REPORT
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String           @db.VarChar(500)
+  // Free-form per-type payload the frontend uses to deep-link — e.g.
+  // { conversationId } for NEW_MESSAGE, { adId } for
+  // FAV_AD_PRICE_CHANGED. Same "flexible Json, not a dozen nullable
+  // columns" shape as AuditLog.details.
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }
 
 model AuditLog {

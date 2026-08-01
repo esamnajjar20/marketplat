@@ -1,11 +1,13 @@
 import { Conversation, Message } from '@prisma/client';
 import { conversationsRepository, messagesRepository, ConversationWithRelations } from './conversations.repository';
 import { adsRepository } from '../ads/ads.repository';
+import { notificationEvents } from '../notifications';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
+import { logger } from '../../shared/utils/logger';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
   if (conversation.buyerId !== userId && conversation.sellerId !== userId) {
@@ -67,6 +69,17 @@ export const conversationsService = {
       messagesRepository.create(conversationId, userId, body),
       conversationsRepository.touchUpdatedAt(conversationId),
     ]);
+
+    // Fire-and-forget per notificationEvents' own contract: a
+    // notification failing to write must never fail message sending,
+    // which has already succeeded above. Notify whichever party is NOT
+    // the sender.
+    const recipient = conversation.buyerId === userId ? conversation.seller : conversation.buyer;
+    const sender = conversation.buyerId === userId ? conversation.buyer : conversation.seller;
+    notificationEvents
+      .onNewMessage(recipient.id, conversationId, sender.name)
+      .catch((err) => logger.error('Failed to create NEW_MESSAGE notification', { err, conversationId }));
+
     return message;
   },
 

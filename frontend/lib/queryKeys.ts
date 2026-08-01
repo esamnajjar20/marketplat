@@ -97,6 +97,12 @@ export const queryKeys = {
       ['conversations', 'detail', id, 'messages', params ?? {}] as const,
   },
 
+  // ── Notifications (Epic 6) ────────────────────────────────────
+  notifications: {
+    mine:        (params?: object) => ['notifications', 'me', params ?? {}] as const,
+    unreadCount: ()                => ['notifications', 'unread-count'] as const,
+  },
+
   // ── Auth / current user ────────────────────────────────────────
   auth: {
     me:       ()               => ['auth', 'me']        as const,

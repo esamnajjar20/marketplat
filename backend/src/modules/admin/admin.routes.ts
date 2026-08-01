@@ -37,3 +37,7 @@ adminRouter.patch('/sellers/:id/verify', sellersController.verifySeller);
 // deletion, since SellerProfile is the parent of Ad/SellerRating/
 // ServiceProviderDetails records that must not be cascade-deleted.
 adminRouter.patch('/sellers/:id/suspend', sellersController.suspendSeller);
+
+// Epic 6: manual PROMOTION broadcast — see notifications.service.ts's
+// broadcastPromotion doc comment for why this has no automatic trigger.
+adminRouter.post('/notifications/broadcast', adminController.broadcastNotification);

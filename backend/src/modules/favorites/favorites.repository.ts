@@ -101,4 +101,16 @@ export const favoritesRepository = {
 
     return { favorites, total };
   },
+
+  /** Epic 6: every user who favorited this ad — used only to fan out
+   * FAV_AD_PRICE_CHANGED notifications on a price update
+   * (ads.service.ts's updateAd). Intentionally returns just userIds,
+   * not full Favorite rows — the caller has no other use for them. */
+  findUserIdsByAdId: async (adId: string): Promise<string[]> => {
+    const favorites = await prisma.favorite.findMany({
+      where: { adId },
+      select: { userId: true },
+    });
+    return favorites.map((f) => f.userId);
+  },
 };

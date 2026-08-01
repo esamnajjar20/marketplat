@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { adminService } from './admin.service';
+import { notificationsService } from '../notifications';
 import { successResponse } from '../../shared/types/api-response.types';
 import {
   adminGetAdsSchema,
@@ -9,6 +10,7 @@ import {
   toggleActiveSchema,
   changeRoleSchema,
 } from './admin.validation';
+import { broadcastNotificationSchema } from '../notifications/notifications.validation';
 import { requireUser } from '../../shared/utils/requireUser';
 
 export const adminController = {
@@ -103,6 +105,26 @@ export const adminController = {
       const { body } = changeRoleSchema.parse({ body: req.body });
       const user = await adminService.changeRole(req.params.id, body.role, admin.userId);
       res.status(200).json(successResponse('User role updated', user));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Epic 6: POST /admin/notifications/broadcast — the only trigger for
+   * PROMOTION notifications; see notifications.service.ts's
+   * broadcastPromotion doc comment. `allUsers: true` resolves to every
+   * active user id via adminService.getAllActiveUserIds instead of
+   * requiring the caller to enumerate them — `userIds` is still
+   * required by the schema even in that case, but is ignored in favor
+   * of the resolved list when allUsers is set.
+   */
+  broadcastNotification: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { body } = broadcastNotificationSchema.parse({ body: req.body });
+      const userIds = body.allUsers ? await adminService.getAllActiveUserIds() : body.userIds;
+      const count = await notificationsService.broadcastPromotion(userIds, body.title, body.body);
+      res.status(200).json(successResponse('Broadcast sent', { recipientCount: count }));
     } catch (error) {
       next(error);
     }

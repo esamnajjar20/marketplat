@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
 import { UserMenu }       from './UserMenu';
+import { NotificationBell } from './NotificationBell';
 import { MobileNav }      from './MobileNav';
 import { Button }         from '@/components/shared/ui/Button';
 import { ROUTES }         from '@/lib/constants';
@@ -35,6 +36,7 @@ export function PublicHeader() {
               <Button asChild variant="ghost" size="sm">
                 <Link href={ROUTES.adCreate}>نشر إعلان</Link>
               </Button>
+              <NotificationBell />
               <UserMenu />
             </>
           ) : (

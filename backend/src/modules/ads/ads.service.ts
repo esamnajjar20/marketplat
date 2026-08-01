@@ -16,6 +16,8 @@ import { env } from '../../config/env';
 import { AdStatus } from '@prisma/client';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { sellersService } from '../sellers/sellers.service';
+import { favoritesRepository } from '../favorites/favorites.repository';
+import { notificationEvents } from '../notifications';
 import { prisma } from '../../config/prisma';
 
 /**
@@ -295,6 +297,26 @@ export const adsService = {
           return result;
         })
       : await adsRepository.update(adId, input);
+
+    // Epic 6: notify everyone who favorited this ad when its price
+    // actually changes. Guarded on input.price being explicitly present
+    // AND numerically different from the pre-update value (ad.price,
+    // captured above before the write, is a Prisma Decimal) — a PATCH
+    // that touches other fields but not price must not fire this.
+    // Number(...) rather than a string compare: Decimal's string form
+    // can carry trailing zeros ("150.50") that would falsely differ
+    // from the coerced input number (150.5). Fire-and-forget: never let
+    // a notification failure roll back or fail an otherwise-successful
+    // ad update, same contract as conversations.service.ts's
+    // onNewMessage call.
+    if (input.price !== undefined && Number(input.price) !== Number(ad.price)) {
+      favoritesRepository
+        .findUserIdsByAdId(adId)
+        .then((userIds) => notificationEvents.onFavoritedAdPriceChanged(userIds, adId, updated.title))
+        .catch((err) =>
+          logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId })
+        );
+    }
 
     // FIX AUDIT-V4-06: covers both field edits and status changes
     // (e.g. mark-as-sold) — a sold ad must stop appearing as available

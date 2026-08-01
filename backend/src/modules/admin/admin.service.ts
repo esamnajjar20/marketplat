@@ -392,4 +392,18 @@ export const adminService = {
       throw e;
     }
   },
+
+  // --- Notifications (Epic 6) ---
+
+  /** Resolves the "كل المستخدمين" broadcast option to a concrete id
+   * list before calling notificationsService.broadcastPromotion — kept
+   * as an explicit resolution step (rather than letting the service
+   * accept an implicit "everyone" sentinel) so the actual recipient set
+   * is always a real array the caller can log/audit, never a magic
+   * value whose size isn't visible until it's already sent. Only
+   * isActive users — a disabled account has no reason to receive one. */
+  getAllActiveUserIds: async (): Promise<string[]> => {
+    const users = await prisma.user.findMany({ where: { isActive: true }, select: { id: true } });
+    return users.map((u) => u.id);
+  },
 };
