@@ -18,7 +18,7 @@ A production-ready classifieds platform API (إعلانات مبوبة) built wi
 
 | Module | Description |
 |--------|-------------|
-| `auth` | Register, login, refresh token, logout, logout-all |
+| `auth` | Register, login, refresh token, logout, logout-all, Google OAuth ("Continue with Google" — see [`docs/GOOGLE_OAUTH.md`](docs/GOOGLE_OAUTH.md)) |
 | `users` | Profile management, avatar upload |
 | `ads` | CRUD ads, image upload, view counter, soft delete |
 | `categories` | Hierarchical categories (parent/child) |

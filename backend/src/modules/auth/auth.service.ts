@@ -15,6 +15,7 @@ import { userCache } from '../../shared/utils/userCache';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { emailService } from '../../shared/utils/emailService';
 import { sendSecurityAlert } from '../../shared/utils/securityAlert';
+import { withOAuthAccountResolutionLock } from '../../shared/utils/oauthLock';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
 import { TooManyRequestsError } from '../../shared/errors/TooManyRequestsError';
@@ -22,6 +23,7 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { AppError } from '../../shared/errors/AppError';
 import { RegisterInput, LoginInput } from './auth.validation';
 import { logger } from '../../shared/utils/logger';
+import { GoogleProfileData } from './google.strategy';
 
 const MAX_EMAIL_ATTEMPTS = 5;
 const MAX_IP_ATTEMPTS = 50;
@@ -121,6 +123,20 @@ export const authService = {
 
     if (!user.isActive) throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
 
+    // FIX OAUTH-01: passwordHash is now nullable (a Google-only account
+    // that never linked/set a local password has none). Treat this
+    // exactly like a wrong password — same generic error, same
+    // failed-login counting/lockout — rather than a distinct error
+    // that would leak "this email exists but is Google-only" to an
+    // unauthenticated caller.
+    if (!user.passwordHash) {
+      const { emailAttempts } = await tokenStore.incrementFailedLogins(input.email, ip);
+      if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
+        await tokenStore.lockAccount(input.email, LOCKOUT_DURATION);
+      }
+      throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
+    }
+
     const isPasswordValid = await comparePassword(input.password, user.passwordHash);
 
     if (!isPasswordValid) {
@@ -163,6 +179,120 @@ export const authService = {
     }).catch(() => {});
 
     return result;
+  },
+
+  /**
+   * FIX OAUTH-01 — Google OAuth login/signup/link.
+   *
+   * Called from auth.controller.ts's googleCallback handler with the
+   * profile data google.strategy.ts's verify callback attached to
+   * req.user. Three cases, checked in this order:
+   *
+   *   1. googleId already linked to a user  -> plain login.
+   *   2. No googleId match, but the email already has a (local or
+   *      previously-Google) account -> link this Google identity onto
+   *      that existing account (never creates a duplicate user for an
+   *      email that already exists — same "email is the one true
+   *      identity key" rule register() already enforces for local
+   *      signup).
+   *   3. Neither matches -> brand-new user, provider='google', no
+   *      passwordHash. Deliberately does NOT create a SellerProfile
+   *      (see auth.repository.ts's createWithGoogle comment) —
+   *      becoming a seller stays an explicit opt-in via POST /sellers
+   *      for every account regardless of how it was created,
+   *      unchanged from existing behavior.
+   *
+   * Reuses issueSession() (the same helper register()/login() call)
+   * for the actual token-issuing/session-establishing step, so a
+   * Google-authenticated session is byte-for-byte the same shape (JWT
+   * pair, refresh token persisted via tokenStore, user cache warmed)
+   * as a local one — auth.controller.ts's respondWithSession,
+   * /auth/refresh, /auth/logout, session listing/revocation, and the
+   * frontend's AuthHydrationProvider all keep working completely
+   * unchanged for a Google-originated session.
+   *
+   * Wrapped in withOAuthAccountResolutionLock keyed by email: two
+   * concurrent callbacks for the same email (double-click, two tabs)
+   * must not both pass the "no existing account" check and both
+   * attempt to create/link — see oauthLock.ts's own comment.
+   */
+  loginWithGoogle: async (
+    profile: GoogleProfileData,
+    ip = 'unknown',
+    userAgent = 'unknown'
+  ): Promise<AuthResult> => {
+    return withOAuthAccountResolutionLock(profile.email, async () => {
+      // Case 1: this Google account has already signed in here before.
+      const byGoogleId = await authRepository.findByGoogleId(profile.googleId);
+
+      if (byGoogleId) {
+        if (!byGoogleId.isActive) {
+          throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+        }
+
+        const { result, sessionId } = await issueSession(byGoogleId, ip, userAgent);
+
+        auditLog({
+          event: AuditEvent.OAUTH_LOGIN,
+          userId: byGoogleId.id,
+          ip,
+          userAgent,
+          sessionId,
+          details: { provider: 'google' },
+        }).catch(() => {});
+
+        return result;
+      }
+
+      // Case 2: no googleId match — but does this email already exist
+      // (a local account, or a Google account whose googleId lookup
+      // somehow missed — defensive)? If so, link rather than duplicate.
+      const byEmail = await authRepository.findByEmail(profile.email);
+
+      if (byEmail) {
+        if (!byEmail.isActive) {
+          throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+        }
+
+        const linked = await authRepository.linkGoogleAccount(byEmail.id, profile.googleId);
+        const { result, sessionId } = await issueSession(linked, ip, userAgent);
+
+        auditLog({
+          event: AuditEvent.OAUTH_ACCOUNT_LINKED,
+          userId: linked.id,
+          ip,
+          userAgent,
+          sessionId,
+          details: { provider: 'google', previousProvider: byEmail.provider },
+        }).catch(() => {});
+
+        logger.info('Linked Google account to existing user', { userId: linked.id });
+
+        return result;
+      }
+
+      // Case 3: brand-new user. No SellerProfile — see this function's
+      // own doc comment and createWithGoogle's.
+      const created = await authRepository.createWithGoogle({
+        name: profile.name,
+        email: profile.email,
+        googleId: profile.googleId,
+        avatarUrl: profile.avatarUrl,
+      });
+
+      const { result, sessionId } = await issueSession(created, ip, userAgent);
+
+      auditLog({
+        event: AuditEvent.OAUTH_SIGNUP,
+        userId: created.id,
+        ip,
+        userAgent,
+        sessionId,
+        details: { provider: 'google' },
+      }).catch(() => {});
+
+      return result;
+    });
   },
 
   refresh: async (refreshToken: string): Promise<Omit<TokenPair, 'sessionId'>> => {

@@ -7,6 +7,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
+import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { ROUTES, CITIES } from '@/lib/constants';
 
 interface Errors {
@@ -120,6 +121,17 @@ export function RegisterForm() {
       <Button type="submit" className="w-full mt-2" disabled={isPending}>
         {isPending ? 'جارٍ التسجيل…' : 'إنشاء الحساب'}
       </Button>
+
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-card px-2 text-muted-foreground">أو</span>
+        </div>
+      </div>
+
+      <GoogleAuthButton label="التسجيل باستخدام Google" />
 
       <p className="text-center text-sm text-muted-foreground">
         لديك حساب بالفعل؟{' '}

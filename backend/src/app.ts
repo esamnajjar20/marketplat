@@ -15,6 +15,7 @@ import { env } from './config/env';
 import { swaggerSpec } from './config/swagger';
 import { getCachedReadiness } from './shared/utils/healthCache';
 import { metricsMiddleware, metricsHandler } from './shared/utils/metrics';
+import { passport } from './modules/auth/google.strategy';
 
 const app = express();
 
@@ -53,6 +54,15 @@ app.use(compression());
 // after CORS/helmet, before anything that needs to read a cookie
 // (csrfProtection in routes.ts, authController.refresh/logout).
 app.use(cookieParser());
+
+// ── FIX OAUTH-01: Passport ────────────────────────────
+// Stateless only (session: false everywhere it's used — see
+// auth.routes.ts / google.strategy.ts's own comments) — no
+// express-session is registered anywhere in this app, and none is
+// needed: passport.initialize() alone is sufficient to make
+// passport.authenticate(...) usable in auth.routes.ts; it does not by
+// itself add any session/cookie behavior beyond what's already here.
+app.use(passport.initialize());
 
 // ── Request ID ────────────────────────────────────────
 app.use(requestIdMiddleware);

@@ -54,6 +54,17 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  // FIX OAUTH-01: Google OAuth credentials — optional, same
+  // "opt-in, app works identically without it" pattern as
+  // CLOUDINARY_*/SMTP_*/SENTRY_DSN below. google.strategy.ts only
+  // registers the Passport GoogleStrategy when all three are present
+  // (env.googleOAuth.isConfigured); GET /auth/google and
+  // /auth/google/callback return a clear 503 instead of crashing at
+  // startup when they're missing, so a deployment without Google
+  // OAuth configured keeps working normally with local auth only.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CALLBACK_URL: z.string().url().optional(),
   // FIX EMAIL-01: SMTP config for the new email service. All optional,
   // same pattern as Cloudinary above — the app must still start cleanly
   // in dev/test/CI without real credentials. emailService.ts checks
@@ -168,6 +179,19 @@ export const env = {
     cloudName: _env.CLOUDINARY_CLOUD_NAME || '',
     apiKey: _env.CLOUDINARY_API_KEY || '',
     apiSecret: _env.CLOUDINARY_API_SECRET || '',
+  },
+  // FIX OAUTH-01: same isConfigured pattern as email.isConfigured
+  // above — true only once all three vars are present. Consumed by
+  // google.strategy.ts (whether to register the Passport strategy at
+  // all) and auth.routes.ts / auth.controller.ts (whether to accept
+  // requests to /auth/google at all, vs. returning a clear 503).
+  googleOAuth: {
+    clientId: _env.GOOGLE_CLIENT_ID || '',
+    clientSecret: _env.GOOGLE_CLIENT_SECRET || '',
+    callbackUrl: _env.GOOGLE_CALLBACK_URL || '',
+    isConfigured: Boolean(
+      _env.GOOGLE_CLIENT_ID && _env.GOOGLE_CLIENT_SECRET && _env.GOOGLE_CALLBACK_URL
+    ),
   },
   email: {
     smtpHost: _env.SMTP_HOST || '',

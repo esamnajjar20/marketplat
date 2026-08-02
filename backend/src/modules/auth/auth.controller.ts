@@ -21,6 +21,8 @@ import {
 } from '../../shared/utils/authCookies';
 
 import { getClientIp } from '../../shared/utils/getClientIp';
+import { env } from '../../config/env';
+import { logger } from '../../shared/utils/logger';
 
 const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unknown';
 
@@ -43,18 +45,33 @@ const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unk
  * accessToken, refreshToken }` shape, which is the only part this
  * function actually needs to inspect/rewrite.
  */
+/**
+ * FIX OAUTH-01: extracted the cookie-setting from respondWithSession's
+ * body so googleCallback (a top-level browser redirect, not a JSON XHR
+ * response — see its own comment below) can set the exact same three
+ * cookies (refreshToken, csrfToken, app_has_session) without
+ * duplicating this logic. Returns the csrf token value since both
+ * callers need it — respondWithSession puts it in the JSON body;
+ * googleCallback has no body to put it in and doesn't use the return
+ * value at all (the cookie itself is sufficient there).
+ */
+function setSessionCookies(res: Response, refreshToken: string): string {
+  setRefreshTokenCookie(res, refreshToken);
+  const csrfToken = setCsrfCookie(res);
+  // AUDIT-FIX C-1: see authCookies.ts's own doc comment on this
+  // function — lets middleware.ts distinguish "no session at all" from
+  // "session exists, just needs a silent refresh" on a fresh page load.
+  setSessionHintCookie(res);
+  return csrfToken;
+}
+
 function respondWithSession<T extends { tokens: { accessToken: string; refreshToken: string } }>(
   res: Response,
   status: number,
   message: string,
   result: T
 ): void {
-  setRefreshTokenCookie(res, result.tokens.refreshToken);
-  const csrfToken = setCsrfCookie(res);
-  // AUDIT-FIX C-1: see authCookies.ts's own doc comment on this
-  // function — lets middleware.ts distinguish "no session at all" from
-  // "session exists, just needs a silent refresh" on a fresh page load.
-  setSessionHintCookie(res);
+  const csrfToken = setSessionCookies(res, result.tokens.refreshToken);
 
   // refreshToken deliberately stripped from the response body — the
   // cookie is now the only place it lives. csrfToken IS included in
@@ -191,6 +208,68 @@ export const authController = {
       res.status(200).json(successResponse('Password reset successfully'));
     } catch (error) {
       next(error);
+    }
+  },
+
+  /**
+   * FIX OAUTH-01 — GET /auth/google/callback.
+   *
+   * Unlike every other handler in this file, this one is reached after
+   * a top-level browser redirect (Google -> this endpoint), not an XHR
+   * call from the frontend SPA — there is no frontend JS running on
+   * this exact page load to receive a JSON response. So instead of
+   * respondWithSession's res.json(...), this sets the identical
+   * session cookies (via the same setSessionCookies helper) and issues
+   * an HTTP redirect back into the frontend app. The already-global
+   * AuthHydrationProvider (mounted in providers/AppProviders.tsx, see
+   * its own header comment) then does exactly what it already does on
+   * any fresh page load: read the httpOnly refreshToken cookie via
+   * /auth/refresh and populate the client-side auth state — no
+   * frontend changes were needed for this to work.
+   *
+   * passport.authenticate('google', { session: false }) (see
+   * auth.routes.ts's custom callback) has already run by the time this
+   * handler executes and populated req.googleProfile with whatever
+   * google.strategy.ts's verify callback passed to done() — the
+   * GoogleProfileData shape (NOT a full User row; the actual
+   * find-or-create/link happens in authService.loginWithGoogle,
+   * called here).
+   */
+  googleCallback: async (req: Request, res: Response): Promise<void> => {
+    const loginRedirect = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}login`;
+
+    try {
+      const profile = req.googleProfile;
+      if (!profile) {
+        // passport.authenticate's own failureRedirect (see
+        // auth.routes.ts) handles the common "user denied consent on
+        // Google's screen" case before this handler is ever reached —
+        // reaching here with no profile at all means something more
+        // unusual happened (e.g. Google returned no email — see
+        // google.strategy.ts's extractGoogleProfile). Same
+        // fail-safe/fail-visible treatment as every other unexpected
+        // case below.
+        logger.warn('Google OAuth callback reached with no profile on req.googleProfile');
+        res.redirect(`${loginRedirect}?error=google_auth_failed`);
+        return;
+      }
+
+      const result = await authService.loginWithGoogle(profile, getClientIp(req), getUserAgent(req));
+      setSessionCookies(res, result.tokens.refreshToken);
+
+      res.redirect(env.frontendUrl);
+    } catch (error) {
+      // Deliberately does NOT call next(error): this request came from
+      // a top-level browser navigation with no frontend JS listening
+      // for a JSON error body on this exact response — errorMiddleware
+      // would just render a bare JSON blob in the user's address bar.
+      // A redirect back to /login with an error flag is the correct
+      // failure UX for a redirect-based flow, mirroring how e.g.
+      // GitHub/Google's own OAuth-consumer examples handle this.
+      logger.error('Google OAuth callback failed', {
+        error: error instanceof Error ? error.message : error,
+      });
+      res.redirect(`${loginRedirect}?error=google_auth_failed`);
     }
   },
 };

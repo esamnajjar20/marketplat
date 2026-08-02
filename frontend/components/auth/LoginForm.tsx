@@ -7,6 +7,7 @@ import { useLogin } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
+import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { ROUTES } from '@/lib/constants';
 import { getSafeRedirectPath } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
@@ -24,6 +25,14 @@ export function LoginForm() {
   // silent refresh, so a user who was actively signed in and got kicked
   // out sees why, instead of landing on an ordinary-looking login form.
   const sessionExpired = searchParams.get('reason') === 'session_expired';
+
+  // FIX OAUTH-01: auth.routes.ts's /auth/google/failure and
+  // auth.controller.ts's googleCallback catch-block both redirect back
+  // here with this exact query param on any Google sign-in failure
+  // (denied consent, no email on the Google account, a deactivated
+  // account, etc.) — same "explain via query param" pattern as
+  // sessionExpired above.
+  const googleAuthFailed = searchParams.get('error') === 'google_auth_failed';
 
   function validate() {
     const e: typeof errors = {};
@@ -68,6 +77,12 @@ export function LoginForm() {
       {sessionExpired && (
         <p role="alert" className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-center">
           انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
+        </p>
+      )}
+
+      {googleAuthFailed && (
+        <p role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2 text-center">
+          تعذّر تسجيل الدخول باستخدام Google، الرجاء المحاولة مرة أخرى أو استخدام البريد الإلكتروني
         </p>
       )}
 
@@ -117,6 +132,17 @@ export function LoginForm() {
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
       </Button>
+
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-card px-2 text-muted-foreground">أو</span>
+        </div>
+      </div>
+
+      <GoogleAuthButton label="تسجيل الدخول باستخدام Google" />
 
       <p className="text-center text-sm text-muted-foreground">
         ليس لديك حساب؟{' '}
