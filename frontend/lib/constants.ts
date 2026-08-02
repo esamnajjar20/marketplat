@@ -34,6 +34,13 @@ export const ROUTES = {
   incomingServiceRequests: '/my-services/requests',
   // Epic 4: provider-side appointments calendar.
   myServiceAppointments:   '/my-services/appointments',
+  stores:               '/stores',
+  storeDetail:           (id: string) => `/stores/${id}`,
+  myStore:              '/my-store',
+  myStoreProducts:       '/my-store/products',
+  myStoreProductCreate:  '/my-store/products/new',
+  myStoreProductEdit:    (id: string) => `/my-store/products/${id}/edit`,
+  myFollowedStores:     '/my-store/followed',
   settings: {
     root:          '/settings',
     profile:       '/settings/profile',
@@ -54,6 +61,8 @@ export const ROUTES = {
     sellers:           '/admin/sellers',
     // Epic 1.2: admin service-categories management — was entirely missing.
     serviceCategories: '/admin/service-categories',
+    stores:            '/admin/stores',
+    productCategories: '/admin/product-categories',
   },
 } as const;
 

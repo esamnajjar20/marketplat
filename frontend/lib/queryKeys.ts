@@ -50,6 +50,36 @@ export const queryKeys = {
     nearby: (params?: object) => ['service-providers', 'nearby', params ?? {}] as const,
   },
 
+  // ── Stores ───────────────────────────────────────────────────────
+  stores: {
+    all:      ()                => ['stores'] as const,
+    list:     (params?: object) => ['stores', 'list', params ?? {}] as const,
+    detail:   (id: string)      => ['stores', 'detail', id] as const,
+    me:       ()                => ['stores', 'me'] as const,
+    followed: (params?: object) => ['stores', 'followed', params ?? {}] as const,
+  },
+
+  // ── Store reviews ──────────────────────────────────────────────
+  storeReviews: {
+    forStore: (storeId: string, params?: object) =>
+      ['store-reviews', storeId, params ?? {}] as const,
+  },
+
+  // ── Products ───────────────────────────────────────────────────
+  products: {
+    all:    ()                => ['products'] as const,
+    list:   (params?: object) => ['products', 'list', params ?? {}] as const,
+    detail: (id: string)      => ['products', 'detail', id] as const,
+    mine:   (params?: object) => ['products', 'me', params ?? {}] as const,
+  },
+
+  // ── Product categories ─────────────────────────────────────────
+  productCategories: {
+    all:      ()             => ['product-categories'] as const,
+    slug:     (slug: string) => ['product-categories', 'slug', slug] as const,
+    adminAll: ()             => ['product-categories', 'admin', 'all'] as const,
+  },
+
   // ── Service categories ────────────────────────────────────────
   serviceCategories: {
     all:      ()             => ['service-categories'] as const,
