@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, Menu, X } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,10 @@ const NAV_LINKS = [
   { href: ROUTES.admin.users,             label: 'المستخدمون',     icon: Users },
   // EPIC 1.1: was entirely missing — see AdminSellersTable.tsx.
   { href: ROUTES.admin.sellers,           label: 'البائعون',       icon: UserCheck },
+  // AUDIT-FIX (issue #1): was entirely missing — see AdminStoresTable.tsx.
+  // Without this link, POST /stores had a working PENDING→ACTIVE
+  // transition server-side but zero discoverable path to it.
+  { href: ROUTES.admin.stores,            label: 'المتاجر',        icon: Store },
   { href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag },
   { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.

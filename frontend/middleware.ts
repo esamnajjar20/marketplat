@@ -86,6 +86,10 @@ const PROTECTED_PREFIXES = [
   // briefly before the client-side redirect fired, unlike every other
   // protected route.
   '/my-services',
+  // BUGFIX: was missing — /my-store (app/(protected)/my-store/**) is the
+  // stores-system sibling of /my-ads and /my-services and needs the same
+  // Edge redirect for consistency (see audit report, issue #9).
+  '/my-store',
   '/settings',
 ] as const;
 

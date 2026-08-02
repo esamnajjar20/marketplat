@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, StoreDetails } from '@prisma/client';
+import { Prisma, StoreDetails, StoreStatus } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { GetStoresQuery } from './stores.validation';
 
@@ -125,4 +125,39 @@ export const storesRepository = {
 
   countActiveProducts: (storeId: string): Promise<number> =>
     prisma.product.count({ where: { storeId, status: 'ACTIVE' } }),
+
+  // Admin directory — unlike findMany (public, hardcoded to ACTIVE),
+  // this surfaces every status so PENDING stores (the ones actually
+  // needing action) and BLOCKED ones are visible too. Mirrors
+  // sellersRepository.findMany/count's admin-facing shape.
+  findManyForAdmin: async (params: {
+    skip: number;
+    take: number;
+    status?: StoreStatus;
+    q?: string;
+  }): Promise<{ stores: StoreWithSeller[]; total: number }> => {
+    const { skip, take, status, q } = params;
+    const where: Prisma.StoreDetailsWhereInput = {
+      ...(status && { status }),
+      ...(q && {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      }),
+    };
+
+    const [stores, total] = await Promise.all([
+      prisma.storeDetails.findMany({
+        where,
+        include: storeWithSeller,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.storeDetails.count({ where }),
+    ]);
+
+    return { stores, total };
+  },
 };

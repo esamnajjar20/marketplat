@@ -61,6 +61,21 @@ export const getStoresSchema = z.object({
 
 export type GetStoresQuery = z.infer<typeof getStoresSchema>['query'];
 
+// Admin directory query — unlike getStoresSchema (public, always
+// ACTIVE-only), admins need to filter by any status including PENDING
+// (the ones needing approval) and BLOCKED. Mirrors sellers.validation.ts's
+// adminGetSellersSchema shape (page/limit/q + status filter).
+export const adminGetStoresSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    status: z.nativeEnum(StoreStatus).optional(),
+    q: z.string().trim().min(1).max(200).optional(),
+  }),
+});
+
+export type AdminGetStoresQuery = z.infer<typeof adminGetStoresSchema>['query'];
+
 // Admin-only status transition (PENDING → ACTIVE/BLOCKED), same shape
 // as sellers.validation.ts's verifySellerSchema/suspendSellerSchema.
 export const updateStoreStatusSchema = z.object({

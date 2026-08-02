@@ -14,7 +14,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { adminApi }  from '@/api/admin.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, ReportStatus } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, ReportStatus } from '@/types/admin.types';
 
 /**
  * GET /admin/ads
@@ -51,6 +51,22 @@ export function useAdminSellers(params?: AdminGetSellersParams) {
   return useQuery({
     queryKey:        queryKeys.admin.sellers(params),
     queryFn:         () => adminApi.getSellers(params).then((r) => r.data.data),
+    placeholderData: keepPreviousData,
+    staleTime:       CACHE_TTL.adminList,
+  });
+}
+
+/**
+ * GET /admin/stores (audit report issue #1)
+ * The report's finding: createStore requires admin approval
+ * (PENDING → ACTIVE) but there was no endpoint to list stores by
+ * status, so PENDING stores had no discoverable path to approval.
+ * Mirrors useAdminSellers exactly.
+ */
+export function useAdminStores(params?: AdminGetStoresParams) {
+  return useQuery({
+    queryKey:        queryKeys.admin.stores(params),
+    queryFn:         () => adminApi.getStores(params).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });

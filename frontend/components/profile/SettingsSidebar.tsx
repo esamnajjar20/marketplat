@@ -2,13 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, Shield, Monitor, Bell, Store, ShoppingBag } from 'lucide-react';
+import { User, Shield, Monitor, Bell, Store, ShoppingBag, Wrench } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 const links = [
   { href: ROUTES.settings.profile,       label: 'الملف الشخصي',  icon: User    },
   { href: ROUTES.settings.seller,        label: 'ملف البائع',    icon: Store   },
+  // AUDIT-FIX (issue #2): was entirely orphaned — the page and
+  // ServiceProviderSettingsSection component were both fully built,
+  // but no link anywhere in the app pointed to /settings/service-provider.
+  { href: ROUTES.settings.serviceProvider, label: 'ملف مقدم الخدمة', icon: Wrench },
   { href: ROUTES.myStore,                label: 'متجري',          icon: ShoppingBag },
   { href: ROUTES.settings.security,      label: 'الأمان',         icon: Shield  },
   { href: ROUTES.settings.sessions,      label: 'الجلسات',        icon: Monitor },

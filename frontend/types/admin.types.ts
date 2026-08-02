@@ -139,6 +139,41 @@ export interface AdminGetSellersParams extends PaginationParams {
 export interface SetSellerVerifiedPayload  { verified:  boolean; }
 export interface SetSellerSuspendedPayload { suspended: boolean; }
 
+// ── Stores (audit report issue #1) ──────────────────────────────────
+// The report's finding: createStore requires admin approval (PENDING →
+// ACTIVE) but there was no endpoint or UI to even list PENDING stores,
+// so every new store stayed PENDING forever. Matches storesRepository.
+// findManyForAdmin's `storeWithSeller` include shape — same sellerProfile
+// shape AdminSeller.user narrows, plus the store's own fields.
+
+export type AdminStoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
+
+export interface AdminStore {
+  id:            string;
+  name:          string;
+  description:   string;
+  city:          string;
+  address:       string | null;
+  phone:         string;
+  logoUrl:       string | null;
+  coverImageUrl: string | null;
+  status:        AdminStoreStatus;
+  plan:          string;
+  sellerProfileId: string;
+  createdAt:     string;
+  sellerProfile: {
+    id:          string;
+    displayName: string;
+  };
+}
+
+export interface AdminGetStoresParams extends PaginationParams {
+  status?: AdminStoreStatus;
+  q?: string;
+}
+
+export interface UpdateStoreStatusPayload { status: AdminStoreStatus; }
+
 // ── Broadcast notifications ─────────────────────────────────────────
 // Backend: POST /admin/notifications/broadcast (broadcastNotificationSchema).
 // `userIds` is required by the schema even when `allUsers` is true — the

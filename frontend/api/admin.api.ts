@@ -28,6 +28,9 @@ import type {
   AdminGetSellersParams,
   SetSellerVerifiedPayload,
   SetSellerSuspendedPayload,
+  AdminStore,
+  AdminGetStoresParams,
+  UpdateStoreStatusPayload,
   BroadcastNotificationPayload,
   BroadcastNotificationResult,
 } from '@/types/admin.types';
@@ -89,6 +92,21 @@ export const adminApi = {
 
   setSellerSuspended: (sellerProfileId: string, payload: SetSellerSuspendedPayload) =>
     apiClient.patch<ApiResponse<AdminSeller>>(`/admin/sellers/${sellerProfileId}/suspend`, payload),
+
+  // ── Stores (audit report issue #1) ───────────────────────────────
+  // The report's finding: createStore requires admin approval but
+  // GET /stores is public and hardcoded to status=ACTIVE only, so a
+  // PENDING store had no endpoint to even be listed for approval.
+  // GET /admin/stores and PATCH /admin/stores/:id/status now exist
+  // server-side (admin.routes.ts) — this wires the frontend to them.
+
+  getStores: (params?: AdminGetStoresParams) =>
+    apiClient
+      .get<ApiResponse<AdminStore[]>>('/admin/stores', { params })
+      .then((r) => unwrapPaginated<AdminStore>(r)),
+
+  updateStoreStatus: (storeId: string, payload: UpdateStoreStatusPayload) =>
+    apiClient.patch<ApiResponse<AdminStore>>(`/admin/stores/${storeId}/status`, payload),
 
   // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
 

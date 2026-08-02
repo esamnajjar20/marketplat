@@ -5,6 +5,7 @@ import {
   updateStoreSchema,
   storeIdSchema,
   getStoresSchema,
+  adminGetStoresSchema,
   updateStoreStatusSchema,
   createStoreReviewSchema,
   getStoreReviewsSchema,
@@ -61,6 +62,21 @@ export const storesController = {
       const { query } = getStoresSchema.parse({ query: req.query });
       const { stores, meta } = await storesService.getStores(query);
       res.status(200).json(successResponse('Stores fetched', stores, { pagination: meta }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Admin directory — audit report issue #1: lists stores of any status
+  // (PENDING/ACTIVE/BLOCKED) so an admin can find stores awaiting
+  // approval. Mirrors sellersController.getAllSellers.
+  getAllStores: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { query } = adminGetStoresSchema.parse({ query: req.query });
+      const result = await storesService.getAllStores(query);
+      res
+        .status(200)
+        .json(successResponse('Stores fetched', result.stores, { pagination: result.meta }));
     } catch (error) {
       next(error);
     }

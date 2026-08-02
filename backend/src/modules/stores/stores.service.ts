@@ -10,6 +10,7 @@ import {
   UpdateStoreStatusInput,
   CreateStoreReviewInput,
   GetStoreReviewsQuery,
+  AdminGetStoresQuery,
 } from './stores.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -114,6 +115,23 @@ export const storesService = {
   ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
     const { page = 1, limit = 20 } = query;
     const { stores, total } = await storesRepository.findMany(query);
+    return { stores, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  // Admin directory — see audit report issue #1: PENDING stores had no
+  // endpoint to even list them for approval, so createStore's required
+  // admin approval step was unreachable. Mirrors sellersService.getAllSellers.
+  getAllStores: async (
+    query: AdminGetStoresQuery
+  ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
+    const { page = 1, limit = 20, status, q } = query;
+    const skip = (page - 1) * limit;
+    const { stores, total } = await storesRepository.findManyForAdmin({
+      skip,
+      take: limit,
+      status,
+      q,
+    });
     return { stores, meta: buildPaginationMeta(total, page, limit) };
   },
 

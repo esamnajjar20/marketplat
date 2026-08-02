@@ -16,7 +16,7 @@
  */
 
 import type { AdSearchParams, AdSearchQuery } from '@/types/ad.types';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams } from '@/types/admin.types';
 
 export const queryKeys = {
   // ── Ads ────────────────────────────────────────────────────────
@@ -177,6 +177,10 @@ export const queryKeys = {
     ads:          (params?: AdminGetAdsParams)   => ['admin', 'ads',     params ?? {}] as const,
     users:        (params?: AdminGetUsersParams) => ['admin', 'users',   params ?? {}] as const,
     sellers:      (params?: AdminGetSellersParams) => ['admin', 'sellers', params ?? {}] as const,
+    // AUDIT-FIX (issue #1): parameterised by status/q/page like sellers,
+    // so approving a store (invalidating with a narrower key) doesn't
+    // also blow away unrelated cached pages.
+    stores:       (params?: AdminGetStoresParams) => ['admin', 'stores', params ?? {}] as const,
     reports:      (params?: object)              => ['admin', 'reports', params ?? {}] as const,
     reportDetail: (id: string)                   => ['admin', 'reports', 'detail', id] as const,
   },

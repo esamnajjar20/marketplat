@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { adminController } from './admin.controller';
 import { sellersController } from '../sellers/sellers.controller';
+import { storesController } from '../stores/stores.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireAdmin } from '../../middlewares/admin.middleware';
 
@@ -37,6 +38,17 @@ adminRouter.patch('/sellers/:id/verify', sellersController.verifySeller);
 // deletion, since SellerProfile is the parent of Ad/SellerRating/
 // ServiceProviderDetails records that must not be cascade-deleted.
 adminRouter.patch('/sellers/:id/suspend', sellersController.suspendSeller);
+
+// AUDIT-FIX (issue #1): GET /admin/stores — was missing entirely, so
+// stores created via POST /stores stayed PENDING forever with no way
+// for an admin to even discover them, let alone approve/block them.
+// Reuses storesService.updateStoreStatus (already existed, unreachable)
+// via storesController.updateStoreStatus, which is already mounted on
+// the public /stores router at PATCH /stores/:id/status (admin-guarded
+// there too) — exposing it here as well keeps the admin surface
+// consistent with /admin/sellers/:id/verify's own router.
+adminRouter.get('/stores', storesController.getAllStores);
+adminRouter.patch('/stores/:id/status', storesController.updateStoreStatus);
 
 // Epic 6: manual PROMOTION broadcast — see notifications.service.ts's
 // broadcastPromotion doc comment for why this has no automatic trigger.

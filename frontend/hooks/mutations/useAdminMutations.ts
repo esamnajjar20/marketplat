@@ -215,6 +215,46 @@ export function useAdminChangeRole() {
 }
 
 /**
+ * PATCH /admin/stores/:id/status (audit report issue #1) — approve
+ * (PENDING → ACTIVE) or block a store. Mirrors useAdminSetSellerSuspended's
+ * optimistic-update/rollback shape. Unlike suspend, this has no
+ * ConfirmDialog step at the call site since both directions (approve/
+ * block) are equally reversible admin actions, same as verify above.
+ */
+export function useAdminUpdateStoreStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeId, status }: { storeId: string; status: 'PENDING' | 'ACTIVE' | 'BLOCKED' }) =>
+      adminApi.updateStoreStatus(storeId, { status }).then((r) => r.data.data),
+    onMutate: async ({ storeId, status }) => {
+      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'stores'] });
+      queryClient.setQueriesData({ queryKey: ['admin', 'stores'] }, (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((s: any) => (s.id === storeId ? { ...s, status } : s)),
+        };
+      });
+      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
+      return { snapshots };
+    },
+    onSuccess: (_data, { status }) => {
+      const messages: Record<string, string> = {
+        ACTIVE:  'تمت الموافقة على المتجر',
+        BLOCKED: 'تم حظر المتجر',
+        PENDING: 'تم إرجاع المتجر إلى قيد المراجعة',
+      };
+      toast.success(messages[status] ?? 'تم تحديث حالة المتجر');
+    },
+    onError: (err, _vars, context) => {
+      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast.error(parseApiError(err).message);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
+  });
+}
+
+/**
  * POST /admin/notifications/broadcast — existed fully server-side with
  * no reachable UI (see admin.api.ts's broadcastNotification doc
  * comment). No optimistic update here: unlike the toggles above there
