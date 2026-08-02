@@ -157,4 +157,15 @@ export const CACHE_TTL = {
   // background the way a conversation or notification does. Matches
   // categories' 5m as a "rarely changes, safe to cache long" TTL.
   savedSearches: 300_000,  // 5 m
+  // Unified search: same volatility as adsList (its own results are a
+  // superset that includes ads) — 30s keeps results fresh without
+  // re-querying on every keystroke-triggered re-render.
+  search: 30_000,          // 30 s
+  // Suggestions change far less than search results (a new product
+  // name only starts appearing once that product exists) and the
+  // backend already caches this server-side for 5 minutes (see
+  // search.service.ts's SUGGESTIONS_TTL) — a short client staleTime
+  // just avoids re-fetching on every keystroke within the same debounce
+  // window, the server-side cache absorbs the rest.
+  searchSuggestions: 60_000, // 60 s
 } as const;

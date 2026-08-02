@@ -164,6 +164,12 @@ export const queryKeys = {
     all: () => ['savedSearches', 'list'] as const,
   },
 
+  // ── Unified search ────────────────────────────────────────────
+  search: {
+    unified:     (params?: object) => ['search', 'unified', params ?? {}] as const,
+    suggestions: (q: string)       => ['search', 'suggestions', q]        as const,
+  },
+
   // ── Admin ──────────────────────────────────────────────────────
   admin: {
     /** FIX Q-04: parameterised so prefix invalidation matches these entries */

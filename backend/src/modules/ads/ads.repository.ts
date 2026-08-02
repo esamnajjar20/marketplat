@@ -108,9 +108,18 @@ export const adsRepository = {
     if (search) {
       const whereParts: Prisma.Sql[] = [
         Prisma.sql`"status" = ${AdStatus.ACTIVE}::"AdStatus"`,
+        // coalesce() added to description (previously bare "description")
+        // so this expression is byte-for-byte identical to the new
+        // ads_search_idx GIN index (see the search module's
+        // add_search_indexes migration, which this index and
+        // search.repository.ts's own ad branch both also match
+        // verbatim) — a GIN expression index only gets used when the
+        // query expression matches what it was built from exactly.
+        // description is NOT NULL on Ad today, so this changes no
+        // result, only which index plan Postgres can choose.
         Prisma.sql`(
           setweight(to_tsvector('simple', coalesce("title", '')), 'A') ||
-          setweight(to_tsvector('simple', "description"), 'B')
+          setweight(to_tsvector('simple', coalesce("description", '')), 'B')
         ) @@ plainto_tsquery('simple', ${search})`,
       ];
 

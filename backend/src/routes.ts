@@ -19,6 +19,7 @@ import { savedSearchesRouter } from './modules/saved-searches';
 import { storesRouter } from './modules/stores';
 import { productsRouter } from './modules/products';
 import { productCategoriesRouter } from './modules/product-categories';
+import { searchRouter } from './modules/search';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -42,7 +43,14 @@ router.use('/ads', adsRouter);
 router.use('/categories', categoriesRouter);
 router.use('/reports', reportsRouter);
 router.use('/favorites', favoritesRouter);
-// A-05: /search merged into /ads/search — search module removed
+// A-05 (historical): /search was merged into /ads/search because at
+// the time it only ever covered ads — a dedicated module was
+// redundant for a single entity. /ads/search is untouched by this
+// change and still works exactly as before. This /search is a
+// different thing: a real cross-entity module (ads + products +
+// stores + service-listings unioned and ranked together), which A-05
+// never addressed and doesn't apply to.
+router.use('/search', searchRouter);
 router.use('/admin', adminRouter);
 router.use('/sellers', sellersRouter);
 router.use('/service-providers', serviceProvidersRouter);

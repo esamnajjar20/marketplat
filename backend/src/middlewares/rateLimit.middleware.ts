@@ -306,3 +306,20 @@ export const storeReviewRateLimit = rateLimit({
   store: createRedisStore('store_review'),
   message: msg('Too many reviews submitted, please try again later'),
 });
+
+// Search module: /search/suggestions fires on every keystroke of a
+// debounced input (not just deliberate submits like most other
+// limited routes here), so this needs real per-minute headroom rather
+// than the 15-60min windows above — a short 1-minute window with a
+// generous cap bounds scripted scraping without punishing a user who
+// actually types a full query. /search itself (full results) is
+// covered by globalRateLimit only, same as /ads and /products — it's
+// a deliberate submit, not a per-keystroke call.
+export const searchSuggestionsRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('search_suggestions'),
+  message: msg('Too many requests, please slow down'),
+});
