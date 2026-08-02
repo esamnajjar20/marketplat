@@ -90,6 +90,14 @@ const PROTECTED_PREFIXES = [
   // stores-system sibling of /my-ads and /my-services and needs the same
   // Edge redirect for consistency (see audit report, issue #9).
   '/my-store',
+  // BUGFIX: was missing — /my-requests (app/(protected)/my-requests/**)
+  // is the customer-side counterpart of /my-services/requests and had
+  // the exact same gap as the /my-services and /my-store fixes above.
+  '/my-requests',
+  // AUDIT-FIX (issue #6): new /service-requests/[id] detail page —
+  // protected the same way /my-requests and /my-services are, since it
+  // shows the same customer/provider-only data as those list pages.
+  '/service-requests',
   '/settings',
 ] as const;
 

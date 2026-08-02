@@ -84,11 +84,12 @@ export const storesController = {
 
   updateStoreStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const admin = requireUser(req);
       const { params, body } = updateStoreStatusSchema.parse({
         params: req.params,
         body: req.body,
       });
-      const store = await storesService.updateStoreStatus(params.id, body);
+      const store = await storesService.updateStoreStatus(params.id, body, admin.userId);
       res.status(200).json(successResponse('Store status updated', store));
     } catch (error) {
       next(error);

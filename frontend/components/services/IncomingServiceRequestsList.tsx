@@ -209,6 +209,12 @@ export function IncomingServiceRequestsList() {
                   <p className="text-xs text-muted-foreground">من {request.customer.name}</p>
                   <p className="text-sm line-clamp-2">{request.details}</p>
                   <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
+                  {/* AUDIT-FIX (issue #6): details/attachedImages were
+                      clipped here with no way to see the full request —
+                      this links to the new detail page for both. */}
+                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline">
+                    عرض التفاصيل الكاملة
+                  </Link>
                 </div>
                 <div className="flex items-center sm:items-end">
                   <RequestActions

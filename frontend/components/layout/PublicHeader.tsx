@@ -26,6 +26,26 @@ export function PublicHeader() {
           <Logo />
         </Link>
 
+        {/* AUDIT-FIX (issue #3 — 🔴 critical): the stores/services/
+            service-providers modules were fully built end-to-end
+            (API, hooks, pages) but had zero entry point from primary
+            navigation anywhere in the app — a user could never
+            discover them without typing the URL directly. These three
+            links are that missing entry point, placed where a returning
+            user already expects site sections: between the logo and
+            the search bar. */}
+        <nav className="hidden items-center gap-1 lg:flex">
+          <Button asChild variant="ghost" size="sm">
+            <Link href={ROUTES.stores}>المتاجر</Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link href={ROUTES.services}>الخدمات</Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
+          </Button>
+        </nav>
+
         <div className="hidden flex-1 md:block">
           <SearchBar />
         </div>

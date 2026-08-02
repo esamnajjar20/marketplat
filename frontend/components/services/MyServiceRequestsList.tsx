@@ -141,6 +141,12 @@ export function MyServiceRequestsList() {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
+                  {/* AUDIT-FIX (issue #6): details/attachedImages were
+                      clipped here with no way to see the full request —
+                      this links to the new detail page for both. */}
+                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline">
+                    عرض التفاصيل الكاملة
+                  </Link>
                   {request.status === 'COMPLETED' && !canReview && (
                     <p className="text-xs text-amber-600 flex items-center gap-1">
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />تم إرسال تقييمك

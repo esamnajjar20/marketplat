@@ -32,6 +32,10 @@ export const ROUTES = {
   // Epic 3.1: customer-side "my requests" list, and provider-side inbox.
   myServiceRequests:     '/my-requests',
   incomingServiceRequests: '/my-services/requests',
+  // AUDIT-FIX (issue #6): GET /service-requests/:id + useServiceRequest
+  // existed fully but had no page — full details/attachedImages were
+  // clipped to two lines in the list rows with no way to see more.
+  serviceRequestDetail:  (id: string) => `/service-requests/${id}`,
   // Epic 4: provider-side appointments calendar.
   myServiceAppointments:   '/my-services/appointments',
   stores:               '/stores',

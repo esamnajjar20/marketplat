@@ -18,6 +18,7 @@ import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { withStoreCreationLock } from '../../shared/utils/storeLock';
+import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 
@@ -137,10 +138,29 @@ export const storesService = {
 
   // Admin-only: PENDING → ACTIVE (approve) or → BLOCKED. Mirrors
   // sellersService's verify/suspend admin actions.
-  updateStoreStatus: async (id: string, input: UpdateStoreStatusInput): Promise<StoreDetails> => {
+  updateStoreStatus: async (
+    id: string,
+    input: UpdateStoreStatusInput,
+    adminUserId?: string
+  ): Promise<StoreDetails> => {
     const store = await storesRepository.findById(id);
     if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
-    return storesRepository.updateStatus(id, input.status);
+    const updated = await storesRepository.updateStatus(id, input.status);
+
+    // AUDIT-FIX (issue #10 follow-up): this admin action wrote no audit
+    // trail at all — same gap sellersService.setVerification/setSuspension
+    // closed for ADMIN_SELLER_VERIFIED/SUSPENDED. adminUserId is optional
+    // only so this method's existing signature doesn't force every other
+    // caller to pass one; the controller always supplies it.
+    if (adminUserId) {
+      auditLog({
+        event: AuditEvent.ADMIN_STORE_STATUS_CHANGED,
+        userId: adminUserId,
+        details: { storeId: id, status: input.status },
+      }).catch(() => {});
+    }
+
+    return updated;
   },
 
   // --- Follow / unfollow -------------------------------------------------

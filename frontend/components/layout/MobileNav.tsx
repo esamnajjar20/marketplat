@@ -25,9 +25,15 @@ import { ROUTES } from '@/lib/constants';
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 const selectCloseMobileNav  = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
 
+// AUDIT-FIX (issue #3 — 🔴 critical): stores/services/service-providers
+// had no entry point anywhere in primary navigation — same gap as
+// PublicHeader.tsx, mirrored here for the mobile drawer.
 const GUEST_LINKS = [
   { label: 'الرئيسية',      href: ROUTES.home },
   { label: 'البحث',         href: ROUTES.search },
+  { label: 'المتاجر',       href: ROUTES.stores },
+  { label: 'الخدمات',       href: ROUTES.services },
+  { label: 'مقدمو الخدمة',  href: ROUTES.serviceProviders },
   { label: 'تسجيل الدخول', href: ROUTES.login },
   { label: 'إنشاء حساب',   href: ROUTES.register },
 ] as const;
@@ -35,6 +41,9 @@ const GUEST_LINKS = [
 const AUTH_LINKS = [
   { label: 'الرئيسية',      href: ROUTES.home },
   { label: 'البحث',         href: ROUTES.search },
+  { label: 'المتاجر',       href: ROUTES.stores },
+  { label: 'الخدمات',       href: ROUTES.services },
+  { label: 'مقدمو الخدمة',  href: ROUTES.serviceProviders },
   { label: 'أضف إعلانك',   href: ROUTES.adCreate },
   { label: 'لوحة التحكم',   href: ROUTES.dashboard },
   { label: 'إعلاناتي',      href: ROUTES.myAds },

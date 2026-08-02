@@ -665,6 +665,11 @@ enum AuditEventType {
   ADMIN_USER_STATUS_CHANGED
   ADMIN_SELLER_VERIFIED
   ADMIN_SELLER_SUSPENDED
+  // AUDIT-FIX (issue #10 follow-up): updateStoreStatus (issue #1's
+  // admin approve/block action) was writing no audit trail at all —
+  // same gap ADMIN_SELLER_VERIFIED/SUSPENDED closed for sellers,
+  // applied here for the store status transition.
+  ADMIN_STORE_STATUS_CHANGED
   // FIX OAUTH-01
   OAUTH_LOGIN
   OAUTH_ACCOUNT_LINKED

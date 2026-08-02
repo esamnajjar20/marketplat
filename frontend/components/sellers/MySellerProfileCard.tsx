@@ -60,11 +60,22 @@ export function MySellerProfileCard({ profile }: Props) {
         </div>
       </div>
 
-      <Button variant="outline" size="sm" asChild className="gap-1.5">
-        <Link href={ROUTES.sellerProfile(profile.id)}>
-          عرض صفحتي العامة كبائع <ExternalLink className="h-3.5 w-3.5" />
-        </Link>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" asChild className="gap-1.5">
+          <Link href={ROUTES.sellerProfile(profile.id)}>
+            عرض صفحتي العامة كبائع <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </Button>
+        {/* AUDIT-FIX (issue #5): becoming a seller had no next step —
+            /my-store existed and worked, but a user only found it by
+            discovering "متجري" in the settings sidebar on their own.
+            This is the direct next-step CTA the flow was missing. */}
+        <Button size="sm" asChild className="gap-1.5">
+          <Link href={ROUTES.myStore}>
+            <ShoppingBag className="h-3.5 w-3.5" /> أنشئ متجرك الآن
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
