@@ -2,10 +2,10 @@
  * __tests__/components/AdminSidebar.test.tsx
  *
  * Coverage targets (report item #6 — admin layout had no real sidebar):
- *  - Renders all 7 admin nav links, including "فئات الإعلانات" (categories),
- *    and the two links added to close the report's admin-UI gaps:
- *    "البائعون" (Epic 1.1 — verify/suspend sellers) and "فئات الخدمات"
- *    (Epic 1.2 — service-categories management)
+ *  - Renders all 9 admin nav links, including "فئات الإعلانات" (categories),
+ *    "البائعون" (Epic 1.1 — verify/suspend sellers), "فئات الخدمات"
+ *    (Epic 1.2 — service-categories management), "المتاجر" (store
+ *    approval — issue #1), and "سجل العمليات" (Audit Logs).
  *  - Active-state: aria-current="page" set on the link matching the current pathname
  *  - Active-state: startsWith match for nested routes (e.g. /admin/ads/123)
  *  - Mobile drawer: closed by default, opens on hamburger click, closes on
@@ -49,16 +49,18 @@ describe('AdminSidebar', () => {
 
   // ── Renders all nav links ──────────────────────────────────────────
 
-  it('renders all 7 admin nav links in the desktop sidebar', () => {
+  it('renders all 9 admin nav links in the desktop sidebar', () => {
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     expect(within(desktopNav).getByText('الرئيسية')).toBeInTheDocument();
     expect(within(desktopNav).getByText('الإعلانات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('المستخدمون')).toBeInTheDocument();
     expect(within(desktopNav).getByText('البائعون')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('المتاجر')).toBeInTheDocument();
     expect(within(desktopNav).getByText('البلاغات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('فئات الإعلانات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('فئات الخدمات')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('سجل العمليات')).toBeInTheDocument();
   });
 
   it('links to /admin/categories for the فئات الإعلانات item (report item #6 fix)', () => {
@@ -80,6 +82,13 @@ describe('AdminSidebar', () => {
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const link = within(desktopNav).getByText('فئات الخدمات').closest('a');
     expect(link).toHaveAttribute('href', '/admin/service-categories');
+  });
+
+  it('links to /admin/audit-logs for the سجل العمليات item', () => {
+    render(<AdminSidebar />);
+    const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
+    const link = within(desktopNav).getByText('سجل العمليات').closest('a');
+    expect(link).toHaveAttribute('href', '/admin/audit-logs');
   });
 
   it('renders the "لوحة الإدارة" section heading', () => {
@@ -137,7 +146,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(7); // one per nav link
+    expect(hiddenIcons?.length).toBe(9); // one per nav link
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────

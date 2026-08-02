@@ -20,6 +20,7 @@ import { storesRouter } from './modules/stores';
 import { productsRouter } from './modules/products';
 import { productCategoriesRouter } from './modules/product-categories';
 import { searchRouter } from './modules/search';
+import { auditLogsRouter } from './modules/audit-logs';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -52,6 +53,13 @@ router.use('/favorites', favoritesRouter);
 // never addressed and doesn't apply to.
 router.use('/search', searchRouter);
 router.use('/admin', adminRouter);
+// Own module (repository/service/controller/validation) mounted at
+// /admin/audit-logs — kept out of admin.routes.ts/admin.service.ts
+// (which talk to Prisma directly with no repository layer) so this
+// follows the same repository-backed module pattern as /reports,
+// which likewise sits outside admin.routes.ts despite being an
+// admin-only resource.
+router.use('/admin/audit-logs', auditLogsRouter);
 router.use('/sellers', sellersRouter);
 router.use('/service-providers', serviceProvidersRouter);
 router.use('/service-categories', serviceCategoriesRouter);

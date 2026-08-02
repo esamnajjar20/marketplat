@@ -193,3 +193,61 @@ export interface BroadcastNotificationPayload {
 export interface BroadcastNotificationResult {
   recipientCount: number;
 }
+
+// ── Audit logs ───────────────────────────────────────────────────────
+// Backend: GET /admin/audit-logs (audit-logs module). Matches
+// audit-logs.repository.ts's `auditLogWithUser` include shape — the
+// event's actor (userId) plus their id/name/email, nothing more.
+//
+// AuditLog has a single actor column, `userId` — whichever user the
+// event is attributed to (the acting admin for ADMIN_* events, the
+// subject user for auth events like LOGIN_SUCCESS). There is no
+// separate "admin vs target user" column, so the filter surface only
+// exposes `userId` — see audit-logs.validation.ts's schema comment.
+
+export type AuditEventType =
+  | 'REGISTER'
+  | 'LOGIN_SUCCESS'
+  | 'LOGIN_FAILED'
+  | 'LOGOUT'
+  | 'LOGOUT_ALL'
+  | 'TOKEN_REFRESHED'
+  | 'TOKEN_REUSE_DETECTED'
+  | 'SESSION_REVOKED'
+  | 'ACCOUNT_LOCKED'
+  | 'PASSWORD_CHANGED'
+  | 'ROLE_CHANGED'
+  | 'ACCOUNT_DISABLED'
+  | 'ADMIN_AD_FEATURED'
+  | 'ADMIN_AD_PINNED'
+  | 'ADMIN_AD_DELETED'
+  | 'ADMIN_USER_STATUS_CHANGED'
+  | 'ADMIN_SELLER_VERIFIED'
+  | 'ADMIN_SELLER_SUSPENDED'
+  | 'ADMIN_STORE_STATUS_CHANGED'
+  | 'OAUTH_LOGIN'
+  | 'OAUTH_ACCOUNT_LINKED'
+  | 'OAUTH_SIGNUP';
+
+export interface AuditLog {
+  id: string;
+  event: AuditEventType;
+  userId: string | null;
+  sessionId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+  user: { id: string; name: string; email: string } | null;
+}
+
+export type AuditLogSortField = 'createdAt' | 'event';
+
+export interface AdminGetAuditLogsParams extends PaginationParams {
+  event?: AuditEventType;
+  userId?: string;
+  from?: string;
+  to?: string;
+  sortBy?: AuditLogSortField;
+  sortOrder?: 'asc' | 'desc';
+}

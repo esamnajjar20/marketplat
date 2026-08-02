@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, Menu, X } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,8 @@ const NAV_LINKS = [
   { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
   { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench },
+  // Audit Logs: GET /admin/audit-logs — see AdminAuditLogsTable.tsx.
+  { href: ROUTES.admin.auditLogs,         label: 'سجل العمليات',   icon: ScrollText },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

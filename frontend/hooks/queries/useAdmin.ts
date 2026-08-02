@@ -14,7 +14,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { adminApi }  from '@/api/admin.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, ReportStatus } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, ReportStatus } from '@/types/admin.types';
 
 /**
  * GET /admin/ads
@@ -97,6 +97,20 @@ export function useAdminReportDetail(reportId: string) {
     queryFn:   () => adminApi.getReportById(reportId).then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
     enabled:   Boolean(reportId),
+  });
+}
+
+/**
+ * GET /admin/audit-logs
+ * Mirrors useAdminUsers/useAdminSellers exactly — same envelope shape
+ * (.then(r => r.data.data)), same placeholderData/staleTime pattern.
+ */
+export function useAdminAuditLogs(params?: AdminGetAuditLogsParams) {
+  return useQuery({
+    queryKey:        queryKeys.admin.auditLogs(params),
+    queryFn:         () => adminApi.getAuditLogs(params).then((r) => r.data.data),
+    placeholderData: keepPreviousData,
+    staleTime:       CACHE_TTL.adminList,
   });
 }
 

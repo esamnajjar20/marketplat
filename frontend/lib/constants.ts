@@ -67,6 +67,7 @@ export const ROUTES = {
     serviceCategories: '/admin/service-categories',
     stores:            '/admin/stores',
     productCategories: '/admin/product-categories',
+    auditLogs:         '/admin/audit-logs',
   },
 } as const;
 
@@ -94,6 +95,32 @@ export const REPORT_REASON_LABELS: Record<string, string> = {
   FAKE:      'إعلان مزيف',
   OFFENSIVE: 'محتوى مسيء',
   SPAM:      'إعلان مكرر أو غير مرغوب',
+};
+
+/** Must match the backend Prisma `AuditEventType` enum exactly (prisma/schema.prisma). */
+export const AUDIT_EVENT_LABELS: Record<string, string> = {
+  REGISTER:                   'تسجيل حساب جديد',
+  LOGIN_SUCCESS:               'تسجيل دخول ناجح',
+  LOGIN_FAILED:                 'محاولة تسجيل دخول فاشلة',
+  LOGOUT:                       'تسجيل خروج',
+  LOGOUT_ALL:                   'تسجيل خروج من كل الأجهزة',
+  TOKEN_REFRESHED:              'تجديد الجلسة',
+  TOKEN_REUSE_DETECTED:         'اكتشاف إعادة استخدام رمز',
+  SESSION_REVOKED:              'إلغاء جلسة',
+  ACCOUNT_LOCKED:               'قفل الحساب',
+  PASSWORD_CHANGED:             'تغيير كلمة المرور',
+  ROLE_CHANGED:                 'تغيير الدور',
+  ACCOUNT_DISABLED:             'تعطيل الحساب',
+  ADMIN_AD_FEATURED:            'تمييز إعلان (إدارة)',
+  ADMIN_AD_PINNED:              'تثبيت إعلان (إدارة)',
+  ADMIN_AD_DELETED:             'حذف إعلان (إدارة)',
+  ADMIN_USER_STATUS_CHANGED:    'تغيير حالة مستخدم (إدارة)',
+  ADMIN_SELLER_VERIFIED:        'توثيق بائع (إدارة)',
+  ADMIN_SELLER_SUSPENDED:       'إيقاف بائع (إدارة)',
+  ADMIN_STORE_STATUS_CHANGED:   'تغيير حالة متجر (إدارة)',
+  OAUTH_LOGIN:                  'تسجيل دخول عبر OAuth',
+  OAUTH_ACCOUNT_LINKED:         'ربط حساب OAuth',
+  OAUTH_SIGNUP:                 'تسجيل حساب عبر OAuth',
 };
 
 export const AD_SORT_OPTIONS: readonly { label: string; sortBy: AdSortField; sortOrder: AdSortOrder }[] = [

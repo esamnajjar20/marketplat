@@ -33,6 +33,8 @@ import type {
   UpdateStoreStatusPayload,
   BroadcastNotificationPayload,
   BroadcastNotificationResult,
+  AuditLog,
+  AdminGetAuditLogsParams,
 } from '@/types/admin.types';
 import type { ApiResponse } from '@/types/api.types';
 
@@ -135,4 +137,14 @@ export const adminApi = {
       '/admin/notifications/broadcast',
       payload,
     ),
+
+  // ── Audit logs ────────────────────────────────────────────────────
+  // Backend: GET /admin/audit-logs (own module — see backend
+  // src/modules/audit-logs). Admin-only, same guard pattern as every
+  // other /admin/* route.
+
+  getAuditLogs: (params?: AdminGetAuditLogsParams) =>
+    apiClient
+      .get<ApiResponse<AuditLog[]>>('/admin/audit-logs', { params })
+      .then((r) => unwrapPaginated<AuditLog>(r)),
 };

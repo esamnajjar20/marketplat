@@ -16,7 +16,7 @@
  */
 
 import type { AdSearchParams, AdSearchQuery } from '@/types/ad.types';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams } from '@/types/admin.types';
 
 export const queryKeys = {
   // ── Ads ────────────────────────────────────────────────────────
@@ -183,5 +183,6 @@ export const queryKeys = {
     stores:       (params?: AdminGetStoresParams) => ['admin', 'stores', params ?? {}] as const,
     reports:      (params?: object)              => ['admin', 'reports', params ?? {}] as const,
     reportDetail: (id: string)                   => ['admin', 'reports', 'detail', id] as const,
+    auditLogs:    (params?: AdminGetAuditLogsParams) => ['admin', 'audit-logs', params ?? {}] as const,
   },
 } as const;
