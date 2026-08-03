@@ -10,6 +10,16 @@
  *
  * UX-15 FIX: Unicode icon spans now have aria-hidden="true" so screen
  *   readers don't read out "◈" or "♡" before each nav item label.
+ *
+ * AUDIT-FIX (protected #2, #4): "خدماتي" (/my-services) and "البحثات
+ *   المحفوظة" (/saved-searches) had no link anywhere in this sidebar —
+ *   /my-services was reachable only through a card that itself only
+ *   renders for users who already have an active ServiceProviderDetails,
+ *   and /saved-searches only through UserMenu. Both added here as
+ *   always-visible links: /my-services already handles the "not a
+ *   provider yet" case itself (renders BecomeServiceProviderCard's
+ *   pattern via ServiceProviderSettingsSection), the same way
+ *   /settings/service-provider does today.
  */
 'use client';
 
@@ -22,7 +32,9 @@ const NAV_ITEMS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: '▦' },
   { label: 'إعلاناتي',    href: ROUTES.myAds,             icon: '◈' },
   { label: 'المفضلة',     href: ROUTES.favorites,         icon: '♡' },
+  { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: '🔖' },
   { label: 'الرسائل',     href: ROUTES.messages,          icon: '✉' },
+  { label: 'خدماتي',      href: ROUTES.myServices,        icon: '🛠' },
   { label: 'الإعدادات',   href: ROUTES.settings.profile,  icon: '⚙', activeMatch: ROUTES.settings.root },
 ] as const;
 

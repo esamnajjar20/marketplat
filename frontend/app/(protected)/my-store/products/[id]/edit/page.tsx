@@ -9,12 +9,16 @@
  * chain client-side, this checks membership in the caller's own
  * /products/me list, which the backend already scopes to the
  * authenticated store owner.
+ *
+ * AUDIT-FIX (protected #7): shares useOwnershipGuard with the other
+ * three edit pages instead of hand-rolling the same redirect effect.
  */
-import { use, useEffect } from 'react';
-import { notFound, useRouter } from 'next/navigation';
+import { use } from 'react';
+import { notFound } from 'next/navigation';
 import { ProductForm } from '@/components/stores/ProductForm';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useProduct, useMyProducts } from '@/hooks/queries/useProducts';
+import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
 import { ROUTES } from '@/lib/constants';
 
 interface Props {
@@ -25,20 +29,19 @@ export default function EditProductPage({ params }: Props) {
   const { id } = use(params);
   const { data: product, isLoading, isError } = useProduct(id);
   const { data: mine, isLoading: isLoadingMine } = useMyProducts({ limit: 100 });
-  const router = useRouter();
 
   const isOwner = !!product && !!mine && mine.items.some((p) => p.id === product.id);
   const isLoadingOwnership = isLoading || isLoadingMine;
-
-  useEffect(() => {
-    if (!isLoadingOwnership && product && !isOwner) {
-      router.replace(ROUTES.myStoreProducts);
-    }
-  }, [isLoadingOwnership, product, isOwner, router]);
+  const isRedirecting = useOwnershipGuard({
+    isLoading: isLoadingOwnership,
+    item: product,
+    isOwner,
+    redirectTo: ROUTES.myStoreProducts,
+  });
 
   if (isLoadingOwnership) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (isError || !product) return notFound();
-  if (!isOwner) return null; // redirecting
+  if (isRedirecting) return null;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl">

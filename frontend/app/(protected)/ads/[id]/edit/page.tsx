@@ -1,47 +1,38 @@
 'use client';
 
 /**
- * FIX UX-14: no ownership check on the frontend — a user could open
- * this page for anyone's ad by guessing/pasting the URL, fill out the
- * whole edit form, and only find out on save (via the backend's real
- * 403 in ads.service.ts's updateAd) that they never had permission.
- * Not a security gap (the backend already enforces this correctly),
- * but a confusing dead end. Redirects away before the form ever
- * renders, the same way an unauthenticated visit to a /(protected)
- * route would be redirected.
+ * /ads/[id]/edit — legacy alias, kept only as a redirect.
+ *
+ * AUDIT-FIX (protected — file organization): this route and
+ * /my-ads/[id] were two independent implementations of the exact same
+ * "edit my ad" page (identical isOwner logic, identical loading/404/
+ * redirect sequence — see protected-audit issue #7). No redirect
+ * existed between them and nothing in the app ever documented which one
+ * was canonical, despite both working. /my-ads/[id] is now the single
+ * canonical implementation (grouped with the rest of the my-ads/*
+ * tree); this route stays live only so old bookmarks/shared links to
+ * /ads/:id/edit keep working, and immediately forwards to the
+ * canonical path via ROUTES.adEdit — now defined as `/my-ads/${id}`
+ * rather than `/ads/${id}/edit` — so every in-app link (e.g.
+ * MyAdsList's edit button) already points at the canonical route
+ * without further changes.
+ *
+ * middleware.ts's PROTECTED_AD_EDIT_RE still matches this path, so an
+ * unauthenticated visit is bounced to /login before ever reaching this
+ * redirect — same protection /my-ads/[id] gets via the '/my-ads'
+ * prefix entry.
  */
-import { use }            from 'react';
-import { EditAdForm }     from '@/components/ads/EditAdForm';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { useAd }          from '@/hooks/queries/useAds';
-import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
-import { notFound, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { use, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/lib/constants';
 
-export default function EditAdPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id }  = use(params);
-  const { data: ad, isLoading, isError } = useAd(id);
-  const user    = useAuthStore(selectUser);
-  const isAdmin = useAuthStore(selectIsAdmin);
-  const router  = useRouter();
-
-  const isOwner = !!ad && !!user && (ad.userId === user.id || isAdmin);
+export default function LegacyEditAdRedirectPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && ad && !isOwner) {
-      router.replace(ROUTES.myAds);
-    }
-  }, [isLoading, ad, isOwner, router]);
+    router.replace(ROUTES.adEdit(id));
+  }, [id, router]);
 
-  if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
-  if (isError || !ad) return notFound();
-  if (!isOwner) return null; // redirecting
-
-  return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <h1 className="text-xl font-bold">تعديل الإعلان</h1>
-      <EditAdForm ad={ad} />
-    </div>
-  );
+  return null;
 }

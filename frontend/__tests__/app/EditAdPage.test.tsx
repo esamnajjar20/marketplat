@@ -8,11 +8,18 @@
  * correctly — this is a UX gap, not a security one). Covers the
  * redirect-away behavior for a non-owner, and that an owner/admin
  * still reaches the form normally.
+ *
+ * AUDIT-FIX (protected — file organization): /ads/[id]/edit and
+ * /my-ads/[id] used to be two independent implementations of this
+ * page. /my-ads/[id] is now the canonical one (see that file's
+ * comment); this test targets it directly. The old route's own
+ * behavior — that it redirects here — is covered separately in
+ * LegacyEditAdRedirectPage.test.tsx.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { Suspense } from 'react';
-import EditAdPage from '@/app/(protected)/ads/[id]/edit/page';
+import EditAdPage from '@/app/(protected)/my-ads/[id]/page';
 import { useAd } from '@/hooks/queries/useAds';
 import { useAuthStore } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';

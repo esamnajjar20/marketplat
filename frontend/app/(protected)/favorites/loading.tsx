@@ -5,8 +5,11 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 export default function FavoritesLoading() {
   return (
-    <div className="container mx-auto px-4 py-6">
-      <Skeleton className="mb-6 h-8 w-40" />
+    // AUDIT-FIX (protected #8): matches favorites/page.tsx's
+    // "space-y-4" wrapper instead of duplicating ProtectedLayout's
+    // own p-6 padding via an extra container.
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-40" />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[4/5] w-full rounded-xl" />

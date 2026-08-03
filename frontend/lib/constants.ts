@@ -13,7 +13,7 @@ export const ROUTES = {
   search:        '/search',
   adCreate:      '/ads/create',
   adDetail:      (id: string)   => `/ads/${id}`,
-  adEdit:        (id: string)   => `/ads/${id}/edit`,
+  adEdit:        (id: string)   => `/my-ads/${id}`,
   category:      (slug: string) => `/categories/${slug}`,
   userProfile:   (id: string)   => `/profile/${id}`,
   sellerProfile: (id: string)   => `/sellers/${id}`,

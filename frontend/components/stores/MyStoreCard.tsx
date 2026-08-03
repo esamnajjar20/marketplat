@@ -165,6 +165,14 @@ export function MyStoreCard({ store }: Props) {
         <Button variant="outline" size="sm" asChild>
           <Link href={ROUTES.myStoreProducts}>إدارة منتجاتي</Link>
         </Button>
+        {/* AUDIT-FIX (protected #3): /my-store/followed had no link
+            anywhere in the app — grep across app/ and components/ found
+            only its own internal pagination baseUrl. This card is the
+            most logical entry point for "my relationship to the store
+            system", so the link lives here alongside product management. */}
+        <Button variant="outline" size="sm" asChild>
+          <Link href={ROUTES.myFollowedStores}>المتاجر المتابَعة</Link>
+        </Button>
       </div>
     </div>
   );
