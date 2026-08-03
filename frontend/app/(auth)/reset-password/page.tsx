@@ -7,17 +7,16 @@ export const metadata: Metadata = buildMetadata({ title: 'تعيين كلمة م
 
 interface Props { searchParams: Promise<{ token?: string }> }
 
+// AUDIT-FIX auth#2: same fix as LoginPage — see its comment.
 export default async function ResetPasswordPage({ searchParams }: Props) {
   const { token = '' } = await searchParams;
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-muted/30">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">تعيين كلمة مرور جديدة</h1>
-        </div>
-        <div className="bg-card rounded-xl border p-6">
-          <Suspense><ResetPasswordForm token={token} /></Suspense>
-        </div>
+    <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">تعيين كلمة مرور جديدة</h1>
+      </div>
+      <div className="bg-card rounded-xl border p-6">
+        <Suspense><ResetPasswordForm token={token} /></Suspense>
       </div>
     </div>
   );

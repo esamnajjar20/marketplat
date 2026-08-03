@@ -8,6 +8,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
+import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES } from '@/lib/constants';
 import { getSafeRedirectPath } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
@@ -33,6 +34,13 @@ export function LoginForm() {
   // account, etc.) — same "explain via query param" pattern as
   // sessionExpired above.
   const googleAuthFailed = searchParams.get('error') === 'google_auth_failed';
+
+  // AUDIT-FIX auth#1: carried through to "إنشاء حساب" below so a visitor
+  // who arrived here via /login?from=X and has no account yet doesn't
+  // lose that destination when bouncing to /register — RegisterForm
+  // reads this the same way LoginForm reads its own `from`.
+  const from = searchParams.get('from');
+  const registerHref = from ? `${ROUTES.register}?from=${encodeURIComponent(from)}` : ROUTES.register;
 
   function validate() {
     const e: typeof errors = {};
@@ -133,20 +141,13 @@ export function LoginForm() {
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
       </Button>
 
-      <div className="relative py-1">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-card px-2 text-muted-foreground">أو</span>
-        </div>
-      </div>
+      <AuthDivider />
 
       <GoogleAuthButton label="تسجيل الدخول باستخدام Google" />
 
       <p className="text-center text-sm text-muted-foreground">
         ليس لديك حساب؟{' '}
-        <Link href={ROUTES.register} className="text-primary hover:underline font-medium">
+        <Link href={registerHref} className="text-primary hover:underline font-medium">
           إنشاء حساب
         </Link>
       </p>

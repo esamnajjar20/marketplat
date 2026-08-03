@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useResetPassword } from '@/hooks/mutations/useAuthMutations';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { ROUTES } from '@/lib/constants';
-import { authApi } from '@/api/auth.api';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
 
@@ -15,6 +15,11 @@ interface Props { token: string; }
 
 export function ResetPasswordForm({ token }: Props) {
   const router = useRouter();
+  // AUDIT-FIX auth#3: was a hand-rolled useState/try-catch calling
+  // authApi.resetPassword directly — same fix as ForgotPasswordForm,
+  // see useForgotPassword's comment in useAuthMutations.ts.
+  const { mutate: resetPassword, isPending } = useResetPassword();
+
   const [password,  setPassword]  = useState('');
   const [confirm,   setConfirm]   = useState('');
   const [errors,    setErrors]    = useState<{ password?: string; confirm?: string }>({});
@@ -24,7 +29,6 @@ export function ResetPasswordForm({ token }: Props) {
   // the local validate() below and gets a 400 from the backend; without this,
   // it would only ever show as a generic toast with no field highlighted.
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
-  const [loading,   setLoading]   = useState(false);
 
   // UX-FIX P2-12: there's no dedicated "verify reset token" endpoint on
   // the backend (only POST /auth/reset-password validates it, as part of
@@ -52,21 +56,23 @@ export function ResetPasswordForm({ token }: Props) {
     return Object.keys(e).length === 0;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-    setLoading(true);
-    try {
-      await authApi.resetPassword({ token, newPassword: password });
-      toast.success('تم تغيير كلمة المرور بنجاح');
-      router.push(ROUTES.login);
-    } catch (err) {
-      const parsed = parseApiError(err);
-      setServerErrors(parsed.fieldErrors);
-      toast.error(parsed.message);
-    } finally {
-      setLoading(false);
-    }
+    resetPassword(
+      { token, newPassword: password },
+      {
+        onSuccess: () => {
+          toast.success('تم تغيير كلمة المرور بنجاح');
+          router.push(ROUTES.login);
+        },
+        onError: (err) => {
+          const parsed = parseApiError(err);
+          setServerErrors(parsed.fieldErrors);
+          toast.error(parsed.message);
+        },
+      },
+    );
   }
 
   if (missingToken) {
@@ -95,8 +101,8 @@ export function ResetPasswordForm({ token }: Props) {
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'جارٍ الحفظ…' : 'تعيين كلمة المرور'}
+      <Button type="submit" className="w-full" disabled={isPending}>
+        {isPending ? 'جارٍ الحفظ…' : 'تعيين كلمة المرور'}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">

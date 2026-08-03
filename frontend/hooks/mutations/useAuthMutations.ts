@@ -127,8 +127,8 @@ export function useRegister() {
   const router      = useRouter();
 
   return useMutation({
-    mutationFn: (payload: RegisterPayload) =>
-      authApi.register(payload).then((r) => unwrapData(r)),
+    mutationFn: ({ redirectTo, ...payload }: RegisterPayload & { redirectTo?: string }) =>
+      authApi.register(payload).then((r) => ({ ...unwrapData(r), redirectTo })),
 
     onSuccess: (data) => {
       setAuth(data.user, data.tokens);
@@ -141,7 +141,12 @@ export function useRegister() {
       // silent exception despite being a bigger, one-time moment for a
       // new user.
       toast.success(`مرحبًا ${data.user.name}! تم إنشاء حسابك بنجاح`);
-      router.push(ROUTES.dashboard);
+      // AUDIT-FIX auth#1: previously always pushed ROUTES.dashboard,
+      // ignoring a ?from= target carried over from middleware.ts (via
+      // /login?from=X → "إنشاء حساب" → here). Mirrors useLogin's
+      // AUTH-06 fix exactly — RegisterForm now passes the validated
+      // `from` value through the same way LoginForm does.
+      router.push(data.redirectTo ?? ROUTES.dashboard);
     },
 
     // API-INT-02 FIX: register can fail with 409 (email taken), 422 (validation).
@@ -149,6 +154,29 @@ export function useRegister() {
     onError: (err) => {
       toast.error(parseApiError(err).message);
     },
+  });
+}
+
+/**
+ * AUDIT-FIX auth#3: ForgotPasswordForm/ResetPasswordForm previously
+ * called authApi.forgotPassword/resetPassword directly with a hand-
+ * rolled useState/try-catch loading flag, the only two forms in this
+ * 4-file group not going through React Query like useLogin/useRegister
+ * above — no shared queryClient integration, no automatic
+ * cancel-on-unmount, slightly different retry behavior. Neither call
+ * needs any cache invalidation (there's no signed-in query state yet
+ * at this point in the flow), so these are the same shape as
+ * useLogin/useRegister minus the auth-store/cookie side effects.
+ */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (payload: { email: string }) => authApi.forgotPassword(payload),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (payload: { token: string; newPassword: string }) => authApi.resetPassword(payload),
   });
 }
 

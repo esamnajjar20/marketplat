@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useRegister } from '@/hooks/mutations/useAuthMutations';
 import { parseApiError } from '@/lib/errorParser';
+import { getSafeRedirectPath } from '@/lib/cookies';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
+import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES, CITIES } from '@/lib/constants';
 
 interface Errors {
@@ -15,7 +19,16 @@ interface Errors {
 }
 
 export function RegisterForm() {
+  const searchParams = useSearchParams();
   const { mutate: register, isPending } = useRegister();
+
+  // AUDIT-FIX auth#1: RegisterForm previously never read `from` at all,
+  // so a visitor who arrived here via /login?from=X → "إنشاء حساب" (or
+  // directly at /register?from=X) always landed on /dashboard after a
+  // successful signup instead of the page they originally wanted.
+  // Mirrors LoginForm's own from-handling exactly.
+  const from = searchParams.get('from');
+  const loginHref = from ? `${ROUTES.login}?from=${encodeURIComponent(from)}` : ROUTES.login;
 
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
@@ -49,8 +62,9 @@ export function RegisterForm() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
+    const redirectTo = getSafeRedirectPath(from, ROUTES.dashboard);
     register(
-      { name: name.trim(), email: email.trim(), password, phone: phone || undefined, city: city || undefined },
+      { name: name.trim(), email: email.trim(), password, phone: phone || undefined, city: city || undefined, redirectTo },
       {
         // UX-FIX P-REG-2: "email already in use" / "phone already in
         // use" arrive as a plain BadRequestError (400, general
@@ -109,33 +123,35 @@ export function RegisterForm() {
           onChange={(e) => setPhone(e.target.value)} placeholder="+970591234567" />
       </FormField>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="city" className="text-sm font-medium">المدينة <span className="text-muted-foreground text-xs">(اختياري)</span></label>
-        <select id="city" value={city} onChange={(e) => setCity(e.target.value)}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <option value="">اختر مدينتك</option>
-          {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
+      {/*
+        AUDIT-FIX auth#5: was a raw <select> with hand-rolled Tailwind
+        classes — visually close but not identical to the other 4
+        FormField/Input fields in this same form, and skipped FormField
+        entirely (no aria-describedby wiring). Every other <select> in
+        the app already goes through this same shadcn Select
+        (ProductForm, ServiceListingForm, BecomeStoreOwnerCard, ...);
+        this was the one native holdout.
+      */}
+      <FormField label="المدينة" htmlFor="city" hint="اختياري">
+        <Select value={city} onValueChange={setCity}>
+          <SelectTrigger id="city"><SelectValue placeholder="اختر مدينتك" /></SelectTrigger>
+          <SelectContent>
+            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </FormField>
 
       <Button type="submit" className="w-full mt-2" disabled={isPending}>
         {isPending ? 'جارٍ التسجيل…' : 'إنشاء الحساب'}
       </Button>
 
-      <div className="relative py-1">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-card px-2 text-muted-foreground">أو</span>
-        </div>
-      </div>
+      <AuthDivider />
 
       <GoogleAuthButton label="التسجيل باستخدام Google" />
 
       <p className="text-center text-sm text-muted-foreground">
         لديك حساب بالفعل؟{' '}
-        <Link href={ROUTES.login} className="text-primary hover:underline font-medium">تسجيل الدخول</Link>
+        <Link href={loginHref} className="text-primary hover:underline font-medium">تسجيل الدخول</Link>
       </p>
     </form>
   );

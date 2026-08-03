@@ -2,34 +2,55 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useForgotPassword } from '@/hooks/mutations/useAuthMutations';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { ROUTES } from '@/lib/constants';
-import { authApi } from '@/api/auth.api';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
 
 export function ForgotPasswordForm() {
-  const [email,   setEmail]   = useState('');
-  const [error,   setError]   = useState('');
-  const [sent,    setSent]    = useState(false);
-  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  // AUDIT-FIX auth#1 (propagation): keeps `from` alive on the
+  // "العودة لتسجيل الدخول" links below in case a visitor detoured
+  // through here from /login?from=X — same reasoning as LoginForm's
+  // own registerHref.
+  const from = searchParams.get('from');
+  const loginHref = from ? `${ROUTES.login}?from=${encodeURIComponent(from)}` : ROUTES.login;
 
-  async function handleSubmit(e: React.FormEvent) {
+  // AUDIT-FIX auth#3: was a hand-rolled useState/try-catch calling
+  // authApi.forgotPassword directly — the one form in this group of 4
+  // not using React Query like useLogin/useRegister already do.
+  const { mutate: forgotPassword, isPending } = useForgotPassword();
+
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [sent,  setSent]  = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) { setError('البريد الإلكتروني مطلوب'); return; }
     if (!/\S+@\S+\.\S+/.test(email)) { setError('بريد إلكتروني غير صالح'); return; }
     setError('');
-    setLoading(true);
-    try {
-      await authApi.forgotPassword({ email: email.trim() });
-      setSent(true);
-    } catch (err) {
-      toast.error(parseApiError(err).message);
-    } finally {
-      setLoading(false);
-    }
+    forgotPassword(
+      { email: email.trim() },
+      {
+        onSuccess: () => setSent(true),
+        // AUDIT-FIX auth#4: previously toast-only — unlike LoginForm/
+        // RegisterForm/ResetPasswordForm, which all also set a
+        // persistent on-page error. A toast disappears after a few
+        // seconds; this form is a single field with nothing else to
+        // fall back on for someone who glances back a moment later, so
+        // it now matches the other three forms in this group instead
+        // of being the one silent exception.
+        onError: (err) => {
+          setError(parseApiError(err).message);
+          toast.error(parseApiError(err).message);
+        },
+      },
+    );
   }
 
   if (sent) {
@@ -40,7 +61,7 @@ export function ForgotPasswordForm() {
         <p className="text-sm text-muted-foreground">
           أرسلنا رابط إعادة تعيين كلمة المرور إلى <span className="font-medium text-foreground">{email}</span>
         </p>
-        <Link href={ROUTES.login} className="block text-sm text-primary hover:underline">
+        <Link href={loginHref} className="block text-sm text-primary hover:underline">
           العودة لتسجيل الدخول
         </Link>
       </div>
@@ -59,12 +80,12 @@ export function ForgotPasswordForm() {
           placeholder="example@email.com" />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'جارٍ الإرسال…' : 'إرسال رابط الاسترداد'}
+      <Button type="submit" className="w-full" disabled={isPending}>
+        {isPending ? 'جارٍ الإرسال…' : 'إرسال رابط الاسترداد'}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        <Link href={ROUTES.login} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
+        <Link href={loginHref} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
       </p>
     </form>
   );
