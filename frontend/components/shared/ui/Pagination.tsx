@@ -17,6 +17,18 @@ interface PaginationProps {
   currentPage:  number;
   baseUrl:      string;
   searchParams?: Record<string, string | undefined>;
+  /**
+   * FIX BUG-09: defaults to 'page', unchanged for every existing caller.
+   * StoreProducts and StoreReviewsList render side-by-side on the same
+   * store page and previously both read/wrote the same bare `page`
+   * param through this component — paginating one section silently
+   * reset or jumped the other, since they shared one counter with no
+   * way to tell which section a `page=N` in the URL belonged to. This
+   * lets each section use its own param name (`productsPage` /
+   * `reviewsPage`) while keeping every other page's plain `?page=`
+   * links untouched.
+   */
+  pageParam?: string;
 }
 
 export function Pagination({
@@ -24,10 +36,11 @@ export function Pagination({
   currentPage,
   baseUrl,
   searchParams = {},
+  pageParam = 'page',
 }: PaginationProps) {
   function buildPageUrl(page: number): string {
     const params = new URLSearchParams(
-      Object.entries({ ...searchParams, page: String(page) })
+      Object.entries({ ...searchParams, [pageParam]: String(page) })
         .filter(([, v]) => v !== undefined) as [string, string][],
     );
     return `${baseUrl}?${params.toString()}`;

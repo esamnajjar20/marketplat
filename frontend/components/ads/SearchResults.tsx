@@ -9,18 +9,41 @@ import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAds, useSearchAds } from '@/hooks/queries/useAds';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { ROUTES } from '@/lib/constants';
+import { useCategoryBySlug } from '@/hooks/queries/useCategories';
 import type { AdSortField } from '@/types/ad.types';
 import { LayoutGrid, LayoutList, Search } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-export function SearchResults() {
+interface Props {
+  /**
+   * FIX BUG-01: when SearchResults is rendered from the category page
+   * (app/(public)/categories/[slug]/page.tsx), the category was never
+   * actually applied as a filter — this component only ever read
+   * `categoryId` from the URL's query string, which the category route
+   * never sets (the slug lives in the *path*, not a `?categoryId=`
+   * param). The grid silently fell back to the full, unfiltered browse
+   * query — visually identical to /search, so nothing looked "broken"
+   * at a glance even though the category filter did nothing.
+   *
+   * Passing the slug down explicitly and resolving it to an id here
+   * (via the already-prefetched useCategoryBySlug) means the category
+   * page's own filter no longer depends on a query param nobody sets.
+   */
+  categorySlug?: string;
+}
+
+export function SearchResults({ categorySlug }: Props = {}) {
   const sp   = useSearchParams();
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
   const q          = sp.get('q') ?? '';
   const page       = Number(sp.get('page') ?? 1);
-  const categoryId = sp.get('categoryId') ?? undefined;
+  // An explicit ?categoryId= in the URL (e.g. a sub-filter picked from
+  // SearchFilters while already on the category page) takes precedence
+  // over the route's own slug so users can still narrow further.
+  const categoryId = sp.get('categoryId') ?? slugCategory?.id ?? undefined;
   const city       = sp.get('city') ?? undefined;
   const condition  = sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | undefined;
   const minPrice   = sp.get('minPrice') ? Number(sp.get('minPrice')) : undefined;

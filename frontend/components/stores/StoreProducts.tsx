@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Package } from 'lucide-react';
 import { ProductCard } from './ProductCard';
@@ -22,12 +23,33 @@ interface Props {
  */
 export function StoreProducts({ storeId }: Props) {
   const sp = useSearchParams();
-  const page = Number(sp.get('page') ?? 1);
+  // FIX BUG-09: this used to read `page` from the same useSearchParams()
+  // as StoreReviewsList, both feeding into a <Pagination> that also
+  // shared the same baseUrl — paging one section silently reset/paged
+  // the other, since both were just reading/writing the same bare
+  // `page` param. Namespaced to `productsPage` so the two sections no
+  // longer collide; see StoreReviewsList's matching `reviewsPage` fix.
+  const page = Number(sp.get('productsPage') ?? 1);
+  // FIX BUG-08: `product` was set by ProductCard's link
+  // (/stores/:id?product=:productId) but nothing on this page ever
+  // read it back — clicking a product card just reloaded the same
+  // store page with an inert query param. Now used to scroll to and
+  // briefly highlight the matching card once the grid has loaded, so
+  // the link the card promises (drawing attention to that one product)
+  // is actually kept.
+  const highlightId = sp.get('product');
+  const highlightRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError, refetch } = useProducts({ storeId, page, limit: 12 });
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
+
+  useEffect(() => {
+    if (highlightId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightId, items]);
 
   if (isLoading) return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
 
@@ -56,7 +78,17 @@ export function StoreProducts({ storeId }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {items.map((product) => (
-          <ProductCard key={product.id} product={product} storeId={storeId} />
+          <div
+            key={product.id}
+            ref={product.id === highlightId ? highlightRef : undefined}
+            className={
+              product.id === highlightId
+                ? 'rounded-xl ring-2 ring-primary ring-offset-2 ring-offset-background transition-all'
+                : undefined
+            }
+          >
+            <ProductCard product={product} storeId={storeId} />
+          </div>
         ))}
       </div>
 
@@ -65,7 +97,10 @@ export function StoreProducts({ storeId }: Props) {
           totalPages={totalPages}
           currentPage={page}
           baseUrl={ROUTES.storeDetail(storeId)}
-          searchParams={Object.fromEntries(sp.entries())}
+          searchParams={Object.fromEntries(
+            Array.from(sp.entries()).filter(([k]) => k !== 'productsPage')
+          )}
+          pageParam="productsPage"
         />
       )}
     </div>

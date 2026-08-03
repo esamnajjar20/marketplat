@@ -8,20 +8,29 @@ import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
+import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import type { StoreWithSellerAndCounts } from '@/types/store.types';
 
 interface Props {
   store: StoreWithSellerAndCounts;
-  /** Whether the current user already follows this store — passed in
-   * from the server component that fetched the page, since the public
-   * store endpoint doesn't include per-viewer follow state. */
+  /**
+   * FIX BUG-03: this used to be required-in-spirit-but-never-passed —
+   * the public store endpoint doesn't include per-viewer follow state,
+   * and no caller ever supplied it, so the button always rendered as
+   * if logged out of any follow relationship. Now optional: if omitted,
+   * this component derives it itself via useIsFollowingStore(). Still
+   * accepted as an override for tests/Storybook or a future caller that
+   * already has the answer some other way.
+   */
   isFollowing?: boolean;
 }
 
-export function StoreHeader({ store, isFollowing }: Props) {
+export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
   const toggleFollow = useToggleStoreFollow();
+  const derivedIsFollowing = useIsFollowingStore(store.id);
+  const isFollowing = isFollowingProp ?? derivedIsFollowing;
   const isOwnStore = currentUser?.id === store.sellerProfile.userId;
   const avatar = getAvatarUrl(store.logoUrl ?? store.sellerProfile.avatarUrl ?? '', 96);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;

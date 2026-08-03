@@ -59,7 +59,7 @@ export function StoresGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد متاجر مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((store) => (
             <StoreCard key={store.id} store={store} />
           ))}

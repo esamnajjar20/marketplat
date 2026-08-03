@@ -1,22 +1,54 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button }  from '@/components/shared/ui/Button';
 import { Input }   from '@/components/shared/ui/Input';
 import { CITIES, CONDITION_LABELS, AD_SORT_OPTIONS, ROUTES } from '@/lib/constants';
-import { useCategories } from '@/hooks/queries/useCategories';
+import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
 import { SlidersHorizontal } from 'lucide-react';
 
-export function SearchFilters() {
+interface Props {
+  /** Present when rendered from the category page — see SearchResults' categorySlug prop for context. */
+  categorySlug?: string;
+}
+
+export function SearchFilters({ categorySlug }: Props = {}) {
   const router       = useRouter();
   const sp           = useSearchParams();
+  // FIX BUG-06: update() and the "reset" button both hardcoded
+  // ROUTES.search, so using this component from the category page
+  // (app/(public)/categories/[slug]/page.tsx) silently redirected every
+  // filter change — and the reset button — off the category page and
+  // onto /search, dropping the category context entirely. Reading the
+  // current path means filter changes stay on whichever page rendered
+  // this component.
+  const pathname     = usePathname();
   const { data: categories } = useCategories();
+  const { data: activeCategory } = useCategoryBySlug(categorySlug ?? '');
+  const activeCategoryId = sp.get('categoryId') ?? activeCategory?.id ?? '';
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set(key, value); else params.delete(key);
     params.delete('page');
-    router.push(`${ROUTES.search}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  // FIX BUG-06 (cont.): picking a category from this dropdown while on
+  // a category page should navigate to that category's own page (clean,
+  // shareable /categories/:slug URL, consistent with how the user got
+  // here) instead of piling a ?categoryId= param on top of the current
+  // slug, which would leave the two disagreeing about which category is
+  // actually active.
+  function updateCategory(categoryId: string) {
+    if (!categoryId) {
+      router.push(categorySlug ? ROUTES.search : pathname);
+      return;
+    }
+    const flat = (categories ?? []).flatMap((c) => [c, ...(c.children ?? [])]);
+    const match = flat.find((c) => c.id === categoryId);
+    if (match) router.push(ROUTES.category(match.slug));
+    else update('categoryId', categoryId);
   }
 
   return (
@@ -29,8 +61,8 @@ export function SearchFilters() {
       {/* Category */}
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الفئة</label>
-        <select value={sp.get('categoryId') ?? ''}
-          onChange={(e) => update('categoryId', e.target.value)}
+        <select value={activeCategoryId}
+          onChange={(e) => updateCategory(e.target.value)}
           className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
           <option value="">كل الفئات</option>
           {categories?.map((cat) => (
@@ -91,7 +123,7 @@ export function SearchFilters() {
             const params = new URLSearchParams(sp.toString());
             params.set('sortBy', sortBy); params.set('sortOrder', sortOrder);
             params.delete('page');
-            router.push(`${ROUTES.search}?${params.toString()}`);
+            router.push(`${pathname}?${params.toString()}`);
           }}
           className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
           {AD_SORT_OPTIONS.map((o) => (
@@ -101,7 +133,12 @@ export function SearchFilters() {
       </div>
 
       {/* Reset */}
-      <Button variant="outline" className="w-full text-sm" onClick={() => router.push(ROUTES.search)}>
+      {/* FIX BUG-06 (cont.): on /search this simply clears everything, but
+          on a category page it must stay put — routing to plain
+          ROUTES.search here would silently drop the category itself
+          (the whole reason the user is on this page) instead of just
+          clearing the extra filters layered on top of it. */}
+      <Button variant="outline" className="w-full text-sm" onClick={() => router.push(pathname)}>
         إعادة تعيين الفلاتر
       </Button>
     </div>

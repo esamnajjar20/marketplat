@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { LocateFixed, MapPinOff } from 'lucide-react';
+import Link from 'next/link';
+import { LocateFixed, MapPinOff, ListFilter } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
 import { useNearbyServiceProviders } from '@/hooks/queries/useServiceProviders';
+import { ROUTES } from '@/lib/constants';
 import type { NearbyServiceProvidersParams } from '@/types/service.types';
 
 type LocationState =
@@ -54,7 +56,7 @@ export function NearbyServiceProviders() {
 
   if (location.status === 'idle' || location.status === 'denied' || location.status === 'unsupported') {
     return (
-      <div className="rounded-xl border bg-card p-6 text-center">
+      <div className="rounded-xl border bg-card p-6 text-center space-y-4">
         <EmptyState
           icon={location.status === 'idle' ? <LocateFixed className="h-8 w-8" /> : <MapPinOff className="h-8 w-8" />}
           title={
@@ -80,6 +82,26 @@ export function NearbyServiceProviders() {
             )
           }
         />
+        {/*
+          FIX BUG-04: this page is fully GPS-gated — the backend only
+          exposes GET /service-providers/nearby (lat/lng required),
+          getById, and getMyProvider (verified via api/service-providers.api.ts;
+          there is no "list all" endpoint to fall back to). A user who
+          denies location access, or whose browser lacks geolocation,
+          previously had no path forward at all on this page.
+          /services *does* support browsing without a position (category/
+          city/price filters, no GPS requirement), so route them there
+          instead of leaving a dead end — same underlying service
+          listings, just not sorted by distance.
+        */}
+        {location.status !== 'idle' && (
+          <Button asChild variant="outline" className="gap-2">
+            <Link href={ROUTES.services}>
+              <ListFilter className="h-4 w-4" />
+              تصفّح كل الخدمات بدل ذلك
+            </Link>
+          </Button>
+        )}
       </div>
     );
   }

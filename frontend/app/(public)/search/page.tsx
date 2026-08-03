@@ -25,30 +25,54 @@ export default async function SearchPage({ searchParams }: Props) {
   const { q } = await searchParams;
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      <Suspense>
-        <SearchBox defaultValue={q ?? ''} />
-      </Suspense>
-      <Suspense>
-        <SearchTabsWrapper />
-      </Suspense>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <aside className="lg:col-span-1">
+    <div className="pb-8">
+      {/*
+        Same brand band treatment as the home hero (bg-primary, quiet
+        woven texture) but compressed to a slim utility strip — enough
+        to signal "you're still in سوق غزة", not enough to compete with
+        the results below, which are the actual job of this page.
+      */}
+      <div className="relative overflow-hidden bg-primary px-4 py-6 text-primary-foreground">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(135deg, currentColor 0, currentColor 1px, transparent 1px, transparent 14px)',
+          }}
+        />
+        <div className="relative container mx-auto space-y-4">
           <Suspense>
-            <SearchFilters />
+            <SearchBox
+              defaultValue={q ?? ''}
+              inputClassName="bg-primary-foreground text-foreground"
+            />
           </Suspense>
-        </aside>
-        <main className="lg:col-span-3">
-          <Suspense
-            fallback={
-              <div className="flex justify-center py-12">
-                <LoadingSpinner />
-              </div>
-            }
-          >
-            <SearchResults />
-          </Suspense>
-        </main>
+        </div>
+      </div>
+
+      <div className="container mx-auto space-y-6 px-4 pt-6">
+        <Suspense>
+          <SearchTabsWrapper />
+        </Suspense>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <aside className="lg:col-span-1">
+            <Suspense>
+              <SearchFilters />
+            </Suspense>
+          </aside>
+          <main className="lg:col-span-3">
+            <Suspense
+              fallback={
+                <div className="flex justify-center py-12">
+                  <LoadingSpinner />
+                </div>
+              }
+            >
+              <SearchResults />
+            </Suspense>
+          </main>
+        </div>
       </div>
     </div>
   );

@@ -20,6 +20,7 @@
  */
 import Link from 'next/link';
 import { AdDetail }       from '@/components/ads/AdDetail';
+import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
 import { RelatedAds }     from '@/components/ads/RelatedAds';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
@@ -86,6 +87,7 @@ export function AdDetailSection({ id }: { id: string }) {
 
   return (
     <div className="space-y-8">
+      <AdBreadcrumb ad={ad} />
       <AdDetail ad={ad} isFavorited={isFavorited} />
       <RelatedAds adId={id} />
     </div>

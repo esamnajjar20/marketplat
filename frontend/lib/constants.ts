@@ -1,4 +1,5 @@
 import type { AdSortField, AdSortOrder } from '@/types/ad.types';
+import type { StoreSortField } from '@/types/store.types';
 
 export const APP_NAME = 'سوق غزة';
 export const APP_URL  = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -129,6 +130,19 @@ export const AD_SORT_OPTIONS: readonly { label: string; sortBy: AdSortField; sor
   { label: 'السعر (أقل)',   sortBy: 'price',     sortOrder: 'asc'  },
   { label: 'السعر (أعلى)', sortBy: 'price',     sortOrder: 'desc' },
   { label: 'الأكثر مشاهدة', sortBy: 'views',    sortOrder: 'desc' },
+] as const;
+
+// FIX BUG-02: StoresGrid (components/stores/StoresGrid.tsx) already reads
+// and applies search/city/sortBy/sortOrder from the URL in full — the
+// backend/query layer support was always complete. Only a visible filter
+// UI was missing from the /stores page itself, leaving those params
+// reachable by hand-editing the URL only. Mirrors AD_SORT_OPTIONS' shape
+// so the new StoresFilters component can follow the same select pattern.
+export const STORE_SORT_OPTIONS: readonly { label: string; sortBy: StoreSortField; sortOrder: AdSortOrder }[] = [
+  { label: 'الأحدث', sortBy: 'createdAt', sortOrder: 'desc' },
+  { label: 'الأقدم', sortBy: 'createdAt', sortOrder: 'asc'  },
+  { label: 'الاسم (أ-ي)', sortBy: 'name', sortOrder: 'asc'  },
+  { label: 'الاسم (ي-أ)', sortBy: 'name', sortOrder: 'desc' },
 ] as const;
 
 /** Must match backend upload.middleware.ts: upload.array('images', 10) */

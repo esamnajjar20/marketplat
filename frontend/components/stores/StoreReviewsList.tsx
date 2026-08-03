@@ -18,7 +18,13 @@ interface Props {
 /** Mirrors ServiceReviewsList's layout exactly. */
 export function StoreReviewsList({ storeId }: Props) {
   const sp = useSearchParams();
-  const page = Number(sp.get('page') ?? 1);
+  // FIX BUG-09: was reading the same bare `page` param StoreProducts
+  // also reads/writes — paging either section moved both, since they
+  // shared one URL param with no way to distinguish which list a given
+  // page number applied to. Namespaced to `reviewsPage`; see
+  // StoreProducts' matching `productsPage` fix and Pagination's new
+  // pageParam prop.
+  const page = Number(sp.get('reviewsPage') ?? 1);
 
   const { data, isLoading, isError, refetch } = useStoreReviews(storeId, { page, limit: 10 });
 
@@ -88,7 +94,10 @@ export function StoreReviewsList({ storeId }: Props) {
           totalPages={totalPages}
           currentPage={page}
           baseUrl={ROUTES.storeDetail(storeId)}
-          searchParams={Object.fromEntries(sp.entries())}
+          searchParams={Object.fromEntries(
+            Array.from(sp.entries()).filter(([k]) => k !== 'reviewsPage')
+          )}
+          pageParam="reviewsPage"
         />
       )}
     </div>

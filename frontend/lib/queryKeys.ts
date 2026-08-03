@@ -57,6 +57,10 @@ export const queryKeys = {
     detail:   (id: string)      => ['stores', 'detail', id] as const,
     me:       ()                => ['stores', 'me'] as const,
     followed: (params?: object) => ['stores', 'followed', params ?? {}] as const,
+    // FIX BUG-03: mirrors queryKeys.favorites.ids() — a single cached
+    // Set<string> of followed store ids, populated by useMyFollowedStores
+    // and read reactively by useIsFollowingStore(). See hooks/queries/useStores.ts.
+    followedIds: ()              => ['stores', 'followed-ids'] as const,
   },
 
   // ── Store reviews ──────────────────────────────────────────────

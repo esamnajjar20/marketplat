@@ -27,11 +27,11 @@ export default async function CategoryPage({ params }: Props) {
         <CategoryHero slug={slug} />
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <aside className="lg:col-span-1">
-            <Suspense><SearchFilters /></Suspense>
+            <Suspense><SearchFilters categorySlug={slug} /></Suspense>
           </aside>
           <main className="lg:col-span-3">
             <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
-              <SearchResults />
+              <SearchResults categorySlug={slug} />
             </Suspense>
           </main>
         </div>

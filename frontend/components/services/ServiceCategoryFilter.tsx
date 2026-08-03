@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Search } from 'lucide-react';
 import { CITIES, ROUTES } from '@/lib/constants';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 
@@ -28,6 +28,30 @@ export function ServiceCategoryFilter() {
       <div className="flex items-center gap-2 font-semibold text-sm">
         <SlidersHorizontal className="h-4 w-4" />
         تصفية النتائج
+      </div>
+
+      {/*
+        FIX BUG-07: ServiceListingsGrid (components/services/ServiceListingsGrid.tsx)
+        has always read and applied `search` from the URL in full — only
+        a text input to actually set it was missing from this filter
+        panel, so the only way to search services by keyword was to
+        hand-edit the URL's ?search= param.
+      */}
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">بحث</label>
+        <div className="relative">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="search"
+            placeholder="ابحث عن خدمة…"
+            defaultValue={sp.get('search') ?? ''}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') update('search', (e.target as HTMLInputElement).value);
+            }}
+            onBlur={(e) => update('search', e.target.value)}
+            className="w-full h-9 rounded-md border border-input bg-transparent ps-9 pe-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
       </div>
 
       <div className="space-y-1.5">

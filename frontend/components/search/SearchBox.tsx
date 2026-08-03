@@ -8,9 +8,12 @@ import { Input } from '@/components/shared/ui/Input';
 import { Button } from '@/components/shared/ui/Button';
 import { SearchSuggestions } from '@/components/search/SearchSuggestions';
 import { ROUTES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface Props {
   defaultValue?: string;
+  /** Applied to the underlying Input — e.g. light-on-dark styling when rendered on a tinted band. */
+  inputClassName?: string;
 }
 
 /**
@@ -21,7 +24,7 @@ interface Props {
  * SearchFilters.tsx's own `update()` already treats every other filter
  * (it always keeps the rest of the URL's params intact).
  */
-export function SearchBox({ defaultValue = '' }: Props) {
+export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const [value, setValue] = useState(defaultValue);
@@ -66,7 +69,7 @@ export function SearchBox({ defaultValue = '' }: Props) {
             // it first and swallow the click.
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             placeholder="ابحث عن منتجات، محلات، إعلانات، خدمات..."
-            className="ps-9"
+            className={cn('ps-9', inputClassName)}
             aria-label="بحث"
             autoComplete="off"
           />

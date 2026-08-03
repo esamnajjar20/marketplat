@@ -13,10 +13,34 @@ import { formatPrice, formatDate } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useCategories } from '@/hooks/queries/useCategories';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
+
+/**
+ * FIX BUG-05: ROUTES.category() builds a /categories/:slug URL, but the
+ * ad's embedded category (AdCategory in ad.types.ts) only carries
+ * id/name/nameAr — the backend never selects `slug` on that relation
+ * (see ads.repository.ts), and AdCategory has no slug field to read in
+ * the first place. Linking with ad.category.id produced a route the
+ * [slug] page's useCategoryBySlug() could never resolve — a permanent
+ * 404 dressed up as a link that would appear to work.
+ *
+ * Full categories (with slug) are already fetched and cached elsewhere
+ * via useCategories() — reuse that cache to resolve id → slug instead of
+ * adding a new request. If the category can't be found in the list for
+ * any reason, fall back to the working, filter-equivalent /search?categoryId=
+ * route rather than linking to something broken.
+ */
+export function useCategoryHref(categoryId: string | undefined) {
+  const { data: categories } = useCategories();
+  if (!categoryId) return undefined;
+  const flat = (categories ?? []).flatMap((c) => [c, ...(c.children ?? [])]);
+  const match = flat.find((c) => c.id === categoryId);
+  return match ? ROUTES.category(match.slug) : `${ROUTES.search}?categoryId=${categoryId}`;
+}
 
 interface Props { ad: Ad; isFavorited?: boolean; }
 
@@ -28,6 +52,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   const images = ad.images.length > 0 ? ad.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
+  const categoryHref = useCategoryHref(ad.category?.id);
 
   function handleFavorite() {
     if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
@@ -119,8 +144,8 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ad.city}</span>
             <span className="flex items-center gap-1.5"><Eye className="h-4 w-4" />{ad.views} مشاهدة</span>
             <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{formatDate(ad.createdAt)}</span>
-            {ad.category && (
-              <Link href={ROUTES.category(ad.category.id)} className="flex items-center gap-1.5 hover:text-primary">
+            {ad.category && categoryHref && (
+              <Link href={categoryHref} className="flex items-center gap-1.5 hover:text-primary">
                 <Tag className="h-4 w-4" />{ad.category.nameAr}
               </Link>
             )}

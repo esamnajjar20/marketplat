@@ -50,6 +50,13 @@ export function useUpdateStore() {
  * on the store detail query's follower count would require guessing
  * the shape of `_count`, so this simply invalidates on settle — the
  * detail page refetches with the accurate count from the server.
+ *
+ * FIX BUG-03 (cont.): also update queryKeys.stores.followedIds()
+ * directly and synchronously here — this is the Set useIsFollowingStore
+ * reads to decide the button's label. Without this, the button only
+ * flipped after the invalidated followed-list query finished refetching
+ * (a visible lag, and it stayed wrong the whole time for a logged-in
+ * user acting on their own toggle).
  */
 export function useToggleStoreFollow() {
   const queryClient = useQueryClient();
@@ -57,6 +64,11 @@ export function useToggleStoreFollow() {
   return useMutation({
     mutationFn: (storeId: string) => storesApi.toggleFollow(storeId).then((r) => r.data.data),
     onSuccess: (data, storeId) => {
+      queryClient.setQueryData<Set<string>>(queryKeys.stores.followedIds(), (prev) => {
+        const idSet = new Set(prev ?? []);
+        if (data?.action === 'followed') idSet.add(storeId); else idSet.delete(storeId);
+        return idSet;
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.detail(storeId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.followed() });
       toast.success(data?.action === 'followed' ? 'تمت متابعة المتجر' : 'تم إلغاء متابعة المتجر');
