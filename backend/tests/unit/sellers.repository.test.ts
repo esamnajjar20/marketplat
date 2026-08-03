@@ -19,6 +19,7 @@ const mockTx = {
   sellerProfile: { create: jest.fn(), update: jest.fn() },
   sellerRating: { aggregate: jest.fn() },
   serviceReview: { aggregate: jest.fn() },
+  storeReview: { aggregate: jest.fn() },
 } as any;
 
 describe('sellersRepository', () => {
@@ -152,6 +153,7 @@ describe('sellersRepository', () => {
     it('averages combined ad-rating and service-review scores', async () => {
       mockTx.sellerRating.aggregate.mockResolvedValue({ _sum: { score: 12 }, _count: { score: 3 } });
       mockTx.serviceReview.aggregate.mockResolvedValue({ _sum: { score: 8 }, _count: { score: 2 } });
+      mockTx.storeReview.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
       mockTx.sellerProfile.update.mockResolvedValue({});
 
       await sellersRepository.recomputeRatingAggregate(mockTx, sellerProfileId);
@@ -166,6 +168,7 @@ describe('sellersRepository', () => {
     it('guards against division by zero when there are no ratings from either source', async () => {
       mockTx.sellerRating.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
       mockTx.serviceReview.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
+      mockTx.storeReview.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
       mockTx.sellerProfile.update.mockResolvedValue({});
 
       await sellersRepository.recomputeRatingAggregate(mockTx, sellerProfileId);
@@ -179,6 +182,7 @@ describe('sellersRepository', () => {
     it('computes correctly when only ad ratings exist (service reviews empty)', async () => {
       mockTx.sellerRating.aggregate.mockResolvedValue({ _sum: { score: 15 }, _count: { score: 3 } });
       mockTx.serviceReview.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
+      mockTx.storeReview.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
       mockTx.sellerProfile.update.mockResolvedValue({});
 
       await sellersRepository.recomputeRatingAggregate(mockTx, sellerProfileId);
@@ -192,6 +196,7 @@ describe('sellersRepository', () => {
     it('computes correctly when only service reviews exist (ad ratings empty)', async () => {
       mockTx.sellerRating.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
       mockTx.serviceReview.aggregate.mockResolvedValue({ _sum: { score: 9 }, _count: { score: 3 } });
+      mockTx.storeReview.aggregate.mockResolvedValue({ _sum: { score: null }, _count: { score: 0 } });
       mockTx.sellerProfile.update.mockResolvedValue({});
 
       await sellersRepository.recomputeRatingAggregate(mockTx, sellerProfileId);

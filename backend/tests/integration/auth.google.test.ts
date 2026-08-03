@@ -235,8 +235,13 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     const res = await request(app).get('/api/v1/auth/google/callback').redirects(0);
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toContain('/login');
-    expect(res.headers.location).toContain('error=google_auth_failed');
+    // FIX OAUTH-01: a Passport-level failure (extractGoogleProfile
+    // throwing on no usable email → done(error, undefined)) hits the
+    // callback route's `if (err || !profile)` branch, which redirects
+    // to the internal /auth/google/failure route first — that route
+    // is what redirects on to /login?error=google_auth_failed. With
+    // .redirects(0) above, only this first hop is observable here.
+    expect(res.headers.location).toContain('/api/v1/auth/google/failure');
 
     const setCookieHeader = (res.headers['set-cookie'] as unknown as string[]) ?? [];
     expect(setCookieHeader.find((c) => c.startsWith('refreshToken='))).toBeUndefined();

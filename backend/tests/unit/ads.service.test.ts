@@ -9,6 +9,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { AdCreationLockedError } from '../../src/shared/utils/adLock';
 import { ROLES } from '../../src/shared/constants/roles';
 import { createTestUser } from '../helpers/auth.helper';
+import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 
 jest.mock('../../src/modules/ads/ads.repository');
 jest.mock('../../src/config/env', () => ({
@@ -57,6 +58,7 @@ describe('AdsService', () => {
       // against the real (unmocked) prisma client — a fake hardcoded
       // string ID would violate the ads_userId_fkey constraint.
       userId = (await createTestUser({ email: `ads-test-${Date.now()}-${Math.random()}@example.com` })).id;
+      await createTestSellerProfile(userId);
       // Default: user is well under the cap unless a test overrides this.
       (adsRepository.countActiveByUserId as jest.Mock).mockResolvedValue(0);
     });
@@ -295,6 +297,7 @@ describe('AdsService', () => {
       const { id: realUserId } = await createTestUser({
         email: `ads-cache-test-${Date.now()}-${Math.random()}@example.com`,
       });
+      await createTestSellerProfile(realUserId);
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
       (adsRepository.countActiveByUserId as jest.Mock).mockResolvedValue(0);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'https://example.com/x.jpg', publicId: 'x' });
@@ -456,21 +459,23 @@ describe('AdsService', () => {
     });
 
     it('removes image and calls cloudinary delete', async () => {
-      (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
+      const adWithTwoImages = { ...mockAd, images: [...mockAd.images, 'https://res.cloudinary.com/demo/image/upload/v1/ads/photo2.jpg'] };
+      (adsRepository.findById as jest.Mock).mockResolvedValue(adWithTwoImages);
       (deleteImage as jest.Mock).mockResolvedValue(undefined);
       (adsRepository.removeImage as jest.Mock).mockResolvedValue(mockAd);
 
-      await adsService.removeImage('ad-1', 'user-1', ROLES.USER, mockAd.images[0]);
+      await adsService.removeImage('ad-1', 'user-1', ROLES.USER, adWithTwoImages.images[0]);
       expect(deleteImage).toHaveBeenCalled();
     });
 
     it('continues when cloudinary delete fails', async () => {
-      (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
+      const adWithTwoImages = { ...mockAd, images: [...mockAd.images, 'https://res.cloudinary.com/demo/image/upload/v1/ads/photo2.jpg'] };
+      (adsRepository.findById as jest.Mock).mockResolvedValue(adWithTwoImages);
       (deleteImage as jest.Mock).mockRejectedValue(new Error('Cloudinary error'));
       (adsRepository.removeImage as jest.Mock).mockResolvedValue(mockAd);
 
       await expect(
-        adsService.removeImage('ad-1', 'user-1', ROLES.USER, mockAd.images[0])
+        adsService.removeImage('ad-1', 'user-1', ROLES.USER, adWithTwoImages.images[0])
       ).resolves.toBeDefined();
     });
   });

@@ -66,7 +66,13 @@ describe('config/env — REDIS_PASSWORD production requirement', () => {
     jest.resetModules();
 
     const { env } = await import('../../src/config/env');
-    expect(env.redis.password).toBeUndefined();
+    // Falsy, not strictly undefined: a local .env/.env.test defining
+    // REDIS_PASSWORD= (empty) makes dotenv.config() repopulate it as ''
+    // on this fresh module import even after delete() above — env.ts's
+    // own production check (!data.REDIS_PASSWORD) and any real Redis
+    // client both treat '' and undefined identically as "no password",
+    // so that's the behavior worth asserting here.
+    expect(env.redis.password).toBeFalsy();
   });
 
   it('starts normally in test with no REDIS_PASSWORD (unauthenticated local Redis still allowed)', async () => {
@@ -75,6 +81,6 @@ describe('config/env — REDIS_PASSWORD production requirement', () => {
     jest.resetModules();
 
     const { env } = await import('../../src/config/env');
-    expect(env.redis.password).toBeUndefined();
+    expect(env.redis.password).toBeFalsy();
   });
 });

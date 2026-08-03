@@ -2,6 +2,7 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { createTestUser } from '../helpers/auth.helper';
 import { createTestAd } from '../helpers/ad.helper';
+import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 import { createTestCategory } from '../helpers/category.helper';
 import { env } from '../../src/config/env';
 
@@ -197,6 +198,7 @@ describe('Ads API — extended coverage', () => {
   describe('POST /api/v1/ads — MAX_ADS_PER_USER cap', () => {
     it('rejects ad creation with 400 once the user is at the active-ad cap', async () => {
       const user = await createTestUser();
+      await createTestSellerProfile(user.id);
 
       // Seed the user up to exactly the cap using direct DB inserts —
       // far faster than going through the real (image-upload-backed)
@@ -223,6 +225,7 @@ describe('Ads API — extended coverage', () => {
 
     it('does NOT count SOLD or DELETED ads against the cap', async () => {
       const user = await createTestUser();
+      await createTestSellerProfile(user.id);
 
       // One seed ad at SOLD status and one at DELETED status — neither
       // should count toward the active cap, however high it's configured.

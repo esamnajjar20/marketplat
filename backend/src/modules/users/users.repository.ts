@@ -29,6 +29,12 @@ const safeUserSelect = {
   // toggle state from here instead of always defaulting to hardcoded
   // values regardless of what was previously saved.
   notificationPreferences: true,
+  // FIX OAUTH-01: SafeUser (Omit<User, 'passwordHash'>) picked up these
+  // two columns as soon as the Google OAuth migration added them to the
+  // User model — select them here too, or every SafeUser-typed query
+  // result is structurally missing them.
+  provider: true,
+  googleId: true,
   createdAt: true,
   updatedAt: true,
 } as const;

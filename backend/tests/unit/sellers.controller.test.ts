@@ -201,7 +201,7 @@ describe('sellersController', () => {
   });
 
   describe('verifySeller', () => {
-    it('returns 200 with the updated profile on success (no auth check in this controller)', async () => {
+    it('returns 200 with the updated profile on success', async () => {
       const req = mockRequest({ params: { id: 'seller-profile-1' }, body: { verified: true } });
       const res = mockResponse();
       const next = mockNext();
@@ -213,7 +213,7 @@ describe('sellersController', () => {
       await sellersController.verifySeller(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(sellersService.setVerification).toHaveBeenCalledWith('seller-profile-1', true);
+      expect(sellersService.setVerification).toHaveBeenCalledWith('seller-profile-1', true, 'user-1');
     });
 
     it('calls next(error) when verified is not a boolean', async () => {
@@ -254,7 +254,7 @@ describe('sellersController', () => {
       await sellersController.suspendSeller(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(sellersService.setSuspension).toHaveBeenCalledWith('seller-profile-1', true);
+      expect(sellersService.setSuspension).toHaveBeenCalledWith('seller-profile-1', true, 'user-1');
     });
 
     it('calls next(error) when suspended is not a boolean', async () => {

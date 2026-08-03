@@ -115,6 +115,16 @@ export const usersService = {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, passwordHash: true } });
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
+    // FIX OAUTH-01: passwordHash is null for OAuth-only accounts (no
+    // local password was ever set), so there's nothing for
+    // currentPassword to be compared against.
+    if (!user.passwordHash) {
+      throw new BadRequestError(
+        'This account has no password set (signed up via Google) — password change is not available',
+        'NO_PASSWORD_SET'
+      );
+    }
+
     const valid = await comparePassword(currentPassword, user.passwordHash);
     if (!valid) throw new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID');
 

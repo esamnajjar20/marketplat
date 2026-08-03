@@ -24,6 +24,8 @@ const safeUserSelect = {
   avatarUrl: true,
   isActive: true,
   notificationPreferences: true,
+  provider: true,
+  googleId: true,
   createdAt: true,
   updatedAt: true,
 };

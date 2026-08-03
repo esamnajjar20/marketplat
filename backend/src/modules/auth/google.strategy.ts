@@ -114,10 +114,21 @@ export function configureGoogleStrategy(): void {
           // User row) and assigns it to req.googleProfile, which
           // authController.googleCallback then hands to
           // authService.loginWithGoogle() to do the actual
-          // find-or-create/link. VerifyCallback's second parameter is
-          // typed `any` by @types/passport, so no unsafe cast is
-          // needed here despite this not being an actual Express.User.
-          done(null, data);
+          // find-or-create/link.
+          //
+          // FIX TYPES-01: VerifyCallback's second parameter is typed
+          // as `Express.User | false | undefined` by @types/passport,
+          // not `any` — that only appeared to be `any` before because
+          // Express.User was an empty `{}` (which accepts any object).
+          // Now that express.d.ts augments Express.User with real
+          // shape (JwtPayload & { role }), TS correctly flags
+          // GoogleProfileData as incompatible. The cast below is
+          // deliberate and safe: `data` is never read back out as
+          // req.user (session: false means Passport never calls
+          // serializeUser/sets req.user here) — only as
+          // req.googleProfile, typed and consumed as GoogleProfileData
+          // everywhere it's actually used.
+          done(null, data as unknown as Express.User);
         } catch (error) {
           done(error as Error, undefined);
         }

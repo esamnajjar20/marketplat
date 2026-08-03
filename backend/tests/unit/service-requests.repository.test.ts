@@ -69,6 +69,7 @@ describe('serviceRequestsRepository', () => {
         include: {
           listing: { include: { provider: { include: { sellerProfile: true } } } },
           customer: { select: { id: true, name: true, avatarUrl: true } },
+          review: { select: { id: true } },
         },
       });
     });

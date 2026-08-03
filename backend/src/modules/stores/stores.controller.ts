@@ -110,7 +110,7 @@ export const storesController = {
   getMyFollowedStores: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { query } = paginationQuerySchema.parse(req.query);
+      const query = paginationQuerySchema.parse(req.query);
       const result = await storesService.getMyFollowedStores(user.userId, query);
       res
         .status(200)

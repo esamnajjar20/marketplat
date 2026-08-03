@@ -217,7 +217,7 @@ describe('storesController', () => {
 
   describe('updateStoreStatus', () => {
     it('returns 200 with the updated store on success', async () => {
-      const req = mockRequest({ params: { id: 'store-1' }, body: { status: 'ACTIVE' } });
+      const req = mockRequest({ params: { id: 'store-1' }, body: { status: 'ACTIVE' }, user: authUser } as any);
       const res = mockResponse();
       const next = mockNext();
       const updated = { ...mockStore, status: 'ACTIVE' };

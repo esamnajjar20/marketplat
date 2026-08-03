@@ -54,10 +54,13 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
     queryFn: () =>
       conversationsApi
         .getMessages(conversationId, params)
-        .then((r) => ({
-          ...r.data.data,
-          items: [...r.data.data.items].reverse(),
-        })),
+        .then((r) => {
+          const data = r.data.data ?? {
+            items: [],
+            meta: { total: 0, page: 1, limit: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false },
+          };
+          return { ...data, items: [...data.items].reverse() };
+        }),
     staleTime: CACHE_TTL.messages,
     refetchInterval: CACHE_TTL.messages,
     enabled: isAuthenticated && Boolean(conversationId),

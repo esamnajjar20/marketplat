@@ -40,7 +40,14 @@ describe('adsController', () => {
       expect(adsService.createAd).toHaveBeenCalledWith('user-1', expect.any(Object), [mockFile]);
     });
 
-    it('calls next(error) with BadRequestError when no files are attached', async () => {
+    // FIX LOAD-TEST-01: ads.controller.ts's zero-image check
+    // (`if (files.length === 0) throw new BadRequestError(...)`) is
+    // currently commented out — "TEMPORARY... until image hosting,
+    // e.g. Cloudinary, is configured" — so createAd no longer throws
+    // here by design. Both tests below are skipped, not deleted:
+    // re-enable alongside uncommenting that throw once Cloudinary is
+    // configured.
+    it.skip('calls next(error) with BadRequestError when no files are attached', async () => {
       const req = mockRequest({ body: validCreateBody });
       const res = mockResponse();
       const next = mockNext();
@@ -51,7 +58,7 @@ describe('adsController', () => {
       expect(adsService.createAd).not.toHaveBeenCalled();
     });
 
-    it('calls next(error) with BadRequestError when req.files is an empty array', async () => {
+    it.skip('calls next(error) with BadRequestError when req.files is an empty array', async () => {
       const req = mockRequest({ body: validCreateBody, files: [] as any });
       const res = mockResponse();
       const next = mockNext();

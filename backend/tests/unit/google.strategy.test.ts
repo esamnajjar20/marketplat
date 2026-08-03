@@ -134,7 +134,7 @@ describe('google.strategy', () => {
       configureGoogleStrategy();
 
       expect(useSpy).toHaveBeenCalledTimes(1);
-      expect(useSpy.mock.calls[0][0].name).toBe('google');
+      expect((useSpy.mock.calls[0][0] as unknown as { name: string }).name).toBe('google');
 
       useSpy.mockRestore();
     });

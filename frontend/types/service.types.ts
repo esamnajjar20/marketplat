@@ -54,7 +54,7 @@ export interface ServiceProviderDetails {
 
 /** GET /service-providers/:id — public page, includes parent seller trust data. */
 export type ServiceProviderPublic = ServiceProviderDetails & {
-  sellerProfile: Pick<SellerProfile, 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings'>;
+  sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings'>;
   listings: ServiceListing[];
 };
 
