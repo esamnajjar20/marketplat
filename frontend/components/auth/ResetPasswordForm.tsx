@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useResetPassword } from '@/hooks/mutations/useAuthMutations';
 import { Button }    from '@/components/shared/ui/Button';
-import { Input }     from '@/components/shared/ui/Input';
+import { PasswordInput } from '@/components/shared/ui/PasswordInput';
 import { FormField } from '@/components/shared/forms/FormField';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -92,12 +92,12 @@ export function ResetPasswordForm({ token }: Props) {
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       <FormField label="كلمة المرور الجديدة" htmlFor="password" required error={fieldError('password')}
         hint="8 أحرف على الأقل">
-        <Input id="password" type="password" dir="ltr" autoComplete="new-password"
+        <PasswordInput id="password" dir="ltr" autoComplete="new-password"
           value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
       </FormField>
 
       <FormField label="تأكيد كلمة المرور" htmlFor="confirm" required error={fieldError('confirm')}>
-        <Input id="confirm" type="password" dir="ltr" autoComplete="new-password"
+        <PasswordInput id="confirm" dir="ltr" autoComplete="new-password"
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
 

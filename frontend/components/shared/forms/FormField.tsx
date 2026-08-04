@@ -29,7 +29,10 @@ interface FormFieldProps {
   label:     string;
   htmlFor:   string;
   error?:    string;
-  hint?:     string;
+  // ReactNode (not just string) so a hint can carry live-validation
+  // feedback (e.g. a checkmark that turns green once a rule is met),
+  // not just static help text. Existing string hints keep working as-is.
+  hint?:     ReactNode;
   required?: boolean;
   children:  ReactNode | ((ids: { errorId?: string; hintId?: string }) => ReactNode);
   className?: string;

@@ -64,21 +64,28 @@ export function ActiveSessionsList() {
 
       <div className="space-y-3">
         {list.map((s) => (
-          <div key={s.sessionId} className="flex items-center justify-between p-3 rounded-lg border">
-            <div className="flex items-center gap-3">
+          <div key={s.sessionId} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
+            <div className="flex items-start gap-3 min-w-0">
               {s.userAgent?.includes('Mobile') || s.userAgent?.includes('Android') || s.userAgent?.includes('iPhone')
-                ? <Smartphone className="h-5 w-5 text-muted-foreground" />
-                : <Monitor className="h-5 w-5 text-muted-foreground" />}
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate max-w-[200px]">{s.userAgent ?? 'جهاز غير معروف'}</p>
+                ? <Smartphone className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                : <Monitor className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />}
+              {/*
+                UX-FIX: was `truncate max-w-[200px]`, which cut long user-agent
+                strings off mid-word inside the fixed-width card instead of
+                wrapping them. break-words lets long unbroken tokens (like a
+                UA string or IP) wrap onto a new line instead of overflowing
+                or being silently truncated.
+              */}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium break-words">{s.userAgent ?? 'جهاز غير معروف'}</p>
                   {s.isCurrent && <Badge variant="default" className="text-xs">الجلسة الحالية</Badge>}
                 </div>
-                <p className="text-xs text-muted-foreground">IP: {s.ip} · آخر نشاط: {formatDate(s.lastSeen)}</p>
+                <p className="text-xs text-muted-foreground break-words">IP: {s.ip} · آخر نشاط: {formatDate(s.lastSeen)}</p>
               </div>
             </div>
             {!s.isCurrent && (
-              <Button variant="ghost" size="sm" disabled={pendingSessionId === s.sessionId}
+              <Button variant="ghost" size="sm" className="shrink-0" disabled={pendingSessionId === s.sessionId}
                 onClick={() => handleRevoke(s.sessionId)}>
                 {pendingSessionId === s.sessionId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'إنهاء'}
               </Button>

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useLogin } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
+import { PasswordInput } from '@/components/shared/ui/PasswordInput';
 import { FormField } from '@/components/shared/forms/FormField';
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
@@ -107,9 +108,8 @@ export function LoginForm() {
       </FormField>
 
       <FormField label="كلمة المرور" htmlFor="password" required error={errors.password}>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

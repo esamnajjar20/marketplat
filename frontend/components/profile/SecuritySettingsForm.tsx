@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 import { Button }    from '@/components/shared/ui/Button';
-import { Input }     from '@/components/shared/ui/Input';
+import { PasswordInput } from '@/components/shared/ui/PasswordInput';
 import { FormField } from '@/components/shared/forms/FormField';
+import { cn } from '@/lib/utils';
 import { useChangePassword } from '@/hooks/mutations/useAuthMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
@@ -79,15 +81,23 @@ export function SecuritySettingsForm() {
     <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-lg">
       <h2 className="font-semibold">تغيير كلمة المرور</h2>
       <FormField label="كلمة المرور الحالية" htmlFor="current" required error={errors.current}>
-        <Input id="current" type="password" dir="ltr" autoComplete="current-password"
+        <PasswordInput id="current" dir="ltr" autoComplete="current-password"
           value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="••••••••" />
       </FormField>
-      <FormField label="كلمة المرور الجديدة" htmlFor="newp" required error={errors.newPass} hint="8 أحرف على الأقل">
-        <Input id="newp" type="password" dir="ltr" autoComplete="new-password"
+      <FormField
+        label="كلمة المرور الجديدة" htmlFor="newp" required error={errors.newPass}
+        hint={
+          <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-green-600')}>
+            {newPass.length >= 8 && <Check className="h-3.5 w-3.5" />}
+            8 أحرف على الأقل
+          </span>
+        }
+      >
+        <PasswordInput id="newp" dir="ltr" autoComplete="new-password"
           value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="••••••••" />
       </FormField>
       <FormField label="تأكيد كلمة المرور" htmlFor="confirmp" required error={errors.confirm}>
-        <Input id="confirmp" type="password" dir="ltr" autoComplete="new-password"
+        <PasswordInput id="confirmp" dir="ltr" autoComplete="new-password"
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
       <Button type="submit" disabled={changePassword.isPending}>

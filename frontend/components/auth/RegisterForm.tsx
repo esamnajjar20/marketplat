@@ -8,6 +8,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { getSafeRedirectPath } from '@/lib/cookies';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
+import { PasswordInput } from '@/components/shared/ui/PasswordInput';
 import { FormField } from '@/components/shared/forms/FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
@@ -15,7 +16,7 @@ import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES, CITIES } from '@/lib/constants';
 
 interface Errors {
-  name?: string; email?: string; password?: string; phone?: string;
+  name?: string; email?: string; password?: string; confirmPassword?: string; phone?: string;
 }
 
 export function RegisterForm() {
@@ -33,6 +34,7 @@ export function RegisterForm() {
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [phone,    setPhone]    = useState('');
   const [city,     setCity]     = useState('');
   const [errors,   setErrors]   = useState<Errors>({});
@@ -53,6 +55,8 @@ export function RegisterForm() {
     else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'بريد إلكتروني غير صالح';
     if (!password)       e.password = 'كلمة المرور مطلوبة';
     else if (password.length < 8) e.password = 'كلمة المرور 8 أحرف على الأقل';
+    if (!confirmPassword)              e.confirmPassword = 'تأكيد كلمة المرور مطلوب';
+    else if (confirmPassword !== password) e.confirmPassword = 'كلمتا المرور غير متطابقتين';
     if (phone && !/^[0-9+]{9,15}$/.test(phone)) e.phone = 'رقم هاتف غير صالح';
     setErrors(e);
     setServerErrors(undefined);
@@ -114,8 +118,13 @@ export function RegisterForm() {
 
       <FormField label="كلمة المرور" htmlFor="password" required error={fieldError('password')}
         hint="8 أحرف على الأقل">
-        <Input id="password" type="password" autoComplete="new-password" dir="ltr" value={password}
+        <PasswordInput id="password" autoComplete="new-password" dir="ltr" value={password}
           onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+      </FormField>
+
+      <FormField label="تأكيد كلمة المرور" htmlFor="confirmPassword" required error={fieldError('confirmPassword')}>
+        <PasswordInput id="confirmPassword" autoComplete="new-password" dir="ltr" value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
       </FormField>
 
       <FormField label="رقم الهاتف" htmlFor="phone" error={fieldError('phone')} hint="اختياري">
