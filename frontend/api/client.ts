@@ -89,8 +89,28 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const isRefreshCall = original?.url?.includes('/auth/refresh');
+    // BUG-FIX: a wrong email/password on /auth/login (and a rejected
+    // /auth/register, e.g. duplicate email) also returns 401 —
+    // see auth.service.ts's UnauthorizedError('Invalid email or
+    // password', 'INVALID_CREDENTIALS'). Before this check, that 401
+    // was indistinguishable here from a real expired-session 401, so
+    // every wrong-password attempt on the login form triggered this
+    // same silent-refresh path: a doomed /auth/refresh call (no
+    // session exists yet to refresh), which itself then failed and
+    // fell into the catch block below — clearing cookies, showing the
+    // wrong toast ("انتهت جلستك" / "your session expired", which makes
+    // no sense for someone who was never logged in), and hard-
+    // redirecting via window.location.href back to /login after 1.2s.
+    // That hard navigation is what looked like "the page refreshes
+    // every time I type the wrong password" — it also wiped whatever
+    // the user had already typed into the form. LoginForm/RegisterForm
+    // already handle their own 401s via useLogin/useRegister's onError
+    // (a toast with the real "invalid email or password" message, no
+    // navigation) — this exclusion lets that existing handling run
+    // instead of the session-refresh path hijacking it.
+    const isAuthEntryCall = original?.url?.includes('/auth/login') || original?.url?.includes('/auth/register');
 
-    if (error.response?.status !== 401 || original._retry || isRefreshCall) {
+    if (error.response?.status !== 401 || original._retry || isRefreshCall || isAuthEntryCall) {
       return Promise.reject(parseApiError(error));
     }
 

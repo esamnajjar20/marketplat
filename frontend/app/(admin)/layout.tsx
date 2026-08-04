@@ -16,6 +16,7 @@
 
 import { useEffect }    from 'react';
 import { useRouter }    from 'next/navigation';
+import { toast }        from 'sonner';
 import {
   useAuthStore,
   selectIsAuthenticated,
@@ -43,7 +44,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     if (!isAdmin) {
-      // Authenticated but not admin → silently redirect to dashboard.
+      // AUDIT-FIX (admin #3): was a fully silent redirect — a signed-in
+      // non-admin landing on /admin/* (mistyped URL, curiosity, a stale
+      // link) was bounced to /dashboard with zero feedback, unable to
+      // tell whether the link was broken or they simply lacked access.
+      // The redirect itself was never the problem (the actual
+      // protection is correct); only the missing explanation was.
+      toast.error('هذه الصفحة مخصصة للمشرفين فقط');
       router.replace('/dashboard');
     }
   }, [isAuthenticated, isAdmin, isResolved, router]);

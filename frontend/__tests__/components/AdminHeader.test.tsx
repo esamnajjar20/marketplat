@@ -2,10 +2,18 @@
  * __tests__/components/AdminHeader.test.tsx
  *
  * AdminHeader's real logic: displays the current user's name, and its
- * logout handler always clears local state and redirects to /login
- * (via `finally`) even if the server-side logout API call fails —
- * this resilience guarantee is the one thing worth pinning down with
- * a real test rather than just a render smoke test.
+ * logout button wires the shared useLogout() mutation's pending state
+ * into the button's disabled state.
+ *
+ * AUDIT-FIX (admin #1 — critical): AdminHeader used to hand-roll its
+ * own handleLogout (authApi.logout() + useAuthStore's logout() +
+ * router.push) instead of using the already-existing useLogout() hook
+ * — which additionally clears auth cookies, the service worker API
+ * cache, and the React Query cache (see useAuthMutations.ts's
+ * useClearLocalSession). That left admin-role cookies and a full
+ * React Query cache of admin data readable in the browser after
+ * "logging out". Now uses useLogout() directly, the same hook and the
+ * same mocking pattern as UserMenu.test.tsx.
  *
  * FIX INTEG-09: the notifications bell previously had no onClick at
  * all. It now links to /admin/reports and shows the live openReports
@@ -17,22 +25,15 @@ import userEvent from '@testing-library/user-event';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { useAuthStore } from '@/store/auth.store';
 import { useAdminStats } from '@/hooks/queries/useAdmin';
-import { authApi } from '@/api/auth.api';
-import { ROUTES } from '@/lib/constants';
-
-const mockPush = vi.fn();
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-}));
+import { useLogout } from '@/hooks/mutations/useAuthMutations';
 
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
   selectUser: (s: { user: unknown }) => s.user,
-  selectLogout: (s: { logout: () => void }) => s.logout,
 }));
 
-vi.mock('@/api/auth.api', () => ({
-  authApi: { logout: vi.fn() },
+vi.mock('@/hooks/mutations/useAuthMutations', () => ({
+  useLogout: vi.fn(),
 }));
 
 vi.mock('@/hooks/queries/useAdmin', () => ({
@@ -40,15 +41,20 @@ vi.mock('@/hooks/queries/useAdmin', () => ({
 }));
 
 const mockUseAuthStore = vi.mocked(useAuthStore);
-const mockLogoutAction = vi.fn();
+const mockUseLogout = vi.mocked(useLogout);
+const mockLogoutMutate = vi.fn();
 
 describe('AdminHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseAuthStore.mockImplementation((selector) =>
-      selector({ user: { name: 'مدير النظام' }, logout: mockLogoutAction } as never),
+      selector({ user: { name: 'مدير النظام' } } as never),
     );
     vi.mocked(useAdminStats).mockReturnValue({ data: { openReports: 0 } } as never);
+    mockUseLogout.mockReturnValue({
+      mutate: mockLogoutMutate,
+      isPending: false,
+    } as never);
   });
 
   it("shows the current user's name", () => {
@@ -56,24 +62,22 @@ describe('AdminHeader', () => {
     expect(screen.getByText('مدير النظام')).toBeInTheDocument();
   });
 
-  it('clears local session and redirects to /login when the API logout call succeeds', async () => {
-    vi.mocked(authApi.logout).mockResolvedValue({} as never);
+  it('calls the shared logout mutation when the logout button is clicked', async () => {
     render(<AdminHeader />);
 
     await userEvent.click(screen.getByRole('button', { name: 'تسجيل الخروج' }));
 
-    expect(mockLogoutAction).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith(ROUTES.login);
+    expect(mockLogoutMutate).toHaveBeenCalledTimes(1);
   });
 
-  it('still clears local session and redirects to /login even if the API logout call fails', async () => {
-    vi.mocked(authApi.logout).mockRejectedValue(new Error('network error'));
+  it('disables the logout button while the mutation is pending', () => {
+    mockUseLogout.mockReturnValue({
+      mutate: mockLogoutMutate,
+      isPending: true,
+    } as never);
     render(<AdminHeader />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'تسجيل الخروج' }));
-
-    expect(mockLogoutAction).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith(ROUTES.login);
+    expect(screen.getByRole('button', { name: 'تسجيل الخروج' })).toBeDisabled();
   });
 
   describe('notifications bell', () => {

@@ -274,6 +274,62 @@ describe('api/client.ts — silent refresh on 401', () => {
     expect(refreshCallCount).toBe(1);
   });
 
+  it('BUG-FIX: does not attempt a silent refresh (or redirect) when a 401 comes from /auth/login itself', async () => {
+    // Deliberately logged out — this is the actual real-world shape of
+    // the bug: a visitor on the login page with no session at all,
+    // typing a wrong password. Before this fix, the 401 from
+    // /auth/login was indistinguishable here from a real expired-
+    // session 401, so it fell into the same silent-refresh branch (a
+    // doomed refresh with no session to refresh), which then failed
+    // and hard-redirected the user back to /login — wiping the form
+    // and looking exactly like the page refreshing on every wrong
+    // password.
+    let refreshCallCount = 0;
+
+    getMswServer()?.use(
+      http.post(`${API_BASE_URL}/auth/login`, () =>
+        HttpResponse.json(
+          { success: false, message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' },
+          { status: 401 },
+        ),
+      ),
+      http.post(REFRESH_URL, () => {
+        refreshCallCount += 1;
+        return HttpResponse.json({ success: true, data: { tokens: { accessToken: 'x' }, csrfToken: 'y' } });
+      }),
+    );
+
+    await expect(apiClient.post('/auth/login', { email: 'a@example.com', password: 'wrong' }))
+      .rejects.toBeDefined();
+
+    expect(refreshCallCount).toBe(0);
+    expect(window.location.href).not.toContain('reason=session_expired');
+  });
+
+  it('BUG-FIX: does not attempt a silent refresh (or redirect) when a 401 comes from /auth/register itself', async () => {
+    let refreshCallCount = 0;
+
+    getMswServer()?.use(
+      http.post(`${API_BASE_URL}/auth/register`, () =>
+        HttpResponse.json(
+          { success: false, message: 'Account is deactivated', code: 'ACCOUNT_DEACTIVATED' },
+          { status: 401 },
+        ),
+      ),
+      http.post(REFRESH_URL, () => {
+        refreshCallCount += 1;
+        return HttpResponse.json({ success: true, data: { tokens: { accessToken: 'x' }, csrfToken: 'y' } });
+      }),
+    );
+
+    await expect(
+      apiClient.post('/auth/register', { email: 'a@example.com', password: 'x', name: 'A' }),
+    ).rejects.toBeDefined();
+
+    expect(refreshCallCount).toBe(0);
+    expect(window.location.href).not.toContain('reason=session_expired');
+  });
+
   it('on refresh failure, shows a toast and redirects to /login with `from` and `reason` params', async () => {
     setAuthenticatedState('expired-access-token');
 
