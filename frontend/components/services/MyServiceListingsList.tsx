@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { Pencil, Trash2, Eye, Briefcase, AlertTriangle, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -13,6 +12,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
 import { useDeleteServiceListing, useToggleServiceListingStatus } from '@/hooks/mutations/useServiceListingMutations';
+import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -31,10 +31,9 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
 }
 
 export function MyServiceListingsList() {
-  const sp = useSearchParams();
-  const router = useRouter();
-  const page = Number(sp.get('page') ?? 1);
-  const status = (sp.get('status') ?? undefined) as ServiceListingStatus | undefined;
+  // Page/status logic shared with MyAdsList and MyProductsList — see
+  // useOwnedListPage.
+  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(ROUTES.myServices);
 
   const { data, isLoading, isError, refetch } = useMyServiceListings({ page, limit: 10, status });
   const deleteListing = useDeleteServiceListing();
@@ -45,25 +44,15 @@ export function MyServiceListingsList() {
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
 
-  // Same recovery-from-out-of-range-page fix as MyAdsList's own I-09 fix.
-  useEffect(() => {
-    if (!data) return;
-    if (page > totalPages && totalPages >= 1) {
-      const params = new URLSearchParams(sp.toString());
-      if (totalPages > 1) params.set('page', String(totalPages));
-      else params.delete('page');
-      router.replace(`${ROUTES.myServices}?${params.toString()}`);
-    }
-  }, [data, page, totalPages, sp, router]);
-
-  function setStatus(s: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (s) params.set('status', s); else params.delete('status');
-    params.delete('page');
-    router.push(`${ROUTES.myServices}?${params.toString()}`);
-  }
-
-  const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
+  // Out-of-range-page recovery — same fix as MyAdsList's own original
+  // I-09 fix, now shared via useOwnedListPage.
+  const isOutOfRange = useOutOfRangeRedirect({
+    baseUrl: ROUTES.myServices,
+    page,
+    totalPages: data?.meta?.totalPages,
+    hasData: !!data,
+    searchParams: sp,
+  });
 
   if (isLoading || isOutOfRange) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;

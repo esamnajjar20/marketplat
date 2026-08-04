@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { Pencil, Trash2, Eye, Package, AlertTriangle, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -13,6 +12,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useDeleteProduct, useToggleProductStatus } from '@/hooks/mutations/useProductMutations';
+import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -24,12 +24,10 @@ const STATUS_LABELS: Record<ProductStatus, string> = {
   DELETED: 'محذوف',
 };
 
-/** Mirrors MyServiceListingsList's shape one-for-one, including its out-of-range-page recovery fix. */
+/** Page/status/out-of-range-recovery logic shared with MyAdsList and
+ * MyServiceListingsList — see useOwnedListPage. */
 export function MyProductsList() {
-  const sp = useSearchParams();
-  const router = useRouter();
-  const page = Number(sp.get('page') ?? 1);
-  const status = (sp.get('status') ?? undefined) as ProductStatus | undefined;
+  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStoreProducts);
 
   const { data, isLoading, isError, refetch } = useMyProducts({ page, limit: 10, status });
   const deleteProduct = useDeleteProduct();
@@ -40,24 +38,13 @@ export function MyProductsList() {
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
 
-  useEffect(() => {
-    if (!data) return;
-    if (page > totalPages && totalPages >= 1) {
-      const params = new URLSearchParams(sp.toString());
-      if (totalPages > 1) params.set('page', String(totalPages));
-      else params.delete('page');
-      router.replace(`${ROUTES.myStoreProducts}?${params.toString()}`);
-    }
-  }, [data, page, totalPages, sp, router]);
-
-  function setStatus(s: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (s) params.set('status', s); else params.delete('status');
-    params.delete('page');
-    router.push(`${ROUTES.myStoreProducts}?${params.toString()}`);
-  }
-
-  const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
+  const isOutOfRange = useOutOfRangeRedirect({
+    baseUrl: ROUTES.myStoreProducts,
+    page,
+    totalPages: data?.meta?.totalPages,
+    hasData: !!data,
+    searchParams: sp,
+  });
 
   if (isLoading || isOutOfRange) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;

@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { Pencil, Trash2, Eye, CheckCircle } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
@@ -13,6 +12,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyAds }     from '@/hooks/queries/useAds';
 import { useDeleteAd, useMarkAsSold } from '@/hooks/mutations/useAdMutations';
+import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -20,10 +20,9 @@ import { ShoppingBag, AlertTriangle } from 'lucide-react';
 import type { AdStatus } from '@/types/ad.types';
 
 export function MyAdsList() {
-  const sp     = useSearchParams();
-  const router = useRouter();
-  const page   = Number(sp.get('page') ?? 1);
-  const status = (sp.get('status') ?? undefined) as AdStatus | undefined;
+  // Page/status logic shared with MyServiceListingsList and
+  // MyProductsList — see useOwnedListPage.
+  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<AdStatus>(ROUTES.myAds);
 
   const { data, isLoading, isError, refetch } = useMyAds({ page, limit: 10, status });
   const deleteAd   = useDeleteAd();
@@ -35,32 +34,15 @@ export function MyAdsList() {
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
 
-  // FIX I-09: previously deleting the only ad on a non-first page (e.g.
-  // page 2 of exactly 21 ads) left the user stranded on an empty page
-  // with no Pagination control to get back (it hides itself once
-  // totalPages <= 1) and no automatic recovery — only a generic "no ads"
-  // empty state with no way to tell "you have zero ads" apart from
-  // "you're on a page that no longer exists". This redirects back to the
-  // last valid page automatically once data confirms the current page is
-  // out of range.
-  useEffect(() => {
-    if (!data) return; // wait for the query to resolve first
-    if (page > totalPages && totalPages >= 1) {
-      const params = new URLSearchParams(sp.toString());
-      if (totalPages > 1) params.set('page', String(totalPages));
-      else params.delete('page');
-      router.replace(`${ROUTES.myAds}?${params.toString()}`);
-    }
-  }, [data, page, totalPages, sp, router]);
-
-  function setStatus(s: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (s) params.set('status', s); else params.delete('status');
-    params.delete('page');
-    router.push(`${ROUTES.myAds}?${params.toString()}`);
-  }
-
-  const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
+  // Out-of-range-page recovery — shared with MyServiceListingsList and
+  // MyProductsList. See useOwnedListPage.ts (was FIX I-09 here originally).
+  const isOutOfRange = useOutOfRangeRedirect({
+    baseUrl: ROUTES.myAds,
+    page,
+    totalPages: data?.meta?.totalPages,
+    hasData: !!data,
+    searchParams: sp,
+  });
 
   if (isLoading || isOutOfRange) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
