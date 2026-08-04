@@ -73,6 +73,11 @@ export function ProfileSettingsForm() {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: name is the one required field here — this only guards
+  // against the field being cleared out entirely (e.g. select-all +
+  // delete) while the rest of the form is otherwise untouched.
+  const isFormIncomplete = !name.trim();
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -159,7 +164,7 @@ export function ProfileSettingsForm() {
         <p className="text-xs text-muted-foreground text-end">{bio.length}/300</p>
       </FormField>
 
-      <Button type="submit" disabled={updateProfile.isPending}>
+      <Button type="submit" disabled={isFormIncomplete || updateProfile.isPending}>
         {updateProfile.isPending ? 'جارٍ الحفظ…' : 'حفظ التغييرات'}
       </Button>
     </form>

@@ -114,6 +114,17 @@ export function ServiceListingForm({ mode, listing }: Props) {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: mirrors validate()'s required-field rules read-only
+  // (category/title/description, price only when priceRequired, and
+  // images only in create mode — same reasoning as ProductForm's
+  // identical fix).
+  const isFormIncomplete =
+    !values.categoryId ||
+    values.title.trim().length < 3 ||
+    values.description.trim().length < 10 ||
+    (priceRequired && (!values.price || parseFloat(values.price) <= 0)) ||
+    (mode === 'create' && values.images.length === 0);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -286,7 +297,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isFormIncomplete || isPending}>
           {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الخدمة' : 'حفظ التعديلات'}
         </Button>
       </div>

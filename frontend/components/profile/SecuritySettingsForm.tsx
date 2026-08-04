@@ -30,6 +30,10 @@ export function SecuritySettingsForm() {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: mirrors validate()'s required-field rules read-only.
+  const isFormIncomplete =
+    !current || !newPass || newPass.length < 8 || newPass === current || confirm !== newPass;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -100,7 +104,7 @@ export function SecuritySettingsForm() {
         <PasswordInput id="confirmp" dir="ltr" autoComplete="new-password"
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
-      <Button type="submit" disabled={changePassword.isPending}>
+      <Button type="submit" disabled={isFormIncomplete || changePassword.isPending}>
         {changePassword.isPending ? 'جارٍ التغيير…' : 'تغيير كلمة المرور'}
       </Button>
     </form>

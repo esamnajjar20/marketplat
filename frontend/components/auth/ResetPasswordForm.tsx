@@ -56,6 +56,10 @@ export function ResetPasswordForm({ token }: Props) {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: mirrors validate()'s required-field rules read-only.
+  const isFormIncomplete =
+    !password || password.length < 8 || !confirm || confirm !== password;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -101,7 +105,7 @@ export function ResetPasswordForm({ token }: Props) {
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ الحفظ…' : 'تعيين كلمة المرور'}
       </Button>
 

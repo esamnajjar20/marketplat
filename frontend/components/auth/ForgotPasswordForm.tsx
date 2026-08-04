@@ -29,6 +29,11 @@ export function ForgotPasswordForm() {
   const [error, setError] = useState('');
   const [sent,  setSent]  = useState(false);
 
+  // UX-FIX: single-field form, so this is just an emptiness check —
+  // the email-format check in handleSubmit below still runs on actual
+  // submit and still owns setting `error`.
+  const isFormIncomplete = !email.trim();
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) { setError('البريد الإلكتروني مطلوب'); return; }
@@ -80,7 +85,7 @@ export function ForgotPasswordForm() {
           placeholder="example@email.com" />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ الإرسال…' : 'إرسال رابط الاسترداد'}
       </Button>
 

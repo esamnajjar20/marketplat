@@ -62,6 +62,14 @@ export function MyStoreCard({ store }: Props) {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX (paired with BecomeStoreOwnerCard's identical fix): mirrors
+  // validate()'s required-field rules read-only.
+  const isFormIncomplete =
+    name.trim().length < 2 ||
+    description.trim().length < 10 ||
+    !city ||
+    phone.trim().length < 7;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -149,7 +157,7 @@ export function MyStoreCard({ store }: Props) {
           />
         </FormField>
 
-        <Button type="submit" disabled={updateStore.isPending}>
+        <Button type="submit" disabled={isFormIncomplete || updateStore.isPending}>
           {updateStore.isPending ? 'جارٍ الحفظ…' : 'حفظ التعديلات'}
         </Button>
       </form>

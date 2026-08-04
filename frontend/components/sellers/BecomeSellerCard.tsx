@@ -22,6 +22,11 @@ export function BecomeSellerCard() {
     return serverErrors?.[field]?.[0];
   }
 
+  // UX-FIX: displayName/bio are both optional (see the form below and
+  // the mutate() call, which sends `undefined` for either when blank) —
+  // the checkbox is the only real gate here.
+  const isFormIncomplete = !agreed;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!agreed) {
@@ -94,7 +99,7 @@ export function BecomeSellerCard() {
           </p>
         )}
 
-        <Button type="submit" disabled={createProfile.isPending}>
+        <Button type="submit" disabled={isFormIncomplete || createProfile.isPending}>
           {createProfile.isPending ? 'جارٍ الإنشاء…' : 'إنشاء ملف البائع'}
         </Button>
       </form>

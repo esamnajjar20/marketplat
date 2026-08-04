@@ -81,6 +81,16 @@ export function BecomeServiceProviderCard() {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX (paired with BecomeStoreOwnerCard's identical fix): the
+  // submit button was tappable on an empty form. Mirrors validate()'s
+  // rules read-only, with no setErrors call — the inline red messages
+  // still only appear after an actual submit attempt.
+  const isFormIncomplete =
+    businessName.trim().length < 2 ||
+    description.trim().length < 10 ||
+    citiesInput.split(',').map((c) => c.trim()).filter(Boolean).length === 0 ||
+    contactPhone.trim().length < 6;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -171,7 +181,7 @@ export function BecomeServiceProviderCard() {
           <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
         </div>
 
-        <Button type="submit" disabled={createProvider.isPending}>
+        <Button type="submit" disabled={isFormIncomplete || createProvider.isPending}>
           {createProvider.isPending ? 'جارٍ الإنشاء…' : 'إنشاء ملف مقدم الخدمة'}
         </Button>
       </form>

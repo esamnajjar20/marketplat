@@ -63,6 +63,18 @@ export function RegisterForm() {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: mirrors validate()'s required-field rules (name/email/
+  // password/confirmPassword) without its side effects, so the submit
+  // button only becomes tappable once the form could plausibly pass.
+  // phone stays excluded — it's optional per validate() itself.
+  const isFormIncomplete =
+    !name.trim() ||
+    !email.trim() ||
+    !password ||
+    password.length < 8 ||
+    !confirmPassword ||
+    confirmPassword !== password;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -150,7 +162,7 @@ export function RegisterForm() {
         </Select>
       </FormField>
 
-      <Button type="submit" className="w-full mt-2" disabled={isPending}>
+      <Button type="submit" className="w-full mt-2" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ التسجيل…' : 'إنشاء الحساب'}
       </Button>
 

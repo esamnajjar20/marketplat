@@ -73,6 +73,19 @@ export function BecomeStoreOwnerCard() {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: the submit button used to stay enabled at all times (only
+  // `disabled` on the pending request itself), so a user could tap
+  // "إنشاء المتجر" on an empty form and only find out what's missing
+  // after the fact. This mirrors `validate()`'s own rules without its
+  // side effects (no setErrors/setServerErrors here — this only decides
+  // whether the button is tappable; the red inline messages still only
+  // appear after a real submit attempt).
+  const isFormIncomplete =
+    name.trim().length < 2 ||
+    description.trim().length < 10 ||
+    !city ||
+    phone.trim().length < 7;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -157,7 +170,7 @@ export function BecomeStoreOwnerCard() {
           />
         </FormField>
 
-        <Button type="submit" disabled={createStore.isPending}>
+        <Button type="submit" disabled={isFormIncomplete || createStore.isPending}>
           {createStore.isPending ? 'جارٍ الإنشاء…' : 'إنشاء المتجر'}
         </Button>
       </form>

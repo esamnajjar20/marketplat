@@ -112,6 +112,17 @@ export function ProductForm({ mode, product }: Props) {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: mirrors validate()'s required-field rules read-only
+  // (category/name/description/price, plus images but only in create
+  // mode — edit mode has no image-replace endpoint, see the comment
+  // near update.mutate() below).
+  const isFormIncomplete =
+    !values.categoryId ||
+    values.name.trim().length < 2 ||
+    values.description.trim().length < 10 ||
+    !values.price || parseFloat(values.price) <= 0 ||
+    (mode === 'create' && values.images.length === 0);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -286,7 +297,7 @@ export function ProductForm({ mode, product }: Props) {
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isFormIncomplete || isPending}>
           {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'إضافة المنتج' : 'حفظ التعديلات'}
         </Button>
       </div>

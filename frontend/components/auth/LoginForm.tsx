@@ -56,6 +56,15 @@ export function LoginForm() {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: submit button stays disabled while either required field is
+  // empty, so a user can't tap "تسجيل الدخول" on a blank form. This is
+  // purely a client-side emptiness check — it does not duplicate or
+  // replace validate()'s email-format check, and does not touch the
+  // FIX M-1 decision below about not guessing at wrong-credential
+  // messaging; a 401 for a syntactically valid but wrong email/password
+  // pair still surfaces the same way once the button is enabled.
+  const isFormIncomplete = !email.trim() || !password;
+
   // NOTE (FIX M-1 scope decision): unlike RegisterForm/AdForm, this form
   // deliberately does NOT wire up parseApiError's fieldErrors. A wrong
   // email/password combination is a 401 (UnauthorizedError, see
@@ -137,7 +146,7 @@ export function LoginForm() {
         </p>
       )}
 
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
       </Button>
 

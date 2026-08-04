@@ -112,6 +112,16 @@ export function AdForm({ mode, ad }: Props) {
     return Object.keys(e).length === 0;
   }
 
+  // UX-FIX: mirrors validate()'s required-field rules read-only (title/
+  // description/city). Images are deliberately excluded here too, same
+  // as in validate() above — see the TEMPORARY note there for why.
+  const isFormIncomplete =
+    !values.title.trim() ||
+    values.title.length < 5 ||
+    !values.description.trim() ||
+    values.description.length < 20 ||
+    !values.city;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isSubmittingRef.current) return;
@@ -307,7 +317,7 @@ export function AdForm({ mode, ad }: Props) {
       {/* Submit */}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isFormIncomplete || isPending}>
           {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
         </Button>
       </div>
