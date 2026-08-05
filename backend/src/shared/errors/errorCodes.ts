@@ -113,6 +113,10 @@ export const ErrorCode = {
   CANNOT_FOLLOW_OWN_STORE: 'CANNOT_FOLLOW_OWN_STORE',
   CANNOT_RATE_OWN_STORE: 'CANNOT_RATE_OWN_STORE',
   ALREADY_REVIEWED_STORE: 'ALREADY_REVIEWED_STORE',
+
+  // Blocked users
+  CANNOT_BLOCK_SELF: 'CANNOT_BLOCK_SELF',
+  USER_BLOCKED: 'USER_BLOCKED',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

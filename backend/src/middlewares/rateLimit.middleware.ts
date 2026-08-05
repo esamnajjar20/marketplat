@@ -323,3 +323,14 @@ export const searchSuggestionsRateLimit = rateLimit({
   store: createRedisStore('search_suggestions'),
   message: msg('Too many requests, please slow down'),
 });
+
+// Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
+// still bounded against scripted abuse.
+export const userBlockRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('user_block'),
+  message: msg('Too many requests, please try again later'),
+});

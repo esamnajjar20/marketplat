@@ -137,6 +137,19 @@ export const queryKeys = {
     unreadCount: ()                => ['notifications', 'unread-count'] as const,
   },
 
+  // ── Blocked users ──────────────────────────────────────────────
+  blockedUsers: {
+    all:  (params?: object) => ['blocked-users', 'list', params ?? {}] as const,
+    /**
+     * In-memory Set<string> of blocked user IDs — mirrors
+     * favorites.ids()/stores.followedIds(). Populated from the list
+     * query, read reactively by useIsUserBlocked() for O(1) lookup in
+     * ChatWindow without a per-user network call (there's no single
+     * GET /blocked-users/:userId/status endpoint).
+     */
+    ids:  ()                => ['blocked-users', 'ids']               as const,
+  },
+
   // ── Auth / current user ────────────────────────────────────────
   auth: {
     me:       ()               => ['auth', 'me']        as const,

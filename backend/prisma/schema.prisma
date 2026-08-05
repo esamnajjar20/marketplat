@@ -78,6 +78,8 @@ model User {
   serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
   storeFollows              StoreFollower[]
   storeReviewsGiven         StoreReview[]        @relation("StoreReviewsGiven")
+  blocksMade                UserBlock[]          @relation("BlocksMade")
+  blocksReceived            UserBlock[]          @relation("BlocksReceived")
 
   @@index([isActive, createdAt])
   @@map("users")
@@ -162,6 +164,26 @@ model Report {
   @@unique([adId, userId])
   @@index([status])
   @@map("reports")
+}
+
+// Self-referential: a blocker prevents a blocked user from messaging
+// them. Directional (A blocking B does not imply B blocking A) — same
+// shape as StoreFollower's (userId, storeId) pair, just both sides
+// pointing at User instead of one side pointing at StoreDetails. Two
+// named relations on User (BlocksMade / BlocksReceived) exactly mirror
+// how Conversation already disambiguates ConversationsAsBuyer /
+// ConversationsAsSeller for its own two User FKs.
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
 }
 
 model SellerProfile {

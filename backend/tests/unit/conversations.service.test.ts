@@ -2,6 +2,7 @@ import { conversationsService } from '../../src/modules/conversations/conversati
 import { conversationsRepository, messagesRepository } from '../../src/modules/conversations/conversations.repository';
 import { adsRepository } from '../../src/modules/ads/ads.repository';
 import { notificationEvents } from '../../src/modules/notifications';
+import { blockedUsersService } from '../../src/modules/blocked-users';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
@@ -10,6 +11,9 @@ jest.mock('../../src/modules/conversations/conversations.repository');
 jest.mock('../../src/modules/ads/ads.repository');
 jest.mock('../../src/modules/notifications', () => ({
   notificationEvents: { onNewMessage: jest.fn() },
+}));
+jest.mock('../../src/modules/blocked-users', () => ({
+  blockedUsersService: { isBlockedEitherDirection: jest.fn() },
 }));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
@@ -35,6 +39,7 @@ describe('conversationsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (notificationEvents.onNewMessage as jest.Mock).mockResolvedValue(undefined);
+    (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(false);
   });
 
   describe('startFromAd', () => {
@@ -78,6 +83,17 @@ describe('conversationsService', () => {
 
       expect(conversationsRepository.create).toHaveBeenCalledWith(adId, buyerId, sellerId);
       expect(result).toEqual(mockConversation);
+    });
+
+    it('throws ForbiddenError when either party has blocked the other', async () => {
+      (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
+      (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
+
+      await expect(conversationsService.startFromAd(buyerId, adId)).rejects.toThrow(
+        ForbiddenError
+      );
+      expect(blockedUsersService.isBlockedEitherDirection).toHaveBeenCalledWith(buyerId, sellerId);
+      expect(conversationsRepository.findExisting).not.toHaveBeenCalled();
     });
   });
 
@@ -216,6 +232,17 @@ describe('conversationsService', () => {
       const result = await conversationsService.sendMessage(buyerId, 'conv-1', 'Hi');
 
       expect(result).toEqual(mockMessage);
+    });
+
+    it('throws ForbiddenError when either party has blocked the other, even in an existing thread', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
+
+      await expect(conversationsService.sendMessage(buyerId, 'conv-1', 'Hi')).rejects.toThrow(
+        ForbiddenError
+      );
+      expect(blockedUsersService.isBlockedEitherDirection).toHaveBeenCalledWith(buyerId, sellerId);
+      expect(messagesRepository.create).not.toHaveBeenCalled();
     });
   });
 

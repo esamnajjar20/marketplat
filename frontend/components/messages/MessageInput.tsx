@@ -7,20 +7,33 @@ import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 
 interface Props {
   conversationId: string;
+  /** Disables the composer entirely — used when the other party is
+   * blocked (either direction), since sendMessage would just 403 with
+   * USER_BLOCKED anyway. Keeps that state visible in the UI instead of
+   * only surfacing it as an error toast after a failed send. */
+  disabled?: boolean;
 }
 
 const MAX_LENGTH = 2000;
 
 /** MessageInput — Epic 5, the composer bar at the bottom of ChatWindow. */
-export function MessageInput({ conversationId }: Props) {
+export function MessageInput({ conversationId, disabled }: Props) {
   const [body, setBody] = useState('');
   const sendMessage = useSendMessage(conversationId);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = body.trim();
-    if (!trimmed || sendMessage.isPending) return;
+    if (!trimmed || sendMessage.isPending || disabled) return;
     sendMessage.mutate({ body: trimmed }, { onSuccess: () => setBody('') });
+  }
+
+  if (disabled) {
+    return (
+      <div className="border-t p-3 text-center text-sm text-muted-foreground">
+        لا يمكنك مراسلة هذا المستخدم
+      </div>
+    );
   }
 
   return (

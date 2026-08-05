@@ -2,6 +2,7 @@ import { Conversation, Message } from '@prisma/client';
 import { conversationsRepository, messagesRepository, ConversationWithRelations } from './conversations.repository';
 import { adsRepository } from '../ads/ads.repository';
 import { notificationEvents } from '../notifications';
+import { blockedUsersService } from '../blocked-users';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
@@ -36,6 +37,13 @@ export const conversationsService = {
       throw new BadRequestError('You cannot message yourself about your own ad.', 'CANNOT_MESSAGE_SELF');
     }
 
+    // Checked in either direction — a blocked user shouldn't be able to
+    // start a fresh thread with the person who blocked them, nor should
+    // the blocker be able to (re)start one with someone they blocked.
+    if (await blockedUsersService.isBlockedEitherDirection(buyerId, sellerId)) {
+      throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
+    }
+
     const existing = await conversationsRepository.findExisting(adId, buyerId, sellerId);
     if (existing) return existing;
 
@@ -64,6 +72,16 @@ export const conversationsService = {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
+
+    // A block applies to an existing thread too, not just to starting a
+    // new one — otherwise blocking would only stop future conversations
+    // while leaving every already-open thread free to keep receiving
+    // messages, which defeats the point of blocking someone you're
+    // already talking to.
+    const otherPartyId = conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
+    if (await blockedUsersService.isBlockedEitherDirection(userId, otherPartyId)) {
+      throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
+    }
 
     const [message] = await Promise.all([
       messagesRepository.create(conversationId, userId, body),

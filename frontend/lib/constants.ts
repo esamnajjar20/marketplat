@@ -54,6 +54,7 @@ export const ROUTES = {
     notifications: '/settings/notifications',
     seller:        '/settings/seller',
     serviceProvider: '/settings/service-provider',
+    blockedUsers:  '/settings/blocked-users',
   },
   admin: {
     root:              '/admin',
