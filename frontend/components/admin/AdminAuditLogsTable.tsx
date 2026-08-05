@@ -6,6 +6,9 @@ import { AlertTriangle, Eye } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Input } from '@/components/shared/ui/Input';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import {
@@ -62,16 +65,20 @@ export function AdminAuditLogsTable() {
           onKeyDown={(e) => { if (e.key === 'Enter') updateParam('userId', (e.target as HTMLInputElement).value); }}
           className="max-w-[220px]"
         />
-        <select
-          value={event}
-          onChange={(e) => updateParam('event', e.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">كل الأحداث</option>
-          {AUDIT_EVENT_TYPES.map((type) => (
-            <option key={type} value={type}>{AUDIT_EVENT_LABELS[type]}</option>
-          ))}
-        </select>
+        {/* FIX UX-02: native <select> → Radix Select, matching the
+            styled Input beside it. 'ALL' sentinel stands in for the
+            empty/"كل الأحداث" state since Radix disallows value="". */}
+        <Select value={event || 'ALL'} onValueChange={(value) => updateParam('event', value === 'ALL' ? '' : value)}>
+          <SelectTrigger className="w-auto min-w-[10rem]">
+            <SelectValue placeholder="كل الأحداث" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل الأحداث</SelectItem>
+            {AUDIT_EVENT_TYPES.map((type) => (
+              <SelectItem key={type} value={type}>{AUDIT_EVENT_LABELS[type]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Input
           type="date"
           aria-label="من تاريخ"
@@ -133,7 +140,7 @@ export function AdminAuditLogsTable() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-9 w-9"
                       title="التفاصيل"
                       aria-label={`عرض تفاصيل الحدث ${AUDIT_EVENT_LABELS[log.event] ?? log.event}`}
                       onClick={() => setDetailsLog(log)}

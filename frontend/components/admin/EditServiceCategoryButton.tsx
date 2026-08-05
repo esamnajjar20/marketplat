@@ -76,7 +76,7 @@ export function EditServiceCategoryButton({ category }: Props) {
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-9 w-9"
         aria-label={`تعديل ${category.nameAr}`}
         onClick={(e) => { e.stopPropagation(); handleOpen(); }}
       >

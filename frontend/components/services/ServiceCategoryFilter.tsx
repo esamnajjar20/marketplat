@@ -4,6 +4,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { SlidersHorizontal, Search } from 'lucide-react';
 import { CITIES, ROUTES } from '@/lib/constants';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 
 const LOCATION_LABELS: Record<string, string> = {
   AT_CUSTOMER: 'لدى العميل',
@@ -56,42 +59,39 @@ export function ServiceCategoryFilter() {
 
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الفئة</label>
-        <select
-          value={sp.get('categoryId') ?? ''}
-          onChange={(e) => update('categoryId', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">كل الفئات</option>
-          {categories?.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.nameAr}</option>
-          ))}
-        </select>
+        <Select value={sp.get('categoryId') || 'ALL'} onValueChange={(v) => update('categoryId', v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل الفئات</SelectItem>
+            {categories?.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
-        <select
-          value={sp.get('city') ?? ''}
-          onChange={(e) => update('city', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">كل المدن</option>
-          {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل المدن</SelectItem>
+            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">موقع تقديم الخدمة</label>
-        <select
-          value={sp.get('serviceLocation') ?? ''}
-          onChange={(e) => update('serviceLocation', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">كل المواقع</option>
-          {Object.entries(LOCATION_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
+        <Select value={sp.get('serviceLocation') || 'ALL'} onValueChange={(v) => update('serviceLocation', v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="كل المواقع" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل المواقع</SelectItem>
+            {Object.entries(LOCATION_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 gap-2">

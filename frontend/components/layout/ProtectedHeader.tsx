@@ -8,6 +8,7 @@ import Link       from 'next/link';
 import { Logo }   from './Logo';
 import { UserMenu } from './UserMenu';
 import { NotificationBell } from './NotificationBell';
+import { ThemeToggle } from './ThemeToggle';
 import { ProtectedMobileNav } from './ProtectedMobileNav';
 import { Button }  from '@/components/shared/ui/Button';
 import { ROUTES }  from '@/lib/constants';
@@ -26,6 +27,7 @@ export function ProtectedHeader() {
           <Link href={ROUTES.adCreate}>+ نشر إعلان</Link>
         </Button>
         <NotificationBell />
+        <ThemeToggle />
         <UserMenu />
       </div>
     </header>

@@ -99,7 +99,7 @@ export function AdminServiceCategoriesTree() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-9 w-9"
           title={cat.isActive ? 'إخفاء الفئة' : 'إظهار الفئة'}
           aria-label={cat.isActive ? `إخفاء ${cat.nameAr}` : `إظهار ${cat.nameAr}`}
           disabled={toggleActive.isPending && toggleActive.variables?.id === cat.id}
@@ -113,7 +113,7 @@ export function AdminServiceCategoriesTree() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-destructive"
+          className="h-9 w-9 text-destructive"
           aria-label={`حذف ${cat.nameAr}`}
           onClick={() => setDeleteTarget(cat)}
         >

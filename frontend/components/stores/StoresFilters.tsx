@@ -2,6 +2,9 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SlidersHorizontal, Search } from 'lucide-react';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { CITIES, ROUTES, STORE_SORT_OPTIONS } from '@/lib/constants';
 
 /**
@@ -50,33 +53,34 @@ export function StoresFilters() {
 
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
-        <select
-          value={sp.get('city') ?? ''}
-          onChange={(e) => update('city', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">كل المدن</option>
-          {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل المدن</SelectItem>
+            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الترتيب</label>
-        <select
+        <Select
           value={`${sp.get('sortBy') ?? 'createdAt'}_${sp.get('sortOrder') ?? 'desc'}`}
-          onChange={(e) => {
-            const [sortBy = 'createdAt', sortOrder = 'desc'] = e.target.value.split('_');
+          onValueChange={(value) => {
+            const [sortBy = 'createdAt', sortOrder = 'desc'] = value.split('_');
             const params = new URLSearchParams(sp.toString());
             params.set('sortBy', sortBy); params.set('sortOrder', sortOrder);
             params.delete('page');
             router.push(`${ROUTES.stores}?${params.toString()}`);
           }}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          {STORE_SORT_OPTIONS.map((o) => (
-            <option key={`${o.sortBy}_${o.sortOrder}`} value={`${o.sortBy}_${o.sortOrder}`}>{o.label}</option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {STORE_SORT_OPTIONS.map((o) => (
+              <SelectItem key={`${o.sortBy}_${o.sortOrder}`} value={`${o.sortBy}_${o.sortOrder}`}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

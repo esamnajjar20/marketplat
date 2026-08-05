@@ -167,7 +167,7 @@ export function AdminStoresTable() {
                     <td className="p-3">
                       <div className="flex items-center gap-1">
                         {store.status !== 'ACTIVE' && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7"
+                          <Button variant="ghost" size="icon" className="h-9 w-9"
                             title="الموافقة على المتجر"
                             aria-label={`الموافقة على متجر ${store.name}`}
                             disabled={pendingId === store.id}
@@ -176,7 +176,7 @@ export function AdminStoresTable() {
                           </Button>
                         )}
                         {store.status === 'BLOCKED' ? (
-                          <Button variant="ghost" size="icon" className="h-7 w-7"
+                          <Button variant="ghost" size="icon" className="h-9 w-9"
                             title="رفع الحظر"
                             aria-label={`رفع الحظر عن متجر ${store.name}`}
                             disabled={pendingId === store.id}
@@ -184,7 +184,7 @@ export function AdminStoresTable() {
                             <RotateCcw className="h-3.5 w-3.5 text-success" />
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="icon" className="h-7 w-7"
+                          <Button variant="ghost" size="icon" className="h-9 w-9"
                             title="حظر المتجر"
                             aria-label={`حظر متجر ${store.name}`}
                             disabled={pendingId === store.id}

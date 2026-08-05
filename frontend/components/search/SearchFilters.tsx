@@ -3,6 +3,9 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { CITIES, ROUTES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
@@ -64,68 +67,54 @@ export function SearchFilters() {
       {showCategoryFilter && (
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الفئة</label>
-          <select
-            value={sp.get('categoryId') ?? ''}
-            onChange={(e) => update('categoryId', e.target.value)}
-            className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">كل الفئات</option>
-            {type === 'ads' &&
-              adCategories?.map((cat) => (
-                <optgroup key={cat.id} label={cat.nameAr}>
-                  <option value={cat.id}>{cat.nameAr}</option>
-                  {cat.children?.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      — {child.nameAr}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            {type === 'products' &&
-              productCategories?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nameAr}
-                </option>
-              ))}
-            {type === 'services' &&
-              serviceCategories?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nameAr}
-                </option>
-              ))}
-          </select>
+          <Select value={sp.get('categoryId') || 'ALL'} onValueChange={(v) => update('categoryId', v === 'ALL' ? '' : v)}>
+            <SelectTrigger className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">كل الفئات</SelectItem>
+              {type === 'ads' &&
+                adCategories?.map((cat) => (
+                  <SelectGroup key={cat.id}>
+                    <SelectLabel>{cat.nameAr}</SelectLabel>
+                    <SelectItem value={cat.id}>{cat.nameAr}</SelectItem>
+                    {cat.children?.map((child) => (
+                      <SelectItem key={child.id} value={child.id}>— {child.nameAr}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              {type === 'products' &&
+                productCategories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
+                ))}
+              {type === 'services' &&
+                serviceCategories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
-        <select
-          value={sp.get('city') ?? ''}
-          onChange={(e) => update('city', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">كل المدن</option>
-          {CITIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل المدن</SelectItem>
+            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الترتيب</label>
-        <select
-          value={sp.get('sort') ?? 'relevance'}
-          onChange={(e) => update('sort', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {Object.entries(SORT_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <Select value={sp.get('sort') ?? 'relevance'} onValueChange={(v) => update('sort', v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(SORT_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Button

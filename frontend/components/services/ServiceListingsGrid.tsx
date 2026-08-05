@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { ServiceListingCard } from './ServiceListingCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { ROUTES } from '@/lib/constants';
@@ -32,7 +32,19 @@ export function ServiceListingsGrid() {
   const total = data?.meta?.total ?? 0;
   const searchParams = Object.fromEntries(sp.entries());
 
-  if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+  // FIX UX-04: mirrors the same fix in SearchResults — a centered
+  // spinner replaced the whole grid on every filter change instead of
+  // a skeleton shaped like the actual cards.
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 9 }).map((_, i) => <ServiceListingCardSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
   if (isError) {
     // UX-FIX P1-4: mirrors the same fix in SearchResults — a static red
     // line with no way to recover from a transient failure short of a

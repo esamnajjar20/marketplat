@@ -135,7 +135,7 @@ export function MyServiceListingsList() {
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   <Link href={ROUTES.myServiceEdit(listing.id)}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`تعديل ${listing.title}`}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${listing.title}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
@@ -151,7 +151,7 @@ export function MyServiceListingsList() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-10 w-10"
                       aria-label={listing.status === 'PAUSED' ? `إعادة تفعيل ${listing.title}` : `إيقاف ${listing.title} مؤقتاً`}
                       title={listing.status === 'PAUSED' ? 'إعادة تفعيل' : 'إيقاف مؤقت'}
                       disabled={toggleStatus.isPending && toggleStatus.variables?.id === listing.id}
@@ -168,7 +168,7 @@ export function MyServiceListingsList() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    className="h-10 w-10 text-destructive hover:text-destructive"
                     aria-label={`حذف ${listing.title}`}
                     onClick={() => setDeleteTargetId(listing.id)}
                   >

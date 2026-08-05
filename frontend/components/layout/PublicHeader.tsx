@@ -11,6 +11,7 @@ import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
 import { UserMenu }       from './UserMenu';
 import { NotificationBell } from './NotificationBell';
+import { ThemeToggle }    from './ThemeToggle';
 import { MobileNav }      from './MobileNav';
 import { Button }         from '@/components/shared/ui/Button';
 import { ROUTES }         from '@/lib/constants';
@@ -51,6 +52,10 @@ export function PublicHeader() {
         </div>
 
         <nav className="hidden items-center gap-1 md:flex">
+          {/* FIX UX-03: theme is a device preference, not tied to an
+              account — sits outside the isAuthenticated branch so
+              guests can switch it too, not just logged-in users. */}
+          <ThemeToggle />
           {isAuthenticated ? (
             <>
               <Button asChild variant="ghost" size="sm">

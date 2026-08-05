@@ -121,7 +121,7 @@ export function AdminUsersTable() {
                             for keyboard-only users (no hover). Kept
                             title for the visual tooltip, added
                             aria-label as the actual accessible name. */}
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                        <Button variant="ghost" size="icon" className="h-9 w-9"
                           title={user.isActive ? 'إيقاف' : 'تفعيل'}
                           aria-label={user.isActive ? `إيقاف ${user.name}` : `تفعيل ${user.name}`}
                           disabled={user.role === 'ADMIN' || pendingStatusUserId === user.id}
@@ -131,7 +131,7 @@ export function AdminUsersTable() {
                             : <ShieldCheck className="h-3.5 w-3.5 text-success" />}
                         </Button>
                         {/* FIX AUDIT-V3-05: promote/demote role action */}
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                        <Button variant="ghost" size="icon" className="h-9 w-9"
                           title={user.role === 'ADMIN' ? 'تنزيل إلى مستخدم' : 'ترقية إلى مدير'}
                           aria-label={
                             user.role === 'ADMIN'

@@ -71,7 +71,7 @@ export function AdminCategoriesTree() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-destructive"
+                className="h-9 w-9 text-destructive"
                 aria-label={`حذف ${cat.nameAr}`}
                 onClick={() => setDeleteTarget(cat)}
               >
@@ -89,7 +89,7 @@ export function AdminCategoriesTree() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-destructive"
+                      className="h-9 w-9 text-destructive"
                       aria-label={`حذف ${child.nameAr}`}
                       onClick={() => setDeleteTarget(child)}
                     >

@@ -49,7 +49,7 @@ export function RateSellerDialog({ sellerProfileId, open, onOpenChange }: Props)
                 onClick={() => setScore(n)}
                 onMouseEnter={() => setHoverScore(n)}
                 onMouseLeave={() => setHoverScore(0)}
-                className="p-1"
+                className="p-2.5"
               >
                 <Star
                   className={cn(

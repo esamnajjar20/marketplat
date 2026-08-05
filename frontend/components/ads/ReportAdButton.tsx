@@ -10,6 +10,9 @@ import { useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { useReportAd } from '@/hooks/mutations/useReportMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { toast } from 'sonner';
@@ -62,16 +65,14 @@ export function ReportAdButton({ adId }: Props) {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <label htmlFor="report-reason" className="text-sm font-medium">سبب الإبلاغ</label>
-              <select
-                id="report-reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value as ReportReason)}
-                className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {Object.entries(REASON_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
+              <Select value={reason} onValueChange={(v) => setReason(v as ReportReason)}>
+                <SelectTrigger id="report-reason"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(REASON_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <label htmlFor="report-notes" className="text-sm font-medium">

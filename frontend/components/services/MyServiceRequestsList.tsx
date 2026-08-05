@@ -168,7 +168,7 @@ export function MyServiceRequestsList() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-10 w-10 text-destructive hover:text-destructive"
                       aria-label={`إلغاء طلب ${request.listing.title}`}
                       title="إلغاء الطلب"
                       onClick={() => setCancelTargetId(request.id)}

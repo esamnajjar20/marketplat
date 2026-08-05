@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button }     from '@/components/shared/ui/Button';
 import { Input }      from '@/components/shared/ui/Input';
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { FormField }  from '@/components/shared/forms/FormField';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { PriceInput }  from '@/components/shared/forms/PriceInput';
@@ -251,38 +254,48 @@ export function AdForm({ mode, ad }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label htmlFor="categoryId" className="text-sm font-medium">الفئة</label>
-            <select id="categoryId" value={values.categoryId}
-              onChange={(e) => set('categoryId', e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-              <option value="">اختر فئة</option>
-              {categories?.map((cat) => (
-                <optgroup key={cat.id} label={cat.nameAr}>
-                  <option value={cat.id}>{cat.nameAr}</option>
-                  {cat.children?.map((c) => <option key={c.id} value={c.id}>— {c.nameAr}</option>)}
-                </optgroup>
-              ))}
-            </select>
+            <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
+              <SelectTrigger id="categoryId">
+                <SelectValue placeholder="اختر فئة" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories?.map((cat) => (
+                  <SelectGroup key={cat.id}>
+                    <SelectLabel>{cat.nameAr}</SelectLabel>
+                    <SelectItem value={cat.id}>{cat.nameAr}</SelectItem>
+                    {cat.children?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>— {c.nameAr}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <FormField label="المدينة" htmlFor="city" required error={fieldError('city')}>
-            <select id="city" value={values.city} onChange={(e) => set('city', e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-              <option value="">اختر مدينتك</option>
-              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <Select value={values.city} onValueChange={(v) => set('city', v)}>
+              <SelectTrigger id="city">
+                <SelectValue placeholder="اختر مدينتك" />
+              </SelectTrigger>
+              <SelectContent>
+                {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </FormField>
         </div>
 
         <div className="space-y-1.5">
           <label htmlFor="condition" className="text-sm font-medium">حالة المنتج</label>
-          <select id="condition" value={values.condition}
-            onChange={(e) => set('condition', e.target.value as typeof values.condition)}
-            className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="">غير محدد</option>
-            {Object.entries(CONDITION_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
+          <Select value={values.condition} onValueChange={(v) => set('condition', v as typeof values.condition)}>
+            <SelectTrigger id="condition">
+              <SelectValue placeholder="غير محدد" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CONDITION_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

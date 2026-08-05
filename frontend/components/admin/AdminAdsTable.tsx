@@ -8,6 +8,9 @@ import { Star, Trash2, Pin } from 'lucide-react';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
 import { Input }      from '@/components/shared/ui/Input';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog }  from '@/components/shared/feedback/ConfirmDialog';
@@ -68,19 +71,30 @@ export function AdminAdsTable() {
           onBlur={(e) => search(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
           className="max-w-xs" />
-        <select value={status}
-          onChange={(e) => {
+        {/* FIX UX-02: native <select> swapped for the app's Radix Select
+            — matches the styled Input beside it instead of falling back
+            to the browser's own control chrome. Radix disallows an item
+            with value="", so "كل الحالات" uses an 'ALL' sentinel that's
+            translated back to an absent `status` param on change. */}
+        <Select
+          value={status || 'ALL'}
+          onValueChange={(value) => {
             const params = new URLSearchParams(sp.toString());
-            if (e.target.value) params.set('status', e.target.value); else params.delete('status');
+            if (value !== 'ALL') params.set('status', value); else params.delete('status');
             params.delete('page');
             router.push(`/admin/ads?${params.toString()}`);
           }}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <option value="">كل الحالات</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
+        >
+          <SelectTrigger className="w-auto min-w-[10rem]">
+            <SelectValue placeholder="كل الحالات" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل الحالات</SelectItem>
+            {Object.entries(STATUS_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isError ? (
@@ -140,21 +154,21 @@ export function AdminAdsTable() {
                           name here, and reflects the actual action
                           (toggle on/off) rather than a static label. */}
                       <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                        <Button variant="ghost" size="icon" className="h-9 w-9"
                           title="تمييز"
                           aria-label={ad.isFeatured ? `إلغاء تمييز ${ad.title}` : `تمييز ${ad.title}`}
                           disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'featured'}
                           onClick={() => toggleFeatured(ad.id, !ad.isFeatured)}>
                           <Star className={`h-3.5 w-3.5 ${ad.isFeatured ? 'fill-warning text-warning' : ''}`} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                        <Button variant="ghost" size="icon" className="h-9 w-9"
                           title="تثبيت"
                           aria-label={ad.isPinned ? `إلغاء تثبيت ${ad.title}` : `تثبيت ${ad.title}`}
                           disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'pinned'}
                           onClick={() => togglePinned(ad.id, !ad.isPinned)}>
                           <Pin className={`h-3.5 w-3.5 ${ad.isPinned ? 'text-primary' : ''}`} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive"
                           title="حذف"
                           aria-label={`حذف ${ad.title}`}
                           onClick={() => setDeleteTargetId(ad.id)}>

@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { StoreCard } from './StoreCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useStores } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
@@ -29,7 +29,19 @@ export function StoresGrid() {
   const total = data?.meta?.total ?? 0;
   const searchParams = Object.fromEntries(sp.entries());
 
-  if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+  // FIX UX-04: same fix as SearchResults/ServiceListingsGrid — a
+  // centered spinner replaced the whole directory on every filter
+  // change instead of a skeleton shaped like the actual cards.
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <StoreCardSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">

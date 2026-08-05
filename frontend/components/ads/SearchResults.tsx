@@ -3,8 +3,8 @@
 import { useSearchParams } from 'next/navigation';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
+import { AdCardSkeleton, AdListItemSkeleton } from '@/components/shared/skeletons';
 import { Pagination }     from '@/components/shared/ui/Pagination';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAds, useSearchAds } from '@/hooks/queries/useAds';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
@@ -80,7 +80,29 @@ export function SearchResults({ categorySlug }: Props = {}) {
 
   const searchParams = Object.fromEntries(sp.entries());
 
-  if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+  // FIX UX-04: was a single centered LoadingSpinner that replaced the
+  // entire results area — jarring specifically on /search, since this
+  // is the one page in the app where AdCard-shaped skeletons already
+  // existed (home's FeaturedAds/RecentAds) but weren't reused here.
+  // Picks AdCardSkeleton or AdListItemSkeleton to match whichever view
+  // the user currently has selected, so a filter change or page
+  // navigation doesn't visually snap between two different layouts.
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        {view === 'grid' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => <AdListItemSkeleton key={i} />)}
+          </div>
+        )}
+      </div>
+    );
+  }
   if (isError) {
     // UX-FIX P1-4: previously just a static line of red text with no way
     // to recover short of a full page reload, even on a transient network

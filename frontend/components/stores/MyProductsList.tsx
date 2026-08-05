@@ -130,7 +130,7 @@ export function MyProductsList() {
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   <Link href={ROUTES.myStoreProductEdit(product.id)}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`تعديل ${product.name}`}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${product.name}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
@@ -138,7 +138,7 @@ export function MyProductsList() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-10 w-10"
                       aria-label={product.status === 'PAUSED' ? `إعادة تفعيل ${product.name}` : `إيقاف ${product.name} مؤقتاً`}
                       title={product.status === 'PAUSED' ? 'إعادة تفعيل' : 'إيقاف مؤقت'}
                       disabled={toggleStatus.isPending && toggleStatus.variables?.id === product.id}
@@ -155,7 +155,7 @@ export function MyProductsList() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    className="h-10 w-10 text-destructive hover:text-destructive"
                     aria-label={`حذف ${product.name}`}
                     onClick={() => setDeleteTargetId(product.id)}
                   >

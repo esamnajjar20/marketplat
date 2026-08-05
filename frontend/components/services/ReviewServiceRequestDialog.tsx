@@ -61,7 +61,7 @@ export function ReviewServiceRequestDialog({ requestId, open, onOpenChange, list
                 onClick={() => setScore(n)}
                 onMouseEnter={() => setHoverScore(n)}
                 onMouseLeave={() => setHoverScore(0)}
-                className="p-1"
+                className="p-2.5"
               >
                 <Star
                   className={cn(

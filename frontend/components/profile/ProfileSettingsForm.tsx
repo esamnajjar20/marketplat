@@ -18,6 +18,9 @@ import Image from 'next/image';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { CITIES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -146,11 +149,12 @@ export function ProfileSettingsForm() {
 
       <div className="space-y-1.5">
         <label htmlFor="pcity" className="text-sm font-medium">المدينة</label>
-        <select id="pcity" value={city} onChange={(e) => setCity(e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <option value="">اختر مدينتك</option>
-          {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <Select value={city} onValueChange={setCity}>
+          <SelectTrigger id="pcity"><SelectValue placeholder="اختر مدينتك" /></SelectTrigger>
+          <SelectContent>
+            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <FormField label="رقم الهاتف" htmlFor="pphone" hint="لن يُعرض للعامة" error={fieldError('phone')}>

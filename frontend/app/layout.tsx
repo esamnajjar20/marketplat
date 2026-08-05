@@ -125,20 +125,34 @@ export const viewport: Viewport = {
   // ضروري لتفعيل env(safe-area-inset-*) في CSS على iOS (الإشعار/الحواف
   // المستديرة).
   viewportFit: 'cover',
-  // FIX PWA-12: كانت هذه القيمة #0D4F8C (أزرق) بينما --primary الفعلي في
-  // globals.css هو أخضر زيتوني (hsl(148.7 32.9% 27.5%) ≈ #2F5D45)، وهو
-  // نفس theme_color المستخدم في app/manifest.ts. التناقض كان يعني أن
-  // شريط حالة/شريط عنوان المتصفح يظهر بلون مختلف تمامًا عن هوية التطبيق
-  // (الأيقونة، شاشة البداية) عند التثبيت كـ PWA — عيب هوية بصرية ملحوظ.
-  themeColor:   '#2F5D45',
+  // FIX PWA-12 (cont.) / FIX UX-03: a single static themeColor stayed
+  // correct for light mode but went stale the moment dark mode became
+  // reachable (ThemeToggle) — the browser chrome/PWA status bar would
+  // still show the light-mode olive (#2F5D45) while the app itself had
+  // switched to the dark palette's lighter primary. The array form lets
+  // Next.js emit both light/dark <meta name="theme-color"> tags with
+  // their own media queries, so the chrome always matches whichever
+  // .dark or :root --primary is actually active. Hex values computed
+  // directly from the same HSL tokens in globals.css (light: 148.7
+  // 32.9% 27.5%, dark: 148 38% 52%) — keep these two in sync if the
+  // palette ever changes.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#2F5D45' },
+    { media: '(prefers-color-scheme: dark)',  color: '#56B381' },
+  ],
 };
 
 // ── Layout ────────────────────────────────────────────────────────
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // FIX SEO-01: Arabic language + RTL direction
-    <html lang="ar" dir="rtl">
+    // FIX UX-03: suppressHydrationWarning is required by next-themes —
+    // it sets the `class`/`style` attributes on <html> from
+    // localStorage before React hydrates, so the server-rendered
+    // markup and the first client render legitimately differ on this
+    // one element. Without this, React logs a hydration mismatch
+    // warning on every load even though nothing is actually broken.
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body>
         <AppProviders>
           {children}

@@ -51,7 +51,7 @@ export function AdminHeader() {
          * elsewhere on the admin dashboard.
          */}
         <Link href={ROUTES.admin.reports} className="relative">
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`الإشعارات — ${openReports} بلاغ بانتظار المراجعة`}>
+          <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={`الإشعارات — ${openReports} بلاغ بانتظار المراجعة`}>
             <Bell className="h-4 w-4" />
             {openReports > 0 && (
               <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
@@ -64,7 +64,7 @@ export function AdminHeader() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-9 w-9"
           onClick={() => logout()}
           disabled={isLoggingOut}
           aria-label="تسجيل الخروج"

@@ -29,17 +29,19 @@
  */
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link       from 'next/link';
 import {
   Home, Search, Store, Wrench, Users, PlusCircle,
   LayoutDashboard, ListOrdered, Heart, BellPlus, Settings, Shield,
-  LogIn, UserPlus, LogOut,
+  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 const selectCloseMobileNav  = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
@@ -74,6 +76,48 @@ const SYSTEM_LINKS = [
 
 const NAV_ID    = 'mobile-nav-drawer';
 const TOGGLE_ID = 'mobile-nav-toggle';
+
+/**
+ * Inline light/dark/system segmented control for the drawer's "النظام"
+ * section — a device preference belongs next to Settings, but as a
+ * switcher rather than a link since it doesn't navigate anywhere.
+ * Mirrors ThemeToggle.tsx's own mount guard: next-themes only knows
+ * the real value client-side, so `theme` reads undefined until then.
+ */
+function ThemeRow() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const options = [
+    { value: 'light',  label: 'فاتح',       icon: Sun },
+    { value: 'dark',   label: 'داكن',        icon: Moon },
+    { value: 'system', label: 'النظام',      icon: MonitorSmartphone },
+  ] as const;
+
+  return (
+    <div className="px-3 py-1">
+      <p className="pb-1.5 text-xs font-medium text-muted-foreground">المظهر</p>
+      <div className="flex gap-1 rounded-md border p-1">
+        {options.map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTheme(value)}
+            aria-pressed={mounted && theme === value}
+            className={cn(
+              'flex flex-1 flex-col items-center gap-1 rounded py-1.5 text-xs transition-colors',
+              mounted && theme === value ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground',
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function NavSection({
   title,
@@ -214,9 +258,17 @@ export function MobileNav() {
                 links={isAdmin ? [...SYSTEM_LINKS, { label: 'لوحة الإدارة', href: ROUTES.admin.dashboard, icon: Shield }] : SYSTEM_LINKS}
                 onNavigate={closeMobileNav}
               />
+              <div className="border-t pt-3">
+                <ThemeRow />
+              </div>
             </>
           ) : (
-            <NavSection title="حسابك" links={GUEST_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+            <>
+              <NavSection title="حسابك" links={GUEST_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+              <div className="border-t pt-3">
+                <ThemeRow />
+              </div>
+            </>
           )}
         </div>
 

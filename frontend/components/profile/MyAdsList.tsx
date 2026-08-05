@@ -58,7 +58,7 @@ export function MyAdsList() {
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
         <p className="text-destructive">حدث خطأ أثناء تحميل إعلاناتك</p>
         <button
           type="button"
@@ -86,7 +86,7 @@ export function MyAdsList() {
       </div>
 
       {items.length === 0 ? (
-        <EmptyState icon={<ShoppingBag className="h-10 w-10" />}
+        <EmptyState icon={<ShoppingBag className="h-8 w-8" />}
           title="لا توجد إعلانات"
           description="لم تنشر أي إعلانات بعد"
           action={<Link href={ROUTES.adCreate}><Button>نشر إعلان</Button></Link>} />
@@ -117,7 +117,7 @@ export function MyAdsList() {
                       accessible name — title alone isn't reliable for
                       screen readers and has no keyboard equivalent. */}
                   {ad.status === 'ACTIVE' && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success"
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-success hover:text-success"
                       title="تعليم كمباع" aria-label={`تعليم ${ad.title} كمباع`}
                       disabled={markAsSold.isPending}
                       onClick={() => markAsSold.mutate(ad.id)}>
@@ -125,11 +125,11 @@ export function MyAdsList() {
                     </Button>
                   )}
                   <Link href={ROUTES.adEdit(ad.id)}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`تعديل ${ad.title}`}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${ad.title}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                  <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:text-destructive"
                     aria-label={`حذف ${ad.title}`}
                     onClick={() => setDeleteTargetId(ad.id)}>
                     <Trash2 className="h-3.5 w-3.5" />

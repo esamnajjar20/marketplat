@@ -3,6 +3,9 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button }  from '@/components/shared/ui/Button';
 import { Input }   from '@/components/shared/ui/Input';
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
 import { CITIES, CONDITION_LABELS, AD_SORT_OPTIONS, ROUTES } from '@/lib/constants';
 import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
 import { SlidersHorizontal } from 'lucide-react';
@@ -61,43 +64,47 @@ export function SearchFilters({ categorySlug }: Props = {}) {
       {/* Category */}
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الفئة</label>
-        <select value={activeCategoryId}
-          onChange={(e) => updateCategory(e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <option value="">كل الفئات</option>
-          {categories?.map((cat) => (
-            <optgroup key={cat.id} label={cat.nameAr}>
-              <option value={cat.id}>{cat.nameAr}</option>
-              {cat.children?.map((child) => (
-                <option key={child.id} value={child.id}>— {child.nameAr}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        <Select value={activeCategoryId || 'ALL'} onValueChange={(v) => updateCategory(v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل الفئات</SelectItem>
+            {categories?.map((cat) => (
+              <SelectGroup key={cat.id}>
+                <SelectLabel>{cat.nameAr}</SelectLabel>
+                <SelectItem value={cat.id}>{cat.nameAr}</SelectItem>
+                {cat.children?.map((child) => (
+                  <SelectItem key={child.id} value={child.id}>— {child.nameAr}</SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* City */}
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
-        <select value={sp.get('city') ?? ''}
-          onChange={(e) => update('city', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <option value="">كل المدن</option>
-          {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل المدن</SelectItem>
+            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Condition */}
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الحالة</label>
-        <select value={sp.get('condition') ?? ''}
-          onChange={(e) => update('condition', e.target.value)}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <option value="">الكل</option>
-          {Object.entries(CONDITION_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
+        <Select value={sp.get('condition') || 'ALL'} onValueChange={(v) => update('condition', v === 'ALL' ? '' : v)}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="الكل" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">الكل</SelectItem>
+            {Object.entries(CONDITION_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Price range */}
@@ -116,20 +123,23 @@ export function SearchFilters({ categorySlug }: Props = {}) {
       {/* Sort */}
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الترتيب</label>
-        <select
+        <Select
           value={`${sp.get('sortBy') ?? 'createdAt'}_${sp.get('sortOrder') ?? 'desc'}`}
-          onChange={(e) => {
-            const [sortBy = 'createdAt', sortOrder = 'desc'] = e.target.value.split('_');
+          onValueChange={(value) => {
+            const [sortBy = 'createdAt', sortOrder = 'desc'] = value.split('_');
             const params = new URLSearchParams(sp.toString());
             params.set('sortBy', sortBy); params.set('sortOrder', sortOrder);
             params.delete('page');
             router.push(`${pathname}?${params.toString()}`);
           }}
-          className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          {AD_SORT_OPTIONS.map((o) => (
-            <option key={`${o.sortBy}_${o.sortOrder}`} value={`${o.sortBy}_${o.sortOrder}`}>{o.label}</option>
-          ))}
-        </select>
+        >
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {AD_SORT_OPTIONS.map((o) => (
+              <SelectItem key={`${o.sortBy}_${o.sortOrder}`} value={`${o.sortBy}_${o.sortOrder}`}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Reset */}
