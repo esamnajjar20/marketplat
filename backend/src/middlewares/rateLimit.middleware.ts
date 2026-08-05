@@ -334,3 +334,24 @@ export const userBlockRateLimit = rateLimit({
   store: createRedisStore('user_block'),
   message: msg('Too many requests, please try again later'),
 });
+
+// Analytics ingest (gap #7): this endpoint is public (no authenticate
+// middleware — see analytics.routes.ts), which makes it the one write
+// path in the app reachable with zero auth friction, so it needs its
+// own generous-but-real ceiling rather than relying on globalRateLimit
+// alone. Higher than any other per-route limiter on purpose: one page
+// view can legitimately fire several batched events, and active
+// browsing across many pages/searches in a session adds up fast — this
+// bounds scripted flooding without throttling normal use.
+// failOpen=true (default): if Redis is briefly unavailable, analytics
+// ingestion degrading to "unlimited for a few seconds" is an acceptable
+// trade against making a background beacon endpoint start rejecting
+// requests because of it.
+export const analyticsEventsRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('analytics_events'),
+  message: msg('Too many requests, please slow down'),
+});

@@ -22,6 +22,7 @@ import { productsRouter } from './modules/products';
 import { productCategoriesRouter } from './modules/product-categories';
 import { searchRouter } from './modules/search';
 import { auditLogsRouter } from './modules/audit-logs';
+import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -61,6 +62,14 @@ router.use('/admin', adminRouter);
 // which likewise sits outside admin.routes.ts despite being an
 // admin-only resource.
 router.use('/admin/audit-logs', auditLogsRouter);
+// Gap #7 (product analytics): /analytics/events is public (see
+// analyticsRouter's own comment — anonymous traffic is most of a
+// marketplace's usage); /admin/analytics is the admin-only summary,
+// kept as its own router (not merged into adminRouter) for the same
+// reason auditLogsRouter sits outside admin.routes.ts — a distinct
+// repository-backed module, not raw Prisma calls in admin.service.ts.
+router.use('/analytics', analyticsRouter);
+router.use('/admin/analytics', analyticsAdminRouter);
 router.use('/sellers', sellersRouter);
 router.use('/service-providers', serviceProvidersRouter);
 router.use('/service-categories', serviceCategoriesRouter);

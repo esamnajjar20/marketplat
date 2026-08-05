@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
@@ -8,6 +9,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useSearch } from '@/hooks/queries/useSearch';
 import { ROUTES } from '@/lib/constants';
+import { track } from '@/lib/analytics';
 import type { SearchSort, SearchType } from '@/types/search.types';
 
 /**
@@ -34,6 +36,16 @@ export function SearchResults() {
   const total      = data?.meta?.total ?? 0;
 
   const searchParams = Object.fromEntries(sp.entries());
+
+  // Gap #7 (product analytics): fires once per resolved query — depends
+  // on the actual query params (not `data`) so it doesn't re-fire on
+  // background refetches of the same search, only when the visitor
+  // issues a (possibly) different one. Only tracks non-empty queries —
+  // landing on /search with no `q` yet isn't a search event.
+  useEffect(() => {
+    if (q) track('SEARCH', { q, city, type, categoryId, resultCount: data?.meta?.total });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, city, type, categoryId, page]);
 
   if (isLoading) {
     return (

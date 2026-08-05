@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useRegister } from '@/hooks/mutations/useAuthMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { getSafeRedirectPath } from '@/lib/cookies';
+import { track } from '@/lib/analytics';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { PasswordInput } from '@/components/shared/ui/PasswordInput';
@@ -42,6 +43,15 @@ export function RegisterForm() {
   // or a Zod validation edge case the client-side checks below don't
   // catch, like a backend-side uniqueness or format rule).
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  // Gap #7 (product analytics): fires once on mount — "started signup"
+  // is defined as landing on this form, paired with SIGNUP_COMPLETED in
+  // useAuthMutations.ts's useRegister onSuccess. Empty dependency array
+  // is deliberate: a visitor re-typing/correcting fields on the same
+  // visit is still one signup attempt, not a new one per render.
+  useEffect(() => {
+    track('SIGNUP_STARTED');
+  }, []);
 
   function fieldError(field: keyof Errors): string | undefined {
     return errors[field] ?? serverErrors?.[field]?.[0];

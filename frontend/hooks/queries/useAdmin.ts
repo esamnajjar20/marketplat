@@ -12,6 +12,7 @@
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { adminApi }  from '@/api/admin.api';
+import { analyticsApi, type GetAnalyticsSummaryParams } from '@/api/analytics.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, ReportStatus } from '@/types/admin.types';
@@ -128,5 +129,18 @@ export function useAdminStats() {
     queryKey:  queryKeys.admin.stats(),
     queryFn:   () => adminApi.getStats().then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
+  });
+}
+
+/**
+ * Gap #7 (product analytics): GET /admin/analytics/summary — trend,
+ * top categories, and search→contact / signup funnel conversion rates
+ * for the admin analytics dashboard.
+ */
+export function useAdminAnalyticsSummary(params?: GetAnalyticsSummaryParams) {
+  return useQuery({
+    queryKey:  queryKeys.admin.analyticsSummary(params),
+    queryFn:   () => analyticsApi.getSummary(params),
+    staleTime: CACHE_TTL.adminAnalytics,
   });
 }

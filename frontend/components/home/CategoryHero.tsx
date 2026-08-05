@@ -1,12 +1,22 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Tag, AlertTriangle } from 'lucide-react';
 import { useCategoryBySlug } from '@/hooks/queries/useCategories';
+import { track } from '@/lib/analytics';
 
 interface Props { slug: string; }
 
 export function CategoryHero({ slug }: Props) {
   const { data: category, isLoading, isError } = useCategoryBySlug(slug);
+
+  // Gap #7 (product analytics): fires once per category the visitor
+  // actually lands on — depends on category?.id (not `slug`) so it only
+  // fires once resolution succeeds, since a bad/typo'd slug shouldn't
+  // count toward "which categories get browsed" data.
+  useEffect(() => {
+    if (category?.id) track('CATEGORY_BROWSE', { categoryId: category.id, slug });
+  }, [category?.id, slug]);
 
   if (isLoading) {
     return <div className="h-16 rounded-lg bg-muted animate-pulse" />;

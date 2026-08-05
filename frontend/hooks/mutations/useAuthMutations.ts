@@ -17,6 +17,7 @@ import { authApi }       from '@/api/auth.api';
 import { usersApi }      from '@/api/users.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { ROUTES }        from '@/lib/constants';
+import { track }         from '@/lib/analytics';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { setCookie, deleteCookie, AUTH_COOKIE_MAX_AGE, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
@@ -133,6 +134,10 @@ export function useRegister() {
     onSuccess: (data) => {
       setAuth(data.user, data.tokens);
       setAuthCookies(data.user, data.tokens);
+      // Gap #7 (product analytics): completes the signup funnel this
+      // event pairs with (see RegisterForm.tsx's SIGNUP_STARTED on
+      // mount, and backend's analyticsRepository.signupFunnelSessions).
+      track('SIGNUP_COMPLETED');
       // UX-FIX P-REG-1: previously navigated to /dashboard with zero
       // feedback — the only "did this work?" signal was the page
       // changing underneath the user. Every other success path in the

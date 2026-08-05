@@ -534,6 +534,53 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// Product-analytics event log — distinct from AuditLog, which tracks
+// security/admin actions (login, role changes). This tracks product
+// usage (page views, searches, ad views, contact clicks) for both
+// anonymous visitors and logged-in users, feeding the admin analytics
+// dashboard (funnel, category popularity, search→contact conversion).
+//
+// Deliberately NOT a Prisma relation to User (no `user User? @relation`,
+// just a plain nullable id): this table will grow far faster than any
+// other in the schema (every page view/search is a row), and tying it
+// to User via a real FK would (a) force a decision on cascade behavior
+// at user-deletion time for a table that's expected to be pruned/
+// rolled up on its own retention schedule rather than deleted alongside
+// a user, and (b) add relation-load weight to the User model for a
+// table nothing else ever needs to join through Prisma — reads here
+// always start from AnalyticsEvent, not from User.
+model AnalyticsEvent {
+  id         String             @id @default(cuid())
+  event      AnalyticsEventType
+  // Null for anonymous visitors. Deliberately not a foreign key — see
+  // model-level comment above.
+  userId     String?
+  // Groups events from the same browser session without requiring
+  // login — generated client-side (crypto.randomUUID(), persisted in
+  // sessionStorage-equivalent) so a single visit's page views/searches
+  // can be strung into a funnel even for anonymous traffic.
+  sessionId  String
+  // Free-form event payload: adId for AD_VIEW, query text for SEARCH,
+  // categoryId for CATEGORY_BROWSE, step name for SIGNUP_STEP, etc.
+  // Shape intentionally varies by `event` — consumers switch on `event`
+  // before reading known keys out of this, same convention as
+  // AuditLog.details.
+  metadata   Json?
+  path       String?
+  referrer   String?
+  createdAt  DateTime           @default(now())
+
+  // createdAt alone covers "events in the last N days" scans; the
+  // composite covers "trend for event X over time" without a second
+  // index — both are the two query shapes the admin summary endpoint
+  // actually runs.
+  @@index([createdAt])
+  @@index([event, createdAt])
+  @@index([sessionId])
+  @@index([userId])
+  @@map("analytics_events")
+}
+
 model PasswordResetToken {
   id        String   @id @default(cuid())
   token     String   @unique
@@ -696,4 +743,17 @@ enum AuditEventType {
   OAUTH_LOGIN
   OAUTH_ACCOUNT_LINKED
   OAUTH_SIGNUP
+}
+
+// Gap #7 (product analytics): event vocabulary kept deliberately small
+// and funnel-shaped rather than exhaustive — each value maps to one
+// concrete question the admin summary answers (not "log everything").
+enum AnalyticsEventType {
+  PAGE_VIEW
+  AD_VIEW
+  SEARCH
+  CATEGORY_BROWSE
+  CONTACT_CLICK
+  SIGNUP_STARTED
+  SIGNUP_COMPLETED
 }

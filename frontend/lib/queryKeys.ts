@@ -201,5 +201,8 @@ export const queryKeys = {
     reports:      (params?: object)              => ['admin', 'reports', params ?? {}] as const,
     reportDetail: (id: string)                   => ['admin', 'reports', 'detail', id] as const,
     auditLogs:    (params?: AdminGetAuditLogsParams) => ['admin', 'audit-logs', params ?? {}] as const,
+    // Gap #7 (product analytics): matches GetAnalyticsSummaryParams shape.
+    analyticsSummary: (params?: { from?: string; to?: string; bucket?: 'day' | 'week' }) =>
+      ['admin', 'analytics', 'summary', params ?? {}] as const,
   },
 } as const;

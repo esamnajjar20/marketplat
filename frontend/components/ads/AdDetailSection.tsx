@@ -18,6 +18,7 @@
  * max page size — so visiting any ad detail page while authenticated
  * warms the Set with the user's complete favorites, not just page 1.
  */
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { AdDetail }       from '@/components/ads/AdDetail';
 import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
@@ -28,6 +29,7 @@ import { useAd }          from '@/hooks/queries/useAds';
 import { useFavorites, useIsFavorited } from '@/hooks/queries/useFavorites';
 import { parseApiError }  from '@/lib/errorParser';
 import { ROUTES }         from '@/lib/constants';
+import { track }          from '@/lib/analytics';
 import { SearchX, AlertTriangle } from 'lucide-react';
 
 export function AdDetailSection({ id }: { id: string }) {
@@ -38,6 +40,15 @@ export function AdDetailSection({ id }: { id: string }) {
   // the user isn't authenticated — see useFavorites' `enabled` check.
   useFavorites({ limit: 100 });
   const isFavorited = useIsFavorited(id);
+
+  // Gap #7 (product analytics): fires once per successful ad load —
+  // dependent on ad.id (not just `ad`) so it doesn't re-fire on every
+  // refetch/refresh of the same ad's data (e.g. a favorites toggle
+  // invalidating this query), only when the visitor actually lands on
+  // a (possibly different) ad.
+  useEffect(() => {
+    if (ad?.id) track('AD_VIEW', { adId: ad.id, categoryId: ad.category?.id });
+  }, [ad?.id, ad?.category?.id]);
 
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
 

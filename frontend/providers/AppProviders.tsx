@@ -16,6 +16,7 @@ import { makeQueryClient }     from '@/lib/queryClient';
 import { AuthHydrationProvider } from './AuthHydrationProvider';
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
+import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -68,6 +69,10 @@ export function AppProviders({ children }: AppProvidersProps) {
         <ThemedToaster />
 
         <PwaBootstrap />
+
+        {/* Gap #7 (product analytics): see PageViewTracker.tsx's own
+            header for why this is mounted here rather than per-page. */}
+        <PageViewTracker />
 
         {process.env.NODE_ENV === 'development' && (
           <ReactQueryDevtools initialIsOpen={false} />

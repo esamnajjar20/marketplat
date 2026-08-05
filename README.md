@@ -1,45 +1,87 @@
-# حزمة ميزة Store — الملفات الجديدة والمعدّلة
+# فجوة #7 — نظام تحليلات سلوك المستخدم (Product Analytics)
 
-هذه الحزمة تحتوي على قسمين:
+هاي الملفات جاهزة لدمجها بمشروعك — كل ملف بنفس مساره النسبي داخل
+`backend/` أو `frontend/`. انسخهم فوق البنية الأصلية (استبدال للملفات
+المعدّلة، إضافة للجديدة).
 
-## 1) اختبارات جديدة (من إعدادي) — `backend/tests/`
-ملفات اختبار كاملة تغطي ميزة `stores` (repository / service / controller /
-validation + اختبارات تكامل)، بالإضافة إلى ملفي مساعدة (helpers) جديدين
-لإنشاء بيانات تجريبية (seller profile و store).
+جميع أنواع الأحداث السبعة مربوطة الآن فعليًا:
+`PAGE_VIEW`، `AD_VIEW`، `SEARCH`، `CATEGORY_BROWSE`، `CONTACT_CLICK`،
+`SIGNUP_STARTED`، `SIGNUP_COMPLETED`.
 
-```
-backend/tests/helpers/sellerProfile.helper.ts
-backend/tests/helpers/store.helper.ts
-backend/tests/unit/stores.repository.test.ts
-backend/tests/unit/store-followers.repository.test.ts
-backend/tests/unit/store-reviews.repository.test.ts
-backend/tests/unit/stores.service.test.ts
-backend/tests/unit/stores.controller.test.ts
-backend/tests/unit/stores.validation.test.ts
-backend/tests/integration/stores.test.ts
-```
+## ملفات جديدة بالكامل
 
-هذه الملفات تُضاف داخل مشروعك الحالي في نفس المسارات أعلاه (نسخ ولصق فوق
-مجلد `backend/tests`).
+**Backend:**
+- `backend/prisma/migrations/20260806120000_add_analytics_events/migration.sql`
+- `backend/src/modules/analytics/` (كامل: controller, repository,
+  routes, service, validation, index)
 
-## 2) ملفات ميزة Store نفسها (من حزمة `backend-stores-module.zip` الأصلية)
-مرفقة هنا للتوثيق/المرجعية فقط — وهي الملفات الجديدة/المعدّلة التي تُشكّل
-الميزة التي تُغطّيها الاختبارات:
+**Frontend:**
+- `frontend/lib/analytics.ts` — tracker خفيف من طرف العميل (session id،
+  batching، sendBeacon عند مغادرة الصفحة)
+- `frontend/api/analytics.api.ts` — استدعاء ملخص الأدمن
+- `frontend/components/admin/AdminAnalyticsDashboard.tsx` — لوحة
+  التحليلات (بطاقات ملخص، معدلات تحويل، رسم بياني بسيط، أكثر الفئات
+  تصفحًا)
+- `frontend/components/shared/PageViewTracker.tsx` — تتبع `PAGE_VIEW`
+  على مستوى كل الموقع (مستثنى: مسارات `/admin`)
+- `frontend/app/(admin)/admin/analytics/page.tsx`
+- `frontend/app/(admin)/admin/analytics/loading.tsx`
 
-```
-backend/src/modules/stores/*
-backend/src/modules/products/*
-backend/src/modules/product-categories/*
-backend/src/shared/utils/storeLock.ts
-backend/src/routes.ts                 (معدّل: تسجيل الراوترات الجديدة)
-backend/prisma/schema.prisma          (معدّل: إضافة نماذج Store/Product)
-```
+## ملفات معدّلة (استبدال كامل)
 
-## طريقة الدمج
-1. انسخ محتوى `backend/src/...` و `backend/prisma/schema.prisma` فوق مشروعك
-   (نفس الملفات التي كانت في `backend-stores-module.zip`).
-2. انسخ محتوى `backend/tests/...` فوق مجلد `tests` في مشروعك.
-3. شغّل `npm test` من جذر الباكيند.
+**Backend:**
+- `backend/prisma/schema.prisma` — أضيف موديل `AnalyticsEvent` +
+  enum `AnalyticsEventType`
+- `backend/src/middlewares/rateLimit.middleware.ts` — أضيف
+  `analyticsEventsRateLimit`
+- `backend/src/routes.ts` — ربط `/analytics` و `/admin/analytics`
 
-ملاحظة: لم يتم تشغيل الاختبارات فعليًا في بيئة الإعداد (لا يوجد اتصال إنترنت
-أو Postgres/Redis)، لذا يُنصح بتشغيلها والتحقق من النتائج في بيئتك.
+**Frontend:**
+- `frontend/components/ads/AdDetailSection.tsx` — تتبع `AD_VIEW`
+- `frontend/components/ads/SellerCard.tsx` — تتبع `CONTACT_CLICK`
+- `frontend/components/search/SearchResults.tsx` — تتبع `SEARCH`
+- `frontend/components/home/CategoryHero.tsx` — تتبع `CATEGORY_BROWSE`
+- `frontend/components/auth/RegisterForm.tsx` — تتبع `SIGNUP_STARTED`
+- `frontend/hooks/mutations/useAuthMutations.ts` — تتبع
+  `SIGNUP_COMPLETED`
+- `frontend/hooks/queries/useAdmin.ts` — hook
+  `useAdminAnalyticsSummary`
+- `frontend/lib/constants.ts` — `ROUTES.admin.analytics` +
+  `CACHE_TTL.adminAnalytics`
+- `frontend/lib/queryKeys.ts` — `queryKeys.admin.analyticsSummary`
+- `frontend/components/admin/AdminSidebar.tsx` — رابط "التحليلات"
+  بالقائمة الجانبية
+- `frontend/providers/AppProviders.tsx` — ربط `PageViewTracker`
+  ليشتغل على كل صفحات الموقع (باستثناء `/admin`)
+
+## خطوات ما بعد الدمج
+
+1. `cd backend && npx prisma migrate deploy` (أو `migrate dev` بالتطوير)
+   لتطبيق migration الجدول الجديد `analytics_events`
+2. `npx prisma generate` لتحديث Prisma Client بموديل
+   `AnalyticsEvent` والـ enum الجديد
+3. تأكد من متغيرات البيئة الموجودة أصلاً كافية (لا توجد متغيرات
+   بيئة جديدة مطلوبة لهذه الميزة)
+4. لم يتم تشغيل `tsc`/build فعليًا على هذا الكود (لا تتوفر بيئة
+   npm install بمكان التطوير) — راجعت كل ملف يدويًا لكن يُنصح
+   بتشغيل `npm run build` و`npm test` على المشروع الفعلي قبل النشر
+
+## نقاط تصميم يستاهل تعرفها
+
+- **`POST /analytics/events` عام بدون auth إجباري** — عمدًا، لأن
+  معظم تصفح المنصة من زوار غير مسجّلين. بيتعرف على `userId` لو موجود
+  توكن صالح بالـ header، بدون ما يرفض الطلب لو مش موجود.
+- **الفرونت اند tracker (`lib/analytics.ts`) ما بيستخدم `apiClient`
+  العادي** — عمدًا، عشان فشل حدث تحليلات ما يفعّل session-expired
+  flow (توست + تحويل لصفحة تسجيل الدخول).
+- **`PageViewTracker` مستثني مسارات `/admin`** — تصفح الأدمن نفسه
+  للوحة التحكم مش "استخدام منتج" بمعنى الفجوة الأصلية.
+- **أسماء الفئات بالعربي** — الـ backend بيعمل lookup إضافي من جدول
+  `Category` لتحويل `categoryId` الخام لاسم عربي بلوحة التحليلات.
+
+## ما لم يُنفَّذ بعد (خارج نطاق هذا التسليم)
+
+- اختبارات وحدة/تكامل لـ endpoints أو للـ tracker
+- لا يوجد رسم بياني تفاعلي حقيقي (استُخدم CSS bar chart بسيط لعدم
+  وجود مكتبة رسوم بيانية بالمشروع أصلاً — قرار تجنّب إضافة dependency
+  جديدة لميزة واحدة)

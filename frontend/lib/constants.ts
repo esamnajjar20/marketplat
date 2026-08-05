@@ -70,6 +70,8 @@ export const ROUTES = {
     stores:            '/admin/stores',
     productCategories: '/admin/product-categories',
     auditLogs:         '/admin/audit-logs',
+    // Gap #7 (product analytics): dashboard for GET /admin/analytics/summary.
+    analytics:         '/admin/analytics',
   },
 } as const;
 
@@ -172,6 +174,11 @@ export const CACHE_TTL = {
   sessions:    60_000,   //  60 s
   favorites:   60_000,   //  60 s
   adminList:   30_000,   //  30 s
+  // Gap #7 (product analytics): aggregated over a date range, not a
+  // live list — changes far less per-minute than adminList's paginated
+  // tables, so a longer TTL avoids re-running the trend/category/funnel
+  // aggregations on every sidebar revisit within the same session.
+  adminAnalytics: 120_000, // 2 m
   // Epic 3.1: service requests move through PENDING/ACCEPTED/etc fairly
   // often (a provider can respond any time), so keep this shorter than
   // myAds — same reasoning as adsList's 30s over categories' 5m.

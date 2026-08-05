@@ -11,6 +11,7 @@ import { getAvatarUrl } from '@/lib/cloudinary';
 import { useSellerProfile } from '@/hooks/queries/useSellers';
 import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
+import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
 import type { AdAuthor } from '@/types/ad.types';
 
@@ -42,6 +43,12 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
 
   function handleMessage() {
     if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    // Gap #7 (product analytics): the search→contact conversion metric
+    // is defined off this event (see backend's
+    // analyticsRepository.searchToContactSessions) — tracked on the
+    // click itself, not the mutation's onSuccess, so it reflects real
+    // buyer intent even if the conversation creation call itself fails.
+    track('CONTACT_CLICK', { adId, sellerId: seller.id });
     startConversation.mutate(
       { adId },
       { onSuccess: (conversation) => router.push(ROUTES.conversationDetail(conversation!.id)) }
