@@ -108,19 +108,19 @@ export const adsRepository = {
     if (search) {
       const whereParts: Prisma.Sql[] = [
         Prisma.sql`"status" = ${AdStatus.ACTIVE}::"AdStatus"`,
-        // coalesce() added to description (previously bare "description")
-        // so this expression is byte-for-byte identical to the new
-        // ads_search_idx GIN index (see the search module's
-        // add_search_indexes migration, which this index and
-        // search.repository.ts's own ad branch both also match
-        // verbatim) — a GIN expression index only gets used when the
-        // query expression matches what it was built from exactly.
-        // description is NOT NULL on Ad today, so this changes no
-        // result, only which index plan Postgres can choose.
+        // FIX SEARCH-AR-01: both sides of tsvector @@ tsquery now go
+        // through arabic_normalize() — the column expression must match
+        // ads_search_idx byte-for-byte (same reasoning as the coalesce()
+        // comment above), and the search TERM must go through the same
+        // function too, or a user typing e.g. أ (hamza) would never
+        // match a listing indexed with plain ا — only one side of the
+        // comparison would be normalized otherwise. See the
+        // arabic_search_normalization migration for the full rationale
+        // on which letter-shape variants are folded together.
         Prisma.sql`(
-          setweight(to_tsvector('simple', coalesce("title", '')), 'A') ||
-          setweight(to_tsvector('simple', coalesce("description", '')), 'B')
-        ) @@ plainto_tsquery('simple', ${search})`,
+          setweight(to_tsvector('simple', arabic_normalize(coalesce("title", ''))), 'A') ||
+          setweight(to_tsvector('simple', arabic_normalize(coalesce("description", ''))), 'B')
+        ) @@ plainto_tsquery('simple', arabic_normalize(${search}))`,
       ];
 
       // FIX PERF-01: city ILIKE '%value%' can never use the existing

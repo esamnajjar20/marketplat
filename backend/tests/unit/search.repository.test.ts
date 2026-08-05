@@ -66,6 +66,54 @@ describe('searchRepository', () => {
         await expect(searchRepository.search({ ...baseQuery, sort })).resolves.not.toThrow();
       }
     );
+
+    // FIX SEARCH-AR-01 regression test: guards against a future edit
+    // reintroducing a bare to_tsvector(coalesce(...)) column expression
+    // (still *correct* — arabic_normalize only normalizes, it doesn't
+    // change results for already-normalized input — but it would
+    // silently stop matching the ads_search_idx/products_search_idx/
+    // store_details_search_idx/service_listings_search_idx GIN indexes'
+    // expression, degrading every search to a sequential scan with no
+    // functional test failure to catch it).
+    //
+    // Reads the real Prisma.Sql object's public `.sql` property (every
+    // Prisma.Sql instance exposes this — the flattened, parameterized
+    // SQL text with $1/$2/... placeholders) rather than trying to
+    // introspect the mocked $queryRaw call's tagged-template arguments.
+    // @prisma/client itself is NOT mocked in this file (only the
+    // `prisma` client singleton is — see the jest.mock at the top), so
+    // Prisma.sql/Prisma.join run as real, unmocked code here; `.sql` is
+    // documented public API, not an internal implementation detail
+    // this test would be gambling on.
+    it('wraps every to_tsvector column expression and the search term itself in arabic_normalize(), matching the GIN indexes', async () => {
+      let capturedSql = '';
+      (prisma.$queryRaw as jest.Mock).mockImplementationOnce((strings: TemplateStringsArray, ...values: unknown[]) => {
+        // `unioned` (the UNION ALL of all branches) and `orderBySql`
+        // are BOTH interpolated Prisma.Sql objects into this same
+        // template — matching on `'UNION ALL'` in the flattened text
+        // (rather than just taking the first Prisma.Sql-shaped value)
+        // makes this robust to that call's own argument order ever
+        // changing, since `unioned` is specifically what carries every
+        // branch's arabic_normalize() column expression.
+        const unioned = values.find(
+          (v): v is { sql: string } =>
+            typeof v === 'object' && v !== null && 'sql' in v && (v as { sql: string }).sql.includes('UNION ALL')
+        );
+        capturedSql = unioned?.sql ?? '';
+        return Promise.resolve([]);
+      });
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ count: 0n }]);
+
+      await searchRepository.search({ ...baseQuery, q: 'أحمد' });
+
+      // Every branch's column expression (4 branches × title/name +
+      // description = 8 occurrences).
+      const columnWraps = (capturedSql.match(/to_tsvector\('simple', arabic_normalize\(coalesce\(/g) ?? []).length;
+      expect(columnWraps).toBeGreaterThanOrEqual(8);
+
+      // The shared search-term wrap from buildTsQuery.
+      expect(capturedSql).toContain("plainto_tsquery('simple', arabic_normalize(");
+    });
   });
 
   describe('buildUrl', () => {

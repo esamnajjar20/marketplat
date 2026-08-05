@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 /**
- * FIX MISSING-ASSETS-01: the app had no favicon at all — public/ was
+ * FIX سISSING-ASSETS-01: the app had no favicon at all — public/ was
  * empty (just .gitkeep) and app/ had no icon.tsx/icon.png, so every
  * browser tab showed a blank/default icon. This is Next.js's
  * file-convention route for generating a favicon at build time rather

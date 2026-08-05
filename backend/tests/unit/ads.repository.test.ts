@@ -191,6 +191,42 @@ describe('adsRepository', () => {
       expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
       expect(prisma.ad.count).not.toHaveBeenCalled();
     });
+
+    // FIX SEARCH-AR-01 regression test: guards against a future edit
+    // reintroducing a bare to_tsvector(coalesce(...)) column expression
+    // or an un-normalized plainto_tsquery(...) search term — either
+    // would still return *correct* results for already-normalized
+    // input, but would silently stop matching ads_search_idx's rebuilt
+    // GIN expression (degrading to a sequential scan) with no
+    // functional test failure to catch it. Reads the real Prisma.Sql
+    // object's public `.sql` property, same approach and same
+    // reasoning as search.repository.test.ts's equivalent test —
+    // @prisma/client is not mocked in this file (only the `prisma`
+    // client singleton is), so Prisma.sql/Prisma.join run unmocked.
+    it('wraps the tsvector column expression and the search term itself in arabic_normalize(), matching ads_search_idx', async () => {
+      let capturedSql = '';
+      (prisma.$queryRaw as jest.Mock).mockImplementationOnce((strings: TemplateStringsArray, ...values: unknown[]) => {
+        // whereSql is the one Prisma.Sql value here that actually
+        // carries the tsvector/tsquery expression — sortColumn (also a
+        // Prisma.Sql, via Prisma.raw) never contains 'arabic_normalize',
+        // so matching on that substring unambiguously picks out whereSql
+        // regardless of the two values' call order.
+        const whereSql = values.find(
+          (v): v is { sql: string } =>
+            typeof v === 'object' && v !== null && 'sql' in v && (v as { sql: string }).sql.includes('arabic_normalize')
+        );
+        capturedSql = whereSql?.sql ?? '';
+        return Promise.resolve([]);
+      });
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ count: 0n }]);
+
+      await adsRepository.findMany({ search: 'أحمد' });
+
+      const columnWraps = (capturedSql.match(/to_tsvector\('simple', arabic_normalize\(coalesce\(/g) ?? []).length;
+      expect(columnWraps).toBe(2); // title + description
+
+      expect(capturedSql).toContain("plainto_tsquery('simple', arabic_normalize(");
+    });
   });
 
   describe('findById', () => {

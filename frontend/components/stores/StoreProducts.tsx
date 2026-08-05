@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Package } from 'lucide-react';
 import { ProductCard } from './ProductCard';
@@ -42,7 +42,13 @@ export function StoreProducts({ storeId }: Props) {
 
   const { data, isLoading, isError, refetch } = useProducts({ storeId, page, limit: 12 });
 
-  const items = data?.items ?? [];
+  // FIX LINT-01: data?.items ?? [] created a brand-new array reference
+  // on every render whenever data.items was absent (loading/error
+  // states) — since `items` fed into the useEffect below, that made
+  // the effect re-run on every render instead of only when the
+  // product list actually changed. useMemo keeps the same reference
+  // across renders as long as data.items itself hasn't changed.
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
 
   useEffect(() => {

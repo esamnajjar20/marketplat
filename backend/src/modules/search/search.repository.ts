@@ -42,12 +42,19 @@ import { RawSearchRow, SearchType } from './search.types';
  *                  does NOT — hardcoded to 0 for stores rather than
  *                  omitted, so `sort=views` never breaks on a NULL.
  *   - full-text:   Every branch uses the identical
- *                  setweight(...) || setweight(...) expression the
- *                  search_idx GIN indexes (see the
- *                  add_search_indexes migration) were built from — the
- *                  planner only uses a GIN expression index when the
- *                  query expression matches it verbatim, so drifting
- *                  the two apart silently gives up the index.
+ *                  setweight(arabic_normalize(...)) || setweight(...)
+ *                  expression the search_idx GIN indexes (see the
+ *                  add_search_indexes migration and its follow-up
+ *                  arabic_search_normalization migration) were built
+ *                  from — the planner only uses a GIN expression index
+ *                  when the query expression matches it verbatim, so
+ *                  drifting the two apart silently gives up the index.
+ *                  arabic_normalize() (defined in the latter migration)
+ *                  folds Arabic alef/yeh letter-shape variants and
+ *                  strips tatweel/diacritics on both the indexed
+ *                  columns and the search term itself (see
+ *                  buildTsQuery below) — see that migration's own
+ *                  comment for which variants are folded and why.
  */
 
 const ENTITY_URL_PREFIX: Record<'ad' | 'product' | 'store' | 'service', string> = {
@@ -75,8 +82,14 @@ const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
   views: Prisma.sql`views DESC, rank DESC, created_at DESC`,
 };
 
+// FIX SEARCH-AR-01: arabic_normalize() wraps the search term here so
+// every branch below (ad/product/store/service, all of which now also
+// wrap their own tsvector columns) compares like-for-like — see the
+// arabic_search_normalization migration for what's folded and why.
+// Applied once here rather than in all four branches individually,
+// since every branch calls this same function to build its tsQuery.
 const buildTsQuery = (q: string | undefined) =>
-  q ? Prisma.sql`plainto_tsquery('simple', ${q})` : null;
+  q ? Prisma.sql`plainto_tsquery('simple', arabic_normalize(${q}))` : null;
 
 // Explicit shared signature for every *Branch builder below — without
 // this, TypeScript infers each function's own return type
@@ -101,8 +114,8 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city) => {
   const conditions: Prisma.Sql[] = [Prisma.sql`a."status" = 'ACTIVE'`];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
-      setweight(to_tsvector('simple', coalesce(a."title", '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(a."description", '')), 'B')
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(a."title", ''))), 'A') ||
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(a."description", ''))), 'B')
     ) @@ ${tsQuery}`);
   }
   if (categoryId) conditions.push(Prisma.sql`a."categoryId" = ${categoryId}`);
@@ -110,8 +123,8 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city) => {
 
   const rankExpr = tsQuery
     ? Prisma.sql`ts_rank(
-        setweight(to_tsvector('simple', coalesce(a."title", '')), 'A') ||
-        setweight(to_tsvector('simple', coalesce(a."description", '')), 'B'),
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(a."title", ''))), 'A') ||
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(a."description", ''))), 'B'),
         ${tsQuery}
       )`
     : Prisma.sql`0`;
@@ -138,8 +151,8 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city) => {
   const conditions: Prisma.Sql[] = [Prisma.sql`p."status" = 'ACTIVE'`, Prisma.sql`st."status" = 'ACTIVE'`];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
-      setweight(to_tsvector('simple', coalesce(p."name", '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(p."description", '')), 'B')
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(p."name", ''))), 'A') ||
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(p."description", ''))), 'B')
     ) @@ ${tsQuery}`);
   }
   if (categoryId) conditions.push(Prisma.sql`p."categoryId" = ${categoryId}`);
@@ -148,8 +161,8 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city) => {
 
   const rankExpr = tsQuery
     ? Prisma.sql`ts_rank(
-        setweight(to_tsvector('simple', coalesce(p."name", '')), 'A') ||
-        setweight(to_tsvector('simple', coalesce(p."description", '')), 'B'),
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(p."name", ''))), 'A') ||
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(p."description", ''))), 'B'),
         ${tsQuery}
       )`
     : Prisma.sql`0`;
@@ -182,16 +195,16 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city) => {
   const conditions: Prisma.Sql[] = [Prisma.sql`st."status" = 'ACTIVE'`];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
-      setweight(to_tsvector('simple', coalesce(st."name", '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(st."description", '')), 'B')
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(st."name", ''))), 'A') ||
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(st."description", ''))), 'B')
     ) @@ ${tsQuery}`);
   }
   if (city) conditions.push(Prisma.sql`st."city" = ${city}`);
 
   const rankExpr = tsQuery
     ? Prisma.sql`ts_rank(
-        setweight(to_tsvector('simple', coalesce(st."name", '')), 'A') ||
-        setweight(to_tsvector('simple', coalesce(st."description", '')), 'B'),
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(st."name", ''))), 'A') ||
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(st."description", ''))), 'B'),
         ${tsQuery}
       )`
     : Prisma.sql`0`;
@@ -217,8 +230,8 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city) => {
   const conditions: Prisma.Sql[] = [Prisma.sql`sl."status" = 'ACTIVE'`];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
-      setweight(to_tsvector('simple', coalesce(sl."title", '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(sl."description", '')), 'B')
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."title", ''))), 'A') ||
+      setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."description", ''))), 'B')
     ) @@ ${tsQuery}`);
   }
   if (categoryId) conditions.push(Prisma.sql`sl."categoryId" = ${categoryId}`);
@@ -229,8 +242,8 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city) => {
 
   const rankExpr = tsQuery
     ? Prisma.sql`ts_rank(
-        setweight(to_tsvector('simple', coalesce(sl."title", '')), 'A') ||
-        setweight(to_tsvector('simple', coalesce(sl."description", '')), 'B'),
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."title", ''))), 'A') ||
+        setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."description", ''))), 'B'),
         ${tsQuery}
       )`
     : Prisma.sql`0`;
@@ -341,27 +354,41 @@ export const searchRepository = {
     // vanishingly unlikely to appear in a product/store/category name
     // (unlike '\', which some data could legitimately contain).
     const escapedPrefix = prefix.replace(/[!%_]/g, char => `!${char}`);
-    const likePattern = `${escapedPrefix}%`;
+    // FIX SEARCH-AR-01: normalizes the prefix the same way the main
+    // search() path now does — otherwise suggestions and the results
+    // they lead to would disagree on which letter-shape variants count
+    // as a match (e.g. autocomplete matching أحمد but the resulting
+    // search for "أحمد" not finding a listing stored as "احمد", or vice
+    // versa). arabic_normalize() is applied inside SQL to BOTH the
+    // prefix parameter and the stored columns below, rather than
+    // duplicating the same folding logic as a second implementation in
+    // JS — one canonical definition (the Postgres function) that both
+    // this and search() call, so the two paths can never silently
+    // drift apart from each other. There's no existing index on these
+    // name/nameAr columns to preserve or invalidate (schema.prisma has
+    // none), so wrapping the column expression costs nothing extra it
+    // wasn't already paying with a sequential scan.
+    const rawPrefix = `${escapedPrefix}%`;
 
     const [products, stores, productCategories, serviceCategories] = await Promise.all([
       prisma.$queryRaw<{ name: string }[]>`
         SELECT DISTINCT "name" FROM "products"
-        WHERE "status" = 'ACTIVE' AND "name" ILIKE ${likePattern} ESCAPE '!'
+        WHERE "status" = 'ACTIVE' AND arabic_normalize("name") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
         LIMIT ${limit}
       `,
       prisma.$queryRaw<{ name: string }[]>`
         SELECT DISTINCT "name" FROM "store_details"
-        WHERE "status" = 'ACTIVE' AND "name" ILIKE ${likePattern} ESCAPE '!'
+        WHERE "status" = 'ACTIVE' AND arabic_normalize("name") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
         LIMIT ${limit}
       `,
       prisma.$queryRaw<{ nameAr: string }[]>`
         SELECT DISTINCT "nameAr" FROM "product_categories"
-        WHERE "isActive" = true AND "nameAr" ILIKE ${likePattern} ESCAPE '!'
+        WHERE "isActive" = true AND arabic_normalize("nameAr") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
         LIMIT ${limit}
       `,
       prisma.$queryRaw<{ nameAr: string }[]>`
         SELECT DISTINCT "nameAr" FROM "service_categories"
-        WHERE "isActive" = true AND "nameAr" ILIKE ${likePattern} ESCAPE '!'
+        WHERE "isActive" = true AND arabic_normalize("nameAr") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
         LIMIT ${limit}
       `,
     ]);
