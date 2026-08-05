@@ -30,6 +30,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link       from 'next/link';
 import {
   Home, Search, Store, Wrench, Users, PlusCircle,
@@ -162,6 +163,15 @@ export function MobileNav() {
   const user             = useAuthStore(selectUser);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
+  // FIX UI-05: document.body isn't available during SSR, and even on
+  // the client, createPortal needs a mounted DOM node to portal into
+  // — rendering it on the very first client render (before React has
+  // hydrated/committed) would still throw. Delaying the portal until
+  // after mount is the standard pattern for this; the drawer is closed
+  // by default anyway, so the one-render delay is invisible.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // UX-06 FIX: close on Escape
   useEffect(() => {
     if (!isMobileNavOpen) return;
@@ -183,7 +193,8 @@ export function MobileNav() {
 
   return (
     <>
-      {/* Hamburger toggle */}
+      {/* Hamburger toggle — stays inline in the header; only the
+          backdrop + drawer below need the portal. */}
       <button
         id={TOGGLE_ID}
         onClick={toggleMobileNav}
@@ -197,97 +208,120 @@ export function MobileNav() {
         <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
       </button>
 
-      {/* Backdrop */}
-      {isMobileNavOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40"
-          onClick={closeMobileNav}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Drawer — end-0 is logical (right in LTR, left in RTL).
-          translate-x-full is a PHYSICAL property (always moves toward
-          +X / visual right) — it does NOT flip with dir="rtl" the way
-          end-0 does. Since this app is RTL-only (dir="rtl" on <html>),
-          the closed state must slide toward the left (-translate-x-full)
-          to match the drawer's left-anchored (end-0) position. */}
-      <nav
-        id={NAV_ID}
-        className={`fixed inset-y-0 end-0 z-[60] flex w-72 flex-col bg-background shadow-xl transition-transform duration-200 ${
-          isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-        aria-label="القائمة الرئيسية"
-        aria-hidden={!isMobileNavOpen}
-      >
-        {/* Header: identity context when logged in, otherwise just the
-            title + close button. Kept outside the scrollable list below
-            so it stays pinned while links scroll. */}
-        <div className="shrink-0 border-b p-4">
-          <div className="flex items-center justify-between">
-            {isAuthenticated && user ? (
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                  {user.name.charAt(0).toUpperCase()}
-                </span>
-                <span className="min-w-0 truncate text-sm font-semibold">{user.name}</span>
-              </div>
-            ) : (
-              <span className="text-base font-semibold">القائمة</span>
-            )}
-            <button
-              ref={closeButtonRef}
+      {/*
+       * FIX UI-05: the backdrop + drawer used to render as a plain
+       * sibling right here, inside PublicHeader/ProtectedHeader's own
+       * DOM tree. Both headers have backdrop-blur on their <header>
+       * element (for the frosted sticky-nav effect) — and per the CSS
+       * spec, any element with a filter/backdrop-filter other than
+       * `none` becomes the containing block for its position: fixed
+       * descendants. So this drawer's `fixed inset-y-0 end-0` was
+       * being positioned relative to the header's own box, not the
+       * viewport — it opened pinned to the header's height instead of
+       * covering the screen (visually: a strip trapped under the top
+       * bar rather than a full-height slide-out sheet).
+       *
+       * Portalling straight to document.body escapes that containing
+       * block entirely, same as a modal/dialog would need to. mounted
+       * guards against calling document.body before the client has
+       * hydrated (see the mounted state above).
+       */}
+      {mounted && createPortal(
+        <>
+          {/* Backdrop */}
+          {isMobileNavOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black/40"
               onClick={closeMobileNav}
-              className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
-              aria-label="أغلق القائمة"
-            >
-              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          <NavSection title="تصفح" links={BROWSE_LINKS} onNavigate={closeMobileNav} />
-          {isAuthenticated ? (
-            <>
-              <NavSection title="حسابك" links={AUTH_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
-              <NavSection
-                title="النظام"
-                links={isAdmin ? [...SYSTEM_LINKS, { label: 'لوحة الإدارة', href: ROUTES.admin.dashboard, icon: Shield }] : SYSTEM_LINKS}
-                onNavigate={closeMobileNav}
-              />
-              <div className="border-t pt-3">
-                <ThemeRow />
-              </div>
-            </>
-          ) : (
-            <>
-              <NavSection title="حسابك" links={GUEST_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
-              <div className="border-t pt-3">
-                <ThemeRow />
-              </div>
-            </>
+              aria-hidden="true"
+            />
           )}
-        </div>
 
-        {/* Logout: pulled out of the link list and separated with its
-            own border so it reads as a distinct, deliberate action
-            rather than another destination in the nav. */}
-        {isAuthenticated && (
-          <div className="shrink-0 border-t p-4">
-            <button
-              onClick={() => { logout(); closeMobileNav(); }}
-              disabled={isLoggingOut}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-start text-base font-medium text-destructive hover:bg-muted disabled:opacity-50"
-            >
-              <LogOut className="h-4 w-4 shrink-0" />
-              {isLoggingOut ? 'جارٍ تسجيل الخروج…' : 'تسجيل الخروج'}
-            </button>
+          {/* Drawer — end-0 is logical (right in LTR, left in RTL).
+              translate-x-full is a PHYSICAL property (always moves toward
+              +X / visual right) — it does NOT flip with dir="rtl" the way
+              end-0 does. Since this app is RTL-only (dir="rtl" on <html>),
+              the closed state must slide toward the left (-translate-x-full)
+              to match the drawer's left-anchored (end-0) position. */}
+          <nav
+            id={NAV_ID}
+            className={`fixed inset-y-0 end-0 z-[60] flex w-72 flex-col bg-background shadow-xl transition-transform duration-200 ${
+              isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+            aria-label="القائمة الرئيسية"
+            aria-hidden={!isMobileNavOpen}
+          >
+          {/* Header: identity context when logged in, otherwise just the
+              title + close button. Kept outside the scrollable list below
+              so it stays pinned while links scroll. */}
+          <div className="shrink-0 border-b p-4">
+            <div className="flex items-center justify-between">
+              {isAuthenticated && user ? (
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                    {user.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-semibold">{user.name}</span>
+                </div>
+              ) : (
+                <span className="text-base font-semibold">القائمة</span>
+              )}
+              <button
+                ref={closeButtonRef}
+                onClick={closeMobileNav}
+                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+                aria-label="أغلق القائمة"
+              >
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
-        )}
-      </nav>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <NavSection title="تصفح" links={BROWSE_LINKS} onNavigate={closeMobileNav} />
+            {isAuthenticated ? (
+              <>
+                <NavSection title="حسابك" links={AUTH_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+                <NavSection
+                  title="النظام"
+                  links={isAdmin ? [...SYSTEM_LINKS, { label: 'لوحة الإدارة', href: ROUTES.admin.dashboard, icon: Shield }] : SYSTEM_LINKS}
+                  onNavigate={closeMobileNav}
+                />
+                <div className="border-t pt-3">
+                  <ThemeRow />
+                </div>
+              </>
+            ) : (
+              <>
+                <NavSection title="حسابك" links={GUEST_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+                <div className="border-t pt-3">
+                  <ThemeRow />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Logout: pulled out of the link list and separated with its
+              own border so it reads as a distinct, deliberate action
+              rather than another destination in the nav. */}
+          {isAuthenticated && (
+            <div className="shrink-0 border-t p-4">
+              <button
+                onClick={() => { logout(); closeMobileNav(); }}
+                disabled={isLoggingOut}
+                className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-start text-base font-medium text-destructive hover:bg-muted disabled:opacity-50"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                {isLoggingOut ? 'جارٍ تسجيل الخروج…' : 'تسجيل الخروج'}
+              </button>
+            </div>
+          )}
+        </nav>
+        </>,
+        document.body
+      )}
     </>
   );
 }

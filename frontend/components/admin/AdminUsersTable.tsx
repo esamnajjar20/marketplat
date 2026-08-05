@@ -17,9 +17,20 @@ export function AdminUsersTable() {
   const sp     = useSearchParams();
   const router = useRouter();
   const page   = Number(sp.get('page') ?? 1);
+  // FIX BUG-02: sp.get() returns null (not undefined) when the param
+  // is absent, so `?? ''` here previously turned "no filter" into a
+  // literal empty string. That string then went straight into
+  // useAdminUsers's `params` object, and axios serialises { q: '' }
+  // as the real query string `?q=` — indistinguishable on the wire
+  // from the user actually searching for nothing. The backend's Zod
+  // schema (adminGetUsersSchema) only allows `q` to be a non-empty
+  // string OR entirely absent (.optional() means undefined, not ''),
+  // so it rejected every page load with no active search as a 400.
+  // `q` itself stays '' for the Input's defaultValue below — only the
+  // value handed to the query hook is normalised to undefined.
   const q      = sp.get('q') ?? '';
 
-  const { data, isLoading, isError, refetch } = useAdminUsers({ page, q });
+  const { data, isLoading, isError, refetch } = useAdminUsers({ page, q: q || undefined });
   const changeUserStatus = useAdminToggleUserActive();
   const changeRole       = useAdminChangeRole();
 

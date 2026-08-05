@@ -24,10 +24,20 @@ export function AdminAdsTable() {
   const sp     = useSearchParams();
   const router = useRouter();
   const page   = Number(sp.get('page') ?? 1);
+  // FIX BUG-02: same root cause as AdminUsersTable/AdminSellersTable —
+  // sp.get() returns null when absent, and `?? ''` turned that into a
+  // literal empty string that axios then serialised as a real
+  // `?q=&status=` on the wire. adminGetAdsSchema's Zod validators
+  // (q: z.string().min(1).optional(), status: z.nativeEnum(AdStatus)
+  // .optional()) only accept a real value or a fully absent key —
+  // '' satisfies neither, so every /admin/ads page load with no
+  // active filters was rejected as a 400. q/status themselves stay ''
+  // for the Input defaultValue and the `status || 'ALL'` Select value
+  // below; only what's passed into the query hook is normalised.
   const q      = sp.get('q') ?? '';
   const status = sp.get('status') ?? '';
 
-  const { data, isLoading, isError, refetch } = useAdminAds({ page, q, status });
+  const { data, isLoading, isError, refetch } = useAdminAds({ page, q: q || undefined, status: status || undefined });
   const featureAd = useAdminSetFeatured();
   const pinAd     = useAdminSetPinned();
   const deleteAd  = useAdminForceDeleteAd();

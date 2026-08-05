@@ -33,9 +33,15 @@ export function AdminSellersTable() {
   const sp     = useSearchParams();
   const router = useRouter();
   const page   = Number(sp.get('page') ?? 1);
+  // FIX BUG-02: same root cause as AdminUsersTable/AdminAdsTable —
+  // '' passed to useAdminSellers serialises as a real `?q=` on the
+  // wire, which adminGetSellersSchema's z.string().min(1).optional()
+  // rejects as a 400 (min(1) fails on '', and .optional() only
+  // accepts undefined, not an empty string). q itself stays '' for
+  // the Input defaultValue below.
   const q      = sp.get('q') ?? '';
 
-  const { data, isLoading, isError, refetch } = useAdminSellers({ page, q });
+  const { data, isLoading, isError, refetch } = useAdminSellers({ page, q: q || undefined });
   const setVerified  = useAdminSetSellerVerified();
   const setSuspended = useAdminSetSellerSuspended();
 
