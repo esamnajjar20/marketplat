@@ -1,8 +1,15 @@
 import { notificationsService, notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { notificationsRepository } from '../../src/modules/notifications/notifications.repository';
+import { pushService } from '../../src/shared/utils/pushService';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
 jest.mock('../../src/modules/notifications/notifications.repository');
+jest.mock('../../src/shared/utils/pushService', () => ({
+  pushService: {
+    notifyUser: jest.fn().mockResolvedValue(undefined),
+    notifyUsers: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 
 const userId = 'user-1';
 
@@ -116,6 +123,38 @@ describe('notificationsService', () => {
       expect(result).toBe(2);
     });
   });
+
+  describe('subscribeToPush', () => {
+    const input = {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc123',
+      keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
+    };
+
+    it('upserts the subscription via the repository and resolves undefined', async () => {
+      (notificationsRepository.upsertPushSubscription as jest.Mock).mockResolvedValue({
+        id: 'sub-1',
+      });
+
+      await expect(notificationsService.subscribeToPush(userId, input)).resolves.toBeUndefined();
+      expect(notificationsRepository.upsertPushSubscription).toHaveBeenCalledWith(userId, input);
+    });
+  });
+
+  describe('unsubscribeFromPush', () => {
+    it('deletes the subscription via the repository and resolves undefined regardless of row count', async () => {
+      (notificationsRepository.deletePushSubscription as jest.Mock).mockResolvedValue({
+        count: 0,
+      });
+
+      await expect(
+        notificationsService.unsubscribeFromPush(userId, 'https://fcm.googleapis.com/fcm/send/abc123')
+      ).resolves.toBeUndefined();
+      expect(notificationsRepository.deletePushSubscription).toHaveBeenCalledWith(
+        userId,
+        'https://fcm.googleapis.com/fcm/send/abc123'
+      );
+    });
+  });
 });
 
 describe('notificationEvents', () => {
@@ -135,6 +174,28 @@ describe('notificationEvents', () => {
         data: { conversationId: 'conv-1' },
       });
     });
+
+    it('also fires a push to the recipient with a link to the conversation', async () => {
+      (notificationsRepository.create as jest.Mock).mockResolvedValue({ id: 'notif-1' });
+
+      await notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name');
+
+      expect(pushService.notifyUser).toHaveBeenCalledWith('recipient-1', {
+        title: 'رسالة جديدة',
+        body: 'Sender Name أرسل لك رسالة',
+        url: '/messages/conv-1',
+        tag: 'conversation-conv-1',
+      });
+    });
+
+    it('still creates the in-app notification even if the push send rejects', async () => {
+      (notificationsRepository.create as jest.Mock).mockResolvedValue({ id: 'notif-1' });
+      (pushService.notifyUser as jest.Mock).mockRejectedValueOnce(new Error('push failed'));
+
+      await expect(
+        notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name')
+      ).resolves.toEqual({ id: 'notif-1' });
+    });
   });
 
   describe('onFavoritedAdPriceChanged', () => {
@@ -143,6 +204,7 @@ describe('notificationEvents', () => {
 
       expect(result).toEqual({ count: 0 });
       expect(notificationsRepository.createMany).not.toHaveBeenCalled();
+      expect(pushService.notifyUsers).not.toHaveBeenCalled();
     });
 
     it('fans out a FAV_AD_PRICE_CHANGED notification to every favoriter with the adId in data', async () => {
@@ -171,6 +233,78 @@ describe('notificationEvents', () => {
         },
       ]);
       expect(result).toEqual({ count: 2 });
+    });
+
+    it('also fires a single fan-out push call to every favoriter', async () => {
+      (notificationsRepository.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+
+      await notificationEvents.onFavoritedAdPriceChanged(['u1', 'u2'], 'ad-1', 'Ad Title');
+
+      expect(pushService.notifyUsers).toHaveBeenCalledWith(['u1', 'u2'], {
+        title: 'تغيّر سعر إعلان في المفضلة',
+        body: 'تم تحديث سعر "Ad Title"',
+        url: '/ads/ad-1',
+        tag: 'ad-ad-1',
+      });
+    });
+  });
+
+  describe('onSavedSearchMatched', () => {
+    it('returns { count: 0 } without calling the repository or push when there are no matches', async () => {
+      const result = await notificationEvents.onSavedSearchMatched([], 'ad-1', 'Ad Title');
+
+      expect(result).toEqual({ count: 0 });
+      expect(notificationsRepository.createMany).not.toHaveBeenCalled();
+      expect(pushService.notifyUser).not.toHaveBeenCalled();
+    });
+
+    it('fires one push per match, each tagged with its own savedSearchId', async () => {
+      (notificationsRepository.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+
+      await notificationEvents.onSavedSearchMatched(
+        [
+          { userId: 'u1', savedSearchId: 'search-1', label: 'iPhone في دير البلح' },
+          { userId: 'u2', savedSearchId: 'search-2', label: 'لابتوبات مستعملة' },
+        ],
+        'ad-1',
+        'Ad Title'
+      );
+
+      expect(pushService.notifyUser).toHaveBeenCalledWith('u1', {
+        title: 'إعلان جديد يطابق بحثك المحفوظ',
+        body: '"Ad Title" يطابق بحثك المحفوظ "iPhone في دير البلح"',
+        url: '/ads/ad-1',
+        tag: 'saved-search-search-1',
+      });
+      expect(pushService.notifyUser).toHaveBeenCalledWith('u2', {
+        title: 'إعلان جديد يطابق بحثك المحفوظ',
+        body: '"Ad Title" يطابق بحثك المحفوظ "لابتوبات مستعملة"',
+        url: '/ads/ad-1',
+        tag: 'saved-search-search-2',
+      });
+    });
+  });
+
+  describe('onStoreNewProduct', () => {
+    it('returns { count: 0 } without calling the repository or push when there are no followers', async () => {
+      const result = await notificationEvents.onStoreNewProduct([], 'store-1', 'Store', 'Product');
+
+      expect(result).toEqual({ count: 0 });
+      expect(notificationsRepository.createMany).not.toHaveBeenCalled();
+      expect(pushService.notifyUsers).not.toHaveBeenCalled();
+    });
+
+    it('fires a single fan-out push call to every follower', async () => {
+      (notificationsRepository.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+
+      await notificationEvents.onStoreNewProduct(['u1', 'u2'], 'store-1', 'متجري', 'منتج جديد');
+
+      expect(pushService.notifyUsers).toHaveBeenCalledWith(['u1', 'u2'], {
+        title: 'منتج جديد',
+        body: 'متجر "متجري" أضاف منتجًا جديدًا: منتج جديد',
+        url: '/stores/store-1',
+        tag: 'store-store-1',
+      });
     });
   });
 });

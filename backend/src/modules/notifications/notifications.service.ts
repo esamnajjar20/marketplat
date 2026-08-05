@@ -1,8 +1,9 @@
 import { Notification } from '@prisma/client';
-import { notificationsRepository } from './notifications.repository';
+import { notificationsRepository, PushSubscriptionInput } from './notifications.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
+import { pushService } from '../../shared/utils/pushService';
 
 export const notificationsService = {
   getMyNotifications: async (
@@ -48,6 +49,18 @@ export const notificationsService = {
     );
     return result.count;
   },
+
+  /** FIX PWA-PUSH-01: called from POST /notifications/push-subscriptions
+   * — see notifications.repository.ts's upsertPushSubscription for why
+   * this is an upsert-on-endpoint rather than a plain create. */
+  subscribeToPush: (userId: string, input: PushSubscriptionInput): Promise<void> =>
+    notificationsRepository.upsertPushSubscription(userId, input).then(() => undefined),
+
+  /** FIX PWA-PUSH-01: called from DELETE /notifications/push-subscriptions
+   * — best-effort, see repository method's own doc comment on why a
+   * 0-row result isn't treated as NotFound here (unlike markRead). */
+  unsubscribeFromPush: (userId: string, endpoint: string): Promise<void> =>
+    notificationsRepository.deletePushSubscription(userId, endpoint).then(() => undefined),
 };
 
 /**
@@ -65,14 +78,28 @@ export const notificationEvents = {
   /** conversations.service.ts's sendMessage calls this after a message
    * is created — notifies the OTHER party in the thread, never the
    * sender. */
-  onNewMessage: (recipientUserId: string, conversationId: string, senderName: string) =>
-    notificationsRepository.create({
+  onNewMessage: (recipientUserId: string, conversationId: string, senderName: string) => {
+    const title = 'رسالة جديدة';
+    const body = `${senderName} أرسل لك رسالة`;
+    // FIX PWA-PUSH-01: fire-and-forget, same convention as this whole
+    // object's own doc comment above — a push failing to send must
+    // never affect the in-app notification write this runs alongside,
+    // so it isn't part of the returned promise chain and its own
+    // internal failures are already swallowed/logged by pushService.
+    void pushService.notifyUser(recipientUserId, {
+      title,
+      body,
+      url: `/messages/${conversationId}`,
+      tag: `conversation-${conversationId}`,
+    });
+    return notificationsRepository.create({
       userId: recipientUserId,
       type: 'NEW_MESSAGE',
-      title: 'رسالة جديدة',
-      body: `${senderName} أرسل لك رسالة`,
+      title,
+      body,
       data: { conversationId },
-    }),
+    });
+  },
 
   /** ads.service.ts's updateAd calls this after a price change on an ad
    * that has at least one favoriter — one notification per favoriter,
@@ -83,12 +110,15 @@ export const notificationEvents = {
     adTitle: string
   ): Promise<{ count: number }> => {
     if (favoriterUserIds.length === 0) return Promise.resolve({ count: 0 });
+    const title = 'تغيّر سعر إعلان في المفضلة';
+    const body = `تم تحديث سعر "${adTitle}"`;
+    void pushService.notifyUsers(favoriterUserIds, { title, body, url: `/ads/${adId}`, tag: `ad-${adId}` });
     return notificationsRepository.createMany(
       favoriterUserIds.map((userId) => ({
         userId,
         type: 'FAV_AD_PRICE_CHANGED' as const,
-        title: 'تغيّر سعر إعلان في المفضلة',
-        body: `تم تحديث سعر "${adTitle}"`,
+        title,
+        body,
         data: { adId },
       }))
     );
@@ -111,6 +141,20 @@ export const notificationEvents = {
     adTitle: string
   ): Promise<{ count: number }> => {
     if (matches.length === 0) return Promise.resolve({ count: 0 });
+    // FIX PWA-PUSH-01: one push per match, same one-row-per-recipient
+    // reasoning as the in-app notification below — a user with two
+    // matching saved searches gets two pushes, each naming its own
+    // search label, not one generic push.
+    void Promise.all(
+      matches.map(({ userId, savedSearchId, label }) =>
+        pushService.notifyUser(userId, {
+          title: 'إعلان جديد يطابق بحثك المحفوظ',
+          body: `"${adTitle}" يطابق بحثك المحفوظ "${label}"`,
+          url: `/ads/${adId}`,
+          tag: `saved-search-${savedSearchId}`,
+        })
+      )
+    );
     return notificationsRepository.createMany(
       matches.map(({ userId, savedSearchId, label }) => ({
         userId,
@@ -133,12 +177,15 @@ export const notificationEvents = {
     productName: string
   ): Promise<{ count: number }> => {
     if (followerUserIds.length === 0) return Promise.resolve({ count: 0 });
+    const title = 'منتج جديد';
+    const body = `متجر "${storeName}" أضاف منتجًا جديدًا: ${productName}`;
+    void pushService.notifyUsers(followerUserIds, { title, body, url: `/stores/${storeId}`, tag: `store-${storeId}` });
     return notificationsRepository.createMany(
       followerUserIds.map((userId) => ({
         userId,
         type: 'STORE_NEW_PRODUCT' as const,
-        title: 'منتج جديد',
-        body: `متجر "${storeName}" أضاف منتجًا جديدًا: ${productName}`,
+        title,
+        body,
         data: { storeId },
       }))
     );

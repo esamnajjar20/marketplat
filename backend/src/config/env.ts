@@ -80,6 +80,20 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
+  // FIX PWA-PUSH-01: Web Push (VAPID) keys — same optional,
+  // opt-in-only pattern as SMTP_*/CLOUDINARY_*/GOOGLE_CLIENT_* above.
+  // Generated once per deployment via `npx web-push generate-vapid-
+  // keys` (see pushService.ts's doc comment); the public half is also
+  // set as NEXT_PUBLIC_VAPID_PUBLIC_KEY on the frontend and MUST match
+  // this VAPID_PUBLIC_KEY exactly — a mismatched pair fails silently
+  // at subscribe time (the browser accepts any well-formed key, the
+  // push service only rejects it once a send is attempted with the
+  // mismatched private key). VAPID_SUBJECT is a mailto: or https: URL
+  // push services use to contact the sender if a deployment is
+  // misbehaving (spec requirement, not this app's own contact info).
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
   // FIX SEC-ALERT-01: separate, optional webhook for security alerts
   // (account lockouts, refresh-token reuse detection). Distinct from the
   // generic ERROR_REPORTER_WEBHOOK_URL in logger.ts — that one is for
@@ -205,6 +219,16 @@ export const env = {
     // are all present — partial config (e.g. just a from-address) isn't
     // enough to attempt a real SMTP connection.
     isConfigured: Boolean(_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD),
+  },
+  // FIX PWA-PUSH-01: same isConfigured pattern as email above —
+  // pushService.ts checks this once at first use and falls back to
+  // logging instead of throwing when any piece is missing, so the app
+  // keeps starting and running normally without real VAPID keys.
+  webPush: {
+    publicKey: _env.VAPID_PUBLIC_KEY || '',
+    privateKey: _env.VAPID_PRIVATE_KEY || '',
+    subject: _env.VAPID_SUBJECT || 'mailto:admin@example.com',
+    isConfigured: Boolean(_env.VAPID_PUBLIC_KEY && _env.VAPID_PRIVATE_KEY),
   },
   securityAlert: {
     webhookUrl: _env.SECURITY_ALERT_WEBHOOK_URL || '',

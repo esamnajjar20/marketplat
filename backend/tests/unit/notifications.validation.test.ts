@@ -2,6 +2,8 @@ import {
   getNotificationsSchema,
   notificationIdSchema,
   broadcastNotificationSchema,
+  createPushSubscriptionSchema,
+  deletePushSubscriptionSchema,
 } from '../../src/modules/notifications/notifications.validation';
 
 describe('notifications.validation', () => {
@@ -107,6 +109,74 @@ describe('notifications.validation', () => {
         broadcastNotificationSchema.parse({
           body: { userIds: ['u1'], title: 'عنوان', body: 'x'.repeat(501) },
         })
+      ).toThrow();
+    });
+  });
+
+  describe('createPushSubscriptionSchema', () => {
+    const validBody = {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc123',
+      keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
+    };
+
+    it('accepts a valid subscription body matching PushSubscription.toJSON() shape', () => {
+      const result = createPushSubscriptionSchema.parse({ body: validBody });
+      expect(result.body.endpoint).toBe(validBody.endpoint);
+      expect(result.body.keys).toEqual(validBody.keys);
+    });
+
+    it('rejects a non-URL endpoint', () => {
+      expect(() =>
+        createPushSubscriptionSchema.parse({ body: { ...validBody, endpoint: 'not-a-url' } })
+      ).toThrow();
+    });
+
+    it('rejects an endpoint over 1000 characters', () => {
+      expect(() =>
+        createPushSubscriptionSchema.parse({
+          body: { ...validBody, endpoint: `https://fcm.googleapis.com/${'a'.repeat(1000)}` },
+        })
+      ).toThrow();
+    });
+
+    it('rejects a missing keys object', () => {
+      expect(() =>
+        createPushSubscriptionSchema.parse({ body: { endpoint: validBody.endpoint } })
+      ).toThrow();
+    });
+
+    it('rejects an empty p256dh key', () => {
+      expect(() =>
+        createPushSubscriptionSchema.parse({
+          body: { ...validBody, keys: { ...validBody.keys, p256dh: '' } },
+        })
+      ).toThrow();
+    });
+
+    it('rejects an empty auth key', () => {
+      expect(() =>
+        createPushSubscriptionSchema.parse({
+          body: { ...validBody, keys: { ...validBody.keys, auth: '' } },
+        })
+      ).toThrow();
+    });
+  });
+
+  describe('deletePushSubscriptionSchema', () => {
+    it('accepts a valid endpoint', () => {
+      const result = deletePushSubscriptionSchema.parse({
+        body: { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123' },
+      });
+      expect(result.body.endpoint).toBe('https://fcm.googleapis.com/fcm/send/abc123');
+    });
+
+    it('rejects a missing endpoint', () => {
+      expect(() => deletePushSubscriptionSchema.parse({ body: {} })).toThrow();
+    });
+
+    it('rejects a non-URL endpoint', () => {
+      expect(() =>
+        deletePushSubscriptionSchema.parse({ body: { endpoint: 'not-a-url' } })
       ).toThrow();
     });
   });

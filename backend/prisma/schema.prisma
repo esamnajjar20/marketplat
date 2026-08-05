@@ -69,6 +69,7 @@ model User {
   favorites                 Favorite[]
   messagesSent              Message[]            @relation("MessagesSent")
   notifications             Notification[]
+  pushSubscriptions         PushSubscription[]
   passwordResetTokens       PasswordResetToken[]
   reports                   Report[]
   sellerProfile             SellerProfile?
@@ -514,6 +515,36 @@ model Notification {
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+// FIX PWA-PUSH-01: persists the browser PushSubscription objects created
+// by frontend/lib/pwa.ts's subscribeToPush() — previously nothing on the
+// backend received or stored these (see notifications.service.ts's
+// notificationEvents for the in-app notification rows this feeds
+// alongside; a push send is the "also ring the browser" counterpart to
+// each of those, not a replacement for them).
+//
+// One row per (user, device/browser) — a user can be subscribed on
+// several devices at once, each with its own endpoint. `endpoint` is
+// globally unique (it's a full URL issued by the browser's push
+// service, e.g. FCM or Mozilla's autopush) rather than unique per-user,
+// which is what makes it safe to use as the natural key for upserts:
+// re-subscribing the same browser (e.g. after clearing the permission
+// and re-granting it) sends the same endpoint again and should update
+// the existing row rather than create a duplicate.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique @db.VarChar(1000)
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Every send fans out to "every subscription row for this user" —
+  // this is the only lookup pushService.ts's notifyUser needs.
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model AuditLog {

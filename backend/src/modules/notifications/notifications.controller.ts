@@ -3,6 +3,8 @@ import { notificationsService } from './notifications.service';
 import {
   getNotificationsSchema,
   notificationIdSchema,
+  createPushSubscriptionSchema,
+  deletePushSubscriptionSchema,
 } from './notifications.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -47,6 +49,36 @@ export const notificationsController = {
       const user = requireUser(req);
       const count = await notificationsService.markAllRead(user.userId);
       res.status(200).json(successResponse('All notifications marked as read', { count }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** FIX PWA-PUSH-01: POST /notifications/push-subscriptions — frontend's
+   * lib/pwa.ts subscribeToPush() calls this immediately after
+   * pushManager.subscribe() resolves, passing subscription.toJSON()
+   * as the body verbatim. */
+  subscribeToPush: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { body } = createPushSubscriptionSchema.parse({ body: req.body });
+      await notificationsService.subscribeToPush(user.userId, body);
+      res.status(201).json(successResponse('Push subscription saved'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** FIX PWA-PUSH-01: DELETE /notifications/push-subscriptions — frontend's
+   * unsubscribeFromPush() calls this after unsubscribing locally,
+   * best-effort (see its own .catch()), so this endpoint's job is just
+   * to clean up the server-side row if it exists. */
+  unsubscribeFromPush: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { body } = deletePushSubscriptionSchema.parse({ body: req.body });
+      await notificationsService.unsubscribeFromPush(user.userId, body.endpoint);
+      res.status(200).json(successResponse('Push subscription removed'));
     } catch (error) {
       next(error);
     }

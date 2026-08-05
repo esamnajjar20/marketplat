@@ -159,4 +159,105 @@ describe('notificationsController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
     });
   });
+
+  describe('subscribeToPush', () => {
+    const validBody = {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc123',
+      keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
+    };
+
+    it('returns 201 on success', async () => {
+      const req = mockRequest({ body: validBody });
+      const res = mockResponse();
+      const next = mockNext();
+      (notificationsService.subscribeToPush as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationsController.subscribeToPush(req, res, next);
+
+      expect(notificationsService.subscribeToPush).toHaveBeenCalledWith('user-1', validBody);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('calls next(error) when the caller is unauthenticated', async () => {
+      const req = mockRequest({ body: validBody });
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await notificationsController.subscribeToPush(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(notificationsService.subscribeToPush).not.toHaveBeenCalled();
+    });
+
+    it('calls next(error) when the body fails validation (missing keys)', async () => {
+      const req = mockRequest({ body: { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await notificationsController.subscribeToPush(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(notificationsService.subscribeToPush).not.toHaveBeenCalled();
+    });
+
+    it('calls next(error) when the endpoint is not a valid URL', async () => {
+      const req = mockRequest({ body: { ...validBody, endpoint: 'not-a-url' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await notificationsController.subscribeToPush(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(notificationsService.subscribeToPush).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unsubscribeFromPush', () => {
+    const validBody = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123' };
+
+    it('returns 200 on success', async () => {
+      const req = mockRequest({ body: validBody });
+      const res = mockResponse();
+      const next = mockNext();
+      (notificationsService.unsubscribeFromPush as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationsController.unsubscribeFromPush(req, res, next);
+
+      expect(notificationsService.unsubscribeFromPush).toHaveBeenCalledWith(
+        'user-1',
+        validBody.endpoint
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('calls next(error) when the caller is unauthenticated', async () => {
+      const req = mockRequest({ body: validBody });
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await notificationsController.unsubscribeFromPush(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(notificationsService.unsubscribeFromPush).not.toHaveBeenCalled();
+    });
+
+    it('calls next(error) when endpoint is missing from the body', async () => {
+      const req = mockRequest({ body: {} });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await notificationsController.unsubscribeFromPush(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(notificationsService.unsubscribeFromPush).not.toHaveBeenCalled();
+    });
+  });
 });

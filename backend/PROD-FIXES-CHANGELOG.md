@@ -407,3 +407,69 @@ pending the decisions noted in the table above. None of the three are
 exploitable security issues — they're either already self-correcting
 (L-02), a test-infra tradeoff with no production impact (L-03), or a
 product/compliance question rather than a bug (`deleteMe`).
+
+## Push notifications backend (2026-08-06)
+
+Completes the previously half-built PWA push notification feature —
+`frontend/lib/pwa.ts` and `frontend/public/sw.js` already had full
+subscribe/receive plumbing (see that file's own doc comments, including
+`FIX PWA-CRITICAL-04`'s defensive local-unsubscribe when the backend
+endpoint was missing), but nothing on the backend received, stored, or
+sent pushes. Search for `FIX PWA-PUSH-01` in the codebase for the exact
+lines changed and full reasoning inline.
+
+| Item | Status | Files |
+|---|---|---|
+| `PushSubscription` Prisma model (endpoint-unique, cascade-deletes with `User`) | ✅ Done | `prisma/schema.prisma`, `prisma/migrations/20260806140000_add_push_subscriptions/migration.sql` |
+| `web-push`-based send service, mirrors `emailService.ts`'s graceful-degradation pattern | ✅ Done | `src/shared/utils/pushService.ts` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` env vars, optional/opt-in like `SMTP_*` | ✅ Done | `src/config/env.ts`, `.env.example` |
+| `POST` / `DELETE /notifications/push-subscriptions` endpoints matching the frontend's existing calls exactly | ✅ Done | `src/modules/notifications/{notifications.routes,notifications.controller,notifications.validation,notifications.repository,notifications.service}.ts` |
+| Push fan-out wired into every existing in-app notification event (new message, favorited-ad price change, saved-search match, store new product) | ✅ Done | `src/modules/notifications/notifications.service.ts` (`notificationEvents`) |
+| Stale-subscription pruning on 404/410 from the push service | ✅ Done | `src/shared/utils/pushService.ts` |
+| Test coverage (unit) for all of the above | ✅ Done | `tests/unit/pushService.test.ts`, `tests/unit/notifications.{repository,service,controller,validation}.test.ts` |
+
+### Notes
+
+**`web-push` dependency — `npm install` still required:** same
+situation as the `multer`/`morgan` bump above — `web-push` and
+`@types/web-push` were added to `package.json`'s manifest, but the
+lockfile's resolved entries could not be regenerated in this
+environment (no outbound network access to the npm registry). **Run
+`npm install` and commit the resulting `package-lock.json` before
+deploying.**
+
+**Migration not applied/verified against a real database:** the
+migration SQL was hand-written to match this project's existing
+migration conventions exactly (see any recent `prisma/migrations/*`
+folder for comparison), but there was no reachable Postgres instance
+in this environment to run `prisma migrate dev`/`deploy` against or to
+regenerate the Prisma client. **Run `npx prisma migrate deploy` (or
+`migrate dev` locally) and confirm `npx prisma generate` picks up the
+new `PushSubscription` model before deploying** — until then,
+`@prisma/client`'s generated types won't actually include
+`prisma.pushSubscription`, and the code in this changelog entry won't
+compile against a stale generated client.
+
+**Frontend: no changes needed.** `NEXT_PUBLIC_VAPID_PUBLIC_KEY` was
+already present in `frontend/.env.example` and `lib/pwa.ts` already
+calls the exact endpoint shape implemented here — this was purely a
+backend gap, confirmed by re-reading the frontend's existing comments
+before starting.
+
+**Why upsert-on-endpoint instead of a plain create:** a browser's push
+subscription endpoint is stable across repeat `pushManager.subscribe()`
+calls on the same permission grant, but a user can legitimately
+re-trigger the subscribe flow (e.g. after clearing notification
+permission and re-granting it). Treating `endpoint` as the natural key
+(globally unique, not unique-per-user) and upserting on it means that
+re-subscribe updates the existing row's keys instead of hitting a
+unique-constraint error or silently accumulating duplicate rows that
+would cause the same device to receive every push twice.
+
+**Why VAPID keys are optional, not required:** matches every other
+third-party integration in this codebase (`SMTP_*`, `CLOUDINARY_*`,
+`GOOGLE_CLIENT_*`) — the app must keep starting and running normally
+in dev/test/CI without real push credentials configured. Without them,
+`pushService` logs what it would have sent instead of throwing, same
+as `emailService`'s fallback path.
+

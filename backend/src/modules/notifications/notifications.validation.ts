@@ -39,3 +39,34 @@ export const broadcastNotificationSchema = z.object({
 });
 
 export type BroadcastNotificationInput = z.infer<typeof broadcastNotificationSchema>['body'];
+
+// FIX PWA-PUSH-01: mirrors the browser PushSubscription.toJSON() shape
+// exactly (endpoint + nested keys.p256dh/keys.auth) — see
+// notifications.repository.ts's PushSubscriptionInput doc comment for
+// why the nesting is kept rather than flattened. endpoint has no fixed
+// format across push services (FCM/autopush/etc. URLs vary in length
+// and structure) so it's validated as a URL and length-capped to match
+// the schema column (@db.VarChar(1000)) rather than pattern-matched.
+export const createPushSubscriptionSchema = z.object({
+  body: z.object({
+    endpoint: z.string().url().max(1000),
+    keys: z.object({
+      p256dh: z.string().min(1),
+      auth: z.string().min(1),
+    }),
+  }),
+});
+
+export type CreatePushSubscriptionInput = z.infer<typeof createPushSubscriptionSchema>['body'];
+
+// DELETE carries its endpoint in the request body (not a URL param)
+// since the endpoint is itself a full URL — the frontend already sends
+// it this way (see lib/pwa.ts's unsubscribeFromPush, which calls
+// apiClient.delete('/notifications/push-subscriptions', { data: { endpoint } })).
+export const deletePushSubscriptionSchema = z.object({
+  body: z.object({
+    endpoint: z.string().url().max(1000),
+  }),
+});
+
+export type DeletePushSubscriptionInput = z.infer<typeof deletePushSubscriptionSchema>['body'];
