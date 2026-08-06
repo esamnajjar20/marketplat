@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, Notification, NotificationType, PushSubscription } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
+import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -22,16 +23,35 @@ export interface PushSubscriptionInput {
 }
 
 export const notificationsRepository = {
-  create: (input: CreateNotificationInput): Promise<Notification> =>
-    prisma.notification.create({ data: input }),
+  create: async (input: CreateNotificationInput): Promise<Notification> => {
+    const notification = await prisma.notification.create({ data: input });
+    // AUDIT-FIX 1.10/1.12: this is the only creation path with a single
+    // known recipient — invalidate immediately rather than waiting out
+    // the cache's TTL, so a freshly created notification's unread count
+    // is correct on the very next read (e.g. the badge right after a
+    // push arrives), not just eventually-correct.
+    await unreadNotificationsCache.invalidate(input.userId);
+    return notification;
+  },
 
   /** Fan-out create for a broadcast (admin promotion) or a price-change
    * alert reaching every favoriter of one ad — createMany is a single
    * round trip instead of N sequential creates. Prisma's createMany
    * doesn't return the created rows (fine here: nothing reads them back
    * immediately after a broadcast). */
-  createMany: (inputs: CreateNotificationInput[]): Promise<Prisma.BatchPayload> =>
-    prisma.notification.createMany({ data: inputs }),
+  createMany: async (inputs: CreateNotificationInput[]): Promise<Prisma.BatchPayload> => {
+    const result = await prisma.notification.createMany({ data: inputs });
+    // AUDIT-FIX 1.10/1.12: invalidate every distinct recipient's cached
+    // count, not just re-fetch — Set de-dupes since a broadcast/fan-out
+    // list is not guaranteed unique-per-user (see onSavedSearchMatched's
+    // own comment: one user can appear twice for two different matches).
+    // Best-effort in parallel; unreadNotificationsCache itself swallows
+    // individual Redis failures, so one failed invalidation can't block
+    // or fail the others.
+    const recipientIds = Array.from(new Set(inputs.map(i => i.userId)));
+    await Promise.all(recipientIds.map(userId => unreadNotificationsCache.invalidate(userId)));
+    return result;
+  },
 
   findManyForUser: async (
     userId: string,
@@ -51,8 +71,14 @@ export const notificationsRepository = {
     return { notifications, total };
   },
 
-  countUnreadForUser: (userId: string): Promise<number> =>
-    prisma.notification.count({ where: { userId, readAt: null } }),
+  countUnreadForUser: async (userId: string): Promise<number> => {
+    const cached = await unreadNotificationsCache.get(userId);
+    if (cached !== null) return cached;
+
+    const count = await prisma.notification.count({ where: { userId, readAt: null } });
+    await unreadNotificationsCache.set(userId, count);
+    return count;
+  },
 
   /** Marks one notification read — scoped to userId so a caller can
    * never mark someone else's notification as read by guessing an id
@@ -60,17 +86,29 @@ export const notificationsRepository = {
    * messagesRepository.markReadForRecipient). Returns the row count
    * actually updated: 0 means either the id doesn't exist or it isn't
    * the caller's — the service layer treats both as NotFound. */
-  markRead: (id: string, userId: string): Promise<Prisma.BatchPayload> =>
-    prisma.notification.updateMany({
+  markRead: async (id: string, userId: string): Promise<Prisma.BatchPayload> => {
+    const result = await prisma.notification.updateMany({
       where: { id, userId, readAt: null },
       data: { readAt: new Date() },
-    }),
+    });
+    // AUDIT-FIX 1.10/1.12: invalidate even when count is 0 (id didn't
+    // match/wasn't unread) — an unconditional invalidate is cheap and
+    // never wrong, whereas skipping it on the 0-count path risks a rare
+    // but real race (count read stale-cached as unread between this
+    // notification actually being read by another concurrent request
+    // and this one landing) leaving a stale badge count uncorrected.
+    await unreadNotificationsCache.invalidate(userId);
+    return result;
+  },
 
-  markAllRead: (userId: string): Promise<Prisma.BatchPayload> =>
-    prisma.notification.updateMany({
+  markAllRead: async (userId: string): Promise<Prisma.BatchPayload> => {
+    const result = await prisma.notification.updateMany({
       where: { userId, readAt: null },
       data: { readAt: new Date() },
-    }),
+    });
+    await unreadNotificationsCache.invalidate(userId);
+    return result;
+  },
 
   // FIX PWA-PUSH-01: upsert on `endpoint` (globally unique — see the
   // PushSubscription model's own doc comment) so re-subscribing the

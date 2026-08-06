@@ -126,6 +126,25 @@ const envSchema = z.object({
     .regex(/^(0(\.\d+)?|1(\.0+)?)$/, 'SENTRY_TRACES_SAMPLE_RATE must be a number between 0 and 1')
     .default('0.1'),
   MAX_ADS_PER_USER: z.string().regex(/^\d+$/).default('50'),
+  // AUDIT-FIX 1.1: previously a hardcoded `30` inside adLock.ts. Made
+  // configurable, same "opt-in tuning, sane default" pattern as
+  // MAX_ADS_PER_USER above — deployments with slower Cloudinary
+  // round-trips (more images per ad, slower network) can raise this
+  // without a code change; default matches the prior hardcoded value
+  // so existing behavior is unchanged unless the var is explicitly set.
+  IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
+  // AUDIT-FIX 1.3: analytics.repository.ts's trendByEvent/topCategories
+  // run raw, unindexed-aggregate-friendly but potentially expensive
+  // GROUP BY queries (date_trunc bucketing, JSON metadata extraction)
+  // over an admin-selectable date range with no upper bound enforced
+  // elsewhere — a large enough range could tie up a Postgres connection
+  // indefinitely with no application-level timeout anywhere in this
+  // codebase. Milliseconds (not seconds) to match Postgres's own
+  // statement_timeout unit directly — no conversion needed at the call
+  // site. Default (10s) is generous for a dashboard read, not a hard
+  // architectural limit — tune per deployment if real query patterns
+  // need more.
+  ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default('10000'),
   // PROD-FIX-03: /metrics was previously unauthenticated at the
   // application level with only a code comment recommending a
   // reverse-proxy allowlist — no such reverse-proxy config exists
@@ -235,6 +254,10 @@ export const env = {
   },
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),
+    imageLockTtlSeconds: parseInt(_env.IMAGE_LOCK_TTL_SECONDS, 10),
+  },
+  analytics: {
+    queryTimeoutMs: parseInt(_env.ANALYTICS_QUERY_TIMEOUT_MS, 10),
   },
   observability: {
     sentryDsn: _env.SENTRY_DSN || '',

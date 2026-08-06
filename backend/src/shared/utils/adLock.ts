@@ -1,5 +1,6 @@
 import { redis } from '../../config/redis';
 import { AppError } from '../errors/AppError';
+import { env } from '../../config/env';
 import crypto from 'crypto';
 
 /**
@@ -62,7 +63,10 @@ export async function withRedisLock<T>(key: string, ttlSeconds: number, fn: () =
 }
 
 const IMAGE_LOCK_PREFIX = 'ad_images_lock:';
-const IMAGE_LOCK_TTL_SECONDS = 30; // generous: covers multi-file Cloudinary upload latency
+// AUDIT-FIX 1.1: was a hardcoded `30`. Now configurable via
+// IMAGE_LOCK_TTL_SECONDS (env.ts), defaulting to the same 30 so
+// existing deployments see no behavior change unless they opt in.
+const IMAGE_LOCK_TTL_SECONDS = env.ads.imageLockTtlSeconds;
 
 export class AdImagesLockedError extends AppError {
   constructor(adId: string) {
@@ -125,7 +129,8 @@ export async function withUserAdCreationLock<T>(userId: string, fn: () => Promis
 // contend with an ad-image or listing-image lock.
 const PRODUCT_IMAGE_LOCK_PREFIX = 'product_images_lock:';
 const LISTING_IMAGE_LOCK_PREFIX = 'listing_images_lock:';
-const ENTITY_IMAGE_LOCK_TTL_SECONDS = 30; // same as IMAGE_LOCK_TTL_SECONDS above
+// AUDIT-FIX 1.1: shares the same configurable TTL as IMAGE_LOCK_TTL_SECONDS above.
+const ENTITY_IMAGE_LOCK_TTL_SECONDS = IMAGE_LOCK_TTL_SECONDS;
 
 export class EntityImagesLockedError extends AppError {
   constructor(entityId: string) {

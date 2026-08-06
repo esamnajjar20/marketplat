@@ -254,6 +254,16 @@ model UserBlock {
 
   @@unique([blockerId, blockedId])
   @@index([blockedId])
+  // AUDIT-FIX 1.6: existsEitherDirection (blocked-users.repository.ts)
+  // queries `OR: [{blockerId:A, blockedId:B}, {blockerId:B, blockedId:A}]`.
+  // The @@unique([blockerId, blockedId]) above covers the first branch
+  // perfectly; the plain @@index([blockedId]) alone is not an equally
+  // tight match for the second branch (blockerId=B AND blockedId=A is
+  // a two-column lookup, not a single-column one) and degrades toward a
+  // partial/full scan as the table grows. This composite index gives
+  // the second OR branch the same index-only lookup the first already
+  // has, in the argument order that branch actually needs.
+  @@index([blockedId, blockerId])
   @@map("user_blocks")
 }
 
@@ -577,6 +587,20 @@ model Notification {
   type      NotificationType
   title     String
   body      String           @db.VarChar(500)
+  // AUDIT-FIX 1.11 (reviewed, no index added): `data` carries small
+  // per-type payloads (adId, conversationId, storeId, savedSearchId —
+  // see notifications.service.ts's notificationEvents for every shape
+  // written here). Checked every read path on this model
+  // (notifications.repository.ts) before deciding: none of
+  // findManyForUser/countUnreadForUser ever filter on `data` — every
+  // query here is scoped by userId/readAt/createdAt only, all already
+  // covered by the two indexes below. A GIN index on `data` would add
+  // write overhead (every insert/createMany touches it) with zero
+  // current read benefit. If a future feature needs "find my
+  // notifications about ad X" or similar, add a targeted index
+  // (`@@index` on a GIN expression, or promote the specific key to its
+  // own column if it becomes a primary lookup path) at that point —
+  // not preemptively for a query that doesn't exist yet.
   data      Json?
   readAt    DateTime?
   createdAt DateTime         @default(now())

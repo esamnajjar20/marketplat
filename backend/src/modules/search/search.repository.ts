@@ -364,31 +364,47 @@ export const searchRepository = {
     // duplicating the same folding logic as a second implementation in
     // JS — one canonical definition (the Postgres function) that both
     // this and search() call, so the two paths can never silently
-    // drift apart from each other. There's no existing index on these
-    // name/nameAr columns to preserve or invalidate (schema.prisma has
-    // none), so wrapping the column expression costs nothing extra it
-    // wasn't already paying with a sequential scan.
+    // drift apart from each other.
+    //
+    // AUDIT-FIX 1.2: this used to be a plain ILIKE with no supporting
+    // index — arabic_normalize(column) was evaluated fresh on every row
+    // of every call (a full scan of products/store_details/*_categories
+    // per keystroke). Two changes together fix that, matched exactly to
+    // the add_autocomplete_prefix_indexes migration's index definitions:
+    //   - ILIKE -> explicit lower(...) LIKE lower(...): the planner only
+    //     matches a text_pattern_ops btree index against the plain LIKE
+    //     (~~) operator, not ILIKE's case-insensitive (~~*) operator —
+    //     ILIKE would silently keep falling back to a sequential scan
+    //     even with the index in place.
+    //   - the "status"/"isActive" filters below must stay byte-for-byte
+    //     identical to each index's WHERE clause, since these are
+    //     partial indexes — the planner only uses a partial index when
+    //     it can prove the query's WHERE clause implies the index's.
     const rawPrefix = `${escapedPrefix}%`;
 
     const [products, stores, productCategories, serviceCategories] = await Promise.all([
       prisma.$queryRaw<{ name: string }[]>`
         SELECT DISTINCT "name" FROM "products"
-        WHERE "status" = 'ACTIVE' AND arabic_normalize("name") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
+        WHERE "status" = 'ACTIVE'
+          AND lower(arabic_normalize("name")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
         LIMIT ${limit}
       `,
       prisma.$queryRaw<{ name: string }[]>`
         SELECT DISTINCT "name" FROM "store_details"
-        WHERE "status" = 'ACTIVE' AND arabic_normalize("name") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
+        WHERE "status" = 'ACTIVE'
+          AND lower(arabic_normalize("name")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
         LIMIT ${limit}
       `,
       prisma.$queryRaw<{ nameAr: string }[]>`
         SELECT DISTINCT "nameAr" FROM "product_categories"
-        WHERE "isActive" = true AND arabic_normalize("nameAr") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
+        WHERE "isActive" = true
+          AND lower(arabic_normalize("nameAr")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
         LIMIT ${limit}
       `,
       prisma.$queryRaw<{ nameAr: string }[]>`
         SELECT DISTINCT "nameAr" FROM "service_categories"
-        WHERE "isActive" = true AND arabic_normalize("nameAr") ILIKE arabic_normalize(${rawPrefix}) ESCAPE '!'
+        WHERE "isActive" = true
+          AND lower(arabic_normalize("nameAr")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
         LIMIT ${limit}
       `,
     ]);

@@ -1,6 +1,8 @@
 import { prisma } from '../../config/prisma';
 import { AnalyticsEventType, Prisma } from '@prisma/client';
 import { TrackEventInput } from './analytics.validation';
+import { env } from '../../config/env';
+import { runWithQueryTimeout } from '../../shared/utils/queryTimeout';
 
 export interface EventCount {
   event: AnalyticsEventType;
@@ -55,20 +57,26 @@ export const analyticsRepository = {
   // because Prisma's groupBy can't bucket a DateTime column; date_trunc
   // is the standard Postgres way to do this without pulling every row
   // back and bucketing in application code.
+  // AUDIT-FIX 1.3: wrapped in runWithQueryTimeout — see that helper's
+  // doc comment. A wide admin-selected [from, to) range times out
+  // cleanly (AnalyticsQueryTimeoutError -> 503) instead of holding a
+  // connection indefinitely.
   trendByEvent: async (
     from: Date,
     to: Date,
     bucket: 'day' | 'week'
   ): Promise<TrendPoint[]> => {
-    const rows = await prisma.$queryRaw<
-      { bucket: Date; event: AnalyticsEventType; count: bigint }[]
-    >`
-      SELECT date_trunc(${bucket}, "createdAt") AS bucket, "event", COUNT(*) AS count
-      FROM "analytics_events"
-      WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
-      GROUP BY 1, 2
-      ORDER BY 1 ASC
-    `;
+    const rows = await runWithQueryTimeout(
+      tx =>
+        tx.$queryRaw<{ bucket: Date; event: AnalyticsEventType; count: bigint }[]>`
+          SELECT date_trunc(${bucket}, "createdAt") AS bucket, "event", COUNT(*) AS count
+          FROM "analytics_events"
+          WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+          GROUP BY 1, 2
+          ORDER BY 1 ASC
+        `,
+      env.analytics.queryTimeoutMs
+    );
     return rows.map(r => ({ bucket: r.bucket, event: r.event, count: Number(r.count) }));
   },
 
@@ -77,16 +85,20 @@ export const analyticsRepository = {
   // field. Capped to top 20 — this feeds a "top categories" list, not a
   // full report.
   topCategories: async (from: Date, to: Date, limit = 20): Promise<CategoryBrowseCount[]> => {
-    const rows = await prisma.$queryRaw<{ categoryId: string; count: bigint }[]>`
-      SELECT metadata->>'categoryId' AS "categoryId", COUNT(*) AS count
-      FROM "analytics_events"
-      WHERE "event" = 'CATEGORY_BROWSE'
-        AND "createdAt" >= ${from} AND "createdAt" < ${to}
-        AND metadata->>'categoryId' IS NOT NULL
-      GROUP BY 1
-      ORDER BY count DESC
-      LIMIT ${limit}
-    `;
+    const rows = await runWithQueryTimeout(
+      tx =>
+        tx.$queryRaw<{ categoryId: string; count: bigint }[]>`
+          SELECT metadata->>'categoryId' AS "categoryId", COUNT(*) AS count
+          FROM "analytics_events"
+          WHERE "event" = 'CATEGORY_BROWSE'
+            AND "createdAt" >= ${from} AND "createdAt" < ${to}
+            AND metadata->>'categoryId' IS NOT NULL
+          GROUP BY 1
+          ORDER BY count DESC
+          LIMIT ${limit}
+        `,
+      env.analytics.queryTimeoutMs
+    );
     return rows.map(r => ({ categoryId: r.categoryId, count: Number(r.count) }));
   },
 

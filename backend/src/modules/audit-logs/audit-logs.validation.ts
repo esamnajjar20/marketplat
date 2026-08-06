@@ -8,7 +8,14 @@ const optionalQueryNumber = (schema: z.ZodNumber) =>
 // AuditLog, see prisma/schema.prisma's @@index list) so `sortBy` can be
 // passed straight into a Prisma `orderBy: { [sortBy]: sortOrder }` without
 // risking an arbitrary/unindexed column being requested.
-export const AUDIT_LOG_SORT_FIELDS = ['createdAt', 'event'] as const;
+//
+// AUDIT-FIX 1.4: `userId` was previously excluded here despite
+// schema.prisma carrying both `@@index([userId])` and a composite
+// `@@index([userId, createdAt])` on AuditLog — the stated rule above
+// ("only indexed columns") was already satisfied for it, it was just
+// missing from this list. Added to match the rule that was already
+// documented but not actually followed.
+export const AUDIT_LOG_SORT_FIELDS = ['createdAt', 'event', 'userId'] as const;
 export type AuditLogSortField = (typeof AUDIT_LOG_SORT_FIELDS)[number];
 
 // AuditLog has a single actor column, `userId` — whoever the action is
