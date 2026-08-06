@@ -155,4 +155,10 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    // Explicit exit rather than relying on exitCode + natural event-loop
+    // drain: this is a scheduled/cron-invoked script, and if anything
+    // (an open handle, a pending timer) keeps the loop alive, the
+    // external scheduler would see it hang instead of finishing with
+    // the exit code it needs to detect failure.
+    process.exit(process.exitCode ?? 0);
   });

@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { AdStatus, AnalyticsEventType, UserActivityType, Prisma } from '@prisma/client';
+import { ActivityEntityType, AdStatus, AnalyticsEventType, UserActivityType, Prisma } from '@prisma/client';
 import { AdListRow } from '../ads/ads.repository';
 
 // Same column allowlist ads.repository.ts's adListSelect uses (and for
@@ -101,7 +101,7 @@ export const recommendationsRepository = {
   // already covered more cheaply by favoritedCategoryIds above.
   createdAdCategoryIds: async (userId: string): Promise<string[]> => {
     const rows = await prisma.userActivity.findMany({
-      where: { userId, type: UserActivityType.AD_CREATED, entityType: 'AD', entityId: { not: null } },
+      where: { userId, type: UserActivityType.AD_CREATED, entityType: ActivityEntityType.AD, entityId: { not: null } },
       select: { entityId: true },
       orderBy: { createdAt: 'desc' },
       take: 50,

@@ -18,6 +18,7 @@ const baseAd = {
   id: 'ad-1',
   userId: 'seller-1',
   title: 'iPhone 13 for sale',
+  description: 'Excellent condition, barely used, comes with original box',
   city: 'Gaza',
   categoryId: 'cat-1',
   condition: 'USED',
@@ -110,8 +111,20 @@ describe('savedSearchesService', () => {
       expect(matchesFilters(baseAd, { q: 'IPHONE 13' })).toBe(true);
     });
 
+    // AUDIT-FIX (5.11/9.7) regression: q previously matched title only,
+    // so an ad matching solely through its description never surfaced
+    // to a saved-search owner.
+    it('matches on q as a case-insensitive substring of the description', () => {
+      expect(matchesFilters(baseAd, { q: 'original box' })).toBe(true);
+      expect(matchesFilters(baseAd, { q: 'BARELY USED' })).toBe(true);
+    });
+
     it('does not match when q is not found in the title', () => {
       expect(matchesFilters(baseAd, { q: 'samsung' })).toBe(false);
+    });
+
+    it('does not match when q is found in neither title nor description', () => {
+      expect(matchesFilters(baseAd, { q: 'samsung galaxy' })).toBe(false);
     });
 
     it('matches on city case-insensitively', () => {

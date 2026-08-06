@@ -17,12 +17,26 @@ const MAX_SAVED_SEARCHES_PER_USER = 20;
  * filter keys are unconstrained (match any value) — same semantics as
  * GET /ads's optional query params. `q` matches the same way the ILIKE
  * search does on title/description (ads.repository.ts's search branch):
- * case-insensitive substring, checked against title only here since the
- * full ad description isn't loaded onto AdWithAuthor's select in every
- * caller — title is what a saved-search notification body shows anyway.
+ * case-insensitive substring, checked against both title and
+ * description.
+ *
+ * AUDIT-FIX (5.11/9.7): this previously checked `title` only, with a
+ * comment claiming `description` "isn't loaded onto AdWithAuthor's
+ * select in every caller" — but AdWithAuthor is built from `include`
+ * (not `select`), so it always carries every scalar Ad column
+ * including description, and matchesFilters has exactly one caller
+ * (savedSearchEvents.onAdCreated below), fed directly from
+ * ads.service.ts's `tx.ad.create({ include: {...} })` result. An ad
+ * that matched a saved search's `q` only through its description (not
+ * its title) previously never triggered the match notification at all.
  */
 function matchesFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolean {
-  if (filters.q && !ad.title.toLowerCase().includes(filters.q.toLowerCase())) return false;
+  if (filters.q) {
+    const q = filters.q.toLowerCase();
+    const titleMatches = ad.title.toLowerCase().includes(q);
+    const descriptionMatches = ad.description.toLowerCase().includes(q);
+    if (!titleMatches && !descriptionMatches) return false;
+  }
   if (filters.city && ad.city.toLowerCase() !== filters.city.toLowerCase()) return false;
   if (filters.categoryId && ad.categoryId !== filters.categoryId) return false;
   if (filters.condition && ad.condition !== filters.condition) return false;

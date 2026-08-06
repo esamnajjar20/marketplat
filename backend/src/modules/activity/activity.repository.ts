@@ -1,4 +1,4 @@
-import { Prisma, UserActivity, UserActivityType } from '@prisma/client';
+import { ActivityEntityType, Prisma, UserActivity, UserActivityType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import type { ActivityGroup } from './activity.validation';
@@ -8,7 +8,7 @@ export interface CreateActivityInput {
   type: UserActivityType;
   title: string;
   description?: string;
-  entityType?: string;
+  entityType?: ActivityEntityType;
   entityId?: string;
   metadata?: Prisma.InputJsonValue;
 }

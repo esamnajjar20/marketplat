@@ -1,4 +1,4 @@
-import { Prisma, UserActivityType } from '@prisma/client';
+import { ActivityEntityType, Prisma, UserActivityType } from '@prisma/client';
 import { CreateActivityInput } from './activity.repository';
 
 /**
@@ -23,7 +23,7 @@ export const activityTemplates = {
     type: UserActivityType.AD_CREATED,
     title: 'تم نشر إعلان جديد',
     description: title,
-    entityType: 'AD',
+    entityType: ActivityEntityType.AD,
     entityId: adId,
   }),
 
@@ -31,7 +31,7 @@ export const activityTemplates = {
     type: UserActivityType.AD_UPDATED,
     title: 'تم تعديل إعلان',
     description: title,
-    entityType: 'AD',
+    entityType: ActivityEntityType.AD,
     entityId: adId,
   }),
 
@@ -39,7 +39,7 @@ export const activityTemplates = {
     type: UserActivityType.AD_DELETED,
     title: 'تم حذف إعلان',
     description: title,
-    entityType: 'AD',
+    entityType: ActivityEntityType.AD,
     entityId: adId,
   }),
 
@@ -47,7 +47,7 @@ export const activityTemplates = {
     type: UserActivityType.PRODUCT_CREATED,
     title: 'تم إضافة منتج جديد',
     description: name,
-    entityType: 'PRODUCT',
+    entityType: ActivityEntityType.PRODUCT,
     entityId: productId,
   }),
 
@@ -55,7 +55,7 @@ export const activityTemplates = {
     type: UserActivityType.PRODUCT_UPDATED,
     title: 'تم تعديل منتج',
     description: name,
-    entityType: 'PRODUCT',
+    entityType: ActivityEntityType.PRODUCT,
     entityId: productId,
   }),
 
@@ -63,7 +63,7 @@ export const activityTemplates = {
     type: UserActivityType.PRODUCT_DELETED,
     title: 'تم حذف منتج',
     description: name,
-    entityType: 'PRODUCT',
+    entityType: ActivityEntityType.PRODUCT,
     entityId: productId,
   }),
 
@@ -71,7 +71,7 @@ export const activityTemplates = {
     type: UserActivityType.SERVICE_CREATED,
     title: 'تم إضافة خدمة جديدة',
     description: title,
-    entityType: 'SERVICE_LISTING',
+    entityType: ActivityEntityType.SERVICE_LISTING,
     entityId: listingId,
   }),
 
@@ -79,7 +79,7 @@ export const activityTemplates = {
     type: UserActivityType.SERVICE_UPDATED,
     title: 'تم تعديل خدمة',
     description: title,
-    entityType: 'SERVICE_LISTING',
+    entityType: ActivityEntityType.SERVICE_LISTING,
     entityId: listingId,
   }),
 
@@ -87,7 +87,7 @@ export const activityTemplates = {
     type: UserActivityType.SERVICE_DELETED,
     title: 'تم حذف خدمة',
     description: title,
-    entityType: 'SERVICE_LISTING',
+    entityType: ActivityEntityType.SERVICE_LISTING,
     entityId: listingId,
   }),
 
@@ -95,7 +95,7 @@ export const activityTemplates = {
     type: UserActivityType.STORE_CREATED,
     title: 'تم إنشاء متجر',
     description: name,
-    entityType: 'STORE',
+    entityType: ActivityEntityType.STORE,
     entityId: storeId,
   }),
 
@@ -103,7 +103,7 @@ export const activityTemplates = {
     type: UserActivityType.STORE_UPDATED,
     title: 'تم تعديل بيانات المتجر',
     description: name,
-    entityType: 'STORE',
+    entityType: ActivityEntityType.STORE,
     entityId: storeId,
   }),
 
@@ -111,7 +111,7 @@ export const activityTemplates = {
     type: UserActivityType.FAVORITE_ADDED,
     title: 'أضفت إعلاناً للمفضلة',
     description: title,
-    entityType: 'AD',
+    entityType: ActivityEntityType.AD,
     entityId: adId,
   }),
 
@@ -119,7 +119,7 @@ export const activityTemplates = {
     type: UserActivityType.FAVORITE_REMOVED,
     title: 'أزلت إعلاناً من المفضلة',
     description: title,
-    entityType: 'AD',
+    entityType: ActivityEntityType.AD,
     entityId: adId,
   }),
 
@@ -127,7 +127,7 @@ export const activityTemplates = {
     type: UserActivityType.STORE_FOLLOWED,
     title: 'بدأت متابعة متجر',
     description: name,
-    entityType: 'STORE',
+    entityType: ActivityEntityType.STORE,
     entityId: storeId,
   }),
 
@@ -135,7 +135,7 @@ export const activityTemplates = {
     type: UserActivityType.STORE_UNFOLLOWED,
     title: 'ألغيت متابعة متجر',
     description: name,
-    entityType: 'STORE',
+    entityType: ActivityEntityType.STORE,
     entityId: storeId,
   }),
 
@@ -150,7 +150,7 @@ export const activityTemplates = {
     type: UserActivityType.MESSAGE_SENT,
     title: 'أرسلت رسالة',
     description: `إلى ${recipientName}`,
-    entityType: 'CONVERSATION',
+    entityType: ActivityEntityType.CONVERSATION,
     entityId: conversationId,
   }),
 
@@ -161,7 +161,7 @@ export const activityTemplates = {
     type: UserActivityType.SERVICE_REQUEST_CREATED,
     title: 'طلبت خدمة',
     description: listingTitle,
-    entityType: 'SERVICE_REQUEST',
+    entityType: ActivityEntityType.SERVICE_REQUEST,
     entityId: requestId,
   }),
 
@@ -181,7 +181,7 @@ export const activityTemplates = {
     type: UserActivityType.SERVICE_REQUEST_STATUS_CHANGED,
     title: 'تغيّرت حالة طلب خدمة',
     description: `${listingTitle} — ${toStatus}`,
-    entityType: 'SERVICE_REQUEST',
+    entityType: ActivityEntityType.SERVICE_REQUEST,
     entityId: requestId,
     metadata: { fromStatus, toStatus } as Prisma.InputJsonValue,
   }),
@@ -193,7 +193,7 @@ export const activityTemplates = {
     type: UserActivityType.APPOINTMENT_BOOKED,
     title: 'تم حجز موعد',
     description: scheduledStart.toISOString(),
-    entityType: 'APPOINTMENT',
+    entityType: ActivityEntityType.APPOINTMENT,
     entityId: appointmentId,
   }),
 
@@ -204,7 +204,7 @@ export const activityTemplates = {
     type: UserActivityType.APPOINTMENT_CANCELLED,
     title: 'تم إلغاء موعد',
     description: scheduledStart.toISOString(),
-    entityType: 'APPOINTMENT',
+    entityType: ActivityEntityType.APPOINTMENT,
     entityId: appointmentId,
   }),
 

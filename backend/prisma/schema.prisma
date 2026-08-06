@@ -70,7 +70,7 @@ model UserActivity {
   // without needing cascade/orphan handling on this table, since a
   // timeline entry should keep existing (and its title/description
   // still render) even after the thing it pointed to is gone.
-  entityType  String?
+  entityType  ActivityEntityType?
   entityId    String?
   // Free-form extra context a specific activity type wants to carry
   // (e.g. old/new status for SERVICE_REQUEST_STATUS_CHANGED) without
@@ -758,6 +758,25 @@ enum UserActivityType {
   APPOINTMENT_CANCELLED
   PROFILE_UPDATED
   PASSWORD_CHANGED
+}
+
+// Gap #10 follow-up: was a free-form String? on UserActivity.entityType
+// (comment-only documentation of the 7 valid tags), which meant a typo
+// in activity.templates.ts (the only writer) would compile and pass
+// runtime validation silently, and any future reader matching on this
+// field had no compiler help either. Deliberately NOT a Prisma
+// relation, same as before — the referenced row can be hard/soft
+// deleted later without cascade/orphan handling, since a timeline
+// entry must keep rendering (title/description are pre-rendered at
+// write time) even after the thing it pointed to is gone.
+enum ActivityEntityType {
+  AD
+  PRODUCT
+  SERVICE_LISTING
+  STORE
+  CONVERSATION
+  SERVICE_REQUEST
+  APPOINTMENT
 }
 
 enum Role {
