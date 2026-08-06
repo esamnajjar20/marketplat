@@ -80,9 +80,9 @@ export interface CreateProductPayload {
 
 /**
  * PATCH /products/:id — JSON, not multipart. The backend's update
- * schema has no images field — there is no image-replace endpoint for
- * products (same limitation as service listings; see
- * service.types.ts's UpdateServiceListingPayload comment).
+ * schema has no images field — images are only ever mutated through
+ * the dedicated POST/DELETE /products/:id/images endpoints (Gap #3
+ * fix), never through this general PATCH, same convention as ads.
  */
 export interface UpdateProductPayload {
   categoryId?: string;

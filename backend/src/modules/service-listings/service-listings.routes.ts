@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { serviceListingsController } from './service-listings.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { uploadMultipleMiddleware } from '../../middlewares/upload.middleware';
-import { createServiceListingRateLimit } from '../../middlewares/rateLimit.middleware';
+import {
+  createServiceListingRateLimit,
+  addServiceListingImagesRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 
 export const serviceListingsRouter = Router();
@@ -27,4 +30,14 @@ serviceListingsRouter.post(
   serviceListingsController.createServiceListing
 );
 serviceListingsRouter.patch('/:id', authenticate, serviceListingsController.updateServiceListing);
+// Gap #3 fix: closes the audit finding — mirrors ads.routes.ts's
+// POST/DELETE /:id/images exactly.
+serviceListingsRouter.post(
+  '/:id/images',
+  authenticate,
+  addServiceListingImagesRateLimit,
+  uploadMultipleMiddleware,
+  serviceListingsController.addImages
+);
+serviceListingsRouter.delete('/:id/images', authenticate, serviceListingsController.removeImage);
 serviceListingsRouter.delete('/:id', authenticate, serviceListingsController.deleteServiceListing);

@@ -114,3 +114,45 @@ export async function withUserAdCreationLock<T>(userId: string, fn: () => Promis
   }
   return result;
 }
+
+// Gap #3 fix: products and service-listings previously had no
+// post-creation image add/remove endpoints at all, so no lock was
+// needed for them. Now that they mirror ads' addImages/removeImage,
+// they need the same concurrency guard ads' own images get via
+// withAdImagesLock — reusing the same withRedisLock primitive rather
+// than re-implementing SET-NX/Lua-release a third time. Separate
+// keyspaces (distinct prefixes) so a product-image lock can never
+// contend with an ad-image or listing-image lock.
+const PRODUCT_IMAGE_LOCK_PREFIX = 'product_images_lock:';
+const LISTING_IMAGE_LOCK_PREFIX = 'listing_images_lock:';
+const ENTITY_IMAGE_LOCK_TTL_SECONDS = 30; // same as IMAGE_LOCK_TTL_SECONDS above
+
+export class EntityImagesLockedError extends AppError {
+  constructor(entityId: string) {
+    super(`Item ${entityId} is currently being updated by another request — try again shortly`, 409);
+  }
+}
+
+export async function withProductImagesLock<T>(productId: string, fn: () => Promise<T>): Promise<T> {
+  const result = await withRedisLock(
+    `${PRODUCT_IMAGE_LOCK_PREFIX}${productId}`,
+    ENTITY_IMAGE_LOCK_TTL_SECONDS,
+    fn
+  );
+  if (result === LOCK_NOT_ACQUIRED) {
+    throw new EntityImagesLockedError(productId);
+  }
+  return result;
+}
+
+export async function withServiceListingImagesLock<T>(listingId: string, fn: () => Promise<T>): Promise<T> {
+  const result = await withRedisLock(
+    `${LISTING_IMAGE_LOCK_PREFIX}${listingId}`,
+    ENTITY_IMAGE_LOCK_TTL_SECONDS,
+    fn
+  );
+  if (result === LOCK_NOT_ACQUIRED) {
+    throw new EntityImagesLockedError(listingId);
+  }
+  return result;
+}

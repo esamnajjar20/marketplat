@@ -1,19 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
-import { useCreateServiceListing, useUpdateServiceListing } from '@/hooks/mutations/useServiceListingMutations';
+import {
+  useCreateServiceListing,
+  useUpdateServiceListing,
+  useAddServiceListingImages,
+  useRemoveServiceListingImage,
+} from '@/hooks/mutations/useServiceListingMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { MAX_IMAGES } from '@/lib/constants';
 import type {
   ServiceListing,
   ServicePricingType,
   ServiceLocationType,
+  UpdateServiceListingPayload,
 } from '@/types/service.types';
 
 interface Props {
@@ -29,7 +35,8 @@ interface Values {
   price: string;
   durationEstimate: string;
   serviceLocation: ServiceLocationType;
-  images: File[];
+  images: File[];           // new uploads staged for this submit
+  existingImages: string[]; // URLs already on server (edit mode)
 }
 
 interface Errors {
@@ -60,7 +67,19 @@ export function ServiceListingForm({ mode, listing }: Props) {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const create = useCreateServiceListing((p) => setUploadProgress(p));
   const update = useUpdateServiceListing(listing?.id ?? '');
-  const isPending = create.isPending || update.isPending;
+  // Gap #3 fix: same pattern as AdForm — addImages/removeImage drive the
+  // edit-mode image changes, awaited before the field-only PATCH fires.
+  const addImages = useAddServiceListingImages((p) => setUploadProgress(p));
+  const removeImage = useRemoveServiceListingImage();
+  const [isSavingImages, setIsSavingImages] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isPending = create.isPending || update.isPending
+    || addImages.isPending || removeImage.isPending || isSavingImages;
+
+  // Snapshot of the listing's images as they were when the form
+  // mounted, so we can diff against values.existingImages on submit —
+  // same as AdForm's originalImages (FIX I-04).
+  const [originalImages] = useState<string[]>(() => listing?.images ?? []);
 
   const [values, setValues] = useState<Values>(() =>
     listing
@@ -73,6 +92,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
           durationEstimate: listing.durationEstimate ?? '',
           serviceLocation: listing.serviceLocation,
           images: [],
+          existingImages: listing.images,
         }
       : {
           categoryId: '',
@@ -83,6 +103,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
           durationEstimate: '',
           serviceLocation: 'AT_PROVIDER',
           images: [],
+          existingImages: [],
         }
   );
   const [errors, setErrors] = useState<Errors>({});
@@ -106,7 +127,13 @@ export function ServiceListingForm({ mode, listing }: Props) {
     if (priceRequired && (!values.price || parseFloat(values.price) <= 0)) {
       e.price = 'أدخل سعراً صحيحاً';
     }
-    if (mode === 'create' && values.images.length === 0) {
+    // Gap #3 fix: edit mode now has a real image-replace flow, so the
+    // "at least one image" rule applies to the combined staged +
+    // existing set, not just create-mode's staged uploads.
+    const totalImages = mode === 'create'
+      ? values.images.length
+      : values.images.length + values.existingImages.length;
+    if (totalImages === 0) {
       e.images = 'أضف صورة واحدة على الأقل';
     }
     setErrors(e);
@@ -116,20 +143,25 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   // UX-FIX: mirrors validate()'s required-field rules read-only
   // (category/title/description, price only when priceRequired, and
-  // images only in create mode — same reasoning as ProductForm's
-  // identical fix).
+  // the combined image count now that edit mode supports add/remove
+  // too — Gap #3 fix).
+  const totalImageCount = mode === 'create'
+    ? values.images.length
+    : values.images.length + values.existingImages.length;
   const isFormIncomplete =
     !values.categoryId ||
     values.title.trim().length < 3 ||
     values.description.trim().length < 10 ||
     (priceRequired && (!values.price || parseFloat(values.price) <= 0)) ||
-    (mode === 'create' && values.images.length === 0);
+    totalImageCount === 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!validate()) return;
 
     if (mode === 'create') {
+      isSubmittingRef.current = true;
       setUploadProgress(values.images.length > 0 ? 0 : null);
       create.mutate(
         {
@@ -143,28 +175,66 @@ export function ServiceListingForm({ mode, listing }: Props) {
           images: values.images,
         },
         {
-          onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+          onError: (err) => {
+            setServerErrors(parseApiError(err).fieldErrors);
+            isSubmittingRef.current = false;
+          },
           onSettled: () => setUploadProgress(null),
         }
       );
       return;
     }
 
-    // Edit mode — PATCH is JSON-only; the backend has no image-replace
-    // endpoint for service listings, so photos are create-time only
-    // (see service-listings.api.ts's file header for why).
-    update.mutate(
-      {
-        categoryId: values.categoryId,
-        title: values.title.trim(),
-        description: values.description.trim(),
-        pricingType: values.pricingType,
-        price: priceRequired ? parseFloat(values.price) : null,
-        durationEstimate: values.durationEstimate.trim() || null,
-        serviceLocation: values.serviceLocation,
-      },
-      { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) }
-    );
+    if (!listing) return;
+    isSubmittingRef.current = true;
+    void submitEdit(listing);
+  }
+
+  // Gap #3 fix: mirrors AdForm's submitEdit exactly.
+  async function submitEdit(currentListing: ServiceListing) {
+    setIsSavingImages(true);
+    try {
+      const removedUrls = originalImages.filter(
+        (url) => !values.existingImages.includes(url),
+      );
+
+      const wouldGoToZero =
+        removedUrls.length > 0 && values.existingImages.length === 0;
+
+      if (wouldGoToZero && values.images.length > 0) {
+        setUploadProgress(0);
+        await addImages.mutateAsync({ id: currentListing.id, files: values.images });
+        for (const imageUrl of removedUrls) {
+          await removeImage.mutateAsync({ id: currentListing.id, imageUrl });
+        }
+      } else {
+        for (const imageUrl of removedUrls) {
+          await removeImage.mutateAsync({ id: currentListing.id, imageUrl });
+        }
+        if (values.images.length > 0) {
+          setUploadProgress(0);
+          await addImages.mutateAsync({ id: currentListing.id, files: values.images });
+        }
+      }
+    } catch {
+      return;
+    } finally {
+      setIsSavingImages(false);
+      isSubmittingRef.current = false;
+      setUploadProgress(null);
+    }
+
+    const payload = {
+      categoryId: values.categoryId,
+      title: values.title.trim(),
+      description: values.description.trim(),
+      pricingType: values.pricingType,
+      price: priceRequired ? parseFloat(values.price) : null,
+      durationEstimate: values.durationEstimate.trim() || null,
+      serviceLocation: values.serviceLocation,
+    } satisfies UpdateServiceListingPayload;
+
+    update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
   }
 
   return (
@@ -282,18 +352,24 @@ export function ServiceListingForm({ mode, listing }: Props) {
         </FormField>
       </div>
 
-      {mode === 'create' && (
-        <div className="rounded-lg border bg-card p-4 space-y-4">
-          <h2 className="font-semibold">الصور</h2>
-          {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
-          <ImageUpload
-            value={values.images}
-            maxFiles={MAX_IMAGES}
-            onChange={(files) => set('images', files)}
-            uploadProgress={uploadProgress}
-          />
-        </div>
-      )}
+      {/* Gap #3 fix: images are now editable after creation too, via the
+          dedicated add/remove endpoints — same ImageUpload usage as AdForm. */}
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h2 className="font-semibold">الصور</h2>
+        {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
+        <ImageUpload
+          value={values.images}
+          existingUrls={mode === 'edit' ? values.existingImages : undefined}
+          maxFiles={MAX_IMAGES}
+          onChange={(files) => set('images', files)}
+          onRemoveExisting={
+            mode === 'edit'
+              ? (url) => set('existingImages', values.existingImages.filter((u) => u !== url))
+              : undefined
+          }
+          uploadProgress={uploadProgress}
+        />
+      </div>
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>

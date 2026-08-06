@@ -46,6 +46,45 @@ export function useUpdateProduct(productId: string) {
   });
 }
 
+/**
+ * Gap #3 fix — POST /products/:id/images. Mirrors useAddAdImages
+ * exactly: used by ProductForm in edit mode to upload newly-selected
+ * files, invalidates the whole ['products'] prefix (not just
+ * detail+mine) so public browse/search caches don't keep serving a
+ * stale image set.
+ */
+export function useAddProductImages(onUploadProgress?: (percent: number) => void) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, files }: { id: string; files: File[] }) =>
+      productsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
+    onSuccess: (_product, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/**
+ * Gap #3 fix — DELETE /products/:id/images. Mirrors useRemoveAdImage
+ * exactly.
+ */
+export function useRemoveProductImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
+      productsApi.removeImage(id, imageUrl).then((r) => r.data.data),
+    onSuccess: (_product, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
 

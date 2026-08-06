@@ -138,6 +138,38 @@ describe('productsApi.update — plain JSON, no images field', () => {
   });
 });
 
+describe('productsApi.addImages — FormData construction (Gap #3 fix)', () => {
+  it('appends every file under the "images" key', async () => {
+    await productsApi.addImages('p-1', [makeFile('x.jpg'), makeFile('y.jpg')]);
+
+    const form = (apiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as FormData;
+    const entries = form.getAll('images');
+    expect(entries).toHaveLength(2);
+    expect((entries[0] as File).name).toBe('x.jpg');
+    expect((entries[1] as File).name).toBe('y.jpg');
+  });
+
+  it('POSTs to /products/:id/images with the multipart Content-Type header', async () => {
+    await productsApi.addImages('p-1', [makeFile('x.jpg')]);
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/products/p-1/images',
+      expect.any(FormData),
+      expect.objectContaining({ headers: { 'Content-Type': 'multipart/form-data' } }),
+    );
+  });
+});
+
+describe('productsApi.removeImage (Gap #3 fix)', () => {
+  it('calls DELETE /products/:id/images with the URL in the request body', async () => {
+    (apiClient.delete as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} });
+    await productsApi.removeImage('p-1', 'https://example.com/img.jpg');
+    expect(apiClient.delete).toHaveBeenCalledWith('/products/p-1/images', {
+      data: { imageUrl: 'https://example.com/img.jpg' },
+    });
+  });
+});
+
 describe('productsApi — endpoint/method correctness (regression guard)', () => {
   it('getAll calls GET /products with params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true, data: [] } });

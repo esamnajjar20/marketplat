@@ -52,6 +52,43 @@ export function useUpdateServiceListing(listingId: string) {
   });
 }
 
+/**
+ * Gap #3 fix — POST /service-listings/:id/images. Mirrors
+ * useAddAdImages exactly: used by ServiceListingForm in edit mode to
+ * upload newly-selected files.
+ */
+export function useAddServiceListingImages(onUploadProgress?: (percent: number) => void) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, files }: { id: string; files: File[] }) =>
+      serviceListingsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
+    onSuccess: (_listing, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/**
+ * Gap #3 fix — DELETE /service-listings/:id/images. Mirrors
+ * useRemoveAdImage exactly.
+ */
+export function useRemoveServiceListingImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
+      serviceListingsApi.removeImage(id, imageUrl).then((r) => r.data.data),
+    onSuccess: (_listing, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
 export function useDeleteServiceListing() {
   const queryClient = useQueryClient();
 

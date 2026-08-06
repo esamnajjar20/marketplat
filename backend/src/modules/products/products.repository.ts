@@ -77,6 +77,48 @@ export const productsRepository = {
   softDelete: (id: string): Promise<Product> =>
     prisma.product.update({ where: { id }, data: { status: 'DELETED' } }),
 
+  // Mirrors ads.repository.ts's addImages exactly: atomic array append
+  // via raw SQL (no SELECT + UPDATE race), with existing images always
+  // ordered first (source/position tagging) so overflow trims new
+  // uploads rather than silently dropping existing ones.
+  addImages: async (id: string, newImages: string[], maxImages = 10): Promise<Product> => {
+    const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE "products"
+       SET "images" = (
+         SELECT array_agg(img ORDER BY rn)
+         FROM (
+           SELECT img, ROW_NUMBER() OVER (ORDER BY src, ord) AS rn
+           FROM (
+             SELECT img, ord, 0 AS src
+             FROM unnest("images") WITH ORDINALITY AS t(img, ord)
+             UNION ALL
+             SELECT img, ord, 1 AS src
+             FROM unnest(ARRAY[${placeholders}]::text[]) WITH ORDINALITY AS t(img, ord)
+           ) combined
+           ORDER BY src, ord
+           LIMIT ${maxImages}
+         ) limited
+       )
+       WHERE "id" = $1`,
+      id,
+      ...newImages
+    );
+
+    return prisma.product.findUniqueOrThrow({ where: { id } });
+  },
+
+  // Mirrors ads.repository.ts's removeImage — atomic, no read-before-write race.
+  removeImage: async (id: string, imageUrl: string): Promise<Product> => {
+    await prisma.$executeRaw`
+      UPDATE "products"
+      SET "images" = array_remove("images", ${imageUrl})
+      WHERE "id" = ${id}
+    `;
+    return prisma.product.findUniqueOrThrow({ where: { id } });
+  },
+
   findMany: async (
     query: GetProductsQuery
   ): Promise<{ products: ProductWithStore[]; total: number }> => {

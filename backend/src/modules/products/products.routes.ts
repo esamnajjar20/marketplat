@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { productsController } from './products.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { uploadMultipleMiddleware } from '../../middlewares/upload.middleware';
-import { createProductRateLimit } from '../../middlewares/rateLimit.middleware';
+import {
+  createProductRateLimit,
+  addProductImagesRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 
 export const productsRouter = Router();
@@ -22,4 +25,15 @@ productsRouter.post(
   productsController.createProduct
 );
 productsRouter.patch('/:id', authenticate, productsController.updateProduct);
+// Gap #3 fix: closes the audit finding — mirrors ads.routes.ts's
+// POST/DELETE /:id/images exactly (same middleware order: auth, rate
+// limit, multer, then controller).
+productsRouter.post(
+  '/:id/images',
+  authenticate,
+  addProductImagesRateLimit,
+  uploadMultipleMiddleware,
+  productsController.addImages
+);
+productsRouter.delete('/:id/images', authenticate, productsController.removeImage);
 productsRouter.delete('/:id', authenticate, productsController.deleteProduct);

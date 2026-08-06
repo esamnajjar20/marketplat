@@ -285,6 +285,28 @@ export const createProductRateLimit = rateLimit({
   message: msg('Too many attempts, please try again later'),
 });
 
+// Gap #3 fix: same rationale as addAdImagesRateLimit (SEC-10) — POST
+// /products/:id/images uploads to Cloudinary and needs its own guard
+// beyond the coarse global backstop, same as the create-time endpoint.
+export const addProductImagesRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('add_product_images'),
+  message: msg('Too many image uploads, please try again later'),
+});
+
+// Gap #3 fix: same as addProductImagesRateLimit, for service listings.
+export const addServiceListingImagesRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('add_service_listing_images'),
+  message: msg('Too many image uploads, please try again later'),
+});
+
 // Stores module: mirrors favoritesRateLimit — following/unfollowing a
 // store is a cheap toggle, but still bounded against scripted abuse.
 export const storeFollowRateLimit = rateLimit({

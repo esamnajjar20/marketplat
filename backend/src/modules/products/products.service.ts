@@ -14,6 +14,7 @@ import { requireOwnStoreForProducts } from '../stores/stores.service';
 import { productCategoriesRepository } from '../product-categories/product-categories.repository';
 import { storeFollowersRepository } from '../stores/store-followers.repository';
 import { notificationEvents } from '../notifications/notifications.service';
+import { withProductImagesLock } from '../../shared/utils/adLock';
 
 const MAX_PRODUCT_IMAGES = 10; // same cap as ads.images / service-listings.images
 
@@ -158,5 +159,86 @@ export const productsService = {
         return publicId ? deleteImage(publicId).catch(() => undefined) : undefined;
       })
     );
+  },
+
+  // Gap #3 fix: closes the report's finding — products had no way to
+  // add/replace photos after creation (PATCH is JSON-only, no images
+  // field). Mirrors ads.service.ts's addImages exactly: ownership
+  // check, 10-image cap, lock-guarded re-check, parallel uploads,
+  // cleanup on failure.
+  addImages: async (
+    productId: string,
+    userId: string,
+    files: Express.Multer.File[]
+  ): Promise<Product> => {
+    const store = await requireOwnStoreForProducts(userId);
+    const product = await productsRepository.findById(productId);
+    if (!product || product.status === 'DELETED') {
+      throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    }
+    if (product.storeId !== store.id) {
+      throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
+    }
+    if (product.images.length + files.length > MAX_PRODUCT_IMAGES) {
+      throw new BadRequestError(`A product can have a maximum of ${MAX_PRODUCT_IMAGES} images`);
+    }
+
+    return withProductImagesLock(productId, async () => {
+      const freshProduct = await productsRepository.findById(productId);
+      if (!freshProduct || freshProduct.status === 'DELETED') {
+        throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+      }
+      if (freshProduct.images.length + files.length > MAX_PRODUCT_IMAGES) {
+        throw new BadRequestError(`A product can have a maximum of ${MAX_PRODUCT_IMAGES} images`);
+      }
+
+      const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'products')));
+      try {
+        return await productsRepository.addImages(
+          productId,
+          uploads.map(upload => upload.url)
+        );
+      } catch (error) {
+        await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+        throw error;
+      }
+    });
+  },
+
+  // Gap #3 fix: mirrors ads.service.ts's removeImage, including the
+  // "can't remove the last image" guard (EPIC 1.5's rationale applies
+  // identically here — a product must always keep at least one image).
+  removeImage: async (
+    productId: string,
+    userId: string,
+    imageUrl: string
+  ): Promise<Product> => {
+    const store = await requireOwnStoreForProducts(userId);
+    const product = await productsRepository.findById(productId);
+    if (!product || product.status === 'DELETED') {
+      throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    }
+    if (product.storeId !== store.id) {
+      throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
+    }
+    if (!product.images.includes(imageUrl)) {
+      throw new BadRequestError('Image not found in this product');
+    }
+    if (product.images.length <= 1) {
+      throw new BadRequestError(
+        'Cannot remove the last image — a product must have at least one image. Add a replacement image first.',
+        'MIN_IMAGES_REQUIRED'
+      );
+    }
+
+    return withProductImagesLock(productId, async () => {
+      try {
+        const publicId = extractCloudinaryPublicId(imageUrl);
+        if (publicId) await deleteImage(publicId);
+      } catch {
+        /* continue even if Cloudinary delete fails */
+      }
+      return productsRepository.removeImage(productId, imageUrl);
+    });
   },
 };

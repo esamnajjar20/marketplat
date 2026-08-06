@@ -4,12 +4,13 @@
  *   - POST is multipart/form-data (uploadMultipleMiddleware) — same
  *     pattern as ads.api.ts's create().
  *   - PATCH /:id is plain JSON and has NO images field in its Zod
- *     schema — there is no dedicated image-replace endpoint for service
- *     listings (unlike ads' /ads/:id/images). Editing photos on an
- *     existing listing is out of scope until the backend adds one.
+ *     schema — images are only ever mutated through the two dedicated
+ *     endpoints below (Gap #3 fix), never through this general PATCH.
  *   - GET /me is registered before GET /:id on the backend so "me" is
  *     never swallowed as an :id param — no frontend implication, just
  *     confirms the route exists as assumed.
+ *   - Gap #3 fix: POST/DELETE /:id/images now exist, mirroring
+ *     ads.api.ts's addImages()/removeImage() exactly.
  */
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
@@ -73,4 +74,25 @@ export const serviceListingsApi = {
   /** DELETE /service-listings/:id */
   delete: (id: string) =>
     apiClient.delete<ApiResponse<null>>(`/service-listings/${id}`),
+
+  /**
+   * POST /service-listings/:id/images — add images to an existing
+   * listing. Gap #3 fix — mirrors ads.api.ts's addImages() exactly.
+   */
+  addImages: (id: string, files: File[], onUploadProgress?: (percent: number) => void) => {
+    const form = new FormData();
+    files.forEach((f) => form.append('images', f));
+    return apiClient.post<ApiResponse<ServiceListing>>(`/service-listings/${id}/images`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onUploadProgress
+        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
+        : undefined,
+    });
+  },
+
+  /** DELETE /service-listings/:id/images — remove one image by URL. Gap #3 fix. */
+  removeImage: (id: string, imageUrl: string) =>
+    apiClient.delete<ApiResponse<ServiceListing>>(`/service-listings/${id}/images`, {
+      data: { imageUrl },
+    }),
 };

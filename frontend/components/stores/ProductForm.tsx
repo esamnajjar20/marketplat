@@ -1,16 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
-import { useCreateProduct, useUpdateProduct } from '@/hooks/mutations/useProductMutations';
+import {
+  useCreateProduct,
+  useUpdateProduct,
+  useAddProductImages,
+  useRemoveProductImage,
+} from '@/hooks/mutations/useProductMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { MAX_IMAGES } from '@/lib/constants';
-import type { Product, ProductAvailability } from '@/types/product.types';
+import type { Product, ProductAvailability, UpdateProductPayload } from '@/types/product.types';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -26,7 +31,8 @@ interface Values {
   wholesalePrice: string;
   wholesaleMinQty: string;
   availability: ProductAvailability;
-  images: File[];
+  images: File[];         // new uploads staged for this submit
+  existingImages: string[]; // URLs already on server (edit mode)
 }
 
 interface Errors {
@@ -50,7 +56,20 @@ export function ProductForm({ mode, product }: Props) {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const create = useCreateProduct((p) => setUploadProgress(p));
   const update = useUpdateProduct(product?.id ?? '');
-  const isPending = create.isPending || update.isPending;
+  // Gap #3 fix: same pattern as AdForm — addImages/removeImage drive the
+  // edit-mode image changes, awaited before the field-only PATCH fires.
+  const addImages = useAddProductImages((p) => setUploadProgress(p));
+  const removeImage = useRemoveProductImage();
+  const [isSavingImages, setIsSavingImages] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isPending = create.isPending || update.isPending
+    || addImages.isPending || removeImage.isPending || isSavingImages;
+
+  // Snapshot of the product's images as they were when the form
+  // mounted, so we can diff against values.existingImages on submit to
+  // know which ones the user actually removed — same as AdForm's
+  // originalImages (FIX I-04).
+  const [originalImages] = useState<string[]>(() => product?.images ?? []);
 
   const [values, setValues] = useState<Values>(() =>
     product
@@ -64,6 +83,7 @@ export function ProductForm({ mode, product }: Props) {
           wholesaleMinQty: product.wholesaleMinQty ? String(product.wholesaleMinQty) : '',
           availability: product.availability,
           images: [],
+          existingImages: product.images,
         }
       : {
           categoryId: '',
@@ -75,6 +95,7 @@ export function ProductForm({ mode, product }: Props) {
           wholesaleMinQty: '',
           availability: 'IN_STOCK',
           images: [],
+          existingImages: [],
         }
   );
   const [errors, setErrors] = useState<Errors>({});
@@ -104,7 +125,13 @@ export function ProductForm({ mode, product }: Props) {
     if ((values.wholesalePrice && !values.wholesaleMinQty) || (!values.wholesalePrice && values.wholesaleMinQty)) {
       e.wholesalePrice = 'أدخل سعر الجملة والحد الأدنى للكمية معاً';
     }
-    if (mode === 'create' && values.images.length === 0) {
+    // Gap #3 fix: edit mode now has a real image-replace flow, so the
+    // "at least one image" rule applies to the combined staged +
+    // existing set, not just create-mode's staged uploads.
+    const totalImages = mode === 'create'
+      ? values.images.length
+      : values.images.length + values.existingImages.length;
+    if (totalImages === 0) {
       e.images = 'أضف صورة واحدة على الأقل';
     }
     setErrors(e);
@@ -113,21 +140,25 @@ export function ProductForm({ mode, product }: Props) {
   }
 
   // UX-FIX: mirrors validate()'s required-field rules read-only
-  // (category/name/description/price, plus images but only in create
-  // mode — edit mode has no image-replace endpoint, see the comment
-  // near update.mutate() below).
+  // (category/name/description/price, plus the combined image count
+  // now that edit mode supports add/remove too — Gap #3 fix).
+  const totalImageCount = mode === 'create'
+    ? values.images.length
+    : values.images.length + values.existingImages.length;
   const isFormIncomplete =
     !values.categoryId ||
     values.name.trim().length < 2 ||
     values.description.trim().length < 10 ||
     !values.price || parseFloat(values.price) <= 0 ||
-    (mode === 'create' && values.images.length === 0);
+    totalImageCount === 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!validate()) return;
 
     if (mode === 'create') {
+      isSubmittingRef.current = true;
       setUploadProgress(values.images.length > 0 ? 0 : null);
       create.mutate(
         {
@@ -142,28 +173,72 @@ export function ProductForm({ mode, product }: Props) {
           images: values.images,
         },
         {
-          onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+          onError: (err) => {
+            setServerErrors(parseApiError(err).fieldErrors);
+            isSubmittingRef.current = false;
+          },
           onSettled: () => setUploadProgress(null),
         }
       );
       return;
     }
 
-    // Edit mode — PATCH is JSON-only; no image-replace endpoint for
-    // products (see products.api.ts's file header for why).
-    update.mutate(
-      {
-        categoryId: values.categoryId,
-        name: values.name.trim(),
-        description: values.description.trim(),
-        price: parseFloat(values.price),
-        discountPrice: values.discountPrice ? parseFloat(values.discountPrice) : null,
-        wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : null,
-        wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : null,
-        availability: values.availability,
-      },
-      { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) }
-    );
+    if (!product) return;
+    isSubmittingRef.current = true;
+    void submitEdit(product);
+  }
+
+  // Gap #3 fix: mirrors AdForm's submitEdit exactly — awaits the image
+  // add/remove calls first (each reports its own error via its hook's
+  // onError), and only fires the field-only PATCH once both resolve,
+  // so a failure surfaces on the page the user is still looking at
+  // instead of racing a redirect. Also mirrors the "don't go to zero
+  // images even momentarily" reordering for the min-1-image backend guard.
+  async function submitEdit(currentProduct: Product) {
+    setIsSavingImages(true);
+    try {
+      const removedUrls = originalImages.filter(
+        (url) => !values.existingImages.includes(url),
+      );
+
+      const wouldGoToZero =
+        removedUrls.length > 0 && values.existingImages.length === 0;
+
+      if (wouldGoToZero && values.images.length > 0) {
+        setUploadProgress(0);
+        await addImages.mutateAsync({ id: currentProduct.id, files: values.images });
+        for (const imageUrl of removedUrls) {
+          await removeImage.mutateAsync({ id: currentProduct.id, imageUrl });
+        }
+      } else {
+        for (const imageUrl of removedUrls) {
+          await removeImage.mutateAsync({ id: currentProduct.id, imageUrl });
+        }
+        if (values.images.length > 0) {
+          setUploadProgress(0);
+          await addImages.mutateAsync({ id: currentProduct.id, files: values.images });
+        }
+      }
+    } catch {
+      return;
+    } finally {
+      setIsSavingImages(false);
+      isSubmittingRef.current = false;
+      setUploadProgress(null);
+    }
+
+    const payload = {
+      categoryId: values.categoryId,
+      name: values.name.trim(),
+      description: values.description.trim(),
+      price: parseFloat(values.price),
+      discountPrice: values.discountPrice ? parseFloat(values.discountPrice) : null,
+      wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : null,
+      wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : null,
+      availability: values.availability,
+    } satisfies UpdateProductPayload;
+
+    update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
   }
 
   return (
@@ -282,18 +357,24 @@ export function ProductForm({ mode, product }: Props) {
         </div>
       </div>
 
-      {mode === 'create' && (
-        <div className="rounded-lg border bg-card p-4 space-y-4">
-          <h2 className="font-semibold">الصور</h2>
-          {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
-          <ImageUpload
-            value={values.images}
-            maxFiles={MAX_IMAGES}
-            onChange={(files) => set('images', files)}
-            uploadProgress={uploadProgress}
-          />
-        </div>
-      )}
+      {/* Gap #3 fix: images are now editable after creation too, via the
+          dedicated add/remove endpoints — same ImageUpload usage as AdForm. */}
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h2 className="font-semibold">الصور</h2>
+        {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
+        <ImageUpload
+          value={values.images}
+          existingUrls={mode === 'edit' ? values.existingImages : undefined}
+          maxFiles={MAX_IMAGES}
+          onChange={(files) => set('images', files)}
+          onRemoveExisting={
+            mode === 'edit'
+              ? (url) => set('existingImages', values.existingImages.filter((u) => u !== url))
+              : undefined
+          }
+          uploadProgress={uploadProgress}
+        />
+      </div>
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>

@@ -19,6 +19,7 @@ import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/u
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
+import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 
 const MAX_LISTING_IMAGES = 10; // same cap as ads.images (env.ads.maxImagesPerAd's sibling)
 
@@ -174,5 +175,86 @@ export const serviceListingsService = {
         return publicId ? deleteImage(publicId).catch(() => undefined) : undefined;
       })
     );
+  },
+
+  // Gap #3 fix: closes the report's finding — service listings had no
+  // way to add/replace photos after creation (PATCH is JSON-only, no
+  // images field). Mirrors ads.service.ts's addImages exactly.
+  addImages: async (
+    listingId: string,
+    userId: string,
+    files: Express.Multer.File[]
+  ): Promise<ServiceListing> => {
+    const provider = await requireOwnProvider(userId);
+    const listing = await serviceListingsRepository.findById(listingId);
+    if (!listing || listing.status === 'DELETED') {
+      throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+    }
+    if (listing.providerId !== provider.id) {
+      throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
+    }
+    if (listing.images.length + files.length > MAX_LISTING_IMAGES) {
+      throw new BadRequestError(`A service listing can have at most ${MAX_LISTING_IMAGES} images`);
+    }
+
+    return withServiceListingImagesLock(listingId, async () => {
+      const freshListing = await serviceListingsRepository.findById(listingId);
+      if (!freshListing || freshListing.status === 'DELETED') {
+        throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+      }
+      if (freshListing.images.length + files.length > MAX_LISTING_IMAGES) {
+        throw new BadRequestError(`A service listing can have at most ${MAX_LISTING_IMAGES} images`);
+      }
+
+      const uploads = await Promise.all(
+        files.map(file => uploadImage(file.buffer, 'service-listings'))
+      );
+      try {
+        return await serviceListingsRepository.addImages(
+          listingId,
+          uploads.map(upload => upload.url)
+        );
+      } catch (error) {
+        await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+        throw error;
+      }
+    });
+  },
+
+  // Gap #3 fix: mirrors ads.service.ts's removeImage, including the
+  // "can't remove the last image" guard (EPIC 1.5's rationale applies
+  // identically here).
+  removeImage: async (
+    listingId: string,
+    userId: string,
+    imageUrl: string
+  ): Promise<ServiceListing> => {
+    const provider = await requireOwnProvider(userId);
+    const listing = await serviceListingsRepository.findById(listingId);
+    if (!listing || listing.status === 'DELETED') {
+      throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+    }
+    if (listing.providerId !== provider.id) {
+      throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
+    }
+    if (!listing.images.includes(imageUrl)) {
+      throw new BadRequestError('Image not found in this service listing');
+    }
+    if (listing.images.length <= 1) {
+      throw new BadRequestError(
+        'Cannot remove the last image — a service listing must have at least one image. Add a replacement image first.',
+        'MIN_IMAGES_REQUIRED'
+      );
+    }
+
+    return withServiceListingImagesLock(listingId, async () => {
+      try {
+        const publicId = extractCloudinaryPublicId(imageUrl);
+        if (publicId) await deleteImage(publicId);
+      } catch {
+        /* continue even if Cloudinary delete fails */
+      }
+      return serviceListingsRepository.removeImage(listingId, imageUrl);
+    });
   },
 };

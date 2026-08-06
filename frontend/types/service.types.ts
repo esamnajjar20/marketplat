@@ -240,8 +240,9 @@ export interface CreateServiceListingPayload {
 }
 
 /** PATCH /service-listings/:id — JSON, not multipart. The backend's update
- * schema has no images field at all — there is no image-replace endpoint
- * for service listings (unlike ads' dedicated /ads/:id/images routes). */
+ * schema has no images field at all — images are only ever mutated through
+ * the dedicated POST/DELETE /service-listings/:id/images endpoints
+ * (Gap #3 fix), same convention as ads' /ads/:id/images routes. */
 export interface UpdateServiceListingPayload {
   categoryId?: string;
   title?: string;
