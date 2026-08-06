@@ -3,6 +3,7 @@ import { adsRepository } from '../../src/modules/ads/ads.repository';
 import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
 import { notificationEvents } from '../../src/modules/notifications';
 import { ROLES } from '../../src/shared/constants/roles';
+import { Prisma } from '@prisma/client';
 
 /**
  * Separate file from ads.service.test.ts (rather than adding a describe
@@ -33,12 +34,19 @@ jest.mock('../../src/config/env', () => ({
 // deliberately does NOT await gets a chance to run before assertions.
 const flushMicrotasks = () => new Promise(process.nextTick);
 
+// FIX SEC-3.8: `price` is a Prisma Decimal at runtime, not a plain
+// number — this used to be `100 as any` to paper over that mismatch.
+// Prisma.Decimal is a real, importable class, so we can construct an
+// actual instance instead of asserting past the type check. This is
+// strictly closer to what the repository really returns, and the
+// service's own comparison (`Number(ad.price)`) works identically on
+// a real Decimal as it did on the faked plain number.
 const mockAd = {
   id: 'ad-1',
   userId: 'user-1',
   status: 'ACTIVE',
   title: 'Old Title',
-  price: 100 as any, // Prisma Decimal in reality; a plain number compares fine via Number(...)
+  price: new Prisma.Decimal(100),
   images: ['https://res.cloudinary.com/demo/image/upload/v1/ads/photo.jpg'],
   categoryId: 'cat-1',
   city: 'الرياض',
@@ -104,7 +112,7 @@ describe('AdsService.updateAd — FAV_AD_PRICE_CHANGED notification trigger (Epi
     (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
     (adsRepository.update as jest.Mock).mockResolvedValue({ ...mockAd, price: null });
 
-    await adsService.updateAd('ad-1', 'user-1', ROLES.USER, { price: null as any });
+    await adsService.updateAd('ad-1', 'user-1', ROLES.USER, { price: null });
     await flushMicrotasks();
 
     // Number(null) === 0, and mockAd.price is 100, so 0 !== 100 — this
@@ -117,12 +125,12 @@ describe('AdsService.updateAd — FAV_AD_PRICE_CHANGED notification trigger (Epi
   });
 
   it('does not fire when price was already null and stays null (both sides coerce to 0, no real change)', async () => {
-    const adWithNoPrice = { ...mockAd, price: null as any };
+    const adWithNoPrice = { ...mockAd, price: null };
     (adsRepository.findById as jest.Mock).mockResolvedValue(adWithNoPrice);
     (adsRepository.update as jest.Mock).mockResolvedValue({ ...adWithNoPrice, title: 'New Title' });
 
     await adsService.updateAd('ad-1', 'user-1', ROLES.USER, {
-      price: null as any,
+      price: null,
       title: 'New Title',
     });
     await flushMicrotasks();

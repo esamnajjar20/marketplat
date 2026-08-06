@@ -24,7 +24,15 @@ const resolveOptionalUserId = (authHeader: string | undefined): string | null =>
   try {
     const token = authHeader.split(' ')[1];
     return verifyAccessToken(token).userId;
-  } catch {
+  } catch (err) {
+    // FIX SEC-3.1: previously swallowed silently. An expired token is
+    // expected and noisy (not worth logging), but a malformed/forged
+    // token is a signal worth having in logs even though the request
+    // itself still degrades gracefully to anonymous — this is
+    // debug-level, not error-level, so it doesn't create alert noise.
+    logger.debug('Ignoring invalid access token on analytics beacon', {
+      err: err instanceof Error ? err.message : err,
+    });
     return null;
   }
 };

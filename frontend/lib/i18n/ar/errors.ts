@@ -31,6 +31,9 @@ export const errorMessages: Record<string, ErrorMessageEntry> = {
   CONFLICT: 'يوجد تعارض في البيانات',
   INTERNAL_ERROR: 'خطأ في الخادم، يرجى المحاولة لاحقاً',
   SERVICE_UNAVAILABLE: 'الخدمة غير متاحة حالياً، يرجى المحاولة بعد قليل',
+  // FIX SEC-3.4/5.9: matches error.middleware.ts's CODE_BY_STATUS[422]
+  // fallback and errorParser.ts's existing `case 422` branch.
+  UNPROCESSABLE_ENTITY: 'تعذّر معالجة الطلب، تحقق من صحة البيانات المدخلة',
 
   // ── Auth ─────────────────────────────────────────────────────────
   INVALID_CREDENTIALS: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',

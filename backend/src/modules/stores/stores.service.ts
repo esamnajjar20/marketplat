@@ -154,7 +154,7 @@ export const storesService = {
   updateStoreStatus: async (
     id: string,
     input: UpdateStoreStatusInput,
-    adminUserId?: string
+    adminUserId: string
   ): Promise<StoreDetails> => {
     const store = await storesRepository.findById(id);
     if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
@@ -162,16 +162,15 @@ export const storesService = {
 
     // AUDIT-FIX (issue #10 follow-up): this admin action wrote no audit
     // trail at all — same gap sellersService.setVerification/setSuspension
-    // closed for ADMIN_SELLER_VERIFIED/SUSPENDED. adminUserId is optional
-    // only so this method's existing signature doesn't force every other
-    // caller to pass one; the controller always supplies it.
-    if (adminUserId) {
-      auditLog({
-        event: AuditEvent.ADMIN_STORE_STATUS_CHANGED,
-        userId: adminUserId,
-        details: { storeId: id, status: input.status },
-      }).catch(() => {});
-    }
+    // closed for ADMIN_SELLER_VERIFIED/SUSPENDED. adminUserId is now
+    // required (FIX SEC-3.2) so a future caller can't silently forget to
+    // pass it and lose the audit trail — the type system enforces what
+    // used to only be true by convention.
+    auditLog({
+      event: AuditEvent.ADMIN_STORE_STATUS_CHANGED,
+      userId: adminUserId,
+      details: { storeId: id, status: input.status },
+    }).catch(() => {});
 
     return updated;
   },

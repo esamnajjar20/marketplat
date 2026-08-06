@@ -15,6 +15,19 @@ interface Props {
   listingTitle: string;
 }
 
+type ReviewScore = 1 | 2 | 3 | 4 | 5;
+
+// FIX SEC-3.7: `score` used to be a plain `number` widened to
+// `1 | 2 | 3 | 4 | 5` with a bare `as` cast at submit time — that cast
+// doesn't check anything, it just tells TypeScript to trust the value.
+// In practice `score` can only ever reach 1-5 today (setScore is only
+// ever called from the star buttons below), but the cast gave no
+// actual protection if that ever changed. This is a real type guard:
+// it verifies the value at the boundary instead of asserting it.
+function isReviewScore(value: number): value is ReviewScore {
+  return Number.isInteger(value) && value >= 1 && value <= 5;
+}
+
 /**
  * ReviewServiceRequestDialog — Epic 3.2/3.3, modeled directly on
  * RateSellerDialog (same star-picker + optional-comment shape). Only
@@ -30,9 +43,9 @@ export function ReviewServiceRequestDialog({ requestId, open, onOpenChange, list
   const createReview = useCreateServiceReview();
 
   function handleSubmit() {
-    if (score < 1) return;
+    if (!isReviewScore(score)) return;
     createReview.mutate(
-      { requestId, score: score as 1 | 2 | 3 | 4 | 5, comment: comment.trim() || undefined },
+      { requestId, score, comment: comment.trim() || undefined },
       {
         onSuccess: () => {
           onOpenChange(false);
@@ -95,7 +108,7 @@ export function ReviewServiceRequestDialog({ requestId, open, onOpenChange, list
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               إلغاء
             </Button>
-            <Button onClick={handleSubmit} disabled={score < 1 || createReview.isPending}>
+            <Button onClick={handleSubmit} disabled={!isReviewScore(score) || createReview.isPending}>
               {createReview.isPending ? 'جارٍ الإرسال…' : 'إرسال التقييم'}
             </Button>
           </div>

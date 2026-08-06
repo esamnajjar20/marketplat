@@ -253,9 +253,9 @@ describe('storesService', () => {
     it('throws NotFoundError when the store does not exist', async () => {
       (storesRepository.findById as jest.Mock).mockResolvedValue(null);
 
-      await expect(storesService.updateStoreStatus(storeId, { status: 'ACTIVE' })).rejects.toThrow(
-        NotFoundError
-      );
+      await expect(
+        storesService.updateStoreStatus(storeId, { status: 'ACTIVE' }, 'admin-1')
+      ).rejects.toThrow(NotFoundError);
     });
 
     it('updates the store status when found', async () => {
@@ -263,7 +263,7 @@ describe('storesService', () => {
       const blocked = { ...mockStore, status: 'BLOCKED' };
       (storesRepository.updateStatus as jest.Mock).mockResolvedValue(blocked);
 
-      const result = await storesService.updateStoreStatus(storeId, { status: 'BLOCKED' });
+      const result = await storesService.updateStoreStatus(storeId, { status: 'BLOCKED' }, 'admin-1');
 
       expect(storesRepository.updateStatus).toHaveBeenCalledWith(storeId, 'BLOCKED');
       expect(result).toEqual(blocked);

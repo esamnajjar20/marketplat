@@ -43,6 +43,18 @@ const STATUS_TABS: { value: AdminStoreStatus | 'ALL'; label: string }[] = [
   { value: 'ALL',     label: 'الكل' },
 ];
 
+// FIX SEC-3.9: `statusParam` comes straight out of URLSearchParams —
+// any string a user can type into the address bar, not something the
+// type system already constrains. The previous `as AdminStoreStatus`
+// cast asserted that without checking it, so an arbitrary/stale/typo'd
+// `?status=` value would silently masquerade as a valid status instead
+// of falling back to the safe PENDING default below. This is a real
+// runtime check.
+const VALID_STORE_STATUSES = new Set<AdminStoreStatus>(['PENDING', 'ACTIVE', 'BLOCKED']);
+function isAdminStoreStatus(value: string | null): value is AdminStoreStatus {
+  return !!value && VALID_STORE_STATUSES.has(value as AdminStoreStatus);
+}
+
 const STATUS_BADGE: Record<AdminStoreStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
   PENDING: { label: 'قيد المراجعة', variant: 'secondary' },
   ACTIVE:  { label: 'نشط',          variant: 'default' },
@@ -60,7 +72,7 @@ export function AdminStoresTable() {
   const statusParam = sp.get('status');
   const status: AdminStoreStatus | 'ALL' = statusParam === 'ALL'
     ? 'ALL'
-    : (statusParam as AdminStoreStatus | null) ?? 'PENDING';
+    : isAdminStoreStatus(statusParam) ? statusParam : 'PENDING';
 
   const { data, isLoading, isError, refetch } = useAdminStores({
     page,

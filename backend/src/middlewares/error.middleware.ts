@@ -65,6 +65,16 @@ const CODE_BY_STATUS: Record<number, string> = {
   403: 'FORBIDDEN',
   404: 'RESOURCE_NOT_FOUND',
   409: 'CONFLICT',
+  // FIX SEC-3.4/5.9: the frontend's errorParser.ts already has a
+  // dedicated `case 422` branch expecting a `code`, but nothing here
+  // populated CODE_BY_STATUS for it — any AppError thrown with
+  // statusCode 422 and no explicit `.code` would silently fall through
+  // to the generic 'INTERNAL_ERROR' code below instead of a stable,
+  // translatable one. Filling this in now (rather than only when a
+  // 422-throwing call site is added) means `code` is always present
+  // for every status this API defines, closing the gap the frontend's
+  // ErrorResponse contract already assumes.
+  422: 'UNPROCESSABLE_ENTITY',
   429: 'RATE_LIMIT_EXCEEDED',
   503: 'SERVICE_UNAVAILABLE',
 };
