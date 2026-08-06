@@ -3,7 +3,9 @@
 /**
  * EditProductCategoryButton.
  * Mirrors EditServiceCategoryButton.tsx's exact pattern (same slugify
- * helper, same dialog layout, same diff-before-mutate approach).
+ * helper, same dialog layout, same diff-before-mutate approach). The
+ * reset-on-open sequencing itself now lives in useResettableDialog
+ * (issue #7.1) rather than being copy-pasted here.
  */
 
 import { useState } from 'react';
@@ -13,6 +15,7 @@ import { Input }    from '@/components/shared/ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
 import { toast }    from 'sonner';
 import { useUpdateProductCategory } from '@/hooks/mutations/useProductCategoryMutations';
+import { useResettableDialog } from '@/hooks/useResettableDialog';
 import type { ProductCategory } from '@/types/product.types';
 
 interface Props {
@@ -31,21 +34,16 @@ function slugify(input: string): string {
 }
 
 export function EditProductCategoryButton({ category }: Props) {
-  const [open,   setOpen]   = useState(false);
   const [nameAr, setNameAr] = useState(category.nameAr);
   const [nameEn, setNameEn] = useState(category.name);
   const [icon,   setIcon]   = useState(category.icon ?? '');
   const updateCategory = useUpdateProductCategory(category.id);
 
-  function handleOpen() {
-    // Reset to the category's current values each time the dialog
-    // opens, in case a previous edit was cancelled mid-way — same
-    // reasoning as EditServiceCategoryButton's handleOpen.
+  const { open, setOpen, handleOpen } = useResettableDialog(() => {
     setNameAr(category.nameAr);
     setNameEn(category.name);
     setIcon(category.icon ?? '');
-    setOpen(true);
-  }
+  });
 
   function handleSave() {
     if (!nameAr.trim()) { toast.error('الاسم بالعربي مطلوب'); return; }

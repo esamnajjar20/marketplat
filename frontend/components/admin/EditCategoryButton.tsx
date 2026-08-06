@@ -7,6 +7,7 @@ import { Input }    from '@/components/shared/ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
 import { toast }    from 'sonner';
 import { useUpdateCategory } from '@/hooks/mutations/useCategoryMutations';
+import { useResettableDialog } from '@/hooks/useResettableDialog';
 import type { Category } from '@/types/category.types';
 
 interface Props {
@@ -33,18 +34,14 @@ function slugify(input: string): string {
 }
 
 export function EditCategoryButton({ category }: Props) {
-  const [open,   setOpen]   = useState(false);
   const [nameAr, setNameAr] = useState(category.nameAr);
   const [nameEn, setNameEn] = useState(category.name);
   const updateCategory = useUpdateCategory(category.id);
 
-  function handleOpen() {
-    // Reset to the category's current values each time the dialog
-    // opens, in case a previous edit was cancelled mid-way.
+  const { open, setOpen, handleOpen } = useResettableDialog(() => {
     setNameAr(category.nameAr);
     setNameEn(category.name);
-    setOpen(true);
-  }
+  });
 
   function handleSave() {
     if (!nameAr.trim()) { toast.error('الاسم بالعربي مطلوب'); return; }

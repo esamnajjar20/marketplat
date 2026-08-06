@@ -17,5 +17,15 @@ searchRouter.get('/', CACHE.SHORT, searchController.search);
 // the CDN occasionally serves a slightly staler list than Redis holds.
 searchRouter.get('/suggestions', searchSuggestionsRateLimit, CACHE.SHORT, searchController.suggest);
 
-// TODO: nearby search — see design doc (GET /search/nearby, city +
-// lat/lng based). Deferred; not part of this pass.
+// TODO(TRACK-NEARBY-SEARCH): GET /search/nearby — lat/lng-based nearby
+// search for the unified ads/products search, deferred and not part of
+// this pass. Note this is distinct from service-providers' nearby
+// search (GET /service-providers/nearby, service-providers.routes.ts),
+// which already ships: Haversine-based, required lat/lng, radius
+// optional (km) with a default and a server-side cap to avoid a
+// pathological full-table scan (see nearbyServiceProvidersSchema in
+// service-providers.validation.ts). Search's Ad/Product models have no
+// lat/lng columns yet (unlike ServiceProvider) — implementing this
+// endpoint needs that schema addition first, then can likely reuse the
+// same radius-cap and coordinate-validation approach as the
+// service-providers version rather than a new design.

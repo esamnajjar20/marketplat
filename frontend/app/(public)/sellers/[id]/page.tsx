@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { SellerProfileHeader } from '@/components/sellers/SellerProfileHeader';
 import { SellerProfileAds } from '@/components/sellers/SellerProfileAds';
 import { ServiceReviewsList } from '@/components/services/ServiceReviewsList';
+import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
 import { buildMetadata } from '@/lib/seo';
 import { sellersApi } from '@/api/sellers.api';
 
@@ -53,7 +54,21 @@ export default async function SellerProfilePage({ params }: Props) {
       </section>
       <section className="space-y-3">
         <h2 className="font-semibold text-lg">تقييمات الخدمات</h2>
-        <ServiceReviewsList sellerProfileId={seller.id} />
+        {/* AUDIT-FIX (issue #7.4): ServiceReviewsList's own isError branch
+            only covers a failed fetch. An unexpected render-time throw
+            (e.g. malformed review data) had nothing catching it here,
+            so it would blank the rest of this profile page below the
+            header. This boundary scopes that failure to the reviews
+            section instead. */}
+        <ErrorBoundary
+          fallback={
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-center text-sm text-destructive">
+              تعذّر عرض تقييمات الخدمات
+            </div>
+          }
+        >
+          <ServiceReviewsList sellerProfileId={seller.id} />
+        </ErrorBoundary>
       </section>
     </div>
   );

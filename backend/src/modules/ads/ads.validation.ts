@@ -5,30 +5,15 @@ const optionalQueryNumber = (schema: z.ZodNumber) =>
   z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
 
 /**
- * FIX INTEG-05: isNegotiable used plain z.boolean(), which rejects
- * anything that isn't already a real JS boolean. createAd's frontend
- * caller (adsApi.create) sends multipart/form-data (required for the
- * image files), and multer puts every non-file field into req.body as
- * a raw string — so isNegotiable arrived as the literal string "true"
- * or "false", and z.boolean().parse("true"/"false") always threw a 400
- * ("Expected boolean, received string"). Every attempt to create an ad
- * failed outright, regardless of the checkbox's actual state.
- *
- * z.coerce.boolean() is NOT the fix here — per JS semantics, any
- * non-empty string coerces to true, so z.coerce.boolean().parse("false")
- * would silently produce `true`, which is worse than the outright
- * rejection this replaces. This preprocessor treats the exact strings
- * "true"/"false" explicitly and passes real booleans (or undefined)
- * through unchanged — real booleans are what PATCH /ads/:id's
- * plain-JSON body already sends, since updateAd's frontend caller does
- * NOT use FormData (see adsApi.update), so it never hit this bug, but
- * gets the same defensive handling here regardless of caller.
- *
- * Applied as a raw preprocess step ahead of z.boolean() rather than
- * wrapping an already-built schema, so it composes cleanly with
- * whatever's chained after it (.default(...), .optional(), etc.)
- * without fighting Zod's type inference over which wrapper type
- * (ZodDefault vs ZodOptional vs plain ZodBoolean) it received.
+ * FIX INTEG-05: createAd sends multipart/form-data (required for image
+ * files), so multer puts isNegotiable into req.body as the string
+ * "true"/"false" — plain z.boolean() rejected that outright with a 400.
+ * z.coerce.boolean() is not a safe substitute: any non-empty string
+ * (including "false") coerces to true under JS semantics. This
+ * preprocessor matches the exact strings explicitly and passes real
+ * booleans/undefined through unchanged, so it's also safe on PATCH
+ * /ads/:id's plain-JSON body (updateAd doesn't use FormData, so it
+ * never hit this bug, but shares the same schema regardless).
  */
 const preprocessFormBoolean = (value: unknown) => {
   if (typeof value === 'string') {
@@ -57,19 +42,11 @@ export const createAdSchema = z.object({
 
 export const updateAdSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
-  // FIX FAV-02 (plan's "images:[] validation" item): verified this
-  // schema has no `images` field, and nothing in this file uses
-  // .passthrough()/.strict() to change Zod's default behavior — an
-  // object schema without .passthrough() silently STRIPS any key not
-  // explicitly declared, before the parsed body ever reaches
-  // adsService.updateAd/adsRepository.update. A client sending
-  // `images: []` (or any images value) in a PATCH /ads/:id body has
-  // that field dropped here; it can never reach the Prisma `data`
-  // object and can never overwrite the images array. Images are only
-  // ever mutated through the dedicated addImages (atomic append,
-  // capped at 10, lock-guarded — see ads.service.ts) and removeImage
-  // (single-image removal) endpoints, never through this general PATCH.
-  // No code change was needed for this item — recorded here so a
+  // FIX FAV-02: no `images` field below, and this object isn't
+  // .passthrough()'d, so Zod strips any `images` key a client sends
+  // before it reaches adsRepository.update — a PATCH body can never
+  // overwrite the images array this way. Images only mutate through
+  // the dedicated addImages/removeImage endpoints. Recorded here so a
   // future pass doesn't re-flag it without re-checking.
   body: z.object({
     title: z.string().min(3).max(200).optional(),
@@ -83,17 +60,12 @@ export const updateAdSchema = z.object({
   }),
 });
 
-// L-3 (audit fix): single source of truth for which columns sortBy may
-// select. Previously this enum here and the switch-like ternary chain
-// in ads.repository.ts's raw-SQL search branch were two independently
-// maintained lists that happened to agree — the ORM path's
-// `{ [sortBy]: sortOrder }` picks up any new value automatically, but
-// the raw-SQL path requires an explicit new `sortBy === 'x' ? ... :`
-// branch or it silently falls back to sorting by createdAt (exactly
-// the class of bug FIX H-1 above already fixed once for 'views').
-// Exporting this array lets ads.repository.ts build its raw-SQL column
-// map FROM this list (see AD_SORT_COLUMN_SQL there) instead of
-// hand-copying it, so the two paths can no longer drift apart.
+// L-3: single source of truth for which columns sortBy may select,
+// exported so ads.repository.ts builds its raw-SQL column map (see
+// AD_SORT_COLUMN_SQL there) FROM this list instead of hand-copying it.
+// The ORM path picks up a new value automatically; the raw-SQL branch
+// needs an explicit case or it silently falls back to createdAt — the
+// same class of bug FIX H-1 below already fixed once for 'views'.
 export const AD_SORT_FIELDS = ['createdAt', 'price', 'views'] as const;
 export type AdSortField = (typeof AD_SORT_FIELDS)[number];
 
@@ -106,42 +78,27 @@ export const getAdsSchema = z.object({
     condition: z.nativeEnum(AdCondition).optional(),
     minPrice: optionalQueryNumber(z.number().min(0)),
     maxPrice: optionalQueryNumber(z.number().min(0)),
-    // FIX AUDIT-V3-08: z.string().optional() alone still accepts an
-    // explicit empty string ("") — different from the field being
-    // absent. An empty search= falls through to the ORM/ILIKE path in
-    // ads.repository.ts (since `if (search)` is false for ""), which
-    // isn't dangerous, but it's relying on a JS truthiness accident
-    // rather than the validation layer making an explicit decision.
-    // .min(1) rejects "" outright with a clear 400, leaving "absent"
-    // (undefined) as the only way to mean "no search filter."
+    // FIX AUDIT-V3-08: .min(1) makes "absent" (undefined) the only way
+    // to mean "no search filter" — without it, an explicit "" relied on
+    // ads.repository.ts's `if (search)` truthiness check rather than
+    // validation making that decision explicitly.
     search: z.string().min(1).max(200).optional(),
-    // FIX H-1: 'views' added — the frontend's AD_SORT_OPTIONS ("الأكثر
-    // مشاهدة" / Most Viewed) has always sent sortBy=views, but this
-    // enum only accepted createdAt/price, so every selection of that
-    // sort option failed Zod validation with a 400, silently breaking
-    // a fully-built, user-visible sort control. ads.repository.ts's
-    // orderBy already applies `{ [sortBy]: sortOrder }` generically, so
-    // adding 'views' here is sufficient — no repository change needed.
+    // FIX H-1: 'views' added — the frontend's "Most Viewed" sort option
+    // always sent sortBy=views, but this enum only accepted
+    // createdAt/price, so that selection failed validation with a 400.
     sortBy: z.enum(AD_SORT_FIELDS).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
   }),
 });
 
-// FIX D-24 / I-08: GET /ads/me's "status" filter tabs (All/Active/Sold/
-// Deleted) in MyAdsList.tsx were fully built on the frontend but had no
-// effect — getAdsSchema (shared with the public /ads endpoint) has no
-// `status` field, so Zod silently stripped it before it ever reached
-// findManyByUserId, which only ever applied a hardcoded internal
-// 'ACTIVE' filter for public-profile use, never a user-supplied value.
-//
-// This schema is deliberately separate from getAdsSchema (not just an
-// extension reused on the public endpoint). All three AdStatus values
-// are accepted here, including DELETED — unlike the public /ads
-// endpoint, this query is always scoped to the authenticated user's own
-// ads (userId is fixed server-side in findManyByUserId's WHERE clause,
-// never taken from the request), so a user seeing their own
-// soft-deleted ads is not a cross-user data leak the way an unscoped
-// DELETED filter on the public endpoint would be.
+// FIX D-24 / I-08: GET /ads/me's status filter tabs sent a `status`
+// value that getAdsSchema (shared with the public /ads endpoint) had
+// no field for, so Zod silently stripped it — findManyByUserId only
+// ever applied a hardcoded 'ACTIVE' filter. Kept as its own schema
+// (not reused on the public endpoint) because it accepts all three
+// AdStatus values including DELETED — safe here since userId is fixed
+// server-side to the authenticated caller, unlike the public endpoint
+// where an unscoped DELETED filter would leak other users' data.
 export const getMyAdsSchema = z.object({
   query: getAdsSchema.shape.query.extend({
     status: z.nativeEnum(AdStatus).optional(),

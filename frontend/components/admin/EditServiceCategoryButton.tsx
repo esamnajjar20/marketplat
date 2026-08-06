@@ -5,7 +5,8 @@
  * Mirrors EditCategoryButton.tsx's exact pattern (same slugify helper,
  * same dialog layout, same diff-before-mutate approach), with one
  * addition: an icon field, since ServiceCategory has one and the ad
- * Category doesn't.
+ * Category doesn't. The reset-on-open sequencing itself now lives in
+ * useResettableDialog (issue #7.1) rather than being copy-pasted here.
  */
 
 import { useState } from 'react';
@@ -15,6 +16,7 @@ import { Input }    from '@/components/shared/ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
 import { toast }    from 'sonner';
 import { useUpdateServiceCategory } from '@/hooks/mutations/useServiceCategoryMutations';
+import { useResettableDialog } from '@/hooks/useResettableDialog';
 import type { ServiceCategory } from '@/types/service.types';
 
 interface Props {
@@ -33,21 +35,16 @@ function slugify(input: string): string {
 }
 
 export function EditServiceCategoryButton({ category }: Props) {
-  const [open,   setOpen]   = useState(false);
   const [nameAr, setNameAr] = useState(category.nameAr);
   const [nameEn, setNameEn] = useState(category.name);
   const [icon,   setIcon]   = useState(category.icon ?? '');
   const updateCategory = useUpdateServiceCategory(category.id);
 
-  function handleOpen() {
-    // Reset to the category's current values each time the dialog
-    // opens, in case a previous edit was cancelled mid-way — same
-    // reasoning as EditCategoryButton's handleOpen.
+  const { open, setOpen, handleOpen } = useResettableDialog(() => {
     setNameAr(category.nameAr);
     setNameEn(category.name);
     setIcon(category.icon ?? '');
-    setOpen(true);
-  }
+  });
 
   function handleSave() {
     if (!nameAr.trim()) { toast.error('الاسم بالعربي مطلوب'); return; }
