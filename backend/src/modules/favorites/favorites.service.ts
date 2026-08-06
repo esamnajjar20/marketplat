@@ -1,5 +1,6 @@
 import { favoritesRepository, FavoriteWithAd, FavoriteListRow } from './favorites.repository';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
+import { activityService, activityTemplates } from '../activity';
 import { GetFavoritesQuery } from './favorites.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
@@ -27,6 +28,9 @@ export const favoritesService = {
         // rather than surfacing a 500 for a benign race.
         if (!isPrismaError(err, 'P2025')) throw err;
       }
+      // Gap #10: fire-and-forget, see activityService.record()'s own
+      // doc comment.
+      activityService.record({ userId, ...activityTemplates.favoriteRemoved(ad.id, ad.title) });
       return { action: 'removed' };
     }
 
@@ -38,6 +42,9 @@ export const favoritesService = {
       // Treat as a successful no-op instead of a 500.
       if (!isPrismaError(err, 'P2002')) throw err;
     }
+    // Gap #10: fire-and-forget, see activityService.record()'s own doc
+    // comment.
+    activityService.record({ userId, ...activityTemplates.favoriteAdded(ad.id, ad.title) });
     return { action: 'added' };
   },
 

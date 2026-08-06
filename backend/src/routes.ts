@@ -23,6 +23,7 @@ import { productCategoriesRouter } from './modules/product-categories';
 import { searchRouter } from './modules/search';
 import { auditLogsRouter } from './modules/audit-logs';
 import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
+import { activityRouter } from './modules/activity';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -84,3 +85,8 @@ router.use('/saved-searches', savedSearchesRouter);
 router.use('/stores', storesRouter);
 router.use('/products', productsRouter);
 router.use('/product-categories', productCategoriesRouter);
+// Gap #10 ("نشاطي"): a user's own cross-module activity timeline — its
+// own repository-backed module (not folded into users.routes.ts),
+// same pattern as /saved-searches and /notifications sitting outside
+// usersRouter despite both being "my own X" resources.
+router.use('/activity', activityRouter);

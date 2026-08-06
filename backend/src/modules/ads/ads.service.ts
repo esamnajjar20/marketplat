@@ -19,6 +19,7 @@ import { sellersService } from '../sellers/sellers.service';
 import { favoritesRepository } from '../favorites/favorites.repository';
 import { notificationEvents } from '../notifications';
 import { savedSearchEvents } from '../saved-searches';
+import { activityService, activityTemplates } from '../activity';
 import { prisma } from '../../config/prisma';
 
 /**
@@ -178,6 +179,12 @@ export const adsService = {
         logger.error('Failed to process saved-search matches for new ad', { err, adId: ad.id })
       );
 
+      // Gap #10: personal activity timeline entry. Fire-and-forget per
+      // activityService.record()'s own contract — never awaited here,
+      // so a failed activity insert can never fail an otherwise-
+      // successful ad creation.
+      activityService.record({ userId, ...activityTemplates.adCreated(ad.id, ad.title) });
+
       return ad;
     } catch (error) {
       await cleanupUploadedImages(uploads.map(upload => upload.publicId));
@@ -334,6 +341,11 @@ export const adsService = {
     // (e.g. mark-as-sold) — a sold ad must stop appearing as available
     // in cached /ads results immediately, not after up to 30s.
     await bumpAdsCacheVersion();
+
+    // Gap #10: fire-and-forget, see createAd's own comment above for
+    // the contract this relies on.
+    activityService.record({ userId, ...activityTemplates.adUpdated(adId, updated.title) });
+
     return updated;
   },
 
@@ -444,5 +456,13 @@ export const adsService = {
     // FIX AUDIT-V4-06: a deleted ad must stop appearing in /ads results
     // immediately, not after up to 30s of cache TTL.
     await bumpAdsCacheVersion();
+
+    // Gap #10: fire-and-forget, see createAd's own comment above for
+    // the contract this relies on. Logged for `userId` (the acting
+    // caller) even when an admin deletes someone else's ad — see this
+    // function's own ownership check above (ad.userId !== userId &&
+    // userRole !== ADMIN) — so an admin-performed deletion shows up on
+    // the admin's own timeline, not silently on the ad owner's.
+    activityService.record({ userId, ...activityTemplates.adDeleted(adId, ad.title) });
   },
 };

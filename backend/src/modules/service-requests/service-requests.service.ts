@@ -14,6 +14,7 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
+import { activityService, activityTemplates } from '../activity';
 
 // services-design.md §5-§7: single source of truth for legal status
 // transitions. Adding a future status (e.g. DISPUTED) is a one-line
@@ -71,12 +72,22 @@ export const serviceRequestsService = {
       throw new ForbiddenError('You cannot request your own service listing.', 'CANNOT_REQUEST_OWN_LISTING');
     }
 
-    return prisma.$transaction(async tx =>
+    const request = await prisma.$transaction(async tx =>
       serviceRequestsRepository.create(tx, customerId, input.listingId, {
         details: input.details,
         attachedImages: input.attachedImages ?? [],
       })
     );
+
+    // Gap #10: fire-and-forget, see activityService.record()'s own doc
+    // comment. Logged for `customerId` (the requester), not the
+    // provider — a request is the customer's own action.
+    activityService.record({
+      userId: customerId,
+      ...activityTemplates.serviceRequestCreated(request.id, listing.title),
+    });
+
+    return request;
   },
 
   getRequestById: async (userId: string, id: string): Promise<ServiceRequestWithListing> => {
@@ -169,7 +180,27 @@ export const serviceRequestsService = {
         // as createAd.
         throw new ConflictError('Request status has changed — please refresh and try again', 'SERVICE_REQUEST_CHANGED');
       }
-      return tx.serviceRequest.findUniqueOrThrow({ where: { id: requestId } });
+      const updated = await tx.serviceRequest.findUniqueOrThrow({ where: { id: requestId } });
+
+      // Gap #10: fire-and-forget, see activityService.record()'s own
+      // doc comment — safe to call from inside the transaction
+      // callback since record() never awaits its own DB write and
+      // therefore never holds the transaction open waiting on it.
+      // Logged for `userId` (whichever party — customer or provider —
+      // performed this specific transition, per the actor check
+      // above), not always the customer, since a provider accepting/
+      // completing a request is that provider's own action.
+      activityService.record({
+        userId,
+        ...activityTemplates.serviceRequestStatusChanged(
+          requestId,
+          request.listing.title,
+          request.status,
+          action
+        ),
+      });
+
+      return updated;
     });
   },
 };

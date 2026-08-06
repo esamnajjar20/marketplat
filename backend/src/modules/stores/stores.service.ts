@@ -19,6 +19,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { withStoreCreationLock } from '../../shared/utils/storeLock';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { activityService, activityTemplates } from '../activity';
 import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 
@@ -62,7 +63,7 @@ export const storesService = {
       throw new ConflictError('You already have a store.', 'STORE_ALREADY_EXISTS');
     }
 
-    return withStoreCreationLock(sellerProfile.id, async () => {
+    const store = await withStoreCreationLock(sellerProfile.id, async () => {
       const stillExisting = await storesRepository.findBySellerProfileId(sellerProfile.id);
       if (stillExisting) {
         throw new ConflictError('You already have a store.', 'STORE_ALREADY_EXISTS');
@@ -89,6 +90,13 @@ export const storesService = {
         throw error;
       }
     });
+
+    // Gap #10: fire-and-forget, see activityService.record()'s own doc
+    // comment — runs after the lock has released and the transaction
+    // has committed, never awaited inline with either.
+    activityService.record({ userId, ...activityTemplates.storeCreated(store.id, store.name) });
+
+    return store;
   },
 
   getMyStore: async (userId: string): Promise<StoreDetails> => {
@@ -102,7 +110,12 @@ export const storesService = {
 
   updateMyStore: async (userId: string, input: UpdateStoreInput): Promise<StoreDetails> => {
     const store = await requireOwnStore(userId);
-    return storesRepository.update(store.id, input);
+    const updated = await storesRepository.update(store.id, input);
+
+    // Gap #10: fire-and-forget, see createStore's own comment above.
+    activityService.record({ userId, ...activityTemplates.storeUpdated(updated.id, updated.name) });
+
+    return updated;
   },
 
   getPublicStore: async (id: string): Promise<StoreWithSellerAndCounts> => {
@@ -185,6 +198,8 @@ export const storesService = {
       } catch (err) {
         if (!isPrismaError(err, 'P2025')) throw err;
       }
+      // Gap #10: fire-and-forget, see createStore's own comment above.
+      activityService.record({ userId, ...activityTemplates.storeUnfollowed(store.id, store.name) });
       return { action: 'unfollowed' };
     }
 
@@ -193,6 +208,8 @@ export const storesService = {
     } catch (err) {
       if (!isPrismaError(err, 'P2002')) throw err;
     }
+    // Gap #10: fire-and-forget, see createStore's own comment above.
+    activityService.record({ userId, ...activityTemplates.storeFollowed(store.id, store.name) });
     return { action: 'followed' };
   },
 

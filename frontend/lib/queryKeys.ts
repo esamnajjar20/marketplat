@@ -181,6 +181,13 @@ export const queryKeys = {
     all: () => ['savedSearches', 'list'] as const,
   },
 
+  // ── Activity ("نشاطي") ───────────────────────────────────────
+  activity: {
+    /** The current user's own activity timeline, paginated + filterable
+     * by group/type/q — see types/activity.types.ts's ActivityQuery. */
+    mine: (params?: object) => ['activity', 'me', params ?? {}] as const,
+  },
+
   // ── Unified search ────────────────────────────────────────────
   search: {
     unified:     (params?: object) => ['search', 'unified', params ?? {}] as const,

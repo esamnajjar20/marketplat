@@ -11,6 +11,7 @@ import { withProviderScheduleLock } from '../../shared/utils/providerScheduleLoc
 import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
+import { activityService, activityTemplates } from '../activity';
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
@@ -64,12 +65,24 @@ export const appointmentsService = {
       );
       if (stillConflict) throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
 
-      return appointmentsRepository.create(provider.id, {
+      const appointment = await appointmentsRepository.create(provider.id, {
         requestId: input.requestId,
         scheduledStart: input.scheduledStart,
         scheduledEnd: input.scheduledEnd,
         notes: input.notes,
       });
+
+      // Gap #10: fire-and-forget, see activityService.record()'s own
+      // doc comment. Logged for `userId` (the provider) — appointments
+      // in this project are always provider-managed (see this
+      // function's own requireOwnProvider call above), there is no
+      // separate customer-initiated booking path.
+      activityService.record({
+        userId,
+        ...activityTemplates.appointmentBooked(appointment.id, appointment.scheduledStart),
+      });
+
+      return appointment;
     });
   },
 
@@ -102,7 +115,20 @@ export const appointmentsService = {
     if (appointment.status !== 'SCHEDULED') {
       throw new ConflictError('Only a scheduled appointment can change status.', 'APPOINTMENT_NOT_SCHEDULED');
     }
-    return appointmentsRepository.updateStatus(id, status);
+    const updated = await appointmentsRepository.updateStatus(id, status);
+
+    // Gap #10: only CANCELLED maps onto an activity type — COMPLETED/
+    // NO_SHOW aren't in the task's 22-type list, so they're left
+    // unlogged here rather than inventing types beyond what was asked
+    // for. Fire-and-forget, see createAppointment's own comment above.
+    if (status === 'CANCELLED') {
+      activityService.record({
+        userId,
+        ...activityTemplates.appointmentCancelled(updated.id, updated.scheduledStart),
+      });
+    }
+
+    return updated;
   },
 
   // services-design.md §8: derived (not a separately-maintained

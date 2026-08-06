@@ -19,6 +19,7 @@ import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/u
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
+import { activityService, activityTemplates } from '../activity';
 import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 
 const MAX_LISTING_IMAGES = 10; // same cap as ads.images (env.ads.maxImagesPerAd's sibling)
@@ -81,8 +82,9 @@ export const serviceListingsService = {
     // P-01 pattern (ads.service.ts): parallel uploads before the DB write.
     const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'service-listings')));
 
+    let listing: ServiceListing;
     try {
-      return await prisma.$transaction(async tx =>
+      listing = await prisma.$transaction(async tx =>
         serviceListingsRepository.create(tx, provider.id, {
           categoryId: input.categoryId,
           title: input.title,
@@ -100,6 +102,13 @@ export const serviceListingsService = {
       await cleanupUploadedImages(uploads.map(u => u.publicId));
       throw error;
     }
+
+    // Gap #10: fire-and-forget, see activityService.record()'s own doc
+    // comment. Logged for `userId` (the acting caller), not
+    // provider.id — activity rows are always keyed by the real user.
+    activityService.record({ userId, ...activityTemplates.serviceCreated(listing.id, listing.title) });
+
+    return listing;
   },
 
   getMyServiceListings: async (
@@ -154,7 +163,12 @@ export const serviceListingsService = {
       }
     }
 
-    return serviceListingsRepository.update(id, input);
+    const updated = await serviceListingsRepository.update(id, input);
+
+    // Gap #10: fire-and-forget, see createServiceListing's own comment.
+    activityService.record({ userId, ...activityTemplates.serviceUpdated(updated.id, updated.title) });
+
+    return updated;
   },
 
   deleteServiceListing: async (userId: string, id: string): Promise<void> => {
@@ -166,6 +180,9 @@ export const serviceListingsService = {
     }
 
     await serviceListingsRepository.softDelete(id);
+
+    // Gap #10: fire-and-forget, see createServiceListing's own comment.
+    activityService.record({ userId, ...activityTemplates.serviceDeleted(listing.id, listing.title) });
 
     // Best-effort Cloudinary cleanup — same "don't fail the request over
     // a storage cleanup miss" convention as cleanupUploadedImages itself.

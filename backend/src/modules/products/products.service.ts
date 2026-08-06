@@ -14,6 +14,7 @@ import { requireOwnStoreForProducts } from '../stores/stores.service';
 import { productCategoriesRepository } from '../product-categories/product-categories.repository';
 import { storeFollowersRepository } from '../stores/store-followers.repository';
 import { notificationEvents } from '../notifications/notifications.service';
+import { activityService, activityTemplates } from '../activity';
 import { withProductImagesLock } from '../../shared/utils/adLock';
 
 const MAX_PRODUCT_IMAGES = 10; // same cap as ads.images / service-listings.images
@@ -88,6 +89,11 @@ export const productsService = {
       .then(followerIds => notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name))
       .catch(() => undefined);
 
+    // Gap #10: fire-and-forget, same contract as activityService
+    // .record()'s own doc comment — never awaited, never fails product
+    // creation. Logged for `userId` (the store owner), not store.id.
+    activityService.record({ userId, ...activityTemplates.productCreated(product.id, product.name) });
+
     return product;
   },
 
@@ -140,7 +146,12 @@ export const productsService = {
       }
     }
 
-    return productsRepository.update(id, input);
+    const updated = await productsRepository.update(id, input);
+
+    // Gap #10: fire-and-forget, see createProduct's own comment above.
+    activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });
+
+    return updated;
   },
 
   deleteProduct: async (userId: string, id: string): Promise<void> => {
@@ -159,6 +170,9 @@ export const productsService = {
         return publicId ? deleteImage(publicId).catch(() => undefined) : undefined;
       })
     );
+
+    // Gap #10: fire-and-forget, see createProduct's own comment above.
+    activityService.record({ userId, ...activityTemplates.productDeleted(product.id, product.name) });
   },
 
   // Gap #3 fix: closes the report's finding — products had no way to

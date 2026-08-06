@@ -7,6 +7,7 @@ import { userCache } from '../../shared/utils/userCache';
 import { tokenStore } from '../../shared/utils/tokenStore';
 import { getTokenRemainingTTL } from '../../shared/utils/jwt';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { activityService, activityTemplates } from '../activity';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { prisma } from '../../config/prisma';
@@ -54,6 +55,11 @@ export const usersService = {
     }
     const updated = await usersRepository.update(userId, input);
     await userCache.invalidate(userId);
+
+    // Gap #10: fire-and-forget, see activityService.record()'s own doc
+    // comment.
+    activityService.record({ userId, ...activityTemplates.profileUpdated() });
+
     return updated;
   },
 
@@ -146,6 +152,12 @@ export const usersService = {
     ]);
 
     auditLog({ event: AuditEvent.PASSWORD_CHANGED, userId }).catch(() => {});
+
+    // Gap #10: fire-and-forget, see activityService.record()'s own doc
+    // comment — same call site as the auditLog() line directly above,
+    // since both are "record that this happened" side effects of the
+    // exact same successful password change.
+    activityService.record({ userId, ...activityTemplates.passwordChanged() });
   },
 
   /**

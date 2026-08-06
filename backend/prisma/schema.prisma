@@ -31,6 +31,65 @@ model SavedSearch {
   @@map("saved_searches")
 }
 
+// Gap #10 ("نشاطي" / My Activity): a personal, reverse-chronological
+// timeline of a single user's own actions across the whole platform
+// (ads, products, service listings, stores, favorites, messages,
+// service requests, appointments, account changes).
+//
+// Deliberately a NEW table rather than reusing AuditLog or
+// AnalyticsEvent — both already exist in this schema but serve
+// different readers:
+//   - AuditLog is security/admin-facing (login, role change, password
+//     change) and is never read back by the acting user themselves.
+//   - AnalyticsEvent is aggregate/product-analytics-facing (funnels,
+//     category popularity) — high-volume, written for anonymous
+//     traffic too, and queried in rollups, not as one user's list.
+// UserActivity is the third, distinct shape: always tied to a real
+// user (no anonymous rows), always read as "my own list, newest
+// first, optionally filtered by type" — a query pattern neither
+// existing table indexes for cheaply. See activity.service.ts's
+// record() for the single write path every module calls through.
+model UserActivity {
+  id          String           @id @default(cuid())
+  userId      String
+  type        UserActivityType
+  // Pre-rendered Arabic title/description at write time (e.g. "تم نشر
+  // إعلان جديد" / ad.title) rather than re-derived at read time from
+  // entityId — keeps the timeline readable even after the referenced
+  // ad/product/listing is later deleted, and avoids an N+1 join back
+  // into 6+ different tables (ads/products/serviceListings/stores/
+  // conversations/serviceRequests) just to render a list.
+  title       String
+  description String?
+  // What this activity links to, if anything (MESSAGE_SENT and
+  // PROFILE_UPDATED/PASSWORD_CHANGED have none). entityType is a plain
+  // string tag ('AD' | 'PRODUCT' | 'SERVICE_LISTING' | 'STORE' |
+  // 'CONVERSATION' | 'SERVICE_REQUEST' | 'APPOINTMENT'), not a Prisma
+  // relation — same deliberate non-FK reasoning as AnalyticsEvent
+  // above: the referenced row can be hard- or soft-deleted later
+  // without needing cascade/orphan handling on this table, since a
+  // timeline entry should keep existing (and its title/description
+  // still render) even after the thing it pointed to is gone.
+  entityType  String?
+  entityId    String?
+  // Free-form extra context a specific activity type wants to carry
+  // (e.g. old/new status for SERVICE_REQUEST_STATUS_CHANGED) without
+  // needing a schema change per type — same convention as
+  // AuditLog.details / AnalyticsEvent.metadata.
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Powers the two real query shapes activity.repository.ts runs:
+  // "my timeline, newest first" and "my timeline filtered to one type,
+  // newest first". No separate [userId, createdAt]-only index is
+  // needed alongside it — Postgres can use a composite index's leading
+  // column(s) alone, so [userId, type, createdAt] already serves an
+  // unfiltered query on just [userId, createdAt] too.
+  @@index([userId, type, createdAt])
+  @@map("user_activities")
+}
+
 model User {
   id                        String               @id @default(cuid())
   name                      String
@@ -81,6 +140,7 @@ model User {
   storeReviewsGiven         StoreReview[]        @relation("StoreReviewsGiven")
   blocksMade                UserBlock[]          @relation("BlocksMade")
   blocksReceived            UserBlock[]          @relation("BlocksReceived")
+  activities                UserActivity[]
 
   @@index([isActive, createdAt])
   @@map("users")
@@ -643,6 +703,37 @@ enum NotificationType {
   WEEKLY_AD_VIEWS_REPORT
   SAVED_SEARCH_MATCH
   STORE_NEW_PRODUCT
+}
+
+// Gap #10 ("نشاطي"): every distinct event type the personal activity
+// timeline can record. Grouped by the module that produces them —
+// see activity.service.ts's ACTIVITY_META for the per-type Arabic
+// title/description templates and activity.validation.ts's
+// ACTIVITY_TYPE_GROUPS for how these map onto the frontend's filter
+// tabs (الكل/الإعلانات/المنتجات/الخدمات/المتاجر/الرسائل/الطلبات/الحساب).
+enum UserActivityType {
+  AD_CREATED
+  AD_UPDATED
+  AD_DELETED
+  PRODUCT_CREATED
+  PRODUCT_UPDATED
+  PRODUCT_DELETED
+  SERVICE_CREATED
+  SERVICE_UPDATED
+  SERVICE_DELETED
+  STORE_CREATED
+  STORE_UPDATED
+  FAVORITE_ADDED
+  FAVORITE_REMOVED
+  STORE_FOLLOWED
+  STORE_UNFOLLOWED
+  MESSAGE_SENT
+  SERVICE_REQUEST_CREATED
+  SERVICE_REQUEST_STATUS_CHANGED
+  APPOINTMENT_BOOKED
+  APPOINTMENT_CANCELLED
+  PROFILE_UPDATED
+  PASSWORD_CHANGED
 }
 
 enum Role {

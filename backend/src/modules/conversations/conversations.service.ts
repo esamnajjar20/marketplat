@@ -3,6 +3,7 @@ import { conversationsRepository, messagesRepository, ConversationWithRelations 
 import { adsRepository } from '../ads/ads.repository';
 import { notificationEvents } from '../notifications';
 import { blockedUsersService } from '../blocked-users';
+import { activityService, activityTemplates } from '../activity';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
@@ -97,6 +98,13 @@ export const conversationsService = {
     notificationEvents
       .onNewMessage(recipient.id, conversationId, sender.name)
       .catch((err) => logger.error('Failed to create NEW_MESSAGE notification', { err, conversationId }));
+
+    // Gap #10: fire-and-forget, see activityService.record()'s own doc
+    // comment. Every message the caller sends adds a timeline row —
+    // acceptable volume (bounded by how many messages one user actually
+    // sends, same order of magnitude as their own Message rows already
+    // in the DB), unlike AnalyticsEvent's anonymous-traffic volume.
+    activityService.record({ userId, ...activityTemplates.messageSent(conversationId, recipient.name) });
 
     return message;
   },
