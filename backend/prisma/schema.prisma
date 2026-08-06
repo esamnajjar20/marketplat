@@ -112,6 +112,16 @@ model Ad {
   isNegotiable    Boolean        @default(false)
   status          AdStatus       @default(ACTIVE)
   views           Int            @default(0)
+  // Snapshot of `views` at the moment the last WEEKLY_AD_VIEWS_REPORT
+  // notification was generated for this ad's owner. The weekly report
+  // job (src/scripts/weeklyAdViewsReport.ts) needs a *delta* ("+42
+  // views this week"), but `views` itself is a lifetime cumulative
+  // counter with no history — this column is that missing baseline.
+  // Every run reads (views - viewsAtLastReport) then writes the new
+  // views value back here, so the next run's delta starts clean.
+  // Nullable/defaulted to 0 so existing ads before this migration are
+  // treated as "everything so far is new" on their first report.
+  viewsAtLastReport Int          @default(0)
   isFeatured      Boolean        @default(false)
   isPinned        Boolean        @default(false)
   createdAt       DateTime       @default(now())

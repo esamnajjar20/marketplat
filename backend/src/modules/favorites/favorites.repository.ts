@@ -55,6 +55,12 @@ const favoriteListSelect = {
       isNegotiable: true,
       status: true,
       views: true,
+      // See ads.repository.ts's adListSelect for why this is here —
+      // same reasoning: FavoriteListRow's `ad` type derives from
+      // FavoriteWithAd (a full-model `include`, not `select`), so it
+      // requires every Ad scalar including this one, even though the
+      // favorites list UI doesn't read it.
+      viewsAtLastReport: true,
       isFeatured: true,
       isPinned: true,
       createdAt: true,

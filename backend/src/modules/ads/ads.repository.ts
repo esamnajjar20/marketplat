@@ -37,6 +37,16 @@ const adListSelect = {
   isNegotiable: true,
   status: true,
   views: true,
+  // Added alongside the viewsAtLastReport migration: adListSelect is an
+  // explicit column allowlist, and AdListRow is derived from
+  // AdWithAuthor (a full-model Prisma.AdGetPayload via `include`, which
+  // — unlike `select` — doesn't restrict scalar columns). Every new
+  // scalar added to the Ad model therefore has to be added here too,
+  // or TS correctly fails the build the moment the model gains one
+  // (found by the build after the viewsAtLastReport migration). This
+  // field isn't needed by the frontend list view; it's included solely
+  // to keep this select's shape a superset of AdWithAuthor's scalars.
+  viewsAtLastReport: true,
   isFeatured: true,
   isPinned: true,
   createdAt: true,
