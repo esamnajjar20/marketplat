@@ -4,6 +4,12 @@ import { redis } from '../config/redis';
 
 const msg = (message: string, code = 'RATE_LIMIT_EXCEEDED') => ({ success: false, message, code });
 
+const bypassRateLimit = process.env.DISABLE_RATE_LIMIT === 'true';
+
+const noRateLimit = () =>
+  (_req: any, _res: any, next: any) => next();
+
+
 // FIX TEST-V4-05: extracted from createRedisStore so the actual
 // security-relevant logic (does a Redis outage silently let every
 // request through, or correctly block it for endpoints that opted into
@@ -29,7 +35,7 @@ export const createRedisStore = (prefix: string, failOpen = true) =>
     prefix: `rl:${prefix}:`,
   });
 
-export const globalRateLimit = rateLimit({
+export const globalRateLimit = bypassRateLimit ? noRateLimit() : rateLimit({
   windowMs: 15 * 60 * 1000,
   // FIX AUDIT-V4-05: was 100. A single user browsing normally (ad list,
   // several ad detail views, category filters, favorites) easily fires

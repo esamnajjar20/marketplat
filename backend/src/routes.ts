@@ -24,6 +24,7 @@ import { searchRouter } from './modules/search';
 import { auditLogsRouter } from './modules/audit-logs';
 import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
 import { activityRouter } from './modules/activity';
+import { recommendationsRouter } from './modules/recommendations';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -90,3 +91,10 @@ router.use('/product-categories', productCategoriesRouter);
 // same pattern as /saved-searches and /notifications sitting outside
 // usersRouter despite both being "my own X" resources.
 router.use('/activity', activityRouter);
+// Gap #9 ("قد يعجبك أيضًا" / Recommendations): its own repository-backed
+// module (not folded into ads.routes.ts's existing /:id/related, which
+// is a simpler category+city match) — this one blends favorites,
+// UserActivity, and AnalyticsEvent signals, and works both personalized
+// (logged-in) and anonymous (trending fallback). See recommendations
+// .service.ts's own comment for the full scoring rationale.
+router.use('/recommendations', recommendationsRouter);

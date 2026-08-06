@@ -5,6 +5,7 @@ import { HeroBanner }   from '@/components/home/HeroBanner';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { FeaturedAds }  from '@/components/home/FeaturedAds';
 import { RecentAds }    from '@/components/home/RecentAds';
+import { RecommendedAds } from '@/components/home/RecommendedAds';
 import { ROUTES }       from '@/lib/constants';
 import { buildMetadata } from '@/lib/seo';
 
@@ -85,6 +86,14 @@ export default function HomePage() {
         />
         <RecentAds />
       </section>
+
+      {/*
+        Gap #9: personalized for a returning visitor (favorites/views/
+        created ads), trending for everyone else. RecommendedAds owns
+        its own heading and section wrapper (see its own comment) so it
+        can disappear as a whole when it has nothing worth showing.
+      */}
+      <RecommendedAds />
     </div>
   );
 }

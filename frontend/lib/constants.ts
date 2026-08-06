@@ -180,6 +180,12 @@ export const CACHE_TTL = {
   // tables, so a longer TTL avoids re-running the trend/category/funnel
   // aggregations on every sidebar revisit within the same session.
   adminAnalytics: 120_000, // 2 m
+  // Gap #9 (recommendations): response is personalized per caller (see
+  // backend recommendations.routes.ts's CACHE.NONE — no shared HTTP
+  // cache is possible), so this is purely the client-side React Query
+  // staleTime. Matches adsList's 30s: a fresh favorite/view should
+  // reasonably show up in the rail within the same browsing session.
+  recommendations: 30_000, // 30 s
   // Epic 3.1: service requests move through PENDING/ACCEPTED/etc fairly
   // often (a provider can respond any time), so keep this shorter than
   // myAds — same reasoning as adsList's 30s over categories' 5m.

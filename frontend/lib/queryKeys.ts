@@ -30,6 +30,16 @@ export const queryKeys = {
     mine:    (params?: object)     => ['ads', 'me', params ?? {}] as const,
   },
 
+  // ── Recommendations (Gap #9) ──────────────────────────────────
+  // Personalized per caller (varies with the Bearer token), so params
+  // alone don't fully identify a cache entry the way ads.list's do —
+  // that's fine here since the cache is per-browser-session anyway
+  // (no shared HTTP cache; see recommendations.routes.ts's CACHE.NONE).
+  recommendations: {
+    list: (params?: { limit?: number; excludeAdId?: string }) =>
+      ['recommendations', params ?? {}] as const,
+  },
+
   // ── Users ──────────────────────────────────────────────────────
   users: {
     detail: (id: string)           => ['users', id]              as const,
