@@ -1,5 +1,6 @@
 import { UserActivity, UserActivityType } from '@prisma/client';
 import { activityRepository, CreateActivityInput } from './activity.repository';
+import { activityBuffer } from '../../shared/utils/activityBuffer';
 import { logger } from '../../shared/utils/logger';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
@@ -51,17 +52,22 @@ export const activityService = {
   /**
    * The single write path every other module's service calls through
    * to log an activity — mirrors auditLog()'s own contract exactly
-   * (shared/utils/auditLog.ts): always logs first, then writes to the
-   * DB WITHOUT being awaited by the caller, and swallows/logs its own
-   * failure rather than throwing. Callers must invoke this as
-   * `activityService.record(...)` with NO `await` and NO `.catch`
-   * required at the call site — this function catches internally so a
-   * forgotten `.catch()` at 15+ call sites across every module can
-   * never turn into an unhandled rejection or, worse, a failed ad/
-   * product/message write just because the activity insert hiccuped.
+   * (shared/utils/auditLog.ts): fire-and-forget, no `await`/`.catch`
+   * required at any of the 36 call sites across every module.
+   *
+   * FIX OPS-1.1: previously wrote straight to Postgres on every call
+   * (activityRepository.create per user action — ad view, page open,
+   * button click). Under real traffic that's an unbounded per-action
+   * INSERT rate competing with the app's own transactional writes for
+   * the same connection pool. Now pushes onto activityBuffer instead,
+   * which batches into Postgres via createMany() every 5s (see that
+   * file's own doc comment for why 5s and not viewsBuffer's 60s).
+   * activityBuffer.push() already catches and logs its own failures
+   * (including its direct-write fallback if Redis itself is down), so
+   * this stays a thin, non-throwing wrapper exactly as before.
    */
   record: (input: CreateActivityInput): void => {
-    activityRepository.create(input).catch((err) => {
+    activityBuffer.push(input).catch((err) => {
       logger.error('Failed to write user activity', { err, userId: input.userId, type: input.type });
     });
   },

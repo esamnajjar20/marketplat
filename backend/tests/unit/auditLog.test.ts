@@ -101,4 +101,59 @@ describe('auditLog', () => {
       },
     });
   });
+
+  // FIX OPS-3.2
+  describe('sanitization of sensitive detail keys', () => {
+    it('redacts a sensitive key (e.g. password) before writing to the DB', async () => {
+      const createSpy = jest.spyOn(prisma.auditLog, 'create').mockResolvedValue({} as any);
+      jest.spyOn(logger, 'info').mockImplementation(() => logger);
+
+      await auditLog({
+        event: AuditEvent.PASSWORD_CHANGED,
+        userId: 'user-3',
+        details: { password: 'hunter2', reason: 'reset' },
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(createSpy).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          details: { password: '[REDACTED]', reason: 'reset' },
+        }),
+      });
+    });
+
+    it('redacts a sensitive key before it reaches the Winston logger too', async () => {
+      const loggerSpy = jest.spyOn(logger, 'info').mockImplementation(() => logger);
+      jest.spyOn(prisma.auditLog, 'create').mockResolvedValue({} as any);
+
+      await auditLog({
+        event: AuditEvent.LOGIN_SUCCESS,
+        details: { apiKey: 'sk-live-abc', note: 'ok' },
+      });
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        '[AUDIT] LOGIN_SUCCESS',
+        expect.objectContaining({
+          details: { apiKey: '[REDACTED]', note: 'ok' },
+        }),
+      );
+    });
+
+    it('leaves non-sensitive details untouched', async () => {
+      const createSpy = jest.spyOn(prisma.auditLog, 'create').mockResolvedValue({} as any);
+      jest.spyOn(logger, 'info').mockImplementation(() => logger);
+
+      await auditLog({
+        event: AuditEvent.ROLE_CHANGED,
+        details: { targetUserId: 'user-4', newRole: 'ADMIN' },
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(createSpy).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          details: { targetUserId: 'user-4', newRole: 'ADMIN' },
+        }),
+      });
+    });
+  });
 });

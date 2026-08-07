@@ -9,6 +9,7 @@ import { prisma } from './config/prisma';
 import { redis } from './config/redis';
 import { logger } from './shared/utils/logger';
 import { viewsBuffer } from './shared/utils/viewsBuffer';
+import { activityBuffer } from './shared/utils/activityBuffer';
 import { redisMemoryMonitor } from './shared/utils/redisMemoryMonitor';
 import { checkConnectionCapacity } from './shared/utils/capacityCheck';
 
@@ -80,6 +81,10 @@ const bootstrap = async (): Promise<void> => {
     await withRetry('Redis', () => redis.ping());
     logger.info('✅ Redis connected');
     viewsBuffer.startFlushTimer();
+    // FIX OPS-1.1: same buffer-then-flush pattern as viewsBuffer above,
+    // for user activity writes — see activityBuffer.ts's own doc
+    // comment for why it flushes on a much shorter 5s interval.
+    activityBuffer.startFlushTimer();
     // PROD-FIX-11: starts polling Redis's own INFO memory every 30s —
     // see redisMemoryMonitor.ts for why this matters given
     // docker-compose.yml's noeviction policy.
@@ -114,6 +119,11 @@ const bootstrap = async (): Promise<void> => {
         // flush, so a clean deploy/restart doesn't leave a window where
         // Redis and Postgres views are out of sync longer than necessary.
         await viewsBuffer.stopFlushTimer();
+        // FIX OPS-1.1: same reasoning as viewsBuffer above — without
+        // this, up to 5s of buffered activity rows (or more, under a
+        // burst — see MAX_BATCH_PER_FLUSH) sit in Redis until the next
+        // process's timer happens to drain them.
+        await activityBuffer.stopFlushTimer();
         redisMemoryMonitor.stop();
         await prisma.$disconnect();
         await redis.quit();
@@ -147,6 +157,7 @@ const bootstrap = async (): Promise<void> => {
       void (async () => {
         try {
           await viewsBuffer.stopFlushTimer();
+          await activityBuffer.stopFlushTimer();
           redisMemoryMonitor.stop();
           await prisma.$disconnect();
           await redis.quit();

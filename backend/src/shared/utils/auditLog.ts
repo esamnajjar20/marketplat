@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { AuditEventType } from '@prisma/client';
+import { sanitizeAuditDetails } from './sanitizeAuditDetails';
 
 export { AuditEventType as AuditEvent };
 
@@ -25,10 +26,18 @@ interface AuditLogEntry {
 }
 
 export const auditLog = async (entry: AuditLogEntry): Promise<void> => {
+  // FIX OPS-3.2: redact any key that looks like a secret (password,
+  // token, card number, ...) before this entry reaches either sink —
+  // the Winston log line below AND the DB row. See
+  // sanitizeAuditDetails.ts's own doc comment for why this exists even
+  // though no current call site actually passes a sensitive key today.
+  const safeDetails = sanitizeAuditDetails(entry.details);
+
   // دائماً نلوج أولاً
   logger.info(`[AUDIT] ${entry.event}`, {
     audit: true,
     ...entry,
+    details: safeDetails,
     timestamp: new Date().toISOString(),
   });
 
@@ -41,10 +50,10 @@ export const auditLog = async (entry: AuditLogEntry): Promise<void> => {
         sessionId: entry.sessionId,
         ip: entry.ip,
         userAgent: entry.userAgent,
-        details: entry.details ?? undefined,
+        details: safeDetails ?? undefined,
       },
     })
     .catch(err => {
-      logger.error('Failed to write audit log to DB', { err, entry });
+      logger.error('Failed to write audit log to DB', { err, entry: { ...entry, details: safeDetails } });
     });
 };

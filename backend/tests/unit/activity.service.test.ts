@@ -1,9 +1,11 @@
 import { UserActivityType } from '@prisma/client';
 import { activityService, __testables__ } from '../../src/modules/activity/activity.service';
 import { activityRepository } from '../../src/modules/activity/activity.repository';
+import { activityBuffer } from '../../src/shared/utils/activityBuffer';
 import { logger } from '../../src/shared/utils/logger';
 
 jest.mock('../../src/modules/activity/activity.repository');
+jest.mock('../../src/shared/utils/activityBuffer');
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
@@ -21,24 +23,28 @@ describe('activityService', () => {
       description: 'iPhone 13',
     };
 
-    it('calls activityRepository.create with the given input', () => {
-      (activityRepository.create as jest.Mock).mockResolvedValue({ id: 'act-1' });
+    it('calls activityBuffer.push with the given input (buffered, not a direct DB write)', () => {
+      (activityBuffer.push as jest.Mock).mockResolvedValue(undefined);
 
       activityService.record(input);
 
-      expect(activityRepository.create).toHaveBeenCalledWith(input);
+      expect(activityBuffer.push).toHaveBeenCalledWith(input);
+      // FIX OPS-1.1: record() no longer writes to the repository
+      // directly — activityBuffer.push() owns getting the row into
+      // Postgres (batched), so the old direct-create call site is gone.
+      expect(activityRepository.create).not.toHaveBeenCalled();
     });
 
     it('does not throw synchronously and returns void (fire-and-forget)', () => {
-      (activityRepository.create as jest.Mock).mockResolvedValue({ id: 'act-1' });
+      (activityBuffer.push as jest.Mock).mockResolvedValue(undefined);
 
       expect(() => activityService.record(input)).not.toThrow();
       expect(activityService.record(input)).toBeUndefined();
     });
 
-    it('swallows a repository rejection and logs it instead of throwing/rejecting', async () => {
-      const err = new Error('DB down');
-      (activityRepository.create as jest.Mock).mockRejectedValue(err);
+    it('swallows a buffer-push rejection and logs it instead of throwing/rejecting', async () => {
+      const err = new Error('Redis down');
+      (activityBuffer.push as jest.Mock).mockRejectedValue(err);
 
       // Must not throw synchronously, and must not produce an unhandled
       // rejection — the whole point of record()'s fire-and-forget contract.
@@ -54,7 +60,7 @@ describe('activityService', () => {
     });
 
     it('does NOT require the caller to await or .catch the call for a failure to be handled', async () => {
-      (activityRepository.create as jest.Mock).mockRejectedValue(new Error('boom'));
+      (activityBuffer.push as jest.Mock).mockRejectedValue(new Error('boom'));
 
       // Deliberately called with no await/catch at the call site, exactly
       // as every real caller (ads.service.ts etc.) does.
