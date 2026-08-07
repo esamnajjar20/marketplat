@@ -89,6 +89,24 @@ export function useRemoveServiceListingImage() {
   });
 }
 
+/**
+ * Gap #11 — PUT /service-listings/:id/images/reorder. Mirrors
+ * useReorderAdImages.
+ */
+export function useReorderServiceListingImages() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, images }: { id: string; images: string[] }) =>
+      serviceListingsApi.reorderImages(id, images).then((r) => r.data.data),
+    onSuccess: (_listing, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
 export function useDeleteServiceListing() {
   const queryClient = useQueryClient();
 

@@ -36,4 +36,6 @@ productsRouter.post(
   productsController.addImages
 );
 productsRouter.delete('/:id/images', authenticate, productsController.removeImage);
+// Gap #11: JSON body only (no files) — mirrors ads.routes.ts's reorder route.
+productsRouter.put('/:id/images/reorder', authenticate, productsController.reorderImages);
 productsRouter.delete('/:id', authenticate, productsController.deleteProduct);

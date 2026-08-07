@@ -124,6 +124,14 @@ export const ErrorCode = {
   // service-listings.service.ts) but never declared here, so it existed
   // outside any type-safe check on the known-code set.
   MIN_IMAGES_REQUIRED: 'MIN_IMAGES_REQUIRED',
+  // Gap #11: reorderImages requires the submitted array to be a
+  // permutation of the entity's current images — same set, new order.
+  // Anything else (a missing/extra/foreign URL) is rejected with this
+  // code rather than silently dropping or ignoring the mismatched URLs,
+  // since silently accepting a partial list would let a stale client
+  // payload delete images through an endpoint that's supposed to be
+  // reorder-only.
+  IMAGES_MISMATCH: 'IMAGES_MISMATCH',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

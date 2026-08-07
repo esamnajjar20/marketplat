@@ -40,4 +40,6 @@ serviceListingsRouter.post(
   serviceListingsController.addImages
 );
 serviceListingsRouter.delete('/:id/images', authenticate, serviceListingsController.removeImage);
+// Gap #11: JSON body only (no files) — mirrors ads.routes.ts's reorder route.
+serviceListingsRouter.put('/:id/images/reorder', authenticate, serviceListingsController.reorderImages);
 serviceListingsRouter.delete('/:id', authenticate, serviceListingsController.deleteServiceListing);

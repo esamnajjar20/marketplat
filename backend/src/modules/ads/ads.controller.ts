@@ -132,6 +132,19 @@ export const adsController = {
     }
   },
 
+  // Gap #11: mirrors addImages/removeImage exactly.
+  reorderImages: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = adIdSchema.parse({ params: req.params });
+      const { images } = z.object({ images: z.array(z.string().url()).min(1) }).parse(req.body);
+      const ad = await adsService.reorderImages(params.id, user.userId, user.role, images);
+      res.status(200).json(successResponse('Images reordered', ad));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   searchAds: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // A-05: search handler lives here — no separate search module needed

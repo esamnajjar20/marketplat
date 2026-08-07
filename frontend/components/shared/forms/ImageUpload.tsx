@@ -26,6 +26,16 @@
  * 5-photo limit, or one oversized photo among several valid ones,
  * would see fewer thumbnails than files they selected with no
  * explanation why. Now shows a toast naming what was rejected and why.
+ *
+ * Gap #11: existing (already-uploaded) images can now be reordered —
+ * drag-and-drop via native HTML5 DnD (no new dependency needed), plus
+ * move-left/move-right buttons so the same reorder is fully reachable
+ * by keyboard/screen-reader, matching the drop-zone's own
+ * keyboard-accessibility handling above. The first image after any
+ * reorder is treated as the "primary" image everywhere else in the
+ * app (ProductCard, AdDetail, admin tables, etc. all already read
+ * images[0]) — so reordering here is the entire feature; no separate
+ * "set as primary" concept was introduced.
  */
 'use client';
 
@@ -44,6 +54,14 @@ interface ImageUploadProps {
   /** Called when the user removes one of the existing images. */
   onRemoveExisting?: (url: string) => void;
   /**
+   * Gap #11: called with the full reordered array whenever the user
+   * drags (or keyboard-moves) an existing image to a new position.
+   * Omitting this prop simply disables reordering — existingUrls
+   * still render, just without drag handles/move buttons — so this is
+   * additive and doesn't require every ImageUpload call site to opt in.
+   */
+  onReorderExisting?: (reordered: string[]) => void;
+  /**
    * UX-FIX P3-10b: 0-100 while the parent form's actual multipart upload
    * of these images is in flight, or null/undefined the rest of the
    * time. One combined percentage for the whole request (axios reports
@@ -60,6 +78,7 @@ export function ImageUpload({
   error,
   existingUrls = [],
   onRemoveExisting,
+  onReorderExisting,
   uploadProgress,
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -68,6 +87,22 @@ export function ImageUpload({
   // ImageUpload instances on the same page don't share the same id.
   const inputId   = useId();
   const inputRef  = useRef<HTMLInputElement>(null);
+
+  // Gap #11: index of the existing-image tile currently being dragged,
+  // or null when no drag is in progress. Tracked here (not read off
+  // the native DataTransfer on every dragover) so dragover's hover
+  // preview logic can cheaply compare against it on every fire.
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  function moveExisting(from: number, to: number) {
+    if (!onReorderExisting) return;
+    if (to < 0 || to >= existingUrls.length || from === to) return;
+    const next = [...existingUrls];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onReorderExisting(next);
+  }
 
   // Total photo count across existing (Cloudinary) + new (local File) images.
   const totalCount = existingUrls.length + value.length;
@@ -211,30 +246,109 @@ export function ImageUpload({
 
       {/* Existing images (already uploaded to Cloudinary — edit mode) */}
       {existingUrls.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {existingUrls.map((url) => (
-            <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="صورة الإعلان" className="h-full w-full object-cover" />
-              {onRemoveExisting && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveExisting(url)}
-                  // UX-FIX P3-10: this was only ever revealed on
-                  // `group-hover`, which has no equivalent on touch — a
-                  // mobile user (the majority of traffic for a listings
-                  // marketplace) had no way to reveal it at all. Always
-                  // visible now; still gets a subtle hover-opacity bump on
-                  // devices that do support hover, but that's cosmetic,
-                  // not a requirement to use the feature.
-                  className="absolute end-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white opacity-90 transition-opacity hover:opacity-100"
-                  aria-label="إزالة الصورة"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-2" role="list" aria-label="صور الإعلان الحالية">
+          {existingUrls.map((url, i) => {
+            const canReorder = Boolean(onReorderExisting) && existingUrls.length > 1;
+            return (
+              <div
+                key={url}
+                role="listitem"
+                draggable={canReorder}
+                onDragStart={(e) => {
+                  if (!canReorder) return;
+                  setDraggedIndex(i);
+                  // Firefox requires setData to be called for drag to
+                  // initiate at all; the value itself isn't used, drag
+                  // state is tracked in component state above instead.
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', String(i));
+                }}
+                onDragEnter={(e) => {
+                  if (!canReorder || draggedIndex === null) return;
+                  e.preventDefault();
+                  setDragOverIndex(i);
+                }}
+                onDragOver={(e) => {
+                  if (!canReorder || draggedIndex === null) return;
+                  e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  if (!canReorder || draggedIndex === null) return;
+                  e.preventDefault();
+                  moveExisting(draggedIndex, i);
+                  setDraggedIndex(null);
+                  setDragOverIndex(null);
+                }}
+                onDragEnd={() => {
+                  setDraggedIndex(null);
+                  setDragOverIndex(null);
+                }}
+                className={`group relative h-20 w-20 overflow-hidden rounded-md bg-muted ${
+                  canReorder ? 'cursor-grab active:cursor-grabbing' : ''
+                } ${draggedIndex === i ? 'opacity-40' : ''} ${
+                  dragOverIndex === i && draggedIndex !== null && draggedIndex !== i
+                    ? 'ring-2 ring-primary'
+                    : ''
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`صورة الإعلان ${i + 1}`} className="h-full w-full object-cover" />
+
+                {/* Gap #11: first image is always the "primary" one —
+                    every other place in the app (ProductCard, AdDetail,
+                    admin tables, etc.) already reads images[0] as the
+                    cover photo, so this badge just makes that existing
+                    convention visible in the editor rather than
+                    introducing a separate primary-image concept. */}
+                {i === 0 && (
+                  <span className="absolute bottom-0 inset-x-0 truncate bg-primary/90 px-1 py-0.5 text-center text-[10px] font-medium text-primary-foreground">
+                    الصورة الرئيسية
+                  </span>
+                )}
+
+                {canReorder && (
+                  <div className="absolute inset-x-0 top-1 flex items-center justify-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => moveExisting(i, i - 1)}
+                      disabled={i === 0}
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white disabled:cursor-not-allowed disabled:opacity-30"
+                      aria-label={`نقل الصورة ${i + 1} لليسار`}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveExisting(i, i + 1)}
+                      disabled={i === existingUrls.length - 1}
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white disabled:cursor-not-allowed disabled:opacity-30"
+                      aria-label={`نقل الصورة ${i + 1} لليمين`}
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+
+                {onRemoveExisting && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveExisting(url)}
+                    // UX-FIX P3-10: this was only ever revealed on
+                    // `group-hover`, which has no equivalent on touch — a
+                    // mobile user (the majority of traffic for a listings
+                    // marketplace) had no way to reveal it at all. Always
+                    // visible now; still gets a subtle hover-opacity bump on
+                    // devices that do support hover, but that's cosmetic,
+                    // not a requirement to use the feature.
+                    className="absolute end-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white opacity-90 transition-opacity hover:opacity-100"
+                    aria-label="إزالة الصورة"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

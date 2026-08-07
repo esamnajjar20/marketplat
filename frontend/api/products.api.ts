@@ -96,4 +96,11 @@ export const productsApi = {
     apiClient.delete<ApiResponse<Product>>(`/products/${id}/images`, {
       data: { imageUrl },
     }),
+
+  /**
+   * PUT /products/:id/images/reorder — Gap #11. Body must be a
+   * permutation of the product's current image URLs.
+   */
+  reorderImages: (id: string, images: string[]) =>
+    apiClient.put<ApiResponse<Product>>(`/products/${id}/images/reorder`, { images }),
 };

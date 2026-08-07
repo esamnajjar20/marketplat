@@ -25,4 +25,7 @@ adsRouter.post(
 adsRouter.patch('/:id', authenticate, adsController.updateAd);
 adsRouter.post('/:id/images', authenticate, addAdImagesRateLimit, uploadMultipleMiddleware, adsController.addImages);
 adsRouter.delete('/:id/images', authenticate, adsController.removeImage);
+// Gap #11: JSON body only (no files), so no multer/upload rate limit —
+// just auth, same as PATCH /:id above.
+adsRouter.put('/:id/images/reorder', authenticate, adsController.reorderImages);
 adsRouter.delete('/:id', authenticate, adsController.deleteAd);

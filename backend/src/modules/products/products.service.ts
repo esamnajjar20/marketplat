@@ -218,4 +218,16 @@ export const productsService = {
     const store = await requireOwnStoreForProducts(userId);
     return productImageOperations.removeImage(productId, product => product.storeId === store.id, imageUrl);
   },
+
+  // Gap #11: delegates to the shared factory's reorderImages —
+  // ownership check + permutation validation + lock-guarded re-check
+  // are all implemented once in entityImageOperations.ts.
+  reorderImages: async (
+    productId: string,
+    userId: string,
+    orderedImages: string[]
+  ): Promise<Product> => {
+    const store = await requireOwnStoreForProducts(userId);
+    return productImageOperations.reorderImages(productId, product => product.storeId === store.id, orderedImages);
+  },
 };

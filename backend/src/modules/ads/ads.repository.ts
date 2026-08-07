@@ -335,6 +335,15 @@ export const adsRepository = {
     return prisma.ad.findUniqueOrThrow({ where: { id }, include: adWithRelations });
   },
 
+  // Gap #11: reorderImages is a full-array replace, unlike
+  // addImages/removeImage above — there's no existing/new split to
+  // reconcile, so a plain UPDATE (no raw-SQL array surgery) is both
+  // correct and simpler. The caller (ads.service.ts) is responsible for
+  // verifying orderedImages is a permutation of the current images
+  // before this ever runs; this method trusts its input.
+  reorderImages: async (id: string, orderedImages: string[]): Promise<AdWithAuthor> =>
+    prisma.ad.update({ where: { id }, data: { images: orderedImages }, include: adWithRelations }),
+
   incrementViews: async (id: string): Promise<void> => {
     await prisma.ad.update({ where: { id }, data: { views: { increment: 1 } } });
   },

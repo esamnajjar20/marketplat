@@ -456,6 +456,63 @@ export const adsService = {
     });
   },
 
+  // Gap #11: mirrors entityImageOperations.ts's reorderImages (used by
+  // products/service-listings) — ads carries its own hand-rolled
+  // addImages/removeImage (see entityImageOperations.ts's doc comment
+  // for why ads was left out of that extraction), so this is
+  // implemented the same way, inline, rather than partially adopting
+  // the shared factory for just this one operation.
+  reorderImages: async (
+    adId: string,
+    userId: string,
+    userRole: string,
+    orderedImages: string[]
+  ): Promise<AdWithAuthor> => {
+    const ad = await adsRepository.findById(adId);
+    if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+      throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
+    }
+
+    const currentSorted = [...ad.images].sort();
+    const proposedSorted = [...orderedImages].sort();
+    const isSamePermutation =
+      currentSorted.length === proposedSorted.length &&
+      currentSorted.every((url, i) => url === proposedSorted[i]);
+    if (!isSamePermutation) {
+      throw new BadRequestError(
+        'The submitted image list must contain exactly the ad\'s current images, reordered.',
+        'IMAGES_MISMATCH'
+      );
+    }
+
+    // No-op guard, same as entityImageOperations.ts's reorderImages.
+    if (ad.images.every((url, i) => url === orderedImages[i])) {
+      return ad;
+    }
+
+    return withAdImagesLock(adId, async () => {
+      const freshAd = await adsRepository.findById(adId);
+      if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      const freshSorted = [...freshAd.images].sort();
+      const stillSamePermutation =
+        freshSorted.length === proposedSorted.length &&
+        freshSorted.every((url, i) => url === proposedSorted[i]);
+      if (!stillSamePermutation) {
+        throw new BadRequestError(
+          'The submitted image list must contain exactly the ad\'s current images, reordered.',
+          'IMAGES_MISMATCH'
+        );
+      }
+      const updated = await adsRepository.reorderImages(adId, orderedImages);
+      // FIX AUDIT-V4-06 pattern: keep cached listing payloads (which
+      // include `images`) from showing the pre-reorder order for up to
+      // 30s.
+      await bumpAdsCacheVersion();
+      return updated;
+    });
+  },
+
   deleteAd: async (adId: string, userId: string, userRole: string): Promise<void> => {
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');

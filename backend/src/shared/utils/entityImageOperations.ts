@@ -37,6 +37,7 @@ interface ImageOwningRepository<TEntity extends ImageOwningEntity> {
   findById: (id: string) => Promise<TEntity | null>;
   addImages: (id: string, newImages: string[]) => Promise<TEntity>;
   removeImage: (id: string, imageUrl: string) => Promise<TEntity>;
+  reorderImages: (id: string, orderedImages: string[]) => Promise<TEntity>;
 }
 
 interface EntityImageOperationsConfig<TEntity extends ImageOwningEntity> {
@@ -55,6 +56,14 @@ interface EntityImageOperationsConfig<TEntity extends ImageOwningEntity> {
 export interface EntityImageOperations<TEntity extends ImageOwningEntity> {
   addImages: (entityId: string, ownerCheck: (entity: TEntity) => boolean, files: Express.Multer.File[]) => Promise<TEntity>;
   removeImage: (entityId: string, ownerCheck: (entity: TEntity) => boolean, imageUrl: string) => Promise<TEntity>;
+  /**
+   * Gap #11: reorders an entity's images in place. `orderedImages` must
+   * be a permutation of the entity's current `images` — same URLs, new
+   * order — otherwise this throws BadRequestError(IMAGES_MISMATCH)
+   * rather than silently accepting a partial/foreign list (which would
+   * effectively let a "reorder" call delete or inject images).
+   */
+  reorderImages: (entityId: string, ownerCheck: (entity: TEntity) => boolean, orderedImages: string[]) => Promise<TEntity>;
 }
 
 export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
@@ -143,6 +152,53 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
           });
         }
         return repository.removeImage(entityId, imageUrl);
+      });
+    },
+
+    reorderImages: async (entityId, ownerCheck, orderedImages) => {
+      const entity = await findActiveOrThrow(entityId);
+      if (!ownerCheck(entity)) {
+        throw new ForbiddenError(`You do not own this ${entityLabel}.`, notOwnedCode);
+      }
+
+      // Permutation check: same multiset of URLs, just reordered. Sorting
+      // both and comparing is enough here — length mismatch alone would
+      // already fail this, so there's no need for a separate length check.
+      const currentSorted = [...entity.images].sort();
+      const proposedSorted = [...orderedImages].sort();
+      const isSamePermutation =
+        currentSorted.length === proposedSorted.length &&
+        currentSorted.every((url, i) => url === proposedSorted[i]);
+      if (!isSamePermutation) {
+        throw new BadRequestError(
+          `The submitted image list must contain exactly the ${entityLabel}'s current images, reordered.`,
+          ErrorCode.IMAGES_MISMATCH
+        );
+      }
+
+      // No-op guard: skip the write (and the lock/round-trip it costs)
+      // if the order didn't actually change.
+      if (entity.images.every((url, i) => url === orderedImages[i])) {
+        return entity;
+      }
+
+      return withLock(entityId, async () => {
+        // Re-check ownership/permutation against a fresh read, same
+        // reasoning as addImages/removeImage above — the entity could
+        // have gained/lost an image between the check above and
+        // acquiring the lock.
+        const fresh = await findActiveOrThrow(entityId);
+        const freshSorted = [...fresh.images].sort();
+        const stillSamePermutation =
+          freshSorted.length === proposedSorted.length &&
+          freshSorted.every((url, i) => url === proposedSorted[i]);
+        if (!stillSamePermutation) {
+          throw new BadRequestError(
+            `The submitted image list must contain exactly the ${entityLabel}'s current images, reordered.`,
+            ErrorCode.IMAGES_MISMATCH
+          );
+        }
+        return repository.reorderImages(entityId, orderedImages);
       });
     },
   };

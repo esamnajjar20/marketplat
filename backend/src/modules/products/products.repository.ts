@@ -119,6 +119,12 @@ export const productsRepository = {
     return prisma.product.findUniqueOrThrow({ where: { id } });
   },
 
+  // Gap #11: mirrors ads.repository.ts's reorderImages — full-array
+  // replace, permutation check happens in entityImageOperations.ts
+  // before this is called.
+  reorderImages: async (id: string, orderedImages: string[]): Promise<Product> =>
+    prisma.product.update({ where: { id }, data: { images: orderedImages } }),
+
   findMany: async (
     query: GetProductsQuery
   ): Promise<{ products: ProductWithStore[]; total: number }> => {

@@ -85,6 +85,23 @@ export function useRemoveProductImage() {
   });
 }
 
+/**
+ * Gap #11 — PUT /products/:id/images/reorder. Mirrors useReorderAdImages.
+ */
+export function useReorderProductImages() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, images }: { id: string; images: string[] }) =>
+      productsApi.reorderImages(id, images).then((r) => r.data.data),
+    onSuccess: (_product, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
 

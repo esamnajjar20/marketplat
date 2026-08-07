@@ -147,3 +147,24 @@ export function useRemoveAdImage() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+/**
+ * Gap #11 — PUT /ads/:id/images/reorder. Used by AdForm's edit mode to
+ * persist a drag-and-drop reorder of existingImages. No toast on
+ * success (the drag interaction itself is the feedback); onError still
+ * toasts so a failed reorder (e.g. IMAGES_MISMATCH from a stale list)
+ * is visible.
+ */
+export function useReorderAdImages() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, images }: { id: string; images: string[] }) =>
+      adsApi.reorderImages(id, images).then((r) => r.data.data),
+    onSuccess: (_ad, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}

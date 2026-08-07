@@ -116,6 +116,12 @@ export const serviceListingsRepository = {
     return prisma.serviceListing.findUniqueOrThrow({ where: { id } });
   },
 
+  // Gap #11: mirrors ads.repository.ts's reorderImages — full-array
+  // replace, permutation check happens in entityImageOperations.ts
+  // before this is called.
+  reorderImages: async (id: string, orderedImages: string[]): Promise<ServiceListing> =>
+    prisma.serviceListing.update({ where: { id }, data: { images: orderedImages } }),
+
   findMany: async (
     query: GetServiceListingsQuery
   ): Promise<{ listings: ServiceListingWithProvider[]; total: number }> => {

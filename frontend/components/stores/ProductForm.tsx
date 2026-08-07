@@ -12,6 +12,7 @@ import {
   useUpdateProduct,
   useAddProductImages,
   useRemoveProductImage,
+  useReorderProductImages,
 } from '@/hooks/mutations/useProductMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { MAX_IMAGES } from '@/lib/constants';
@@ -60,10 +61,11 @@ export function ProductForm({ mode, product }: Props) {
   // edit-mode image changes, awaited before the field-only PATCH fires.
   const addImages = useAddProductImages((p) => setUploadProgress(p));
   const removeImage = useRemoveProductImage();
+  const reorderImages = useReorderProductImages();
   const [isSavingImages, setIsSavingImages] = useState(false);
   const isSubmittingRef = useRef(false);
   const isPending = create.isPending || update.isPending
-    || addImages.isPending || removeImage.isPending || isSavingImages;
+    || addImages.isPending || removeImage.isPending || reorderImages.isPending || isSavingImages;
 
   // Snapshot of the product's images as they were when the form
   // mounted, so we can diff against values.existingImages on submit to
@@ -219,6 +221,16 @@ export function ProductForm({ mode, product }: Props) {
           await addImages.mutateAsync({ id: currentProduct.id, files: values.images });
         }
       }
+
+      // Gap #11: mirrors AdForm's submitEdit — only the surviving
+      // existing images are reordered; new uploads stay appended at
+      // the end (backend's addImages ordering), so this stays a valid
+      // permutation without needing the just-uploaded files' URLs.
+      const survivingExisting = originalImages.filter((url) => values.existingImages.includes(url));
+      const reorderChanged = values.existingImages.some((url, i) => url !== survivingExisting[i]);
+      if (reorderChanged && values.existingImages.length > 1) {
+        await reorderImages.mutateAsync({ id: currentProduct.id, images: values.existingImages });
+      }
     } catch {
       return;
     } finally {
@@ -370,6 +382,11 @@ export function ProductForm({ mode, product }: Props) {
           onRemoveExisting={
             mode === 'edit'
               ? (url) => set('existingImages', values.existingImages.filter((u) => u !== url))
+              : undefined
+          }
+          onReorderExisting={
+            mode === 'edit'
+              ? (reordered) => set('existingImages', reordered)
               : undefined
           }
           uploadProgress={uploadProgress}

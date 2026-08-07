@@ -133,4 +133,12 @@ export const adsApi = {
     apiClient.delete<ApiResponse<Ad>>(`/ads/${id}/images`, {
       data: { imageUrl },
     }),
+
+  /**
+   * PUT /ads/:id/images/reorder — Gap #11. Body must be a permutation
+   * of the ad's current image URLs (same set, new order) — the backend
+   * rejects anything else with IMAGES_MISMATCH.
+   */
+  reorderImages: (id: string, images: string[]) =>
+    apiClient.put<ApiResponse<Ad>>(`/ads/${id}/images/reorder`, { images }),
 };

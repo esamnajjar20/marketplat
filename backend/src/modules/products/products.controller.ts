@@ -108,4 +108,17 @@ export const productsController = {
       next(error);
     }
   },
+
+  // Gap #11: mirrors adsController.reorderImages exactly.
+  reorderImages: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = productIdSchema.parse({ params: req.params });
+      const { images } = z.object({ images: z.array(z.string().url()).min(1) }).parse(req.body);
+      const product = await productsService.reorderImages(params.id, user.userId, images);
+      res.status(200).json(successResponse('Images reordered', product));
+    } catch (error) {
+      next(error);
+    }
+  },
 };

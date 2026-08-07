@@ -95,4 +95,11 @@ export const serviceListingsApi = {
     apiClient.delete<ApiResponse<ServiceListing>>(`/service-listings/${id}/images`, {
       data: { imageUrl },
     }),
+
+  /**
+   * PUT /service-listings/:id/images/reorder — Gap #11. Body must be a
+   * permutation of the listing's current image URLs.
+   */
+  reorderImages: (id: string, images: string[]) =>
+    apiClient.put<ApiResponse<ServiceListing>>(`/service-listings/${id}/images/reorder`, { images }),
 };

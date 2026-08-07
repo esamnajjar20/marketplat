@@ -11,7 +11,7 @@ import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { PriceInput }  from '@/components/shared/forms/PriceInput';
 import { CITIES, CONDITION_LABELS, MAX_IMAGES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
-import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage } from '@/hooks/mutations/useAdMutations';
+import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { parseApiError } from '@/lib/errorParser';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
 
@@ -42,10 +42,11 @@ export function AdForm({ mode, ad }: Props) {
   const updateAd = useUpdateAd(ad?.id ?? '');
   const addImages = useAddAdImages((p) => setUploadProgress(p));
   const removeImage = useRemoveAdImage();
+  const reorderImages = useReorderAdImages();
   const [isSavingImages, setIsSavingImages] = useState(false);
   const isSubmittingRef = useRef(false);
   const isPending = createAd.isPending || updateAd.isPending
-    || addImages.isPending || removeImage.isPending || isSavingImages;
+    || addImages.isPending || removeImage.isPending || reorderImages.isPending || isSavingImages;
 
   // FIX I-04: snapshot of the ad's images as they were when the form
   // mounted, so we can diff against `values.existingImages` on submit
@@ -201,6 +202,20 @@ export function AdForm({ mode, ad }: Props) {
           await addImages.mutateAsync({ id: currentAd.id, files: values.images });
         }
       }
+
+      // Gap #11: values.existingImages already reflects the user's
+      // drag-and-drop reorder (survivors only, removedUrls already
+      // excluded above). Newly-uploaded files always land appended
+      // after existing images (see addImages' backend ordering), so
+      // reordering only the surviving existing images — leaving new
+      // uploads in their upload order at the end — keeps this call a
+      // valid permutation without needing to know the final Cloudinary
+      // URLs of files that were just uploaded above.
+      const survivingExisting = originalImages.filter((url) => values.existingImages.includes(url));
+      const reorderChanged = values.existingImages.some((url, i) => url !== survivingExisting[i]);
+      if (reorderChanged && values.existingImages.length > 1) {
+        await reorderImages.mutateAsync({ id: currentAd.id, images: values.existingImages });
+      }
     } catch {
       // Each mutation's own onError already toasted a specific message
       // and invalidated whatever partially succeeded; stop here so a
@@ -323,6 +338,7 @@ export function AdForm({ mode, ad }: Props) {
           maxFiles={MAX_IMAGES}
           onChange={(files) => set('images', files)}
           onRemoveExisting={(url) => set('existingImages', values.existingImages.filter((u) => u !== url))}
+          onReorderExisting={(reordered) => set('existingImages', reordered)}
           uploadProgress={uploadProgress}
         />
       </div>

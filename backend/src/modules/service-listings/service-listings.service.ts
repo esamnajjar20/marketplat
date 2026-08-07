@@ -247,4 +247,14 @@ export const serviceListingsService = {
     const provider = await requireOwnProvider(userId);
     return listingImageOperations.removeImage(listingId, listing => listing.providerId === provider.id, imageUrl);
   },
+
+  // Gap #11: delegates to the shared factory's reorderImages.
+  reorderImages: async (
+    listingId: string,
+    userId: string,
+    orderedImages: string[]
+  ): Promise<ServiceListing> => {
+    const provider = await requireOwnProvider(userId);
+    return listingImageOperations.reorderImages(listingId, listing => listing.providerId === provider.id, orderedImages);
+  },
 };
