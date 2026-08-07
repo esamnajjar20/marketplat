@@ -21,8 +21,25 @@ import { serviceCategoriesRepository } from '../service-categories/service-categ
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
 import { withServiceListingImagesLock } from '../../shared/utils/adLock';
+import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
+import { logger } from '../../shared/utils/logger';
 
 const MAX_LISTING_IMAGES = 10; // same cap as ads.images (env.ads.maxImagesPerAd's sibling)
+
+// FIX SEC-4.1: addImages/removeImage used to be ~75 lines of
+// hand-rolled logic here, near-identical to products.service.ts's copy
+// of the same thing. Now built from the shared factory — see
+// entityImageOperations.ts's doc comment for why ads.service.ts is not
+// part of this extraction.
+const listingImageOperations = createEntityImageOperations({
+  repository: serviceListingsRepository,
+  withLock: withServiceListingImagesLock,
+  uploadFolder: 'service-listings',
+  maxImages: MAX_LISTING_IMAGES,
+  entityLabel: 'service listing',
+  notFoundCode: 'SERVICE_LISTING_NOT_FOUND',
+  notOwnedCode: 'NOT_YOUR_SERVICE_LISTING',
+});
 
 // Resolves and authorizes "this user's own service provider profile" —
 // the entry point every write in this module goes through first, same
@@ -186,92 +203,48 @@ export const serviceListingsService = {
 
     // Best-effort Cloudinary cleanup — same "don't fail the request over
     // a storage cleanup miss" convention as cleanupUploadedImages itself.
+    // AUDIT-FIX 2.4: .catch(() => undefined) previously discarded the
+    // error with no trace — logging each failure (per-image, since this
+    // fans out over the whole listing.images array) so orphaned assets
+    // from a failed batch delete are findable later, same rationale as
+    // entityImageOperations.ts's removeImage.
     await Promise.all(
       listing.images.map(imageUrl => {
         const publicId = extractCloudinaryPublicId(imageUrl);
-        return publicId ? deleteImage(publicId).catch(() => undefined) : undefined;
+        return publicId
+          ? deleteImage(publicId).catch(err => {
+              logger.warn('Failed to delete service listing image from Cloudinary — orphaned asset', {
+                listingId: id,
+                imageUrl,
+                err,
+              });
+            })
+          : undefined;
       })
     );
   },
 
   // Gap #3 fix: closes the report's finding — service listings had no
   // way to add/replace photos after creation (PATCH is JSON-only, no
-  // images field). Mirrors ads.service.ts's addImages exactly.
+  // images field). Delegates to the shared factory (FIX SEC-4.1).
   addImages: async (
     listingId: string,
     userId: string,
     files: Express.Multer.File[]
   ): Promise<ServiceListing> => {
     const provider = await requireOwnProvider(userId);
-    const listing = await serviceListingsRepository.findById(listingId);
-    if (!listing || listing.status === 'DELETED') {
-      throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
-    }
-    if (listing.providerId !== provider.id) {
-      throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
-    }
-    if (listing.images.length + files.length > MAX_LISTING_IMAGES) {
-      throw new BadRequestError(`A service listing can have at most ${MAX_LISTING_IMAGES} images`);
-    }
-
-    return withServiceListingImagesLock(listingId, async () => {
-      const freshListing = await serviceListingsRepository.findById(listingId);
-      if (!freshListing || freshListing.status === 'DELETED') {
-        throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
-      }
-      if (freshListing.images.length + files.length > MAX_LISTING_IMAGES) {
-        throw new BadRequestError(`A service listing can have at most ${MAX_LISTING_IMAGES} images`);
-      }
-
-      const uploads = await Promise.all(
-        files.map(file => uploadImage(file.buffer, 'service-listings'))
-      );
-      try {
-        return await serviceListingsRepository.addImages(
-          listingId,
-          uploads.map(upload => upload.url)
-        );
-      } catch (error) {
-        await cleanupUploadedImages(uploads.map(upload => upload.publicId));
-        throw error;
-      }
-    });
+    return listingImageOperations.addImages(listingId, listing => listing.providerId === provider.id, files);
   },
 
   // Gap #3 fix: mirrors ads.service.ts's removeImage, including the
   // "can't remove the last image" guard (EPIC 1.5's rationale applies
-  // identically here).
+  // identically here). Delegates to the shared factory (FIX SEC-4.1).
   removeImage: async (
     listingId: string,
     userId: string,
     imageUrl: string
   ): Promise<ServiceListing> => {
     const provider = await requireOwnProvider(userId);
-    const listing = await serviceListingsRepository.findById(listingId);
-    if (!listing || listing.status === 'DELETED') {
-      throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
-    }
-    if (listing.providerId !== provider.id) {
-      throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
-    }
-    if (!listing.images.includes(imageUrl)) {
-      throw new BadRequestError('Image not found in this service listing');
-    }
-    if (listing.images.length <= 1) {
-      throw new BadRequestError(
-        'Cannot remove the last image — a service listing must have at least one image. Add a replacement image first.',
-        'MIN_IMAGES_REQUIRED'
-      );
-    }
-
-    return withServiceListingImagesLock(listingId, async () => {
-      try {
-        const publicId = extractCloudinaryPublicId(imageUrl);
-        if (publicId) await deleteImage(publicId);
-      } catch {
-        /* continue even if Cloudinary delete fails */
-      }
-      return serviceListingsRepository.removeImage(listingId, imageUrl);
-    });
+    return listingImageOperations.removeImage(listingId, listing => listing.providerId === provider.id, imageUrl);
   },
 };

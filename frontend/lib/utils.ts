@@ -27,3 +27,26 @@ export function clamp(value: number, min: number, max: number): number {
 
 /** Check if code is running on the server. */
 export const isServer = typeof window === 'undefined';
+
+// FIX SEC-4.4: identical byte-for-byte across 6 admin category-form
+// components (CreateCategoryButton, EditCategoryButton, and their
+// Product/Service counterparts) — the only thing that ever varied
+// between copies was the fallback prefix used when the input slugifies
+// to an empty string (e.g. an all-emoji name). Consolidated here; each
+// call site now just passes its own fallback prefix.
+/**
+ * Convert a display name into a URL-safe slug matching the backend's
+ * `/^[a-z0-9-]+$/` validation (e.g. createProductCategorySchema).
+ * Falls back to `${fallbackPrefix}-${Date.now()}` if the input has no
+ * ASCII alphanumeric characters at all (e.g. Arabic-only input).
+ */
+export function slugify(input: string, fallbackPrefix: string): string {
+  const slug = input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return slug || `${fallbackPrefix}-${Date.now()}`;
+}

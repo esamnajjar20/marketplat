@@ -117,6 +117,13 @@ export const ErrorCode = {
   // Blocked users
   CANNOT_BLOCK_SELF: 'CANNOT_BLOCK_SELF',
   USER_BLOCKED: 'USER_BLOCKED',
+
+  // Images (ads / products / service listings — shared image-management
+  // guard). FIX SEC-6.5/9.10: this code was already used at three call
+  // sites (ads.service.ts, products.service.ts,
+  // service-listings.service.ts) but never declared here, so it existed
+  // outside any type-safe check on the known-code set.
+  MIN_IMAGES_REQUIRED: 'MIN_IMAGES_REQUIRED',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -87,6 +87,11 @@ export const errorMessages: Record<string, ErrorMessageEntry> = {
   NOT_YOUR_AD: 'هذا الإعلان ليس ملكك',
   CANNOT_SET_AD_STATUS: 'لا يمكنك تغيير حالة هذا الإعلان',
 
+  // ── Images (ads / products / service listings) ───────────────────
+  // FIX SEC-6.5/9.10: backend code existed at 3 call sites but had no
+  // Arabic translation — fell through to the generic 400 fallback.
+  MIN_IMAGES_REQUIRED: 'لا يمكن حذف الصورة الأخيرة، يجب أن يحتوي العنصر على صورة واحدة على الأقل. أضف صورة بديلة أولاً',
+
   // ── Sellers ──────────────────────────────────────────────────────
   SELLER_PROFILE_ALREADY_EXISTS: 'لديك حساب بائع بالفعل',
   SELLER_SUSPENDED: 'تم إيقاف حساب البائع الخاص بك',

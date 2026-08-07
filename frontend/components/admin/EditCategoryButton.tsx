@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/s
 import { toast }    from 'sonner';
 import { useUpdateCategory } from '@/hooks/mutations/useCategoryMutations';
 import { useResettableDialog } from '@/hooks/useResettableDialog';
+import { slugify }  from '@/lib/utils';
 import type { Category } from '@/types/category.types';
 
 interface Props {
@@ -21,17 +22,11 @@ interface Props {
  * was read-only. This wires the existing mutation to a real dialog,
  * following CreateCategoryButton's exact pattern (same slug-derivation
  * helper, same field layout) rather than introducing a new one.
+ *
+ * AUDIT-FIX (issue #4.4): the local slugify() that used to live here is
+ * now the shared frontend/lib/utils.ts version — see that file's doc
+ * comment for why the fallback prefix became a parameter.
  */
-function slugify(input: string): string {
-  const slug = input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-  return slug || `category-${Date.now()}`;
-}
 
 export function EditCategoryButton({ category }: Props) {
   const [nameAr, setNameAr] = useState(category.nameAr);
@@ -51,7 +46,7 @@ export function EditCategoryButton({ category }: Props) {
     if (nameAr.trim() !== category.nameAr) patch.nameAr = nameAr.trim();
     if (nameEn.trim() !== category.name) {
       patch.name = nameEn.trim();
-      patch.slug = slugify(nameEn);
+      patch.slug = slugify(nameEn, 'category');
     }
 
     if (Object.keys(patch).length === 0) {
@@ -87,7 +82,7 @@ export function EditCategoryButton({ category }: Props) {
               <label className="text-sm font-medium">الاسم بالإنجليزي <span className="text-destructive">*</span></label>
               <Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} dir="ltr" placeholder="e.g. Electronics" />
               {nameEn.trim() && nameEn.trim() !== category.name && (
-                <p className="text-xs text-muted-foreground" dir="ltr">slug: {slugify(nameEn)}</p>
+                <p className="text-xs text-muted-foreground" dir="ltr">slug: {slugify(nameEn, 'category')}</p>
               )}
             </div>
             <div className="flex justify-end gap-2">
