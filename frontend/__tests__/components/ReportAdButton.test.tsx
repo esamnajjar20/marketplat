@@ -98,7 +98,12 @@ describe('ReportAdButton', () => {
       const user = await openDialog();
       const dialog = screen.getByRole('dialog');
 
-      await user.selectOptions(within(dialog).getByLabelText('سبب الإبلاغ'), 'OFFENSIVE');
+      // The reason field is a Radix Select (renders as role="combobox"),
+      // not a native <select> — its options only mount in the DOM (via a
+      // portal) once the trigger is opened, so selectOptions() can't find
+      // them without an explicit open first.
+      await user.click(within(dialog).getByLabelText('سبب الإبلاغ'));
+      await user.click(await screen.findByRole('option', { name: 'محتوى مسيء' }));
       await user.click(within(dialog).getByRole('button', { name: 'إرسال البلاغ' }));
 
       expect(mockMutate).toHaveBeenCalledWith(
@@ -126,7 +131,8 @@ describe('ReportAdButton', () => {
       const user = await openDialog();
       let dialog = screen.getByRole('dialog');
 
-      await user.selectOptions(within(dialog).getByLabelText('سبب الإبلاغ'), 'SPAM');
+      await user.click(within(dialog).getByLabelText('سبب الإبلاغ'));
+      await user.click(await screen.findByRole('option', { name: 'رسائل مزعجة (سبام)' }));
       await user.type(within(dialog).getByLabelText(/تفاصيل إضافية/), 'مسودة ملغاة');
       await user.click(within(dialog).getByRole('button', { name: 'إلغاء' }));
 

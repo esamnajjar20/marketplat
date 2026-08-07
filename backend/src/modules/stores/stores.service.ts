@@ -17,6 +17,7 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
+import { blockedUsersService } from '../blocked-users';
 import { withStoreCreationLock } from '../../shared/utils/storeLock';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { activityService, activityTemplates } from '../activity';
@@ -249,6 +250,16 @@ export const storesService = {
 
     if (sellerProfile.userId === raterId) {
       throw new ForbiddenError('You cannot review your own store.', 'CANNOT_RATE_OWN_STORE');
+    }
+
+    // SECURITY FIX (blocked-user coverage gap): same gap closed on the
+    // service-requests/appointments/service-reviews paths — a store
+    // review requires no prior transaction check at all here (unlike
+    // service-reviews, which is gated on a COMPLETED request), so this
+    // is the most exposed of the review surfaces to a blocked user
+    // leaving a purely retaliatory review with zero prior interaction.
+    if (await blockedUsersService.isBlockedEitherDirection(raterId, sellerProfile.userId)) {
+      throw new ForbiddenError('You cannot review this store.', 'USER_BLOCKED');
     }
 
     const existing = await storeReviewsRepository.findBySellerAndRater(sellerProfile.id, raterId);

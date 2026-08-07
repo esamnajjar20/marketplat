@@ -10,6 +10,7 @@ import { usersRepository } from '../users/users.repository';
 import { SellerProfile } from '@prisma/client';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { blockedUsersService } from '../blocked-users';
 
 export const sellersService = {
   createSellerProfile: async (
@@ -102,6 +103,14 @@ export const sellersService = {
     // Self-rating guard — a seller can never rate their own profile.
     if (profile.userId === raterId) {
       throw new ForbiddenError('You cannot rate your own seller profile.', 'CANNOT_RATE_OWN_PROFILE');
+    }
+
+    // SECURITY FIX (blocked-user coverage gap): same gap closed on
+    // stores.service.ts's createReview / service-reviews.service.ts's
+    // createReview — this is the legacy ad-seller rating path and had
+    // the identical hole.
+    if (await blockedUsersService.isBlockedEitherDirection(raterId, profile.userId)) {
+      throw new ForbiddenError('You cannot rate this seller.', 'USER_BLOCKED');
     }
 
     try {

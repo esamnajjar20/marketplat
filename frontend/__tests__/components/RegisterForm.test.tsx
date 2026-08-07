@@ -37,10 +37,38 @@ vi.mock('@/hooks/mutations/useAuthMutations', () => ({
 
 const mockRegister = vi.fn();
 
-async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/الاسم الكامل/), 'أحمد محمد');
-  await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'ahmad@example.com');
-  await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+/**
+ * A plain /كلمة المرور/ regex also matches "تأكيد كلمة المرور" (the
+ * confirm field's label) and the show/hide toggle button's aria-label
+ * ("إظهار كلمة المرور"), so getByLabelText can't disambiguate them.
+ * These target the two password inputs directly by id instead.
+ */
+function getPasswordInput(): HTMLElement {
+  return document.getElementById('password') as HTMLElement;
+}
+function getConfirmPasswordInput(): HTMLElement {
+  return document.getElementById('confirmPassword') as HTMLElement;
+}
+
+/**
+ * Fills every required field with mutually valid values. The submit
+ * button is disabled (see RegisterForm's isFormIncomplete guard) until
+ * name/email/password/confirmPassword are all present and the two
+ * passwords match — so any test that wants to exercise a *specific*
+ * validation error still needs the other required fields filled in
+ * validly, confirmPassword included, or the click on submit is a no-op.
+ */
+async function fillRequiredFields(
+  user: ReturnType<typeof userEvent.setup>,
+  overrides: { name?: string; email?: string; password?: string } = {},
+) {
+  const { name = 'أحمد محمد', email = 'ahmad@example.com', password = 'password123' } = overrides;
+  if (name)     await user.type(screen.getByLabelText(/الاسم الكامل/), name);
+  if (email)    await user.type(screen.getByLabelText(/البريد الإلكتروني/), email);
+  if (password) {
+    await user.type(getPasswordInput(), password);
+    await user.type(getConfirmPasswordInput(), password);
+  }
 }
 
 describe('RegisterForm', () => {
@@ -57,9 +85,7 @@ describe('RegisterForm', () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/الاسم الكامل/), 'ا');
-      await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+      await fillRequiredFields(user, { name: 'ا', email: 'a@b.com' });
       await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
 
       expect(screen.getByText('الاسم يجب أن يكون حرفين على الأقل')).toBeInTheDocument();
@@ -69,7 +95,13 @@ describe('RegisterForm', () => {
     it('shows required error when name is empty', async () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
-      await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
+      // Name deliberately left blank, which means isFormIncomplete keeps
+      // the submit button disabled (see RegisterForm's own guard) — a
+      // click on it would be a no-op. Enter in the last field submits
+      // the form the same way it would for a real user who tabs through
+      // and hits Enter without noticing the button is greyed out.
+      await fillRequiredFields(user, { name: '' });
+      await user.type(getConfirmPasswordInput(), '{Enter}');
       expect(screen.getByText('الاسم الكامل مطلوب')).toBeInTheDocument();
     });
 
@@ -77,9 +109,7 @@ describe('RegisterForm', () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/الاسم الكامل/), 'أحمد محمد');
-      await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'not-an-email');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+      await fillRequiredFields(user, { email: 'not-an-email' });
       await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
 
       expect(screen.getByText('بريد إلكتروني غير صالح')).toBeInTheDocument();
@@ -92,7 +122,8 @@ describe('RegisterForm', () => {
 
       await user.type(screen.getByLabelText(/الاسم الكامل/), 'أحمد محمد');
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'short1');
+      await user.type(getPasswordInput(), 'short1');
+      await user.type(getConfirmPasswordInput(), 'short1');
       await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
 
       expect(screen.getByText('كلمة المرور 8 أحرف على الأقل')).toBeInTheDocument();
@@ -135,7 +166,8 @@ describe('RegisterForm', () => {
 
       await user.type(screen.getByLabelText(/الاسم الكامل/), '  أحمد محمد  ');
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), '  ahmad@example.com  ');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+      await user.type(getPasswordInput(), 'password123');
+      await user.type(getConfirmPasswordInput(), 'password123');
       await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
 
       expect(mockRegister).toHaveBeenCalledWith(

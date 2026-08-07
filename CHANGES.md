@@ -1,85 +1,61 @@
-# إصلاحات تقرير الفحص — المشكلتان #1 و #2
+# الإصلاحات المطبّقة — الدفعة الأولى
 
-هذه الحزمة تحتوي فقط على الملفات **المعدّلة** أو **الجديدة**، بنفس مسارات
-المشروع الأصلي (`backend/...`, `frontend/...`) بحيث يمكن نسخها مباشرة فوق
-نسخة `marketplat-main` الأصلية لدمج التعديلات.
+هذا الأرشيف يحتوي فقط الملفات التي عُدّلت (10 ملفات، لا ملفات جديدة).
+كل مسار مطابق تمامًا لمكانه داخل مشروع marketplat-main الأصلي — يمكنك
+استخراج الأرشيف مباشرة فوق نسخة المشروع لتطبيق التعديلات.
 
----
+## 1. backend/src/modules/auth/auth.service.ts
+**الثغرة:** race condition في `resetPassword` — الفحص (`used: false`)
+والتحديث كانا عمليتين منفصلتين، فطلبان متزامنان بنفس التوكن يمكن أن
+ينفذا كلاهما.
+**الإصلاح:** استبدال الفحص المنفصل بـ `updateMany({where: {token,
+used: false}})` كشرط ذري ضمن الكتابة نفسها؛ الطلب الخاسر يحصل على
+`count === 0` ويُرفض قبل تحديث كلمة المرور.
 
-## المشكلة #1 🔴 — لا توجد صفحة `/admin/stores`
+## 2. backend/src/modules/products/products.repository.ts
+## 3. backend/src/modules/products/products.service.ts
+## 4. backend/src/modules/ads/ads.repository.ts
+## 5. backend/src/modules/ads/ads.service.ts
+## 6. backend/src/modules/service-listings/service-listings.repository.ts
+## 7. backend/src/modules/service-listings/service-listings.service.ts
+**الثغرة:** حظر البائع (`SellerProfile.suspended`) كان يمنع فقط
+إنشاء عناصر جديدة، لكن المنتجات/الإعلانات/الخدمات المنشورة سابقًا
+تبقى ظاهرة في القوائم العامة وقابلة للوصول المباشر عبر الرابط.
+**الإصلاح:**
+- إضافة `sellerProfile.suspended: false` (أو المكافئ عبر العلاقة
+  المناسبة لكل نموذج) لاستعلامات `findMany` العامة.
+- إضافة فحص مكافئ في مسارات العرض المباشر بالمعرّف
+  (`getProductById`, `getAdById`, `getServiceListingById`) يُرجع 404
+  بدل عرض العنصر.
+- في `products.service.ts` تحديدًا: أُضيف أيضًا فحص `store.status
+  !== 'ACTIVE'` لإغلاق نفس الثغرة عند حجب المتجر من الإدارة (وليس
+  فقط حظر البائع نفسه).
 
-**الجذر الحقيقي المكتشف أثناء الإصلاح:** التقرير افترض أن `updateStatus`
-كافٍ لحل المشكلة، لكن الفحص كشف فجوة أعمق: **`GET /stores` العام في
-الـ backend كان مُثبَّتًا (hardcoded) على `status: 'ACTIVE'`** في
-`stores.repository.ts`، أي لم تكن هناك حتى وسيلة برمجية لعرض المتاجر
-بحالة `PENDING` — لا للأدمن ولا لأي أحد. تطلّب الحل إضافة مسار admin
-مخصص جديد، وليس فقط ربط الواجهة بمسار موجود.
+## 8. backend/src/modules/product-categories/product-categories.repository.ts
+## 9. backend/src/modules/product-categories/product-categories.service.ts
+**الثغرة أ (حلقة مفرغة):** `updateProductCategory` لم يكن يتحقق من
+أن `parentId` الجديد ليس هو الفئة نفسها أو أحد أحفادها.
+**الإصلاح:** دالة `findParentChain` تتسلق شجرة الأصل المقترح
+(بحد أقصى 100 قفزة كحاجز دفاعي)، والخدمة ترفض التحديث إن وُجدت
+الفئة الحالية ضمن تلك السلسلة.
 
-### Backend (5 ملفات)
+**الثغرة ب (FK violation عند الحذف):** حذف فئة تحتوي على فئات فرعية
+كان يسبب خطأ Prisma P2003 غير معالج (500). فحص المنتجات المرتبطة
+كان موجودًا مسبقًا، لكن فحص الفئات الفرعية لم يكن موجودًا.
+**الإصلاح:** دالة `countChildren` وفحص مكافئ لفحص المنتجات، يُرجع
+400 برسالة واضحة بدل 500.
 
-| الملف | التعديل |
-|---|---|
-| `backend/src/modules/stores/stores.repository.ts` | إضافة `findManyForAdmin()` — يدعم الفلترة بأي حالة (PENDING/ACTIVE/BLOCKED) + بحث نصي، بعكس `findMany` العام المثبّت على ACTIVE فقط |
-| `backend/src/modules/stores/stores.validation.ts` | إضافة `adminGetStoresSchema` + `AdminGetStoresQuery` (page/limit/status/q) |
-| `backend/src/modules/stores/stores.service.ts` | إضافة `getAllStores()` يستخدم الـ repository الجديد، بنفس نمط `sellersService.getAllSellers` |
-| `backend/src/modules/stores/stores.controller.ts` | إضافة `getAllStores` controller |
-| `backend/src/modules/admin/admin.routes.ts` | تسجيل `GET /admin/stores` و `PATCH /admin/stores/:id/status` (محمية بـ `authenticate` + `requireAdmin` عبر `adminRouter.use(...)`) |
-
-تم التحقق من نجاح الترجمة (`tsc --noEmit`) بدون أي أخطاء ناتجة عن هذه التعديلات.
-
-### Frontend (10 ملفات)
-
-| الملف | التعديل |
-|---|---|
-| `frontend/types/admin.types.ts` | إضافة `AdminStore`, `AdminStoreStatus`, `AdminGetStoresParams`, `UpdateStoreStatusPayload` |
-| `frontend/api/admin.api.ts` | إضافة `adminApi.getStores()` و `adminApi.updateStoreStatus()` |
-| `frontend/lib/queryKeys.ts` | إضافة `queryKeys.admin.stores(params)` |
-| `frontend/hooks/queries/useAdmin.ts` | إضافة `useAdminStores()` |
-| `frontend/hooks/mutations/useAdminMutations.ts` | إضافة `useAdminUpdateStoreStatus()` — مع تحديث متفائل (optimistic update) وتراجع عند الخطأ، بنفس نمط `useAdminSetSellerSuspended` |
-| `frontend/components/admin/AdminStoresTable.tsx` | **جديد** — جدول إدارة المتاجر: تبويبات فلترة بالحالة (قيد المراجعة/نشطة/محظورة/الكل)، بحث، إجراءات موافقة/حظر/رفع حظر، مع `ConfirmDialog` لإجراء الحظر (الإجراء الوحيد المؤثر على الظهور العام) |
-| `frontend/app/(admin)/admin/stores/page.tsx` | **جديد** — الصفحة نفسها |
-| `frontend/app/(admin)/admin/stores/loading.tsx` | **جديد** — هيكل التحميل (skeleton) |
-| `frontend/components/admin/AdminSidebar.tsx` | إضافة رابط "المتاجر" في القائمة الجانبية للأدمن (يستخدم `ROUTES.admin.stores` الذي كان معرَّفًا مسبقًا في `constants.ts` لكن غير مستخدم) |
-| `frontend/middleware.ts` | (مُدمَج هنا أيضًا لأنه يخص تجربة `/my-store`) إضافة `/my-store` إلى `PROTECTED_PREFIXES` — إصلاح المشكلة #9 من التقرير (سطر واحد) |
-
-**النتيجة:** أي متجر جديد يُنشأ بحالة `PENDING` أصبح الآن مرئيًا لصفحة
-`/admin/stores` (التبويب الافتراضي هو "قيد المراجعة")، ويمكن للأدمن
-الموافقة عليه (→ ACTIVE) أو حظره (→ BLOCKED) بنقرة واحدة.
-
----
-
-## المشكلة #2 🔴 — صفحة `/settings/service-provider` يتيمة
-
-تأكّد أن الصفحة والمكوّن (`ServiceProviderSettingsSection`) وحتى المسار
-`ROUTES.settings.serviceProvider` كانوا **جميعًا موجودين ومكتملين فعليًا**
-— الفجوة الوحيدة كانت غياب الرابط في القائمة الجانبية للإعدادات.
-
-### Frontend (1 ملف)
-
-| الملف | التعديل |
-|---|---|
-| `frontend/components/profile/SettingsSidebar.tsx` | إضافة رابط "ملف مقدم الخدمة" (أيقونة `Wrench`) بين "ملف البائع" و"متجري" |
-
-**النتيجة:** أصبح بإمكان أي مستخدم الوصول إلى `/settings/service-provider`
-من قائمة الإعدادات مباشرة، دون الحاجة لمعرفة الرابط يدويًا.
+## 10. backend/src/modules/service-providers/service-providers.repository.ts
+**الثغرة:** استعلام `findNearby` (بحث القرب الجغرافي) كان يحسب
+معادلة Haversine (`acos(...)`) على كل صف في الجدول دون أي فلترة
+مسبقة، متجاهلاً الفهرس الموجود `@@index([latitude, longitude])`.
+**الإصلاح:** إضافة فلترة Bounding Box (`BETWEEN` على `latitude` و
+`longitude` مباشرة) قبل حساب Haversine الدقيق — تستفيد من الفهرس
+وتقلص عدد الصفوف التي تحتاج الحساب الثقيل إلى نطاق الجوار الجغرافي
+فقط.
 
 ---
 
-## كيفية الدمج
-
-انسخ محتوى هذه الحزمة فوق مجلد المشروع الأصلي (نفس الأسماء والمسارات)،
-ثم على جهة الـ backend نفّذ فحص الأنواع:
-
-```bash
-cd backend && npx tsc --noEmit
-```
-
-وعلى جهة الـ frontend، بعد `npm install`، شغّل type-check أو build للتأكد:
-
-```bash
-cd frontend && npm run build
-```
-
-(لم يتوفر تشغيل `npm install`/build فعلي في بيئة الإصلاح بسبب تعطيل الشبكة،
-لذا تم التحقق يدويًا من تطابق كل الاستيرادات والأنواع مع الأنماط الموجودة
-في المشروع، وتم تشغيل `tsc --noEmit` بنجاح على جهة الـ backend فقط.)
+⚠️ **ملاحظة:** لم يتوفر لدي `node_modules` ولا اتصال شبكي للتحقق عبر
+`npm run build` (tsc). راجعتُ كل تعديل يدويًا للتأكد من صحة الأنواع،
+لكن يُفضّل تشغيل البناء عندك قبل الدمج النهائي.

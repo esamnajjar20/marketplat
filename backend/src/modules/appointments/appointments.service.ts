@@ -12,6 +12,7 @@ import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
 import { activityService, activityTemplates } from '../activity';
+import { blockedUsersService } from '../blocked-users';
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
@@ -47,6 +48,19 @@ export const appointmentsService = {
       }
       if (!['ACCEPTED', 'IN_PROGRESS'].includes(request.status)) {
         throw new BadRequestError('Can only schedule an appointment for an accepted request.');
+      }
+      // SECURITY FIX (blocked-user coverage gap): same gap closed in
+      // service-requests.service.ts's createRequest — isBlockedEitherDirection
+      // was never checked here either. Appointments in this project are
+      // always provider-initiated (see requireOwnProvider above; there's
+      // no separate customer-booking path), so the relevant pair to
+      // check is the provider (userId, already resolved to `provider`
+      // above) against the request's customer — a provider should not
+      // be able to schedule an appointment tied to a customer either
+      // side has blocked, even though the provider is the one clicking
+      // the button.
+      if (await blockedUsersService.isBlockedEitherDirection(userId, request.customerId)) {
+        throw new ForbiddenError('You cannot schedule an appointment with this user.', 'USER_BLOCKED');
       }
     }
 

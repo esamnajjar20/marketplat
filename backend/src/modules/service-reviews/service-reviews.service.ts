@@ -13,6 +13,7 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
+import { blockedUsersService } from '../blocked-users';
 
 export const serviceReviewsService = {
   // services-design.md §10: only the customer of a COMPLETED request may
@@ -37,6 +38,19 @@ export const serviceReviewsService = {
     if (existing) throw new ConflictError('This request has already been reviewed.', 'ALREADY_REVIEWED');
 
     const sellerProfileId = request.listing.provider.sellerProfileId;
+
+    // SECURITY FIX (blocked-user coverage gap): same gap as
+    // service-requests.service.ts/appointments.service.ts —
+    // isBlockedEitherDirection was never checked on the review path.
+    // A completed request is a real prior transaction, so this can't
+    // block reviews outright the way it blocks new requests/messages —
+    // but a block placed *after* that transaction (e.g. the provider
+    // blocking a customer over their conduct) should still stop a
+    // retaliatory review from landing afterward, in either direction.
+    const providerUserId = request.listing.provider.sellerProfile.userId;
+    if (await blockedUsersService.isBlockedEitherDirection(raterId, providerUserId)) {
+      throw new ForbiddenError('You cannot review this seller.', 'USER_BLOCKED');
+    }
 
     try {
       return await prisma.$transaction(async tx => {

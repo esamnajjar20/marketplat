@@ -156,6 +156,16 @@ export const serviceListingsService = {
     if (!listing || listing.status === 'DELETED') {
       throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
     }
+    // SEC-FIX: same as products.service.ts's getProductById and
+    // ads.service.ts's getAdById — findMany's list/search query now
+    // excludes suspended-seller listings, but this direct-by-id lookup
+    // didn't, so a suspended provider's listing page stayed fully
+    // viewable/bookable via direct link even after dropping out of
+    // search. provider.sellerProfile is already loaded by
+    // listingWithRelations, so no extra query needed here.
+    if (listing.provider.sellerProfile.suspended) {
+      throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+    }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
     serviceListingsRepository.incrementViews(id).catch(() => undefined);
     return listing;

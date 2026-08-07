@@ -61,14 +61,19 @@ describe('SecuritySettingsForm', () => {
     });
   });
 
+  // Every scenario below leaves the form in a state that RegisterForm's
+  // isFormIncomplete-style guard (see SecuritySettingsForm's own
+  // isFormIncomplete) keeps the submit button disabled for — a plain
+  // click on it is a no-op. Enter in the last field submits the <form>
+  // the same way it would for a real user, exercising validate()'s
+  // error paths without relying on the (deliberately disabled) button.
   describe('validation', () => {
     it('requires the current password', async () => {
       const user = userEvent.setup();
       render(<SecuritySettingsForm />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'newpass456');
-      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'newpass456');
-      await user.click(screen.getByRole('button', { name: 'تغيير كلمة المرور' }));
+      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'newpass456{Enter}');
 
       expect(screen.getByText('أدخل كلمة المرور الحالية')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();
@@ -77,9 +82,7 @@ describe('SecuritySettingsForm', () => {
     it('requires the new password to be at least 8 characters', async () => {
       const user = userEvent.setup();
       render(<SecuritySettingsForm />);
-      await fillForm(user, { next: 'short1', confirm: 'short1' });
-
-      await user.click(screen.getByRole('button', { name: 'تغيير كلمة المرور' }));
+      await fillForm(user, { next: 'short1', confirm: 'short1{Enter}' });
 
       expect(screen.getByText('8 أحرف على الأقل')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();
@@ -88,9 +91,7 @@ describe('SecuritySettingsForm', () => {
     it('rejects a new password identical to the current password', async () => {
       const user = userEvent.setup();
       render(<SecuritySettingsForm />);
-      await fillForm(user, { current: 'samepass123', next: 'samepass123', confirm: 'samepass123' });
-
-      await user.click(screen.getByRole('button', { name: 'تغيير كلمة المرور' }));
+      await fillForm(user, { current: 'samepass123', next: 'samepass123', confirm: 'samepass123{Enter}' });
 
       expect(screen.getByText('كلمة المرور الجديدة يجب أن تختلف عن الحالية')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();
@@ -99,9 +100,7 @@ describe('SecuritySettingsForm', () => {
     it('rejects a mismatched confirmation', async () => {
       const user = userEvent.setup();
       render(<SecuritySettingsForm />);
-      await fillForm(user, { confirm: 'differentpass789' });
-
-      await user.click(screen.getByRole('button', { name: 'تغيير كلمة المرور' }));
+      await fillForm(user, { confirm: 'differentpass789{Enter}' });
 
       expect(screen.getByText('كلمتا المرور غير متطابقتين')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();

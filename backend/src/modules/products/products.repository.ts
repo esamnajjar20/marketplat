@@ -143,16 +143,28 @@ export const productsRepository = {
     } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
+    // SEC-FIX: an admin suspending a seller (SellerProfile.suspended)
+    // blocks that seller from *creating* new products/ads/listings
+    // (see sellers.service.ts, ads.service.ts, service-listings.service.ts)
+    // but nothing previously stopped their existing, already-published
+    // products from continuing to show up here and remain purchasable —
+    // suspension only ever bit new writes, never public reads. Folding
+    // `store.sellerProfile.suspended: false` into the same relation
+    // filter as the existing `store.status: 'ACTIVE'` check closes that
+    // gap for both the plain and the city-filtered branch below (city
+    // re-specifies `store` as a nested object, which replaces rather
+    // than merges the earlier `store` key in a JS object spread, so the
+    // suspended check has to be repeated there too, not just once).
     const where: Prisma.ProductWhereInput = {
       status: 'ACTIVE',
-      store: { status: 'ACTIVE' },
+      store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
       ...(categoryId && { categoryId }),
       ...(storeId && { storeId }),
       ...(availability && { availability }),
       // Products don't carry their own city — they inherit the store's,
       // same relation-filter approach service-listings.repository.ts
       // uses for provider.serviceAreaCities.
-      ...(city && { store: { status: 'ACTIVE', city } }),
+      ...(city && { store: { status: 'ACTIVE', sellerProfile: { suspended: false }, city } }),
       ...((minPrice !== undefined || maxPrice !== undefined) && {
         price: {
           ...(minPrice !== undefined && { gte: minPrice }),

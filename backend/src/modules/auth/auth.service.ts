@@ -516,10 +516,29 @@ export const authService = {
 
     const passwordHash = await hashPassword(newPassword);
 
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
-      prisma.passwordResetToken.update({ where: { token }, data: { used: true } }),
-    ]);
+    // SEC-FIX: the initial `!record.used` check above reads the token's
+    // state, but the password/token updates below don't happen until
+    // after an `await hashPassword`. Two concurrent requests with the
+    // same still-valid token both pass the check before either write
+    // lands — classic check-then-act race — so both would proceed to
+    // update the password, silently undoing whichever "wins" last.
+    // Folding `used: false` into the token's own update as a
+    // conditional WHERE (via updateMany, since Prisma's typed `update`
+    // can't express a non-PK filter) makes the claim atomic: only the
+    // request that actually flips used=false first gets count === 1
+    // and is allowed to also write the new password. The loser's
+    // updateMany matches zero rows and is rejected here — no password
+    // update happens for it at all.
+    const claim = await prisma.passwordResetToken.updateMany({
+      where: { token, used: false },
+      data: { used: true },
+    });
+
+    if (claim.count === 0) {
+      throw new BadRequestError('Password reset link is invalid or has expired', 'INVALID_RESET_TOKEN');
+    }
+
+    await prisma.user.update({ where: { id: record.userId }, data: { passwordHash } });
 
     // BUGFIX P0-02: tokenStore.deleteAllSessions did not exist (would throw
     // a TypeError at runtime on every successful password reset).

@@ -15,6 +15,7 @@ import { serviceListingsRepository } from '../service-listings/service-listings.
 import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { activityService, activityTemplates } from '../activity';
+import { blockedUsersService } from '../blocked-users';
 
 // services-design.md §5-§7: single source of truth for legal status
 // transitions. Adding a future status (e.g. DISPUTED) is a one-line
@@ -70,6 +71,18 @@ export const serviceRequestsService = {
     const provider = await serviceProvidersRepository.findPublicById(listing.providerId);
     if (provider && provider.sellerProfile.userId === customerId) {
       throw new ForbiddenError('You cannot request your own service listing.', 'CANNOT_REQUEST_OWN_LISTING');
+    }
+
+    // SECURITY FIX (blocked-user coverage gap): blockedUsersService's
+    // isBlockedEitherDirection was previously only ever called from
+    // conversations.service.ts (starting/sending a message) — a user
+    // blocked by a provider (or who had blocked the provider) could
+    // still open a service request against them, bypassing the entire
+    // point of blocking. Checked in either direction, same as
+    // conversations.service.ts's own use of this helper: a block should
+    // stop new requests regardless of who blocked whom.
+    if (provider && (await blockedUsersService.isBlockedEitherDirection(customerId, provider.sellerProfile.userId))) {
+      throw new ForbiddenError('You cannot request this service.', 'USER_BLOCKED');
     }
 
     const request = await prisma.$transaction(async tx =>

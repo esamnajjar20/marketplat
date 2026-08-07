@@ -92,6 +92,27 @@ export const productCategoriesService = {
     const category = await productCategoriesRepository.findById(id);
     if (!category) throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
 
+    // BUGFIX (circular category reference): reassigning parentId to the
+    // category's own id, or to one of its own descendants, creates a
+    // cycle in the parent chain — any code that walks parentId upward
+    // (breadcrumbs, admin tree rendering) would loop forever without a
+    // visited-set guard, and the two-level `children` tree the public
+    // findMany relies on would silently misrender. Only need to check
+    // when parentId is actually changing and non-null (clearing it to
+    // make the category top-level can never introduce a cycle).
+    if (input.parentId && input.parentId !== category.parentId) {
+      if (input.parentId === id) {
+        throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
+      }
+      const ancestorChain = await productCategoriesRepository.findParentChain(input.parentId);
+      if (ancestorChain.includes(id)) {
+        throw new BadRequestError(
+          'Cannot set parent to one of this category\'s own subcategories',
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
+      }
+    }
+
     if (input.slug && input.slug !== category.slug) {
       const existing = await productCategoriesRepository.findBySlug(input.slug);
       if (existing) throw new BadRequestError('Slug already in use');
@@ -124,6 +145,17 @@ export const productCategoriesService = {
     const productsCount = await productCategoriesRepository.countProducts(id);
     if (productsCount > 0) {
       throw new BadRequestError(`Cannot delete category with ${productsCount} active products`);
+    }
+
+    // BUGFIX (unhandled P2003 on delete): a category with subcategories
+    // was not guarded the way products were — deleting it directly hit
+    // Prisma's foreign-key constraint (children.parentId still
+    // references this row) and surfaced as an unhandled 500 instead of
+    // a clear, actionable 400. Same treatment as the products guard
+    // above: move blocking subcategories elsewhere first.
+    const childrenCount = await productCategoriesRepository.countChildren(id);
+    if (childrenCount > 0) {
+      throw new BadRequestError(`Cannot delete category with ${childrenCount} subcategories`);
     }
 
     await productCategoriesRepository.delete(id);

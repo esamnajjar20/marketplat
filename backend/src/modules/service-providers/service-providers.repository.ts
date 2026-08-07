@@ -98,8 +98,38 @@ export const serviceProvidersRepository = {
         ))
       )
     `;
+    // PERF-FIX: the previous WHERE only had `IS NOT NULL` guards plus
+    // the Haversine expression itself in the filter — neither touches
+    // "latitude"/"longitude" as a plain comparison, so Postgres could
+    // never use the existing @@index([latitude, longitude]) (schema.prisma)
+    // and instead computed acos(...) for every single row in the table
+    // on every search, radius or no. A degree of latitude is ~111km and
+    // a degree of longitude shrinks toward the poles by cos(latitude),
+    // so a simple +/- (radiusKm / 111) box around the query point is a
+    // generous (never too small) rectangular superset of the true
+    // circular radius — it can only ADMIT a few extra corner rows for
+    // the exact Haversine filter below to then exclude, never wrongly
+    // exclude a true match. This bounding box uses the plain columns
+    // directly, so it hits the index and cuts the row count Postgres
+    // has to run acos() on from the full table down to just the rows
+    // in the query's neighborhood before the expensive expression ever
+    // runs.
+    const latDelta = radiusKm / 111;
+    // Guard against lat ±90 wraparound producing a degenerate divisor
+    // near the poles — clamps cos(lat) away from 0 rather than
+    // dividing by (near-)zero. Gaza's own latitude (~31°N) never gets
+    // close to this edge; it's here purely so the query stays correct
+    // if this ever serves other regions.
+    const lngDelta = radiusKm / (111 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+    const minLat = lat - latDelta;
+    const maxLat = lat + latDelta;
+    const minLng = lng - lngDelta;
+    const maxLng = lng + lngDelta;
+
     const whereSql = Prisma.sql`
       WHERE "latitude" IS NOT NULL AND "longitude" IS NOT NULL
+        AND "latitude" BETWEEN ${minLat} AND ${maxLat}
+        AND "longitude" BETWEEN ${minLng} AND ${maxLng}
         AND "availabilityStatus" != 'UNAVAILABLE'
         AND (${distanceExpr}) <= ${radiusKm}
     `;

@@ -138,6 +138,28 @@ export const productsService = {
     if (!product || product.status === 'DELETED') {
       throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     }
+    // SEC-FIX: findMany's list query already excludes suspended-seller
+    // products (see products.repository.ts), but findPublicById here is
+    // a direct-by-id lookup with no such filter — a suspended seller's
+    // product page was still fully viewable/purchasable by anyone who
+    // had (or guessed) its id, even though it had already dropped out
+    // of every list/search result. Treat it the same as a deleted
+    // product: 404, not a partial "hidden from search but still live"
+    // state. Checked here rather than folded into findPublicById's
+    // query so a suspended seller browsing their own dashboard (which
+    // doesn't go through this path) is unaffected.
+    if (product.store.sellerProfile.suspended) {
+      throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    }
+    // SEC-FIX: same gap, different trigger — an admin blocking a store
+    // via storesService.updateStoreStatus (status -> BLOCKED) already
+    // hides its products from findMany's list query (`store: { status:
+    // 'ACTIVE' }`), but this direct-by-id lookup ignored store.status
+    // entirely, so a blocked store's product page — and the ability to
+    // buy from it — stayed reachable via direct link.
+    if (product.store.status !== 'ACTIVE') {
+      throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
     productsRepository.incrementViews(id).catch(() => undefined);
     return product;

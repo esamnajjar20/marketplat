@@ -24,6 +24,7 @@ function makeAxiosError(
   errors?: Record<string, string[]>,
   code?: string,
   meta?: Record<string, unknown>,
+  errorMeta?: Record<string, unknown>,
 ): AxiosError {
   const response = {
     status,
@@ -33,6 +34,7 @@ function makeAxiosError(
       ...(errors && { errors }),
       ...(code !== undefined && { code }),
       ...(meta && { meta }),
+      ...(errorMeta && { errorMeta }),
     },
     headers: new AxiosHeaders(headers),
     config:  { headers: new AxiosHeaders() } as AxiosError['config'],
@@ -216,7 +218,7 @@ describe('parseApiError — error code translation', () => {
     );
     const result = parseApiError(err);
     expect(result.message).toContain('5');
-    expect(result.message).toContain('الحد الأقصى');
+    expect(result.message).toContain('للحد الأقصى');
   });
 
   it('401 never leaks backendMsg even when the code is unrecognised', () => {
@@ -404,60 +406,74 @@ describe('parseApiError — fieldErrors (FIX M-1)', () => {
     const err = makeAxiosError(400, 'Validation failed', {}, {
       'body.title':       ['Title must be at least 3 characters'],
       'body.description': ['Description must be at least 10 characters'],
+    }, undefined, undefined, {
+      'body.title':       [{ code: 'too_small', params: { minimum: 3, type: 'string' } }],
+      'body.description': [{ code: 'too_small', params: { minimum: 10, type: 'string' } }],
     });
     const result = parseApiError(err);
     expect(result.fieldErrors).toEqual({
-      title:       ['Title must be at least 3 characters'],
-      description: ['Description must be at least 10 characters'],
+      title:       ['العنوان يجب أن يتكون من 3 أحرف على الأقل'],
+      description: ['الوصف يجب أن يتكون من 10 أحرف على الأقل'],
     });
   });
 
   it('strips the query.* wrapper prefix the same way as body.*', () => {
     const err = makeAxiosError(400, 'Validation failed', {}, {
       'query.sortBy': ["Invalid enum value. Expected 'createdAt' | 'price' | 'views'"],
+    }, undefined, undefined, {
+      'query.sortBy': [{ code: 'invalid_enum_value' }],
     });
     const result = parseApiError(err);
     expect(result.fieldErrors).toEqual({
-      sortBy: ["Invalid enum value. Expected 'createdAt' | 'price' | 'views'"],
+      sortBy: ['قيمة هذا الحقل غير صالحة'],
     });
   });
 
   it('strips the params.* wrapper prefix the same way', () => {
     const err = makeAxiosError(400, 'Validation failed', {}, {
       'params.id': ['Ad ID is required'],
+    }, undefined, undefined, {
+      'params.id': [{ code: 'too_small', params: { minimum: 1, type: 'string' } }],
     });
     const result = parseApiError(err);
-    expect(result.fieldErrors).toEqual({ id: ['Ad ID is required'] });
+    expect(result.fieldErrors).toEqual({ id: ['المعرّف مطلوب'] });
   });
 
   it('leaves a bare "general" key untouched (matches error.middleware.ts fallback for an empty Zod path)', () => {
     const err = makeAxiosError(400, 'Validation failed', {}, {
       general: ['Something about the whole request was invalid'],
+    }, undefined, undefined, {
+      general: [{ code: 'custom' }],
     });
     const result = parseApiError(err);
     expect(result.fieldErrors).toEqual({
-      general: ['Something about the whole request was invalid'],
+      general: ['البيانات المدخلة غير صالح'],
     });
   });
 
   it('preserves multiple messages for the same field, in order', () => {
     const err = makeAxiosError(400, 'Validation failed', {}, {
       'body.price': ['Price must be a positive number', 'Price cannot have more than 2 decimal places'],
+    }, undefined, undefined, {
+      'body.price': [
+        { code: 'too_small', params: { minimum: 0, type: 'number', exclusive: true } },
+        { code: 'not_multiple_of' },
+      ],
     });
     const result = parseApiError(err);
     expect(result.fieldErrors?.price).toEqual([
-      'Price must be a positive number',
-      'Price cannot have more than 2 decimal places',
+      'السعر يجب أن يكون أكبر من 0',
+      'السعر غير صالح (عدد المنازل العشرية غير مسموح)',
     ]);
   });
 
-  it('sanitises (HTML-strips) individual field error messages the same way as the top-level message', () => {
+  it('sanitises (HTML-strips) individual field error messages the same way as the top-level message, falling back to the literal table when no errorMeta is present', () => {
     const err = makeAxiosError(400, 'Validation failed', {}, {
       'body.title': ['<script>alert(1)</script>Title is required'],
     });
     const result = parseApiError(err);
-    expect(result.fieldErrors?.title?.[0]).toBe('Title is required');
     expect(result.fieldErrors?.title?.[0]).not.toContain('<script>');
+    expect(result.fieldErrors?.title?.[0]).toBe('البيانات المدخلة غير صحيحة');
   });
 
   it('is undefined (not an empty object) when the backend sends no errors field', () => {

@@ -197,6 +197,15 @@ export const adsRepository = {
 
     const where: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
+      // SEC-FIX: same gap as products.repository.ts's findMany — an
+      // admin suspending a seller only ever blocked that seller from
+      // *creating* new ads (see ads.service.ts's ForbiddenError check
+      // on create), never removed their already-published ads from
+      // public listings. sellerProfile here is Ad's direct belongs-to
+      // relation (Ad.sellerProfileId), not a nested chain like
+      // products' store.sellerProfile, so this is a single relation
+      // filter rather than two.
+      sellerProfile: { suspended: false },
       // FIX PERF-01: exact match, not contains — see the identical fix
       // in the search-branch above for why this is safe (fixed city
       // list from the frontend) and why contains defeats the

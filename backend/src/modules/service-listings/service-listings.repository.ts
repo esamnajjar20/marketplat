@@ -140,8 +140,18 @@ export const serviceListingsRepository = {
     } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
+    // SEC-FIX: same gap as products.repository.ts / ads.repository.ts —
+    // a suspended seller's ServiceProviderDetails.sellerProfile.suspended
+    // only ever blocked new listing creation (see
+    // service-listings.service.ts's ForbiddenError check), never
+    // removed already-published listings from public search. provider
+    // here plays the same role products.repository.ts's `store` does —
+    // a one-hop relation to SellerProfile — so this is folded into the
+    // same `provider` relation filter as the city branch below, same
+    // "nested object replaces rather than merges" caveat.
     const where: Prisma.ServiceListingWhereInput = {
       status: 'ACTIVE',
+      provider: { sellerProfile: { suspended: false } },
       ...(categoryId && { categoryId }),
       ...(providerId && { providerId }),
       ...(serviceLocation && { serviceLocation }),
@@ -149,7 +159,9 @@ export const serviceListingsRepository = {
       // listings themselves — same exact-match-over-index rationale as
       // ads.repository.ts's city filter, via a relation filter instead
       // of a direct column.
-      ...(city && { provider: { serviceAreaCities: { has: city } } }),
+      ...(city && {
+        provider: { serviceAreaCities: { has: city }, sellerProfile: { suspended: false } },
+      }),
       ...((minPrice !== undefined || maxPrice !== undefined) && {
         price: {
           ...(minPrice !== undefined && { gte: minPrice }),

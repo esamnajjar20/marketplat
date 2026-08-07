@@ -151,7 +151,20 @@ export const recommendationsRepository = {
     // ads.repository.ts's search branch uses, rather than a conditional
     // Prisma.empty splice — keeps every WHERE fragment built the one
     // way this codebase already builds them.
-    const whereParts: Prisma.Sql[] = [Prisma.sql`a."status" = ${AdStatus.ACTIVE}::"AdStatus"`];
+    //
+    // SEC-FIX: same suspended-seller leak as products/ads/service-
+    // listings' findMany (see those repositories) — this raw query
+    // filtered only on Ad.status, never on the seller's suspension
+    // state, so a suspended seller's ads could still surface in a
+    // recommendation rail even though they'd already dropped out of
+    // every list/search result. Joined against seller_profiles (Ad has
+    // a direct sellerProfileId, same one-hop relation ads.repository.ts
+    // uses) rather than checked in a second round-trip, since this path
+    // is already a raw query.
+    const whereParts: Prisma.Sql[] = [
+      Prisma.sql`a."status" = ${AdStatus.ACTIVE}::"AdStatus"`,
+      Prisma.sql`sp."suspended" = false`,
+    ];
     if (excludeIds.length > 0) {
       whereParts.push(Prisma.sql`a."id" NOT IN (${Prisma.join(excludeIds)})`);
     }
@@ -161,6 +174,7 @@ export const recommendationsRepository = {
       SELECT a."id"
       FROM "ads" a
       JOIN (VALUES ${weightValues}) AS w("categoryId", weight) ON w."categoryId" = a."categoryId"
+      JOIN "seller_profiles" sp ON sp."id" = a."sellerProfileId"
       WHERE ${whereSql}
       ORDER BY w.weight DESC, a."isFeatured" DESC, a."createdAt" DESC
       LIMIT ${limit}
@@ -185,8 +199,13 @@ export const recommendationsRepository = {
   // shape as FeaturedAds.tsx's own client-side filter but done here so
   // it can also backfill a personalized rail that came up short.
   findTrending: async (excludeIds: string[], limit: number): Promise<AdListRow[]> => {
+    // SEC-FIX: same suspended-seller leak as findByCategoryWeights
+    // above — sellerProfile is Ad's direct belongs-to relation
+    // (Ad.sellerProfileId), same relation filter ads.repository.ts's
+    // findMany uses.
     const where: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
+      sellerProfile: { suspended: false },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
     return prisma.ad.findMany({

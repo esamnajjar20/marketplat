@@ -226,6 +226,24 @@ export const adsService = {
     const ad = await adsRepository.findById(id);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
 
+    // SEC-FIX: findMany's list query already excludes ads from
+    // suspended sellers (see ads.repository.ts), but this direct-by-id
+    // lookup didn't — a suspended seller's ad page stayed fully
+    // viewable/contactable by anyone with (or guessing) its id even
+    // after it had dropped out of every list/search result. findById
+    // here is shared with ownership/edit paths (adsService's update,
+    // delete, image mutation flows) where a suspended seller must
+    // still be able to see their own ad, so the check is scoped to
+    // this public-read path only, not folded into findById itself.
+    // sellerProfileId is nullable on Ad (legacy/edge-case ads with no
+    // linked seller profile) — those have nothing to suspend, so skip.
+    if (ad.sellerProfileId) {
+      const sellerProfile = await sellersRepository.findById(ad.sellerProfileId);
+      if (sellerProfile?.suspended) {
+        throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      }
+    }
+
     // P-06: buffered view counting — deduped per IP, flushed to DB every 60s
     // Prevents N DB writes per N pageviews; Redis absorbs the burst
     if (viewerIp) {

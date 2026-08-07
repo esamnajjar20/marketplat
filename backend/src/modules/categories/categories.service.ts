@@ -85,6 +85,22 @@ export const categoriesService = {
     const category = await categoriesRepository.findById(id);
     if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
 
+    // BUGFIX (circular category reference) — same fix as
+    // productCategoriesService.updateProductCategory, applied here for
+    // consistency.
+    if (input.parentId && input.parentId !== category.parentId) {
+      if (input.parentId === id) {
+        throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
+      }
+      const ancestorChain = await categoriesRepository.findParentChain(input.parentId);
+      if (ancestorChain.includes(id)) {
+        throw new BadRequestError(
+          'Cannot set parent to one of this category\'s own subcategories',
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
+      }
+    }
+
     if (input.slug && input.slug !== category.slug) {
       const existing = await categoriesRepository.findBySlug(input.slug);
       if (existing) throw new BadRequestError('Slug already in use');
@@ -116,6 +132,12 @@ export const categoriesService = {
     const adsCount = await categoriesRepository.countAds(id);
     if (adsCount > 0) {
       throw new BadRequestError(`Cannot delete category with ${adsCount} active ads`);
+    }
+    // BUGFIX (FK violation on delete) — same fix as
+    // productCategoriesService.deleteProductCategory.
+    const childrenCount = await categoriesRepository.countChildren(id);
+    if (childrenCount > 0) {
+      throw new BadRequestError(`Cannot delete category with ${childrenCount} subcategories`);
     }
     await categoriesRepository.delete(id);
     await invalidateCategoriesCache(); // P-04: write-through invalidation
