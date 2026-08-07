@@ -63,6 +63,10 @@ const favoriteListSelect = {
       viewsAtLastReport: true,
       isFeatured: true,
       isPinned: true,
+      // Fraud detection (item 12): same reasoning as viewsAtLastReport
+      // above — added the moment these two columns landed on Ad.
+      riskScore: true,
+      flaggedForReview: true,
       createdAt: true,
       updatedAt: true,
       userId: true,

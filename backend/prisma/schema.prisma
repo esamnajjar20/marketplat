@@ -141,6 +141,7 @@ model User {
   blocksMade                UserBlock[]          @relation("BlocksMade")
   blocksReceived            UserBlock[]          @relation("BlocksReceived")
   activities                UserActivity[]
+  fraudSignals              FraudSignal[]
 
   @@index([isActive, createdAt])
   @@map("users")
@@ -184,6 +185,21 @@ model Ad {
   viewsAtLastReport Int          @default(0)
   isFeatured      Boolean        @default(false)
   isPinned        Boolean        @default(false)
+  // Fraud-detection (item 12): 0-100 heuristic score computed at
+  // creation/update time by fraudService.scoreAd (see
+  // modules/fraud/fraud.service.ts). Not a Prisma relation target
+  // itself — the individual signals that produced this number are
+  // recorded separately in FraudSignal so the score stays explainable
+  // (an admin reviewing a flagged ad can see *why*, not just the
+  // number) and so re-scoring logic can evolve without needing to
+  // migrate historical rows.
+  riskScore         Int          @default(0)
+  // True once riskScore crosses env.fraud.autoFlagThreshold (or a
+  // manual admin flag). Indexed on its own below because the admin
+  // fraud queue's primary query is "give me every flagged ad",
+  // independent of status/city/etc — the same reasoning as
+  // isFeatured/isPinned already getting their own composite index.
+  flaggedForReview  Boolean      @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   userId          String
@@ -196,6 +212,7 @@ model Ad {
   favorites       Favorite[]
   reports         Report[]
   ratings         SellerRating[]
+  fraudSignals      FraudSignal[]
 
   @@index([userId])
   @@index([categoryId])
@@ -205,6 +222,7 @@ model Ad {
   @@index([status, city])
   @@index([userId, status])
   @@index([isFeatured, isPinned])
+  @@index([flaggedForReview, createdAt])
   @@map("ads")
 }
 
@@ -235,6 +253,52 @@ model Report {
   @@unique([adId, userId])
   @@index([status])
   @@map("reports")
+}
+
+// Fraud-detection (item 12 — "نظام مكافحة الاحتيال"). Append-only log
+// of individual heuristic signals fraudService.scoreAd/scoreUser emit,
+// distinct from AuditLog (security/admin actions) and Report
+// (user-submitted complaints) — this is *system-generated* suspicion,
+// never something a user files themselves. One row per signal firing
+// (not one row per ad), so an ad that trips both RAPID_POSTING and
+// SUSPICIOUS_PRICE gets two rows — same "explainable, not just a
+// number" reasoning as the doc comment on Ad.riskScore.
+model FraudSignal {
+  id         String            @id @default(cuid())
+  type       FraudSignalType
+  // Points this single signal contributed toward the subject's
+  // riskScore at the time it fired. Kept alongside `type` (rather than
+  // only in fraudRules.ts config) so a signal's historical weight is
+  // preserved even if the rule's weight is retuned later — an admin
+  // reviewing an old flag sees the score that actually drove the flag,
+  // not today's (possibly different) weight for that rule.
+  weight     Int
+  // Free-form context for the admin review UI — e.g. { postsInWindow: 12,
+  // windowSeconds: 60 } for RAPID_POSTING, { price: 1, medianPrice: 450 }
+  // for SUSPICIOUS_PRICE. Same "shape varies by type, consumer
+  // switches on type first" convention as AuditLog.details.
+  metadata   Json?
+  // Exactly one of userId/adId is the primary subject depending on
+  // `type` (account-level signals like RAPID_POSTING key off userId;
+  // content-level signals like SUSPICIOUS_PRICE/SUSPICIOUS_LINK key off
+  // adId), but both are stored whenever known so an admin looking at
+  // either the user's or the ad's history sees the full picture — same
+  // dual-key convenience as Ad already carrying both userId and
+  // sellerProfileId rather than forcing a join.
+  userId     String?
+  adId       String?
+  reviewed   Boolean           @default(false)
+  reviewedAt DateTime?
+  reviewedBy String?
+  createdAt  DateTime          @default(now())
+  user       User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ad         Ad?               @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([adId, createdAt])
+  @@index([type, createdAt])
+  @@index([reviewed, createdAt])
+  @@map("fraud_signals")
 }
 
 // Self-referential: a blocker prevents a blocked user from messaging
@@ -809,6 +873,41 @@ enum ReportReason {
   SPAM
 }
 
+// Fraud-detection (item 12). Each value maps to one concrete heuristic
+// in fraudService — kept as narrow/enumerable as AnalyticsEventType's
+// own "map to one concrete question" convention, not a free-text field,
+// so admin filtering/aggregation stays possible.
+enum FraudSignalType {
+  // Same user creating an abnormal number of ads within a short
+  // rolling window (see env.fraud.rapidPostingWindowSeconds/MaxPosts).
+  RAPID_POSTING
+  // Price is a statistical outlier vs. the category's recent median —
+  // both far below (classic "too good to be true" scam bait) and far
+  // above are flagged; fraudService records which direction in metadata.
+  SUSPICIOUS_PRICE
+  // Description/title contains a URL, a phone number outside the
+  // normal contact flow, or another off-platform-contact pattern —
+  // common precursor to steering a buyer off-platform before scamming
+  // them.
+  SUSPICIOUS_CONTACT_PATTERN
+  // Title/description matches known scam-keyword patterns (wire
+  // transfer only, "send deposit first", gift-card payment, etc.).
+  SUSPICIOUS_KEYWORDS
+  // This exact title+price+city (or a near-duplicate) already exists
+  // as another active ad from the same user — classic listing-spam
+  // pattern distinct from RAPID_POSTING's pure velocity check.
+  DUPLICATE_LISTING
+  // Account is very new (see env.fraud.newAccountWindowHours) and is
+  // already exhibiting another signal — new-ness alone isn't
+  // suspicious, but it raises the weight of everything else.
+  NEW_ACCOUNT_HIGH_ACTIVITY
+  // Manually raised by an admin outside the automated scoring path
+  // (e.g. from a pattern noticed while reviewing Reports) — lets a
+  // human-observed pattern live in the same signal/queue system as
+  // automated ones instead of a separate ad-hoc mechanism.
+  MANUAL_ADMIN_FLAG
+}
+
 enum SellerVerificationStatus {
   UNVERIFIED
   PENDING
@@ -918,6 +1017,11 @@ enum AuditEventType {
   OAUTH_LOGIN
   OAUTH_ACCOUNT_LINKED
   OAUTH_SIGNUP
+  // Fraud-detection (item 12): admin actions taken against the
+  // fraud queue — same "every admin write gets an audit row" rule
+  // ADMIN_SELLER_VERIFIED/SUSPENDED etc. already follow above.
+  ADMIN_FRAUD_SIGNAL_REVIEWED
+  ADMIN_FRAUD_MANUAL_FLAG
 }
 
 // Gap #7 (product analytics): event vocabulary kept deliberately small

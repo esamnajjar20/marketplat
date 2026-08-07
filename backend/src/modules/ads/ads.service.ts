@@ -20,6 +20,7 @@ import { favoritesRepository } from '../favorites/favorites.repository';
 import { notificationEvents } from '../notifications';
 import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
+import { fraudService } from '../fraud';
 import { prisma } from '../../config/prisma';
 
 /**
@@ -184,6 +185,27 @@ export const adsService = {
       // so a failed activity insert can never fail an otherwise-
       // successful ad creation.
       activityService.record({ userId, ...activityTemplates.adCreated(ad.id, ad.title) });
+
+      // Fraud detection (item 12): scores the new ad against the
+      // heuristic rules (rapid posting, suspicious price, off-platform
+      // contact patterns, duplicate listings, ...) and auto-flags it
+      // for admin review if the combined riskScore crosses the
+      // configured threshold. Fire-and-forget, same contract as
+      // savedSearchEvents.onAdCreated above — scoring must never fail
+      // or delay ad creation itself.
+      fraudService
+        .scoreAd({
+          id: ad.id,
+          userId,
+          title: ad.title,
+          description: ad.description,
+          city: ad.city,
+          price: ad.price ? Number(ad.price) : null,
+          categoryId: ad.categoryId,
+        })
+        .catch((err) =>
+          logger.error('Fraud scoring failed to run for new ad', { err, adId: ad.id })
+        );
 
       return ad;
     } catch (error) {

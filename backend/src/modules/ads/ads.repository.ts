@@ -49,6 +49,11 @@ const adListSelect = {
   viewsAtLastReport: true,
   isFeatured: true,
   isPinned: true,
+  // Fraud detection (item 12): same "adListSelect must be a superset
+  // of AdWithAuthor's scalars" rule as viewsAtLastReport's own comment
+  // above — added the moment these two columns landed on the Ad model.
+  riskScore: true,
+  flaggedForReview: true,
   createdAt: true,
   updatedAt: true,
   userId: true,

@@ -133,6 +133,20 @@ const envSchema = z.object({
   // without a code change; default matches the prior hardcoded value
   // so existing behavior is unchanged unless the var is explicitly set.
   IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
+  // Fraud-detection (item 12) tuning knobs — all optional with sane
+  // defaults, same "opt-in tuning" pattern as MAX_ADS_PER_USER/
+  // IMAGE_LOCK_TTL_SECONDS above, so existing deployments see no
+  // behavior change unless a var is explicitly set.
+  //
+  // RAPID_POSTING: more than FRAUD_RAPID_POSTING_MAX_POSTS ad creations
+  // by the same user within FRAUD_RAPID_POSTING_WINDOW_SECONDS.
+  FRAUD_RAPID_POSTING_WINDOW_SECONDS: z.string().regex(/^\d+$/).default('60'),
+  FRAUD_RAPID_POSTING_MAX_POSTS: z.string().regex(/^\d+$/).default('5'),
+  // An account younger than this is treated as "new" for
+  // NEW_ACCOUNT_HIGH_ACTIVITY weighting purposes.
+  FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default('24'),
+  // Ad riskScore (0-100) at or above this auto-sets flaggedForReview.
+  FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default('60'),
   // AUDIT-FIX 1.3: analytics.repository.ts's trendByEvent/topCategories
   // run raw, unindexed-aggregate-friendly but potentially expensive
   // GROUP BY queries (date_trunc bucketing, JSON metadata extraction)
@@ -255,6 +269,12 @@ export const env = {
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),
     imageLockTtlSeconds: parseInt(_env.IMAGE_LOCK_TTL_SECONDS, 10),
+  },
+  fraud: {
+    rapidPostingWindowSeconds: parseInt(_env.FRAUD_RAPID_POSTING_WINDOW_SECONDS, 10),
+    rapidPostingMaxPosts: parseInt(_env.FRAUD_RAPID_POSTING_MAX_POSTS, 10),
+    newAccountWindowHours: parseInt(_env.FRAUD_NEW_ACCOUNT_WINDOW_HOURS, 10),
+    autoFlagThreshold: parseInt(_env.FRAUD_AUTO_FLAG_THRESHOLD, 10),
   },
   analytics: {
     queryTimeoutMs: parseInt(_env.ANALYTICS_QUERY_TIMEOUT_MS, 10),

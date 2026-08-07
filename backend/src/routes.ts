@@ -25,6 +25,7 @@ import { auditLogsRouter } from './modules/audit-logs';
 import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
 import { activityRouter } from './modules/activity';
 import { recommendationsRouter } from './modules/recommendations';
+import { fraudRouter } from './modules/fraud';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -98,3 +99,9 @@ router.use('/activity', activityRouter);
 // (logged-in) and anonymous (trending fallback). See recommendations
 // .service.ts's own comment for the full scoring rationale.
 router.use('/recommendations', recommendationsRouter);
+// Fraud detection (item 12 — "نظام مكافحة الاحتيال"): admin-only queue
+// for reviewing auto-flagged ads and the individual signals behind
+// them. Own repository-backed module mounted at /admin/fraud, same
+// pattern as /admin/audit-logs and /admin/analytics sitting outside
+// admin.routes.ts's raw-Prisma admin.service.ts.
+router.use('/admin/fraud', fraudRouter);
