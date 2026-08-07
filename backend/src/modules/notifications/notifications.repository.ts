@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma, Notification, NotificationType, PushSubscription } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
+import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -121,22 +122,24 @@ export const notificationsRepository = {
   // would only occur if the same physical browser subscription was
   // replayed while logged in as a different account, which the update
   // branch intentionally leaves alone rather than resolving implicitly).
+  // AUDIT-FIX 2.6: previously called prisma.pushSubscription.upsert
+  // directly, duplicating the exact same upsert logic pushService.ts
+  // (shared/utils) also needed and had independently implemented —
+  // two call sites writing the same table with no shared source of
+  // truth. Now both go through shared/utils/pushSubscriptionsRepository.ts;
+  // this method stays as the module-facing entry point (keeping the
+  // PushSubscriptionInput `{ endpoint, keys: { p256dh, auth } }` shape
+  // controllers/services in this module already use) and just adapts
+  // it to that repository's flatter input shape.
   upsertPushSubscription: (
     userId: string,
     input: PushSubscriptionInput
   ): Promise<PushSubscription> =>
-    prisma.pushSubscription.upsert({
-      where: { endpoint: input.endpoint },
-      create: {
-        userId,
-        endpoint: input.endpoint,
-        p256dh: input.keys.p256dh,
-        auth: input.keys.auth,
-      },
-      update: {
-        p256dh: input.keys.p256dh,
-        auth: input.keys.auth,
-      },
+    pushSubscriptionsRepository.upsert({
+      userId,
+      endpoint: input.endpoint,
+      p256dh: input.keys.p256dh,
+      auth: input.keys.auth,
     }),
 
   // Scoped to userId so a caller can never delete someone else's
@@ -146,6 +149,9 @@ export const notificationsRepository = {
   // (unlike markRead) since unsubscribeFromPush's caller in lib/pwa.ts
   // already unsubscribed locally regardless of whether the server-side
   // row existed, and calls this best-effort (see its own .catch()).
+  //
+  // AUDIT-FIX 2.6: delegates to the same shared repository as
+  // upsertPushSubscription above, for the same one-source-of-truth reason.
   deletePushSubscription: (userId: string, endpoint: string): Promise<Prisma.BatchPayload> =>
-    prisma.pushSubscription.deleteMany({ where: { userId, endpoint } }),
+    pushSubscriptionsRepository.deleteForUser(userId, endpoint),
 };

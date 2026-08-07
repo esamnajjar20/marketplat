@@ -4,6 +4,7 @@ import { verifyAccessToken } from '../../shared/utils/jwt';
 import { logger } from '../../shared/utils/logger';
 import { prisma } from '../../config/prisma';
 import { AnalyticsEventType } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 
 const DEFAULT_RANGE_DAYS = 30;
 
@@ -19,20 +20,35 @@ const DEFAULT_RANGE_DAYS = 30;
 // malformed token) rather than rejecting the request — an analytics
 // beacon should never fail because of an auth edge case; worst case it
 // records the event as anonymous.
+//
+// AUDIT-FIX 2.3/3.1: the swallow itself is the right call (an analytics
+// beacon must not 401 on a stale token), but it previously logged
+// nothing at all, in any case — an expired token (routine, happens to
+// every logged-in visitor once per JWT_EXPIRES_IN window) and a
+// malformed/tampered token (never legitimate — no valid client code
+// path produces one) were indistinguishable and both invisible. Now
+// distinguishes them: TokenExpiredError is logged at debug level
+// (expected, high-volume, not worth alerting on) while anything else
+// (JsonWebTokenError — bad signature/malformed structure — or any other
+// unexpected failure) is logged at warn level, since that shape of
+// failure is what a forged/tampered token attempt would actually look
+// like and is worth being able to find in logs even though the request
+// itself is still allowed to proceed anonymously.
 const resolveOptionalUserId = (authHeader: string | undefined): string | null => {
   if (!authHeader?.startsWith('Bearer ')) return null;
   try {
     const token = authHeader.split(' ')[1];
     return verifyAccessToken(token).userId;
   } catch (err) {
-    // FIX SEC-3.1: previously swallowed silently. An expired token is
-    // expected and noisy (not worth logging), but a malformed/forged
-    // token is a signal worth having in logs even though the request
-    // itself still degrades gracefully to anonymous — this is
-    // debug-level, not error-level, so it doesn't create alert noise.
-    logger.debug('Ignoring invalid access token on analytics beacon', {
-      err: err instanceof Error ? err.message : err,
-    });
+    if (err instanceof jwt.TokenExpiredError) {
+      logger.debug('Analytics beacon: expired token, recording event as anonymous', {
+        expiredAt: err.expiredAt,
+      });
+    } else {
+      logger.warn('Analytics beacon: token verification failed, recording event as anonymous', {
+        err,
+      });
+    }
     return null;
   }
 };

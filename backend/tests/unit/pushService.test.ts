@@ -27,15 +27,19 @@ jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
-const mockFindMany = jest.fn();
-const mockDeleteMany = jest.fn();
+const mockFindManyByUserId = jest.fn();
+const mockDeleteByEndpoints = jest.fn();
 
-jest.mock('../../src/config/prisma', () => ({
-  prisma: {
-    pushSubscription: {
-      findMany: (...args: unknown[]) => mockFindMany(...args),
-      deleteMany: (...args: unknown[]) => mockDeleteMany(...args),
-    },
+// AUDIT-FIX 2.6: pushService.ts now goes through
+// shared/utils/pushSubscriptionsRepository.ts instead of calling
+// prisma.pushSubscription directly (see that file's doc comment for
+// why) — the mock boundary moves to match. mockFindManyByUserId takes
+// only userId (not a Prisma where-clause) since that's this
+// repository's actual signature.
+jest.mock('../../src/shared/utils/pushSubscriptionsRepository', () => ({
+  pushSubscriptionsRepository: {
+    findManyByUserId: (...args: unknown[]) => mockFindManyByUserId(...args),
+    deleteByEndpoints: (...args: unknown[]) => mockDeleteByEndpoints(...args),
   },
 }));
 
@@ -61,7 +65,7 @@ describe('pushService', () => {
 
       expect(mockSetVapidDetails).not.toHaveBeenCalled();
       expect(mockSendNotification).not.toHaveBeenCalled();
-      expect(mockFindMany).not.toHaveBeenCalled();
+      expect(mockFindManyByUserId).not.toHaveBeenCalled();
     });
 
     it('notifyUser logs a clearly-labeled fallback warning', async () => {
@@ -87,7 +91,7 @@ describe('pushService', () => {
       const { pushService } = require('../../src/shared/utils/pushService');
 
       await expect(pushService.notifyUsers([], payload)).resolves.toBeUndefined();
-      expect(mockFindMany).not.toHaveBeenCalled();
+      expect(mockFindManyByUserId).not.toHaveBeenCalled();
     });
   });
 
@@ -107,7 +111,7 @@ describe('pushService', () => {
     });
 
     it('sets VAPID details from env on first send', async () => {
-      mockFindMany.mockResolvedValue([]);
+      mockFindManyByUserId.mockResolvedValue([]);
       const { pushService } = require('../../src/shared/utils/pushService');
 
       await pushService.notifyUser('user-1', payload);
@@ -120,7 +124,7 @@ describe('pushService', () => {
     });
 
     it('does nothing further when the user has no subscriptions', async () => {
-      mockFindMany.mockResolvedValue([]);
+      mockFindManyByUserId.mockResolvedValue([]);
       const { pushService } = require('../../src/shared/utils/pushService');
 
       await pushService.notifyUser('user-1', payload);
@@ -129,7 +133,7 @@ describe('pushService', () => {
     });
 
     it('sends to every subscription row the user has, with keys mapped to web-push shape', async () => {
-      mockFindMany.mockResolvedValue([
+      mockFindManyByUserId.mockResolvedValue([
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
         { id: 'sub-2', userId: 'user-1', endpoint: 'https://push/2', p256dh: 'p2', auth: 'a2' },
       ]);
@@ -150,7 +154,7 @@ describe('pushService', () => {
     });
 
     it('does not throw when a send fails with a non-Gone error, and logs it as a warning', async () => {
-      mockFindMany.mockResolvedValue([
+      mockFindManyByUserId.mockResolvedValue([
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
       ]);
       mockSendNotification.mockRejectedValue(new Error('network blip'));
@@ -162,11 +166,11 @@ describe('pushService', () => {
         'Push send failed',
         expect.objectContaining({ userId: 'user-1', endpoint: 'https://push/1' })
       );
-      expect(mockDeleteMany).not.toHaveBeenCalled();
+      expect(mockDeleteByEndpoints).not.toHaveBeenCalled();
     });
 
     it('one subscription failing does not stop the others from sending', async () => {
-      mockFindMany.mockResolvedValue([
+      mockFindManyByUserId.mockResolvedValue([
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
         { id: 'sub-2', userId: 'user-1', endpoint: 'https://push/2', p256dh: 'p2', auth: 'a2' },
       ]);
@@ -181,50 +185,50 @@ describe('pushService', () => {
     });
 
     it('prunes the subscription row when the push service returns 410 Gone', async () => {
-      mockFindMany.mockResolvedValue([
+      mockFindManyByUserId.mockResolvedValue([
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
       ]);
       mockSendNotification.mockRejectedValue(Object.assign(new Error('Gone'), { statusCode: 410 }));
-      mockDeleteMany.mockResolvedValue({ count: 1 });
+      mockDeleteByEndpoints.mockResolvedValue({ count: 1 });
       const { pushService } = require('../../src/shared/utils/pushService');
       const { logger } = require('../../src/shared/utils/logger');
 
       await pushService.notifyUser('user-1', payload);
 
-      expect(mockDeleteMany).toHaveBeenCalledWith({ where: { endpoint: { in: ['https://push/1'] } } });
+      expect(mockDeleteByEndpoints).toHaveBeenCalledWith(['https://push/1']);
       // 410 is expected/routine — must not be logged as a warning like
       // an unexpected failure would be.
       expect(logger.warn).not.toHaveBeenCalledWith('Push send failed', expect.anything());
     });
 
     it('prunes the subscription row when the push service returns 404 Not Found', async () => {
-      mockFindMany.mockResolvedValue([
+      mockFindManyByUserId.mockResolvedValue([
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
       ]);
       mockSendNotification.mockRejectedValue(
         Object.assign(new Error('Not Found'), { statusCode: 404 })
       );
-      mockDeleteMany.mockResolvedValue({ count: 1 });
+      mockDeleteByEndpoints.mockResolvedValue({ count: 1 });
       const { pushService } = require('../../src/shared/utils/pushService');
 
       await pushService.notifyUser('user-1', payload);
 
-      expect(mockDeleteMany).toHaveBeenCalledWith({ where: { endpoint: { in: ['https://push/1'] } } });
+      expect(mockDeleteByEndpoints).toHaveBeenCalledWith(['https://push/1']);
     });
 
     it('does not throw even if pruning the stale subscription itself fails', async () => {
-      mockFindMany.mockResolvedValue([
+      mockFindManyByUserId.mockResolvedValue([
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
       ]);
       mockSendNotification.mockRejectedValue(Object.assign(new Error('Gone'), { statusCode: 410 }));
-      mockDeleteMany.mockRejectedValue(new Error('db unavailable'));
+      mockDeleteByEndpoints.mockRejectedValue(new Error('db unavailable'));
       const { pushService } = require('../../src/shared/utils/pushService');
 
       await expect(pushService.notifyUser('user-1', payload)).resolves.toBeUndefined();
     });
 
     it('notifyUsers sends to every given user independently', async () => {
-      mockFindMany
+      mockFindManyByUserId
         .mockResolvedValueOnce([
           { id: 'sub-1', userId: 'u1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
         ])
@@ -236,13 +240,13 @@ describe('pushService', () => {
 
       await pushService.notifyUsers(['u1', 'u2'], payload);
 
-      expect(mockFindMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
-      expect(mockFindMany).toHaveBeenCalledWith({ where: { userId: 'u2' } });
+      expect(mockFindManyByUserId).toHaveBeenCalledWith('u1');
+      expect(mockFindManyByUserId).toHaveBeenCalledWith('u2');
       expect(mockSendNotification).toHaveBeenCalledTimes(2);
     });
 
     it('reuses VAPID configuration across multiple calls instead of re-setting it each time', async () => {
-      mockFindMany.mockResolvedValue([]);
+      mockFindManyByUserId.mockResolvedValue([]);
       const { pushService } = require('../../src/shared/utils/pushService');
 
       await pushService.notifyUser('u1', payload);

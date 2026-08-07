@@ -1,7 +1,7 @@
 import webpush from 'web-push';
 import { env } from '../../config/env';
 import { logger } from './logger';
-import { prisma } from '../../config/prisma';
+import { pushSubscriptionsRepository } from './pushSubscriptionsRepository';
 
 /**
  * FIX PWA-PUSH-01: this is the missing backend half of the frontend's
@@ -82,57 +82,81 @@ export const pushService = {
    * notificationsRepository.create.
    */
   notifyUser: async (userId: string, payload: PushPayload): Promise<void> => {
-    if (!ensureConfigured()) {
-      logger.warn('[PUSH NOT SENT — VAPID not configured] Would have sent push', {
-        userId,
+    // AUDIT-FIX 2.1: wraps the whole body (not just the per-subscription
+    // sendNotification below, which already had its own try/catch) so
+    // an unexpected failure anywhere in this function — most notably
+    // prisma.pushSubscription.findMany() below, which previously had no
+    // guard at all — can never escape as an unhandled promise rejection.
+    // notificationEvents in notifications.service.ts calls this with
+    // `void pushService.notifyUser(...)` (intentional fire-and-forget —
+    // a push failing must never fail the underlying action), which means
+    // ANY rejection this function produces was previously silent and
+    // untracked at the process level. Catching here, at the single
+    // shared entry point, fixes all three call sites
+    // (onNewMessage/onFavoritedAdPriceChanged/onSavedSearchMatched) at
+    // once instead of requiring each `void` call site to remember its
+    // own `.catch()`.
+    try {
+      if (!ensureConfigured()) {
+        logger.warn('[PUSH NOT SENT — VAPID not configured] Would have sent push', {
+          userId,
+          title: payload.title,
+        });
+        return;
+      }
+
+      const subscriptions = await pushSubscriptionsRepository.findManyByUserId(userId);
+      if (subscriptions.length === 0) return;
+
+      const body = JSON.stringify({
         title: payload.title,
+        body: payload.body,
+        url: payload.url,
+        tag: payload.tag,
       });
-      return;
-    }
 
-    const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
-    if (subscriptions.length === 0) return;
+      const staleEndpoints: string[] = [];
 
-    const body = JSON.stringify({
-      title: payload.title,
-      body: payload.body,
-      url: payload.url,
-      tag: payload.tag,
-    });
-
-    const staleEndpoints: string[] = [];
-
-    await Promise.all(
-      subscriptions.map(async (sub) => {
-        try {
-          await webpush.sendNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: { p256dh: sub.p256dh, auth: sub.auth },
-            },
-            body
-          );
-        } catch (err) {
-          if (isGoneError(err)) {
-            // Expected/routine, not an error worth alerting on — every
-            // uninstall or cleared-site-data event produces exactly
-            // this. Pruned below rather than logged at error level.
-            staleEndpoints.push(sub.endpoint);
-            return;
+      await Promise.all(
+        subscriptions.map(async (sub) => {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: { p256dh: sub.p256dh, auth: sub.auth },
+              },
+              body
+            );
+          } catch (err) {
+            if (isGoneError(err)) {
+              // Expected/routine, not an error worth alerting on — every
+              // uninstall or cleared-site-data event produces exactly
+              // this. Pruned below rather than logged at error level.
+              staleEndpoints.push(sub.endpoint);
+              return;
+            }
+            // Any other failure (network blip, malformed payload,
+            // misconfigured VAPID keys) is unexpected and worth
+            // surfacing, but must not propagate — see doc comment above
+            // on why this stays fire-and-forget.
+            logger.warn('Push send failed', { userId, endpoint: sub.endpoint, err });
           }
-          // Any other failure (network blip, malformed payload,
-          // misconfigured VAPID keys) is unexpected and worth
-          // surfacing, but must not propagate — see doc comment above
-          // on why this stays fire-and-forget.
-          logger.warn('Push send failed', { userId, endpoint: sub.endpoint, err });
-        }
-      })
-    );
+        })
+      );
 
-    if (staleEndpoints.length > 0) {
-      await prisma.pushSubscription
-        .deleteMany({ where: { endpoint: { in: staleEndpoints } } })
-        .catch((err) => logger.warn('Failed to prune stale push subscriptions', { err }));
+      if (staleEndpoints.length > 0) {
+        await pushSubscriptionsRepository
+          .deleteByEndpoints(staleEndpoints)
+          .catch((err) => logger.warn('Failed to prune stale push subscriptions', { err }));
+      }
+    } catch (err) {
+      // Catches anything not already handled above — chiefly a failed
+      // findMany(), but also any future code added to this function
+      // that forgets its own try/catch. Logged at error level (unlike
+      // the routine per-subscription warn above) since reaching this
+      // branch means the whole push attempt for this user was aborted,
+      // not just one of several subscriptions.
+      logger.error('pushService.notifyUser failed unexpectedly', { userId, err });
     }
   },
 

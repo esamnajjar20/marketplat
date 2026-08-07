@@ -162,15 +162,25 @@ export const storesService = {
 
     // AUDIT-FIX (issue #10 follow-up): this admin action wrote no audit
     // trail at all — same gap sellersService.setVerification/setSuspension
-    // closed for ADMIN_SELLER_VERIFIED/SUSPENDED. adminUserId is now
-    // required (FIX SEC-3.2) so a future caller can't silently forget to
-    // pass it and lose the audit trail — the type system enforces what
-    // used to only be true by convention.
-    auditLog({
+    // closed for ADMIN_SELLER_VERIFIED/SUSPENDED. adminUserId is required
+    // (FIX SEC-3.2) so a future caller can't silently forget to pass it
+    // and lose the audit trail — the type system enforces what used to
+    // only be true by convention.
+    //
+    // AUDIT-FIX 2.2: the `.catch(() => {})` that used to sit on this call
+    // was dead code — auditLog() itself never rejects (it logs via
+    // logger.info unconditionally first, then attempts the DB write with
+    // its own internal .catch() that logs any DB failure via
+    // logger.error; see shared/utils/auditLog.ts). It read as if it were
+    // the thing protecting against a failed audit write, which was
+    // misleading. Removed; if auditLog()'s own contract ever changes to
+    // reject, this call site should be revisited deliberately rather
+    // than silently swallowing it again.
+    void auditLog({
       event: AuditEvent.ADMIN_STORE_STATUS_CHANGED,
       userId: adminUserId,
       details: { storeId: id, status: input.status },
-    }).catch(() => {});
+    });
 
     return updated;
   },

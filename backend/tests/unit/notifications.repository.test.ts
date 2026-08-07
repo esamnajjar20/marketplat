@@ -1,5 +1,6 @@
 import { notificationsRepository } from '../../src/modules/notifications/notifications.repository';
 import { prisma } from '../../src/config/prisma';
+import { pushSubscriptionsRepository } from '../../src/shared/utils/pushSubscriptionsRepository';
 
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
@@ -10,10 +11,18 @@ jest.mock('../../src/config/prisma', () => ({
       count: jest.fn(),
       updateMany: jest.fn(),
     },
-    pushSubscription: {
-      upsert: jest.fn(),
-      deleteMany: jest.fn(),
-    },
+  },
+}));
+
+// AUDIT-FIX 2.6: notificationsRepository.upsertPushSubscription/
+// deletePushSubscription now delegate to
+// shared/utils/pushSubscriptionsRepository.ts instead of calling
+// prisma.pushSubscription directly (see that file's doc comment) — the
+// mock boundary moves to match.
+jest.mock('../../src/shared/utils/pushSubscriptionsRepository', () => ({
+  pushSubscriptionsRepository: {
+    upsert: jest.fn(),
+    deleteForUser: jest.fn(),
   },
 }));
 
@@ -167,8 +176,8 @@ describe('notificationsRepository', () => {
       keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
     };
 
-    it('upserts on endpoint, creating with userId and the given keys', async () => {
-      (prisma.pushSubscription.upsert as jest.Mock).mockResolvedValue({
+    it('delegates to pushSubscriptionsRepository.upsert with a flattened input', async () => {
+      (pushSubscriptionsRepository.upsert as jest.Mock).mockResolvedValue({
         id: 'sub-1',
         userId,
         endpoint: input.endpoint,
@@ -178,48 +187,33 @@ describe('notificationsRepository', () => {
 
       await notificationsRepository.upsertPushSubscription(userId, input);
 
-      expect(prisma.pushSubscription.upsert).toHaveBeenCalledWith({
-        where: { endpoint: input.endpoint },
-        create: {
-          userId,
-          endpoint: input.endpoint,
-          p256dh: input.keys.p256dh,
-          auth: input.keys.auth,
-        },
-        update: {
-          p256dh: input.keys.p256dh,
-          auth: input.keys.auth,
-        },
+      expect(pushSubscriptionsRepository.upsert).toHaveBeenCalledWith({
+        userId,
+        endpoint: input.endpoint,
+        p256dh: input.keys.p256dh,
+        auth: input.keys.auth,
       });
-    });
-
-    it('does not include userId in the update branch (re-subscribe never reassigns owner)', async () => {
-      (prisma.pushSubscription.upsert as jest.Mock).mockResolvedValue({});
-
-      await notificationsRepository.upsertPushSubscription(userId, input);
-
-      const call = (prisma.pushSubscription.upsert as jest.Mock).mock.calls[0][0];
-      expect(call.update).not.toHaveProperty('userId');
     });
   });
 
   describe('deletePushSubscription', () => {
-    it('scopes the delete to both userId and endpoint', async () => {
-      (prisma.pushSubscription.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+    it('delegates to pushSubscriptionsRepository.deleteForUser scoped to userId and endpoint', async () => {
+      (pushSubscriptionsRepository.deleteForUser as jest.Mock).mockResolvedValue({ count: 1 });
 
       const result = await notificationsRepository.deletePushSubscription(
         userId,
         'https://fcm.googleapis.com/fcm/send/abc123'
       );
 
-      expect(prisma.pushSubscription.deleteMany).toHaveBeenCalledWith({
-        where: { userId, endpoint: 'https://fcm.googleapis.com/fcm/send/abc123' },
-      });
+      expect(pushSubscriptionsRepository.deleteForUser).toHaveBeenCalledWith(
+        userId,
+        'https://fcm.googleapis.com/fcm/send/abc123'
+      );
       expect(result).toEqual({ count: 1 });
     });
 
     it('returns count 0 when no matching subscription exists (not treated as an error)', async () => {
-      (prisma.pushSubscription.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (pushSubscriptionsRepository.deleteForUser as jest.Mock).mockResolvedValue({ count: 0 });
 
       const result = await notificationsRepository.deletePushSubscription(userId, 'https://x/y');
 

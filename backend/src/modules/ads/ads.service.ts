@@ -435,8 +435,18 @@ export const adsService = {
       try {
         const publicId = extractCloudinaryPublicId(imageUrl);
         if (publicId) await deleteImage(publicId);
-      } catch {
-        /* continue even if Cloudinary delete fails */
+      } catch (err) {
+        // AUDIT-FIX 2.4: same fix as products.service.ts/
+        // service-listings.service.ts's mirrored removeImage — continuing
+        // is correct (removing the image from the ad record must not
+        // fail over a storage cleanup miss), but this must be logged so
+        // an orphaned Cloudinary asset is discoverable later instead of
+        // vanishing with no trace.
+        logger.warn('Failed to delete ad image from Cloudinary — orphaned asset', {
+          adId,
+          imageUrl,
+          err,
+        });
       }
       const updated = await adsRepository.removeImage(adId, imageUrl);
       // FIX AUDIT-V4-06: same reasoning as addImages — keep cached
