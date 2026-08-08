@@ -1,8 +1,11 @@
-import { v2 as cloudinary } from 'cloudinary';
-import { env } from './env';
-import { logger } from '../shared/utils/logger';
-import { CircuitBreaker, CircuitBreakerOpenError } from '../shared/utils/circuitBreaker';
-import { ServiceUnavailableError } from '../shared/errors/ServiceUnavailableError';
+import { v2 as cloudinary } from "cloudinary";
+import { env } from "./env";
+import { logger } from "../shared/utils/logger";
+import {
+  CircuitBreaker,
+  CircuitBreakerOpenError,
+} from "../shared/utils/circuitBreaker";
+import { ServiceUnavailableError } from "../shared/errors/ServiceUnavailableError";
 
 cloudinary.config({
   cloud_name: env.cloudinary.cloudName,
@@ -48,11 +51,15 @@ const DELETE_TIMEOUT_MS = 10_000;
 class CloudinaryTimeoutError extends Error {
   constructor(operation: string, timeoutMs: number) {
     super(`Cloudinary ${operation} timed out after ${timeoutMs}ms`);
-    this.name = 'CloudinaryTimeoutError';
+    this.name = "CloudinaryTimeoutError";
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  operation: string,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new CloudinaryTimeoutError(operation, timeoutMs));
@@ -61,14 +68,14 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: strin
     timer.unref();
 
     promise.then(
-      value => {
+      (value) => {
         clearTimeout(timer);
         resolve(value);
       },
-      err => {
+      (err) => {
         clearTimeout(timer);
         reject(err);
-      }
+      },
     );
   });
 }
@@ -93,54 +100,71 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: strin
  * in-flight at once, not just how long any one of them can take.
  */
 const uploadBreaker = new CircuitBreaker({
-  name: 'cloudinary-upload',
+  name: "cloudinary-upload",
   failureThreshold: 5,
   resetTimeoutMs: 30_000,
 });
 
 const deleteBreaker = new CircuitBreaker({
-  name: 'cloudinary-delete',
+  name: "cloudinary-delete",
   failureThreshold: 5,
   resetTimeoutMs: 30_000,
 });
 
-export const uploadImage = async (buffer: Buffer, folder: string): Promise<UploadResult> => {
-  return uploadBreaker.execute(async () => {
-    const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          {
-            folder: `classifieds/${folder}`,
-            timeout: UPLOAD_TIMEOUT_MS,
-            transformation: [
-              { width: 1200, height: 800, crop: 'limit' },
-              { quality: 'auto:good' },
-              { format: 'webp' },
-            ],
-          },
-          (error, result) => {
-            if (error || !result) return reject(new Error('Image upload failed'));
-            resolve({ url: result.secure_url, publicId: result.public_id });
-          }
-        )
-        .end(buffer);
-    });
+export const uploadImage = async (
+  buffer: Buffer,
+  folder: string,
+): Promise<UploadResult> => {
+  return uploadBreaker
+    .execute(async () => {
+      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: `classifieds/${folder}`,
+              timeout: UPLOAD_TIMEOUT_MS,
+              transformation: [
+                { width: 1200, height: 800, crop: "limit" },
+                { quality: "auto:good" },
+                { format: "webp" },
+              ],
+            },
+            (error, result) => {
+              if (error || !result)
+                return reject(new Error("Image upload failed"));
+              resolve({ url: result.secure_url, publicId: result.public_id });
+            },
+          )
+          .end(buffer);
+      });
 
-    try {
-      return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'image upload');
-    } catch (err) {
-      if (err instanceof CloudinaryTimeoutError) {
-        logger.error('Cloudinary upload timed out', { folder, timeoutMs: UPLOAD_TIMEOUT_MS });
+      try {
+        return await withTimeout(
+          uploadPromise,
+          UPLOAD_TIMEOUT_MS,
+          "image upload",
+        );
+      } catch (err) {
+        if (err instanceof CloudinaryTimeoutError) {
+          logger.error("Cloudinary upload timed out", {
+            folder,
+            timeoutMs: UPLOAD_TIMEOUT_MS,
+          });
+        }
+        throw err;
+      }
+    })
+    .catch((err) => {
+      if (err instanceof CircuitBreakerOpenError) {
+        logger.error("Cloudinary upload rejected — circuit breaker is open", {
+          folder,
+        });
+        throw new ServiceUnavailableError(
+          "Image upload is temporarily unavailable, please try again shortly",
+        );
       }
       throw err;
-    }
-  }).catch(err => {
-    if (err instanceof CircuitBreakerOpenError) {
-      logger.error('Cloudinary upload rejected — circuit breaker is open', { folder });
-      throw new ServiceUnavailableError('Image upload is temporarily unavailable, please try again shortly');
-    }
-    throw err;
-  });
+    });
 };
 
 /**
@@ -155,75 +179,95 @@ export const uploadImage = async (buffer: Buffer, folder: string): Promise<Uploa
  * are different API operations that can fail independently).
  */
 export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
-  return uploadBreaker.execute(async () => {
-    const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          {
-            folder: 'classifieds/avatars',
-            timeout: UPLOAD_TIMEOUT_MS,
-            transformation: [
-              { width: 400, height: 400, crop: 'fill', gravity: 'face' },
-              { quality: 'auto:good' },
-              { format: 'webp' },
-            ],
-          },
-          (error, result) => {
-            if (error || !result) return reject(new Error('Avatar upload failed'));
-            resolve({ url: result.secure_url, publicId: result.public_id });
-          }
-        )
-        .end(buffer);
-    });
+  return uploadBreaker
+    .execute(async () => {
+      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: "classifieds/avatars",
+              timeout: UPLOAD_TIMEOUT_MS,
+              transformation: [
+                { width: 400, height: 400, crop: "fill", gravity: "face" },
+                { quality: "auto:good" },
+                { format: "webp" },
+              ],
+            },
+            (error, result) => {
+              if (error || !result)
+                return reject(new Error("Avatar upload failed"));
+              resolve({ url: result.secure_url, publicId: result.public_id });
+            },
+          )
+          .end(buffer);
+      });
 
-    try {
-      return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'avatar upload');
-    } catch (err) {
-      if (err instanceof CloudinaryTimeoutError) {
-        logger.error('Cloudinary avatar upload timed out', { timeoutMs: UPLOAD_TIMEOUT_MS });
+      try {
+        return await withTimeout(
+          uploadPromise,
+          UPLOAD_TIMEOUT_MS,
+          "avatar upload",
+        );
+      } catch (err) {
+        if (err instanceof CloudinaryTimeoutError) {
+          logger.error("Cloudinary avatar upload timed out", {
+            timeoutMs: UPLOAD_TIMEOUT_MS,
+          });
+        }
+        throw err;
+      }
+    })
+    .catch((err) => {
+      if (err instanceof CircuitBreakerOpenError) {
+        logger.error(
+          "Cloudinary avatar upload rejected — circuit breaker is open",
+        );
+        throw new ServiceUnavailableError(
+          "Avatar upload is temporarily unavailable, please try again shortly",
+        );
       }
       throw err;
-    }
-  }).catch(err => {
-    if (err instanceof CircuitBreakerOpenError) {
-      logger.error('Cloudinary avatar upload rejected — circuit breaker is open');
-      throw new ServiceUnavailableError('Avatar upload is temporarily unavailable, please try again shortly');
-    }
-    throw err;
-  });
+    });
 };
 
 export const deleteImage = async (publicId: string): Promise<void> => {
-  await deleteBreaker.execute(async () => {
-    try {
-      await withTimeout(
-        cloudinary.uploader.destroy(publicId, {
-          // Cloudinary's own destroy() *does* accept `timeout` at
-          // runtime (same two-layer design as uploadImage/uploadAvatar
-          // above), but this SDK version's TypeScript definitions omit
-          // it from the destroy() options type — hence the cast. The
-          // destroy() options parameter type is a union with an
-          // incompatible function-shaped overload member (its optional
-          // ResponseCallback), so a direct cast to that parameter type
-          // is rejected; going through `unknown` first is the safe,
-          // narrow way to bypass just this one missing-field gap.
-          timeout: DELETE_TIMEOUT_MS,
-        } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]),
-        DELETE_TIMEOUT_MS,
-        'image delete'
-      );
-    } catch (err) {
-      if (err instanceof CloudinaryTimeoutError) {
-        logger.error('Cloudinary delete timed out', { publicId, timeoutMs: DELETE_TIMEOUT_MS });
+  await deleteBreaker
+    .execute(async () => {
+      try {
+        await withTimeout(
+          cloudinary.uploader.destroy(publicId, {
+            // Cloudinary's own destroy() *does* accept `timeout` at
+            // runtime (same two-layer design as uploadImage/uploadAvatar
+            // above), but this SDK version's TypeScript definitions omit
+            // it from the destroy() options type — hence the cast. The
+            // destroy() options parameter type is a union with an
+            // incompatible function-shaped overload member (its optional
+            // ResponseCallback), so a direct cast to that parameter type
+            // is rejected; going through `unknown` first is the safe,
+            // narrow way to bypass just this one missing-field gap.
+            timeout: DELETE_TIMEOUT_MS,
+          } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]),
+          DELETE_TIMEOUT_MS,
+          "image delete",
+        );
+      } catch (err) {
+        if (err instanceof CloudinaryTimeoutError) {
+          logger.error("Cloudinary delete timed out", {
+            publicId,
+            timeoutMs: DELETE_TIMEOUT_MS,
+          });
+        }
+        throw err;
+      }
+    })
+    .catch((err) => {
+      if (err instanceof CircuitBreakerOpenError) {
+        logger.error("Cloudinary delete rejected — circuit breaker is open", {
+          publicId,
+        });
       }
       throw err;
-    }
-  }).catch(err => {
-    if (err instanceof CircuitBreakerOpenError) {
-      logger.error('Cloudinary delete rejected — circuit breaker is open', { publicId });
-    }
-    throw err;
-  });
+    });
 };
 
 /**

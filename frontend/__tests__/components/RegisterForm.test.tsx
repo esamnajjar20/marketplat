@@ -182,7 +182,11 @@ describe('RegisterForm', () => {
       await fillRequiredFields(user);
 
       await user.type(screen.getByLabelText(/رقم الهاتف/), '+970591234567');
-      await user.selectOptions(screen.getByLabelText(/المدينة/), 'غزة');
+      // The city field is the same Radix Select used elsewhere in this
+      // app (see ReportAdButton/AdminAdsTable fixes) — selectOptions
+      // can't act on it since its options only mount once opened.
+      await user.click(screen.getByLabelText(/المدينة/));
+      await user.click(await screen.findByRole('option', { name: 'غزة' }));
       await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
 
       expect(mockRegister).toHaveBeenCalledWith(

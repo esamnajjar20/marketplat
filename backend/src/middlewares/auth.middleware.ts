@@ -1,24 +1,24 @@
-import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../shared/utils/jwt';
-import { tokenStore, getBlacklistKey } from '../shared/utils/tokenStore';
-import { userCache, getUserCacheKey } from '../shared/utils/userCache';
-import { UnauthorizedError } from '../shared/errors/UnauthorizedError';
-import { env } from '../config/env';
-import { redis } from '../config/redis';
-import { logger } from '../shared/utils/logger';
+import { Request, Response, NextFunction } from "express";
+import { verifyAccessToken } from "../shared/utils/jwt";
+import { tokenStore, getBlacklistKey } from "../shared/utils/tokenStore";
+import { userCache, getUserCacheKey } from "../shared/utils/userCache";
+import { UnauthorizedError } from "../shared/errors/UnauthorizedError";
+import { env } from "../config/env";
+import { redis } from "../config/redis";
+import { logger } from "../shared/utils/logger";
 
 export const authenticate = async (
   req: Request,
   _res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new UnauthorizedError('No token provided');
+    if (!authHeader?.startsWith("Bearer ")) {
+      throw new UnauthorizedError("No token provided");
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
 
     // Verify JWT first (CPU-only, no I/O) — fail fast before hitting Redis
     const payload = verifyAccessToken(token);
@@ -55,15 +55,15 @@ export const authenticate = async (
     } catch (err) {
       // Redis unavailable — strict mode rejects, dev mode allows
       if (env.security.blacklistStrict) {
-        logger.error('Redis unavailable during auth — rejecting (strict mode)');
-        throw new UnauthorizedError('Authentication service unavailable');
+        logger.error("Redis unavailable during auth — rejecting (strict mode)");
+        throw new UnauthorizedError("Authentication service unavailable");
       }
-      logger.warn('Redis unavailable during auth — allowing (dev mode)');
+      logger.warn("Redis unavailable during auth — allowing (dev mode)");
     }
 
     // Blacklist check
     if (blacklistResult !== null) {
-      throw new UnauthorizedError('Token has been revoked');
+      throw new UnauthorizedError("Token has been revoked");
     }
 
     // Resolve user — from pipeline result or DB fallback
@@ -76,21 +76,23 @@ export const authenticate = async (
     }
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedError('Account is deactivated or not found');
+      throw new UnauthorizedError("Account is deactivated or not found");
     }
 
     // Inject role from cache (not from JWT — role changes are immediate)
     req.user = { ...payload, role: user.role };
 
     // Update lastSeen async — fire and forget, never blocks response
-    tokenStore.updateSessionLastSeen(payload.userId, payload.sessionId).catch(() => {});
+    tokenStore
+      .updateSessionLastSeen(payload.userId, payload.sessionId)
+      .catch(() => {});
 
     next();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       next(error);
     } else {
-      next(new UnauthorizedError('Invalid or expired token'));
+      next(new UnauthorizedError("Invalid or expired token"));
     }
   }
 };

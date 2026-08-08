@@ -18,6 +18,7 @@ import {
   useAdminSetPinned,
   useAdminForceDeleteAd,
 } from '@/hooks/mutations/useAdminMutations';
+import { STATUS_LABELS } from '@/lib/constants';
 import type { AdminAd } from '@/types/admin.types';
 
 vi.mock('@/hooks/queries/useAdmin', () => ({
@@ -219,8 +220,12 @@ describe('AdminAdsTable', () => {
       const user = userEvent.setup();
       render(<AdminAdsTable />);
 
-      const select = screen.getByRole('combobox');
-      await user.selectOptions(select, 'SOLD');
+      // FIX UX-02 swapped the native <select> for this app's Radix
+      // Select (role="combobox"); its options only mount in the DOM
+      // once the trigger is opened, so selectOptions can't act on it
+      // directly — open it, then click the option.
+      await user.click(screen.getByRole('combobox'));
+      await user.click(await screen.findByRole('option', { name: STATUS_LABELS.SOLD }));
 
       const calledUrl = mockPush.mock.calls[mockPush.mock.calls.length - 1][0] as string;
       expect(calledUrl).toMatch(/status=SOLD/);

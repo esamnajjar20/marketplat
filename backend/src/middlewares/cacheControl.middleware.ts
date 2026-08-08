@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 
 /**
  * Sets Cache-Control headers for public, cacheable responses.
@@ -12,7 +12,7 @@ export const cacheControl =
   (_req: Request, res: Response, next: NextFunction): void => {
     const directives = [`public`, `max-age=${maxAge}`];
     if (swr) directives.push(`stale-while-revalidate=${swr}`);
-    res.setHeader('Cache-Control', directives.join(', '));
+    res.setHeader("Cache-Control", directives.join(", "));
     next();
   };
 
@@ -26,7 +26,7 @@ export const CACHE = {
   MEDIUM: cacheControl(60, 30),
   // No cache: authenticated or mutating routes
   NONE: (_req: Request, res: Response, next: NextFunction): void => {
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader("Cache-Control", "no-store");
     next();
   },
 };

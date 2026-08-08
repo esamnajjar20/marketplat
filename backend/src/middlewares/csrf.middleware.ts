@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
-import { getCsrfCookieName } from '../shared/utils/authCookies';
-import { ForbiddenError } from '../shared/errors/ForbiddenError';
+import { Request, Response, NextFunction } from "express";
+import crypto from "crypto";
+import { getCsrfCookieName } from "../shared/utils/authCookies";
+import { ForbiddenError } from "../shared/errors/ForbiddenError";
 
 // AUDIT-FIX M-03 (defense-in-depth alongside metrics.ts): plain
 // `!==` string comparison is not constant-time. Real-world risk here
@@ -69,10 +69,14 @@ function safeTokenEquals(a: string, b: string): boolean {
  * (This mirrors how most real-world CSRF middleware — Django, Rails —
  * also exempts the login endpoint itself.)
  */
-const CSRF_EXEMPT_PATHS = new Set(['/auth/login', '/auth/register']);
+const CSRF_EXEMPT_PATHS = new Set(["/auth/login", "/auth/register"]);
 
-export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
-  const isSafeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+export function csrfProtection(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const isSafeMethod = ["GET", "HEAD", "OPTIONS"].includes(req.method);
   if (isSafeMethod || CSRF_EXEMPT_PATHS.has(req.path)) {
     next();
     return;
@@ -90,15 +94,15 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  const headerToken = req.headers['x-csrf-token'];
+  const headerToken = req.headers["x-csrf-token"];
 
   if (
-    typeof cookieToken !== 'string' ||
-    typeof headerToken !== 'string' ||
+    typeof cookieToken !== "string" ||
+    typeof headerToken !== "string" ||
     cookieToken.length === 0 ||
     !safeTokenEquals(cookieToken, headerToken)
   ) {
-    next(new ForbiddenError('Invalid or missing CSRF token'));
+    next(new ForbiddenError("Invalid or missing CSRF token"));
     return;
   }
 

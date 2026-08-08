@@ -44,9 +44,9 @@
  * own doc comment for why these standalone jobs aren't run via ts-node
  * in production.)
  */
-import { PrismaClient } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
-import { pushService } from '../shared/utils/pushService';
+import { PrismaClient } from "@prisma/client";
+import { logger } from "../shared/utils/logger";
+import { pushService } from "../shared/utils/pushService";
 
 const prisma = new PrismaClient();
 
@@ -107,28 +107,35 @@ async function main(): Promise<void> {
   const deltas = await findOwnerDeltas();
 
   if (deltas.length === 0) {
-    logger.info('[weeklyAdViewsReport] nothing to report — no opted-in owner has new views');
+    logger.info(
+      "[weeklyAdViewsReport] nothing to report — no opted-in owner has new views",
+    );
     return;
   }
 
   let sent = 0;
   for (const { userId, totalDelta, adIds } of deltas) {
-    const title = 'تقرير مشاهدات إعلاناتك الأسبوعي';
+    const title = "تقرير مشاهدات إعلاناتك الأسبوعي";
     const body =
       totalDelta === 1
-        ? 'حصل إعلانك على مشاهدة جديدة هذا الأسبوع'
+        ? "حصل إعلانك على مشاهدة جديدة هذا الأسبوع"
         : `حصلت إعلاناتك على ${totalDelta} مشاهدة جديدة هذا الأسبوع`;
 
     try {
       // Same fire-and-forget-push-alongside-in-app-write convention as
       // notificationEvents in notifications.service.ts — a push failing
       // to send must never block or fail the in-app notification write.
-      void pushService.notifyUser(userId, { title, body, url: '/dashboard', tag: 'weekly-ad-views-report' });
+      void pushService.notifyUser(userId, {
+        title,
+        body,
+        url: "/dashboard",
+        tag: "weekly-ad-views-report",
+      });
 
       await prisma.notification.create({
         data: {
           userId,
-          type: 'WEEKLY_AD_VIEWS_REPORT',
+          type: "WEEKLY_AD_VIEWS_REPORT",
           title,
           body,
           data: { totalDelta, adCount: adIds.length },
@@ -141,7 +148,10 @@ async function main(): Promise<void> {
       // the batch still gets its report, and this owner's un-advanced
       // baseline means their unreported views simply roll into next
       // week's delta instead of being lost.
-      logger.error('[weeklyAdViewsReport] failed to send report', { err, userId });
+      logger.error("[weeklyAdViewsReport] failed to send report", {
+        err,
+        userId,
+      });
     }
   }
 
@@ -150,7 +160,7 @@ async function main(): Promise<void> {
 
 main()
   .catch((err) => {
-    logger.error('[weeklyAdViewsReport] run failed', err);
+    logger.error("[weeklyAdViewsReport] run failed", err);
     process.exitCode = 1;
   })
   .finally(async () => {

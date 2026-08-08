@@ -109,16 +109,24 @@ describe('AdForm', () => {
       screen.getByLabelText(/الوصف/),
       'هذا وصف تجريبي طويل بما فيه الكفاية لاجتياز التحقق من طول العشرين حرفاً',
     );
-    await user.selectOptions(screen.getByLabelText(/المدينة/), 'غزة');
+    // The city field is a Radix Select (role="combobox"); its options
+    // only mount in the DOM once the trigger is opened, so
+    // selectOptions can't act on it directly — open it, then click.
+    await user.click(screen.getByLabelText(/المدينة/));
+    await user.click(await screen.findByRole('option', { name: 'غزة' }));
   }
 
+  // AdForm's isFormIncomplete guard (title≥5, description≥20, city set)
+  // keeps the submit button disabled for every one of these scenarios
+  // by design, so a plain click on it would be a no-op — Enter in the
+  // last-touched field submits the <form> the same way it would for a
+  // real user, exercising validate()'s error paths instead.
   describe('validation', () => {
     it('requires a title of at least 5 characters', async () => {
       const user = userEvent.setup();
       render(<AdForm mode="create" />);
 
-      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'قصير');
-      await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'قصير{Enter}');
 
       expect(screen.getByText('العنوان قصير جداً (5 أحرف على الأقل)')).toBeInTheDocument();
       expect(mockCreateMutate).not.toHaveBeenCalled();
@@ -128,9 +136,13 @@ describe('AdForm', () => {
       const user = userEvent.setup();
       render(<AdForm mode="create" />);
 
-      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان صالح للإعلان');
+      const titleInput = screen.getByLabelText(/عنوان الإعلان/);
+      await user.type(titleInput, 'عنوان صالح للإعلان');
+      // The description field is a <textarea>: Enter there inserts a
+      // newline instead of submitting, unlike a plain <input> — so type
+      // it in full first, then submit via Enter back in the title field.
       await user.type(screen.getByLabelText(/الوصف/), 'قصير جداً');
-      await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
+      await user.type(titleInput, '{Enter}');
 
       expect(screen.getByText('الوصف قصير جداً (20 حرفاً على الأقل)')).toBeInTheDocument();
       expect(mockCreateMutate).not.toHaveBeenCalled();
@@ -140,12 +152,15 @@ describe('AdForm', () => {
       const user = userEvent.setup();
       render(<AdForm mode="create" />);
 
-      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان صالح للإعلان');
+      const titleInput = screen.getByLabelText(/عنوان الإعلان/);
+      await user.type(titleInput, 'عنوان صالح للإعلان');
+      // Same textarea caveat as above: fill it in full first (no
+      // trailing Enter there), then submit via Enter in the title field.
       await user.type(
         screen.getByLabelText(/الوصف/),
         'هذا وصف تجريبي طويل بما فيه الكفاية لاجتياز التحقق من طول العشرين حرفاً',
       );
-      await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
+      await user.type(titleInput, '{Enter}');
 
       expect(screen.getByText('المدينة مطلوبة')).toBeInTheDocument();
       expect(mockCreateMutate).not.toHaveBeenCalled();

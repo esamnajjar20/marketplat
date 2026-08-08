@@ -148,7 +148,10 @@ describe('ProfileSettingsForm — profile fields', () => {
 
     const nameInput = screen.getByDisplayValue('أحمد');
     await user.clear(nameInput);
-    await user.click(screen.getByRole('button', { name: 'حفظ التغييرات' }));
+    // isFormIncomplete keeps the submit button disabled once name is
+    // empty, so a click on it would be a no-op — Enter in the now-empty
+    // field submits the <form> the same way it would for a real user.
+    await user.type(nameInput, '{Enter}');
 
     expect(screen.getByText('الاسم مطلوب')).toBeInTheDocument();
     expect(mockUpdateMutate).not.toHaveBeenCalled();

@@ -1,14 +1,16 @@
-import rateLimit from 'express-rate-limit';
-import { RedisStore, type RedisReply } from 'rate-limit-redis';
-import { redis } from '../config/redis';
+import rateLimit from "express-rate-limit";
+import { RedisStore, type RedisReply } from "rate-limit-redis";
+import { redis } from "../config/redis";
 
-const msg = (message: string, code = 'RATE_LIMIT_EXCEEDED') => ({ success: false, message, code });
+const msg = (message: string, code = "RATE_LIMIT_EXCEEDED") => ({
+  success: false,
+  message,
+  code,
+});
 
-const bypassRateLimit = process.env.DISABLE_RATE_LIMIT === 'true';
+const bypassRateLimit = process.env.DISABLE_RATE_LIMIT === "true";
 
-const noRateLimit = () =>
-  (_req: any, _res: any, next: any) => next();
-
+const noRateLimit = () => (_req: any, _res: any, next: any) => next();
 
 // FIX TEST-V4-05: extracted from createRedisStore so the actual
 // security-relevant logic (does a Redis outage silently let every
@@ -16,7 +18,8 @@ const noRateLimit = () =>
 // failOpen=false) can be unit-tested directly, independent of
 // rate-limit-redis's RedisStore internals. This had zero test coverage
 // anywhere despite controlling rate-limit fail-safety for every route.
-export const makeSendCommand = (failOpen: boolean) =>
+export const makeSendCommand =
+  (failOpen: boolean) =>
   async (...args: string[]): Promise<RedisReply> => {
     try {
       return (await (redis as any).call(...args)) as RedisReply;
@@ -35,35 +38,37 @@ export const createRedisStore = (prefix: string, failOpen = true) =>
     prefix: `rl:${prefix}:`,
   });
 
-export const globalRateLimit = bypassRateLimit ? noRateLimit() : rateLimit({
-  windowMs: 15 * 60 * 1000,
-  // FIX AUDIT-V4-05: was 100. A single user browsing normally (ad list,
-  // several ad detail views, category filters, favorites) easily fires
-  // more than 100 /api/* requests in 15 minutes once you count every
-  // parallel request a single page navigation triggers (ads + categories
-  // + auth/me + favorites, etc.) — this was being hit by legitimate
-  // traffic, not just abuse. It's also especially punishing on
-  // shared-NAT mobile networks, where many unrelated users behind one
-  // carrier-grade NAT IP exhaust the same quota together. 600/15min
-  // (40/min average) still bounds sustained abuse while giving real
-  // headroom for normal multi-request browsing. Per-route limiters
-  // (auth, forgotPassword, createAd, etc.) remain the primary defense
-  // against abuse of specific sensitive actions — this global limit is
-  // a coarse backstop, not the main control.
-  max: 600,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: createRedisStore('global'),
-  message: msg('Too many requests, please try again later'),
-});
+export const globalRateLimit = bypassRateLimit
+  ? noRateLimit()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      // FIX AUDIT-V4-05: was 100. A single user browsing normally (ad list,
+      // several ad detail views, category filters, favorites) easily fires
+      // more than 100 /api/* requests in 15 minutes once you count every
+      // parallel request a single page navigation triggers (ads + categories
+      // + auth/me + favorites, etc.) — this was being hit by legitimate
+      // traffic, not just abuse. It's also especially punishing on
+      // shared-NAT mobile networks, where many unrelated users behind one
+      // carrier-grade NAT IP exhaust the same quota together. 600/15min
+      // (40/min average) still bounds sustained abuse while giving real
+      // headroom for normal multi-request browsing. Per-route limiters
+      // (auth, forgotPassword, createAd, etc.) remain the primary defense
+      // against abuse of specific sensitive actions — this global limit is
+      // a coarse backstop, not the main control.
+      max: 600,
+      standardHeaders: true,
+      legacyHeaders: false,
+      store: createRedisStore("global"),
+      message: msg("Too many requests, please try again later"),
+    });
 
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('auth', false),
-  message: msg('Too many login attempts, please try again later'),
+  store: createRedisStore("auth", false),
+  message: msg("Too many login attempts, please try again later"),
 });
 
 export const refreshRateLimit = rateLimit({
@@ -71,8 +76,8 @@ export const refreshRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('refresh', false),
-  message: msg('Too many token refresh attempts'),
+  store: createRedisStore("refresh", false),
+  message: msg("Too many token refresh attempts"),
 });
 
 export const reportRateLimit = rateLimit({
@@ -80,8 +85,8 @@ export const reportRateLimit = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('report'),
-  message: msg('Too many reports submitted, please try again later'),
+  store: createRedisStore("report"),
+  message: msg("Too many reports submitted, please try again later"),
 });
 
 export const usersRateLimit = rateLimit({
@@ -89,8 +94,8 @@ export const usersRateLimit = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('users'),
-  message: msg('Too many requests'),
+  store: createRedisStore("users"),
+  message: msg("Too many requests"),
 });
 
 // FIX SEC-09: POST /users/me/password was only covered by the generic
@@ -108,8 +113,8 @@ export const changePasswordRateLimit = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('change_password', false),
-  message: msg('Too many password change attempts, please try again later'),
+  store: createRedisStore("change_password", false),
+  message: msg("Too many password change attempts, please try again later"),
 });
 
 // FIX SEC-10: POST /:id/images (adding more photos to an existing ad
@@ -124,8 +129,8 @@ export const addAdImagesRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('add_ad_images'),
-  message: msg('Too many image uploads, please try again later'),
+  store: createRedisStore("add_ad_images"),
+  message: msg("Too many image uploads, please try again later"),
 });
 
 export const createAdRateLimit = rateLimit({
@@ -133,17 +138,17 @@ export const createAdRateLimit = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('create_ad'),
-  message: msg('Too many ads created, please try again later'),
+  store: createRedisStore("create_ad"),
+  message: msg("Too many ads created, please try again later"),
 });
 
 export const forgotPasswordRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3,                    // 3 reset requests per hour per IP
+  max: 3, // 3 reset requests per hour per IP
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('forgot_pw', false), // fail-closed (strict)
-  message: msg('Too many password reset requests, please try again in an hour'),
+  store: createRedisStore("forgot_pw", false), // fail-closed (strict)
+  message: msg("Too many password reset requests, please try again in an hour"),
 });
 
 export const favoritesRateLimit = rateLimit({
@@ -151,8 +156,8 @@ export const favoritesRateLimit = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('favorites'),
-  message: msg('Too many favorite updates, please try again later'),
+  store: createRedisStore("favorites"),
+  message: msg("Too many favorite updates, please try again later"),
 });
 
 // A saved search is a low-frequency, deliberate action (unlike
@@ -166,8 +171,8 @@ export const savedSearchRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('saved_search'),
-  message: msg('Too many saved searches created, please try again later'),
+  store: createRedisStore("saved_search"),
+  message: msg("Too many saved searches created, please try again later"),
 });
 
 // Seller profile creation is a one-time (per user) write, but still
@@ -178,8 +183,8 @@ export const createSellerProfileRateLimit = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('create_seller_profile'),
-  message: msg('Too many attempts, please try again later'),
+  store: createRedisStore("create_seller_profile"),
+  message: msg("Too many attempts, please try again later"),
 });
 
 // seller-profile-design.md §17: rate-limited to prevent bulk fake
@@ -189,8 +194,8 @@ export const sellerRatingRateLimit = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('seller_rating'),
-  message: msg('Too many ratings submitted, please try again later'),
+  store: createRedisStore("seller_rating"),
+  message: msg("Too many ratings submitted, please try again later"),
 });
 
 // services-design.md §16: same rationale as createSellerProfileRateLimit —
@@ -201,8 +206,8 @@ export const createServiceProviderRateLimit = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('create_service_provider'),
-  message: msg('Too many attempts, please try again later'),
+  store: createRedisStore("create_service_provider"),
+  message: msg("Too many attempts, please try again later"),
 });
 
 // services-design.md §16: same rate-limit rationale as createAdRateLimit —
@@ -212,8 +217,8 @@ export const createServiceListingRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('create_service_listing'),
-  message: msg('Too many attempts, please try again later'),
+  store: createRedisStore("create_service_listing"),
+  message: msg("Too many attempts, please try again later"),
 });
 
 // services-design.md §16: guards customers from spamming providers with
@@ -223,8 +228,8 @@ export const createServiceRequestRateLimit = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('create_service_request'),
-  message: msg('Too many requests submitted, please try again later'),
+  store: createRedisStore("create_service_request"),
+  message: msg("Too many requests submitted, please try again later"),
 });
 
 // services-design.md §17: same rationale as sellerRatingRateLimit —
@@ -234,8 +239,8 @@ export const serviceReviewRateLimit = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('service_review'),
-  message: msg('Too many reviews submitted, please try again later'),
+  store: createRedisStore("service_review"),
+  message: msg("Too many reviews submitted, please try again later"),
 });
 
 // Epic 5: opening a new thread is a one-off per (ad, buyer, seller)
@@ -248,8 +253,8 @@ export const startConversationRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('start_conversation'),
-  message: msg('Too many conversations started, please try again later'),
+  store: createRedisStore("start_conversation"),
+  message: msg("Too many conversations started, please try again later"),
 });
 
 // Epic 5: the actual spam vector — unlike starting a thread, sending
@@ -263,8 +268,8 @@ export const sendMessageRateLimit = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('send_message'),
-  message: msg('Too many messages sent, please slow down'),
+  store: createRedisStore("send_message"),
+  message: msg("Too many messages sent, please slow down"),
 });
 
 // Stores module: same rationale as createSellerProfileRateLimit /
@@ -276,8 +281,8 @@ export const createStoreRateLimit = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('create_store'),
-  message: msg('Too many attempts, please try again later'),
+  store: createRedisStore("create_store"),
+  message: msg("Too many attempts, please try again later"),
 });
 
 // Stores module: same rate-limit rationale as createServiceListingRateLimit
@@ -287,8 +292,8 @@ export const createProductRateLimit = rateLimit({
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('create_product'),
-  message: msg('Too many attempts, please try again later'),
+  store: createRedisStore("create_product"),
+  message: msg("Too many attempts, please try again later"),
 });
 
 // Gap #3 fix: same rationale as addAdImagesRateLimit (SEC-10) — POST
@@ -299,8 +304,8 @@ export const addProductImagesRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('add_product_images'),
-  message: msg('Too many image uploads, please try again later'),
+  store: createRedisStore("add_product_images"),
+  message: msg("Too many image uploads, please try again later"),
 });
 
 // Gap #3 fix: same as addProductImagesRateLimit, for service listings.
@@ -309,8 +314,8 @@ export const addServiceListingImagesRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('add_service_listing_images'),
-  message: msg('Too many image uploads, please try again later'),
+  store: createRedisStore("add_service_listing_images"),
+  message: msg("Too many image uploads, please try again later"),
 });
 
 // Stores module: mirrors favoritesRateLimit — following/unfollowing a
@@ -320,8 +325,8 @@ export const storeFollowRateLimit = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('store_follow'),
-  message: msg('Too many requests, please try again later'),
+  store: createRedisStore("store_follow"),
+  message: msg("Too many requests, please try again later"),
 });
 
 // Stores module: mirrors sellerRatingRateLimit — guards against bulk
@@ -331,8 +336,8 @@ export const storeReviewRateLimit = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('store_review'),
-  message: msg('Too many reviews submitted, please try again later'),
+  store: createRedisStore("store_review"),
+  message: msg("Too many reviews submitted, please try again later"),
 });
 
 // Search module: /search/suggestions fires on every keystroke of a
@@ -348,8 +353,8 @@ export const searchSuggestionsRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('search_suggestions'),
-  message: msg('Too many requests, please slow down'),
+  store: createRedisStore("search_suggestions"),
+  message: msg("Too many requests, please slow down"),
 });
 
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
@@ -359,8 +364,8 @@ export const userBlockRateLimit = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('user_block'),
-  message: msg('Too many requests, please try again later'),
+  store: createRedisStore("user_block"),
+  message: msg("Too many requests, please try again later"),
 });
 
 // Analytics ingest (gap #7): this endpoint is public (no authenticate
@@ -380,6 +385,6 @@ export const analyticsEventsRateLimit = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('analytics_events'),
-  message: msg('Too many requests, please slow down'),
+  store: createRedisStore("analytics_events"),
+  message: msg("Too many requests, please slow down"),
 });

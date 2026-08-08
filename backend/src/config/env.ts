@@ -1,5 +1,5 @@
-import dotenv from 'dotenv';
-import { z } from 'zod';
+import dotenv from "dotenv";
+import { z } from "zod";
 
 // TEST-DB SAFETY: without this, `npm test` reads the exact same
 // DATABASE_URL as `npm run dev`/`npm start` — but tests/setup.ts runs a
@@ -12,27 +12,31 @@ import { z } from 'zod';
 // never overrides a process.env value that's already set, so the
 // second dotenv.config() call below only fills in anything `.env.test`
 // didn't define — it can't silently override what `.env.test` set.
-if (process.env.NODE_ENV === 'test') {
-  dotenv.config({ path: '.env.test' });
+if (process.env.NODE_ENV === "test") {
+  dotenv.config({ path: ".env.test" });
 }
 dotenv.config();
 
 const envSchema = z.object({
-  PORT: z.string().regex(/^\d+$/).default('5000'),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
-  JWT_EXPIRES_IN: z.string().default('15m'),
+  PORT: z.string().regex(/^\d+$/).default("5000"),
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
+  FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
+  JWT_EXPIRES_IN: z.string().default("15m"),
   // TERMUX/PROOT SUPPORT: '127.0.0.1' rather than 'localhost' as the
   // default — proot-distro Ubuntu's /etc/hosts and localhost resolution
   // order can behave inconsistently inside the sandbox, and the literal
   // loopback address sidesteps that entirely. Real deployments should
   // still set REDIS_HOST explicitly; this only changes what happens if
   // it's left unset.
-  REDIS_HOST: z.string().default('127.0.0.1'),
-  REDIS_PORT: z.string().regex(/^\d+$/).default('6379'),
+  REDIS_HOST: z.string().default("127.0.0.1"),
+  REDIS_PORT: z.string().regex(/^\d+$/).default("6379"),
   // L-2 (audit fix): previously optional at every NODE_ENV, with the
   // requirement only enforced at the docker-compose level
   // (${REDIS_PASSWORD:?...} in docker-compose.full.yml). That meant any
@@ -46,11 +50,14 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
   // TRUST_PROXY must be a number (1 = trust one proxy hop, e.g. nginx/Cloudflare)
   // String "1" is NOT equivalent to number 1 in Express trust proxy logic
-  TRUST_PROXY: z.string().regex(/^\d+$/, 'TRUST_PROXY must be a number').default('1'),
+  TRUST_PROXY: z
+    .string()
+    .regex(/^\d+$/, "TRUST_PROXY must be a number")
+    .default("1"),
   BLACKLIST_STRICT: z
     .string()
-    .transform(v => v === 'true')
-    .default('true'),
+    .transform((v) => v === "true")
+    .default("true"),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
@@ -74,7 +81,7 @@ const envSchema = z.object({
   SMTP_PORT: z.string().regex(/^\d+$/).optional(),
   SMTP_SECURE: z
     .string()
-    .transform(v => v === 'true')
+    .transform((v) => v === "true")
     .optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
@@ -123,16 +130,19 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z
     .string()
-    .regex(/^(0(\.\d+)?|1(\.0+)?)$/, 'SENTRY_TRACES_SAMPLE_RATE must be a number between 0 and 1')
-    .default('0.1'),
-  MAX_ADS_PER_USER: z.string().regex(/^\d+$/).default('50'),
+    .regex(
+      /^(0(\.\d+)?|1(\.0+)?)$/,
+      "SENTRY_TRACES_SAMPLE_RATE must be a number between 0 and 1",
+    )
+    .default("0.1"),
+  MAX_ADS_PER_USER: z.string().regex(/^\d+$/).default("50"),
   // AUDIT-FIX 1.1: previously a hardcoded `30` inside adLock.ts. Made
   // configurable, same "opt-in tuning, sane default" pattern as
   // MAX_ADS_PER_USER above — deployments with slower Cloudinary
   // round-trips (more images per ad, slower network) can raise this
   // without a code change; default matches the prior hardcoded value
   // so existing behavior is unchanged unless the var is explicitly set.
-  IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
+  IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
   // Fraud-detection (item 12) tuning knobs — all optional with sane
   // defaults, same "opt-in tuning" pattern as MAX_ADS_PER_USER/
   // IMAGE_LOCK_TTL_SECONDS above, so existing deployments see no
@@ -140,13 +150,13 @@ const envSchema = z.object({
   //
   // RAPID_POSTING: more than FRAUD_RAPID_POSTING_MAX_POSTS ad creations
   // by the same user within FRAUD_RAPID_POSTING_WINDOW_SECONDS.
-  FRAUD_RAPID_POSTING_WINDOW_SECONDS: z.string().regex(/^\d+$/).default('60'),
-  FRAUD_RAPID_POSTING_MAX_POSTS: z.string().regex(/^\d+$/).default('5'),
+  FRAUD_RAPID_POSTING_WINDOW_SECONDS: z.string().regex(/^\d+$/).default("60"),
+  FRAUD_RAPID_POSTING_MAX_POSTS: z.string().regex(/^\d+$/).default("5"),
   // An account younger than this is treated as "new" for
   // NEW_ACCOUNT_HIGH_ACTIVITY weighting purposes.
-  FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default('24'),
+  FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default("24"),
   // Ad riskScore (0-100) at or above this auto-sets flaggedForReview.
-  FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default('60'),
+  FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default("60"),
   // AUDIT-FIX 1.3: analytics.repository.ts's trendByEvent/topCategories
   // run raw, unindexed-aggregate-friendly but potentially expensive
   // GROUP BY queries (date_trunc bucketing, JSON metadata extraction)
@@ -158,7 +168,7 @@ const envSchema = z.object({
   // site. Default (10s) is generous for a dashboard read, not a hard
   // architectural limit — tune per deployment if real query patterns
   // need more.
-  ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default('10000'),
+  ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default("10000"),
   // PROD-FIX-03: /metrics was previously unauthenticated at the
   // application level with only a code comment recommending a
   // reverse-proxy allowlist — no such reverse-proxy config exists
@@ -183,11 +193,11 @@ const envSchema = z.object({
 // at startup (same place JWT_SECRET/DATABASE_URL failures surface),
 // not silently at connection time.
 const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
-  if (data.NODE_ENV === 'production' && !data.REDIS_PASSWORD) {
+  if (data.NODE_ENV === "production" && !data.REDIS_PASSWORD) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['REDIS_PASSWORD'],
-      message: 'REDIS_PASSWORD is required when NODE_ENV=production',
+      path: ["REDIS_PASSWORD"],
+      message: "REDIS_PASSWORD is required when NODE_ENV=production",
     });
   }
 });
@@ -195,7 +205,7 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
 const parsed = envSchemaWithRedisCheck.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error('❌ Invalid environment variables:');
+  console.error("❌ Invalid environment variables:");
   console.error(parsed.error.flatten().fieldErrors);
   process.exit(1);
 }
@@ -223,9 +233,9 @@ export const env = {
     blacklistStrict: _env.BLACKLIST_STRICT,
   },
   cloudinary: {
-    cloudName: _env.CLOUDINARY_CLOUD_NAME || '',
-    apiKey: _env.CLOUDINARY_API_KEY || '',
-    apiSecret: _env.CLOUDINARY_API_SECRET || '',
+    cloudName: _env.CLOUDINARY_CLOUD_NAME || "",
+    apiKey: _env.CLOUDINARY_API_KEY || "",
+    apiSecret: _env.CLOUDINARY_API_SECRET || "",
   },
   // FIX OAUTH-01: same isConfigured pattern as email.isConfigured
   // above — true only once all three vars are present. Consumed by
@@ -233,45 +243,52 @@ export const env = {
   // all) and auth.routes.ts / auth.controller.ts (whether to accept
   // requests to /auth/google at all, vs. returning a clear 503).
   googleOAuth: {
-    clientId: _env.GOOGLE_CLIENT_ID || '',
-    clientSecret: _env.GOOGLE_CLIENT_SECRET || '',
-    callbackUrl: _env.GOOGLE_CALLBACK_URL || '',
+    clientId: _env.GOOGLE_CLIENT_ID || "",
+    clientSecret: _env.GOOGLE_CLIENT_SECRET || "",
+    callbackUrl: _env.GOOGLE_CALLBACK_URL || "",
     isConfigured: Boolean(
-      _env.GOOGLE_CLIENT_ID && _env.GOOGLE_CLIENT_SECRET && _env.GOOGLE_CALLBACK_URL
+      _env.GOOGLE_CLIENT_ID &&
+      _env.GOOGLE_CLIENT_SECRET &&
+      _env.GOOGLE_CALLBACK_URL,
     ),
   },
   email: {
-    smtpHost: _env.SMTP_HOST || '',
+    smtpHost: _env.SMTP_HOST || "",
     smtpPort: _env.SMTP_PORT ? parseInt(_env.SMTP_PORT, 10) : 587,
     smtpSecure: _env.SMTP_SECURE ?? false,
-    smtpUser: _env.SMTP_USER || '',
-    smtpPassword: _env.SMTP_PASSWORD || '',
-    fromEmail: _env.SMTP_FROM_EMAIL || 'no-reply@example.com',
-    fromName: _env.SMTP_FROM_NAME || 'سوق غزة',
+    smtpUser: _env.SMTP_USER || "",
+    smtpPassword: _env.SMTP_PASSWORD || "",
+    fromEmail: _env.SMTP_FROM_EMAIL || "no-reply@example.com",
+    fromName: _env.SMTP_FROM_NAME || "سوق غزة",
     // Email sending is considered "configured" only once host+user+password
     // are all present — partial config (e.g. just a from-address) isn't
     // enough to attempt a real SMTP connection.
-    isConfigured: Boolean(_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD),
+    isConfigured: Boolean(
+      _env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD,
+    ),
   },
   // FIX PWA-PUSH-01: same isConfigured pattern as email above —
   // pushService.ts checks this once at first use and falls back to
   // logging instead of throwing when any piece is missing, so the app
   // keeps starting and running normally without real VAPID keys.
   webPush: {
-    publicKey: _env.VAPID_PUBLIC_KEY || '',
-    privateKey: _env.VAPID_PRIVATE_KEY || '',
-    subject: _env.VAPID_SUBJECT || 'mailto:admin@example.com',
+    publicKey: _env.VAPID_PUBLIC_KEY || "",
+    privateKey: _env.VAPID_PRIVATE_KEY || "",
+    subject: _env.VAPID_SUBJECT || "mailto:admin@example.com",
     isConfigured: Boolean(_env.VAPID_PUBLIC_KEY && _env.VAPID_PRIVATE_KEY),
   },
   securityAlert: {
-    webhookUrl: _env.SECURITY_ALERT_WEBHOOK_URL || '',
+    webhookUrl: _env.SECURITY_ALERT_WEBHOOK_URL || "",
   },
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),
     imageLockTtlSeconds: parseInt(_env.IMAGE_LOCK_TTL_SECONDS, 10),
   },
   fraud: {
-    rapidPostingWindowSeconds: parseInt(_env.FRAUD_RAPID_POSTING_WINDOW_SECONDS, 10),
+    rapidPostingWindowSeconds: parseInt(
+      _env.FRAUD_RAPID_POSTING_WINDOW_SECONDS,
+      10,
+    ),
     rapidPostingMaxPosts: parseInt(_env.FRAUD_RAPID_POSTING_MAX_POSTS, 10),
     newAccountWindowHours: parseInt(_env.FRAUD_NEW_ACCOUNT_WINDOW_HOURS, 10),
     autoFlagThreshold: parseInt(_env.FRAUD_AUTO_FLAG_THRESHOLD, 10),
@@ -280,8 +297,8 @@ export const env = {
     queryTimeoutMs: parseInt(_env.ANALYTICS_QUERY_TIMEOUT_MS, 10),
   },
   observability: {
-    sentryDsn: _env.SENTRY_DSN || '',
+    sentryDsn: _env.SENTRY_DSN || "",
     sentryTracesSampleRate: parseFloat(_env.SENTRY_TRACES_SAMPLE_RATE),
-    metricsToken: _env.METRICS_TOKEN || '',
+    metricsToken: _env.METRICS_TOKEN || "",
   },
 } as const;

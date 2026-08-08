@@ -50,8 +50,12 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       render(<LoginForm />);
 
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
-      await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
+      // Email deliberately left blank, so isFormIncomplete keeps the
+      // submit button disabled — a click on it would be a no-op.
+      // Enter in the password field submits the <form> the same way it
+      // would for a real user (real browser behaviour), which is what
+      // actually exercises validate()'s error path here.
+      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123{Enter}');
 
       expect(screen.getByText('البريد الإلكتروني مطلوب')).toBeInTheDocument();
       expect(mockLogin).not.toHaveBeenCalled();
@@ -73,8 +77,10 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       render(<LoginForm />);
 
-      await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
+      // Same disabled-button trap as above, mirrored for the password
+      // field: it must stay empty for this scenario, so submit via
+      // Enter in the email field instead of clicking the button.
+      await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com{Enter}');
 
       expect(screen.getByText('كلمة المرور مطلوبة')).toBeInTheDocument();
       expect(mockLogin).not.toHaveBeenCalled();

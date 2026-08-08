@@ -12,6 +12,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
 import { useAdminAuditLogs } from '@/hooks/queries/useAdmin';
+import { AUDIT_EVENT_LABELS } from '@/lib/constants';
 import type { AuditLog } from '@/types/admin.types';
 
 vi.mock('@/hooks/queries/useAdmin', () => ({
@@ -137,7 +138,13 @@ describe('AdminAuditLogsTable', () => {
       const user = userEvent.setup();
       render(<AdminAuditLogsTable />);
 
-      await user.selectOptions(screen.getByDisplayValue('كل الأحداث'), 'LOGIN_FAILED');
+      // The event-type filter is a Radix Select (FIX UX-02 swapped the
+      // native <select> for it — see AdminAuditLogsTable.tsx), which
+      // renders as role="combobox" with no value attribute, so
+      // getByDisplayValue can't find it and selectOptions can't act on
+      // it directly. Open the trigger, then click the option.
+      await user.click(screen.getByRole('combobox'));
+      await user.click(await screen.findByRole('option', { name: AUDIT_EVENT_LABELS.LOGIN_FAILED }));
 
       const calledUrl = mockPush.mock.calls[0][0] as string;
       expect(calledUrl).toMatch(/event=LOGIN_FAILED/);
