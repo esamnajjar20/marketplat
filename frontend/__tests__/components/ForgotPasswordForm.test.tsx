@@ -9,7 +9,7 @@
  * boundary is authApi rather than the hook itself.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -47,15 +47,14 @@ describe('ForgotPasswordForm', () => {
 
   describe('validation', () => {
     it('shows a required error and does not call the API when email is empty', async () => {
-      const user = userEvent.setup();
-      renderWithClient(<ForgotPasswordForm />);
+      const { container } = renderWithClient(<ForgotPasswordForm />);
 
       // Email deliberately stays empty, so isFormIncomplete keeps the
-      // submit button disabled and a click on it would be a no-op.
-      // Focusing the field and pressing Enter submits the <form> the
-      // same way it would for a real user (real browser behaviour),
-      // which is what actually exercises validate()'s error path here.
-      await user.type(screen.getByLabelText(/البريد الإلكتروني/), '{Enter}');
+      // submit button disabled — per the HTML spec, a disabled submit
+      // control means Enter in a text field does NOT implicitly submit
+      // the form (jsdom correctly enforces this), so dispatch a real
+      // submit event on the <form> directly instead.
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('البريد الإلكتروني مطلوب')).toBeInTheDocument();
       expect(authApi.forgotPassword).not.toHaveBeenCalled();

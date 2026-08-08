@@ -14,8 +14,8 @@
  * of always starting blank — covered below alongside the pre-existing
  * name-only coverage.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm';
 import { useUpdateProfile, useUploadAvatar } from '@/hooks/mutations/useUpdateProfile';
@@ -62,6 +62,14 @@ beforeEach(() => {
     { id: 'u1', name: 'أحمد', email: 'a@a.com', role: 'USER' },
     { accessToken: 'a' }, // PROD-FIX-15: refreshToken removed from AuthTokens
   );
+});
+
+// No explicit cleanup previously ran between tests in this file — a
+// leftover mounted instance from one test could satisfy a later test's
+// (unscoped) screen queries, since render() output isn't otherwise torn
+// down between the file's three describe blocks.
+afterEach(() => {
+  cleanup();
 });
 
 describe('ProfileSettingsForm — avatar upload', () => {
@@ -144,14 +152,16 @@ describe('ProfileSettingsForm — profile fields', () => {
 
   it('shows a validation error when submitting an empty name', async () => {
     const user = userEvent.setup();
-    render(<ProfileSettingsForm />);
+    const { container } = render(<ProfileSettingsForm />);
 
     const nameInput = screen.getByDisplayValue('أحمد');
     await user.clear(nameInput);
     // isFormIncomplete keeps the submit button disabled once name is
-    // empty, so a click on it would be a no-op — Enter in the now-empty
-    // field submits the <form> the same way it would for a real user.
-    await user.type(nameInput, '{Enter}');
+    // empty, so a click on it would be a no-op. Per the HTML spec, a
+    // disabled submit control also means Enter in a text field does
+    // NOT implicitly submit the form (jsdom correctly enforces this) —
+    // so dispatch a real submit event on the <form> directly instead.
+    fireEvent.submit(container.querySelector('form')!);
 
     expect(screen.getByText('الاسم مطلوب')).toBeInTheDocument();
     expect(mockUpdateMutate).not.toHaveBeenCalled();

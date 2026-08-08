@@ -216,7 +216,10 @@ describe('ImageUpload', () => {
         existingUrls={['https://cdn.test/a.jpg', 'https://cdn.test/b.jpg']}
       />,
     );
-    const images = screen.getAllByAltText('صورة الإعلان');
+    // Each image gets a distinct, numbered alt text (accessibility —
+    // "صورة الإعلان 1", "صورة الإعلان 2", ...) rather than an identical
+    // one repeated for every thumbnail.
+    const images = screen.getAllByAltText(/^صورة الإعلان \d+$/);
     expect(images).toHaveLength(2);
     expect(images[0]).toHaveAttribute('src', 'https://cdn.test/a.jpg');
     expect(images[1]).toHaveAttribute('src', 'https://cdn.test/b.jpg');
@@ -224,7 +227,7 @@ describe('ImageUpload', () => {
 
   it('renders nothing extra when existingUrls is empty', () => {
     render(<ImageUpload value={[]} onChange={vi.fn()} existingUrls={[]} />);
-    expect(screen.queryByAltText('صورة الإعلان')).not.toBeInTheDocument();
+    expect(screen.queryByAltText(/^صورة الإعلان \d+$/)).not.toBeInTheDocument();
   });
 
   it('calls onRemoveExisting with the correct URL when its remove button is clicked', async () => {

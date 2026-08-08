@@ -14,9 +14,11 @@
  * it and hands it the right ad id — the button's own click/dialog/
  * submit behavior is out of scope for this file.
  */
+import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdDetail } from '@/components/ads/AdDetail';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore } from '@/store/auth.store';
@@ -26,6 +28,13 @@ import type { Ad } from '@/types/ad.types';
 
 vi.mock('@/hooks/mutations/useFavoriteMutations', () => ({
   useToggleFavorite: vi.fn(),
+}));
+
+// AdDetail resolves the category link via useCategories() (react-query).
+// Mock it directly so we don't need real network/cache behavior here —
+// AdDetail's own category-href logic isn't what this file is testing.
+vi.mock('@/hooks/queries/useCategories', () => ({
+  useCategories: vi.fn(() => ({ data: [] })),
 }));
 
 vi.mock('@/store/auth.store', () => ({
@@ -74,6 +83,11 @@ const baseAd: Ad = {
   category: { id: 'cat-1', name: 'Electronics', nameAr: 'إلكترونيات' },
 };
 
+function renderWithClient(ui: ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
+
 function mockAuth(isAuthenticated: boolean) {
   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
     (selector: (s: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated }),
@@ -89,7 +103,7 @@ describe('AdDetail', () => {
 
   describe('basic rendering', () => {
     it('renders the title, price, city, views, and category', () => {
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
 
       expect(screen.getByText('آيفون 14 برو للبيع')).toBeInTheDocument();
       expect(screen.getByText(formatPrice(baseAd.price), { exact: false })).toBeInTheDocument();
@@ -99,7 +113,7 @@ describe('AdDetail', () => {
     });
 
     it('shows "قابل للتفاوض" only when isNegotiable is true', () => {
-      const { rerender } = render(<AdDetail ad={baseAd} />);
+      const { rerender } = renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.queryByText('قابل للتفاوض')).not.toBeInTheDocument();
 
       rerender(<AdDetail ad={{ ...baseAd, isNegotiable: true }} />);
@@ -107,12 +121,12 @@ describe('AdDetail', () => {
     });
 
     it('shows the condition label', () => {
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.getByText('مستعمل')).toBeInTheDocument();
     });
 
     it('shows a status badge only when the ad is not ACTIVE', () => {
-      const { rerender } = render(<AdDetail ad={baseAd} />);
+      const { rerender } = renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.queryByText('تم البيع')).not.toBeInTheDocument();
 
       rerender(<AdDetail ad={{ ...baseAd, status: 'SOLD' }} />);
@@ -120,7 +134,7 @@ describe('AdDetail', () => {
     });
 
     it('shows a "مميز" badge only when isFeatured is true', () => {
-      const { rerender } = render(<AdDetail ad={baseAd} />);
+      const { rerender } = renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.queryByText('مميز')).not.toBeInTheDocument();
 
       rerender(<AdDetail ad={{ ...baseAd, isFeatured: true }} />);
@@ -128,19 +142,19 @@ describe('AdDetail', () => {
     });
 
     it('renders SellerCard with the ad author', () => {
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.getByText('SellerCard: أحمد')).toBeInTheDocument();
     });
 
     it('renders the last 8 characters of the ad id as a reference number', () => {
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.getByText(baseAd.id.slice(-8))).toBeInTheDocument();
     });
   });
 
   describe('image gallery navigation', () => {
     it('shows navigation arrows and a counter only when there is more than one image', () => {
-      const { rerender } = render(<AdDetail ad={{ ...baseAd, images: [baseAd.images[0]] }} />);
+      const { rerender } = renderWithClient(<AdDetail ad={{ ...baseAd, images: [baseAd.images[0]] }} />);
       expect(screen.queryByLabelText('الصورة التالية')).not.toBeInTheDocument();
 
       rerender(<AdDetail ad={baseAd} />);
@@ -149,13 +163,13 @@ describe('AdDetail', () => {
     });
 
     it('disables the previous button on the first image', () => {
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.getByLabelText('الصورة السابقة')).toBeDisabled();
     });
 
     it('advances to the next image and updates the counter', async () => {
       const user = userEvent.setup();
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
 
       await user.click(screen.getByLabelText('الصورة التالية'));
 
@@ -165,7 +179,7 @@ describe('AdDetail', () => {
 
     it('does not advance past the last image', async () => {
       const user = userEvent.setup();
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
 
       await user.click(screen.getByLabelText('الصورة التالية'));
       await user.click(screen.getByLabelText('الصورة التالية'));
@@ -175,7 +189,7 @@ describe('AdDetail', () => {
 
     it('jumps to a specific image via its thumbnail', async () => {
       const user = userEvent.setup();
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
 
       await user.click(screen.getByLabelText('عرض الصورة 2 من 2'));
 
@@ -183,7 +197,7 @@ describe('AdDetail', () => {
     });
 
     it('falls back to a single placeholder image with no gallery controls when the ad has no images', () => {
-      render(<AdDetail ad={{ ...baseAd, images: [] }} />);
+      renderWithClient(<AdDetail ad={{ ...baseAd, images: [] }} />);
       expect(screen.queryByLabelText('الصورة التالية')).not.toBeInTheDocument();
       expect(screen.queryByText(/\d \/ \d/)).not.toBeInTheDocument();
     });
@@ -193,7 +207,7 @@ describe('AdDetail', () => {
     it('shows an error toast and does not call mutate when the user is not authenticated', async () => {
       mockAuth(false);
       const user = userEvent.setup();
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
 
       await user.click(screen.getByLabelText('حفظ'));
 
@@ -203,7 +217,7 @@ describe('AdDetail', () => {
 
     it('calls toggleFavorite.mutate with the ad id when authenticated', async () => {
       const user = userEvent.setup();
-      render(<AdDetail ad={baseAd} isFavorited={false} />);
+      renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
 
       await user.click(screen.getByLabelText('حفظ'));
 
@@ -214,7 +228,7 @@ describe('AdDetail', () => {
 
     it('optimistically fills the heart icon immediately on click, before the mutation resolves', async () => {
       const user = userEvent.setup();
-      render(<AdDetail ad={baseAd} isFavorited={false} />);
+      renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
 
       const heartButton = screen.getByLabelText('حفظ');
       const heartIcon = heartButton.querySelector('svg');
@@ -228,7 +242,7 @@ describe('AdDetail', () => {
     it('rolls back the optimistic update when the mutation fails', async () => {
       mockToggleMutate.mockImplementation((_id, { onError }) => onError());
       const user = userEvent.setup();
-      render(<AdDetail ad={baseAd} isFavorited={false} />);
+      renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
 
       const heartButton = screen.getByLabelText('حفظ');
       const heartIcon = heartButton.querySelector('svg');
@@ -241,7 +255,7 @@ describe('AdDetail', () => {
     });
 
     it('starts filled when isFavorited is initially true', () => {
-      render(<AdDetail ad={baseAd} isFavorited />);
+      renderWithClient(<AdDetail ad={baseAd} isFavorited />);
 
       const heartIcon = screen.getByLabelText('حفظ').querySelector('svg');
       expect(heartIcon).toHaveClass('fill-destructive');
@@ -250,7 +264,7 @@ describe('AdDetail', () => {
 
   describe('report button', () => {
     it('renders ReportAdButton with the current ad id', () => {
-      render(<AdDetail ad={baseAd} />);
+      renderWithClient(<AdDetail ad={baseAd} />);
       expect(screen.getByText(`ReportAdButton: ${baseAd.id}`)).toBeInTheDocument();
     });
   });

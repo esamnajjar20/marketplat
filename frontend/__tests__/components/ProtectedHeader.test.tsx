@@ -17,6 +17,19 @@ vi.mock('@/components/layout/UserMenu', () => ({
   UserMenu: () => <div data-testid="user-menu" />,
 }));
 
+// NotificationBell (useMyNotifications/useUnreadNotificationCount) and
+// ProtectedMobileNav (useLogout, a useMutation hook) both need a
+// QueryClientProvider in the tree to even construct — neither is what
+// this file is testing, so stub them out the same way UserMenu already
+// is above, rather than pulling in react-query just to satisfy them.
+vi.mock('@/components/layout/NotificationBell', () => ({
+  NotificationBell: () => <div data-testid="notification-bell" />,
+}));
+
+vi.mock('@/components/layout/ProtectedMobileNav', () => ({
+  ProtectedMobileNav: () => <div data-testid="protected-mobile-nav" />,
+}));
+
 describe('ProtectedHeader', () => {
   it('renders the logo linking to the home route', () => {
     render(<ProtectedHeader />);

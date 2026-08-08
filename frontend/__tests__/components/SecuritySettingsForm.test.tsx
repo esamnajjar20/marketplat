@@ -15,7 +15,7 @@
  * passed at call time.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SecuritySettingsForm } from '@/components/profile/SecuritySettingsForm';
 import { useChangePassword } from '@/hooks/mutations/useAuthMutations';
@@ -64,16 +64,18 @@ describe('SecuritySettingsForm', () => {
   // Every scenario below leaves the form in a state that RegisterForm's
   // isFormIncomplete-style guard (see SecuritySettingsForm's own
   // isFormIncomplete) keeps the submit button disabled for — a plain
-  // click on it is a no-op. Enter in the last field submits the <form>
-  // the same way it would for a real user, exercising validate()'s
-  // error paths without relying on the (deliberately disabled) button.
+  // click on it is a no-op. Per the HTML spec, a disabled submit
+  // control also means Enter in a text field does NOT implicitly
+  // submit the form (jsdom correctly enforces this) — so these
+  // dispatch a real submit event on the <form> directly instead.
   describe('validation', () => {
     it('requires the current password', async () => {
       const user = userEvent.setup();
-      render(<SecuritySettingsForm />);
+      const { container } = render(<SecuritySettingsForm />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'newpass456');
-      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'newpass456{Enter}');
+      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'newpass456');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('أدخل كلمة المرور الحالية')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();
@@ -81,8 +83,9 @@ describe('SecuritySettingsForm', () => {
 
     it('requires the new password to be at least 8 characters', async () => {
       const user = userEvent.setup();
-      render(<SecuritySettingsForm />);
-      await fillForm(user, { next: 'short1', confirm: 'short1{Enter}' });
+      const { container } = render(<SecuritySettingsForm />);
+      await fillForm(user, { next: 'short1', confirm: 'short1' });
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('8 أحرف على الأقل')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();
@@ -90,8 +93,9 @@ describe('SecuritySettingsForm', () => {
 
     it('rejects a new password identical to the current password', async () => {
       const user = userEvent.setup();
-      render(<SecuritySettingsForm />);
-      await fillForm(user, { current: 'samepass123', next: 'samepass123', confirm: 'samepass123{Enter}' });
+      const { container } = render(<SecuritySettingsForm />);
+      await fillForm(user, { current: 'samepass123', next: 'samepass123', confirm: 'samepass123' });
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('كلمة المرور الجديدة يجب أن تختلف عن الحالية')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();
@@ -99,8 +103,9 @@ describe('SecuritySettingsForm', () => {
 
     it('rejects a mismatched confirmation', async () => {
       const user = userEvent.setup();
-      render(<SecuritySettingsForm />);
-      await fillForm(user, { confirm: 'differentpass789{Enter}' });
+      const { container } = render(<SecuritySettingsForm />);
+      await fillForm(user, { confirm: 'differentpass789' });
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('كلمتا المرور غير متطابقتين')).toBeInTheDocument();
       expect(mockMutate).not.toHaveBeenCalled();

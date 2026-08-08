@@ -5,8 +5,8 @@
  * (name, email, password, optional phone, optional city) with several
  * conditional branches (phone/city only validated/sent when non-empty).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { RegisterForm } from '@/components/auth/RegisterForm';
@@ -72,6 +72,10 @@ async function fillRequiredFields(
 }
 
 describe('RegisterForm', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     (useRegister as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -120,11 +124,15 @@ describe('RegisterForm', () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
+      // A 6-char password keeps isFormIncomplete's password.length < 8
+      // check true, so the submit button stays disabled the same way
+      // the empty-name case above does — a click on it is a no-op.
+      // Enter in the last-touched field submits the form directly,
+      // exercising validate()'s own length check instead.
       await user.type(screen.getByLabelText(/الاسم الكامل/), 'أحمد محمد');
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
       await user.type(getPasswordInput(), 'short1');
-      await user.type(getConfirmPasswordInput(), 'short1');
-      await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
+      await user.type(getConfirmPasswordInput(), 'short1{Enter}');
 
       expect(screen.getByText('كلمة المرور 8 أحرف على الأقل')).toBeInTheDocument();
       expect(mockRegister).not.toHaveBeenCalled();
@@ -149,13 +157,17 @@ describe('RegisterForm', () => {
       await user.click(screen.getByRole('button', { name: 'إنشاء الحساب' }));
 
       expect(mockRegister).toHaveBeenCalledWith(
-        {
+        expect.objectContaining({
           name: 'أحمد محمد',
           email: 'ahmad@example.com',
           password: 'password123',
           phone: undefined,
           city: undefined,
-        },
+          // RegisterForm also forwards redirectTo (AUTH-06 — same
+          // ?from= handling as LoginForm), which this test isn't
+          // exercising, so match it loosely rather than pin an exact value.
+          redirectTo: expect.any(String),
+        }),
         expect.objectContaining({ onError: expect.any(Function) }),
       );
     });

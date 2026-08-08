@@ -26,10 +26,21 @@ vi.mock('@/components/ads/RelatedAds', () => ({
   RelatedAds: () => <div>RelatedAds</div>,
 }));
 
+// AdBreadcrumb pulls in useCategoryHref (react-query via useCategories)
+// and has its own test coverage — not what this file is testing. Mock
+// it out so we don't need a QueryClientProvider just to render this tree.
+vi.mock('@/components/ads/AdBreadcrumb', () => ({
+  AdBreadcrumb: () => <div>AdBreadcrumb</div>,
+}));
+
 vi.mock('@/components/ads/AdDetail', () => ({
   AdDetail: ({ isFavorited }: { isFavorited?: boolean }) => (
     <div>AdDetail isFavorited={String(isFavorited)}</div>
   ),
+  // AdBreadcrumb imports this from the same module; keep the mock's
+  // shape consistent with the real module even though AdBreadcrumb
+  // itself is mocked away above (defensive against re-ordering).
+  useCategoryHref: vi.fn(() => undefined),
 }));
 
 const baseAd = { id: 'ad-1', title: 'إعلان تجريبي' } as Ad;
@@ -48,12 +59,16 @@ describe('AdDetailSection', () => {
     expect(screen.queryByText(/AdDetail/)).not.toBeInTheDocument();
   });
 
-  it('renders nothing once loaded if there is no ad', () => {
-    vi.mocked(useAd).mockReturnValue({ data: undefined, isLoading: false } as never);
+  // UX-FIX P0-1: a missing ad (no data, no explicit error) now renders
+  // a "not found" EmptyState instead of a blank page — see the
+  // component's own comment on the isError || !ad branch.
+  it('shows a "not found" state once loaded if there is no ad', () => {
+    vi.mocked(useAd).mockReturnValue({ data: undefined, isLoading: false, isError: false } as never);
     vi.mocked(useIsFavorited).mockReturnValue(false);
 
-    const { container } = render(<AdDetailSection id="ad-1" />);
-    expect(container).toBeEmptyDOMElement();
+    render(<AdDetailSection id="ad-1" />);
+    expect(screen.getByText('الإعلان غير موجود')).toBeInTheDocument();
+    expect(screen.queryByText(/AdDetail/)).not.toBeInTheDocument();
   });
 
   it('calls useIsFavorited with the ad id', () => {

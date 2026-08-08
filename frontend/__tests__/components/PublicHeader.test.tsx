@@ -31,6 +31,14 @@ vi.mock('@/components/layout/MobileNav', () => ({
   MobileNav: () => <div data-testid="mobile-nav" />,
 }));
 
+// NotificationBell (useMyNotifications/useUnreadNotificationCount, both
+// react-query) only renders in the isAuthenticated branch — unmocked, it
+// throws for lack of a QueryClientProvider the moment that branch is
+// exercised. Not what this file is testing, so stub it like the others.
+vi.mock('@/components/layout/NotificationBell', () => ({
+  NotificationBell: () => <div data-testid="notification-bell" />,
+}));
+
 const mockUseAuthStore = vi.mocked(useAuthStore);
 
 function mockAuthState(isAuthenticated: boolean) {

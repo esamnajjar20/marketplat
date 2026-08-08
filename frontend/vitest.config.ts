@@ -8,6 +8,14 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // Several tests type non-trivial Arabic strings via userEvent.type(),
+    // which dispatches real per-character key events. On slower/CPU-
+    // constrained machines this alone can exceed Vitest's 5000ms default,
+    // causing spurious "Test timed out" failures unrelated to any actual
+    // bug (observed on-device: passing tests already clocking in at
+    // 5000-5700ms). 20s gives real headroom without masking a genuine hang.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     include: ['**/__tests__/**/*.{ts,tsx}', '**/*.{test,spec}.{ts,tsx}'],
     exclude: ['node_modules', '.next', 'dist', 'e2e/**'],
     coverage: {

@@ -139,7 +139,11 @@ describe('ReportAdButton', () => {
       await user.click(screen.getByRole('button', { name: /الإبلاغ عن هذا الإعلان/ }));
       dialog = screen.getByRole('dialog');
 
-      expect(within(dialog).getByLabelText('سبب الإبلاغ')).toHaveValue('SCAM');
+      // report-reason's <label htmlFor> points at Radix's SelectTrigger
+      // (a <button>), not a native <select> — buttons don't expose a
+      // meaningful .value for toHaveValue to read, so assert on what
+      // SelectValue actually renders as trigger text instead.
+      expect(within(dialog).getByLabelText('سبب الإبلاغ')).toHaveTextContent('عملية احتيال');
       expect(within(dialog).getByLabelText(/تفاصيل إضافية/)).toHaveValue('');
     });
   });

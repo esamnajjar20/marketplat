@@ -81,7 +81,9 @@ export function AdForm({ mode, ad }: Props) {
   }, [createAd.error, updateAd.error, mode]);
 
   // Release the re-entrancy guard once the create mutation settles either
-  // way (the edit-mode path resets it itself in submitEdit's finally).
+  // way (the edit-mode path resets it itself at the end of submitEdit,
+  // right after updateAd.mutate() is actually called — see that
+  // function's own comment).
   useEffect(() => {
     if (mode === 'create' && !createAd.isPending) {
       isSubmittingRef.current = false;
@@ -221,12 +223,23 @@ export function AdForm({ mode, ad }: Props) {
       // and invalidated whatever partially succeeded; stop here so a
       // failed image step doesn't still trigger the ad-details PATCH
       // and navigate the user away from a half-applied edit.
-      return;
-    } finally {
-      setIsSavingImages(false);
       isSubmittingRef.current = false;
+      setIsSavingImages(false);
       setUploadProgress(null);
+      return;
     }
+
+    // FIX: isSubmittingRef.current used to be reset to false inside a
+    // `finally` block that ran BEFORE updateAd.mutate() below — opening
+    // a re-entrancy window where the submit button was already
+    // re-enabled (isPending had dropped) while the actual PATCH call
+    // hadn't fired yet, letting a fast double-click/double-submit slip
+    // past the guard and call updateAd.mutate() more than once. The
+    // guard now only clears once the whole submit — image
+    // reconciliation AND the final updateAd call — has actually been
+    // issued.
+    setIsSavingImages(false);
+    setUploadProgress(null);
 
     const payload = {
       title:        values.title.trim(),
@@ -239,6 +252,7 @@ export function AdForm({ mode, ad }: Props) {
     } satisfies UpdateAdPayload;
 
     updateAd.mutate(payload);
+    isSubmittingRef.current = false;
   }
 
   return (

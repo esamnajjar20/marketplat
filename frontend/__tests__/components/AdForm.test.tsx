@@ -21,12 +21,12 @@
  *    called at all, and a failed image step must block updateAd
  *    entirely rather than navigating past a half-applied edit
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdForm } from '@/components/ads/AdForm';
 import { useCategories } from '@/hooks/queries/useCategories';
-import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage } from '@/hooks/mutations/useAdMutations';
+import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import type { Ad } from '@/types/ad.types';
 
 vi.mock('@/hooks/queries/useCategories', () => ({
@@ -38,6 +38,7 @@ vi.mock('@/hooks/mutations/useAdMutations', () => ({
   useUpdateAd: vi.fn(),
   useAddAdImages: vi.fn(),
   useRemoveAdImage: vi.fn(),
+  useReorderAdImages: vi.fn(),
 }));
 
 // ImageUpload has its own dedicated test suite (ImageUpload.test.tsx) —
@@ -47,7 +48,14 @@ vi.mock('@/components/shared/forms/ImageUpload', () => ({
   ImageUpload: ({ existingUrls, onRemoveExisting }: any) => (
     <div data-testid="image-upload">
       {existingUrls?.map((url: string) => (
-        <button key={url} onClick={() => onRemoveExisting?.(url)}>
+        // type="button" is required here: a <button> with no explicit
+        // type defaults to type="submit", and this stub renders inside
+        // AdForm's real <form> — without it, clicking "Remove" both
+        // calls onRemoveExisting AND submits the form a beat before
+        // the actual submit-button click does, double-firing
+        // handleSubmit/submitEdit across the two user.click() calls in
+        // every test that removes an image before submitting.
+        <button key={url} type="button" onClick={() => onRemoveExisting?.(url)}>
           Remove {url}
         </button>
       ))}
@@ -61,6 +69,8 @@ const mockAddImagesMutate = vi.fn();
 const mockAddImagesMutateAsync = vi.fn();
 const mockRemoveImageMutate = vi.fn();
 const mockRemoveImageMutateAsync = vi.fn();
+const mockReorderImagesMutate = vi.fn();
+const mockReorderImagesMutateAsync = vi.fn();
 
 const existingAd: Ad = {
   id: 'ad-1',
@@ -82,6 +92,10 @@ const existingAd: Ad = {
 } as Ad;
 
 describe('AdForm', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
     (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({ data: [] });
@@ -101,6 +115,11 @@ describe('AdForm', () => {
       mutateAsync: mockRemoveImageMutateAsync.mockResolvedValue(undefined),
       isPending: false,
     });
+    (useReorderAdImages as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: mockReorderImagesMutate,
+      mutateAsync: mockReorderImagesMutateAsync.mockResolvedValue(undefined),
+      isPending: false,
+    });
   });
 
   async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
@@ -116,6 +135,19 @@ describe('AdForm', () => {
     await user.click(await screen.findByRole('option', { name: 'غزة' }));
   }
 
+  // AdForm's isFormIncomplete guard keeps the submit button disabled
+  // (and per the HTML spec, a disabled submit control means Enter in a
+  // text field does NOT implicitly submit the form — jsdom correctly
+  // enforces this) for every validation scenario below, by definition:
+  // that's exactly the state being tested. So these dispatch a real
+  // submit event on the <form> directly rather than relying on the
+  // Enter-key trick, which only works while the button is enabled.
+  function submitForm(container: HTMLElement) {
+    const form = container.querySelector('form');
+    if (!form) throw new Error('submitForm: no <form> found in container');
+    fireEvent.submit(form);
+  }
+
   // AdForm's isFormIncomplete guard (title≥5, description≥20, city set)
   // keeps the submit button disabled for every one of these scenarios
   // by design, so a plain click on it would be a no-op — Enter in the
@@ -124,9 +156,10 @@ describe('AdForm', () => {
   describe('validation', () => {
     it('requires a title of at least 5 characters', async () => {
       const user = userEvent.setup();
-      render(<AdForm mode="create" />);
+      const { container } = render(<AdForm mode="create" />);
 
-      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'قصير{Enter}');
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'قصير');
+      submitForm(container);
 
       expect(screen.getByText('العنوان قصير جداً (5 أحرف على الأقل)')).toBeInTheDocument();
       expect(mockCreateMutate).not.toHaveBeenCalled();
@@ -134,15 +167,11 @@ describe('AdForm', () => {
 
     it('requires a description of at least 20 characters', async () => {
       const user = userEvent.setup();
-      render(<AdForm mode="create" />);
+      const { container } = render(<AdForm mode="create" />);
 
-      const titleInput = screen.getByLabelText(/عنوان الإعلان/);
-      await user.type(titleInput, 'عنوان صالح للإعلان');
-      // The description field is a <textarea>: Enter there inserts a
-      // newline instead of submitting, unlike a plain <input> — so type
-      // it in full first, then submit via Enter back in the title field.
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان صالح للإعلان');
       await user.type(screen.getByLabelText(/الوصف/), 'قصير جداً');
-      await user.type(titleInput, '{Enter}');
+      submitForm(container);
 
       expect(screen.getByText('الوصف قصير جداً (20 حرفاً على الأقل)')).toBeInTheDocument();
       expect(mockCreateMutate).not.toHaveBeenCalled();
@@ -150,31 +179,34 @@ describe('AdForm', () => {
 
     it('requires a city', async () => {
       const user = userEvent.setup();
-      render(<AdForm mode="create" />);
+      const { container } = render(<AdForm mode="create" />);
 
-      const titleInput = screen.getByLabelText(/عنوان الإعلان/);
-      await user.type(titleInput, 'عنوان صالح للإعلان');
-      // Same textarea caveat as above: fill it in full first (no
-      // trailing Enter there), then submit via Enter in the title field.
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان صالح للإعلان');
       await user.type(
         screen.getByLabelText(/الوصف/),
         'هذا وصف تجريبي طويل بما فيه الكفاية لاجتياز التحقق من طول العشرين حرفاً',
       );
-      await user.type(titleInput, '{Enter}');
+      submitForm(container);
 
       expect(screen.getByText('المدينة مطلوبة')).toBeInTheDocument();
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
-    it('requires at least one image in create mode when there are no files and no existing images', async () => {
+    // TEMPORARY (see AdForm's own comment on this — mirrors a matching
+    // disable in backend/ads.controller.ts's createAd): the
+    // image-required check is currently disabled until image hosting
+    // is configured, so create mode submits successfully with zero
+    // images for now. Revert this test alongside re-enabling the check
+    // in both places.
+    it('does NOT require an image in create mode while the image-required check is temporarily disabled', async () => {
       const user = userEvent.setup();
       render(<AdForm mode="create" />);
 
       await fillRequiredFields(user);
       await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
 
-      expect(screen.getByText('أضف صورة واحدة على الأقل')).toBeInTheDocument();
-      expect(mockCreateMutate).not.toHaveBeenCalled();
+      expect(screen.queryByText('أضف صورة واحدة على الأقل')).not.toBeInTheDocument();
+      await waitFor(() => expect(mockCreateMutate).toHaveBeenCalledTimes(1));
     });
 
     it('does NOT require an image in edit mode when the ad already has existing images', async () => {
@@ -212,6 +244,11 @@ describe('AdForm', () => {
           isNegotiable: existingAd.isNegotiable,
           images: [],
         }),
+        // createAd.mutate always passes a second arg (onSettled resets
+        // the upload-progress bar) — toHaveBeenCalledWith checks every
+        // argument, so this needs to be accounted for too, not just the
+        // payload.
+        expect.objectContaining({ onSettled: expect.any(Function) }),
       );
     });
 

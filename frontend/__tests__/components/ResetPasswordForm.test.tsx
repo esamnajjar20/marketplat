@@ -7,7 +7,7 @@
  * they believe they set.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -54,17 +54,17 @@ describe('ResetPasswordForm', () => {
   // The submit button is deliberately disabled (see ResetPasswordForm's
   // isFormIncomplete guard) until both fields are filled and match, so a
   // plain click on it is a no-op whenever the scenario under test needs
-  // one of those fields left empty or mismatched. Pressing Enter in a
-  // text field submits its <form> even while the submit button itself is
-  // disabled (real browser behaviour), which is what actually exercises
-  // validate()'s error paths here — mirroring how a user who never
-  // notices the button is greyed out would still trigger a submit.
+  // one of those fields left empty or mismatched. Per the HTML spec, a
+  // disabled submit control also means Enter in a text field does NOT
+  // implicitly submit the form (jsdom correctly enforces this) — so
+  // these dispatch a real submit event on the <form> directly instead.
   describe('validation', () => {
     it('requires a password', async () => {
       const user = userEvent.setup();
-      renderWithClient(<ResetPasswordForm token="tok-1" />);
+      const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
-      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'password123{Enter}');
+      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'password123');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('كلمة المرور مطلوبة')).toBeInTheDocument();
       expect(authApi.resetPassword).not.toHaveBeenCalled();
@@ -72,10 +72,11 @@ describe('ResetPasswordForm', () => {
 
     it('requires a password of at least 8 characters', async () => {
       const user = userEvent.setup();
-      renderWithClient(<ResetPasswordForm token="tok-1" />);
+      const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'short1');
-      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'short1{Enter}');
+      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'short1');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('كلمة المرور 8 أحرف على الأقل')).toBeInTheDocument();
       expect(authApi.resetPassword).not.toHaveBeenCalled();
@@ -83,9 +84,10 @@ describe('ResetPasswordForm', () => {
 
     it('requires the confirm field to be filled', async () => {
       const user = userEvent.setup();
-      renderWithClient(<ResetPasswordForm token="tok-1" />);
+      const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
-      await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'password123{Enter}');
+      await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'password123');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('تأكيد كلمة المرور مطلوب')).toBeInTheDocument();
       expect(authApi.resetPassword).not.toHaveBeenCalled();
@@ -93,10 +95,11 @@ describe('ResetPasswordForm', () => {
 
     it('rejects mismatched password and confirmation — the critical safety check', async () => {
       const user = userEvent.setup();
-      renderWithClient(<ResetPasswordForm token="tok-1" />);
+      const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'password123');
-      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'password456{Enter}');
+      await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'password456');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('كلمتا المرور غير متطابقتين')).toBeInTheDocument();
       expect(authApi.resetPassword).not.toHaveBeenCalled();

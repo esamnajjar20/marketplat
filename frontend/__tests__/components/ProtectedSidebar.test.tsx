@@ -45,13 +45,16 @@ vi.mock('next/link', () => ({
 describe('ProtectedSidebar', () => {
   // ── Renders all nav items ──────────────────────────────────────
 
-  it('renders all 5 navigation items', () => {
+  it('renders all 8 navigation items', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     render(<ProtectedSidebar />);
     expect(screen.getByText('لوحة التحكم')).toBeDefined();
     expect(screen.getByText('إعلاناتي')).toBeDefined();
     expect(screen.getByText('المفضلة')).toBeDefined();
+    expect(screen.getByText('البحثات المحفوظة')).toBeDefined();
     expect(screen.getByText('الرسائل')).toBeDefined();
+    expect(screen.getByText('خدماتي')).toBeDefined();
+    expect(screen.getByText('بلاغاتي')).toBeDefined();
     expect(screen.getByText('الإعدادات')).toBeDefined();
   });
 
@@ -123,8 +126,8 @@ describe('ProtectedSidebar', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     const { container } = render(<ProtectedSidebar />);
     const iconSpans = container.querySelectorAll('[aria-hidden="true"]');
-    // 5 nav items × 1 icon each
-    expect(iconSpans.length).toBe(5);
+    // 8 nav items × 1 icon each
+    expect(iconSpans.length).toBe(8);
   });
 
   // ── Correct hrefs ──────────────────────────────────────────────

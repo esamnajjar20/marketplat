@@ -3,9 +3,11 @@
  *
  * RecentAds's real logic: loading skeleton, renders all fetched ads
  * (no featured-only filtering, unlike FeaturedAds), calls useAds with
- * the correct sort params (createdAt desc, limit 8), and always renders
- * the "عرض جميع الإعلانات" link to /search — even with zero results,
- * unlike FeaturedAds which renders null when empty.
+ * the correct sort params (createdAt desc, limit 8), and renders the
+ * "عرض جميع الإعلانات" link to /search whenever there's at least one
+ * ad. On zero results it shows an EmptyState with a "publish your
+ * first ad" CTA instead (home page §1 audit fix) rather than an empty
+ * grid with a dangling "view all" link.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -80,10 +82,12 @@ describe('RecentAds', () => {
     expect(link).toHaveAttribute('href', ROUTES.search);
   });
 
-  it('still renders the "view all" link when there are zero results (unlike FeaturedAds, which renders null)', () => {
+  it('shows an EmptyState with a "publish first ad" CTA when there are zero results (home page §1 fix)', () => {
     mockUseAds.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
     render(<RecentAds />);
 
-    expect(screen.getByText('عرض جميع الإعلانات')).toBeInTheDocument();
+    expect(screen.getByText('لا توجد إعلانات بعد')).toBeInTheDocument();
+    expect(screen.getByText('نشر إعلان مجاناً').closest('a')).toHaveAttribute('href', ROUTES.adCreate);
+    expect(screen.queryByText('عرض جميع الإعلانات')).not.toBeInTheDocument();
   });
 });

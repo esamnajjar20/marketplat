@@ -10,8 +10,8 @@
  * (isOwnAd) and gated behind auth otherwise, mirroring AdDetail's own
  * handleFavorite auth gate.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SellerCard } from '@/components/ads/SellerCard';
@@ -69,6 +69,12 @@ function renderWithClient(ui: React.ReactElement) {
 
 beforeEach(() => {
   vi.mocked(sellersApi.getById).mockReset();
+  // mockStartConversation is a module-level spy shared across every test
+  // in this file — without resetting it here, a call count (and any
+  // mockImplementation) from an earlier test (e.g. "starts a
+  // conversation and navigates to it on click") leaks into later ones,
+  // such as the unauthenticated case asserting it was NOT called.
+  mockStartConversation.mockReset();
   vi.mocked(useStartConversation).mockReturnValue({
     mutate: mockStartConversation,
     isPending: false,
@@ -77,6 +83,14 @@ beforeEach(() => {
 });
 
 describe('SellerCard', () => {
+  // Explicit cleanup between tests: without it, a leftover mounted
+  // instance from a previous test (rendered under different mockAuth
+  // state) can still satisfy a global screen.getByRole query in a
+  // later test, since render() here isn't scoped per-test.
+  afterEach(() => {
+    cleanup();
+  });
+
   it('links to the seller profile page when sellerProfileId is present', () => {
     renderWithClient(
       <SellerCard seller={baseSeller} adId="ad-1" sellerProfileId="sp-1" />

@@ -117,18 +117,26 @@ describe('NotificationSettingsForm', () => {
     );
   });
 
-  it('disables all switches while a save is pending', () => {
+  it('disables only the switch currently being toggled, not the others (UX-FIX P3-12)', async () => {
+    const user = userEvent.setup();
     (useMe as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { notificationPreferences: { newMessage: true, adViews: false, favAdUpdated: true, promotions: false } },
       isLoading: false,
     });
+    // The mutation never settles in this test, so pendingKey stays set
+    // on whichever switch was clicked — long enough to assert on.
     (useUpdateNotificationPreferences as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockMutate,
       isPending: true,
     });
     render(<NotificationSettingsForm />);
 
-    screen.getAllByRole('switch').forEach((sw) => expect(sw).toBeDisabled());
+    await user.click(screen.getByRole('switch', { name: 'رسائل جديدة' }));
+
+    expect(screen.getByRole('switch', { name: 'رسائل جديدة' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'مشاهدات الإعلان' })).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'تحديثات المفضلة' })).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'عروض وتخفيضات' })).not.toBeDisabled();
   });
 
   it('reverts the switch to its previous state when the save fails (UX-FIX P2-9)', async () => {

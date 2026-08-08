@@ -26,6 +26,7 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { useAuthStore } from '@/store/auth.store';
 import { useAdminStats } from '@/hooks/queries/useAdmin';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
+import { ROUTES } from '@/lib/constants';
 
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),

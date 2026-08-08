@@ -24,7 +24,7 @@
  *    it redirects to a valid page
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MyProductsList } from '@/components/stores/MyProductsList';
 import { useMyProducts } from '@/hooks/queries/useProducts';
@@ -113,7 +113,11 @@ describe('MyProductsList', () => {
     });
     render(<MyProductsList />);
     expect(screen.getByText('خلاط كهربائي')).toBeInTheDocument();
-    expect(screen.getByText('نشط')).toBeInTheDocument();
+    // "نشط" also appears as the "الكل"-row filter tab's sibling button
+    // label, so scope to the product row (found via the product name)
+    // rather than a bare getByText, which would be ambiguous.
+    const row = screen.getByText('خلاط كهربائي').closest('div.flex.gap-3');
+    expect(within(row as HTMLElement).getByText('نشط')).toBeInTheDocument();
   });
 
   it('shows the discount price and strikes through the original price when discounted', () => {
@@ -150,9 +154,13 @@ describe('MyProductsList', () => {
 
   it('navigates with the new status (and clears the page param) when a status tab is clicked', async () => {
     const user = userEvent.setup();
-    mockSearchParams = new URLSearchParams('page=3');
+    // page=2 (not 3) so it stays in-range against totalPages: 3 below —
+    // otherwise useOutOfRangeRedirect kicks in and the component never
+    // gets past its redirect-in-progress loading spinner, which isn't
+    // what this test is about.
+    mockSearchParams = new URLSearchParams('page=2');
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { items: [], meta: { totalPages: 1 } },
+      data: { items: [], meta: { totalPages: 3 } },
       isLoading: false,
     });
     render(<MyProductsList />);

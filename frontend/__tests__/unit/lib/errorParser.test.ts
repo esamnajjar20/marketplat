@@ -545,12 +545,16 @@ describe('parseApiError idempotency (FIX AUTH-MSG-01)', () => {
 });
 
 describe('getFieldError', () => {
-  it('returns the first message for a field that has errors', () => {
+  it('returns the first (translated) message for a field that has errors', () => {
     const err = makeAxiosError(400, 'Validation failed', {}, {
       'body.city': ['City is required', 'City must be a known city'],
     });
     const parsed = parseApiError(err);
-    expect(getFieldError(parsed, 'city')).toBe('City is required');
+    // FIX I18N-01: field messages are translated to Arabic — with no
+    // errorMeta present (this call omits it), unrecognised English
+    // messages fall back to the generic Arabic validation string
+    // rather than passing the raw backend text through.
+    expect(getFieldError(parsed, 'city')).toBe('البيانات المدخلة غير صحيحة');
   });
 
   it('returns undefined for a field with no errors', () => {

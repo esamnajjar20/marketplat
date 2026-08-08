@@ -27,6 +27,24 @@ vi.mock('next/image', () => ({
   },
 }));
 
+// ── Radix UI (Select, Dropdown, etc.) — jsdom is missing a handful of
+// DOM APIs Radix's positioning/pointer-capture logic depends on. Without
+// these, Radix's internal event handlers throw and content like
+// SelectContent's options never mounts, even though everything is
+// wired up correctly in the component under test.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+}
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = () => {};
+}
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = () => {};
+}
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 // ── File preview APIs — jsdom doesn't implement these natively ─────
 let objectUrlCounter = 0;
 const objectUrls = new Set<string>();

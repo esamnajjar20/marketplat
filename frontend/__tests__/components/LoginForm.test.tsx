@@ -13,7 +13,7 @@
  *   - disables the submit button and shows a loading label while pending
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { useLogin } from '@/hooks/mutations/useAuthMutations';
@@ -48,14 +48,15 @@ describe('LoginForm', () => {
   describe('validation', () => {
     it('shows a required-field error and does not call login when email is empty', async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      const { container } = render(<LoginForm />);
 
       // Email deliberately left blank, so isFormIncomplete keeps the
-      // submit button disabled — a click on it would be a no-op.
-      // Enter in the password field submits the <form> the same way it
-      // would for a real user (real browser behaviour), which is what
-      // actually exercises validate()'s error path here.
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123{Enter}');
+      // submit button disabled — per the HTML spec, a disabled submit
+      // control means Enter in a text field does NOT implicitly submit
+      // the form (jsdom correctly enforces this), so dispatch a real
+      // submit event on the <form> directly instead.
+      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('البريد الإلكتروني مطلوب')).toBeInTheDocument();
       expect(mockLogin).not.toHaveBeenCalled();
@@ -66,7 +67,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'not-an-email');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(screen.getByText('بريد إلكتروني غير صالح')).toBeInTheDocument();
@@ -75,12 +76,14 @@ describe('LoginForm', () => {
 
     it('shows a required-field error when password is empty (no min-length check — FIX V-01)', async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      const { container } = render(<LoginForm />);
 
       // Same disabled-button trap as above, mirrored for the password
-      // field: it must stay empty for this scenario, so submit via
-      // Enter in the email field instead of clicking the button.
-      await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com{Enter}');
+      // field: it must stay empty for this scenario, so submit the
+      // <form> directly rather than relying on Enter-key implicit
+      // submission, which is blocked while the submit button is disabled.
+      await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('كلمة المرور مطلوبة')).toBeInTheDocument();
       expect(mockLogin).not.toHaveBeenCalled();
@@ -91,7 +94,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'ab');
+      await user.type(screen.getByLabelText('كلمة المرور'), 'ab');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(screen.queryByText('كلمة المرور مطلوبة')).not.toBeInTheDocument();
@@ -105,7 +108,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(mockLogin).toHaveBeenCalledWith({
@@ -121,7 +124,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(mockLogin).toHaveBeenCalledWith({
@@ -137,7 +140,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText(/كلمة المرور/), 'password123');
+      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(mockLogin).toHaveBeenCalledWith({

@@ -2,10 +2,11 @@
  * __tests__/components/AdminSidebar.test.tsx
  *
  * Coverage targets (report item #6 — admin layout had no real sidebar):
- *  - Renders all 9 admin nav links, including "فئات الإعلانات" (categories),
+ *  - Renders all 11 admin nav links, including "فئات الإعلانات" (categories),
  *    "البائعون" (Epic 1.1 — verify/suspend sellers), "فئات الخدمات"
  *    (Epic 1.2 — service-categories management), "المتاجر" (store
- *    approval — issue #1), and "سجل العمليات" (Audit Logs).
+ *    approval — issue #1), "فئات المنتجات" (product categories), "سجل
+ *    العمليات" (Audit Logs), and "التحليلات" (Gap #7 — product analytics).
  *  - Active-state: aria-current="page" set on the link matching the current pathname
  *  - Active-state: startsWith match for nested routes (e.g. /admin/ads/123)
  *  - Mobile drawer: closed by default, opens on hamburger click, closes on
@@ -49,7 +50,7 @@ describe('AdminSidebar', () => {
 
   // ── Renders all nav links ──────────────────────────────────────────
 
-  it('renders all 9 admin nav links in the desktop sidebar', () => {
+  it('renders all 11 admin nav links in the desktop sidebar', () => {
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     expect(within(desktopNav).getByText('الرئيسية')).toBeInTheDocument();
@@ -60,7 +61,9 @@ describe('AdminSidebar', () => {
     expect(within(desktopNav).getByText('البلاغات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('فئات الإعلانات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('فئات الخدمات')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('فئات المنتجات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('سجل العمليات')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
   });
 
   it('links to /admin/categories for the فئات الإعلانات item (report item #6 fix)', () => {
@@ -146,7 +149,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(9); // one per nav link
+    expect(hiddenIcons?.length).toBe(11); // one per nav link
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────
