@@ -1,61 +1,86 @@
-# الإصلاحات المطبّقة — الدفعة الأولى
+# الإصلاحان المطبّقان
 
-هذا الأرشيف يحتوي فقط الملفات التي عُدّلت (10 ملفات، لا ملفات جديدة).
-كل مسار مطابق تمامًا لمكانه داخل مشروع marketplat-main الأصلي — يمكنك
-استخراج الأرشيف مباشرة فوق نسخة المشروع لتطبيق التعديلات.
+هذا الأرشيف يحتوي فقط على الملفات المعدّلة/الجديدة الناتجة عن إصلاحين
+تم التحقق منهما فعلياً على كود المشروع (وليس كل ما ورد في تقرير
+"الدفعة الثالثة" — أغلب ملاحظات ذلك التقرير تبيّن أنها غير منطبقة على
+هذا الكود بعد الفحص، وبعضها كان محلولاً مسبقاً).
 
-## 1. backend/src/modules/auth/auth.service.ts
-**الثغرة:** race condition في `resetPassword` — الفحص (`used: false`)
-والتحديث كانا عمليتين منفصلتين، فطلبان متزامنان بنفس التوكن يمكن أن
-ينفذا كلاهما.
-**الإصلاح:** استبدال الفحص المنفصل بـ `updateMany({where: {token,
-used: false}})` كشرط ذري ضمن الكتابة نفسها؛ الطلب الخاسر يحصل على
-`count === 0` ويُرفض قبل تحديث كلمة المرور.
-
-## 2. backend/src/modules/products/products.repository.ts
-## 3. backend/src/modules/products/products.service.ts
-## 4. backend/src/modules/ads/ads.repository.ts
-## 5. backend/src/modules/ads/ads.service.ts
-## 6. backend/src/modules/service-listings/service-listings.repository.ts
-## 7. backend/src/modules/service-listings/service-listings.service.ts
-**الثغرة:** حظر البائع (`SellerProfile.suspended`) كان يمنع فقط
-إنشاء عناصر جديدة، لكن المنتجات/الإعلانات/الخدمات المنشورة سابقًا
-تبقى ظاهرة في القوائم العامة وقابلة للوصول المباشر عبر الرابط.
-**الإصلاح:**
-- إضافة `sellerProfile.suspended: false` (أو المكافئ عبر العلاقة
-  المناسبة لكل نموذج) لاستعلامات `findMany` العامة.
-- إضافة فحص مكافئ في مسارات العرض المباشر بالمعرّف
-  (`getProductById`, `getAdById`, `getServiceListingById`) يُرجع 404
-  بدل عرض العنصر.
-- في `products.service.ts` تحديدًا: أُضيف أيضًا فحص `store.status
-  !== 'ACTIVE'` لإغلاق نفس الثغرة عند حجب المتجر من الإدارة (وليس
-  فقط حظر البائع نفسه).
-
-## 8. backend/src/modules/product-categories/product-categories.repository.ts
-## 9. backend/src/modules/product-categories/product-categories.service.ts
-**الثغرة أ (حلقة مفرغة):** `updateProductCategory` لم يكن يتحقق من
-أن `parentId` الجديد ليس هو الفئة نفسها أو أحد أحفادها.
-**الإصلاح:** دالة `findParentChain` تتسلق شجرة الأصل المقترح
-(بحد أقصى 100 قفزة كحاجز دفاعي)، والخدمة ترفض التحديث إن وُجدت
-الفئة الحالية ضمن تلك السلسلة.
-
-**الثغرة ب (FK violation عند الحذف):** حذف فئة تحتوي على فئات فرعية
-كان يسبب خطأ Prisma P2003 غير معالج (500). فحص المنتجات المرتبطة
-كان موجودًا مسبقًا، لكن فحص الفئات الفرعية لم يكن موجودًا.
-**الإصلاح:** دالة `countChildren` وفحص مكافئ لفحص المنتجات، يُرجع
-400 برسالة واضحة بدل 500.
-
-## 10. backend/src/modules/service-providers/service-providers.repository.ts
-**الثغرة:** استعلام `findNearby` (بحث القرب الجغرافي) كان يحسب
-معادلة Haversine (`acos(...)`) على كل صف في الجدول دون أي فلترة
-مسبقة، متجاهلاً الفهرس الموجود `@@index([latitude, longitude])`.
-**الإصلاح:** إضافة فلترة Bounding Box (`BETWEEN` على `latitude` و
-`longitude` مباشرة) قبل حساب Haversine الدقيق — تستفيد من الفهرس
-وتقلص عدد الصفوف التي تحتاج الحساب الثقيل إلى نطاق الجوار الجغرافي
-فقط.
+## طريقة التطبيق
+انسخ محتوى مجلد `backend/` هنا فوق `backend/` في مشروعك (الملفات
+الجديدة تُنشأ، والملفات الموجودة تُستبدل بالكامل)، ثم شغّل:
+```
+cd backend
+npx prisma migrate deploy
+npm test -- activity audit
+```
 
 ---
 
-⚠️ **ملاحظة:** لم يتوفر لدي `node_modules` ولا اتصال شبكي للتحقق عبر
-`npm run build` (tsc). راجعتُ كل تعديل يدويًا للتأكد من صحة الأنواع،
-لكن يُفضّل تشغيل البناء عندك قبل الدمج النهائي.
+## 1) activity — تجميع الكتابات بدل الكتابة المباشرة (36 نقطة استدعاء)
+
+**المشكلة المؤكدة:** `activityService.record()` كانت تكتب صفاً واحداً
+مباشرة إلى Postgres في كل استدعاء (نشر إعلان، فتح محادثة، إضافة
+مفضلة...)، بدون أي تجميع.
+
+**الحل:** أضيفت طبقة تجميع في Redis (نفس نمط `viewsBuffer.ts` الموجود
+مسبقاً في المشروع)، بفاصل تفريغ 5 ثوانٍ (أقصر من الـ 60 ثانية في
+`viewsBuffer` لأن صفحة "نشاطي" واجهة مستخدم مباشرة، على عكس عدّاد
+المشاهدات).
+
+**ملفات جديدة:**
+- `src/shared/utils/activityBuffer.ts` — التجميع والتفريغ عبر Redis List (RPUSH/LPOP) + `createMany`
+- `tests/unit/activityBuffer.test.ts`
+
+**ملفات معدّلة:**
+- `src/modules/activity/activity.service.ts` — `record()` تستخدم الآن `activityBuffer.push` بدل الكتابة المباشرة
+- `src/server.ts` — بدء/إيقاف مؤقّت التفريغ عند إقلاع/إغلاق السيرفر (بنفس أماكن `viewsBuffer`)
+- `tests/unit/activity.service.test.ts` — محدّث ليعكس المسار الجديد
+
+**ملاحظة:** لم يتم بناء سياسة أرشفة/تقسيم الجدول (partitioning) المذكورة
+في التقرير الأصلي — هذا تغيير بنيوي أكبر (يمس schema وربما استراتيجية
+النسخ الاحتياطي) ويحتاج قراراً منفصلاً قبل التنفيذ.
+
+---
+
+## 2) audit-logs — تنقية الحقول الحساسة + منع التعديل/الحذف على مستوى DB
+
+**المشكلة المؤكدة:**
+- لا يوجد أي حاجز يمنع تمرير بيانات حساسة (كلمة مرور، توكن...) داخل
+  `details` عن طريق الخطأ من مطوّر مستقبلي (لا يوجد استغلال فعلي حالياً،
+  لكن لا يوجد أيضاً ما يمنعه).
+- لا يوجد أي قيد على مستوى قاعدة البيانات يمنع `UPDATE`/`DELETE` على
+  جدول `audit_logs` — الحماية كانت فقط أن التطبيق نفسه لا يستدعي هذين
+  الإجرائين (`audit-logs.repository.ts` قراءة فقط).
+
+**الحل:**
+- دالة تنقية تستبدل قيمة أي مفتاح يشبه بيانات حساسة (password, token,
+  secret, card, cvv, otp, pin, ssn...) بـ `[REDACTED]` قبل الكتابة إلى
+  الـ logger وقاعدة البيانات معاً.
+- Trigger على مستوى PostgreSQL يرفض أي `UPDATE`/`DELETE` على
+  `audit_logs` نهائياً (وليس `REVOKE` على دور معيّن، لأن اسم الدور
+  متغيّر بين البيئات عبر `POSTGRES_USER`). للصيانة الاستثنائية
+  (مثال: أمر قضائي بحذف سجل)، يحتاج الأمر تدخلاً يدوياً مباشراً على DB
+  لإسقاط الـ trigger مؤقتاً — التفاصيل موثّقة داخل ملف الـ migration.
+
+**ملفات جديدة:**
+- `src/shared/utils/sanitizeAuditDetails.ts`
+- `tests/unit/sanitizeAuditDetails.test.ts`
+- `prisma/migrations/20260807130000_audit_logs_append_only/migration.sql`
+
+**ملفات معدّلة:**
+- `src/shared/utils/auditLog.ts` — يطبّق التنقية قبل كلا مسارَي الكتابة
+- `tests/unit/auditLog.test.ts` — أُضيفت حالات اختبار للتنقية دون كسر الاختبارات الأصلية
+
+---
+
+## ملاحظات فحص لملاحظات التقرير الأخرى (لم تُطبَّق لأنها غير منطبقة على الكود الفعلي)
+
+| الوحدة | السبب |
+|---|---|
+| analytics | لا `sellerId` في أي مسار؛ admin-only بالكامل؛ استعلامات محمية بـ `runWithQueryTimeout` مسبقاً |
+| notifications | push مُرسلة fire-and-forget بالفعل (`void pushService...`)؛ `markAllRead` مقيّد بـ `userId` بالفعل |
+| service-listings | محلولة سلفاً: `provider: { sellerProfile: { suspended: false } }` مطبّقة في الاستعلام العلني |
+| service-requests | لا يوجد نظام دفع/محفظة/escrow في المشروع إطلاقاً — الملاحظة مبنية على افتراض غير منطبق |
+| service-reviews | محلولة سلفاً بالكامل: تحقق COMPLETED + قيد فريد على DB + فحص الحظر |
+| service-categories | محلولة سلفاً: منع حذف فئة تحوي إعلانات نشطة + `onDelete: Restrict` |
+| service-providers | الملاحظة صحيحة لكنها ميزة KYC جديدة كاملة (migration + لوحة موافقات إدارية)، وليست "إصلاح ثغرة" — تحتاج تصميماً منفصلاً قبل التنفيذ |

@@ -9,6 +9,7 @@ import { formatPhone } from '@/lib/formatters';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
+import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
 import type { StoreWithSellerAndCounts } from '@/types/store.types';
 
 interface Props {
@@ -88,7 +89,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           <p className="text-sm mt-2 max-w-md">{store.description}</p>
 
           {isAuthenticated && !isOwnStore && (
-            <div className="pt-1">
+            <div className="pt-1 flex items-center gap-3">
               <Button
                 size="sm"
                 variant={isFollowing ? 'outline' : 'default'}
@@ -97,6 +98,13 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
               >
                 {isFollowing ? 'إلغاء المتابعة' : 'متابعة المتجر'}
               </Button>
+              {/* FEAT-REPORT-USER-STORE: same isOwnStore/isAuthenticated
+                  guard the follow button already uses above — a store's
+                  own seller shouldn't see (or be able to submit) a
+                  report against their own store, matching the
+                  self-report check reports.service.ts already enforces
+                  server-side. */}
+              <ReportStoreButton storeId={store.id} />
             </div>
           )}
         </div>

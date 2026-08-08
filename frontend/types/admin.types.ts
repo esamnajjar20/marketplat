@@ -77,16 +77,26 @@ export type ReportReason =
  */
 export type ReportStatus = 'PENDING' | 'RESOLVED' | 'DISMISSED';
 
+/**
+ * FEAT-REPORT-USER-STORE: what a Report points at. Backend schema:
+ * enum ReportTargetType { AD  USER  STORE }
+ */
+export type ReportTargetType = 'AD' | 'USER' | 'STORE';
+
 export interface Report {
-  id:        string;
-  reason:    ReportReason;
-  notes:     string | null;
-  status:    ReportStatus;
-  adId:      string;
-  userId:    string;
-  createdAt: string;
-  ad:        Pick<Ad,   'id' | 'title' | 'status'>;
-  user:      Pick<User, 'id' | 'name' | 'email'>;
+  id:         string;
+  reason:     ReportReason;
+  notes:      string | null;
+  status:     ReportStatus;
+  targetType: ReportTargetType;
+  targetId:   string;
+  /** FEAT-REPORT-USER-STORE: only populated for targetType === 'AD' — null for USER/STORE reports. */
+  adId:       string | null;
+  userId:     string;
+  createdAt:  string;
+  /** FEAT-REPORT-USER-STORE: only present when targetType === 'AD'. */
+  ad:         Pick<Ad, 'id' | 'title' | 'status'> | null;
+  user:       Pick<User, 'id' | 'name' | 'email'>;
 }
 
 // ── Admin stats ─────────────────────────────────────────────────────

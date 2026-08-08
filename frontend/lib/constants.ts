@@ -21,6 +21,8 @@ export const ROUTES = {
   favorites:     '/favorites',
   savedSearches: '/saved-searches',
   activity:      '/activity',
+  // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter's own filed reports.
+  myReports:     '/my-reports',
   messages:      '/messages',
   conversationDetail: (id: string) => `/messages/${id}`,
   dashboard:     '/dashboard',
@@ -100,6 +102,13 @@ export const REPORT_REASON_LABELS: Record<string, string> = {
   FAKE:      'إعلان مزيف',
   OFFENSIVE: 'محتوى مسيء',
   SPAM:      'إعلان مكرر أو غير مرغوب',
+};
+
+/** Must match the backend Prisma `ReportStatus` enum exactly (PENDING | RESOLVED | DISMISSED — NOT REVIEWED, see admin.types.ts's own note on this). FEAT-REPORT-USER-STORE: used by MyReportsList so a reporter sees the same status wording admins see in AdminReportsTable. */
+export const REPORT_STATUS_LABELS: Record<string, string> = {
+  PENDING:   'قيد المراجعة',
+  RESOLVED:  'تم الحل',
+  DISMISSED: 'تم الرفض',
 };
 
 /** Must match the backend Prisma `AuditEventType` enum exactly (prisma/schema.prisma). */

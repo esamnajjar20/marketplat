@@ -133,6 +133,18 @@ export const storesService = {
     return { stores, meta: buildPaginationMeta(total, page, limit) };
   },
 
+  // FEAT-REPORT-USER-STORE: facade for cross-module use (reportsService),
+  // same pattern as ads.service.ts's findAdForReference — returns the
+  // store without side effects, so reportsService can validate a
+  // targetId=STORE report points at a real store without importing
+  // storesRepository directly. Includes sellerProfile (not just the bare
+  // store row) because reportsService needs sellerProfile.userId to
+  // resolve "who owns this store" for its self-report check — a store
+  // has no userId column of its own, only sellerProfileId.
+  findStoreForReference: async (storeId: string): Promise<StoreWithSeller | null> => {
+    return storesRepository.findByIdWithSeller(storeId);
+  },
+
   // Admin directory — see audit report issue #1: PENDING stores had no
   // endpoint to even list them for approval, so createStore's required
   // admin approval step was unreachable. Mirrors sellersService.getAllSellers.

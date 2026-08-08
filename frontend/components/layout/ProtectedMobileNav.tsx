@@ -40,6 +40,9 @@ const LINKS = [
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches },
   { label: 'خدماتي', href: ROUTES.myServices },
   { label: 'متجري', href: ROUTES.myStore },
+  // FEAT-REPORT-USER-STORE: added for parity with ProtectedSidebar,
+  // same reasoning as this file's own doc comment on "البحثات المحفوظة".
+  { label: 'بلاغاتي', href: ROUTES.myReports },
   { label: 'الإعدادات', href: ROUTES.settings.profile, activeMatch: ROUTES.settings.root },
 ] as const;
 

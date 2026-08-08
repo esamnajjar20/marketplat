@@ -11,9 +11,26 @@ import { useAdminReports }   from '@/hooks/queries/useAdmin';
 import { useAdminUpdateReportStatus } from '@/hooks/mutations/useAdminMutations';
 import { REPORT_REASON_LABELS, ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
-import type { ReportStatus } from '@/types/admin.types';
+import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
 
 const REPORT_STATUSES = ['PENDING', 'RESOLVED', 'DISMISSED'] as const;
+
+// FEAT-REPORT-USER-STORE: a report's target used to always be an ad, so
+// this table only ever had to render one link shape. Now it renders
+// whichever of the three target kinds the report actually points at —
+// each maps to its own public route and label so the admin can open the
+// right page instead of always landing on /ads/:id.
+const TARGET_TYPE_LABELS: Record<ReportTargetType, string> = {
+  AD: 'إعلان',
+  USER: 'مستخدم',
+  STORE: 'متجر',
+};
+
+function targetHref(targetType: ReportTargetType, targetId: string): string {
+  if (targetType === 'USER') return ROUTES.userProfile(targetId);
+  if (targetType === 'STORE') return ROUTES.storeDetail(targetId);
+  return ROUTES.adDetail(targetId);
+}
 
 export function AdminReportsTable() {
   const sp     = useSearchParams();
@@ -23,8 +40,16 @@ export function AdminReportsTable() {
   const status: ReportStatus = REPORT_STATUSES.includes(statusParam as ReportStatus)
     ? (statusParam as ReportStatus)
     : 'PENDING';
+  // FEAT-REPORT-USER-STORE: optional — 'all' (no param) shows every
+  // target type mixed, same as before this feature existed.
+  const targetTypeParam = sp.get('targetType');
+  const targetType: ReportTargetType | undefined = (
+    Object.keys(TARGET_TYPE_LABELS) as ReportTargetType[]
+  ).includes(targetTypeParam as ReportTargetType)
+    ? (targetTypeParam as ReportTargetType)
+    : undefined;
 
-  const { data, isLoading, isError, refetch } = useAdminReports({ page, status });
+  const { data, isLoading, isError, refetch } = useAdminReports({ page, status, targetType });
   const resolveReport = useAdminUpdateReportStatus();
 
   // UX-FIX (same pattern as AdminUsersTable's FIX UX-11): resolveReport's
@@ -56,6 +81,36 @@ export function AdminReportsTable() {
         ))}
       </div>
 
+      {/* FEAT-REPORT-USER-STORE: target-type filter — separate control
+          from status above since they're independent axes (any status ×
+          any target type), and admins triaging one target type (e.g. all
+          pending user reports) shouldn't have to page through ad reports
+          mixed in. */}
+      <div className="flex gap-2" role="group" aria-label="تصفية البلاغات حسب النوع">
+        <button onClick={() => {
+          const params = new URLSearchParams(sp.toString());
+          params.delete('targetType'); params.delete('page');
+          router.push(`/admin/reports?${params.toString()}`);
+        }}
+          aria-pressed={!targetType}
+          className={`text-sm px-3 py-1 rounded-full transition-colors
+            ${!targetType ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted text-muted-foreground'}`}>
+          الكل
+        </button>
+        {(Object.entries(TARGET_TYPE_LABELS) as [ReportTargetType, string][]).map(([val, label]) => (
+          <button key={val} onClick={() => {
+            const params = new URLSearchParams(sp.toString());
+            params.set('targetType', val); params.delete('page');
+            router.push(`/admin/reports?${params.toString()}`);
+          }}
+            aria-pressed={targetType === val}
+            className={`text-sm px-3 py-1 rounded-full transition-colors
+              ${targetType === val ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted text-muted-foreground'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center py-12"><LoadingSpinner /></div>
       ) : isError ? (
@@ -75,7 +130,7 @@ export function AdminReportsTable() {
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-start p-3 font-medium">السبب</th>
-                <th className="text-start p-3 font-medium hidden md:table-cell">الإعلان</th>
+                <th className="text-start p-3 font-medium hidden md:table-cell">الهدف</th>
                 <th className="text-start p-3 font-medium hidden sm:table-cell">المُبلِّغ</th>
                 <th className="text-start p-3 font-medium hidden lg:table-cell">التاريخ</th>
                 <th className="p-3" />
@@ -100,10 +155,11 @@ export function AdminReportsTable() {
                     </div>
                   </td>
                   <td className="p-3 hidden md:table-cell">
-                    <Link href={ROUTES.adDetail(report.adId)} target="_blank"
+                    <Link href={targetHref(report.targetType, report.targetId)} target="_blank"
                       className="flex items-center gap-1 text-primary hover:underline text-xs">
                       <ExternalLink className="h-3 w-3" />
-                      {report.ad?.title ? report.ad.title.slice(0, 40) : report.adId.slice(-8)}
+                      <span className="text-muted-foreground">[{TARGET_TYPE_LABELS[report.targetType]}]</span>
+                      {report.ad?.title ? report.ad.title.slice(0, 40) : report.targetId.slice(-8)}
                     </Link>
                   </td>
                   {/* FIX TYPE-ERROR-01: was report.reporter, a field

@@ -239,19 +239,37 @@ model Favorite {
   @@map("favorites")
 }
 
+// FEAT-REPORT-USER-STORE: Report used to be AD-only (a required adId FK
+// straight to Ad, @@unique([adId, userId])). That made it structurally
+// impossible to report a user's profile or a store — there was no column
+// to point at them. Converted to the same polymorphic shape UserActivity
+// already established (targetType enum + targetId plain string, no FK):
+// deliberately NOT a relation, since a reported user/store/ad can be
+// deleted later and the report row must keep rendering in the admin
+// queue (reason/notes/status) even after the target is gone — same
+// reasoning as ActivityEntityType's doc comment above.
+// adId is kept as a nullable column (not dropped) so existing report rows
+// don't lose their ad reference; the migration backfills targetType=AD,
+// targetId=adId for every pre-existing row, so no data is lost.
 model Report {
-  id        String       @id @default(cuid())
-  reason    ReportReason
-  notes     String?      @db.VarChar(500)
-  status    ReportStatus @default(PENDING)
-  createdAt DateTime     @default(now())
-  adId      String
-  userId    String
-  ad        Ad           @relation(fields: [adId], references: [id], onDelete: Cascade)
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String       @id @default(cuid())
+  reason     ReportReason
+  notes      String?      @db.VarChar(500)
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  targetType ReportTargetType
+  targetId   String
+  userId     String
+  // Legacy FK, retained only for the AD case so existing includes/joins
+  // that expect ad.title etc. keep working without a query-time branch.
+  // Nullable because USER/STORE reports have no Ad row at all.
+  adId       String?
+  ad         Ad?          @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([adId, userId])
+  @@unique([targetType, targetId, userId])
   @@index([status])
+  @@index([targetType, targetId])
   @@map("reports")
 }
 
@@ -871,6 +889,15 @@ enum ReportReason {
   FAKE
   OFFENSIVE
   SPAM
+}
+
+// FEAT-REPORT-USER-STORE: what kind of thing a Report points at. Mirrors
+// ActivityEntityType's role for UserActivity — see Report's own doc
+// comment for why targetId is a plain string with no FK.
+enum ReportTargetType {
+  AD
+  USER
+  STORE
 }
 
 // Fraud-detection (item 12). Each value maps to one concrete heuristic

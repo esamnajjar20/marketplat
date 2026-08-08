@@ -198,6 +198,14 @@ export const queryKeys = {
     mine: (params?: object) => ['activity', 'me', params ?? {}] as const,
   },
 
+  // ── My Reports ("بلاغاتي") ──────────────────────────────────────
+  // FEAT-REPORT-USER-STORE: separate from admin.reports below — that key
+  // is the admin moderation queue (every user's reports, admin-gated);
+  // this one is a single reporter checking their own filed reports.
+  myReports: {
+    all: (params?: object) => ['reports', 'me', params ?? {}] as const,
+  },
+
   // ── Unified search ────────────────────────────────────────────
   search: {
     unified:     (params?: object) => ['search', 'unified', params ?? {}] as const,

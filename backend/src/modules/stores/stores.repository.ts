@@ -28,6 +28,12 @@ export const storesRepository = {
   findById: (id: string): Promise<StoreDetails | null> =>
     prisma.storeDetails.findUnique({ where: { id } }),
 
+  // FEAT-REPORT-USER-STORE: same query as findPublicById minus the
+  // follower/product counts — reportsService only needs
+  // sellerProfile.userId, not the full public-profile payload.
+  findByIdWithSeller: (id: string): Promise<StoreWithSeller | null> =>
+    prisma.storeDetails.findUnique({ where: { id }, include: storeWithSeller }),
+
   findPublicById: (id: string): Promise<StoreWithSellerAndCounts | null> =>
     prisma.storeDetails.findUnique({
       where: { id },

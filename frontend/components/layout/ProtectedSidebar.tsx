@@ -35,6 +35,11 @@ const NAV_ITEMS = [
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: '🔖' },
   { label: 'الرسائل',     href: ROUTES.messages,          icon: '✉' },
   { label: 'خدماتي',      href: ROUTES.myServices,        icon: '🛠' },
+  // FEAT-REPORT-USER-STORE: without a link here, /my-reports would be
+  // reachable only by direct URL — same discoverability gap the
+  // "AUDIT-FIX (protected #2, #4)" note above already fixed once for
+  // /my-services and /saved-searches.
+  { label: 'بلاغاتي',     href: ROUTES.myReports,         icon: '🚩' },
   { label: 'الإعدادات',   href: ROUTES.settings.profile,  icon: '⚙', activeMatch: ROUTES.settings.root },
 ] as const;
 

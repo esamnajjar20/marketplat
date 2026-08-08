@@ -23,6 +23,7 @@ import type {
   ToggleActivePayload,
   Report,
   ReportStatus,
+  ReportTargetType,
   AdminStats,
   AdminSeller,
   AdminGetSellersParams,
@@ -112,7 +113,12 @@ export const adminApi = {
 
   // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
 
-  getReports: (params?: { status?: ReportStatus; page?: number; limit?: number }) =>
+  getReports: (params?: {
+    status?: ReportStatus;
+    targetType?: ReportTargetType;
+    page?: number;
+    limit?: number;
+  }) =>
     apiClient
       .get<ApiResponse<Report[]>>('/reports', { params })
       .then((r) => unwrapPaginated<Report>(r)),

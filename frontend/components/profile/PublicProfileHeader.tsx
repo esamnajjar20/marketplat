@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { MapPin, Calendar } from 'lucide-react';
 import { getAvatarUrl }   from '@/lib/cloudinary';
 import { formatDate }     from '@/lib/formatters';
+import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
 import type { PublicUser } from '@/types/user.types';
 
 interface Props { user: PublicUser; }
@@ -26,6 +27,11 @@ export function PublicProfileHeader({ user }: Props) {
         </p>
         {user.bio && <p className="text-sm mt-2 max-w-md">{user.bio}</p>}
         <p className="text-sm text-muted-foreground">{user._count.ads} إعلان</p>
+        {/* FEAT-REPORT-USER-STORE: PublicProfileHeader itself has no
+            'use client' — this is a client component that hides itself
+            when viewing your own profile (via useAuthStore), the same
+            self-report guard reportsService already enforces server-side. */}
+        <ReportUserButtonGate targetUserId={user.id} />
       </div>
     </div>
   );

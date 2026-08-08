@@ -15,7 +15,7 @@ import { adminApi }  from '@/api/admin.api';
 import { analyticsApi, type GetAnalyticsSummaryParams } from '@/api/analytics.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, ReportStatus } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, ReportStatus, ReportTargetType } from '@/types/admin.types';
 
 /**
  * GET /admin/ads
@@ -80,6 +80,7 @@ export function useAdminStores(params?: AdminGetStoresParams) {
  */
 export function useAdminReports(params?: {
   status?: ReportStatus;
+  targetType?: ReportTargetType;
   page?:   number;
   limit?:  number;
 }) {

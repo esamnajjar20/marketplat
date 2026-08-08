@@ -371,6 +371,61 @@
           }
         },
         {
+          "name": "Report User",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/reports/users/:targetId",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"OFFENSIVE\", \"notes\": \"Sent abusive messages\"}"
+            }
+          }
+        },
+        {
+          "name": "Report Store",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/reports/stores/:targetId",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"FAKE\", \"notes\": \"Selling counterfeit goods\"}"
+            }
+          }
+        },
+        {
+          "name": "Get My Reports",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/reports/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          }
+        },
+        {
           "name": "Get Reports (Admin)",
           "request": {
             "method": "GET",
