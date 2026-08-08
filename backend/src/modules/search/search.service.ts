@@ -33,6 +33,10 @@ const normalizeRow = (row: RawSearchRow): SearchResult => ({
     id: row.seller_id,
     name: row.seller_name,
     verified: row.seller_verified,
+    // FIX M-023: see SearchResultSeller.type's own comment in
+    // search.types.ts — carries through the entity kind computed per
+    // branch in search.repository.ts's SELECT list.
+    type: row.seller_type,
   },
   url: searchRepository.buildUrl(row.type, row.url_id),
   createdAt: row.created_at.toISOString(),

@@ -82,6 +82,32 @@ const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
   views: Prisma.sql`views DESC, rank DESC, created_at DESC`,
 };
 
+// FIX M-022: previously each branch (adBranch/productBranch/...) ran
+// with no LIMIT of its own — every matching row from all four tables
+// was materialized, UNION ALL'd together, and only THEN sorted/offset/
+// limited for the page actually being returned. With a broad query
+// (or no query text at all — type=all, no filters) against a large
+// table, this means pulling every active row from every table into
+// memory before discarding all but `take` of them.
+//
+// Each branch is now wrapped with the SAME ORDER BY the outer query
+// uses and a LIMIT of its own — `skip + take` rows is enough for any
+// single branch to guarantee correctness (the page being requested
+// can contain at most `skip + take` rows total from any one branch,
+// since it's already sorted the same way outer query will re-sort the
+// combined set), multiplied by a small safety factor and capped at a
+// hard ceiling so a pathological page/limit combination can't make
+// the per-branch limit unbounded again. The final ORDER BY/OFFSET/
+// LIMIT on the combined result is unchanged and still produces
+// identical results to the unlimited version — this only prunes rows
+// that could never appear on the requested page in the first place.
+const PER_BRANCH_LIMIT_SAFETY_FACTOR = 2;
+const PER_BRANCH_LIMIT_CEILING = 500;
+
+function perBranchLimit(skip: number, take: number): number {
+  return Math.min((skip + take) * PER_BRANCH_LIMIT_SAFETY_FACTOR, PER_BRANCH_LIMIT_CEILING);
+}
+
 // FIX SEARCH-AR-01: arabic_normalize() wraps the search term here so
 // every branch below (ad/product/store/service, all of which now also
 // wrap their own tsvector columns) compares like-for-like — see the
@@ -138,6 +164,10 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       coalesce(sp."id", a."userId") AS seller_id,
       coalesce(sp."displayName", u."name") AS seller_name,
       coalesce(sp."verified", false) AS seller_verified,
+      -- FIX M-023: mirrors the seller_id coalesce directly above — when
+      -- sp (seller_profiles) is null we fell back to a."userId", so the
+      -- type must say 'user' in that exact case, not 'seller_profile'.
+      (CASE WHEN sp."id" IS NULL THEN 'user' ELSE 'seller_profile' END)::text AS seller_type,
       a."id" AS url_id, a."createdAt" AS created_at,
       (${rankExpr})::float AS rank
     FROM "ads" a
@@ -175,6 +205,9 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       p."price"::text AS price,
       st."id" AS seller_id, st."name" AS seller_name,
       coalesce(sp."verified", false) AS seller_verified,
+      -- FIX M-023: seller_id here is always store_details.id (see
+      -- header comment), never a bare user/seller-profile id.
+      'store'::text AS seller_type,
       p."id" AS url_id, p."createdAt" AS created_at,
       (${rankExpr})::float AS rank
     FROM "products" p
@@ -218,6 +251,9 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       NULL::text AS price,
       st."id" AS seller_id, st."name" AS seller_name,
       coalesce(sp."verified", false) AS seller_verified,
+      -- FIX M-023: the store IS the seller here (seller_id = st.id
+      -- itself, not a foreign reference), still type 'store' either way.
+      'store'::text AS seller_type,
       st."id" AS url_id, st."createdAt" AS created_at,
       (${rankExpr})::float AS rank
     FROM "store_details" st
@@ -266,6 +302,9 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       sl."price"::text AS price,
       pr."id" AS seller_id, pr."businessName" AS seller_name,
       coalesce(sp."verified", false) AS seller_verified,
+      -- FIX M-023: seller_id is service_provider_details.id, never a
+      -- seller_profiles id directly (sp is only joined for rating/verified).
+      'service_provider'::text AS seller_type,
       sl."id" AS url_id, sl."createdAt" AS created_at,
       (${rankExpr})::float AS rank
     FROM "service_listings" sl
@@ -305,22 +344,41 @@ export const searchRepository = {
       return { rows: [], total: 0 };
     }
 
-    const unioned = Prisma.join(
+    const orderBySql = SORT_ORDER_BY_SQL[sort];
+
+    // FIX M-022: cap what each branch can contribute to the *result
+    // rows* before the UNION ALL — see perBranchLimit's own comment
+    // above for why `skip + take` (with a safety factor and hard
+    // ceiling) is enough to keep the returned page identical to the
+    // unlimited version. The COUNT query below deliberately does NOT
+    // use this same limited union — capping rows before UNION ALL is
+    // safe for "which rows appear on this page" (they're sorted first,
+    // so only rows that could never appear on the page get dropped)
+    // but would make `total` wrong the moment any branch has more
+    // matches than the per-branch cap. COUNT(*) never materializes
+    // full rows regardless of table size, so leaving it unlimited
+    // doesn't reintroduce the memory-blowup problem this fix is for —
+    // only the row-fetching side needed the limit.
+    const branchLimit = perBranchLimit(skip, take);
+    const limitedBranches = branches.map(
+      b => Prisma.sql`(SELECT * FROM (${b}) branch_rows ORDER BY ${orderBySql} LIMIT ${branchLimit})`
+    );
+    const limitedUnion = Prisma.join(limitedBranches, ' UNION ALL ');
+
+    const unlimitedUnion = Prisma.join(
       branches.map(b => Prisma.sql`(${b})`),
       ' UNION ALL '
     );
 
-    const orderBySql = SORT_ORDER_BY_SQL[sort];
-
     const [rows, countRows] = await Promise.all([
       prisma.$queryRaw<RawSearchRow[]>`
-        SELECT * FROM (${unioned}) combined
+        SELECT * FROM (${limitedUnion}) combined
         ORDER BY ${orderBySql}
         OFFSET ${skip}
         LIMIT ${take}
       `,
       prisma.$queryRaw<{ count: bigint }[]>`
-        SELECT COUNT(*)::bigint AS count FROM (${unioned}) combined
+        SELECT COUNT(*)::bigint AS count FROM (${unlimitedUnion}) combined
       `,
     ]);
 

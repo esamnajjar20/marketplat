@@ -90,7 +90,35 @@ export const authService = {
       city: input.city,
     });
 
-    const { result } = await issueSession(user, ip, userAgent);
+    // FIX M-001: user creation (PostgreSQL) and issueSession (Redis: refresh
+    // token save + cache warm) are not covered by a single transaction —
+    // they can't be, since they hit two different data stores. If Redis
+    // (or anything else inside issueSession) fails after the user row above
+    // already committed, the user would be left orphaned: present in
+    // PostgreSQL with no valid session, unable to log in (no session to
+    // reach) and unable to register again (email already taken). Since a
+    // true distributed transaction isn't available here, we compensate:
+    // on any issueSession failure, best-effort delete the just-created
+    // user so the email becomes free again and the caller gets a clean
+    // error to retry against, instead of a permanently stuck account.
+    let result: AuthResult;
+    try {
+      ({ result } = await issueSession(user, ip, userAgent));
+    } catch (err) {
+      try {
+        await authRepository.deleteById(user.id);
+      } catch (cleanupErr) {
+        logger.error('Failed to clean up orphaned user after issueSession failure', {
+          userId: user.id,
+          cleanupError: cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+        });
+      }
+      logger.error('issueSession failed during registration', {
+        userId: user.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw new AppError('Registration failed, please try again', 503);
+    }
 
     auditLog({ event: AuditEvent.REGISTER, userId: user.id, ip, userAgent }).catch(() => {});
 
@@ -363,8 +391,26 @@ export const authService = {
 
     switch (result) {
       case RotateResult.SUCCESS:
-        await tokenStore.extendSession(payload.userId, payload.sessionId);
-        await tokenStore.updateSessionLastSeen(payload.userId, payload.sessionId);
+        // FIX M-026: extendSession/updateSessionLastSeen are secondary
+        // bookkeeping (session TTL extension + last-seen timestamp) on top
+        // of a token rotation that has *already* succeeded per
+        // atomicRefreshRotate above. Previously any exception here (e.g. a
+        // transient Redis blip) propagated unhandled and aborted the whole
+        // response, so a user with a validly-rotated token could still see
+        // a hard failure caused by an unrelated, non-critical side effect.
+        // Best-effort + log, matching the fire-and-forget philosophy used
+        // elsewhere in this file (auditLog, sendSecurityAlert) — a failure
+        // here should never mask a successful refresh.
+        try {
+          await tokenStore.extendSession(payload.userId, payload.sessionId);
+          await tokenStore.updateSessionLastSeen(payload.userId, payload.sessionId);
+        } catch (err) {
+          logger.warn('Failed to extend session / update last-seen after successful token rotation', {
+            userId: payload.userId,
+            sessionId: payload.sessionId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
         auditLog({
           event: AuditEvent.TOKEN_REFRESHED,
           userId: payload.userId,

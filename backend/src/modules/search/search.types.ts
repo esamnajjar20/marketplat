@@ -23,6 +23,21 @@ export interface SearchResultSeller {
   id: string;
   name: string;
   verified: boolean;
+  /**
+   * FIX M-023: `id` above resolves to a DIFFERENT kind of entity
+   * depending on the result's `type` — search.repository.ts's adBranch
+   * uses coalesce(sellerProfile.id, user.id), while productBranch uses
+   * store.id (a completely different entity). Frontend code that reads
+   * seller.id assuming it always means the same thing (e.g. to build a
+   * "view seller" link) would silently construct the wrong URL/behavior
+   * depending on result type, with nothing in the response shape itself
+   * flagging that distinction. This field makes the actual entity kind
+   * explicit per-row instead of leaving it as tribal knowledge —
+   * 'seller_profile' for ads (or 'user' in the rare case an ad's
+   * seller has no SellerProfile yet — see the coalesce above),
+   * 'store' for products/stores, 'service_provider' for services.
+   */
+  type: 'seller_profile' | 'user' | 'store' | 'service_provider';
 }
 
 export interface SearchResult {
@@ -69,6 +84,10 @@ export interface RawSearchRow {
   seller_id: string;
   seller_name: string;
   seller_verified: boolean;
+  // FIX M-023: see SearchResultSeller.type's own comment — carries
+  // the actual entity kind seller_id refers to for this row, since it
+  // differs by branch (ads vs. products/stores vs. services).
+  seller_type: 'seller_profile' | 'user' | 'store' | 'service_provider';
   url_id: string;
   created_at: Date;
   rank: number;

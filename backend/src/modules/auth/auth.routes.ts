@@ -5,6 +5,11 @@ import { authenticate } from '../../middlewares/auth.middleware';
 import { passport } from './google.strategy';
 import type { GoogleProfileData } from './google.strategy';
 import { env } from '../../config/env';
+import {
+  generateAndSetOAuthState,
+  getOAuthStateFromCookie,
+  clearOAuthStateCookie,
+} from '../../shared/utils/authCookies';
 
 type GoogleProfileDataOrFalse = GoogleProfileData | false;
 
@@ -187,13 +192,20 @@ authRouter.get(
   '/google',
   authRateLimit,
   requireGoogleOAuthConfigured,
-  // FIX OAUTH-01: session:false — this app has no express-session
-  // anywhere (see google.strategy.ts's own header comment); Passport
-  // must not attempt to read/write a session here. scope matches
-  // exactly what google.strategy.ts's GoogleStrategy config declares
-  // and what extractGoogleProfile() actually reads (profile + email;
-  // no extra Google API scopes requested).
-  passport.authenticate('google', { session: false, scope: ['profile', 'email'] })
+  // FIX M-004: generate a random `state` value, store it in a
+  // short-lived httpOnly cookie scoped to this browser, and pass the
+  // same value to Google via passport's `state` option so it comes
+  // back unchanged in the callback's query string. See
+  // authCookies.ts's generateAndSetOAuthState for the full threat
+  // model this closes (OAuth CSRF).
+  (req: Request, res: Response, next: NextFunction) => {
+    const state = generateAndSetOAuthState(res);
+    passport.authenticate('google', {
+      session: false,
+      scope: ['profile', 'email'],
+      state,
+    })(req, res, next);
+  }
 );
 
 /**
@@ -233,6 +245,28 @@ authRouter.get(
 authRouter.get(
   '/google/callback',
   requireGoogleOAuthConfigured,
+  // FIX M-004: verify the `state` Google echoed back in the query
+  // string matches the value we stored in the httpOnly cookie when
+  // this flow started at GET /auth/google, before ever calling
+  // passport.authenticate. A mismatch (or a missing cookie — e.g. the
+  // callback is being hit directly/replayed rather than as the second
+  // half of a flow this same browser started) is treated exactly like
+  // any other OAuth failure: redirect to /google/failure, never
+  // proceed to issue a session. The cookie is single-use — cleared
+  // here regardless of outcome so a captured/replayed callback URL
+  // can't be reused even if somehow re-submitted with a stale but
+  // still-matching cookie still present.
+  (req: Request, res: Response, next: NextFunction) => {
+    const expectedState = getOAuthStateFromCookie(req);
+    const returnedState = typeof req.query.state === 'string' ? req.query.state : undefined;
+    clearOAuthStateCookie(res);
+
+    if (!expectedState || !returnedState || expectedState !== returnedState) {
+      res.redirect('/api/v1/auth/google/failure');
+      return;
+    }
+    next();
+  },
   (req, res, next) => {
     // FIX OAUTH-01: passing a custom callback as passport.authenticate's
     // third argument means Passport hands control back here instead of

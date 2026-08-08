@@ -785,6 +785,12 @@ model AnalyticsEvent {
   @@index([event, createdAt])
   @@index([sessionId])
   @@index([userId])
+  // FIX M-021: analytics.repository.ts's topCategories() groups by
+  // metadata->>'categoryId', which no index here covered — see
+  // migration 20260809000000_add_analytics_category_index for the
+  // actual expression index (`@@index` can't express a JSON path
+  // expression in this Prisma version, so it's applied via raw SQL in
+  // that migration and only documented here for discoverability).
   @@map("analytics_events")
 }
 
@@ -800,6 +806,38 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+// FIX M-011 / M-012: this app has no message queue (BullMQ or
+// otherwise) — fire-and-forget side effects (notifications, fraud
+// scoring, ...) that fail transiently just log an error and vanish,
+// with no trace that anything needs a retry or a human look. Since
+// introducing a full queue is a larger architectural change than a
+// bug fix warrants, this table is the lower-cost mitigation the audit
+// report calls out explicitly: failed fire-and-forget work records
+// itself here instead of only a log line, so an admin/ops process can
+// query "what silently failed and still needs attention" and,
+// eventually, retry it. Deliberately generic (taskType + a JSON
+// payload) rather than one table per failure kind, since the shape of
+// "what do I need to retry this" varies by task and would otherwise
+// mean a new table per fire-and-forget call site.
+model FailedBackgroundTask {
+  id           String    @id @default(cuid())
+  taskType     String
+  // Enough to actually retry the operation later — e.g. { adId, userId,
+  // title, description, city, price, categoryId } for a failed
+  // FRAUD_SCORE_AD, or { adId, title } for a failed
+  // FAVORITED_AD_PRICE_CHANGED fan-out. Shape varies by taskType, same
+  // "consumer switches on type first" convention as AuditLog.details /
+  // FraudSignal.metadata elsewhere in this schema.
+  payload      Json
+  errorMessage String
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([taskType, resolved, createdAt])
+  @@map("failed_background_tasks")
 }
 
 enum NotificationType {

@@ -15,7 +15,7 @@ import { productCategoriesRepository } from '../product-categories/product-categ
 import { storeFollowersRepository } from '../stores/store-followers.repository';
 import { notificationEvents } from '../notifications/notifications.service';
 import { activityService, activityTemplates } from '../activity';
-import { withProductImagesLock } from '../../shared/utils/adLock';
+import { withProductImagesLock, withStoreProductCreationLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 
 const MAX_PRODUCT_IMAGES = 10; // same cap as ads.images / service-listings.images
@@ -61,6 +61,10 @@ export const productsService = {
       throw new BadRequestError('Invalid or inactive product category.');
     }
 
+    // FIX M-006: fast-path check, before doing any Cloudinary uploads —
+    // this alone does NOT close the race (see the lock-guarded re-check
+    // below, which is what actually prevents two concurrent requests
+    // from both slipping past the cap).
     if (store.plan === 'FREE') {
       const activeCount = await storesRepository.countActiveProducts(store.id);
       if (activeCount >= FREE_PLAN_PRODUCT_LIMIT) {
@@ -79,19 +83,39 @@ export const productsService = {
 
     let product: Product;
     try {
-      product = await prisma.$transaction(async tx =>
-        productsRepository.create(tx, store.id, {
-          categoryId: input.categoryId,
-          name: input.name,
-          description: input.description,
-          images: uploads.map(u => u.url),
-          price: input.price,
-          discountPrice: input.discountPrice,
-          wholesalePrice: input.wholesalePrice,
-          wholesaleMinQty: input.wholesaleMinQty,
-          availability: input.availability,
-        })
-      );
+      // FIX M-006: the count check above and the insert below are now
+      // serialized per-store via withStoreProductCreationLock (same
+      // check-then-act race closed for ad creation by
+      // withUserAdCreationLock — see adLock.ts). The count is
+      // re-checked here, *after* acquiring the lock, immediately before
+      // the insert — this is the check that actually matters; the one
+      // above is only a fast-path so an obviously-over-the-cap request
+      // doesn't pay for Cloudinary uploads first.
+      product = await withStoreProductCreationLock(store.id, async () => {
+        if (store.plan === 'FREE') {
+          const activeCount = await storesRepository.countActiveProducts(store.id);
+          if (activeCount >= FREE_PLAN_PRODUCT_LIMIT) {
+            throw new BadRequestError(
+              `Free plan stores can list up to ${FREE_PLAN_PRODUCT_LIMIT} products. Upgrade to add more.`,
+              'PRODUCT_LIMIT_REACHED'
+            );
+          }
+        }
+
+        return prisma.$transaction(async tx =>
+          productsRepository.create(tx, store.id, {
+            categoryId: input.categoryId,
+            name: input.name,
+            description: input.description,
+            images: uploads.map(u => u.url),
+            price: input.price,
+            discountPrice: input.discountPrice,
+            wholesalePrice: input.wholesalePrice,
+            wholesaleMinQty: input.wholesaleMinQty,
+            availability: input.availability,
+          })
+        );
+      });
     } catch (error) {
       await cleanupUploadedImages(uploads.map(u => u.publicId));
       throw error;

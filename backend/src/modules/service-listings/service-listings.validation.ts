@@ -42,19 +42,26 @@ export const SERVICE_LISTING_SORT_FIELDS = ['createdAt', 'price', 'views'] as co
 export type ServiceListingSortField = (typeof SERVICE_LISTING_SORT_FIELDS)[number];
 
 export const getServiceListingsSchema = z.object({
-  query: z.object({
-    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
-    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    categoryId: z.string().optional(),
-    providerId: z.string().optional(),
-    city: z.string().max(100).optional(),
-    serviceLocation: z.nativeEnum(ServiceLocationType).optional(),
-    minPrice: optionalQueryNumber(z.number().min(0)),
-    maxPrice: optionalQueryNumber(z.number().min(0)),
-    search: z.string().min(1).max(200).optional(),
-    sortBy: z.enum(SERVICE_LISTING_SORT_FIELDS).optional(),
-    sortOrder: z.enum(['asc', 'desc']).optional(),
-  }),
+  query: z
+    .object({
+      page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+      limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+      categoryId: z.string().optional(),
+      providerId: z.string().optional(),
+      city: z.string().max(100).optional(),
+      serviceLocation: z.nativeEnum(ServiceLocationType).optional(),
+      minPrice: optionalQueryNumber(z.number().min(0)),
+      maxPrice: optionalQueryNumber(z.number().min(0)),
+      search: z.string().min(1).max(200).optional(),
+      sortBy: z.enum(SERVICE_LISTING_SORT_FIELDS).optional(),
+      sortOrder: z.enum(['asc', 'desc']).optional(),
+    })
+    // FIX M-024: see ads.validation.ts's getAdsSchema refine for the
+    // same fix and rationale — same silent-empty-result bug here.
+    .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+      message: 'minPrice must not exceed maxPrice',
+      path: ['minPrice'],
+    }),
 });
 
 export type GetServiceListingsQuery = z.infer<typeof getServiceListingsSchema>['query'];

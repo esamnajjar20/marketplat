@@ -69,55 +69,57 @@ export const updateAdSchema = z.object({
 export const AD_SORT_FIELDS = ['createdAt', 'price', 'views'] as const;
 export type AdSortField = (typeof AD_SORT_FIELDS)[number];
 
-export const getAdsSchema = z.object({
-  query: z.object({
-    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
-    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    city: z.string().max(100).optional(),
-    categoryId: z.string().optional(),
-    condition: z.nativeEnum(AdCondition).optional(),
-    minPrice: optionalQueryNumber(z.number().min(0)),
-    maxPrice: optionalQueryNumber(z.number().min(0)),
-    // FIX AUDIT-V3-08: .min(1) makes "absent" (undefined) the only way
-    // to mean "no search filter" — without it, an explicit "" relied on
-    // ads.repository.ts's `if (search)` truthiness check rather than
-    // validation making that decision explicitly.
-    search: z.string().min(1).max(200).optional(),
-    // FIX H-1: 'views' added — the frontend's "Most Viewed" sort option
-    // always sent sortBy=views, but this enum only accepted
-    // createdAt/price, so that selection failed validation with a 400.
-    sortBy: z.enum(AD_SORT_FIELDS).optional(),
-    sortOrder: z.enum(['asc', 'desc']).optional(),
-  }),
+const adsQueryBaseSchema = z.object({
+  page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+  limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+  city: z.string().max(100).optional(),
+  categoryId: z.string().optional(),
+  condition: z.nativeEnum(AdCondition).optional(),
+  minPrice: optionalQueryNumber(z.number().min(0)),
+  maxPrice: optionalQueryNumber(z.number().min(0)),
+  search: z.string().min(1).max(200).optional(),
+  sortBy: z.enum(AD_SORT_FIELDS).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 
-// FIX D-24 / I-08: GET /ads/me's status filter tabs sent a `status`
-// value that getAdsSchema (shared with the public /ads endpoint) had
-// no field for, so Zod silently stripped it — findManyByUserId only
-// ever applied a hardcoded 'ACTIVE' filter. Kept as its own schema
-// (not reused on the public endpoint) because it accepts all three
-// AdStatus values including DELETED — safe here since userId is fixed
-// server-side to the authenticated caller, unlike the public endpoint
-// where an unscoped DELETED filter would leak other users' data.
+const adsQuerySchema = adsQueryBaseSchema.refine(
+  (q) =>
+    q.minPrice === undefined ||
+    q.maxPrice === undefined ||
+    q.minPrice <= q.maxPrice,
+  {
+    message: 'minPrice must not exceed maxPrice',
+    path: ['minPrice'],
+  },
+);
+
+export const getAdsSchema = z.object({
+  query: adsQuerySchema,
+});
+
 export const getMyAdsSchema = z.object({
-  query: getAdsSchema.shape.query.extend({
+  query: adsQueryBaseSchema.extend({
     status: z.nativeEnum(AdStatus).optional(),
   }),
 });
+
 export type GetMyAdsQuery = z.infer<typeof getMyAdsSchema>['query'];
 
 export const adIdSchema = z.object({
-  params: z.object({ id: z.string().min(1, 'Ad ID is required') }),
+  params: z.object({
+    id: z.string().min(1, 'Ad ID is required'),
+  }),
 });
 
 export type CreateAdInput = z.infer<typeof createAdSchema>['body'];
 export type UpdateAdInput = z.infer<typeof updateAdSchema>['body'];
 export type GetAdsQuery = z.infer<typeof getAdsSchema>['query'];
 
-// A-05: replaces separate search module — same as getAdsSchema but with required q
+// A-05: search handler — same base filters but with required q
 export const searchAdsSchema = z.object({
-  query: getAdsSchema.shape.query.extend({
+  query: adsQueryBaseSchema.extend({
     q: z.string().min(1, 'Search query is required').max(200),
   }),
 });
+
 export type SearchAdsQuery = z.infer<typeof searchAdsSchema>['query'];

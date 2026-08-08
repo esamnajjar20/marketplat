@@ -1,5 +1,6 @@
 import { redis } from '../../config/redis';
 import { hashToken } from './refreshLock';
+import { logger } from './logger';
 
 const REFRESH_PREFIX = 'refresh:';
 const BLACKLIST_PREFIX = 'blacklist:';
@@ -292,8 +293,25 @@ export const tokenStore = {
     };
   },
 
+  // FIX M-027: this runs right after a successful login, to clear the
+  // failed-attempt counters. Previously an unhandled Redis error here
+  // (transient connection blip) would propagate and fail the login
+  // response despite credentials having already been verified — and
+  // worse, would leave the failed_login/* keys un-cleared, so old failed
+  // attempts could contribute to a later false lockout. Best-effort +
+  // warn log: a successful login must not fail because of this cleanup
+  // step, and a stale counter is a much smaller problem than blocking
+  // login outright.
   clearFailedLogins: async (email: string, ip: string): Promise<void> => {
-    await redis.del(`${FAILED_EMAIL_PREFIX}${email}`, `${FAILED_IP_PREFIX}${ip}`);
+    try {
+      await redis.del(`${FAILED_EMAIL_PREFIX}${email}`, `${FAILED_IP_PREFIX}${ip}`);
+    } catch (err) {
+      logger.warn('Failed to clear failed-login counters after successful login', {
+        email,
+        ip,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   },
 
   lockAccount: async (email: string, ttlSeconds: number): Promise<void> => {

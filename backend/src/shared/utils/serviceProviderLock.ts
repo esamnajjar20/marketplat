@@ -1,8 +1,13 @@
 import { withRedisLock, LOCK_NOT_ACQUIRED } from './adLock';
 import { ConflictError } from '../errors/ConflictError';
+import { env } from '../../config/env';
 
 const SERVICE_PROVIDER_LOCK_PREFIX = 'service_provider_creation_lock:';
-const SERVICE_PROVIDER_LOCK_TTL_SECONDS = 15;
+// FIX M-009: was a hardcoded 15s — see env.ts's
+// SERVICE_PROVIDER_LOCK_TTL_SECONDS comment / sellerLock.ts's
+// identical fix for the full rationale. Now configurable, defaulting
+// to 30s.
+const SERVICE_PROVIDER_LOCK_TTL_SECONDS = env.locks.serviceProviderLockTtlSeconds;
 
 /**
  * Serializes the check-then-create sequence in

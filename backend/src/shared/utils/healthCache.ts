@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { redis } from '../../config/redis';
+import { env } from '../../config/env';
 
 interface HealthStatus {
   db: 'ok' | 'error';
@@ -9,7 +10,10 @@ interface HealthStatus {
 
 let cachedStatus: HealthStatus | null = null;
 let lastCheckTime = 0;
-const CACHE_DURATION = 30_000;
+// FIX M-029: was a hardcoded 30_000 (30s) — see env.ts's
+// HEALTH_CACHE_DURATION_MS comment for the full rationale. Now
+// configurable, defaulting to 8s.
+const CACHE_DURATION = env.health.cacheDurationMs;
 
 // Promise Deduplication — طلب واحد فقط يضرب DB+Redis
 let inflightCheck: Promise<HealthStatus> | null = null;

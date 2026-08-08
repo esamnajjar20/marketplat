@@ -1,8 +1,13 @@
 import { withRedisLock, LOCK_NOT_ACQUIRED } from './adLock';
 import { ConflictError } from '../errors/ConflictError';
+import { env } from '../../config/env';
 
 const SELLER_LOCK_PREFIX = 'seller_profile_creation_lock:';
-const SELLER_LOCK_TTL_SECONDS = 15;
+// FIX M-009: was a hardcoded 15s, too short to reliably cover the
+// locked operation when it includes I/O like a profile photo upload —
+// see env.ts's SELLER_LOCK_TTL_SECONDS comment for the full rationale.
+// Now configurable, defaulting to 30s.
+const SELLER_LOCK_TTL_SECONDS = env.locks.sellerLockTtlSeconds;
 
 /**
  * Serializes the check-then-create sequence in

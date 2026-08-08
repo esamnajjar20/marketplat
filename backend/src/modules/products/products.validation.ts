@@ -61,19 +61,26 @@ export const PRODUCT_SORT_FIELDS = ['createdAt', 'price', 'views'] as const;
 export type ProductSortField = (typeof PRODUCT_SORT_FIELDS)[number];
 
 export const getProductsSchema = z.object({
-  query: z.object({
-    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
-    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    categoryId: z.string().optional(),
-    storeId: z.string().optional(),
-    city: z.string().max(100).optional(),
-    availability: z.nativeEnum(ProductAvailability).optional(),
-    minPrice: optionalQueryNumber(z.number().min(0)),
-    maxPrice: optionalQueryNumber(z.number().min(0)),
-    search: z.string().min(1).max(200).optional(),
-    sortBy: z.enum(PRODUCT_SORT_FIELDS).optional(),
-    sortOrder: z.enum(['asc', 'desc']).optional(),
-  }),
+  query: z
+    .object({
+      page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+      limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+      categoryId: z.string().optional(),
+      storeId: z.string().optional(),
+      city: z.string().max(100).optional(),
+      availability: z.nativeEnum(ProductAvailability).optional(),
+      minPrice: optionalQueryNumber(z.number().min(0)),
+      maxPrice: optionalQueryNumber(z.number().min(0)),
+      search: z.string().min(1).max(200).optional(),
+      sortBy: z.enum(PRODUCT_SORT_FIELDS).optional(),
+      sortOrder: z.enum(['asc', 'desc']).optional(),
+    })
+    // FIX M-024: see ads.validation.ts's getAdsSchema refine for the
+    // same fix and rationale — same silent-empty-result bug here.
+    .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+      message: 'minPrice must not exceed maxPrice',
+      path: ['minPrice'],
+    }),
 });
 
 export type GetProductsQuery = z.infer<typeof getProductsSchema>['query'];

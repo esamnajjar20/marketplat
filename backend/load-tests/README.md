@@ -52,6 +52,8 @@ production, and ideally not your shared dev/staging DB either** —
 | `scenarios/ad-creation.js` | `POST /ads` | Deliberately capped well under createAdRateLimit's 20/hour/IP ceiling — measures real write-path latency (including a genuine Cloudinary upload) with a minimal 1x1px image, explicitly does NOT claim to test creation "at scale" |
 | `scenarios/max-payload-upload.js` | `POST /ads/:id/images` | PROD-FIX-19: the specific concurrent-max-size-upload scenario a prior audit flagged as untested — 5 files × 5MB per request (upload.middleware.ts's real per-file limit), fired concurrently across several VUs, to surface memory/CPU/Cloudinary-timeout behavior that a small test image can't |
 | `scenarios/connection-pool-stress.js` | `GET /ads/me` | Targeted probe for the PM2-cluster × Prisma-pool-size vs. Postgres max_connections capacity question raised (but never empirically tested) in `capacityCheck.ts` |
+| `scenarios/soak.js` | `GET /ads`, `GET /ads/:id` | FIX M-028: sustained moderate load (default 1 hour) — exposes memory leaks, unbounded Redis key growth, and other problems that only accumulate over a long run, not a short peak |
+| `scenarios/spike.js` | `GET /ads`, `GET /ads/:id` | FIX M-028: sudden jump from 10 to 500 VUs in 10 seconds (no gradual ramp) — exposes how the system behaves under a traffic surge with no warm-up period, as opposed to browsing.js's gradual ramp |
 
 ## Running
 
@@ -123,10 +125,6 @@ honestly (see that script's own comment).
 
 ## What's NOT covered here
 
-- **Sustained/soak testing** (hours, not minutes) — connection leaks,
-  memory growth, or Redis key accumulation (e.g. `viewsBuffer.ts`'s
-  buffered view-count writes, or rate-limit-redis's own key TTLs) that
-  only manifest over a long run aren't exercised by any script here.
 - **Redis failure/degraded-mode load** — `capacityCheck.ts` and several
   services (ads list caching, rate limiting) have explicit fail-open/
   fail-closed behavior for a Redis outage; nothing here tests what

@@ -22,6 +22,7 @@ import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
 import { prisma } from '../../config/prisma';
+import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
 /**
  * FIX AUDIT-V4-06: GET /ads previously hit Postgres on every single
@@ -193,6 +194,15 @@ export const adsService = {
       // configured threshold. Fire-and-forget, same contract as
       // savedSearchEvents.onAdCreated above — scoring must never fail
       // or delay ad creation itself.
+      //
+      // FIX M-012: previously a transient failure here (the .catch
+      // below) just logged and vanished — the ad would then never be
+      // fraud-scored at all, silently bypassing the entire fraud
+      // detection system for that ad with no trace it happened. Now
+      // also persists a FailedBackgroundTask record with enough
+      // payload to retry the scoring later, so these failures show up
+      // in a queryable "needs manual review" list instead of only a
+      // log line.
       fraudService
         .scoreAd({
           id: ad.id,
@@ -203,9 +213,22 @@ export const adsService = {
           price: ad.price ? Number(ad.price) : null,
           categoryId: ad.categoryId,
         })
-        .catch((err) =>
-          logger.error('Fraud scoring failed to run for new ad', { err, adId: ad.id })
-        );
+        .catch((err) => {
+          logger.error('Fraud scoring failed to run for new ad', { err, adId: ad.id });
+          recordFailedTask(
+            'FRAUD_SCORE_AD',
+            {
+              adId: ad.id,
+              userId,
+              title: ad.title,
+              description: ad.description,
+              city: ad.city,
+              price: ad.price ? Number(ad.price) : null,
+              categoryId: ad.categoryId,
+            },
+            err
+          ).catch(() => {});
+        });
 
       return ad;
     } catch (error) {
@@ -368,13 +391,24 @@ export const adsService = {
     // a notification failure roll back or fail an otherwise-successful
     // ad update, same contract as conversations.service.ts's
     // onNewMessage call.
+    //
+    // FIX M-011: previously a transient failure here just logged and
+    // vanished — favoriting users would never learn about the price
+    // change at all, with no trace anywhere that the notification was
+    // dropped. Now also persists a FailedBackgroundTask record with
+    // enough payload to retry the fan-out later.
     if (input.price !== undefined && Number(input.price) !== Number(ad.price)) {
       favoritesRepository
         .findUserIdsByAdId(adId)
         .then((userIds) => notificationEvents.onFavoritedAdPriceChanged(userIds, adId, updated.title))
-        .catch((err) =>
-          logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId })
-        );
+        .catch((err) => {
+          logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId });
+          recordFailedTask(
+            'FAVORITED_AD_PRICE_CHANGED',
+            { adId, title: updated.title },
+            err
+          ).catch(() => {});
+        });
     }
 
     // FIX AUDIT-V4-06: covers both field edits and status changes

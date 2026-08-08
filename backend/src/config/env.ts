@@ -143,6 +143,29 @@ const envSchema = z.object({
   // without a code change; default matches the prior hardcoded value
   // so existing behavior is unchanged unless the var is explicitly set.
   IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
+  // FIX M-009: sellerLock/storeLock/serviceProviderLock previously used
+  // a hardcoded 15s TTL each, unlike IMAGE_LOCK_TTL_SECONDS above which
+  // was already made configurable. If the locked operation (which can
+  // include a Cloudinary upload for a profile photo/logo) takes longer
+  // than the TTL, the lock self-releases while the original request is
+  // still running, letting a concurrent request acquire a fresh lock
+  // and potentially create a duplicate row that violates a DB
+  // uniqueness constraint. Raised default to 30s (matching
+  // IMAGE_LOCK_TTL_SECONDS's own default) and made configurable so
+  // deployments with slower upload round-trips can raise it further
+  // without a code change.
+  SELLER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
+  STORE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
+  SERVICE_PROVIDER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
+  // FIX M-029: healthCache's CACHE_DURATION was a hardcoded 30_000ms
+  // (30s), meaning /ready could keep reporting "healthy" from cache for
+  // up to 30s after DB/Redis actually became unreachable — a
+  // meaningful delay in a load balancer noticing an unhealthy instance
+  // and pulling it out of rotation. Lowered default to 8s (within the
+  // 5-10s range the audit recommends) and made configurable so
+  // deployments can tune the accuracy/DB-load tradeoff without a code
+  // change.
+  HEALTH_CACHE_DURATION_MS: z.string().regex(/^\d+$/).default("8000"),
   // Fraud-detection (item 12) tuning knobs — all optional with sane
   // defaults, same "opt-in tuning" pattern as MAX_ADS_PER_USER/
   // IMAGE_LOCK_TTL_SECONDS above, so existing deployments see no
@@ -283,6 +306,16 @@ export const env = {
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),
     imageLockTtlSeconds: parseInt(_env.IMAGE_LOCK_TTL_SECONDS, 10),
+  },
+  // FIX M-009
+  locks: {
+    sellerLockTtlSeconds: parseInt(_env.SELLER_LOCK_TTL_SECONDS, 10),
+    storeLockTtlSeconds: parseInt(_env.STORE_LOCK_TTL_SECONDS, 10),
+    serviceProviderLockTtlSeconds: parseInt(_env.SERVICE_PROVIDER_LOCK_TTL_SECONDS, 10),
+  },
+  // FIX M-029
+  health: {
+    cacheDurationMs: parseInt(_env.HEALTH_CACHE_DURATION_MS, 10),
   },
   fraud: {
     rapidPostingWindowSeconds: parseInt(

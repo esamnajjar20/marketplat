@@ -193,3 +193,67 @@ export function clearSessionHintCookie(res: Response): void {
 export function getSessionHintCookieName(): string {
   return SESSION_HINT_COOKIE_NAME;
 }
+
+/**
+ * FIX M-004 — OAuth `state` CSRF protection.
+ *
+ * Previously /auth/google and /auth/google/callback used no `state`
+ * parameter at all, running fully stateless (session: false, no
+ * compensating check). That leaves the OAuth flow open to CSRF: an
+ * attacker can start their own Google authorization flow, capture the
+ * resulting callback URL (with their own valid `code`), and trick a
+ * victim's browser into hitting that callback URL directly. Without a
+ * `state` check, the callback handler has no way to tell "this
+ * request completing the OAuth dance was actually initiated by this
+ * same browser" from "an attacker is replaying/injecting a
+ * dance they started" — the practical impact ranges from account
+ * linking a victim's session to the attacker's Google identity, up to
+ * session fixation, depending on exactly how the result is used.
+ *
+ * Fix follows the standard mitigation: generate a random, unguessable
+ * `state` value when the flow starts, store it server-side-of-the-
+ * browser in a short-lived httpOnly cookie (never exposed to the
+ * redirect URL's query string as the only copy — Google echoes it
+ * back in the callback query string too, and we compare the two),
+ * and reject the callback outright if the cookie is missing or
+ * doesn't match what Google echoed back. This is the same
+ * "browser-scoped secret, compared server-side" shape as the
+ * double-submit CSRF cookie above, just applied to the OAuth
+ * handshake instead of same-origin state-changing requests.
+ *
+ * - httpOnly: true — never needs to be read by frontend JS; only this
+ *   backend reads it back on the callback.
+ * - maxAge: 10 minutes — the whole redirect-to-Google-and-back dance
+ *   normally completes in seconds; this just bounds how long a stale,
+ *   unused state cookie can linger if the user abandons the flow.
+ * - path scoped to the OAuth endpoints only, mirroring the refresh
+ *   token cookie's path scoping above.
+ */
+const OAUTH_STATE_COOKIE_NAME = 'oauth_state';
+const OAUTH_STATE_COOKIE_PATH = '/api/v1/auth/google';
+const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
+export function generateAndSetOAuthState(res: Response): string {
+  const state = crypto.randomBytes(32).toString('hex');
+  res.cookie(OAUTH_STATE_COOKIE_NAME, state, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: OAUTH_STATE_COOKIE_PATH,
+    maxAge: OAUTH_STATE_MAX_AGE_MS,
+  });
+  return state;
+}
+
+export function getOAuthStateFromCookie(req: Request): string | undefined {
+  return req.cookies?.[OAUTH_STATE_COOKIE_NAME];
+}
+
+export function clearOAuthStateCookie(res: Response): void {
+  res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: OAUTH_STATE_COOKIE_PATH,
+  });
+}

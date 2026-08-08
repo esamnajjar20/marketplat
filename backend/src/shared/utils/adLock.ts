@@ -161,3 +161,50 @@ export async function withServiceListingImagesLock<T>(listingId: string, fn: () 
   }
   return result;
 }
+
+// FIX M-006: products.service.ts's createProduct checked
+// storesRepository.countActiveProducts against the free plan's
+// 20-product cap, then created the product inside a *separate*
+// prisma.$transaction afterwards — with nothing locking the two
+// together. Two concurrent createProduct calls for the same
+// free-plan store could both read a count under the cap (e.g. both
+// see 19) and both proceed to insert, letting the store end up with
+// 21+ active products despite the cap — the same class of
+// check-then-act race withUserAdCreationLock above already closes
+// for per-user ad creation, applied here to per-store product
+// creation. Same primitive, its own keyspace so it never contends
+// with ad-creation, seller-creation, or store-creation locks.
+const STORE_PRODUCT_CREATION_LOCK_PREFIX = 'store_product_creation_lock:';
+// Short TTL: only needs to cover the count re-check + DB insert
+// (Cloudinary uploads already happen before the lock is taken, same
+// ordering rationale as AD_CREATION_LOCK_TTL_SECONDS above).
+const STORE_PRODUCT_CREATION_LOCK_TTL_SECONDS = 10;
+
+export class StoreProductCreationLockedError extends AppError {
+  constructor() {
+    super('Another product creation request is already in progress for this store — please try again in a moment', 409);
+  }
+}
+
+/**
+ * Runs `fn` while holding an exclusive lock on `storeId`'s
+ * product-creation slot, serializing the
+ * count-active-products-then-create sequence so two concurrent
+ * createProduct calls for the same free-plan store can't both pass
+ * the FREE_PLAN_PRODUCT_LIMIT check before either has committed its
+ * insert. Callers are expected to re-check the count *after*
+ * acquiring the lock (the first check, before the lock, is just a
+ * fast-path to avoid uploading images for an obviously-over-the-cap
+ * request).
+ */
+export async function withStoreProductCreationLock<T>(storeId: string, fn: () => Promise<T>): Promise<T> {
+  const result = await withRedisLock(
+    `${STORE_PRODUCT_CREATION_LOCK_PREFIX}${storeId}`,
+    STORE_PRODUCT_CREATION_LOCK_TTL_SECONDS,
+    fn
+  );
+  if (result === LOCK_NOT_ACQUIRED) {
+    throw new StoreProductCreationLockedError();
+  }
+  return result;
+}

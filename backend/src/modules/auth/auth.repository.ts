@@ -82,4 +82,17 @@ export const authRepository = {
       return handlePrismaError(error);
     }
   },
+
+  // FIX M-001: compensating delete used by register() when issueSession
+  // (Redis: refresh token save + user cache warm) fails after the
+  // PostgreSQL user row was already created. Without this, a Redis
+  // failure mid-registration leaves an orphaned user with no valid
+  // session who can never register again (email already taken) and
+  // can never log in (no way to reach a working session for them either,
+  // since the same issueSession path is reused by login()). Best-effort
+  // by design — if this delete itself fails, that failure is logged and
+  // swallowed by the caller rather than masking the original error.
+  deleteById: async (userId: string): Promise<void> => {
+    await prisma.user.delete({ where: { id: userId } });
+  },
 };
