@@ -28,8 +28,23 @@ export function SearchResults() {
   const categoryId = sp.get('categoryId') ?? undefined;
   const sort       = (sp.get('sort') as SearchSort) ?? 'relevance';
   const page       = Number(sp.get('page') ?? 1);
+  // TRACK-NEARBY-SEARCH: lat/lng/radius live in the URL like every
+  // other filter on this page (SearchNearbyToggle writes them via
+  // router.push, the same "URL is the source of truth" convention
+  // SearchFilters/SearchTabsWrapper already use) — unlike
+  // NearbyServiceProviders.tsx's local useState, this page's filters/
+  // sort/pagination are already URL-driven, so geo belongs there too
+  // rather than introducing a second, inconsistent state mechanism.
+  const latParam    = sp.get('lat');
+  const lngParam    = sp.get('lng');
+  const lat         = latParam !== null ? Number(latParam) : undefined;
+  const lng         = lngParam !== null ? Number(lngParam) : undefined;
+  const radiusParam = sp.get('radius');
+  const radius      = radiusParam !== null ? Number(radiusParam) : undefined;
 
-  const { data, isLoading, isError, refetch } = useSearch({ q, city, type, categoryId, sort, page });
+  const { data, isLoading, isError, refetch } = useSearch({
+    q, city, type, categoryId, sort, page, lat, lng, radius,
+  });
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;

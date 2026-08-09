@@ -33,6 +33,11 @@ const adListSelect = {
   price: true,
   images: true,
   city: true,
+  // TRACK-NEARBY-SEARCH: adListSelect must stay a superset of
+  // AdWithAuthor's scalars (see viewsAtLastReport's comment above) —
+  // added the moment these two columns landed on the Ad model.
+  latitude: true,
+  longitude: true,
   condition: true,
   isNegotiable: true,
   status: true,

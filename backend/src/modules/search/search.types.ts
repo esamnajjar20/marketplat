@@ -16,7 +16,12 @@ export type SearchType = (typeof SEARCH_TYPES)[number];
 /** Singular discriminant on each normalized result row. */
 export type SearchResultType = 'ad' | 'product' | 'store' | 'service';
 
-export const SEARCH_SORT_OPTIONS = ['relevance', 'rating', 'newest', 'views'] as const;
+// TRACK-NEARBY-SEARCH: 'distance' is only a valid sort choice when
+// lat/lng are present on the request — search.validation.ts's
+// searchQuerySchema enforces that with a .refine(), the same "sort
+// value requires certain other params" shape ads.validation.ts's own
+// adsQuerySchema already uses for minPrice/maxPrice ordering.
+export const SEARCH_SORT_OPTIONS = ['relevance', 'rating', 'newest', 'views', 'distance'] as const;
 export type SearchSort = (typeof SEARCH_SORT_OPTIONS)[number];
 
 export interface SearchResultSeller {
@@ -57,6 +62,16 @@ export interface SearchResult {
   /** Frontend-ready path — see search.repository.ts's ENTITY_URL_PREFIX. */
   url: string;
   createdAt: string;
+  /**
+   * TRACK-NEARBY-SEARCH: present only when the request carried lat/lng
+   * (search.validation.ts's searchQuerySchema) — null for every result
+   * on a plain (non-geo) search, and null per-row for stores/services
+   * a geo search couldn't resolve a distance for (e.g. a service whose
+   * provider has no lat/lng pin, only serviceAreaCities). Never a
+   * mandatory field to read; UnifiedResultCard/SearchResults only
+   * render it when non-null.
+   */
+  distanceKm: number | null;
 }
 
 export interface UnifiedSearchResponse {
@@ -91,4 +106,6 @@ export interface RawSearchRow {
   url_id: string;
   created_at: Date;
   rank: number;
+  /** TRACK-NEARBY-SEARCH: see SearchResult.distanceKm's own comment — null when the request had no lat/lng, or the entity/row couldn't resolve one. */
+  distance_km: number | null;
 }

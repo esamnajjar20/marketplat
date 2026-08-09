@@ -37,6 +37,12 @@ export const createAdSchema = z.object({
     categoryId: z.string().optional(),
     condition: z.nativeEnum(AdCondition).optional(),
     isNegotiable: z.preprocess(preprocessFormBoolean, z.boolean().default(false)),
+    // TRACK-NEARBY-SEARCH: optional precise pin, same bounds as
+    // service-providers.validation.ts's own latitude/longitude —
+    // multipart form data, so these arrive as strings; z.coerce
+    // handles that the same way `price` above does.
+    latitude: z.coerce.number().min(-90).max(90).optional(),
+    longitude: z.coerce.number().min(-180).max(180).optional(),
   }),
 });
 
@@ -57,6 +63,8 @@ export const updateAdSchema = z.object({
     condition: z.nativeEnum(AdCondition).nullable().optional(),
     isNegotiable: z.preprocess(preprocessFormBoolean, z.boolean()).optional(),
     status: z.nativeEnum(AdStatus).optional(),
+    latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
+    longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
   }),
 });
 

@@ -40,6 +40,9 @@ export interface Ad {
   isNegotiable: boolean;
   condition:    AdCondition | null;
   city:         string;
+  /** Optional precise pin — same nullable Decimal(9,6)->number shape as StoreDetails/ServiceProviderDetails. */
+  latitude:     number | null;
+  longitude:    number | null;
   images:       string[];
   status:       AdStatus;
   views:        number;
@@ -90,6 +93,9 @@ export interface CreateAdPayload {
   isNegotiable?: boolean;
   condition?:    AdCondition;
   city:          string;
+  /** Optional precise pin, enables nearby search once set — same bounds as service-providers'. */
+  latitude?:     number;
+  longitude?:    number;
   categoryId?:   string;
   images?:       File[];
 }

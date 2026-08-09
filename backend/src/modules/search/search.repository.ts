@@ -55,6 +55,23 @@ import { RawSearchRow, SearchType } from './search.types';
  *                  columns and the search term itself (see
  *                  buildTsQuery below) — see that migration's own
  *                  comment for which variants are folded and why.
+ *   - distance:    TRACK-NEARBY-SEARCH. Same Haversine + bounding-box
+ *                  approach as service-providers.repository.ts's own
+ *                  findNearby (see haversineExprSql/boundingBoxSql
+ *                  below) — deliberately not re-derived from scratch,
+ *                  so both endpoints agree on what "distance in km"
+ *                  means for the same two points. Ad/StoreDetails have
+ *                  their own lat/lng columns; Product has none (like
+ *                  its city, inherited via storeId → store_details);
+ *                  ServiceListing has none either (inherited via
+ *                  providerId → service_provider_details.latitude/
+ *                  longitude, itself an OPT-IN precise pin distinct
+ *                  from the required serviceAreaCities list). Every
+ *                  branch always SELECTs a distance_km column — NULL
+ *                  when the request carried no lat/lng, or when the
+ *                  matched row's entity has no pin — so RawSearchRow's
+ *                  shape never depends on whether the search was geo
+ *                  or not.
  */
 
 const ENTITY_URL_PREFIX: Record<'ad' | 'product' | 'store' | 'service', string> = {
@@ -63,6 +80,48 @@ const ENTITY_URL_PREFIX: Record<'ad' | 'product' | 'store' | 'service', string> 
   store: '/stores',
   service: '/services',
 };
+
+// TRACK-NEARBY-SEARCH: same Haversine expression as
+// service-providers.repository.ts's own distanceExpr (kept byte-for-byte
+// identical rather than re-derived, so the two endpoints can never
+// silently disagree on what "distance in km" means for the same two
+// points). latCol/lngCol are passed in as raw SQL identifiers (not
+// bound values) since each branch's coordinate columns live on a
+// different table/alias — ads.latitude directly, but products/services
+// only have coordinates via their store/provider join.
+function haversineExprSql(lat: number, lng: number, latCol: Prisma.Sql, lngCol: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`
+    6371 * acos(
+      LEAST(1, GREATEST(-1,
+        cos(radians(${lat})) * cos(radians(${latCol})) *
+        cos(radians(${lngCol}) - radians(${lng})) +
+        sin(radians(${lat})) * sin(radians(${latCol}))
+      ))
+    )
+  `;
+}
+
+// Same bounding-box pre-filter rationale as
+// service-providers.repository.ts's findNearby (see its own PERF-FIX
+// comment for the full derivation) — a cheap rectangular superset of
+// the true circular radius that hits a plain B-tree index on
+// (latCol, lngCol) before the expensive Haversine expression ever runs
+// on the surviving rows.
+function boundingBoxSql(
+  lat: number,
+  lng: number,
+  radiusKm: number,
+  latCol: Prisma.Sql,
+  lngCol: Prisma.Sql
+): Prisma.Sql {
+  const latDelta = radiusKm / 111;
+  const lngDelta = radiusKm / (111 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+  return Prisma.sql`
+    ${latCol} IS NOT NULL AND ${lngCol} IS NOT NULL
+    AND ${latCol} BETWEEN ${lat - latDelta} AND ${lat + latDelta}
+    AND ${lngCol} BETWEEN ${lng - lngDelta} AND ${lng + lngDelta}
+  `;
+}
 
 // FIX (mirrors ads.repository.ts's AD_SORT_COLUMN_SQL rationale): a
 // Record keyed by the full SearchSort union means TypeScript rejects
@@ -75,11 +134,21 @@ const ENTITY_URL_PREFIX: Record<'ad' | 'product' | 'store' | 'service', string> 
 // branch's SELECT) — ORDER BY rank falls back to recency when there's
 // no search term, which is the sane "relevance" default for a browse
 // (not search) request.
+//
+// TRACK-NEARBY-SEARCH: `distance` orders by distance_km ascending —
+// NULLS LAST so any row a geo search couldn't resolve a distance for
+// (a store/service with no lat/lng pin) sorts after every row that
+// did, rather than Postgres's NULLS-first default for ASC pushing
+// them to the top. search.validation.ts's searchQuerySchema rejects
+// sort=distance with no lat/lng before this is ever reached, so
+// distance_km being NULL on every row (a search with no geo at all)
+// is not a case this ordering needs to handle specially.
 const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
   relevance: Prisma.sql`rank DESC, created_at DESC`,
   rating: Prisma.sql`rating DESC, rank DESC, created_at DESC`,
   newest: Prisma.sql`created_at DESC`,
   views: Prisma.sql`views DESC, rank DESC, created_at DESC`,
+  distance: Prisma.sql`distance_km ASC NULLS LAST, rank DESC, created_at DESC`,
 };
 
 // FIX M-022: previously each branch (adBranch/productBranch/...) ran
@@ -117,6 +186,19 @@ function perBranchLimit(skip: number, take: number): number {
 const buildTsQuery = (q: string | undefined) =>
   q ? Prisma.sql`plainto_tsquery('simple', arabic_normalize(${q}))` : null;
 
+// TRACK-NEARBY-SEARCH: threaded through every *Branch builder as one
+// param object (rather than three positional lat/lng/radius args) so
+// adding it didn't churn every branch's call site signature — each
+// branch reads .lat/.lng/.radiusKm only when computing its own
+// distance_km/bounding-box condition, and is free to ignore it
+// entirely (none currently do, but a future entity with no
+// coordinates at all could).
+interface GeoParams {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+}
+
 // Explicit shared signature for every *Branch builder below — without
 // this, TypeScript infers each function's own return type
 // independently (Prisma.Sql for three of them, Prisma.Sql | null for
@@ -127,7 +209,8 @@ const buildTsQuery = (q: string | undefined) =>
 type BranchBuilder = (
   tsQuery: Prisma.Sql | null,
   categoryId: string | undefined,
-  city: string | undefined
+  city: string | undefined,
+  geo: GeoParams | null
 ) => Prisma.Sql | null;
 
 // Each branch computes its own tsvector/rank inline (rather than
@@ -136,7 +219,7 @@ type BranchBuilder = (
 // feature, so there's nowhere to persist a generated tsvector column.
 // The GIN indexes still speed up matching because the expression is
 // byte-for-byte identical to what's indexed.
-const adBranch: BranchBuilder = (tsQuery, categoryId, city) => {
+const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   const conditions: Prisma.Sql[] = [Prisma.sql`a."status" = 'ACTIVE'`];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
@@ -155,6 +238,34 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       )`
     : Prisma.sql`0`;
 
+  // TRACK-NEARBY-SEARCH: ads.latitude/longitude are direct columns
+  // (products/stores/services below resolve theirs via a join or, for
+  // products, through their store), so this branch needs no extra join
+  // for coordinates. A geo search does NOT exclude ads with no pin
+  // (this stays an opt-in signal, same as service-providers.repository.ts's
+  // own "only providers with a lat/lng pin are eligible" note, applied
+  // per-row instead of per-table here) — the bounding box below only
+  // narrows results by radius; ads with no pin simply get a null
+  // distance_km and sort last under sort=distance (see SORT_ORDER_BY_SQL).
+  let distanceExpr = Prisma.sql`NULL::float`;
+  if (geo) {
+    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`a."latitude"`, Prisma.sql`a."longitude"`);
+  }
+  if (geo && city === undefined) {
+    // Only narrow by radius when there's no explicit city filter — city
+    // and radius both answer "where", and stacking both as an AND would
+    // silently produce a combination no caller reading
+    // searchQuerySchema's shape would expect (e.g. "Gaza City AND
+    // within 10km of some other point" could easily be empty). A geo
+    // search WITH a city filter still computes/returns distance_km
+    // (sort=distance keeps working) — it just doesn't use radius to
+    // exclude rows on top of the city filter already narrowing them.
+    conditions.push(Prisma.sql`(
+      a."latitude" IS NULL OR (${boundingBoxSql(geo.lat, geo.lng, geo.radiusKm, Prisma.sql`a."latitude"`, Prisma.sql`a."longitude"`)}
+        AND (${distanceExpr}) <= ${geo.radiusKm})
+    )`);
+  }
+
   return Prisma.sql`
     SELECT
       a."id" AS id, 'ad'::text AS type, a."title" AS title, a."description" AS description,
@@ -169,7 +280,8 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       -- type must say 'user' in that exact case, not 'seller_profile'.
       (CASE WHEN sp."id" IS NULL THEN 'user' ELSE 'seller_profile' END)::text AS seller_type,
       a."id" AS url_id, a."createdAt" AS created_at,
-      (${rankExpr})::float AS rank
+      (${rankExpr})::float AS rank,
+      (${distanceExpr})::float AS distance_km
     FROM "ads" a
     LEFT JOIN "seller_profiles" sp ON sp."id" = a."sellerProfileId"
     JOIN "users" u ON u."id" = a."userId"
@@ -177,7 +289,7 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city) => {
   `;
 };
 
-const productBranch: BranchBuilder = (tsQuery, categoryId, city) => {
+const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   const conditions: Prisma.Sql[] = [Prisma.sql`p."status" = 'ACTIVE'`, Prisma.sql`st."status" = 'ACTIVE'`];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
@@ -197,6 +309,22 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       )`
     : Prisma.sql`0`;
 
+  // TRACK-NEARBY-SEARCH: Product has no lat/lng of its own — inherited
+  // from its store (st."latitude"/st."longitude"), the same "no own
+  // city either" relationship as the city filter directly above.
+  let distanceExpr = Prisma.sql`NULL::float`;
+  if (geo) {
+    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`st."latitude"`, Prisma.sql`st."longitude"`);
+  }
+  if (geo && city === undefined) {
+    // Same "don't stack radius on top of an explicit city filter"
+    // rationale as adBranch's identical condition above.
+    conditions.push(Prisma.sql`(
+      st."latitude" IS NULL OR (${boundingBoxSql(geo.lat, geo.lng, geo.radiusKm, Prisma.sql`st."latitude"`, Prisma.sql`st."longitude"`)}
+        AND (${distanceExpr}) <= ${geo.radiusKm})
+    )`);
+  }
+
   return Prisma.sql`
     SELECT
       p."id" AS id, 'product'::text AS type, p."name" AS title, p."description" AS description,
@@ -209,7 +337,8 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       -- header comment), never a bare user/seller-profile id.
       'store'::text AS seller_type,
       p."id" AS url_id, p."createdAt" AS created_at,
-      (${rankExpr})::float AS rank
+      (${rankExpr})::float AS rank,
+      (${distanceExpr})::float AS distance_km
     FROM "products" p
     JOIN "store_details" st ON st."id" = p."storeId"
     LEFT JOIN "seller_profiles" sp ON sp."id" = st."sellerProfileId"
@@ -217,7 +346,7 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city) => {
   `;
 };
 
-const storeBranch: BranchBuilder = (tsQuery, categoryId, city) => {
+const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   // Stores have no category of their own (ProductCategory/ServiceCategory
   // belong to their listings, not the store) — a categoryId filter
   // can never match a store, so this branch is skipped entirely rather
@@ -242,6 +371,19 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       )`
     : Prisma.sql`0`;
 
+  // TRACK-NEARBY-SEARCH: store_details has its own latitude/longitude
+  // directly — no join needed, same shape as adBranch.
+  let distanceExpr = Prisma.sql`NULL::float`;
+  if (geo) {
+    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`st."latitude"`, Prisma.sql`st."longitude"`);
+  }
+  if (geo && city === undefined) {
+    conditions.push(Prisma.sql`(
+      st."latitude" IS NULL OR (${boundingBoxSql(geo.lat, geo.lng, geo.radiusKm, Prisma.sql`st."latitude"`, Prisma.sql`st."longitude"`)}
+        AND (${distanceExpr}) <= ${geo.radiusKm})
+    )`);
+  }
+
   return Prisma.sql`
     SELECT
       st."id" AS id, 'store'::text AS type, st."name" AS title, st."description" AS description,
@@ -255,14 +397,15 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       -- itself, not a foreign reference), still type 'store' either way.
       'store'::text AS seller_type,
       st."id" AS url_id, st."createdAt" AS created_at,
-      (${rankExpr})::float AS rank
+      (${rankExpr})::float AS rank,
+      (${distanceExpr})::float AS distance_km
     FROM "store_details" st
     LEFT JOIN "seller_profiles" sp ON sp."id" = st."sellerProfileId"
     WHERE ${Prisma.join(conditions, ' AND ')}
   `;
 };
 
-const serviceBranch: BranchBuilder = (tsQuery, categoryId, city) => {
+const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   const conditions: Prisma.Sql[] = [Prisma.sql`sl."status" = 'ACTIVE'`];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
@@ -293,6 +436,25 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city) => {
   // composes as a SQL expression, not a value, inside the SELECT list.
   const cityExpr = city ? Prisma.sql`${city}::text` : Prisma.sql`pr."serviceAreaCities"[1]`;
 
+  // TRACK-NEARBY-SEARCH: providers are pinned via
+  // service_provider_details.latitude/longitude (an OPT-IN precise pin
+  // — serviceAreaCities remains the primary/required geo mechanism for
+  // every provider, same distinction service-providers.repository.ts's
+  // own findNearby draws). A city filter and radius filter are not
+  // mutually exclusive here the way they are in the other three
+  // branches — a provider's city match comes from the serviceAreaCities
+  // array, a wholly separate mechanism from the lat/lng pin, so both
+  // can be applied together without the "double narrowing" risk the
+  // other branches' city/radius guard exists to avoid.
+  let distanceExpr = Prisma.sql`NULL::float`;
+  if (geo) {
+    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`pr."latitude"`, Prisma.sql`pr."longitude"`);
+    conditions.push(Prisma.sql`(
+      pr."latitude" IS NULL OR (${boundingBoxSql(geo.lat, geo.lng, geo.radiusKm, Prisma.sql`pr."latitude"`, Prisma.sql`pr."longitude"`)}
+        AND (${distanceExpr}) <= ${geo.radiusKm})
+    )`);
+  }
+
   return Prisma.sql`
     SELECT
       sl."id" AS id, 'service'::text AS type, sl."title" AS title, sl."description" AS description,
@@ -306,7 +468,8 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city) => {
       -- seller_profiles id directly (sp is only joined for rating/verified).
       'service_provider'::text AS seller_type,
       sl."id" AS url_id, sl."createdAt" AS created_at,
-      (${rankExpr})::float AS rank
+      (${rankExpr})::float AS rank,
+      (${distanceExpr})::float AS distance_km
     FROM "service_listings" sl
     JOIN "service_provider_details" pr ON pr."id" = sl."providerId"
     LEFT JOIN "seller_profiles" sp ON sp."id" = pr."sellerProfileId"
@@ -325,15 +488,21 @@ export const searchRepository = {
   search: async (
     query: SearchQuery
   ): Promise<{ rows: RawSearchRow[]; total: number }> => {
-    const { q, city, type, categoryId, sort, page = 1, limit = 20 } = query;
+    const { q, city, type, categoryId, sort, page = 1, limit = 20, lat, lng, radius } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const tsQuery = buildTsQuery(q);
+
+    // TRACK-NEARBY-SEARCH: searchQuerySchema's .refine() already
+    // guarantees lat/lng arrive together (both present or both
+    // absent), so this is a safe single condition, not two independent
+    // undefined checks that could disagree.
+    const geo: GeoParams | null = lat !== undefined && lng !== undefined ? { lat, lng, radiusKm: radius } : null;
 
     const typesToQuery: Exclude<SearchType, 'all'>[] =
       type === 'all' ? ['ads', 'products', 'stores', 'services'] : [type];
 
     const branches = typesToQuery
-      .map(t => BRANCH_BUILDERS[t](tsQuery, categoryId, city))
+      .map(t => BRANCH_BUILDERS[t](tsQuery, categoryId, city, geo))
       .filter((branch): branch is Prisma.Sql => branch !== null);
 
     // categoryId narrowed type=all down to zero eligible branches (e.g.

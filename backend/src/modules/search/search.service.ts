@@ -40,6 +40,7 @@ const normalizeRow = (row: RawSearchRow): SearchResult => ({
   },
   url: searchRepository.buildUrl(row.type, row.url_id),
   createdAt: row.created_at.toISOString(),
+  distanceKm: row.distance_km,
 });
 
 export const searchService = {

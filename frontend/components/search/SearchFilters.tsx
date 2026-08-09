@@ -10,6 +10,7 @@ import { CITIES, ROUTES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
 import type { SearchType } from '@/types/search.types';
 
 const SORT_LABELS: Record<string, string> = {
@@ -18,6 +19,13 @@ const SORT_LABELS: Record<string, string> = {
   newest: 'الأحدث',
   views: 'الأكثر مشاهدة',
 };
+
+// TRACK-NEARBY-SEARCH: separate from SORT_LABELS above — 'distance'
+// is only ever a valid choice once lat/lng are on the URL (see
+// searchQuerySchema's .refine() on the backend), so it's appended to
+// the select's option list conditionally in the component below
+// instead of always being present like the other four.
+const DISTANCE_SORT_LABEL = 'الأقرب';
 
 /**
  * City / category / sort filters for the unified search page. Follows
@@ -56,12 +64,18 @@ export function SearchFilters() {
   }
 
   const showCategoryFilter = type === 'ads' || type === 'products' || type === 'services';
+  const hasGeo = sp.get('lat') !== null && sp.get('lng') !== null;
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-4">
       <div className="flex items-center gap-2 font-semibold text-sm">
         <SlidersHorizontal className="h-4 w-4" />
         تصفية النتائج
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الموقع</label>
+        <SearchNearbyToggle />
       </div>
 
       {showCategoryFilter && (
@@ -113,6 +127,8 @@ export function SearchFilters() {
             {Object.entries(SORT_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>{label}</SelectItem>
             ))}
+            {/* TRACK-NEARBY-SEARCH: only offered once a position is set — selecting it with no lat/lng would 400 against searchQuerySchema's .refine(). */}
+            {hasGeo && <SelectItem value="distance">{DISTANCE_SORT_LABEL}</SelectItem>}
           </SelectContent>
         </Select>
       </div>

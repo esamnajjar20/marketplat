@@ -17,15 +17,16 @@ searchRouter.get('/', CACHE.SHORT, searchController.search);
 // the CDN occasionally serves a slightly staler list than Redis holds.
 searchRouter.get('/suggestions', searchSuggestionsRateLimit, CACHE.SHORT, searchController.suggest);
 
-// TODO(TRACK-NEARBY-SEARCH): GET /search/nearby — lat/lng-based nearby
-// search for the unified ads/products search, deferred and not part of
-// this pass. Note this is distinct from service-providers' nearby
-// search (GET /service-providers/nearby, service-providers.routes.ts),
-// which already ships: Haversine-based, required lat/lng, radius
-// optional (km) with a default and a server-side cap to avoid a
-// pathological full-table scan (see nearbyServiceProvidersSchema in
-// service-providers.validation.ts). Search's Ad/Product models have no
-// lat/lng columns yet (unlike ServiceProvider) — implementing this
-// endpoint needs that schema addition first, then can likely reuse the
-// same radius-cap and coordinate-validation approach as the
-// service-providers version rather than a new design.
+// TRACK-NEARBY-SEARCH: lat/lng-based nearby search for the unified
+// ads/products/stores/services search now lives on this same GET /
+// endpoint (searchController.search) rather than a separate
+// /search/nearby route — pass lat/lng(+radius) query params and
+// optionally sort=distance. Ad/StoreDetails now carry their own
+// latitude/longitude columns (StoreDetails already did; Ad gained them
+// in the add_ad_geolocation migration), Product/ServiceListing resolve
+// theirs via their store/provider join — see search.repository.ts's
+// header comment and haversineExprSql/boundingBoxSql for the shared
+// Haversine + bounding-box approach, deliberately reusing the same
+// math GET /service-providers/nearby already established
+// (service-providers.repository.ts's findNearby) rather than a new
+// design.

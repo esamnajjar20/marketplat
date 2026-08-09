@@ -39,6 +39,18 @@ export function UnifiedResultCard({ result, className }: Props) {
   const blurDataURL =
     result.image && isCloudinaryUrl(result.image) ? getPlaceholderUrl(result.image) : undefined;
   const badge = TYPE_BADGE[result.type];
+  // TRACK-NEARBY-SEARCH: same m/km formatting convention as
+  // ServiceProviderCard.tsx's own distanceLabel — kept identical so a
+  // person doesn't see two different distance formats depending on
+  // which nearby-search surface they're looking at. null on a plain
+  // (non-geo) search, or per-row when that particular result's entity
+  // has no lat/lng pin — see SearchResult.distanceKm's own comment.
+  const distanceLabel =
+    result.distanceKm === null
+      ? null
+      : result.distanceKm < 1
+        ? `${Math.round(result.distanceKm * 1000)} م`
+        : `${result.distanceKm.toFixed(1)} كم`;
 
   return (
     <Link
@@ -88,6 +100,13 @@ export function UnifiedResultCard({ result, className }: Props) {
               <>
                 <MapPin className="h-3 w-3" />
                 {result.city}
+                {distanceLabel && <span className="text-primary font-medium">· {distanceLabel}</span>}
+              </>
+            )}
+            {!result.city && distanceLabel && (
+              <>
+                <MapPin className="h-3 w-3" />
+                <span className="text-primary font-medium">{distanceLabel}</span>
               </>
             )}
           </span>

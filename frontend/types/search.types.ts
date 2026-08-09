@@ -19,7 +19,8 @@
 
 export type SearchType = 'all' | 'ads' | 'products' | 'stores' | 'services';
 export type SearchResultType = 'ad' | 'product' | 'store' | 'service';
-export type SearchSort = 'relevance' | 'rating' | 'newest' | 'views';
+/** TRACK-NEARBY-SEARCH: 'distance' only valid alongside lat/lng — see SearchQuery's own comment. */
+export type SearchSort = 'relevance' | 'rating' | 'newest' | 'views' | 'distance';
 
 export interface SearchResultSeller {
   id: string;
@@ -42,6 +43,14 @@ export interface SearchResult {
   /** Frontend-ready path (e.g. `/ads/{id}`, `/stores/{id}`) — navigate directly, no per-type branching needed. */
   url: string;
   createdAt: string;
+  /**
+   * TRACK-NEARBY-SEARCH: present only when the request carried lat/lng —
+   * null on a plain search, and null per-row for any result whose
+   * entity has no lat/lng pin even inside a geo search (e.g. a store
+   * that never set one). Never assume non-null; only render distance
+   * UI when it's actually there.
+   */
+  distanceKm: number | null;
 }
 
 /** GET /search query params. */
@@ -53,6 +62,16 @@ export interface SearchQuery {
   sort?: SearchSort;
   page?: number;
   limit?: number;
+  /**
+   * TRACK-NEARBY-SEARCH: optional — must be provided together (backend
+   * rejects one without the other), same pairing
+   * NearbyServiceProvidersParams already requires. Enables a
+   * `distanceKm` on every result and unlocks `sort: 'distance'`.
+   */
+  lat?: number;
+  lng?: number;
+  /** km, server default 10, capped 100 — same bounds as service-providers' own radius. */
+  radius?: number;
 }
 
 /** GET /search/suggestions query params. */

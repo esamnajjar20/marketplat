@@ -169,6 +169,15 @@ model Ad {
   price           Decimal?       @db.Decimal(10, 2)
   images          String[]
   city            String
+  // TRACK-NEARBY-SEARCH: optional precise pin, same shape/precision as
+  // StoreDetails.latitude/longitude and ServiceProviderDetails's own
+  // pair — city (above) stays the required/primary location signal for
+  // every ad; these two are opt-in and only populated when the seller
+  // shares a precise location, enabling GET /search's lat/lng-based
+  // nearby sort/filter (search.repository.ts) the same way
+  // ServiceProviderDetails already enables GET /service-providers/nearby.
+  latitude        Decimal?       @db.Decimal(9, 6)
+  longitude       Decimal?       @db.Decimal(9, 6)
   condition       AdCondition?
   isNegotiable    Boolean        @default(false)
   status          AdStatus       @default(ACTIVE)
@@ -223,6 +232,11 @@ model Ad {
   @@index([userId, status])
   @@index([isFeatured, isPinned])
   @@index([flaggedForReview, createdAt])
+  // TRACK-NEARBY-SEARCH: same composite-index rationale as
+  // ServiceProviderDetails's own @@index([latitude, longitude]) — lets
+  // the bounding-box pre-filter in search.repository.ts's nearby branch
+  // hit an index instead of computing Haversine over every row.
+  @@index([latitude, longitude])
   @@map("ads")
 }
 

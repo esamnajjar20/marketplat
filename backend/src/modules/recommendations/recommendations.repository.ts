@@ -17,6 +17,8 @@ const recommendationAdSelect = {
   price: true,
   images: true,
   city: true,
+  latitude: true,
+  longitude: true,
   condition: true,
   isNegotiable: true,
   status: true,
