@@ -49,8 +49,12 @@ export const queryKeys = {
 
   // ── Sellers ────────────────────────────────────────────────────
   sellers: {
-    detail: (id: string) => ['sellers', id]        as const,
-    me:     ()            => ['sellers', 'me']      as const,
+    detail:  (id: string) => ['sellers', id]        as const,
+    me:      ()            => ['sellers', 'me']      as const,
+    // TRACK-AD-RATINGS-LIST: mirrors storeReviews.forStore below —
+    // same (id, params) key shape.
+    ratings: (sellerProfileId: string, params?: object) =>
+      ['sellers', sellerProfileId, 'ratings', params ?? {}] as const,
   },
 
   // ── Service providers ─────────────────────────────────────────

@@ -52,6 +52,19 @@ export const createRatingSchema = z.object({
 
 export type CreateRatingInput = z.infer<typeof createRatingSchema>['body'];
 
+// TRACK-AD-RATINGS-LIST: mirrors stores.validation.ts's
+// getStoreReviewsSchema exactly (same page/limit bounds) — no other
+// filters, same as that one.
+export const getSellerRatingsSchema = z.object({
+  params: z.object({ id: z.string().min(1, 'Seller profile ID is required') }),
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+  }),
+});
+
+export type GetSellerRatingsQuery = z.infer<typeof getSellerRatingsSchema>['query'];
+
 export const verifySellerSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Seller profile ID is required') }),
   body: z.object({

@@ -56,3 +56,32 @@ export interface CreateSellerRatingPayload {
   score: 1 | 2 | 3 | 4 | 5;
   comment?: string;
 }
+
+/**
+ * GET /sellers/:id/ratings row. Same "always included" convention as
+ * StoreReview.rater/ServiceReview.rater — every row comes from
+ * sellers.repository.ts's findManyRatingsBySellerProfileId, which
+ * always joins the rater. `ad` is this type's one difference from
+ * StoreReview/ServiceReview: a SellerRating can optionally be scoped
+ * to one specific ad transaction (CreateSellerRatingPayload.adId is
+ * optional), so it's null whenever the rating wasn't tied to a
+ * particular ad.
+ */
+export interface SellerRating {
+  id: string;
+  score: number;
+  comment: string | null;
+  sellerProfileId: string;
+  raterId: string;
+  adId: string | null;
+  createdAt: string;
+  rater: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+  ad: {
+    id: string;
+    title: string;
+  } | null;
+}

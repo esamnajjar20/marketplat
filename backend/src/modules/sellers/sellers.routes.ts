@@ -28,3 +28,10 @@ sellersRouter.post(
   sellerRatingRateLimit,
   sellersController.createRating
 );
+
+// TRACK-AD-RATINGS-LIST: public — mirrors
+// service-reviews.routes.ts's GET /seller/:sellerProfileId /
+// stores.routes.ts's GET /:id/reviews (same CACHE.SHORT). Was entirely
+// missing — POST existed with no way to read the individual ratings
+// back, only the aggregate averageRating/totalRatings on the profile.
+sellersRouter.get('/:id/ratings', CACHE.SHORT, sellersController.getSellerRatings);

@@ -1,9 +1,21 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, SellerProfile } from '@prisma/client';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type SellerProfileWithAds = Prisma.SellerProfileGetPayload<{
   include: {
     ads: true;
+  };
+}>;
+
+// TRACK-AD-RATINGS-LIST: same include shape as
+// service-reviews.repository.ts's ServiceReviewWithRater / stores'
+// StoreReviewWithRater — only id/name/avatarUrl, never email/phone, so
+// this public list can't leak contact info about whoever rated a seller.
+export type SellerRatingWithRater = Prisma.SellerRatingGetPayload<{
+  include: {
+    rater: { select: { id: true; name: true; avatarUrl: true } };
+    ad: { select: { id: true; title: true } };
   };
 }>;
 
@@ -138,6 +150,40 @@ export const sellersRepository = {
     score: number;
     comment?: string;
   }) => prisma.sellerRating.create({ data }),
+
+  // TRACK-AD-RATINGS-LIST: mirrors
+  // service-reviews.repository.ts's findManyBySellerProfileId /
+  // store-reviews.repository.ts's own version exactly (same
+  // page/limit → skip/take via getPaginationParams, same
+  // orderBy createdAt desc, same Promise.all findMany+count) — the
+  // three review/rating surfaces (ad, service, store) already share
+  // one aggregate via recomputeRatingAggregate below; this keeps their
+  // list-reading shape identical too; ad's own `ad` include (title) is
+  // the one difference, since a SellerRating can be scoped to one
+  // specific ad transaction while ServiceReview/StoreReview cannot.
+  findManyRatingsBySellerProfileId: async (
+    sellerProfileId: string,
+    query: { page?: number; limit?: number }
+  ): Promise<{ ratings: SellerRatingWithRater[]; total: number }> => {
+    const { page = 1, limit = 20 } = query;
+    const { skip, take } = getPaginationParams(page, limit);
+    const where: Prisma.SellerRatingWhereInput = { sellerProfileId };
+
+    const [ratings, total] = await Promise.all([
+      prisma.sellerRating.findMany({
+        where,
+        include: {
+          rater: { select: { id: true, name: true, avatarUrl: true } },
+          ad: { select: { id: true, title: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.sellerRating.count({ where }),
+    ]);
+    return { ratings, total };
+  },
 
   // Recomputed from the actual rows rather than incremented, so a
   // deleted/edited rating can never leave averageRating/totalRatings

@@ -31,6 +31,12 @@ export function useCreateSellerProfile() {
  * POST /sellers/:id/ratings. Invalidates the target seller's public
  * profile so the new averageRating/totalRatings show up without a
  * manual refresh.
+ *
+ * TRACK-AD-RATINGS-LIST: also invalidates sellers.ratings() — same
+ * "invalidate both the list and the aggregate-holding detail query"
+ * pattern useCreateStoreReview already uses (see that hook's own
+ * comment) — SellerRatingsList wouldn't otherwise pick up a
+ * just-submitted rating until its own staleTime lapsed.
  */
 export function useCreateSellerRating(sellerProfileId: string) {
   const queryClient = useQueryClient();
@@ -40,6 +46,7 @@ export function useCreateSellerRating(sellerProfileId: string) {
       sellersApi.createRating(sellerProfileId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sellers.detail(sellerProfileId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sellers.ratings(sellerProfileId) });
       toast.success('تم إرسال تقييمك');
     },
     onError: err => toast.error(parseApiError(err).message),

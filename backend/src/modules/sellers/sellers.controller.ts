@@ -4,6 +4,7 @@ import {
   createSellerProfileSchema,
   sellerIdSchema,
   createRatingSchema,
+  getSellerRatingsSchema,
   verifySellerSchema,
   suspendSellerSchema,
   adminGetSellersSchema,
@@ -49,6 +50,25 @@ export const sellersController = {
       const { params, body } = createRatingSchema.parse({ params: req.params, body: req.body });
       await sellersService.createRating(params.id, user.userId, body);
       res.status(201).json(successResponse('Rating submitted'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // TRACK-AD-RATINGS-LIST: public — mirrors
+  // service-reviews.controller.ts's getReviewsForSeller /
+  // stores.controller.ts's getStoreReviews exactly (no requireUser,
+  // same pagination-meta response shape).
+  getSellerRatings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { params, query } = getSellerRatingsSchema.parse({
+        params: req.params,
+        query: req.query,
+      });
+      const result = await sellersService.getSellerRatings(params.id, query);
+      res
+        .status(200)
+        .json(successResponse('Seller ratings fetched', result.items, { pagination: result.meta }));
     } catch (error) {
       next(error);
     }

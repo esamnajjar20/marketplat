@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { SellerProfileHeader } from '@/components/sellers/SellerProfileHeader';
 import { SellerProfileAds } from '@/components/sellers/SellerProfileAds';
+import { SellerRatingsList } from '@/components/sellers/SellerRatingsList';
 import { ServiceReviewsList } from '@/components/services/ServiceReviewsList';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
 import { buildMetadata } from '@/lib/seo';
@@ -51,6 +52,21 @@ export default async function SellerProfilePage({ params }: Props) {
       <section className="space-y-3">
         <h2 className="font-semibold text-lg">إعلانات البائع</h2>
         <SellerProfileAds ads={seller.ads} />
+      </section>
+      <section className="space-y-3">
+        <h2 className="font-semibold text-lg">تقييمات الإعلانات</h2>
+        {/* TRACK-AD-RATINGS-LIST: same render-time-throw isolation as
+            the service reviews boundary directly below — a malformed
+            rating row shouldn't blank the rest of this profile page. */}
+        <ErrorBoundary
+          fallback={
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-center text-sm text-destructive">
+              تعذّر عرض تقييمات الإعلانات
+            </div>
+          }
+        >
+          <SellerRatingsList sellerProfileId={seller.id} />
+        </ErrorBoundary>
       </section>
       <section className="space-y-3">
         <h2 className="font-semibold text-lg">تقييمات الخدمات</h2>

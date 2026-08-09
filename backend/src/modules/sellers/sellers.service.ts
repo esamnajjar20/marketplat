@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
-import { sellersRepository, SellerProfileWithAds } from './sellers.repository';
-import { CreateSellerProfileInput, CreateRatingInput } from './sellers.validation';
+import { sellersRepository, SellerProfileWithAds, SellerRatingWithRater } from './sellers.repository';
+import { CreateSellerProfileInput, CreateRatingInput, GetSellerRatingsQuery } from './sellers.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -9,6 +9,7 @@ import { withSellerProfileCreationLock } from '../../shared/utils/sellerLock';
 import { usersRepository } from '../users/users.repository';
 import { SellerProfile } from '@prisma/client';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { blockedUsersService } from '../blocked-users';
 
@@ -133,6 +134,27 @@ export const sellersService = {
       }
       throw error;
     }
+  },
+
+  // TRACK-AD-RATINGS-LIST: mirrors service-reviews.service.ts's
+  // getReviewsForSeller / stores.service.ts's getStoreReviews exactly
+  // — public (no auth check here, same as those two; sellersRouter's
+  // GET /:id/ratings route itself is unauthenticated).
+  getSellerRatings: async (
+    sellerProfileId: string,
+    query: GetSellerRatingsQuery
+  ): Promise<PaginatedResult<SellerRatingWithRater>> => {
+    const profile = await sellersRepository.findById(sellerProfileId);
+    if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+
+    const { ratings, total } = await sellersRepository.findManyRatingsBySellerProfileId(
+      sellerProfileId,
+      query
+    );
+    return {
+      items: ratings,
+      meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
+    };
   },
 
   // EPIC 1.1: admin sellers list — the report's finding was that

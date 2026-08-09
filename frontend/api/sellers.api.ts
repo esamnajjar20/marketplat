@@ -4,12 +4,14 @@
  * not a Role, so there is no separate "become seller" role-change call.
  */
 import { apiClient } from './client';
+import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
   SellerProfile,
   SellerProfileWithAds,
   CreateSellerProfilePayload,
   CreateSellerRatingPayload,
+  SellerRating,
 } from '@/types/seller.types';
 
 export const sellersApi = {
@@ -28,4 +30,10 @@ export const sellersApi = {
   /** POST /sellers/:id/ratings — rate a seller (requires login). */
   createRating: (sellerProfileId: string, payload: CreateSellerRatingPayload) =>
     apiClient.post<ApiResponse<null>>(`/sellers/${sellerProfileId}/ratings`, payload),
+
+  /** GET /sellers/:id/ratings — paginated, public. Same unwrapPaginated shape as serviceReviewsApi.getForSeller/storeReviewsApi's own. */
+  getRatings: (sellerProfileId: string, params?: { page?: number; limit?: number }) =>
+    apiClient
+      .get<ApiResponse<SellerRating[]>>(`/sellers/${sellerProfileId}/ratings`, { params })
+      .then((r) => unwrapPaginated<SellerRating>(r)),
 };
