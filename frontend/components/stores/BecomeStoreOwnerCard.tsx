@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
@@ -11,6 +12,7 @@ import { useCreateStore } from '@/hooks/mutations/useStoreMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES, CITIES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { getSafeRedirectPath } from '@/lib/cookies';
 
 interface Errors {
   name?: string;
@@ -27,6 +29,14 @@ interface Errors {
 export function BecomeStoreOwnerCard() {
   const { data: sellerProfile, isLoading: isLoadingSeller } = useMySellerProfile();
   const createStore = useCreateStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // FIX P0-1 (unified pattern, mirrors BecomeSellerCard): when reached
+  // via CreateProductGate's "فتح متجر" link (?from=/my-store/products/new),
+  // send the user back to their original intent after the store is
+  // created instead of stranding them on /my-store.
+  const from = searchParams.get('from');
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -98,7 +108,12 @@ export function BecomeStoreOwnerCard() {
         address: address.trim() || undefined,
         phone: phone.trim(),
       },
-      { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) }
+      {
+        onSuccess: () => {
+          if (from) router.push(getSafeRedirectPath(from));
+        },
+        onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+      }
     );
   }
 

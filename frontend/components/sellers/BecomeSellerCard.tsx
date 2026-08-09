@@ -1,16 +1,29 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { useCreateSellerProfile } from '@/hooks/mutations/useSellerMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { parseApiError } from '@/lib/errorParser';
+import { getSafeRedirectPath } from '@/lib/cookies';
 
 export function BecomeSellerCard() {
   const user = useAuthStore(selectUser);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const createProfile = useCreateSellerProfile();
+
+  // FIX P0-1: when reached via CreateAdGate's "إنشاء ملف البائع" link
+  // (?from=/ads/create), send the user back to their original intent
+  // after the profile is created instead of stranding them here.
+  // getSafeRedirectPath rejects anything but a same-origin relative path
+  // (same guard LoginForm uses for its own ?from=), and falls back to
+  // staying on this page (undefined) when there's no ?from= — e.g. a
+  // user who navigated to /settings/seller directly.
+  const from = searchParams.get('from');
 
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -43,6 +56,9 @@ export function BecomeSellerCard() {
         agreedToSellerTerms: true,
       },
       {
+        onSuccess: () => {
+          if (from) router.push(getSafeRedirectPath(from));
+        },
         onError: err => setServerErrors(parseApiError(err).fieldErrors),
       }
     );

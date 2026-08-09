@@ -1,9 +1,15 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Eye } from 'lucide-react';
+import { MapPin, Eye, Heart } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { useIsFavorited } from '@/hooks/queries/useFavorites';
+import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
+import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { toast } from 'sonner';
 import type { AdListItem } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +42,23 @@ export function AdCard({ ad, className, priority = false }: Props) {
   const rawImage = ad.images[0];
   const thumb    = rawImage ? getThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
   const isSold   = ad.status === 'SOLD';
+
+  // FIX P1-1: previously the only way to favorite/unfavorite an ad was
+  // to open its full detail page — even from inside the favorites list
+  // itself. useIsFavorited subscribes to the same client-cached ID set
+  // AdDetail reads, so this stays in sync with detail-page toggles with
+  // no extra request; useToggleFavorite already handles the optimistic
+  // update/rollback.
+  const isAuth = useAuthStore(selectIsAuthenticated);
+  const isFavorited = useIsFavorited(ad.id);
+  const toggleFavorite = useToggleFavorite();
+
+  function handleFavoriteClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    toggleFavorite.mutate(ad.id);
+  }
   // FIX PERF-06: lib/cloudinary.ts already ships a getPlaceholderUrl
   // (tiny, heavily blurred, ~1-2KB) meant to pair with next/image's
   // placeholder="blur" for a smooth fade-in instead of the image
@@ -46,51 +69,73 @@ export function AdCard({ ad, className, priority = false }: Props) {
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
 
   return (
-    <Link href={ROUTES.adDetail(ad.id)}
-      className={cn(
-        'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
-        className,
-      )}>
+    <div className="relative">
+      <Link href={ROUTES.adDetail(ad.id)}
+        className={cn(
+          'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+          className,
+        )}>
 
-      {/* Image */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <Image
-          src={thumb}
-          alt={ad.title}
-          fill
-          className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-          sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
-          priority={priority}
-          loading={priority ? undefined : 'lazy'}
-          {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
-        />
-        {isSold && (
-          <div className="absolute inset-0 flex items-center justify-center bg-foreground/60 backdrop-blur-[1px]">
-            <span className="rounded-full bg-background px-4 py-1 text-sm font-bold text-foreground">تم البيع</span>
-          </div>
-        )}
-        {ad.isFeatured && !isSold && (
-          <span className="absolute top-2 start-2 rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-foreground shadow-sm">
-            مميز
-          </span>
-        )}
-        {ad.condition && (
-          <span className="absolute top-2 end-2 rounded-full bg-foreground/70 px-2.5 py-0.5 text-xs text-background backdrop-blur-sm">
-            {CONDITION_LABELS[ad.condition] ?? ad.condition}
-          </span>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="space-y-1.5 p-3">
-        <h3 className="line-clamp-2 text-sm font-medium leading-snug">{ad.title}</h3>
-        <p className="font-mono text-base font-bold text-primary">{formatPrice(ad.price)}</p>
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ad.city}</span>
-          <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>
+        {/* Image */}
+        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+          <Image
+            src={thumb}
+            alt={ad.title}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+            sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
+            priority={priority}
+            loading={priority ? undefined : 'lazy'}
+            {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
+          />
+          {isSold && (
+            <div className="absolute inset-0 flex items-center justify-center bg-foreground/60 backdrop-blur-[1px]">
+              <span className="rounded-full bg-background px-4 py-1 text-sm font-bold text-foreground">تم البيع</span>
+            </div>
+          )}
+          {ad.isFeatured && !isSold && (
+            <span className="absolute top-2 start-2 rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-foreground shadow-sm">
+              مميز
+            </span>
+          )}
+          {ad.condition && (
+            <span className="absolute top-2 end-2 rounded-full bg-foreground/70 px-2.5 py-0.5 text-xs text-background backdrop-blur-sm">
+              {CONDITION_LABELS[ad.condition] ?? ad.condition}
+            </span>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground">{formatRelativeTime(ad.createdAt)}</p>
-      </div>
-    </Link>
+
+        {/* Info */}
+        <div className="space-y-1.5 p-3">
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug">{ad.title}</h3>
+          <p className="font-mono text-base font-bold text-primary">{formatPrice(ad.price)}</p>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ad.city}</span>
+            <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">{formatRelativeTime(ad.createdAt)}</p>
+        </div>
+      </Link>
+
+      {/* FIX P1-1: rendered as a sibling of <Link>, not nested inside it —
+          a <button> inside an <a> is invalid HTML (hydration/a11y risk)
+          even though React won't error on it. Absolutely positioned
+          against this wrapper so it keeps the same visual spot. */}
+      {!isSold && (
+        <button
+          type="button"
+          onClick={handleFavoriteClick}
+          disabled={toggleFavorite.isPending}
+          aria-label={isFavorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+          aria-pressed={isFavorited}
+          className={cn(
+            'absolute end-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 shadow-sm backdrop-blur-sm transition-transform active:scale-90 disabled:opacity-60',
+            ad.condition ? 'top-11' : 'top-2',
+          )}
+        >
+          <Heart className={cn('h-4 w-4', isFavorited ? 'fill-destructive text-destructive' : 'text-foreground')} />
+        </button>
+      )}
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { Button }     from '@/components/shared/ui/Button';
 import { Input }      from '@/components/shared/ui/Input';
 import {
@@ -62,6 +63,34 @@ export function AdForm({ mode, ad }: Props) {
       existingImages: ad.images,
     } : EMPTY
   );
+  // FIX P0-2: snapshot of the form's initial values, used to detect
+  // unsaved changes before discarding via "إلغاء". Compares the
+  // text/select fields directly and treats any new file selected or
+  // any existing image removed/reordered as dirty too — cheaper and
+  // just as reliable as a deep-equal here since `images` holds live
+  // File objects that aren't meaningfully comparable by value anyway.
+  const [initialValues] = useState<AdFormValues>(() => values);
+  const isDirty =
+    values.title !== initialValues.title ||
+    values.description !== initialValues.description ||
+    values.price !== initialValues.price ||
+    values.isNegotiable !== initialValues.isNegotiable ||
+    values.condition !== initialValues.condition ||
+    values.city !== initialValues.city ||
+    values.categoryId !== initialValues.categoryId ||
+    values.images.length > 0 ||
+    values.existingImages.length !== initialValues.existingImages.length ||
+    values.existingImages.some((url, i) => url !== initialValues.existingImages[i]);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  function handleCancel() {
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      history.back();
+    }
+  }
+
   const [errors, setErrors] = useState<Errors>({});
   // FIX M-1: field-level errors from the backend's Zod validation (400
   // responses), separate from `errors` (client-side pre-submit checks).
@@ -359,11 +388,26 @@ export function AdForm({ mode, ad }: Props) {
 
       {/* Submit */}
       <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
+        <Button type="button" variant="outline" onClick={handleCancel}>إلغاء</Button>
         <Button type="submit" disabled={isFormIncomplete || isPending}>
           {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
         </Button>
       </div>
+
+      {/* FIX P0-2: confirm before discarding unsaved changes — this is a
+          long form (title, description up to 5000 chars, images,
+          category) and a single accidental tap on "إلغاء" (common on
+          mobile) previously discarded everything with no way back. */}
+      <ConfirmDialog
+        open={showCancelConfirm}
+        onOpenChange={setShowCancelConfirm}
+        title="تجاهل التغييرات؟"
+        description="لديك تغييرات غير محفوظة في هذا النموذج. إذا تابعت، ستفقد كل ما أدخلته."
+        confirmLabel="تجاهل التغييرات"
+        cancelLabel="متابعة التعديل"
+        destructive
+        onConfirm={() => history.back()}
+      />
     </form>
   );
 }

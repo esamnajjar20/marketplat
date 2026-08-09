@@ -8,13 +8,57 @@
  * (isFeatured && !isSold specifically — a featured-but-sold ad must
  * not show "مميز"), placeholder fallback when an ad has no images,
  * and the priority/lazy-loading prop wiring.
+ *
+ * FIX P1-1: AdCard now renders a favorite (heart) button, which pulls
+ * in useIsFavorited/useToggleFavorite (both call useQueryClient) and
+ * useAuthStore. Mocked the same way AdDetail.test.tsx mocks its own
+ * favorite wiring, rather than wrapping every render in a
+ * QueryClientProvider — these hooks' own behavior (optimistic update,
+ * rollback, cache subscription) is already covered by
+ * useFavoriteMutations/useFavorites' own tests; this file only needs
+ * to assert AdCard renders the button and wires clicks correctly.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { AdCard } from '@/components/ads/AdCard';
+import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
+import { useIsFavorited } from '@/hooks/queries/useFavorites';
+import { useAuthStore } from '@/store/auth.store';
+import { toast } from 'sonner';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
 import type { AdListItem } from '@/types/ad.types';
+
+vi.mock('@/hooks/mutations/useFavoriteMutations', () => ({
+  useToggleFavorite: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/useFavorites', () => ({
+  useIsFavorited: vi.fn(),
+}));
+
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
+}));
+
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
+
+const mockToggleMutate = vi.fn();
+
+function mockFavoriteState({ isAuth = true, isFavorited = false } = {}) {
+  vi.mocked(useAuthStore).mockImplementation((selector: unknown) =>
+    (selector as (s: { isAuthenticated: boolean }) => unknown)({ isAuthenticated: isAuth }),
+  );
+  vi.mocked(useIsFavorited).mockReturnValue(isFavorited);
+  vi.mocked(useToggleFavorite).mockReturnValue({
+    mutate: mockToggleMutate,
+    isPending: false,
+  } as unknown as ReturnType<typeof useToggleFavorite>);
+}
 
 const baseAd: AdListItem = {
   id: 'ad-1',
@@ -38,6 +82,11 @@ const baseAd: AdListItem = {
 };
 
 describe('AdCard', () => {
+  beforeEach(() => {
+    mockToggleMutate.mockReset();
+    mockFavoriteState();
+  });
+
   it('renders the title, price, city, and views', () => {
     render(<AdCard ad={baseAd} />);
 
@@ -129,5 +178,52 @@ describe('AdCard', () => {
   it('applies a custom className alongside the default styling', () => {
     render(<AdCard ad={baseAd} className="custom-test-class" />);
     expect(screen.getByRole('link')).toHaveClass('custom-test-class');
+  });
+
+  describe('favorite button (FIX P1-1)', () => {
+    it('renders a favorite toggle button for a non-sold ad', () => {
+      render(<AdCard ad={baseAd} />);
+      expect(screen.getByRole('button', { name: 'إضافة إلى المفضلة' })).toBeInTheDocument();
+    });
+
+    it('does not render a favorite button for a sold ad', () => {
+      render(<AdCard ad={{ ...baseAd, status: 'SOLD' }} />);
+      expect(screen.queryByRole('button', { name: /المفضلة/ })).not.toBeInTheDocument();
+    });
+
+    it('reflects the favorited state via aria-pressed and label', () => {
+      mockFavoriteState({ isFavorited: true });
+      render(<AdCard ad={baseAd} />);
+      const btn = screen.getByRole('button', { name: 'إزالة من المفضلة' });
+      expect(btn).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('calls toggleFavorite.mutate with the ad id when clicked while authenticated', async () => {
+      const user = userEvent.setup();
+      render(<AdCard ad={baseAd} />);
+      await user.click(screen.getByRole('button', { name: 'إضافة إلى المفضلة' }));
+      expect(mockToggleMutate).toHaveBeenCalledWith(baseAd.id);
+    });
+
+    it('shows a toast and does not mutate when clicked while unauthenticated', async () => {
+      mockFavoriteState({ isAuth: false });
+      const user = userEvent.setup();
+      render(<AdCard ad={baseAd} />);
+      await user.click(screen.getByRole('button', { name: 'إضافة إلى المفضلة' }));
+      expect(toast.error).toHaveBeenCalled();
+      expect(mockToggleMutate).not.toHaveBeenCalled();
+    });
+
+    it('does not navigate when the favorite button is clicked (stopPropagation)', async () => {
+      const user = userEvent.setup();
+      render(<AdCard ad={baseAd} />);
+      // If the click bubbled to the <Link>, jsdom would still not
+      // actually navigate, but stopPropagation/preventDefault are
+      // exercised by this click regardless — the meaningful assertion
+      // is that the mutate call fired exactly once, not zero/twice
+      // from a duplicated handler.
+      await user.click(screen.getByRole('button', { name: 'إضافة إلى المفضلة' }));
+      expect(mockToggleMutate).toHaveBeenCalledTimes(1);
+    });
   });
 });

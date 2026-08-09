@@ -420,4 +420,72 @@ describe('AdForm', () => {
       expect(screen.getByRole('spinbutton')).toHaveValue(500);
     });
   });
+
+  // FIX P0-2: "إلغاء" previously called history.back() directly with no
+  // confirmation — a single accidental tap discarded the whole form.
+  describe('cancel confirmation (FIX P0-2)', () => {
+    it('navigates back immediately when the form is untouched', async () => {
+      const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+      const user = userEvent.setup();
+      render(<AdForm mode="create" />);
+
+      await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+      expect(backSpy).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('تجاهل التغييرات؟')).not.toBeInTheDocument();
+      backSpy.mockRestore();
+    });
+
+    it('shows a confirm dialog instead of navigating when the form has unsaved changes', async () => {
+      const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+      const user = userEvent.setup();
+      render(<AdForm mode="create" />);
+
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان جديد');
+      await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+      expect(screen.getByText('تجاهل التغييرات؟')).toBeInTheDocument();
+      expect(backSpy).not.toHaveBeenCalled();
+      backSpy.mockRestore();
+    });
+
+    it('navigates back only after confirming discard', async () => {
+      const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+      const user = userEvent.setup();
+      render(<AdForm mode="create" />);
+
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان جديد');
+      await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+      await user.click(screen.getByRole('button', { name: 'تجاهل التغييرات' }));
+
+      expect(backSpy).toHaveBeenCalledTimes(1);
+      backSpy.mockRestore();
+    });
+
+    it('stays on the form when the user chooses to keep editing', async () => {
+      const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+      const user = userEvent.setup();
+      render(<AdForm mode="create" />);
+
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان جديد');
+      await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+      await user.click(screen.getByRole('button', { name: 'متابعة التعديل' }));
+
+      expect(backSpy).not.toHaveBeenCalled();
+      expect(screen.queryByText('تجاهل التغييرات؟')).not.toBeInTheDocument();
+      backSpy.mockRestore();
+    });
+
+    it('treats removing an existing image in edit mode as a change requiring confirmation', async () => {
+      const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+      const user = userEvent.setup();
+      render(<AdForm mode="edit" ad={existingAd} />);
+
+      await user.click(screen.getByText(`Remove ${existingAd.images[0]}`));
+      await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+      expect(screen.getByText('تجاهل التغييرات؟')).toBeInTheDocument();
+      backSpy.mockRestore();
+    });
+  });
 });

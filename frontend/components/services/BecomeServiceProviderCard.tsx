@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
@@ -12,6 +13,7 @@ import { useCreateServiceProvider } from '@/hooks/mutations/useServiceProviderMu
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { getSafeRedirectPath } from '@/lib/cookies';
 import type { ServiceBusinessType, WorkingHours } from '@/types/service.types';
 
 const EMPTY_HOURS: WorkingHours = {
@@ -33,6 +35,14 @@ export function BecomeServiceProviderCard() {
   // shows the right CTA instead of a confusing form-then-error).
   const { data: sellerProfile, isLoading: isLoadingSeller } = useMySellerProfile();
   const createProvider = useCreateServiceProvider();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // FIX P0-1 (unified pattern, mirrors BecomeSellerCard): when reached
+  // via CreateServiceListingGate's "تفعيل ملف مقدم خدمة" link
+  // (?from=/my-services/new), send the user back to their original
+  // intent after the profile is created.
+  const from = searchParams.get('from');
 
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState<ServiceBusinessType>('INDIVIDUAL');
@@ -106,7 +116,12 @@ export function BecomeServiceProviderCard() {
         workingHours,
         contactPhone: contactPhone.trim(),
       },
-      { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) }
+      {
+        onSuccess: () => {
+          if (from) router.push(getSafeRedirectPath(from));
+        },
+        onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+      }
     );
   }
 

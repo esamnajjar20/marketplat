@@ -41,8 +41,16 @@ export function CreateAdGate() {
         title="أنشئ ملف البائع أولاً"
         description="تحتاج إلى إنشاء ملف بائع قبل أن تتمكن من نشر إعلانات على المنصة"
         action={
+          // FIX P0-1: carry the user's original intent (publish an ad)
+          // through the seller-profile detour via ?from=, mirroring the
+          // existing ?from= pattern used by middleware.ts/LoginForm. Read
+          // by BecomeSellerCard to redirect back here after profile
+          // creation succeeds, instead of stranding the user on
+          // /settings/seller.
           <Button asChild>
-            <Link href={ROUTES.settings.seller}>إنشاء ملف البائع</Link>
+            <Link href={`${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.adCreate)}`}>
+              إنشاء ملف البائع
+            </Link>
           </Button>
         }
       />
