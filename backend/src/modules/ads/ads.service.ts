@@ -362,8 +362,8 @@ export const adsService = {
     // on that specific transition, not on every update, and not more
     // than once per ad (guarded by ad.status !== SOLD already, since
     // findById above would have returned the pre-update status).
-    const justSold =
-      input.status === AdStatus.SOLD && ad.status !== AdStatus.SOLD && ad.sellerProfileId;
+    const justTransitionedToSold = input.status === AdStatus.SOLD && ad.status !== AdStatus.SOLD;
+    const justSold = justTransitionedToSold && ad.sellerProfileId;
 
     const updated = justSold
       ? await prisma.$transaction(async tx => {
@@ -405,6 +405,29 @@ export const adsService = {
           logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId });
           recordFailedTask(
             'FAVORITED_AD_PRICE_CHANGED',
+            { adId, title: updated.title },
+            err
+          ).catch(() => {});
+        });
+    }
+
+    // Gap #15: notify everyone who favorited this ad when it's marked
+    // SOLD — same fire-and-forget / recordFailedTask contract as the
+    // price-change notification above, just gated on
+    // justTransitionedToSold instead of a price diff. Deliberately NOT
+    // gated on justSold/sellerProfileId — favoriters care about a plain
+    // user-posted ad going SOLD just as much as a seller-profile one,
+    // and most ads have no SellerProfile at all (see the Ad model's
+    // nullable sellerProfileId), so reusing justSold here would silently
+    // skip notifying favoriters for the majority of ads.
+    if (justTransitionedToSold) {
+      favoritesRepository
+        .findUserIdsByAdId(adId)
+        .then((userIds) => notificationEvents.onFavoritedAdSold(userIds, adId, updated.title))
+        .catch((err) => {
+          logger.error('Failed to create FAV_AD_SOLD notifications', { err, adId });
+          recordFailedTask(
+            'FAVORITED_AD_SOLD',
             { adId, title: updated.title },
             err
           ).catch(() => {});

@@ -857,6 +857,11 @@ model FailedBackgroundTask {
 enum NotificationType {
   NEW_MESSAGE
   FAV_AD_PRICE_CHANGED
+  // Gap #15: fires when an ad a user favorited transitions to SOLD —
+  // see ads.service.ts's updateAd (the same justSold block that already
+  // handles the SellerProfile stat bump) and notifications.service.ts's
+  // onFavoritedAdSold.
+  FAV_AD_SOLD
   PROMOTION
   WEEKLY_AD_VIEWS_REPORT
   SAVED_SEARCH_MATCH

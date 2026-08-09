@@ -153,6 +153,26 @@ export const notificationEvents = {
       `ad-${adId}`
     ),
 
+  /** ads.service.ts's updateAd calls this after an ACTIVE -> SOLD
+   * transition on an ad that has at least one favoriter — same
+   * one-row-per-favoriter fan-out shape as onFavoritedAdPriceChanged,
+   * just keyed by the SOLD transition instead of a price change (and
+   * fired from the same justSold block that already handles the
+   * SellerProfile stat bump, guarded the same way: only on that exact
+   * transition, never re-fired on a later no-op update). */
+  onFavoritedAdSold: (
+    favoriterUserIds: string[],
+    adId: string,
+    adTitle: string
+  ): Promise<{ count: number }> =>
+    fanOutSameContentNotification(
+      favoriterUserIds,
+      'FAV_AD_SOLD',
+      { title: 'تم بيع إعلان في المفضلة', body: `تم بيع \"${adTitle}\"`, data: { adId } },
+      `/ads/${adId}`,
+      `ad-${adId}`
+    ),
+
   /** saved-searches.service.ts's onAdCreated calls this after finding
    * every SavedSearch a newly created ad matches — one notification per
    * (user, savedSearch) match, fanned out via createMany. A user with

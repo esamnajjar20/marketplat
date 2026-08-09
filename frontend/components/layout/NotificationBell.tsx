@@ -24,6 +24,7 @@ import type { Notification, NotificationType } from '@/types/notification.types'
 const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   NEW_MESSAGE: MessageSquare,
   FAV_AD_PRICE_CHANGED: Tag,
+  FAV_AD_SOLD: Tag,
   PROMOTION: Megaphone,
   WEEKLY_AD_VIEWS_REPORT: BarChart3,
   SAVED_SEARCH_MATCH: Search,
@@ -37,7 +38,9 @@ function hrefFor(notification: Notification): string | null {
     return ROUTES.conversationDetail(notification.data.conversationId);
   }
   if (
-    (notification.type === 'FAV_AD_PRICE_CHANGED' || notification.type === 'SAVED_SEARCH_MATCH') &&
+    (notification.type === 'FAV_AD_PRICE_CHANGED' ||
+      notification.type === 'FAV_AD_SOLD' ||
+      notification.type === 'SAVED_SEARCH_MATCH') &&
     notification.data?.adId
   ) {
     return ROUTES.adDetail(notification.data.adId);

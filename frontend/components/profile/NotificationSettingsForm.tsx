@@ -9,7 +9,7 @@ import type { NotificationPreferences } from '@/types/user.types';
 const SETTINGS = [
   { key: 'newMessage',     label: 'رسائل جديدة',              desc: 'عند استلام رسالة من مشتري' },
   { key: 'adViews',        label: 'مشاهدات الإعلان',           desc: 'تقرير أسبوعي بمشاهدات إعلاناتك' },
-  { key: 'favAdUpdated',   label: 'تحديثات المفضلة',           desc: 'عند تغيير سعر إعلان في المفضلة' },
+  { key: 'favAdUpdated',   label: 'تحديثات المفضلة',           desc: 'عند تغيير سعر إعلان في المفضلة أو بيعه' },
   { key: 'promotions',     label: 'عروض وتخفيضات',             desc: 'نشرة أخبار سوق غزة' },
 ] as const satisfies readonly { key: keyof NotificationPreferences; label: string; desc: string }[];
 
