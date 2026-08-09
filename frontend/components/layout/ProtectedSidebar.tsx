@@ -26,6 +26,10 @@
  *   provider yet" case itself (renders BecomeServiceProviderCard's
  *   pattern via ServiceProviderSettingsSection), the same way
  *   /settings/service-provider does today.
+ *
+ * AUDIT-FIX (protected #5): "نشاطي" (/activity) had a fully-built page
+ *   (page.tsx + loading.tsx) but no link anywhere in the app — same
+ *   discoverability gap as #2/#4 above, just missed in that pass.
  */
 'use client';
 
@@ -33,7 +37,7 @@ import Link           from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ListOrdered, Heart, BellPlus,
-  MessageSquare, Wrench, Flag, Settings,
+  MessageSquare, Wrench, Flag, Settings, History,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
@@ -43,6 +47,7 @@ const NAV_ITEMS = [
   { label: 'إعلاناتي',    href: ROUTES.myAds,             icon: ListOrdered },
   { label: 'المفضلة',     href: ROUTES.favorites,         icon: Heart },
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
+  { label: 'نشاطي',       href: ROUTES.activity,          icon: History },
   { label: 'الرسائل',     href: ROUTES.messages,          icon: MessageSquare },
   { label: 'خدماتي',      href: ROUTES.myServices,        icon: Wrench },
   // FEAT-REPORT-USER-STORE: without a link here, /my-reports would be

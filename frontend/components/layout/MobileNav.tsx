@@ -34,7 +34,7 @@ import { createPortal } from 'react-dom';
 import Link       from 'next/link';
 import {
   Home, Search, Store, Wrench, Users, PlusCircle,
-  LayoutDashboard, ListOrdered, Heart, BellPlus, Settings, Shield,
+  LayoutDashboard, ListOrdered, Heart, BellPlus, History, Settings, Shield,
   LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
@@ -69,6 +69,7 @@ const AUTH_ACCOUNT_LINKS = [
   { label: 'إعلاناتي',      href: ROUTES.myAds,           icon: ListOrdered },
   { label: 'المفضلة',       href: ROUTES.favorites,       icon: Heart },
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
+  { label: 'نشاطي',         href: ROUTES.activity,        icon: History },
 ] as const;
 
 const SYSTEM_LINKS = [
