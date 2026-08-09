@@ -43,6 +43,17 @@ export function AdCard({ ad, className, priority = false }: Props) {
   const thumb    = rawImage ? getThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
   const isSold   = ad.status === 'SOLD';
 
+  // FIX P2-7: formatRelativeTime always rendered in flat
+  // text-muted-foreground regardless of how old the ad actually is —
+  // "منذ ساعة" and "منذ شهر" looked identical, so a buyer scanning a
+  // grid had to read every timestamp individually to spot the fresh
+  // listings. success = <24h (genuinely new), warning = <7d (still
+  // recent), muted = everything older — same semantic tokens P2-3
+  // already standardized status colors on elsewhere in this file.
+  const ageHours = (Date.now() - new Date(ad.createdAt).getTime()) / 3_600_000;
+  const timeColorClass =
+    ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
+
   // FIX P1-1: previously the only way to favorite/unfavorite an ad was
   // to open its full detail page — even from inside the favorites list
   // itself. useIsFavorited subscribes to the same client-cached ID set
@@ -125,7 +136,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ad.city}</span>
             <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>
           </div>
-          <p className="text-xs text-muted-foreground">{formatRelativeTime(ad.createdAt)}</p>
+          <p className={cn('text-xs', timeColorClass)}>{formatRelativeTime(ad.createdAt)}</p>
         </div>
       </Link>
 

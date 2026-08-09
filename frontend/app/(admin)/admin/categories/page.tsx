@@ -1,5 +1,6 @@
 import { AdminCategoriesTree } from '@/components/admin/AdminCategoriesTree';
 import { CreateCategoryButton } from '@/components/admin/CreateCategoryButton';
+import { AdminCategoryTypeTabs } from '@/components/admin/AdminCategoryTypeTabs';
 import { buildMetadata } from '@/lib/seo';
 
 // FIX A11Y/UX-01: this was the one admin page not using the shared
@@ -16,6 +17,8 @@ export default function AdminCategoriesPage() {
         <h1 className="text-xl font-bold">إدارة الفئات</h1>
         <CreateCategoryButton />
       </div>
+      {/* FIX P2-9: shared tab strip — switch category type without a sidebar round-trip. */}
+      <AdminCategoryTypeTabs />
       <AdminCategoriesTree />
     </div>
   );

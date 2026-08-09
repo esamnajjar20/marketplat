@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button }  from '@/components/shared/ui/Button';
 import { Input }   from '@/components/shared/ui/Input';
@@ -9,6 +10,15 @@ import {
 import { CITIES, CONDITION_LABELS, AD_SORT_OPTIONS, ROUTES } from '@/lib/constants';
 import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
 import { SlidersHorizontal } from 'lucide-react';
+
+// FIX P2-5: price inputs used to fire a navigation on onBlur — tabbing
+// from "من" to "إلى" (a completely normal way to fill both fields)
+// blurred the first field and fired a mid-entry search before the
+// second was even touched. Debouncing on onChange instead (same
+// setTimeout-based pattern useFormDraft.ts already uses) means one
+// search fires ~500ms after the user stops typing in *either* field,
+// not once per field per blur.
+const PRICE_DEBOUNCE_MS = 500;
 
 interface Props {
   /** Present when rendered from the category page — see SearchResults' categorySlug prop for context. */
@@ -29,6 +39,29 @@ export function SearchFilters({ categorySlug }: Props = {}) {
   const { data: categories } = useCategories();
   const { data: activeCategory } = useCategoryBySlug(categorySlug ?? '');
   const activeCategoryId = sp.get('categoryId') ?? activeCategory?.id ?? '';
+
+  // Controlled local state for the two price inputs, debounced before
+  // touching the URL. Re-synced from the URL below so external resets
+  // (the "إعادة تعيين الفلاتر" button, or the user editing the URL
+  // directly) still clear these fields.
+  const [minPrice, setMinPrice] = useState(sp.get('minPrice') ?? '');
+  const [maxPrice, setMaxPrice] = useState(sp.get('maxPrice') ?? '');
+  const priceDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    setMinPrice(sp.get('minPrice') ?? '');
+    setMaxPrice(sp.get('maxPrice') ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp.get('minPrice'), sp.get('maxPrice')]);
+
+  function updatePrice(key: 'minPrice' | 'maxPrice', value: string) {
+    if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
+    priceDebounceRef.current = setTimeout(() => update(key, value), PRICE_DEBOUNCE_MS);
+  }
+
+  useEffect(() => () => {
+    if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
+  }, []);
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -112,11 +145,13 @@ export function SearchFilters({ categorySlug }: Props = {}) {
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">السعر (₪)</label>
         <div className="flex gap-2">
           <Input type="number" placeholder="من" min={0} dir="ltr"
-            defaultValue={sp.get('minPrice') ?? ''}
-            onBlur={(e) => update('minPrice', e.target.value)} className="w-full" />
+            value={minPrice}
+            onChange={(e) => { setMinPrice(e.target.value); updatePrice('minPrice', e.target.value); }}
+            className="w-full" />
           <Input type="number" placeholder="إلى" min={0} dir="ltr"
-            defaultValue={sp.get('maxPrice') ?? ''}
-            onBlur={(e) => update('maxPrice', e.target.value)} className="w-full" />
+            value={maxPrice}
+            onChange={(e) => { setMaxPrice(e.target.value); updatePrice('maxPrice', e.target.value); }}
+            className="w-full" />
         </div>
       </div>
 

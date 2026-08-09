@@ -11,6 +11,12 @@
  * UX-15 FIX: Unicode icon spans now have aria-hidden="true" so screen
  *   readers don't read out "◈" or "♡" before each nav item label.
  *
+ * FIX P2-1: replaced the Unicode glyphs themselves (▦ ◈ ♡ 🔖 ✉ 🛠 🚩 ⚙)
+ *   with the same lucide-react icon set MobileNav.tsx already uses for
+ *   its "حسابك"/"النظام" sections — the two navs were rendering the
+ *   same destinations with two different icon systems. aria-hidden
+ *   carries over unchanged since these are still decorative.
+ *
  * AUDIT-FIX (protected #2, #4): "خدماتي" (/my-services) and "البحثات
  *   المحفوظة" (/saved-searches) had no link anywhere in this sidebar —
  *   /my-services was reachable only through a card that itself only
@@ -25,22 +31,26 @@
 
 import Link           from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard, ListOrdered, Heart, BellPlus,
+  MessageSquare, Wrench, Flag, Settings,
+} from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
 
 const NAV_ITEMS = [
-  { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: '▦' },
-  { label: 'إعلاناتي',    href: ROUTES.myAds,             icon: '◈' },
-  { label: 'المفضلة',     href: ROUTES.favorites,         icon: '♡' },
-  { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: '🔖' },
-  { label: 'الرسائل',     href: ROUTES.messages,          icon: '✉' },
-  { label: 'خدماتي',      href: ROUTES.myServices,        icon: '🛠' },
+  { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: LayoutDashboard },
+  { label: 'إعلاناتي',    href: ROUTES.myAds,             icon: ListOrdered },
+  { label: 'المفضلة',     href: ROUTES.favorites,         icon: Heart },
+  { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
+  { label: 'الرسائل',     href: ROUTES.messages,          icon: MessageSquare },
+  { label: 'خدماتي',      href: ROUTES.myServices,        icon: Wrench },
   // FEAT-REPORT-USER-STORE: without a link here, /my-reports would be
   // reachable only by direct URL — same discoverability gap the
   // "AUDIT-FIX (protected #2, #4)" note above already fixed once for
   // /my-services and /saved-searches.
-  { label: 'بلاغاتي',     href: ROUTES.myReports,         icon: '🚩' },
-  { label: 'الإعدادات',   href: ROUTES.settings.profile,  icon: '⚙', activeMatch: ROUTES.settings.root },
+  { label: 'بلاغاتي',     href: ROUTES.myReports,         icon: Flag },
+  { label: 'الإعدادات',   href: ROUTES.settings.profile,  icon: Settings, activeMatch: ROUTES.settings.root },
 ] as const;
 
 export function ProtectedSidebar() {
@@ -56,6 +66,7 @@ export function ProtectedSidebar() {
           // marks the single "الإعدادات" link active — startsWith(item.href)
           // alone only matched the exact profile sub-route.
           const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
@@ -69,8 +80,8 @@ export function ProtectedSidebar() {
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
-              {/* UX-15 FIX: aria-hidden so screen readers skip the Unicode symbol */}
-              <span aria-hidden="true">{item.icon}</span>
+              {/* UX-15 FIX: aria-hidden so screen readers skip the decorative icon */}
+              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
               {item.label}
             </Link>
           );

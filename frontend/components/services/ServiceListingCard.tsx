@@ -12,9 +12,15 @@ interface Props {
   className?: string;
 }
 
+// FIX P2-3: raw bg-emerald-500/bg-amber-500 replaced with the app's
+// semantic --success/--warning tokens (globals.css, added for the same
+// reason under FIX UX-01 on AdCard) — this status dot is functionally
+// identical to that ad-status use case. UNAVAILABLE keeps
+// bg-muted-foreground since it's a neutral/off state, not a semantic
+// success/warning/danger color.
 const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'bg-emerald-500',
-  BUSY: 'bg-amber-500',
+  AVAILABLE: 'bg-success',
+  BUSY: 'bg-warning',
   UNAVAILABLE: 'bg-muted-foreground',
 };
 

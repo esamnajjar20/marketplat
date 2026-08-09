@@ -24,7 +24,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { useAuthStore } from '@/store/auth.store';
-import { useAdminStats } from '@/hooks/queries/useAdmin';
+import { useAdminStats, useAdminReports } from '@/hooks/queries/useAdmin';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
 
@@ -39,6 +39,7 @@ vi.mock('@/hooks/mutations/useAuthMutations', () => ({
 
 vi.mock('@/hooks/queries/useAdmin', () => ({
   useAdminStats: vi.fn(),
+  useAdminReports: vi.fn(),
 }));
 
 const mockUseAuthStore = vi.mocked(useAuthStore);
@@ -52,6 +53,11 @@ describe('AdminHeader', () => {
       selector({ user: { name: 'مدير النظام' } } as never),
     );
     vi.mocked(useAdminStats).mockReturnValue({ data: { openReports: 0 } } as never);
+    // FIX P2-12: the bell now also pulls a recent-reports preview via
+    // useAdminReports — mocked here the same way useAdminStats already
+    // is, defaulting to an empty page so existing tests below don't
+    // need to know about the preview unless they're testing it.
+    vi.mocked(useAdminReports).mockReturnValue({ data: { items: [] } } as never);
     mockUseLogout.mockReturnValue({
       mutate: mockLogoutMutate,
       isPending: false,
@@ -82,10 +88,24 @@ describe('AdminHeader', () => {
   });
 
   describe('notifications bell', () => {
-    it('links to the admin reports page', () => {
+    // FIX P2-12: the bell trigger is no longer itself wrapped in an <a>
+    // — it's a DropdownMenuTrigger that opens a preview panel, and the
+    // link to the full reports page now lives inside that panel
+    // ("عرض كل البلاغات") plus on each individual report row. This
+    // replaces the old "closest('a') has the reports href" assertion
+    // with one that opens the dropdown and checks the panel's own link.
+    it('opens a preview panel with a link to the admin reports page', async () => {
       render(<AdminHeader />);
-      const link = screen.getByRole('button', { name: /الإشعارات/ }).closest('a');
-      expect(link).toHaveAttribute('href', ROUTES.admin.reports);
+      await userEvent.click(screen.getByRole('button', { name: /الإشعارات/ }));
+      const viewAllLink = await screen.findByRole('link', { name: 'عرض كل البلاغات' });
+      expect(viewAllLink).toHaveAttribute('href', ROUTES.admin.reports);
+    });
+
+    it('shows an empty message in the panel when there are no pending reports', async () => {
+      vi.mocked(useAdminReports).mockReturnValue({ data: { items: [] } } as never);
+      render(<AdminHeader />);
+      await userEvent.click(screen.getByRole('button', { name: /الإشعارات/ }));
+      expect(await screen.findByText('لا توجد بلاغات بانتظار المراجعة')).toBeInTheDocument();
     });
 
     it('shows no badge when there are no open reports', () => {

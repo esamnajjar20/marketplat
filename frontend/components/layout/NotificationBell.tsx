@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search } from 'lucide-react';
+import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -28,6 +29,15 @@ const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   PROMOTION: Megaphone,
   WEEKLY_AD_VIEWS_REPORT: BarChart3,
   SAVED_SEARCH_MATCH: Search,
+};
+
+const TYPE_LABEL: Record<NotificationType, string> = {
+  NEW_MESSAGE: 'رسائل جديدة',
+  FAV_AD_PRICE_CHANGED: 'تغييرات في الأسعار',
+  FAV_AD_SOLD: 'إعلانات مُباعة',
+  PROMOTION: 'إعلانات ترويجية',
+  WEEKLY_AD_VIEWS_REPORT: 'تقارير المشاهدات',
+  SAVED_SEARCH_MATCH: 'نتائج بحث محفوظ',
 };
 
 /** Where clicking a notification row should navigate — null means the
@@ -100,6 +110,93 @@ function NotificationRow({ notification }: { notification: Notification }) {
 }
 
 /**
+ * FIX P2-11: consecutive same-type notifications ("مشاهدات إعلانك" ×5,
+ * one per glance) each rendered as a full separate row — a burst of
+ * activity on one ad buried everything else under repetition. Groups
+ * *consecutive* items of the same type (list is already createdAt-desc
+ * from the API, so consecutive == temporally adjacent) into a single
+ * collapsed summary row once there are 3+ in a run; smaller runs (1-2)
+ * render individually since collapsing them saves no real space.
+ */
+type NotificationGroupT =
+  | { kind: 'single'; notification: Notification }
+  | { kind: 'group'; type: NotificationType; notifications: Notification[] };
+
+function groupNotifications(items: Notification[]): NotificationGroupT[] {
+  const result: NotificationGroupT[] = [];
+  let i = 0;
+  while (i < items.length) {
+    let j = i + 1;
+    while (j < items.length && items[j]?.type === items[i]?.type) j++;
+    const run = items.slice(i, j);
+    if (run.length >= 3) {
+      result.push({ kind: 'group', type: run[0]!.type, notifications: run });
+    } else {
+      for (const n of run) result.push({ kind: 'single', notification: n });
+    }
+    i = j;
+  }
+  return result;
+}
+
+function NotificationGroupRow({ type, notifications }: { type: NotificationType; notifications: Notification[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const Icon = TYPE_ICON[type];
+  const unreadCount = notifications.filter((n) => !n.readAt).length;
+
+  if (expanded) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="flex w-full items-center gap-2 p-2 text-xs text-muted-foreground hover:bg-muted/50"
+        >
+          <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+          طي {TYPE_LABEL[type]}
+        </button>
+        <div className="divide-y border-t">
+          {notifications.map((n) => (
+            <NotificationRow key={n.id} notification={n} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded(true)}
+      className={cn(
+        'flex w-full items-start gap-2.5 p-3 text-start transition-colors hover:bg-muted/50',
+        unreadCount > 0 && 'bg-primary/5'
+      )}
+    >
+      <div
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+          unreadCount > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-start justify-between gap-2">
+          <p className={cn('text-sm', unreadCount > 0 && 'font-medium')}>
+            {TYPE_LABEL[type]} ({notifications.length})
+          </p>
+          {unreadCount > 0 && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+        </div>
+        <p className="text-xs text-muted-foreground line-clamp-1">{notifications[0]!.body}</p>
+        <p className="text-[10px] text-muted-foreground">{formatRelativeTime(notifications[0]!.createdAt)}</p>
+      </div>
+      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+  );
+}
+
+/**
  * NotificationBell — Epic 6, the in-app notification center. Sits next
  * to UserMenu in both PublicHeader and ProtectedHeader; reuses the same
  * Radix DropdownMenu primitive UserMenu already uses, but with custom
@@ -113,6 +210,7 @@ export function NotificationBell() {
   const markAllRead = useMarkAllNotificationsRead();
 
   const items = notificationsPage?.items ?? [];
+  const groups = groupNotifications(items);
 
   return (
     <DropdownMenu>
@@ -154,9 +252,13 @@ export function NotificationBell() {
             <EmptyState className="py-8" icon={<Bell className="h-8 w-8" />} title="لا توجد إشعارات" />
           ) : (
             <div className="divide-y">
-              {items.map((notification) => (
-                <NotificationRow key={notification.id} notification={notification} />
-              ))}
+              {groups.map((g) =>
+                g.kind === 'single' ? (
+                  <NotificationRow key={g.notification.id} notification={g.notification} />
+                ) : (
+                  <NotificationGroupRow key={`${g.type}-${g.notifications[0]!.id}`} type={g.type} notifications={g.notifications} />
+                ),
+              )}
             </div>
           )}
         </div>

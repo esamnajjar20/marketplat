@@ -93,11 +93,10 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {sessionExpired && (
-        <p role="alert" className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-center">
-          انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
-        </p>
-      )}
-
+          <p role="alert" className="text-sm text-warning-foreground bg-warning/10 border border-warning/30 rounded-md px-3 py-2 text-center">
+            انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
+          </p>
+        )}
       {googleAuthFailed && (
         <p role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2 text-center">
           تعذّر تسجيل الدخول باستخدام Google، الرجاء المحاولة مرة أخرى أو استخدام البريد الإلكتروني

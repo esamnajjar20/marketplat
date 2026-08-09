@@ -17,7 +17,11 @@ export const requireAdmin = (
   next: NextFunction,
 ): void => {
   const role = req.user?.role;
-  if (!role || !(role in ROLE_RANK) || ROLE_RANK[role as Role] < ROLE_RANK.ADMIN) {
+  if (
+    !role ||
+    !(role in ROLE_RANK) ||
+    ROLE_RANK[role as Role] < ROLE_RANK.ADMIN
+  ) {
     return next(new ForbiddenError("Admin access required"));
   }
   next();
@@ -32,17 +36,19 @@ export const requireAdmin = (
  * than an allowlist of role names so SUPER_ADMIN automatically passes
  * every gate without needing to be listed everywhere.
  */
-export const requireMinRole = (minRole: Role) => (
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): void => {
-  const role = req.user?.role;
-  if (!role || !(role in ROLE_RANK) || ROLE_RANK[role as Role] < ROLE_RANK[minRole]) {
-    return next(new ForbiddenError(`${minRole} access or higher required`));
-  }
-  next();
-};
+export const requireMinRole =
+  (minRole: Role) =>
+  (req: Request, _res: Response, next: NextFunction): void => {
+    const role = req.user?.role;
+    if (
+      !role ||
+      !(role in ROLE_RANK) ||
+      ROLE_RANK[role as Role] < ROLE_RANK[minRole]
+    ) {
+      return next(new ForbiddenError(`${minRole} access or higher required`));
+    }
+    next();
+  };
 
 /** Gate for "any admin-tier role" (MODERATOR/ADMIN/SUPER_ADMIN) — used
  * where a route has no finer-grained requirement than "logged in as
@@ -58,4 +64,3 @@ export const requireAnyAdminTier = (
   }
   next();
 };
-

@@ -31,8 +31,12 @@ export function StoreCard({ store, className }: Props) {
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center gap-2">
           <h3 className="truncate font-medium">{store.name}</h3>
+          {/* FIX P2-3: raw text-amber-500 → text-accent — same "مميز"
+              (featured) concept StoreHeader.tsx (FIX P1-4) and
+              AdCard.tsx (FIX UX-01) already standardized on the
+              semantic accent token for. */}
           {store.plan === 'FEATURED' && (
-            <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="متجر مميز" />
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent" aria-label="متجر مميز" />
           )}
           {store.sellerProfile.verified && (
             <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="بائع موثّق" />

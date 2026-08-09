@@ -1,5 +1,6 @@
 import { AdminServiceCategoriesTree } from '@/components/admin/AdminServiceCategoriesTree';
 import { CreateServiceCategoryButton } from '@/components/admin/CreateServiceCategoryButton';
+import { AdminCategoryTypeTabs } from '@/components/admin/AdminCategoryTypeTabs';
 import { buildMetadata } from '@/lib/seo';
 
 // EPIC 1.2: mirrors /admin/categories/page.tsx exactly. Closes the
@@ -15,6 +16,8 @@ export default function AdminServiceCategoriesPage() {
         <h1 className="text-xl font-bold">إدارة فئات الخدمات</h1>
         <CreateServiceCategoryButton />
       </div>
+      {/* FIX P2-9: shared tab strip — switch category type without a sidebar round-trip. */}
+      <AdminCategoryTypeTabs />
       <AdminServiceCategoriesTree />
     </div>
   );

@@ -311,7 +311,10 @@ export const env = {
   locks: {
     sellerLockTtlSeconds: parseInt(_env.SELLER_LOCK_TTL_SECONDS, 10),
     storeLockTtlSeconds: parseInt(_env.STORE_LOCK_TTL_SECONDS, 10),
-    serviceProviderLockTtlSeconds: parseInt(_env.SERVICE_PROVIDER_LOCK_TTL_SECONDS, 10),
+    serviceProviderLockTtlSeconds: parseInt(
+      _env.SERVICE_PROVIDER_LOCK_TTL_SECONDS,
+      10,
+    ),
   },
   // FIX M-029
   health: {

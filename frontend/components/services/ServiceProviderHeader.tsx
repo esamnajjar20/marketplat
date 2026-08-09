@@ -15,9 +15,11 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
   UNAVAILABLE: 'غير متاح',
 };
 
+// FIX P2-3: see ServiceListingCard.tsx — same semantic-token swap,
+// same three-state map duplicated across all three availability cards.
 const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'bg-emerald-500',
-  BUSY: 'bg-amber-500',
+  AVAILABLE: 'bg-success',
+  BUSY: 'bg-warning',
   UNAVAILABLE: 'bg-muted-foreground',
 };
 

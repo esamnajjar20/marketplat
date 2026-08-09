@@ -10,6 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import {
   Dialog,
@@ -192,7 +193,23 @@ export function AdminAuditLogsTable() {
                 </tr>
               ))}
               {items.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد سجلات</td></tr>
+                <tr>
+                  <td colSpan={6} className="p-0">
+                    {/* FIX P2-13: bare <td> text with no CTA — every other
+                        empty list in the app (MyAdsList, AdminReportsTable,
+                        AdminUsersTable, …) uses the shared EmptyState
+                        component; this table was the one holdout. No
+                        filters are active by definition here (empty means
+                        no audit events exist at all yet), so there's no
+                        "reset filters" action to offer — icon + message
+                        only, matching EmptyState's own optional action. */}
+                    <EmptyState
+                      className="py-12"
+                      icon={<AlertTriangle className="h-8 w-8" />}
+                      title="لا توجد سجلات"
+                    />
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

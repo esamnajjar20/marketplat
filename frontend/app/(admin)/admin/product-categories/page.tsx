@@ -1,5 +1,6 @@
 import { AdminProductCategoriesTree } from '@/components/admin/AdminProductCategoriesTree';
 import { CreateProductCategoryButton } from '@/components/admin/CreateProductCategoryButton';
+import { AdminCategoryTypeTabs } from '@/components/admin/AdminCategoryTypeTabs';
 import { buildMetadata } from '@/lib/seo';
 
 // Closes the audit report's finding: product-categories had full admin
@@ -17,6 +18,8 @@ export default function AdminProductCategoriesPage() {
         <h1 className="text-xl font-bold">إدارة فئات المنتجات</h1>
         <CreateProductCategoryButton />
       </div>
+      {/* FIX P2-9: shared tab strip — switch category type without a sidebar round-trip. */}
+      <AdminCategoryTypeTabs />
       <AdminProductCategoriesTree />
     </div>
   );

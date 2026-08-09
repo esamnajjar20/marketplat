@@ -13,6 +13,7 @@
  */
 'use client';
 
+import { SearchX, AlertTriangle } from 'lucide-react';
 import { Unauthorized } from './Unauthorized';
 import { Forbidden }    from './Forbidden';
 import { Button }       from '@/components/shared/ui/Button';
@@ -54,9 +55,16 @@ export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
 
   const content = (
     <div className="flex flex-col items-center gap-4 text-center">
-      <span className="text-5xl">
-        {statusCode === 404 ? '🔍' : statusCode >= 500 ? '🔥' : '⚠️'}
-      </span>
+      {/* FIX P2-2: emoji glyphs replaced with the same lucide-react icons
+          used app-wide — SearchX matches AdDetailSection.tsx's 404 state,
+          AlertTriangle is already the generic error icon in every list
+          empty-state (MyAdsList, AdminReportsTable, ConversationList, …).
+          Emoji render inconsistently across platforms/fonts; these don't. */}
+      {statusCode === 404 ? (
+        <SearchX className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+      ) : (
+        <AlertTriangle className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+      )}
 
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">

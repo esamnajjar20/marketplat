@@ -91,7 +91,7 @@ export function SecuritySettingsForm() {
       <FormField
         label="كلمة المرور الجديدة" htmlFor="newp" required error={errors.newPass}
         hint={
-          <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-green-600')}>
+          <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-success')}>
             {newPass.length >= 8 && <Check className="h-3.5 w-3.5" />}
             8 أحرف على الأقل
           </span>
