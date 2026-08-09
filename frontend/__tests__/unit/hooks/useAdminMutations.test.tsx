@@ -106,7 +106,14 @@ describe('useAdminSetFeatured / useAdminSetPinned (shared optimistic-update logi
     act(() => { result.current.mutate({ adId: 'ad-1', value: false }); });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(toast.success).toHaveBeenCalledWith('تم إلغاء التمييز');
+    // FIX P1-7: toast.success now carries an undo action as its
+    // second argument — match on the message and that an action with
+    // the "تراجع" label was passed, rather than pinning the exact
+    // onClick function reference.
+    expect(toast.success).toHaveBeenCalledWith(
+      'تم إلغاء التمييز',
+      expect.objectContaining({ action: expect.objectContaining({ label: 'تراجع' }) }),
+    );
   });
 
   it('useAdminSetPinned updates isPinned independently of isFeatured', async () => {
@@ -197,7 +204,11 @@ describe('useAdminToggleUserActive', () => {
     act(() => { result.current.mutate({ userId: 'user-1', isActive: false }); });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(toast.success).toHaveBeenCalledWith('تم تعطيل الحساب');
+    // FIX P1-7: see the matching comment above for useAdminSetFeatured.
+    expect(toast.success).toHaveBeenCalledWith(
+      'تم تعطيل الحساب',
+      expect.objectContaining({ action: expect.objectContaining({ label: 'تراجع' }) }),
+    );
   });
 });
 

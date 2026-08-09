@@ -21,10 +21,19 @@ export function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
 
+  // FIX P1-5: previously blocked empty submits outright (Enter on an
+  // empty field did nothing), while the in-page SearchInput on
+  // /search allowed it and navigated to /search with no `q` (i.e.
+  // "browse everything"). Same visual control, two different
+  // behaviors depending on which one the user happened to be looking
+  // at. Matching SearchInput's behavior here — an empty header search
+  // is a reasonable way to land on the full results/filters page —
+  // rather than the other way around, since blocking it entirely was
+  // the more surprising and less useful of the two.
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!query.trim()) return;
-    router.push(`${ROUTES.search}?q=${encodeURIComponent(query.trim())}`);
+    const trimmed = query.trim();
+    router.push(`${ROUTES.search}${trimmed ? `?q=${encodeURIComponent(trimmed)}` : ''}`);
   }
 
   return (

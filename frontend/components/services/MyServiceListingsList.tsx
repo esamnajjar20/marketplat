@@ -8,7 +8,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
 import { useDeleteServiceListing, useToggleServiceListingStatus } from '@/hooks/mutations/useServiceListingMutations';
@@ -54,8 +54,13 @@ export function MyServiceListingsList() {
     searchParams: sp,
   });
 
+  // FIX P1-9: same skeleton swap as MyAdsList — see that file's comment.
   if (isLoading || isOutOfRange) {
-    return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => <AdListItemSkeleton key={i} />)}
+      </div>
+    );
   }
 
   // UX-FIX P1-9 (services variant of the MyAdsList fix): a failed fetch

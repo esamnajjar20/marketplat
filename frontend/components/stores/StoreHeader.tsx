@@ -54,7 +54,14 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
             <h1 className="text-xl font-bold">{store.name}</h1>
             {store.plan === 'FEATURED' && (
-              <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+              // FIX P1-4: raw bg-amber-500 was the one remaining "مميز"
+              // badge still on a hand-picked color — AdCard's matching
+              // badge (FIX UX-01) already moved to the semantic
+              // accent/accent-foreground tokens reserved app-wide for
+              // this exact "featured" concept. Unifying here so the
+              // same idea doesn't read as two different colors
+              // depending on whether it's an ad or a store.
+              <Badge className="gap-1 bg-accent hover:bg-accent text-accent-foreground">
                 <Sparkles className="h-3.5 w-3.5" /> متجر مميز
               </Badge>
             )}

@@ -108,7 +108,19 @@ export function AdCard({ ad, className, priority = false }: Props) {
         {/* Info */}
         <div className="space-y-1.5 p-3">
           <h3 className="line-clamp-2 text-sm font-medium leading-snug">{ad.title}</h3>
-          <p className="font-mono text-base font-bold text-primary">{formatPrice(ad.price)}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="font-mono text-base font-bold text-primary">{formatPrice(ad.price)}</p>
+            {/* FIX P1-8: isNegotiable was collected in the create form
+                (PriceInput's "السعر قابل للتفاوض" checkbox) and stored,
+                but never surfaced anywhere in the browsing UI — a buyer
+                had no way to know a price was negotiable short of
+                opening the full ad detail page first. */}
+            {ad.isNegotiable && !isSold && (
+              <span className="rounded-full border border-primary/30 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                قابل للتفاوض
+              </span>
+            )}
+          </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ad.city}</span>
             <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>

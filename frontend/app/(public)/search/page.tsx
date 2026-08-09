@@ -4,6 +4,7 @@ import { buildMetadata } from '@/lib/seo';
 import { SearchBox } from '@/components/search/SearchBox';
 import { SearchTabsWrapper } from '@/components/search/SearchTabsWrapper';
 import { SearchFilters } from '@/components/search/SearchFilters';
+import { SearchFiltersSheet } from '@/components/search/SearchFiltersSheet';
 import { SearchResults } from '@/components/search/SearchResults';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 
@@ -55,8 +56,21 @@ export default async function SearchPage({ searchParams }: Props) {
         <Suspense>
           <SearchTabsWrapper />
         </Suspense>
+
+        {/* FIX P1-2: on mobile, the filter panel used to render inline
+            here — full-height, above every result — so a user had to
+            scroll past category/city/sort controls before seeing a
+            single match. Below `lg` that's now a "تصفية" trigger that
+            opens the same SearchFilters in a bottom sheet instead;
+            above `lg` the sheet trigger hides itself and the always-
+            visible <aside> (now explicitly `hidden lg:block`, matching
+            the audit's suggested fix) takes over, unchanged from before. */}
+        <Suspense>
+          <SearchFiltersSheet />
+        </Suspense>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <aside className="lg:col-span-1">
+          <aside className="hidden lg:col-span-1 lg:block">
             <Suspense>
               <SearchFilters />
             </Suspense>

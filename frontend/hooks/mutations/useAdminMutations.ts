@@ -32,6 +32,25 @@ import { toast }         from 'sonner';
 import type { ReportStatus, AssignableRole } from '@/types/admin.types';
 
 /**
+ * FIX P1-7: every admin moderation toggle below fires immediately and
+ * changes public-facing state (featured/pinned/active/verified/
+ * suspended/role/store status) with only a plain success toast — one
+ * misclick (wrong row in a dense table, fat-fingering the wrong
+ * button) had no fast way back short of manually re-doing the action
+ * and hoping the old value is still remembered correctly. Sonner's
+ * toast already supports an inline action button; this wires a
+ * "تراجع" (undo) button into it for exactly these reversible toggles
+ * that re-fires the same mutation with the field flipped back.
+ * Deliberately not used for useAdminForceDeleteAd (irreversible;
+ * already gated behind its own ConfirmDialog at the call site) or
+ * useAdminBroadcastNotification (a sent notification can't be
+ * unsent).
+ */
+function toastWithUndo(message: string, onUndo: () => void) {
+  toast.success(message, { action: { label: 'تراجع', onClick: onUndo } });
+}
+
+/**
  * Shared shape for "toggle one boolean field on an ad in the admin list,
  * optimistically, with rollback on error." Used by both featured and pinned.
  */
@@ -41,7 +60,7 @@ function useToggleAdField(
   setField: (adId: string, value: boolean) => Promise<unknown>,
   successMessage: (value: boolean) => string,
 ) {
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ adId, value }: { adId: string; value: boolean }) =>
       setField(adId, value),
     onMutate: async ({ adId, value }) => {
@@ -53,13 +72,18 @@ function useToggleAdField(
       await queryClient.cancelQueries({ queryKey: ['admin', 'ads'] });
       return { snapshots };
     },
-    onSuccess: (_data, { value }) => toast.success(successMessage(value)),
+    onSuccess: (_data, { adId, value }) =>
+      // FIX P1-7: re-invokes mutate() (not a bare setField call) so
+      // undo goes through the same optimistic-update/rollback/
+      // invalidation path as the original toggle.
+      toastWithUndo(successMessage(value), () => mutation.mutate({ adId, value: !value })),
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
   });
+  return mutation;
 }
 
 export function useAdminSetFeatured() {
@@ -97,7 +121,7 @@ export function useAdminForceDeleteAd() {
 
 export function useAdminToggleUserActive() {
   const queryClient = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
       adminApi.toggleUserActive(userId, { isActive }).then((r) => r.data.data),
     onMutate: async ({ userId, isActive }) => {
@@ -109,13 +133,23 @@ export function useAdminToggleUserActive() {
       await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
       return { snapshots };
     },
-    onSuccess: (_data, { isActive }) => toast.success(isActive ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب'),
+    onSuccess: (_data, { userId, isActive }) =>
+      // FIX P1-7: re-invokes mutate() itself (not a bare adminApi call)
+      // so undo goes through the same optimistic-update/rollback path
+      // as the original action, not a fire-and-forget request the
+      // cached list would only pick up after its own onSettled
+      // invalidation.
+      toastWithUndo(
+        isActive ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب',
+        () => mutation.mutate({ userId, isActive: !isActive }),
+      ),
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
   });
+  return mutation;
 }
 
 /**
@@ -127,7 +161,7 @@ export function useAdminToggleUserActive() {
  */
 export function useAdminSetSellerVerified() {
   const queryClient = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ sellerProfileId, verified }: { sellerProfileId: string; verified: boolean }) =>
       adminApi.setSellerVerified(sellerProfileId, { verified }).then((r) => r.data.data),
     onMutate: async ({ sellerProfileId, verified }) => {
@@ -142,14 +176,21 @@ export function useAdminSetSellerVerified() {
       await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
       return { snapshots };
     },
-    onSuccess: (_data, { verified }) =>
-      toast.success(verified ? 'تم توثيق البائع' : 'تم إلغاء توثيق البائع'),
+    onSuccess: (_data, { sellerProfileId, verified }) =>
+      // FIX P1-7: see useAdminToggleUserActive's comment — undo
+      // re-invokes mutate() so it goes through the same optimistic
+      // path as the original toggle.
+      toastWithUndo(
+        verified ? 'تم توثيق البائع' : 'تم إلغاء توثيق البائع',
+        () => mutation.mutate({ sellerProfileId, verified: !verified }),
+      ),
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
   });
+  return mutation;
 }
 
 /**
@@ -160,7 +201,7 @@ export function useAdminSetSellerVerified() {
  */
 export function useAdminSetSellerSuspended() {
   const queryClient = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ sellerProfileId, suspended }: { sellerProfileId: string; suspended: boolean }) =>
       adminApi.setSellerSuspended(sellerProfileId, { suspended }).then((r) => r.data.data),
     onMutate: async ({ sellerProfileId, suspended }) => {
@@ -175,14 +216,18 @@ export function useAdminSetSellerSuspended() {
       await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
       return { snapshots };
     },
-    onSuccess: (_data, { suspended }) =>
-      toast.success(suspended ? 'تم إيقاف البائع' : 'تم رفع الإيقاف عن البائع'),
+    onSuccess: (_data, { sellerProfileId, suspended }) =>
+      toastWithUndo(
+        suspended ? 'تم إيقاف البائع' : 'تم رفع الإيقاف عن البائع',
+        () => mutation.mutate({ sellerProfileId, suspended: !suspended }),
+      ),
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
   });
+  return mutation;
 }
 
 const ROLE_LABELS_AR: Record<AssignableRole, string> = {

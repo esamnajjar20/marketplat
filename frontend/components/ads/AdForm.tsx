@@ -13,6 +13,7 @@ import { PriceInput }  from '@/components/shared/forms/PriceInput';
 import { CITIES, CONDITION_LABELS, MAX_IMAGES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
+import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { parseApiError } from '@/lib/errorParser';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
 
@@ -30,6 +31,14 @@ interface Errors {
   title?: string; description?: string; city?: string;
   images?: string; condition?: string;
 }
+
+// FIX P1-11: the persisted slice of AdFormValues — everything except
+// `images`/`existingImages`, which either hold live File objects (not
+// JSON-serializable) or, in edit mode, mirror server data that's
+// already safe (reloading the real ad is more reliable than trusting
+// a stale draft of it). Draft autosave is create-mode only for this
+// reason — see the comment where useFormDraft is called below.
+type DraftValues = Omit<AdFormValues, 'images' | 'existingImages'>;
 
 export function AdForm({ mode, ad }: Props) {
   const { data: categories } = useCategories();
@@ -54,15 +63,24 @@ export function AdForm({ mode, ad }: Props) {
   // to know which ones the user actually removed.
   const [originalImages] = useState<string[]>(() => ad?.images ?? []);
 
-  const [values, setValues] = useState<AdFormValues>(() =>
-    ad ? {
-      title: ad.title, description: ad.description,
-      price: ad.price ?? '', isNegotiable: ad.isNegotiable,
-      condition: ad.condition ?? '', city: ad.city,
-      categoryId: ad.categoryId ?? '', images: [],
-      existingImages: ad.images,
-    } : EMPTY
-  );
+  // FIX P1-11: in create mode only, seed initial state from a saved
+  // draft if one exists (see useFormDraft below for how it got
+  // there). Falls back to EMPTY exactly as before when there's no
+  // draft, so this is a strict addition — nothing changes for a
+  // first-time visit to the form.
+  const [values, setValues] = useState<AdFormValues>(() => {
+    if (ad) {
+      return {
+        title: ad.title, description: ad.description,
+        price: ad.price ?? '', isNegotiable: ad.isNegotiable,
+        condition: ad.condition ?? '', city: ad.city,
+        categoryId: ad.categoryId ?? '', images: [],
+        existingImages: ad.images,
+      };
+    }
+    const draft = readFormDraft<DraftValues>('ad:create');
+    return draft ? { ...EMPTY, ...draft } : EMPTY;
+  });
   // FIX P0-2: snapshot of the form's initial values, used to detect
   // unsaved changes before discarding via "إلغاء". Compares the
   // text/select fields directly and treats any new file selected or
@@ -83,15 +101,42 @@ export function AdForm({ mode, ad }: Props) {
     values.existingImages.some((url, i) => url !== initialValues.existingImages[i]);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+  // FIX P1-11: periodically persists title/description/price/etc (not
+  // images — see DraftValues above) to localStorage while the user is
+  // actively filling out a *new* ad, so an accidental navigation away
+  // doesn't lose everything. Edit mode is intentionally excluded:
+  // there's already a real saved ad to fall back to, and restoring a
+  // stale draft over freshly-fetched server data would be confusing
+  // rather than helpful.
+  const { clearDraft } = useFormDraft<DraftValues>(
+    'ad:create',
+    {
+      title: values.title, description: values.description, price: values.price,
+      isNegotiable: values.isNegotiable, condition: values.condition,
+      city: values.city, categoryId: values.categoryId,
+    },
+    { enabled: mode === 'create' },
+  );
+
   function handleCancel() {
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
+      if (mode === 'create') clearDraft();
       history.back();
     }
   }
 
   const [errors, setErrors] = useState<Errors>({});
+  // FIX P1-12: previously the submit button was simply disabled
+  // (isFormIncomplete) with zero indication of *why* until the user
+  // guessed and hit submit anyway — validate() only ran there. Now
+  // tracks which fields the user has actually left (blurred) so each
+  // one's error can surface the moment they move on from it, not only
+  // after a full submit attempt. hasSubmitted covers fields the user
+  // never focused at all (e.g. tabbing straight to submit).
+  const [touched, setTouched] = useState<Partial<Record<keyof Errors, boolean>>>({});
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   // FIX M-1: field-level errors from the backend's Zod validation (400
   // responses), separate from `errors` (client-side pre-submit checks).
   // Kept apart so a fresh submit attempt clears stale server errors via
@@ -119,16 +164,10 @@ export function AdForm({ mode, ad }: Props) {
     }
   }, [mode, createAd.isPending]);
 
-  /** Client-side error takes priority (it's live, pre-submit); falls back to the backend's. */
-  function fieldError(field: keyof Errors): string | undefined {
-    return errors[field] ?? serverErrors?.[field]?.[0];
-  }
-
-  function set<K extends keyof AdFormValues>(key: K, val: AdFormValues[K]) {
-    setValues((v) => ({ ...v, [key]: val }));
-  }
-
-  function validate() {
+  // FIX P1-12: pulled out of validate() so it can run for a single
+  // field on blur without needing a full setErrors() pass — validate()
+  // below now just calls this for every field at once on submit.
+  function computeErrors(): Errors {
     const e: Errors = {};
     if (!values.title.trim())        e.title       = 'عنوان الإعلان مطلوب';
     else if (values.title.length < 5) e.title      = 'العنوان قصير جداً (5 أحرف على الأقل)';
@@ -142,6 +181,31 @@ export function AdForm({ mode, ad }: Props) {
     // below in both places together.
     // if (values.images.length === 0 && values.existingImages.length === 0)
     //   e.images = 'أضف صورة واحدة على الأقل';
+    return e;
+  }
+
+  /** Client-side error takes priority (it's live, pre-submit); falls back to the backend's. */
+  function fieldError(field: keyof Errors): string | undefined {
+    // FIX P1-12: only surface a client-side error once the user has
+    // actually interacted with this field (blurred it) or tried to
+    // submit — otherwise every required field would show red before
+    // the user has had any chance to fill it in.
+    if (!touched[field] && !hasSubmitted) return undefined;
+    return errors[field] ?? serverErrors?.[field]?.[0];
+  }
+
+  function handleBlur(field: keyof Errors) {
+    setTouched((t) => ({ ...t, [field]: true }));
+    setErrors(computeErrors());
+  }
+
+  function set<K extends keyof AdFormValues>(key: K, val: AdFormValues[K]) {
+    setValues((v) => ({ ...v, [key]: val }));
+  }
+
+  function validate() {
+    const e = computeErrors();
+    setHasSubmitted(true);
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
@@ -179,7 +243,13 @@ export function AdForm({ mode, ad }: Props) {
       // onSuccess already navigates away, but onError leaves the user on
       // the form, where a progress bar frozen at some earlier percentage
       // would be confusing next to the (now re-enabled) submit button.
-      createAd.mutate(payload, { onSettled: () => setUploadProgress(null) });
+      // FIX P1-11: clear the draft once the ad is actually created —
+      // onSettled (not onSuccess) would also fire on failure and wipe
+      // a draft the user still needs, so this stays scoped to onSuccess.
+      createAd.mutate(payload, {
+        onSuccess: () => clearDraft(),
+        onSettled: () => setUploadProgress(null),
+      });
       return;
     }
 
@@ -293,12 +363,14 @@ export function AdForm({ mode, ad }: Props) {
         <FormField label="عنوان الإعلان" htmlFor="title" required error={fieldError('title')}>
           <Input id="title" value={values.title} maxLength={100}
             onChange={(e) => set('title', e.target.value)}
+            onBlur={() => handleBlur('title')}
             placeholder="مثال: سيارة تويوتا كامري 2019 نظيفة" />
         </FormField>
 
         <FormField label="الوصف" htmlFor="desc" required error={fieldError('description')}>
           <textarea id="desc" value={values.description} maxLength={5000} rows={5}
             onChange={(e) => set('description', e.target.value)}
+            onBlur={() => handleBlur('description')}
             placeholder="اكتب تفاصيل الإعلان بوضوح..."
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
           <p className="text-xs text-muted-foreground text-end">{values.description.length}/5000</p>
@@ -331,7 +403,7 @@ export function AdForm({ mode, ad }: Props) {
           </div>
 
           <FormField label="المدينة" htmlFor="city" required error={fieldError('city')}>
-            <Select value={values.city} onValueChange={(v) => set('city', v)}>
+            <Select value={values.city} onValueChange={(v) => { set('city', v); handleBlur('city'); }}>
               <SelectTrigger id="city">
                 <SelectValue placeholder="اختر مدينتك" />
               </SelectTrigger>
@@ -406,7 +478,15 @@ export function AdForm({ mode, ad }: Props) {
         confirmLabel="تجاهل التغييرات"
         cancelLabel="متابعة التعديل"
         destructive
-        onConfirm={() => history.back()}
+        onConfirm={() => {
+          // FIX P1-11: an explicit "discard changes" confirmation is a
+          // clear enough signal to also drop the autosaved draft —
+          // otherwise it would silently resurrect on the next visit
+          // to /ads/create despite the user just having said no to
+          // exactly that content.
+          if (mode === 'create') clearDraft();
+          history.back();
+        }}
       />
     </form>
   );

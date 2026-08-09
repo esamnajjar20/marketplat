@@ -93,7 +93,9 @@ export function MyStoreCard({ store }: Props) {
         <h2 className="text-lg font-semibold">{store.name}</h2>
         <Badge variant={STATUS_VARIANTS[store.status]}>{STATUS_LABELS[store.status]}</Badge>
         {store.plan === 'FEATURED' && (
-          <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+          // FIX P1-4: same unification as StoreHeader.tsx — "مميز" now
+          // reads as the same accent color everywhere it appears.
+          <Badge className="gap-1 bg-accent hover:bg-accent text-accent-foreground">
             <Sparkles className="h-3.5 w-3.5" /> مميز
           </Badge>
         )}

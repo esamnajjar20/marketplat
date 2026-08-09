@@ -8,7 +8,7 @@ import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Pagination }   from '@/components/shared/ui/Pagination';
 import { EmptyState }   from '@/components/shared/feedback/EmptyState';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyAds }     from '@/hooks/queries/useAds';
 import { useDeleteAd, useMarkAsSold } from '@/hooks/mutations/useAdMutations';
@@ -44,8 +44,20 @@ export function MyAdsList() {
     searchParams: sp,
   });
 
+  // FIX P1-9: LoadingSpinner previously wiped the whole list (title,
+  // status tabs area stayed, but the row area went to a single
+  // centered spinner) then popped the real rows back in — a jarring
+  // "erase and redraw" that reads as slower than it is and loses all
+  // visual context. AdListItemSkeleton already exists (used by
+  // SearchResults' list view) and matches this exact row shape
+  // (thumbnail + title + price + meta), so five of them stand in for
+  // the rows about to load instead of blanking the area.
   if (isLoading || isOutOfRange) {
-    return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => <AdListItemSkeleton key={i} />)}
+      </div>
+    );
   }
 
   // UX-FIX P1-9: `items = data?.items ?? []` meant a failed fetch fell

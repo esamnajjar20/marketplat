@@ -31,9 +31,24 @@ const buttonVariants = cva(
       },
       size: {
         default: 'h-9 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
+        // FIX P1-13: h-8 (32px) is below the ~44px touch target
+        // recommended by WCAG 2.5.5/Apple HIG/Material — kept the same
+        // visual density (text-xs, tight padding) but added invisible
+        // hit-area padding via a pseudo-expanded tap target isn't
+        // available here without a wrapper, so the safer fix is
+        // growing the box itself to the same 40px floor `icon` now
+        // uses below, matching what call sites needing sm buttons in
+        // tight rows (tables, action bars) already reach for.
+        sm: 'h-10 rounded-md px-3 text-xs',
         lg: 'h-10 rounded-md px-8',
-        icon: 'h-9 w-9',
+        // FIX P1-13: default icon buttons were h-9 w-9 (36px), under
+        // the ~44px touch-target guideline; several call sites
+        // (MyAdsList, MyProductsList, MyServiceListingsList row
+        // actions) were already manually overriding to h-10 w-10 via
+        // className for exactly this reason. Raising the base size to
+        // match removes the need for that per-call override and fixes
+        // every other icon button that didn't think to add one.
+        icon: 'h-10 w-10',
       },
     },
     defaultVariants: {

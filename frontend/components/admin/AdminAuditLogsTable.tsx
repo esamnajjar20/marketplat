@@ -24,6 +24,47 @@ import type { AuditLog, AuditEventType } from '@/types/admin.types';
 
 const AUDIT_EVENT_TYPES = Object.keys(AUDIT_EVENT_LABELS) as AuditEventType[];
 
+// FIX P1-6: `details` was dumped as raw JSON.stringify — readable to a
+// developer, meaningless to a non-technical admin looking at e.g.
+// {"targetUserId": "...", "isActive": false}. This is a best-effort
+// humanizer, not a full schema: keys actually seen across
+// useAdminMutations.ts's payloads (userId/adId/sellerProfileId/role/
+// isActive/verified/suspended/status/isFeatured/isPinned/reason) get a
+// real Arabic label; anything else falls back to a spaced-out version
+// of the camelCase key so it's at least readable, rather than
+// inventing a translation for a field this component has no way to
+// know the meaning of.
+const DETAIL_KEY_LABELS: Record<string, string> = {
+  targetUserId: 'المستخدم المستهدف',
+  userId: 'المستخدم',
+  adId: 'الإعلان',
+  storeId: 'المتجر',
+  reportId: 'البلاغ',
+  sellerProfileId: 'ملف البائع',
+  serviceProviderId: 'مزوّد الخدمة',
+  role: 'الدور',
+  isActive: 'الحساب مفعّل',
+  isFeatured: 'مميز',
+  isPinned: 'مثبّت',
+  verified: 'موثّق',
+  suspended: 'موقوف',
+  status: 'الحالة',
+  reason: 'السبب',
+  recipientCount: 'عدد المستلمين',
+};
+
+/** Splits a camelCase key into spaced words as a last-resort fallback label. */
+function humanizeKey(key: string): string {
+  return key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+}
+
+function formatDetailValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return value ? 'نعم' : 'لا';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
 export function AdminAuditLogsTable() {
   const sp = useSearchParams();
   const router = useRouter();
@@ -182,9 +223,23 @@ export function AdminAuditLogsTable() {
               <p><span className="text-muted-foreground">User Agent:</span> {detailsLog.userAgent ?? '—'}</p>
               <div>
                 <p className="text-muted-foreground mb-1">التفاصيل:</p>
-                <pre className="bg-muted rounded-md p-3 text-xs overflow-auto max-h-64 whitespace-pre-wrap">
-                  {detailsLog.details ? JSON.stringify(detailsLog.details, null, 2) : '—'}
-                </pre>
+                {/* FIX P1-6: key-value table (translated where the key
+                    is a known one) instead of raw JSON — see
+                    DETAIL_KEY_LABELS above. */}
+                {detailsLog.details && Object.keys(detailsLog.details).length > 0 ? (
+                  <div className="rounded-md border divide-y text-xs">
+                    {Object.entries(detailsLog.details).map(([key, value]) => (
+                      <div key={key} className="flex items-start justify-between gap-3 p-2">
+                        <span className="text-muted-foreground shrink-0">
+                          {DETAIL_KEY_LABELS[key] ?? humanizeKey(key)}
+                        </span>
+                        <span className="text-end break-all">{formatDetailValue(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">—</p>
+                )}
               </div>
             </div>
           )}

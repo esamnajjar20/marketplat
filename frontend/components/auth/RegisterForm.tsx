@@ -39,6 +39,11 @@ export function RegisterForm() {
   const [phone,    setPhone]    = useState('');
   const [city,     setCity]     = useState('');
   const [errors,   setErrors]   = useState<Errors>({});
+  // FIX P1-12: same touched/hasSubmitted pattern as AdForm — see that
+  // file's comment. Previously the submit button was just disabled
+  // with no visible reason until a full submit attempt.
+  const [touched, setTouched] = useState<Partial<Record<keyof Errors, boolean>>>({});
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   // FIX M-1: field-level errors from the backend (e.g. 409 email-taken,
   // or a Zod validation edge case the client-side checks below don't
   // catch, like a backend-side uniqueness or format rule).
@@ -54,10 +59,13 @@ export function RegisterForm() {
   }, []);
 
   function fieldError(field: keyof Errors): string | undefined {
+    // FIX P1-12: see AdForm's matching comment — only show once the
+    // user has left this field or attempted a submit.
+    if (!touched[field] && !hasSubmitted) return undefined;
     return errors[field] ?? serverErrors?.[field]?.[0];
   }
 
-  function validate() {
+  function computeErrors(): Errors {
     const e: Errors = {};
     if (!name.trim())            e.name = 'الاسم الكامل مطلوب';
     else if (name.trim().length < 2) e.name = 'الاسم يجب أن يكون حرفين على الأقل';
@@ -68,6 +76,17 @@ export function RegisterForm() {
     if (!confirmPassword)              e.confirmPassword = 'تأكيد كلمة المرور مطلوب';
     else if (confirmPassword !== password) e.confirmPassword = 'كلمتا المرور غير متطابقتين';
     if (phone && !/^[0-9+]{9,15}$/.test(phone)) e.phone = 'رقم هاتف غير صالح';
+    return e;
+  }
+
+  function handleBlur(field: keyof Errors) {
+    setTouched((t) => ({ ...t, [field]: true }));
+    setErrors(computeErrors());
+  }
+
+  function validate() {
+    const e = computeErrors();
+    setHasSubmitted(true);
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
@@ -130,28 +149,28 @@ export function RegisterForm() {
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <FormField label="الاسم الكامل" htmlFor="name" required error={fieldError('name')}>
         <Input id="name" autoComplete="name" value={name}
-          onChange={(e) => setName(e.target.value)} placeholder="أحمد محمد" />
+          onChange={(e) => setName(e.target.value)} onBlur={() => handleBlur('name')} placeholder="أحمد محمد" />
       </FormField>
 
       <FormField label="البريد الإلكتروني" htmlFor="email" required error={fieldError('email')}>
         <Input id="email" type="email" autoComplete="email" dir="ltr" value={email}
-          onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" />
+          onChange={(e) => setEmail(e.target.value)} onBlur={() => handleBlur('email')} placeholder="example@email.com" />
       </FormField>
 
       <FormField label="كلمة المرور" htmlFor="password" required error={fieldError('password')}
         hint="8 أحرف على الأقل">
         <PasswordInput id="password" autoComplete="new-password" dir="ltr" value={password}
-          onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+          onChange={(e) => setPassword(e.target.value)} onBlur={() => handleBlur('password')} placeholder="••••••••" />
       </FormField>
 
       <FormField label="تأكيد كلمة المرور" htmlFor="confirmPassword" required error={fieldError('confirmPassword')}>
         <PasswordInput id="confirmPassword" autoComplete="new-password" dir="ltr" value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+          onChange={(e) => setConfirmPassword(e.target.value)} onBlur={() => handleBlur('confirmPassword')} placeholder="••••••••" />
       </FormField>
 
       <FormField label="رقم الهاتف" htmlFor="phone" error={fieldError('phone')} hint="اختياري">
         <Input id="phone" type="tel" autoComplete="tel" dir="ltr" value={phone}
-          onChange={(e) => setPhone(e.target.value)} placeholder="+970591234567" />
+          onChange={(e) => setPhone(e.target.value)} onBlur={() => handleBlur('phone')} placeholder="+970591234567" />
       </FormField>
 
       {/*

@@ -35,6 +35,7 @@ import {
 } from '@/store/auth.store';
 import { ProtectedHeader }  from '@/components/layout/ProtectedHeader';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
+import { BottomNav }        from '@/components/layout/BottomNav';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -71,8 +72,11 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <ProtectedHeader />
       <div className="flex flex-1">
         <ProtectedSidebar />
-        <main className="flex-1 p-6">{children}</main>
+        {/* FIX P1-3: pb-20 reserves space for BottomNav on mobile, same
+            as the (public) layout's identical change. */}
+        <main className="flex-1 p-6 pb-20 md:pb-6">{children}</main>
       </div>
+      <BottomNav />
     </div>
   );
 }
