@@ -3,6 +3,13 @@
  * file's own pre-Epic-5 FIX AUDIT-V4-03 comment ("لا يوجد Conversation/
  * Message Prisma models") — that note is now stale; the conversations
  * module exists end-to-end, so this renders the real thread instead.
+ *
+ * DESKTOP-SPLIT-01: below lg (protected)/messages/layout.tsx renders
+ * only {children} — this page — full-screen, same as before the split
+ * view existed. ChatWindow itself stopped owning a height/frame (see
+ * its own doc comment) so this wrapper is what actually sizes it here;
+ * at >=lg, layout.tsx's pane provides that sizing instead and this
+ * div's h-full simply fills it.
  */
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
@@ -19,8 +26,10 @@ interface Props {
 export default async function ConversationPage({ params }: Props) {
   const { id } = await params;
   return (
-    <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
-      <ChatWindow conversationId={id} />
-    </Suspense>
+    <div className="h-[calc(100vh-8rem)] lg:h-full rounded-lg border overflow-hidden lg:rounded-none lg:border-0">
+      <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+        <ChatWindow conversationId={id} />
+      </Suspense>
+    </div>
   );
 }

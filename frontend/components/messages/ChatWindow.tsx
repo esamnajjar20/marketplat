@@ -42,6 +42,23 @@ function otherParty(conversation: Conversation, userId: string | undefined) {
  * either side has blocked the other (conversations.service.ts) — the
  * composer disables itself the moment that's true, rather than only
  * surfacing it as an error toast after a failed send.
+ *
+ * DESKTOP-SPLIT-01: this used to own its own border/rounded/height
+ * frame, correct when it was the only thing on the page (mobile, or
+ * desktop before the split-view existed). It's now rendered inside
+ * (protected)/messages/layout.tsx's right-hand pane on >=lg, which
+ * already provides that frame for both panes together — a nested
+ * border here would double up. The h-full below fills whatever height
+ * the caller's wrapper provides instead of computing its own from the
+ * viewport, so it behaves the same standalone (viewport-derived
+ * wrapper on mobile) or inside the split layout (flex-derived wrapper
+ * on desktop) without ChatWindow needing to know which.
+ *
+ * The back-button's lg:hidden (was sm:hidden) is the other half of
+ * this change: below lg there's no sidebar to return to visually, so
+ * back navigation matters; at lg and above the sidebar in
+ * messages/layout.tsx is already on screen, so a back arrow inside
+ * the thread itself would be redundant.
  */
 export function ChatWindow({ conversationId }: Props) {
   const user = useAuthStore(selectUser);
@@ -95,9 +112,9 @@ export function ChatWindow({ conversationId }: Props) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col rounded-lg border bg-card overflow-hidden">
+    <div className="flex h-full flex-col bg-card">
       <div className="flex items-center gap-2 border-b p-3">
-        <Link href={ROUTES.messages} className="sm:hidden text-muted-foreground">
+        <Link href={ROUTES.messages} className="lg:hidden text-muted-foreground">
           <ChevronRight className="h-5 w-5" />
         </Link>
         <div className="relative w-9 h-9 rounded-full overflow-hidden bg-muted shrink-0">
