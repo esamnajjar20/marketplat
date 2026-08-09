@@ -7,6 +7,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { userCache } from '../../shared/utils/userCache';
 import { tokenStore } from '../../shared/utils/tokenStore';
 import { auditLog } from '../../shared/utils/auditLog';
+import { canManageRole } from '../../shared/utils/roleHierarchy';
 import { adminStatsCache } from '../../shared/utils/adminStatsCache';
 // BUGFIX (found during a post-implementation code audit): see
 // ads.service.ts's own comment on bumpAdsCacheVersion for why this is
@@ -255,7 +256,12 @@ export const adminService = {
   },
 
   // S-04: revoke sessions when deactivating a user
-  toggleUserActive: async (userId: string, isActive: boolean, adminUserId = 'unknown') => {
+  toggleUserActive: async (
+    userId: string,
+    isActive: boolean,
+    adminUserId = 'unknown',
+    adminRole: Role = 'ADMIN'
+  ) => {
     // Guard: prevent self-deactivation.
     if (!isActive && userId === adminUserId) {
       throw new ForbiddenError('You cannot deactivate your own account', 'CANNOT_DEACTIVATE_SELF');
@@ -278,6 +284,40 @@ export const adminService = {
             where: { id: userId },
             select: { role: true },
           });
+
+          // Gap #20: deactivation is a form of "managing" another
+          // account, same as a role change — an actor must not be able
+          // to deactivate someone at or above their own rank (e.g. an
+          // ADMIN silencing a SUPER_ADMIN's account instead of going
+          // through the blocked role-change path). Reuses the exact
+          // same rank rule as changeRole via canManageRole, checked
+          // against the target's *current* role for both sides (a
+          // deactivation doesn't change role, so "new role" == "current
+          // role" here — canManageRole(adminRole, target.role,
+          // target.role) reduces to the single targetCurrentRank <
+          // actorRank comparison that's actually meaningful for this
+          // action).
+          if (target && !canManageRole(adminRole, target.role, target.role)) {
+            throw new ForbiddenError(
+              'You do not have permission to deactivate this user',
+              'DEACTIVATE_NOT_PERMITTED'
+            );
+          }
+
+          // Gap #20: SUPER_ADMIN is now a distinct rank above ADMIN
+          // with its own exclusive capability (granting/revoking
+          // admin-tier roles), so it needs the same last-one-standing
+          // protection ADMIN already had — deactivating the last active
+          // SUPER_ADMIN would leave nobody able to ever create another
+          // ADMIN or SUPER_ADMIN again.
+          if (target?.role === 'SUPER_ADMIN') {
+            const activeCount = await tx.user.count({
+              where: { role: 'SUPER_ADMIN', isActive: true },
+            });
+            if (activeCount <= 1) {
+              throw new BadRequestError('Cannot deactivate the last active super admin in the system', 'CANNOT_DEACTIVATE_LAST_SUPER_ADMIN');
+            }
+          }
           if (target?.role === 'ADMIN') {
             const activeAdminCount = await tx.user.count({
               where: { role: 'ADMIN', isActive: true },
@@ -324,48 +364,107 @@ export const adminService = {
   },
 
   /**
-   * FIX AUDIT-V3-05: PATCH /admin/users/:id/role — previously
-   * AuditEventType.ROLE_CHANGED existed in the schema with no code path
-   * ever triggering it, and there was no way to promote/demote a user
-   * to/from ADMIN without editing the database directly.
+   * FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): PATCH
+   * /admin/users/:id/role.
    *
-   * Mirrors toggleUserActive's guards: an admin can't demote themselves
-   * (avoids accidental self-lockout from the admin panel), and the last
-   * active admin in the system can't be demoted (system lockout
-   * prevention — same rationale as the deactivation guard).
+   * Authorization here is the rank rule from roleHierarchy.ts's
+   * canManageRole: the actor can only change a target who is strictly
+   * below them in rank, and can only assign a role strictly below
+   * their own rank. In practice that means:
+   *   - MODERATOR can never call this (requireMinRole(ADMIN) on the
+   *     route already blocks it before this function runs, but the
+   *     rank check below is the real authorization decision, not the
+   *     route gate — defense in depth).
+   *   - ADMIN can change USER<->MODERATOR only (can't touch or create
+   *     another ADMIN/SUPER_ADMIN).
+   *   - SUPER_ADMIN can change USER/MODERATOR/ADMIN freely.
+   *   - SUPER_ADMIN is NEVER an assignable `role` value here, for
+   *     anyone, including another SUPER_ADMIN — canManageRole already
+   *     rejects it (rank 3 is never < actorRank, even for another
+   *     rank-3 actor), but it's also blocked explicitly up front so
+   *     the rejection reason is unambiguous in logs/responses rather
+   *     than surfacing as a generic rank-check failure. Granting or
+   *     revoking SUPER_ADMIN is deliberately kept out of any in-app
+   *     endpoint — it's a break-glass role, assigned directly in the
+   *     database by someone with production access, not something one
+   *     admin should be able to hand to another (or to themselves)
+   *     through a UI action that could be triggered by a compromised
+   *     session or an internal mistake.
+   *   - Self-modification is always rejected, at any rank — an actor
+   *     can accidentally lock themselves out or, worse, quietly
+   *     escalate their own privileges; neither should ever be a single
+   *     API call.
    */
-  changeRole: async (userId: string, role: Role, adminUserId = 'unknown') => {
-    if (role === 'USER' && userId === adminUserId) {
-      throw new ForbiddenError('You cannot demote your own privileges', 'CANNOT_DEMOTE_SELF');
+  changeRole: async (
+    userId: string,
+    role: Role,
+    adminUserId = 'unknown',
+    adminRole: Role = 'ADMIN',
+    ip = 'unknown',
+    userAgent = 'unknown'
+  ) => {
+    if (userId === adminUserId) {
+      throw new ForbiddenError('You cannot change your own role', 'CANNOT_CHANGE_OWN_ROLE');
+    }
+
+    if (role === 'SUPER_ADMIN') {
+      throw new ForbiddenError(
+        'SUPER_ADMIN cannot be granted through this endpoint',
+        'CANNOT_ASSIGN_SUPER_ADMIN'
+      );
     }
 
     try {
       // FIX SEC-08: same race as toggleUserActive above — the read
-      // (activeAdminCount) and the write (role update) are now inside
-      // one Serializable transaction so two concurrent demotions of two
-      // different admins can't both pass the "> 1" guard and both
-      // commit, which would leave the system with zero admins.
+      // (target's current role / activeAdminCount) and the write (role
+      // update) are now inside one Serializable transaction so two
+      // concurrent role changes can't both pass their guard and both
+      // commit, which could leave the system without anyone able to
+      // manage roles.
       const user = await prisma.$transaction(async (tx) => {
-        if (role === 'USER') {
-          const target = await tx.user.findUnique({
-            where: { id: userId },
-            select: { role: true },
+        const target = await tx.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+        if (!target) {
+          throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+        }
+
+        if (!canManageRole(adminRole, target.role, role)) {
+          throw new ForbiddenError(
+            'You do not have permission to assign this role to this user',
+            'ROLE_CHANGE_NOT_PERMITTED'
+          );
+        }
+
+        // System-lockout prevention: demoting the last active ADMIN
+        // would leave nobody able to manage MODERATOR/USER roles
+        // day-to-day. (There is no equivalent SUPER_ADMIN guard here —
+        // canManageRole above already makes a SUPER_ADMIN target
+        // unreachable through this endpoint entirely, for any actor,
+        // including another SUPER_ADMIN: targetCurrentRank(3) is never
+        // < actorRank when the max rank is 3. SUPER_ADMIN's role can
+        // only ever be changed directly in the database, which is the
+        // intended break-glass model — see this function's own doc
+        // comment.)
+        if (target.role === 'ADMIN' && role !== 'ADMIN') {
+          const activeCount = await tx.user.count({
+            where: { role: 'ADMIN', isActive: true },
           });
-          if (target?.role === 'ADMIN') {
-            const activeAdminCount = await tx.user.count({
-              where: { role: 'ADMIN', isActive: true },
-            });
-            if (activeAdminCount <= 1) {
-              throw new BadRequestError('Cannot demote the last active admin in the system', 'CANNOT_DEMOTE_LAST_ADMIN');
-            }
+          if (activeCount <= 1) {
+            throw new BadRequestError(
+              'Cannot demote the last active admin in the system',
+              'CANNOT_DEMOTE_LAST_ADMIN'
+            );
           }
         }
 
-        return tx.user.update({
+        const updated = await tx.user.update({
           where: { id: userId },
           data: { role },
           select: { id: true, name: true, email: true, role: true },
         });
+        return { updated, previousRole: target.role };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
       // Role changed → cached role (used by middleware-adjacent checks)
@@ -377,13 +476,24 @@ export const adminService = {
         tokenStore.deleteAllRefreshTokens(userId),
       ]);
 
+      // Full before/after/actor/ip trail, per Gap #20's spec — who
+      // changed it, the target, old role, new role, when (auditLog
+      // stamps createdAt itself), and ip/userAgent (already-supported
+      // AuditLogEntry fields, just not previously passed by this call
+      // site).
       auditLog({
         event: AuditEventType.ROLE_CHANGED,
         userId: adminUserId,
-        details: { targetUserId: userId, newRole: role },
+        ip,
+        userAgent,
+        details: {
+          targetUserId: userId,
+          previousRole: user.previousRole,
+          newRole: role,
+        },
       }).catch(() => {});
 
-      return user;
+      return user.updated;
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('User not found', 'USER_NOT_FOUND');
       if (e?.code === 'P2034') {

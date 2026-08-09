@@ -32,6 +32,7 @@ import {
   selectIsAuthenticated,
   selectAccessToken,
   selectIsAdmin,
+  selectIsAdminTier,
   selectIsHydrated,
   selectSetAuth,
   selectSetUser,
@@ -53,6 +54,21 @@ const mockAdminUser: AuthResultUser = {
   name:  'Admin User',
   email: 'admin@example.com',
   role:  'ADMIN',
+};
+
+// Gap #20 (admin permission tiers)
+const mockModeratorUser: AuthResultUser = {
+  id:    'mod-789',
+  name:  'Moderator User',
+  email: 'mod@example.com',
+  role:  'MODERATOR',
+};
+
+const mockSuperAdminUser: AuthResultUser = {
+  id:    'super-999',
+  name:  'Super Admin User',
+  email: 'super@example.com',
+  role:  'SUPER_ADMIN',
 };
 
 const mockTokens: AuthTokens = {
@@ -267,6 +283,43 @@ describe('Selectors', () => {
 
   it('selectIsAdmin is false when no user', () => {
     expect(selectIsAdmin(useAuthStore.getState())).toBe(false);
+  });
+
+  // Gap #20 (admin permission tiers): selectIsAdmin now covers ADMIN
+  // OR SUPER_ADMIN — a SUPER_ADMIN account must not be locked out of
+  // any screen still gated by "is this user an admin?", since the
+  // backend's own requireAdmin (rank-based) treats SUPER_ADMIN as
+  // able to do everything ADMIN can.
+  it('selectIsAdmin is true for SUPER_ADMIN role (Gap #20)', () => {
+    useAuthStore.getState().setAuth(mockSuperAdminUser, mockTokens);
+    expect(selectIsAdmin(useAuthStore.getState())).toBe(true);
+  });
+
+  it('selectIsAdmin is false for MODERATOR role (Gap #20: below ADMIN rank)', () => {
+    useAuthStore.getState().setAuth(mockModeratorUser, mockTokens);
+    expect(selectIsAdmin(useAuthStore.getState())).toBe(false);
+  });
+
+  // Gap #20: selectIsAdminTier is the wider "any admin-tier role" check
+  // — MODERATOR and above — distinct from selectIsAdmin (ADMIN+ only).
+  it('selectIsAdminTier is true for MODERATOR, ADMIN, and SUPER_ADMIN', () => {
+    useAuthStore.getState().setAuth(mockModeratorUser, mockTokens);
+    expect(selectIsAdminTier(useAuthStore.getState())).toBe(true);
+
+    useAuthStore.getState().setAuth(mockAdminUser, mockTokens);
+    expect(selectIsAdminTier(useAuthStore.getState())).toBe(true);
+
+    useAuthStore.getState().setAuth(mockSuperAdminUser, mockTokens);
+    expect(selectIsAdminTier(useAuthStore.getState())).toBe(true);
+  });
+
+  it('selectIsAdminTier is false for USER role', () => {
+    useAuthStore.getState().setAuth(mockAuthResultUser, mockTokens);
+    expect(selectIsAdminTier(useAuthStore.getState())).toBe(false);
+  });
+
+  it('selectIsAdminTier is false when no user', () => {
+    expect(selectIsAdminTier(useAuthStore.getState())).toBe(false);
   });
 
   it('selectIsHydrated returns isHydrated', () => {

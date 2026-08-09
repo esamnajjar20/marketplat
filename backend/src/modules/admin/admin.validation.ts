@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AdStatus, Role } from '@prisma/client';
+import { AdStatus } from '@prisma/client';
 
 const optionalQueryNumber = (schema: z.ZodNumber) =>
   z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
@@ -43,13 +43,19 @@ export const toggleActiveSchema = z.object({
   body: z.object({ isActive: z.boolean() }),
 });
 
-// FIX AUDIT-V3-05: AuditEventType.ROLE_CHANGED existed in the schema
-// with no code ever triggering it, and there was no way for an admin to
-// promote/demote a user without editing the database directly. Only
-// USER/ADMIN are valid Role values — z.nativeEnum keeps this in sync
-// with the Prisma enum automatically if it's ever extended.
+// FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): AuditEventType.
+// ROLE_CHANGED existed in the schema with no code ever triggering it,
+// and there was no way for an admin to promote/demote a user without
+// editing the database directly. Restricted to USER/MODERATOR/ADMIN —
+// SUPER_ADMIN is deliberately excluded from the assignable set here
+// (not just checked later in adminService.changeRole): it's a
+// break-glass role assigned directly in the database, never through
+// this endpoint, for anyone. Rejecting it at the schema gives a clear
+// 400 instead of a 403 surfacing from deep in the service layer.
+const assignableRoleSchema = z.enum(['USER', 'MODERATOR', 'ADMIN']);
+
 export const changeRoleSchema = z.object({
-  body: z.object({ role: z.nativeEnum(Role) }),
+  body: z.object({ role: assignableRoleSchema }),
 });
 
 export type AdminGetAdsQuery = z.infer<typeof adminGetAdsSchema>['query'];

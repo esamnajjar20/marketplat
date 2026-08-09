@@ -400,19 +400,19 @@ describe('AdminService', () => {
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('rejects deactivating the last remaining active admin', async () => {
+    it('rejects deactivating the last remaining active admin (actor is SUPER_ADMIN)', async () => {
       jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'ADMIN' } as any);
       jest.spyOn(prisma.user, 'count').mockResolvedValue(1);
       jest.spyOn(prisma.user, 'update');
 
       await expect(
-        adminService.toggleUserActive('admin-2', false, 'admin-1'),
+        adminService.toggleUserActive('admin-2', false, 'super-1', 'SUPER_ADMIN'),
       ).rejects.toThrow('Cannot deactivate the last active admin in the system');
 
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('allows deactivating an admin when other active admins remain', async () => {
+    it('allows a SUPER_ADMIN to deactivate an ADMIN when other active admins remain', async () => {
       jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'ADMIN' } as any);
       jest.spyOn(prisma.user, 'count').mockResolvedValue(2);
       jest.spyOn(prisma.user, 'update').mockResolvedValue({
@@ -421,8 +421,36 @@ describe('AdminService', () => {
       jest.spyOn(userCache, 'invalidate').mockResolvedValue(undefined);
       jest.spyOn(tokenStore, 'deleteAllRefreshTokens').mockResolvedValue(undefined);
 
-      const result = await adminService.toggleUserActive('admin-2', false, 'admin-1');
+      const result = await adminService.toggleUserActive('admin-2', false, 'super-1', 'SUPER_ADMIN');
       expect(result.isActive).toBe(false);
+    });
+
+    // Gap #20: an ADMIN actor can never deactivate another ADMIN's
+    // account — canManageRole requires the target to be strictly below
+    // the actor in rank. Only SUPER_ADMIN can deactivate an ADMIN.
+    it('rejects an ADMIN actor deactivating another ADMIN (rank not strictly below)', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'ADMIN' } as any);
+      jest.spyOn(prisma.user, 'update');
+
+      await expect(
+        adminService.toggleUserActive('admin-2', false, 'admin-1', 'ADMIN'),
+      ).rejects.toThrow('You do not have permission to deactivate this user');
+
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects deactivating the last remaining active super admin', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'SUPER_ADMIN' } as any);
+      jest.spyOn(prisma.user, 'count').mockResolvedValue(1);
+      jest.spyOn(prisma.user, 'update');
+
+      // No actor can outrank SUPER_ADMIN, so this path is unreachable
+      // through canManageRole in practice — this test documents the
+      // last-one-standing guard itself using a direct call, in case a
+      // future rank is ever inserted above SUPER_ADMIN.
+      await expect(
+        adminService.toggleUserActive('super-2', false, 'super-1', 'SUPER_ADMIN'),
+      ).rejects.toThrow('You do not have permission to deactivate this user');
     });
 
     it('does not run the admin-count check when deactivating a non-admin', async () => {
@@ -448,31 +476,59 @@ describe('AdminService', () => {
       );
     });
 
-    it('rejects an admin trying to demote themselves to USER', async () => {
+    it('rejects an admin trying to change their own role', async () => {
       jest.spyOn(prisma.user, 'findUnique');
       jest.spyOn(prisma.user, 'update');
 
       await expect(
-        adminService.changeRole('admin-1', 'USER', 'admin-1'),
-      ).rejects.toThrow('You cannot demote your own privileges');
+        adminService.changeRole('admin-1', 'USER', 'admin-1', 'ADMIN'),
+      ).rejects.toThrow('You cannot change your own role');
 
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('rejects demoting the last remaining active admin', async () => {
+    // Gap #20: SUPER_ADMIN can never be granted through this endpoint,
+    // for any actor — rejected up front before even touching the DB.
+    it('rejects assigning SUPER_ADMIN through this endpoint', async () => {
+      jest.spyOn(prisma.user, 'findUnique');
+      jest.spyOn(prisma.user, 'update');
+
+      await expect(
+        adminService.changeRole('u1', 'SUPER_ADMIN', 'super-1', 'SUPER_ADMIN'),
+      ).rejects.toThrow('SUPER_ADMIN cannot be granted through this endpoint');
+
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    // Gap #20: an ADMIN actor can never touch another ADMIN's role —
+    // canManageRole requires the target to be strictly below the actor
+    // in rank. Only SUPER_ADMIN can demote an ADMIN.
+    it('rejects an ADMIN actor demoting another ADMIN (rank not strictly below)', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'ADMIN' } as any);
+      jest.spyOn(prisma.user, 'update');
+
+      await expect(
+        adminService.changeRole('admin-2', 'USER', 'admin-1', 'ADMIN'),
+      ).rejects.toThrow('You do not have permission to assign this role to this user');
+
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects demoting the last remaining active admin (actor is SUPER_ADMIN)', async () => {
       jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'ADMIN' } as any);
       jest.spyOn(prisma.user, 'count').mockResolvedValue(1);
       jest.spyOn(prisma.user, 'update');
 
       await expect(
-        adminService.changeRole('admin-2', 'USER', 'admin-1'),
+        adminService.changeRole('admin-2', 'USER', 'super-1', 'SUPER_ADMIN'),
       ).rejects.toThrow('Cannot demote the last active admin in the system');
 
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('allows demoting an admin when other active admins remain', async () => {
+    it('allows a SUPER_ADMIN to demote an ADMIN when other active admins remain', async () => {
       jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'ADMIN' } as any);
       jest.spyOn(prisma.user, 'count').mockResolvedValue(2);
       jest.spyOn(prisma.user, 'update').mockResolvedValue({
@@ -481,44 +537,77 @@ describe('AdminService', () => {
       jest.spyOn(userCache, 'invalidate').mockResolvedValue(undefined);
       jest.spyOn(tokenStore, 'deleteAllRefreshTokens').mockResolvedValue(undefined);
 
-      const result = await adminService.changeRole('admin-2', 'USER', 'admin-1');
+      const result = await adminService.changeRole('admin-2', 'USER', 'super-1', 'SUPER_ADMIN');
       expect(result.role).toBe('USER');
     });
 
-    it('does not run the admin-count check when promoting a user to ADMIN', async () => {
+    it('allows an ADMIN actor to promote a USER to MODERATOR', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'USER' } as any);
+      jest.spyOn(prisma.user, 'update').mockResolvedValue({
+        id: 'u2', name: 'User', email: 'u2@t.com', role: 'MODERATOR',
+      } as any);
+      jest.spyOn(userCache, 'invalidate').mockResolvedValue(undefined);
+      jest.spyOn(tokenStore, 'deleteAllRefreshTokens').mockResolvedValue(undefined);
+
+      const result = await adminService.changeRole('u2', 'MODERATOR', 'admin-1', 'ADMIN');
+      expect(result.role).toBe('MODERATOR');
+    });
+
+    it('rejects an ADMIN actor promoting a USER to ADMIN (new role not strictly below actor rank)', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'USER' } as any);
+      jest.spyOn(prisma.user, 'update');
+
+      await expect(
+        adminService.changeRole('u2', 'ADMIN', 'admin-1', 'ADMIN'),
+      ).rejects.toThrow('You do not have permission to assign this role to this user');
+
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('does not run the admin-count check when a SUPER_ADMIN promotes a user to ADMIN', async () => {
       const countSpy = jest.spyOn(prisma.user, 'count');
-      jest.spyOn(prisma.user, 'findUnique');
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'USER' } as any);
       jest.spyOn(prisma.user, 'update').mockResolvedValue({
         id: 'u2', name: 'User', email: 'u2@t.com', role: 'ADMIN',
       } as any);
       jest.spyOn(userCache, 'invalidate').mockResolvedValue(undefined);
       jest.spyOn(tokenStore, 'deleteAllRefreshTokens').mockResolvedValue(undefined);
 
-      await adminService.changeRole('u2', 'ADMIN', 'admin-1');
+      await adminService.changeRole('u2', 'ADMIN', 'super-1', 'SUPER_ADMIN');
       expect(countSpy).not.toHaveBeenCalled();
-      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
     it('invalidates the cache and revokes sessions on every role change (not just demotions)', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'USER' } as any);
       jest.spyOn(prisma.user, 'update').mockResolvedValue({
         id: 'u2', name: 'User', email: 'u2@t.com', role: 'ADMIN',
       } as any);
       const invalidateSpy = jest.spyOn(userCache, 'invalidate').mockResolvedValue(undefined);
       const deleteAllSpy = jest.spyOn(tokenStore, 'deleteAllRefreshTokens').mockResolvedValue(undefined);
 
-      await adminService.changeRole('u2', 'ADMIN', 'admin-1');
+      await adminService.changeRole('u2', 'ADMIN', 'super-1', 'SUPER_ADMIN');
 
       expect(invalidateSpy).toHaveBeenCalledWith('u2');
       expect(deleteAllSpy).toHaveBeenCalledWith('u2');
     });
 
     it('throws NotFoundError on P2025', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ role: 'USER' } as any);
       const err = new Prisma.PrismaClientKnownRequestError('Not found', {
         code: 'P2025',
         clientVersion: '5.0.0',
       });
       jest.spyOn(prisma.user, 'update').mockRejectedValue(err);
-      await expect(adminService.changeRole('missing', 'ADMIN', 'admin-1')).rejects.toThrow(NotFoundError);
+      await expect(
+        adminService.changeRole('missing', 'ADMIN', 'super-1', 'SUPER_ADMIN'),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the target user does not exist', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
+      await expect(
+        adminService.changeRole('missing', 'ADMIN', 'super-1', 'SUPER_ADMIN'),
+      ).rejects.toThrow(NotFoundError);
     });
 
     it('translates a P2034 transaction conflict into a friendly retry message', async () => {
@@ -529,7 +618,7 @@ describe('AdminService', () => {
       jest.spyOn(prisma, '$transaction').mockRejectedValue(err);
 
       await expect(
-        adminService.changeRole('u1', 'ADMIN', 'admin-1'),
+        adminService.changeRole('u1', 'ADMIN', 'super-1', 'SUPER_ADMIN'),
       ).rejects.toThrow('This action conflicted with another operation, please try again');
     });
   });

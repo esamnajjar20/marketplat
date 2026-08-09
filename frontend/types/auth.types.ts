@@ -15,7 +15,10 @@
  * state-changing requests (see api/client.ts and lib/csrf.ts).
  */
 
-export type UserRole = 'USER' | 'ADMIN';
+// Gap #20 (admin permission tiers): MODERATOR/SUPER_ADMIN added
+// alongside USER/ADMIN — kept in sync with the backend Prisma Role
+// enum (backend/shared/constants/roles.ts).
+export type UserRole = 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN';
 
 // ── Entities ──────────────────────────────────────────────────────
 

@@ -12,6 +12,13 @@ import {
 } from './admin.validation';
 import { broadcastNotificationSchema } from '../notifications/notifications.validation';
 import { requireUser } from '../../shared/utils/requireUser';
+import { getClientIp } from '../../shared/utils/getClientIp';
+import { Role } from '../../shared/constants/roles';
+
+/** Same convention as auth.controller.ts's own local getUserAgent —
+ * kept inline here too rather than shared, since it's a one-line
+ * header read with no other logic. */
+const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unknown';
 
 export const adminController = {
   /**
@@ -89,7 +96,12 @@ export const adminController = {
     try {
       const admin = requireUser(req);
       const { body } = toggleActiveSchema.parse({ body: req.body });
-      const user = await adminService.toggleUserActive(req.params.id, body.isActive, admin.userId);
+      const user = await adminService.toggleUserActive(
+        req.params.id,
+        body.isActive,
+        admin.userId,
+        admin.role as Role
+      );
       res
         .status(200)
         .json(successResponse(`User ${body.isActive ? 'activated' : 'deactivated'}`, user));
@@ -103,7 +115,14 @@ export const adminController = {
     try {
       const admin = requireUser(req);
       const { body } = changeRoleSchema.parse({ body: req.body });
-      const user = await adminService.changeRole(req.params.id, body.role, admin.userId);
+      const user = await adminService.changeRole(
+        req.params.id,
+        body.role,
+        admin.userId,
+        admin.role as Role,
+        getClientIp(req),
+        getUserAgent(req)
+      );
       res.status(200).json(successResponse('User role updated', user));
     } catch (error) {
       next(error);

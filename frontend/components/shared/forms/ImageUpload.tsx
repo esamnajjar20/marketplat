@@ -100,6 +100,9 @@ export function ImageUpload({
     if (to < 0 || to >= existingUrls.length || from === to) return;
     const next = [...existingUrls];
     const [moved] = next.splice(from, 1);
+
+    if (moved === undefined) return;
+
     next.splice(to, 0, moved);
     onReorderExisting(next);
   }

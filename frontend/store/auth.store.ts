@@ -192,7 +192,19 @@ export const useAuthStore = create<AuthStore>()(
 export const selectUser            = (s: AuthStore) => s.user;
 export const selectIsAuthenticated = (s: AuthStore) => s.isAuthenticated;
 export const selectAccessToken     = (s: AuthStore) => s.accessToken;
-export const selectIsAdmin         = (s: AuthStore) => s.user?.role === 'ADMIN';
+// Gap #20 (admin permission tiers): "ADMIN-tier" now means ADMIN or
+// SUPER_ADMIN — SUPER_ADMIN must be able to do everything ADMIN can
+// (mirrors the backend's requireAdmin, which is rank-based: ADMIN or
+// above), so a SUPER_ADMIN account must not be locked out of any
+// screen still gated by "is this user an admin?".
+export const selectIsAdmin         = (s: AuthStore) =>
+  s.user?.role === 'ADMIN' || s.user?.role === 'SUPER_ADMIN';
+// Gap #20: "any admin-tier role" — MODERATOR and above. Used to admit
+// a MODERATOR into /admin/* at all; which specific pages/actions they
+// can reach within it is still narrowed per-screen (AdminSidebar) and
+// enforced for real by the backend (requireMinRole).
+export const selectIsAdminTier     = (s: AuthStore) =>
+  s.user?.role === 'MODERATOR' || s.user?.role === 'ADMIN' || s.user?.role === 'SUPER_ADMIN';
 export const selectIsHydrated      = (s: AuthStore) => s.isHydrated;
 export const selectIsAuthResolving = (s: AuthStore) => s.isAuthResolving;
 

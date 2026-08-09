@@ -21,6 +21,7 @@ import type {
   SetFeaturedPayload,
   SetPinnedPayload,
   ToggleActivePayload,
+  AssignableRole,
   Report,
   ReportStatus,
   ReportTargetType,
@@ -74,8 +75,11 @@ export const adminApi = {
   toggleUserActive: (userId: string, payload: ToggleActivePayload) =>
     apiClient.patch<ApiResponse<AdminUser>>(`/admin/users/${userId}/active`, payload),
 
-  /** FIX AUDIT-V3-05: PATCH /admin/users/:id/role */
-  changeRole: (userId: string, role: 'USER' | 'ADMIN') =>
+  /** FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): PATCH
+   * /admin/users/:id/role. role is AssignableRole (USER/MODERATOR/
+   * ADMIN) — SUPER_ADMIN is never sent from here, matching the
+   * backend's assignableRoleSchema which rejects it outright. */
+  changeRole: (userId: string, role: AssignableRole) =>
     apiClient.patch<ApiResponse<AdminUser>>(`/admin/users/${userId}/role`, { role }),
 
   // ── Sellers (Epic 1.1) ───────────────────────────────────────────

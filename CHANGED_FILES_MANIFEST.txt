@@ -1,0 +1,67 @@
+Gap #20 — Admin Permission Tiers (MODERATOR / SUPER_ADMIN)
+============================================================
+هذا الأرشيف يحتوي فقط على الملفات المعدَّلة أو المُضافة حديثاً،
+بمساراتها الأصلية داخل المشروع (backend/ و frontend/).
+(نسخة محدَّثة — تشمل إصلاحات "أكمل تحقيق" الإضافية على اختبارات
+useAdminMutations وthin-wrappers وauth.store)
+
+── ملفات جديدة (3) ──────────────────────────────────────────
+backend/prisma/migrations/20260809030000_add_admin_role_tiers/migration.sql
+backend/src/shared/utils/roleHierarchy.ts
+backend/tests/unit/roleHierarchy.test.ts
+
+── ملفات معدَّلة — Backend (15) ─────────────────────────────
+backend/prisma/schema.prisma
+backend/src/modules/admin/admin.service.ts
+backend/src/modules/admin/admin.controller.ts
+backend/src/modules/admin/admin.validation.ts
+backend/src/modules/admin/admin.routes.ts
+backend/src/modules/fraud/fraud.routes.ts
+backend/src/modules/reports/reports.routes.ts
+backend/src/shared/constants/roles.ts
+backend/src/middlewares/admin.middleware.ts
+backend/tests/helpers/auth.helper.ts
+backend/tests/integration/admin.test.ts
+backend/tests/unit/admin.service.test.ts
+backend/tests/unit/admin.controller.test.ts
+backend/tests/unit/admin.validation.extended.test.ts
+backend/tests/unit/admin.middleware.test.ts
+
+── ملفات معدَّلة — Frontend (15) ────────────────────────────
+frontend/types/auth.types.ts
+frontend/types/admin.types.ts
+frontend/components/admin/AdminUsersTable.tsx
+frontend/components/admin/AdminSidebar.tsx
+frontend/middleware.ts
+frontend/hooks/mutations/useAdminMutations.ts
+frontend/app/(admin)/layout.tsx
+frontend/api/admin.api.ts
+frontend/store/auth.store.ts
+frontend/__tests__/components/AdminUsersTable.test.tsx
+frontend/__tests__/components/AdminSidebar.test.tsx
+frontend/__tests__/unit/hooks/useAdminMutations.test.tsx      ← جديد بهذا التحقيق
+frontend/__tests__/unit/middleware/middleware.test.ts
+frontend/__tests__/unit/api/thin-wrappers.test.ts             ← جديد بهذا التحقيق
+frontend/__tests__/unit/store/auth.store.test.ts              ← جديد بهذا التحقيق
+
+============================================================
+ما تم في جولة "أكمل تحقيق" الإضافية:
+1. useAdminMutations.test.tsx: كانت رسائل التوست القديمة المتوقعة
+   ("تم ترقية المستخدم إلى مدير" / "تم تنزيل المستخدم إلى مستخدم
+   عادي") غير متطابقة مع الرسالة الجديدة الموحّدة
+   ("تم تغيير الدور إلى <role label>") بعد تعديل useAdminChangeRole
+   لدعم 3 أدوار قابلة للتعيين بدل اثنين. صُححت + أُضيف اختبار
+   MODERATOR مخصص.
+2. thin-wrappers.test.ts: أُضيف اختبار تغطية لقبول 'MODERATOR' في
+   adminApi.changeRole (لم يكن هناك كسر فعلي، النوع القديم كان
+   يتسع تلقائياً، لكن التغطية كانت ناقصة).
+3. auth.store.test.ts: selectIsAdmin تغيّر سلوكها لتشمل SUPER_ADMIN
+   الآن (بالإضافة لـ ADMIN) — أُضيفت fixtures لـ MODERATOR/
+   SUPER_ADMIN واختبارات لكل من selectIsAdmin (يبقى false لـ
+   MODERATOR) وselectIsAdminTier الجديدة كلياً (true لأي دور إداري).
+
+ملاحظة: تعذّر تشغيل test suites فعلياً في بيئة الإعداد هذه
+(npm registry أرجع 403 عند محاولة التثبيت في كلا المجلدين). كل
+التعديلات راجعتها كودياً بمطابقة دقيقة مع الكود المصدري الفعلي
+(تحقق من كل import، توقيع دالة، ونوع)، لكن يُنصح بشدة بتشغيل
+npm test في كلا المجلدين محلياً قبل الدمج.

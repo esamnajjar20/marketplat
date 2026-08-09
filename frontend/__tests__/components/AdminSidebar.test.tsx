@@ -18,12 +18,33 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { useAuthStore } from '@/store/auth.store';
 
 const mockUsePathname = vi.fn(() => '/admin/dashboard');
 
 vi.mock('next/navigation', () => ({
   usePathname: () => mockUsePathname(),
 }));
+
+// Gap #20 (admin permission tiers): the sidebar now reads the signed-in
+// user's role to decide which links a MODERATOR can see, so
+// useAuthStore must be mocked explicitly rather than left to hit the
+// real Zustand+persist store (which reads localStorage and isn't
+// isolated between tests). Defaults to an ADMIN actor — the pre-Gap-20
+// behavior every test below except the dedicated MODERATOR block
+// still assumes.
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectUser: (s: { user: unknown }) => s.user,
+}));
+
+const mockUseAuthStore = vi.mocked(useAuthStore);
+
+function mockActor(role: 'ADMIN' | 'MODERATOR' | 'SUPER_ADMIN' = 'ADMIN') {
+  mockUseAuthStore.mockImplementation((selector: (s: { user: unknown }) => unknown) =>
+    selector({ user: { id: 'u1', name: 'مستخدم', role } }),
+  );
+}
 
 vi.mock('next/link', () => ({
   default: ({
@@ -46,6 +67,7 @@ vi.mock('next/link', () => ({
 describe('AdminSidebar', () => {
   beforeEach(() => {
     mockUsePathname.mockReturnValue('/admin/dashboard');
+    mockActor('ADMIN');
   });
 
   // ── Renders all nav links ──────────────────────────────────────────
@@ -211,5 +233,56 @@ describe('AdminSidebar', () => {
     // Now there should be 2 navs total: desktop (always) + drawer (open).
     const navs = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' });
     expect(navs).toHaveLength(2);
+  });
+
+  // ── Gap #20 (admin permission tiers): MODERATOR link filtering ──────
+
+  describe('MODERATOR tier — only sees ads and reports', () => {
+    beforeEach(() => {
+      mockActor('MODERATOR');
+    });
+
+    it('shows only الرئيسية-free ads/reports links, hiding every ADMIN+ link', () => {
+      render(<AdminSidebar />);
+      const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
+
+      expect(within(desktopNav).getByText('الإعلانات')).toBeInTheDocument();
+      expect(within(desktopNav).getByText('البلاغات')).toBeInTheDocument();
+
+      expect(within(desktopNav).queryByText('الرئيسية')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('المستخدمون')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('البائعون')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('المتاجر')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('فئات الإعلانات')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('فئات الخدمات')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('فئات المنتجات')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('سجل العمليات')).not.toBeInTheDocument();
+      expect(within(desktopNav).queryByText('التحليلات')).not.toBeInTheDocument();
+    });
+
+    it('renders only 2 icons for a MODERATOR (one per visible link)', () => {
+      const { container } = render(<AdminSidebar />);
+      const desktopAside = container.querySelector('aside');
+      const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
+      expect(hiddenIcons?.length).toBe(2);
+    });
+  });
+
+  describe('ADMIN and SUPER_ADMIN tiers — see every link (unchanged from pre-Gap-20 behavior)', () => {
+    it('an ADMIN actor sees all 11 links', () => {
+      mockActor('ADMIN');
+      render(<AdminSidebar />);
+      const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
+      expect(within(desktopNav).getByText('المستخدمون')).toBeInTheDocument();
+      expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
+    });
+
+    it('a SUPER_ADMIN actor sees all 11 links', () => {
+      mockActor('SUPER_ADMIN');
+      render(<AdminSidebar />);
+      const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
+      expect(within(desktopNav).getByText('المستخدمون')).toBeInTheDocument();
+      expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
+    });
   });
 });

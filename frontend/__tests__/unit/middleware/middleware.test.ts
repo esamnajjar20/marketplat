@@ -239,6 +239,38 @@ describe('middleware — admin routes', () => {
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
+
+  // Gap #20 (admin permission tiers)
+  it('allows /admin with MODERATOR role — admin-tier gate now accepts MODERATOR', () => {
+    const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'MODERATOR' });
+    const res = middleware(req);
+    expect(res.status).toBe(200);
+  });
+
+  it('allows /admin with SUPER_ADMIN role', () => {
+    const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'SUPER_ADMIN' });
+    const res = middleware(req);
+    expect(res.status).toBe(200);
+  });
+});
+
+// ── Gap #20: token role vs cookie role agreement (admin-tier) ─────
+
+describe('middleware — Gap #20 admin-tier token/cookie agreement', () => {
+  it('rejects a MODERATOR cookie paired with a token carrying role USER', () => {
+    const token = makeJwt({ sub: 'u1', exp: futureExp(), role: 'USER' });
+    const req = makeRequest('/admin', { token, role: 'MODERATOR' });
+    const res = middleware(req);
+    expect(res.status).toBe(307);
+    expect(res.headers.get('Location')).toContain('/dashboard');
+  });
+
+  it('allows a SUPER_ADMIN cookie paired with a token carrying role SUPER_ADMIN', () => {
+    const token = makeJwt({ sub: 'u1', exp: futureExp(), role: 'SUPER_ADMIN' });
+    const req = makeRequest('/admin', { token, role: 'SUPER_ADMIN' });
+    const res = middleware(req);
+    expect(res.status).toBe(200);
+  });
 });
 
 // ── SEC-05: Role cookie validation ────────────────────────────────

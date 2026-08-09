@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { reportsController } from './reports.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
-import { requireAdmin } from '../../middlewares/admin.middleware';
+import { requireMinRole } from '../../middlewares/admin.middleware';
+import { ROLES } from '../../shared/constants/roles';
 import { reportRateLimit } from '../../middlewares/rateLimit.middleware';
 
 export const reportsRouter = Router();
@@ -28,11 +29,11 @@ reportsRouter.post(
 // getReportById (admin-gated) instead of here.
 reportsRouter.get('/me', authenticate, reportsController.getMyReports);
 
-reportsRouter.get('/', authenticate, requireAdmin, reportsController.getReports);
-reportsRouter.get('/:id', authenticate, requireAdmin, reportsController.getReportById);
+reportsRouter.get('/', authenticate, requireMinRole(ROLES.MODERATOR), reportsController.getReports);
+reportsRouter.get('/:id', authenticate, requireMinRole(ROLES.MODERATOR), reportsController.getReportById);
 reportsRouter.patch(
   '/:id/status',
   authenticate,
-  requireAdmin,
+  requireMinRole(ROLES.MODERATOR),
   reportsController.updateReportStatus
 );

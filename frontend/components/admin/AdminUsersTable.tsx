@@ -2,16 +2,60 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldOff, ShieldCheck, Crown, UserMinus, AlertTriangle } from 'lucide-react';
+import { ShieldOff, ShieldCheck, ChevronDown, AlertTriangle, Crown, ShieldAlert, User as UserIcon } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Input }        from '@/components/shared/ui/Input';
 import { Pagination }   from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/shared/ui/DropdownMenu';
 import { useAdminUsers }  from '@/hooks/queries/useAdmin';
 import { useAdminToggleUserActive, useAdminChangeRole } from '@/hooks/mutations/useAdminMutations';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import { formatDate }     from '@/lib/formatters';
+import type { AdminUser, AssignableRole } from '@/types/admin.types';
+import type { UserRole } from '@/types/auth.types';
+
+// Gap #20 (admin permission tiers): frontend mirror of the backend's
+// single source of truth (roleHierarchy.ts's canManageRole). This is
+// UI convenience only — hiding/disabling options a request would be
+// rejected for anyway — the backend re-checks the exact same rule for
+// real on every request, so a mismatch here can only ever be overly
+// strict, never a security hole.
+const ROLE_RANK: Record<UserRole, number> = { USER: 0, MODERATOR: 1, ADMIN: 2, SUPER_ADMIN: 3 };
+
+function canManageRole(actorRole: UserRole, targetCurrentRole: UserRole, targetNewRole: UserRole): boolean {
+  const actorRank = ROLE_RANK[actorRole];
+  if (actorRank < ROLE_RANK.ADMIN) return false;
+  return ROLE_RANK[targetCurrentRole] < actorRank && ROLE_RANK[targetNewRole] < actorRank;
+}
+
+const ROLE_BADGE: Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }> = {
+  USER:        { label: 'مستخدم',        variant: 'secondary' },
+  MODERATOR:   { label: 'مشرف مساعد',    variant: 'outline', className: 'border-primary text-primary' },
+  ADMIN:       { label: 'مدير',          variant: 'default' },
+  SUPER_ADMIN: { label: 'مدير أعلى',     variant: 'default', className: 'bg-warning text-warning-foreground hover:bg-warning/80' },
+};
+
+const ROLE_ICON: Record<AssignableRole, typeof UserIcon> = {
+  USER: UserIcon,
+  MODERATOR: ShieldAlert,
+  ADMIN: Crown,
+};
+
+// Every role an admin-tier actor could conceivably assign — narrowed
+// per-row against the actor's own rank below. SUPER_ADMIN is not in
+// this list at all: it's never assignable through this endpoint, for
+// anyone (see AssignableRole's own doc comment).
+const ASSIGNABLE_ROLES: AssignableRole[] = ['USER', 'MODERATOR', 'ADMIN'];
 
 export function AdminUsersTable() {
   const sp     = useSearchParams();
@@ -33,6 +77,8 @@ export function AdminUsersTable() {
   const { data, isLoading, isError, refetch } = useAdminUsers({ page, q: q || undefined });
   const changeUserStatus = useAdminToggleUserActive();
   const changeRole       = useAdminChangeRole();
+  const currentUser      = useAuthStore(selectUser);
+  const actorRole: UserRole = (currentUser?.role as UserRole) ?? 'USER';
 
   // FIX UX-11: neither mutation disabled its own trigger button while
   // in flight — a fast double-click (or a slow network) could fire
@@ -46,7 +92,7 @@ export function AdminUsersTable() {
   // admin access), so unlike the active/inactive toggle this goes
   // through an explicit confirmation step rather than firing on a
   // single click.
-  const [roleTarget, setRoleTarget] = useState<{ id: string; nextRole: 'USER' | 'ADMIN'; name: string } | null>(null);
+  const [roleTarget, setRoleTarget] = useState<{ id: string; currentRole: UserRole; nextRole: AssignableRole; name: string } | null>(null);
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -56,6 +102,33 @@ export function AdminUsersTable() {
     if (value) params.set('q', value); else params.delete('q');
     params.delete('page');
     router.push(`/admin/users?${params.toString()}`);
+  }
+
+  function roleChangeCopy(nextRole: AssignableRole) {
+    switch (nextRole) {
+      case 'ADMIN':
+        return {
+          title: 'ترقية إلى مدير؟',
+          description: (name: string) => `سيحصل "${name}" على صلاحيات كاملة للوحة الإدارة، بما فيها إدارة المستخدمين والإعلانات والبائعين والمتاجر.`,
+          confirmLabel: 'ترقية',
+          destructive: false,
+        };
+      case 'MODERATOR':
+        return {
+          title: 'تعيين كمشرف مساعد؟',
+          description: (name: string) => `سيتمكن "${name}" من إدارة الإعلانات والبلاغات فقط — لن يصل إلى المستخدمين أو الإعدادات الأخرى.`,
+          confirmLabel: 'تعيين',
+          destructive: false,
+        };
+      case 'USER':
+      default:
+        return {
+          title: 'التنزيل إلى مستخدم عادي؟',
+          description: (name: string) => `سيفقد "${name}" كل صلاحيات الإدارة فوراً، وسيتم إنهاء جميع جلساته الحالية.`,
+          confirmLabel: 'تنزيل',
+          destructive: true,
+        };
+    }
   }
 
   return (
@@ -92,31 +165,30 @@ export function AdminUsersTable() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {items.map((user) => {
+              {items.map((user: AdminUser) => {
+                const userRole = user.role as UserRole;
+                const badge = ROLE_BADGE[userRole];
+                // Gap #20: SUPER_ADMIN's role/status can never be
+                // touched through this table — canManageRole rejects
+                // it for every actor, including another SUPER_ADMIN
+                // (break-glass, DB-only). Disable both action buttons
+                // outright rather than showing controls that would
+                // always 403.
+                const isTargetSuperAdmin = userRole === 'SUPER_ADMIN';
+                const canManageStatus = !isTargetSuperAdmin && canManageRole(actorRole, userRole, userRole);
+                const canManageAnyRole = !isTargetSuperAdmin && ASSIGNABLE_ROLES.some(
+                  (r) => r !== userRole && canManageRole(actorRole, userRole, r),
+                );
+
                 return (
                   <tr key={user.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-3">
-                      {/* FIX TYPE-ERROR-01: this row previously read
-                          user.avatarUrl and rendered it via next/image
-                          — but AdminUser (types/admin.types.ts) does
-                          not have that field, matching what
-                          adminService.getAllUsers actually selects
-                          (id, name, email, phone, role, city, isActive,
-                          createdAt, _count only) — a genuine TypeScript
-                          type error that transpileModule-only syntax
-                          checks never caught, since it never runs full
-                          type-checking. Safe at runtime (avatarUrl was
-                          simply undefined, and getAvatarUrl('') already
-                          falls back to a placeholder), but still wrong
-                          — removed the avatar image entirely rather
-                          than adding a field the backend deliberately
-                          does not expose here. */}
                       <span className="font-medium">{user.name}</span>
                     </td>
                     <td className="p-3 hidden md:table-cell text-muted-foreground">{user.email}</td>
                     <td className="p-3">
-                      <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'} className="text-xs">
-                        {user.role === 'ADMIN' ? 'مشرف' : 'مستخدم'}
+                      <Badge variant={badge.variant} className={`text-xs ${badge.className ?? ''}`}>
+                        {badge.label}
                       </Badge>
                     </td>
                     <td className="p-3 hidden sm:table-cell">
@@ -133,32 +205,69 @@ export function AdminUsersTable() {
                             title for the visual tooltip, added
                             aria-label as the actual accessible name. */}
                         <Button variant="ghost" size="icon" className="h-9 w-9"
-                          title={user.isActive ? 'إيقاف' : 'تفعيل'}
+                          title={
+                            isTargetSuperAdmin
+                              ? 'لا يمكن تعديل حساب مدير أعلى'
+                              : !canManageStatus
+                                ? 'لا تملك صلاحية تعديل هذا الحساب'
+                                : (user.isActive ? 'إيقاف' : 'تفعيل')
+                          }
                           aria-label={user.isActive ? `إيقاف ${user.name}` : `تفعيل ${user.name}`}
-                          disabled={user.role === 'ADMIN' || pendingStatusUserId === user.id}
+                          disabled={!canManageStatus || pendingStatusUserId === user.id}
                           onClick={() => changeUserStatus.mutate({ userId: user.id, isActive: !user.isActive })}>
                           {user.isActive
                             ? <ShieldOff className="h-3.5 w-3.5 text-destructive" />
                             : <ShieldCheck className="h-3.5 w-3.5 text-success" />}
                         </Button>
-                        {/* FIX AUDIT-V3-05: promote/demote role action */}
-                        <Button variant="ghost" size="icon" className="h-9 w-9"
-                          title={user.role === 'ADMIN' ? 'تنزيل إلى مستخدم' : 'ترقية إلى مدير'}
-                          aria-label={
-                            user.role === 'ADMIN'
-                              ? `تنزيل ${user.name} إلى مستخدم`
-                              : `ترقية ${user.name} إلى مدير`
-                          }
-                          disabled={pendingRoleUserId === user.id}
-                          onClick={() => setRoleTarget({
-                            id: user.id,
-                            nextRole: user.role === 'ADMIN' ? 'USER' : 'ADMIN',
-                            name: user.name,
-                          })}>
-                          {user.role === 'ADMIN'
-                            ? <UserMinus className="h-3.5 w-3.5 text-muted-foreground" />
-                            : <Crown className="h-3.5 w-3.5 text-warning" />}
-                        </Button>
+
+                        {/* FIX AUDIT-V3-05 / Gap #20: role menu — replaces
+                            the old two-way USER<->ADMIN toggle now that
+                            there are four ranked roles. Each option is
+                            individually enabled/disabled based on
+                            canManageRole, mirroring the backend's own
+                            per-request check exactly. */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-9 gap-1 px-2"
+                              title={
+                                isTargetSuperAdmin
+                                  ? 'لا يمكن تعديل دور مدير أعلى'
+                                  : !canManageAnyRole
+                                    ? 'لا تملك صلاحية تغيير هذا الدور'
+                                    : 'تغيير الدور'
+                              }
+                              aria-label={`تغيير دور ${user.name}`}
+                              disabled={!canManageAnyRole || pendingRoleUserId === user.id}>
+                              <span className="sr-only sm:not-sr-only sm:text-xs">تغيير الدور</span>
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">تعيين كـ</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {ASSIGNABLE_ROLES.map((candidateRole) => {
+                              const Icon = ROLE_ICON[candidateRole];
+                              const isCurrent = candidateRole === userRole;
+                              const allowed = !isCurrent && canManageRole(actorRole, userRole, candidateRole);
+                              return (
+                                <DropdownMenuItem
+                                  key={candidateRole}
+                                  disabled={isCurrent || !allowed}
+                                  onSelect={() => setRoleTarget({
+                                    id: user.id,
+                                    currentRole: userRole,
+                                    nextRole: candidateRole,
+                                    name: user.name,
+                                  })}
+                                >
+                                  <Icon className="h-3.5 w-3.5 me-2" />
+                                  {ROLE_BADGE[candidateRole].label}
+                                  {isCurrent && <span className="text-xs text-muted-foreground ms-auto">(الحالي)</span>}
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>
@@ -180,14 +289,10 @@ export function AdminUsersTable() {
       <ConfirmDialog
         open={roleTarget !== null}
         onOpenChange={(open) => { if (!open) setRoleTarget(null); }}
-        title={roleTarget?.nextRole === 'ADMIN' ? 'ترقية إلى مدير؟' : 'تنزيل إلى مستخدم عادي؟'}
-        description={
-          roleTarget?.nextRole === 'ADMIN'
-            ? `سيحصل "${roleTarget?.name}" على صلاحيات كاملة للوحة الإدارة، بما فيها إدارة المستخدمين والإعلانات.`
-            : `سيفقد "${roleTarget?.name}" كل صلاحيات الإدارة فوراً، وسيتم إنهاء جميع جلساته الحالية.`
-        }
-        confirmLabel={roleTarget?.nextRole === 'ADMIN' ? 'ترقية' : 'تنزيل'}
-        destructive={roleTarget?.nextRole === 'USER'}
+        title={roleTarget ? roleChangeCopy(roleTarget.nextRole).title : ''}
+        description={roleTarget ? roleChangeCopy(roleTarget.nextRole).description(roleTarget.name) : ''}
+        confirmLabel={roleTarget ? roleChangeCopy(roleTarget.nextRole).confirmLabel : 'تأكيد'}
+        destructive={roleTarget ? roleChangeCopy(roleTarget.nextRole).destructive : false}
         isPending={changeRole.isPending}
         onConfirm={() => {
           if (!roleTarget) return;

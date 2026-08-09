@@ -94,9 +94,17 @@ describe('admin.validation — additional coverage', () => {
   });
 
   describe('changeRoleSchema', () => {
-    it('accepts USER and ADMIN as valid roles', () => {
+    it('accepts USER, MODERATOR and ADMIN as valid roles', () => {
       expect(() => changeRoleSchema.parse({ body: { role: 'USER' } })).not.toThrow();
+      expect(() => changeRoleSchema.parse({ body: { role: 'MODERATOR' } })).not.toThrow();
       expect(() => changeRoleSchema.parse({ body: { role: 'ADMIN' } })).not.toThrow();
+    });
+
+    // Gap #20: SUPER_ADMIN is a real Prisma Role value but is
+    // deliberately excluded from the assignable set — granting it is
+    // break-glass/DB-only, never through this endpoint.
+    it('rejects SUPER_ADMIN even though it is a valid Role enum value', () => {
+      expect(() => changeRoleSchema.parse({ body: { role: 'SUPER_ADMIN' } })).toThrow();
     });
 
     it('rejects an unrecognized role', () => {

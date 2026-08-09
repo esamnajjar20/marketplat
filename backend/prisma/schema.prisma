@@ -918,9 +918,21 @@ enum ActivityEntityType {
   APPOINTMENT
 }
 
+// Gap #20 (admin permission tiers): MODERATOR/ADMIN/SUPER_ADMIN form a
+// strict hierarchy — see shared/constants/roles.ts's ROLE_RANK for the
+// numeric ranking every permission/role-management check is built on.
+// MODERATOR: reports/fraud/ads moderation only. ADMIN: everything a
+// MODERATOR can do, plus sellers/stores/categories/users/broadcast/
+// audit-logs/analytics, plus promoting/demoting USER<->MODERATOR. Only
+// SUPER_ADMIN can grant or revoke admin-tier roles (MODERATOR/ADMIN/
+// SUPER_ADMIN) — see admin.service.ts's changeRole. SUPER_ADMIN itself
+// is never assignable through this endpoint; see changeRole's own
+// comment for why.
 enum Role {
   USER
+  MODERATOR
   ADMIN
+  SUPER_ADMIN
 }
 
 enum AdStatus {

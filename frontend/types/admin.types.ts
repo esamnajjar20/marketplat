@@ -23,7 +23,8 @@ export interface AdminUser {
   name:      string;
   email:     string;
   phone:     string | null;
-  role:      'USER' | 'ADMIN';
+  // Gap #20 (admin permission tiers): MODERATOR/SUPER_ADMIN added.
+  role:      'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN';
   city:      string | null;
   isActive:  boolean;
   createdAt: string;
@@ -58,6 +59,13 @@ export interface AdminGetUsersParams extends PaginationParams {
 export interface SetFeaturedPayload  { isFeatured: boolean; }
 export interface SetPinnedPayload    { isPinned:   boolean; }
 export interface ToggleActivePayload { isActive:   boolean; }
+
+// Gap #20 (admin permission tiers): mirrors the backend's
+// assignableRoleSchema (admin.validation.ts) — SUPER_ADMIN is
+// deliberately excluded, it can only ever be granted directly in the
+// database, never through this endpoint.
+export type AssignableRole = 'USER' | 'MODERATOR' | 'ADMIN';
+export interface ChangeRolePayload { role: AssignableRole; }
 
 // ── Report types ──────────────────────────────────────────────────
 

@@ -227,6 +227,13 @@ describe('adminApi', () => {
     expect(apiClient.patch).toHaveBeenCalledWith('/admin/users/user-1/role', { role: 'ADMIN' });
   });
 
+  // Gap #20 (admin permission tiers): MODERATOR added as a valid
+  // AssignableRole alongside USER/ADMIN.
+  it('changeRole accepts MODERATOR as a valid role (Gap #20)', async () => {
+    await adminApi.changeRole('user-1', 'MODERATOR');
+    expect(apiClient.patch).toHaveBeenCalledWith('/admin/users/user-1/role', { role: 'MODERATOR' });
+  });
+
   it('getReports → GET /reports (NOT /admin/reports)', async () => {
     await adminApi.getReports({ status: 'PENDING' as any });
     expect(apiClient.get).toHaveBeenCalledWith('/reports', { params: { status: 'PENDING' } });

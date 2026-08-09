@@ -221,7 +221,22 @@ describe('useAdminChangeRole (FIX AUDIT-V3-05)', () => {
     expect(duringFlight.items[0].role).toBe('ADMIN');
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(toast.success).toHaveBeenCalledWith('تم ترقية المستخدم إلى مدير');
+    expect(toast.success).toHaveBeenCalledWith('تم تغيير الدور إلى مدير');
+  });
+
+  // Gap #20 (admin permission tiers): MODERATOR is a new assignable
+  // role added alongside USER/ADMIN — this pins the toast label for it
+  // specifically, since it's not covered by the ADMIN/USER cases above.
+  it('shows the correct toast label when promoting to MODERATOR (Gap #20)', async () => {
+    const queryClient = makeClient();
+    seedUsersList(queryClient);
+    (adminApi.changeRole as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
+
+    const { result } = renderHook(() => useAdminChangeRole(), { wrapper: createWrapper(queryClient) });
+    act(() => { result.current.mutate({ userId: 'user-1', role: 'MODERATOR' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(toast.success).toHaveBeenCalledWith('تم تغيير الدور إلى مشرف مساعد');
   });
 
   it('rolls back the role on failure (e.g. the backend\'s last-admin guard rejecting it)', async () => {
@@ -249,7 +264,7 @@ describe('useAdminChangeRole (FIX AUDIT-V3-05)', () => {
     act(() => { result.current.mutate({ userId: 'user-1', role: 'USER' }); });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(toast.success).toHaveBeenCalledWith('تم تنزيل المستخدم إلى مستخدم عادي');
+    expect(toast.success).toHaveBeenCalledWith('تم تغيير الدور إلى مستخدم عادي');
   });
 });
 

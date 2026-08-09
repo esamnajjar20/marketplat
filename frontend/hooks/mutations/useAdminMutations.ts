@@ -29,7 +29,7 @@ import { adminApi }      from '@/api/admin.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
-import type { ReportStatus } from '@/types/admin.types';
+import type { ReportStatus, AssignableRole } from '@/types/admin.types';
 
 /**
  * Shared shape for "toggle one boolean field on an ad in the admin list,
@@ -185,15 +185,25 @@ export function useAdminSetSellerSuspended() {
   });
 }
 
+const ROLE_LABELS_AR: Record<AssignableRole, string> = {
+  USER: 'مستخدم عادي',
+  MODERATOR: 'مشرف مساعد',
+  ADMIN: 'مدير',
+};
+
 /**
- * FIX AUDIT-V3-05: previously there was no way for an admin to
- * promote/demote a user's role from the UI at all — only direct DB
- * access. Mirrors useAdminToggleUserActive's optimistic update.
+ * FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): previously there
+ * was no way for an admin to promote/demote a user's role from the UI
+ * at all — only direct DB access. Now covers all four backend roles
+ * (USER/MODERATOR/ADMIN/SUPER_ADMIN), though only USER/MODERATOR/ADMIN
+ * are ever sent as the *new* role here — SUPER_ADMIN is deliberately
+ * unreachable through this endpoint (see AssignableRole). Mirrors
+ * useAdminToggleUserActive's optimistic update.
  */
 export function useAdminChangeRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: 'USER' | 'ADMIN' }) =>
+    mutationFn: ({ userId, role }: { userId: string; role: AssignableRole }) =>
       adminApi.changeRole(userId, role).then((r) => r.data.data),
     onMutate: async ({ userId, role }) => {
       const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'users'] });
@@ -205,7 +215,7 @@ export function useAdminChangeRole() {
       return { snapshots };
     },
     onSuccess: (_data, { role }) =>
-      toast.success(role === 'ADMIN' ? 'تم ترقية المستخدم إلى مدير' : 'تم تنزيل المستخدم إلى مستخدم عادي'),
+      toast.success(`تم تغيير الدور إلى ${ROLE_LABELS_AR[role]}`),
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);

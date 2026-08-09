@@ -14,7 +14,7 @@
  *                        app_access_token — it survives a fresh page
  *                        load (new tab, reopened browser) even when the
  *                        short-lived access-token cookie has expired.
- *   app_user_role      — 'USER' | 'ADMIN', mirrors Zustand store
+ *   app_user_role      — 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN', mirrors Zustand store
  *
  * ⚠️  SECURITY NOTE — role cookie trust model:
  *   app_user_role is a non-HttpOnly, JS-writable cookie.
@@ -231,19 +231,31 @@ export function middleware(request: NextRequest) {
   const roleCookie  = request.cookies.get('app_user_role')?.value ?? null;
   // SEC-05 FIX: Only accept known role values. Any forged or unexpected value
   // is treated as non-admin. Prevents cookie pollution from unexpected strings.
-  const VALID_ROLES = ['USER', 'ADMIN'] as const;
+  // Gap #20 (admin permission tiers): MODERATOR/SUPER_ADMIN added.
+  const VALID_ROLES = ['USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN'] as const;
   const safeRole    = VALID_ROLES.includes(roleCookie as typeof VALID_ROLES[number])
     ? roleCookie
     : null;
   // SEC-05 hardening: app_user_role is a plain, JS-writable cookie — an
   // attacker can set it to "ADMIN" from the console regardless of who
   // they actually are. When the access token itself carries a role
-  // claim, it must agree with the cookie before ADMIN is trusted; a
-  // valid-but-non-admin token paired with a forged ADMIN cookie no
-  // longer passes. Tokens with no role claim (older tokens issued
-  // before the backend added it) keep the prior cookie-only behavior.
-  const tokenRole   = decoded?.role ?? null;
-  const isAdmin      = safeRole === 'ADMIN' && (tokenRole === null || tokenRole === 'ADMIN');
+  // claim, it must agree with the cookie before an admin-tier role is
+  // trusted; a valid-but-non-admin token paired with a forged
+  // admin-tier cookie no longer passes. Tokens with no role claim
+  // (older tokens issued before the backend added it) keep the prior
+  // cookie-only behavior.
+  const tokenRole    = decoded?.role ?? null;
+  // Gap #20: this gate now means "any admin-tier role" (MODERATOR and
+  // above) — it only decides whether /admin/* pages are allowed to
+  // load at all. Which specific pages/actions a MODERATOR can reach
+  // within /admin/* is narrowed client-side (AdminSidebar) and
+  // enforced for real by the backend (requireMinRole) — this
+  // middleware remains routing convenience only, not the security
+  // boundary (see the file-level note above).
+  const ADMIN_TIER_ROLES = ['MODERATOR', 'ADMIN', 'SUPER_ADMIN'] as const;
+  const isAdminTierRole  = (role: string | null): boolean =>
+    role !== null && (ADMIN_TIER_ROLES as readonly string[]).includes(role);
+  const isAdmin = isAdminTierRole(safeRole) && (tokenRole === null || isAdminTierRole(tokenRole));
 
   // 1. Redirect logged-in users away from auth pages.
   if (isAuthPage(pathname) && isLoggedIn) {

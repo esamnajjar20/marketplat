@@ -259,7 +259,7 @@ describe('adminController', () => {
       await adminController.toggleUserActive(req, res, next);
 
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'User activated' }));
-      expect(adminService.toggleUserActive).toHaveBeenCalledWith('user-1', true, adminUserId);
+      expect(adminService.toggleUserActive).toHaveBeenCalledWith('user-1', true, adminUserId, 'ADMIN');
     });
 
     it('returns 200 with a "deactivated" message when isActive is false', async () => {
@@ -310,7 +310,14 @@ describe('adminController', () => {
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: updated }));
-      expect(adminService.changeRole).toHaveBeenCalledWith('user-1', 'ADMIN', adminUserId);
+      expect(adminService.changeRole).toHaveBeenCalledWith(
+        'user-1',
+        'ADMIN',
+        adminUserId,
+        'ADMIN',
+        'unknown',
+        'unknown',
+      );
     });
 
     it('calls next(error) on an invalid role value', async () => {
@@ -348,6 +355,76 @@ describe('adminController', () => {
       await adminController.changeRole(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+    });
+
+    // Gap #20: passes the acting admin's own role through — the
+    // service layer's canManageRole check depends on it, not just the
+    // route-level requireMinRole gate.
+    it('passes the actor role from requireUser through to the service', async () => {
+      (requireUser as jest.Mock).mockReturnValue({ userId: 'super-1', role: 'SUPER_ADMIN' });
+      const req = mockRequest({ params: { id: 'user-1' }, body: { role: 'ADMIN' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (adminService.changeRole as jest.Mock).mockResolvedValue({ ...mockUser, role: 'ADMIN' });
+
+      await adminController.changeRole(req, res, next);
+
+      expect(adminService.changeRole).toHaveBeenCalledWith(
+        'user-1',
+        'ADMIN',
+        'super-1',
+        'SUPER_ADMIN',
+        'unknown',
+        'unknown',
+      );
+    });
+
+    it('forwards the request IP and user-agent to the service', async () => {
+      const req = mockRequest({
+        params: { id: 'user-1' },
+        body: { role: 'ADMIN' },
+        ip: '203.0.113.5',
+        headers: { 'user-agent': 'TestAgent/1.0' },
+      } as any);
+      const res = mockResponse();
+      const next = mockNext();
+      (adminService.changeRole as jest.Mock).mockResolvedValue({ ...mockUser, role: 'ADMIN' });
+
+      await adminController.changeRole(req, res, next);
+
+      expect(adminService.changeRole).toHaveBeenCalledWith(
+        'user-1',
+        'ADMIN',
+        adminUserId,
+        'ADMIN',
+        '203.0.113.5',
+        'TestAgent/1.0',
+      );
+    });
+
+    it('accepts MODERATOR as a valid assignable role', async () => {
+      const req = mockRequest({ params: { id: 'user-1' }, body: { role: 'MODERATOR' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (adminService.changeRole as jest.Mock).mockResolvedValue({ ...mockUser, role: 'MODERATOR' });
+
+      await adminController.changeRole(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(adminService.changeRole).not.toHaveBeenCalledWith(
+        expect.anything(), 'SUPERADMIN', expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      );
+    });
+
+    it('calls next(error) when role is SUPER_ADMIN (not assignable through this endpoint)', async () => {
+      const req = mockRequest({ params: { id: 'user-1' }, body: { role: 'SUPER_ADMIN' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await adminController.changeRole(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(adminService.changeRole).not.toHaveBeenCalled();
     });
   });
 });
