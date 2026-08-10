@@ -75,7 +75,11 @@ export function RegisterForm() {
     else if (password.length < 8) e.password = 'كلمة المرور 8 أحرف على الأقل';
     if (!confirmPassword)              e.confirmPassword = 'تأكيد كلمة المرور مطلوب';
     else if (confirmPassword !== password) e.confirmPassword = 'كلمتا المرور غير متطابقتين';
-    if (phone && !/^[0-9+]{9,15}$/.test(phone)) e.phone = 'رقم هاتف غير صالح';
+    // UX-03 FIX: was /^[0-9+]{9,15}$/ — allowed '+' anywhere/multiple times
+    // (e.g. "12+34567890"), which the backend's /^\+?[0-9]{9,15}$/
+    // (auth.validation.ts) rejects. Aligned so a value that passes here
+    // always passes server-side too, instead of surfacing as a late 400.
+    if (phone && !/^\+?[0-9]{9,15}$/.test(phone)) e.phone = 'رقم هاتف غير صالح';
     return e;
   }
 

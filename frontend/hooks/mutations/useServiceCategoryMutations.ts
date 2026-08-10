@@ -12,7 +12,7 @@ import { serviceCategoriesApi } from '@/api/service-categories.api';
 import { queryKeys }            from '@/lib/queryKeys';
 import { parseApiError }        from '@/lib/errorParser';
 import { toast }                from 'sonner';
-import type { CreateServiceCategoryPayload, UpdateServiceCategoryPayload } from '@/types/service.types';
+import type { CreateServiceCategoryPayload, UpdateServiceCategoryPayload, ServiceCategory } from '@/types/service.types';
 
 /**
  * A create/update/delete here affects both the admin-only tree (this
@@ -83,11 +83,15 @@ export function useToggleServiceCategoryActive() {
       serviceCategoriesApi.update(id, { isActive }).then((r) => r.data.data),
     onMutate: async ({ id, isActive }) => {
       const key = queryKeys.serviceCategories.adminAll();
-      const snapshot = queryClient.getQueryData(key);
-      queryClient.setQueryData(key, (old: any) => {
+      const snapshot = queryClient.getQueryData<ServiceCategory[]>(key);
+      queryClient.setQueryData<ServiceCategory[]>(key, (old) => {
         if (!old) return old;
-        const patchOne = (c: any) => (c.id === id ? { ...c, isActive } : c);
-        return old.map((c: any) => ({ ...patchOne(c), children: c.children?.map(patchOne) }));
+        const patchOne = (c: ServiceCategory): ServiceCategory =>
+          c.id === id ? { ...c, isActive } : c;
+        return old.map((c) => ({
+          ...patchOne(c),
+          children: c.children?.map(patchOne),
+        }));
       });
       await queryClient.cancelQueries({ queryKey: key });
       return { snapshot };

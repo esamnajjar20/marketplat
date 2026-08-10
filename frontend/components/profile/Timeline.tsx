@@ -165,12 +165,14 @@ export function Timeline() {
       </div>
 
       <div className="relative">
-        <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {/* RTL-01 FIX: start-3/ps-9 (logical) instead of right-3/pr-9
+            (physical), matching SearchInput/StoresFilters/PriceInput etc. */}
+        <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={q}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="ابحث في نشاطك..."
-          className="pr-9"
+          className="ps-9"
           aria-label="بحث في النشاط"
         />
       </div>

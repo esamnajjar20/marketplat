@@ -7,7 +7,8 @@ import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
-import type { CreateProductPayload, UpdateProductPayload } from '@/types/product.types';
+import type { CreateProductPayload, UpdateProductPayload, Product } from '@/types/product.types';
+import type { PaginatedResponse } from '@/types/api.types';
 
 /**
  * Accepts an optional onUploadProgress callback, same pattern as
@@ -128,11 +129,20 @@ export function useToggleProductStatus() {
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'PAUSED' }) =>
       productsApi.update(id, { status }).then((r) => r.data.data),
     onMutate: async ({ id, status }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: queryKeys.products.all() });
-      queryClient.setQueriesData({ queryKey: queryKeys.products.all() }, (old: any) => {
-        if (!old?.items) return old;
-        return { ...old, items: old.items.map((p: any) => (p.id === id ? { ...p, status } : p)) };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<Product>>({
+        queryKey: queryKeys.products.all(),
       });
+      // setQueriesData targets a prefix key that can match several distinct
+      // cache shapes (.list()/.mine()/.detail()); PaginatedResponse<Product>
+      // covers the list shapes this toggle actually touches; other matched
+      // shapes are left untouched via the `old?.items` guard below.
+      queryClient.setQueriesData<PaginatedResponse<Product>>(
+        { queryKey: queryKeys.products.all() },
+        (old) => {
+          if (!old?.items) return old;
+          return { ...old, items: old.items.map((p) => (p.id === id ? { ...p, status } : p)) };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: queryKeys.products.all() });
       return { snapshots };
     },

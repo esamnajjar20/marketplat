@@ -10,7 +10,9 @@ import { ROUTES } from '@/lib/constants';
 import type {
   CreateServiceListingPayload,
   UpdateServiceListingPayload,
+  ServiceListing,
 } from '@/types/service.types';
+import type { PaginatedResponse } from '@/types/api.types';
 
 /**
  * UX-FIX P3-10b: accepts an optional onUploadProgress callback, same
@@ -140,11 +142,16 @@ export function useToggleServiceListingStatus() {
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'PAUSED' }) =>
       serviceListingsApi.update(id, { status }).then((r) => r.data.data),
     onMutate: async ({ id, status }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: queryKeys.serviceListings.all() });
-      queryClient.setQueriesData({ queryKey: queryKeys.serviceListings.all() }, (old: any) => {
-        if (!old?.items) return old;
-        return { ...old, items: old.items.map((l: any) => (l.id === id ? { ...l, status } : l)) };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<ServiceListing>>({
+        queryKey: queryKeys.serviceListings.all(),
       });
+      queryClient.setQueriesData<PaginatedResponse<ServiceListing>>(
+        { queryKey: queryKeys.serviceListings.all() },
+        (old) => {
+          if (!old?.items) return old;
+          return { ...old, items: old.items.map((l) => (l.id === id ? { ...l, status } : l)) };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.all() });
       return { snapshots };
     },

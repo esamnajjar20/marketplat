@@ -14,7 +14,7 @@ import { productCategoriesApi } from '@/api/product-categories.api';
 import { queryKeys }            from '@/lib/queryKeys';
 import { parseApiError }        from '@/lib/errorParser';
 import { toast }                from 'sonner';
-import type { CreateProductCategoryPayload, UpdateProductCategoryPayload } from '@/types/product.types';
+import type { CreateProductCategoryPayload, UpdateProductCategoryPayload, ProductCategory } from '@/types/product.types';
 
 /**
  * A create/update/delete here affects both the admin-only tree (this
@@ -86,11 +86,15 @@ export function useToggleProductCategoryActive() {
       productCategoriesApi.update(id, { isActive }).then((r) => r.data.data),
     onMutate: async ({ id, isActive }) => {
       const key = queryKeys.productCategories.adminAll();
-      const snapshot = queryClient.getQueryData(key);
-      queryClient.setQueryData(key, (old: any) => {
+      const snapshot = queryClient.getQueryData<ProductCategory[]>(key);
+      queryClient.setQueryData<ProductCategory[]>(key, (old) => {
         if (!old) return old;
-        const patchOne = (c: any) => (c.id === id ? { ...c, isActive } : c);
-        return old.map((c: any) => ({ ...patchOne(c), children: c.children?.map(patchOne) }));
+        const patchOne = (c: ProductCategory): ProductCategory =>
+          c.id === id ? { ...c, isActive } : c;
+        return old.map((c) => ({
+          ...patchOne(c),
+          children: c.children?.map(patchOne),
+        }));
       });
       await queryClient.cancelQueries({ queryKey: key });
       return { snapshot };

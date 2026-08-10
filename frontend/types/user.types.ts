@@ -12,7 +12,7 @@
 // object's `.role` would silently miss MODERATOR/SUPER_ADMIN. Re-
 // exporting from auth.types.ts makes it a single source of truth
 // instead of two definitions that can drift again.
-export type { UserRole } from './auth.types';
+import type { UserRole } from './auth.types';
 
 /** Full user — returned by GET /users/me */
 /** FIX FEAT-02: matches NotificationSettingsForm.tsx's SETTINGS keys

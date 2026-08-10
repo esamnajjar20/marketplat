@@ -29,7 +29,8 @@ import { adminApi }      from '@/api/admin.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
-import type { ReportStatus, AssignableRole } from '@/types/admin.types';
+import type { ReportStatus, AssignableRole, AdminAd, AdminUser, AdminSeller, AdminStore } from '@/types/admin.types';
+import type { PaginatedResponse } from '@/types/api.types';
 
 /**
  * FIX P1-7: every admin moderation toggle below fires immediately and
@@ -64,11 +65,16 @@ function useToggleAdField(
     mutationFn: ({ adId, value }: { adId: string; value: boolean }) =>
       setField(adId, value),
     onMutate: async ({ adId, value }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'ads'] });
-      queryClient.setQueriesData({ queryKey: ['admin', 'ads'] }, (old: any) => {
-        if (!old?.items) return old;
-        return { ...old, items: old.items.map((ad: any) => ad.id === adId ? { ...ad, [field]: value } : ad) };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminAd>>({
+        queryKey: ['admin', 'ads'],
       });
+      queryClient.setQueriesData<PaginatedResponse<AdminAd>>(
+        { queryKey: ['admin', 'ads'] },
+        (old) => {
+          if (!old?.items) return old;
+          return { ...old, items: old.items.map((ad) => ad.id === adId ? { ...ad, [field]: value } : ad) };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: ['admin', 'ads'] });
       return { snapshots };
     },
@@ -125,11 +131,16 @@ export function useAdminToggleUserActive() {
     mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
       adminApi.toggleUserActive(userId, { isActive }).then((r) => r.data.data),
     onMutate: async ({ userId, isActive }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'users'] });
-      queryClient.setQueriesData({ queryKey: ['admin', 'users'] }, (old: any) => {
-        if (!old?.items) return old;
-        return { ...old, items: old.items.map((u: any) => u.id === userId ? { ...u, isActive } : u) };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminUser>>({
+        queryKey: ['admin', 'users'],
       });
+      queryClient.setQueriesData<PaginatedResponse<AdminUser>>(
+        { queryKey: ['admin', 'users'] },
+        (old) => {
+          if (!old?.items) return old;
+          return { ...old, items: old.items.map((u) => u.id === userId ? { ...u, isActive } : u) };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
       return { snapshots };
     },
@@ -165,14 +176,19 @@ export function useAdminSetSellerVerified() {
     mutationFn: ({ sellerProfileId, verified }: { sellerProfileId: string; verified: boolean }) =>
       adminApi.setSellerVerified(sellerProfileId, { verified }).then((r) => r.data.data),
     onMutate: async ({ sellerProfileId, verified }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'sellers'] });
-      queryClient.setQueriesData({ queryKey: ['admin', 'sellers'] }, (old: any) => {
-        if (!old?.items) return old;
-        return {
-          ...old,
-          items: old.items.map((s: any) => (s.id === sellerProfileId ? { ...s, verified } : s)),
-        };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminSeller>>({
+        queryKey: ['admin', 'sellers'],
       });
+      queryClient.setQueriesData<PaginatedResponse<AdminSeller>>(
+        { queryKey: ['admin', 'sellers'] },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((s) => (s.id === sellerProfileId ? { ...s, verified } : s)),
+          };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
       return { snapshots };
     },
@@ -205,14 +221,19 @@ export function useAdminSetSellerSuspended() {
     mutationFn: ({ sellerProfileId, suspended }: { sellerProfileId: string; suspended: boolean }) =>
       adminApi.setSellerSuspended(sellerProfileId, { suspended }).then((r) => r.data.data),
     onMutate: async ({ sellerProfileId, suspended }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'sellers'] });
-      queryClient.setQueriesData({ queryKey: ['admin', 'sellers'] }, (old: any) => {
-        if (!old?.items) return old;
-        return {
-          ...old,
-          items: old.items.map((s: any) => (s.id === sellerProfileId ? { ...s, suspended } : s)),
-        };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminSeller>>({
+        queryKey: ['admin', 'sellers'],
       });
+      queryClient.setQueriesData<PaginatedResponse<AdminSeller>>(
+        { queryKey: ['admin', 'sellers'] },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((s) => (s.id === sellerProfileId ? { ...s, suspended } : s)),
+          };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
       return { snapshots };
     },
@@ -251,11 +272,16 @@ export function useAdminChangeRole() {
     mutationFn: ({ userId, role }: { userId: string; role: AssignableRole }) =>
       adminApi.changeRole(userId, role).then((r) => r.data.data),
     onMutate: async ({ userId, role }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'users'] });
-      queryClient.setQueriesData({ queryKey: ['admin', 'users'] }, (old: any) => {
-        if (!old?.items) return old;
-        return { ...old, items: old.items.map((u: any) => u.id === userId ? { ...u, role } : u) };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminUser>>({
+        queryKey: ['admin', 'users'],
       });
+      queryClient.setQueriesData<PaginatedResponse<AdminUser>>(
+        { queryKey: ['admin', 'users'] },
+        (old) => {
+          if (!old?.items) return old;
+          return { ...old, items: old.items.map((u) => u.id === userId ? { ...u, role } : u) };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
       return { snapshots };
     },
@@ -282,14 +308,19 @@ export function useAdminUpdateStoreStatus() {
     mutationFn: ({ storeId, status }: { storeId: string; status: 'PENDING' | 'ACTIVE' | 'BLOCKED' }) =>
       adminApi.updateStoreStatus(storeId, { status }).then((r) => r.data.data),
     onMutate: async ({ storeId, status }) => {
-      const snapshots = queryClient.getQueriesData({ queryKey: ['admin', 'stores'] });
-      queryClient.setQueriesData({ queryKey: ['admin', 'stores'] }, (old: any) => {
-        if (!old?.items) return old;
-        return {
-          ...old,
-          items: old.items.map((s: any) => (s.id === storeId ? { ...s, status } : s)),
-        };
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
+        queryKey: ['admin', 'stores'],
       });
+      queryClient.setQueriesData<PaginatedResponse<AdminStore>>(
+        { queryKey: ['admin', 'stores'] },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((s) => (s.id === storeId ? { ...s, status } : s)),
+          };
+        },
+      );
       await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
       return { snapshots };
     },

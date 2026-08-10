@@ -361,7 +361,11 @@ export function AdForm({ mode, ad }: Props) {
         <h2 className="font-semibold">معلومات الإعلان</h2>
 
         <FormField label="عنوان الإعلان" htmlFor="title" required error={fieldError('title')}>
-          <Input id="title" value={values.title} maxLength={100}
+          {/* UX-02 FIX: was maxLength={100} — backend's createAdSchema
+              (ads.validation.ts) allows title up to 200 chars, so this
+              silently blocked the last 100 chars a user was entitled to
+              type, with no error or explanation. */}
+          <Input id="title" value={values.title} maxLength={200}
             onChange={(e) => set('title', e.target.value)}
             onBlur={() => handleBlur('title')}
             placeholder="مثال: سيارة تويوتا كامري 2019 نظيفة" />

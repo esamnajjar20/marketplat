@@ -32,6 +32,21 @@ export function useCreateAppointment() {
           queryKey: ['appointments', 'availability'],
         });
       }
+      // UX-01 FIX: the comment above always claimed this repeats
+      // useRespondToServiceRequest's broad invalidation, but the code
+      // never actually invalidated any service-request keys — a
+      // provider with MyServiceRequestsList/IncomingServiceRequestsList
+      // open would keep seeing a stale request after booking against
+      // it. `requestId` (not `serviceRequestId`) is the actual field on
+      // Appointment; matching useRespondToServiceRequest's three keys.
+      if (appointment?.requestId) {
+        queryClient.invalidateQueries({
+          queryKey: ['service-requests', 'me'],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['service-requests', 'incoming'],
+        });
+      }
       toast.success('تم حجز الموعد بنجاح');
     },
     onError: (err) => toast.error(parseApiError(err).message),

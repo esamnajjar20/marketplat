@@ -71,6 +71,11 @@ export function ProfileSettingsForm() {
   function validate() {
     const e: typeof errors = {};
     if (!name.trim()) e.name = 'الاسم مطلوب';
+    // UX-03 FIX: implements the check the FIX M-1 comment above already
+    // described but never applied — matches updateProfileSchema's
+    // /^\+?[0-9]{9,15}$/ (users.validation.ts) so a bad phone is caught
+    // here instead of round-tripping to a 400.
+    if (phone && !/^\+?[0-9]{9,15}$/.test(phone)) e.phone = 'رقم هاتف غير صالح';
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
