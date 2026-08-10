@@ -25,6 +25,29 @@ interface Errors {
   description?: string;
   serviceAreaCities?: string;
   contactPhone?: string;
+  workingHours?: string;
+}
+
+const DAY_LABELS: Record<keyof WorkingHours, string> = {
+  sat: 'السبت', sun: 'الأحد', mon: 'الاثنين', tue: 'الثلاثاء',
+  wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة',
+};
+
+/**
+ * FIX BUG-XX: WorkingHoursEditor had no per-day open < close validation,
+ * and neither did this form's validate() — an invalid schedule (e.g.
+ * open 17:00, close 09:00) only surfaced as a generic toast from the
+ * backend's Zod rejection (useCreateServiceProvider's onError), with
+ * nothing pointing at the working-hours section like every other field
+ * gets. Mirrors the identical fix in MyServiceProviderCard.
+ */
+function validateWorkingHours(hours: WorkingHours): string | undefined {
+  for (const [day, schedule] of Object.entries(hours) as [keyof WorkingHours, WorkingHours[keyof WorkingHours]][]) {
+    if (schedule && schedule.open >= schedule.close) {
+      return `${DAY_LABELS[day]}: وقت الإغلاق يجب أن يكون بعد وقت الفتح`;
+    }
+  }
+  return undefined;
 }
 
 export function BecomeServiceProviderCard() {
@@ -86,6 +109,8 @@ export function BecomeServiceProviderCard() {
     const cities = citiesInput.split(',').map((c) => c.trim()).filter(Boolean);
     if (cities.length === 0) e.serviceAreaCities = 'أضف مدينة واحدة على الأقل';
     if (contactPhone.trim().length < 6) e.contactPhone = 'رقم التواصل مطلوب';
+    const hoursError = validateWorkingHours(workingHours);
+    if (hoursError) e.workingHours = hoursError;
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
@@ -193,7 +218,15 @@ export function BecomeServiceProviderCard() {
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium">ساعات العمل</label>
-          <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
+          <WorkingHoursEditor
+            value={workingHours}
+            onChange={(v) => { setWorkingHours(v); setErrors((prev) => ({ ...prev, workingHours: undefined })); }}
+          />
+          {fieldError('workingHours') && (
+            <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+              {fieldError('workingHours')}
+            </p>
+          )}
         </div>
 
         <Button type="submit" disabled={isFormIncomplete || createProvider.isPending}>

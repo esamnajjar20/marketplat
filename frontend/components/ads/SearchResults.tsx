@@ -163,7 +163,8 @@ export function SearchResults({ categorySlug }: Props = {}) {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl={ROUTES.search} searchParams={searchParams} />
+          baseUrl={categorySlug ? ROUTES.category(categorySlug) : ROUTES.search}
+          searchParams={searchParams} />
       )}
     </div>
   );

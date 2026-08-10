@@ -254,10 +254,11 @@ export function ServiceListingForm({ mode, listing }: Props) {
       <div className="rounded-lg border bg-card p-4 space-y-4">
         <h2 className="font-semibold">معلومات الخدمة</h2>
 
-        <div className="space-y-1.5">
-          <label htmlFor="categoryId" className="text-sm font-medium">
-            الفئة <span className="text-destructive">*</span>
-          </label>
+        {/* FIX BUG-XX: same gap as ProductForm/AdForm — required Select
+            hand-rolled outside FormField, error <p> missing role="alert"/
+            aria-live, Select missing aria-describedby/aria-invalid.
+            FormField's auto-clone (UX-FIX P2-11) wires both. */}
+        <FormField label="الفئة" htmlFor="categoryId" required error={fieldError('categoryId')}>
           <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
             <SelectTrigger id="categoryId"><SelectValue placeholder="اختر فئة الخدمة" /></SelectTrigger>
             <SelectContent>
@@ -266,10 +267,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
               ))}
             </SelectContent>
           </Select>
-          {fieldError('categoryId') && (
-            <p className="text-xs text-destructive">{fieldError('categoryId')}</p>
-          )}
-        </div>
+        </FormField>
 
         <FormField label="عنوان الخدمة" htmlFor="title" required error={fieldError('title')}>
           <Input

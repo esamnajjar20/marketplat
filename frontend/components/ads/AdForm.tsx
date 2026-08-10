@@ -382,8 +382,15 @@ export function AdForm({ mode, ad }: Props) {
         <h2 className="font-semibold">التصنيف والموقع</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label htmlFor="categoryId" className="text-sm font-medium">الفئة</label>
+          {/* FIX BUG-XX: was a bare label + Select outside FormField, so
+              this field never got aria-describedby/aria-invalid wiring
+              like every sibling field in this form. categoryId has no
+              required-field validation today (not in the Errors type
+              or validate()/isFormIncomplete above), so there's no error
+              to surface yet — but FormField's auto-clone (UX-FIX P2-11)
+              still wires the a11y attributes and keeps this field
+              structurally consistent with the rest of the form. */}
+          <FormField label="الفئة" htmlFor="categoryId">
             <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
               <SelectTrigger id="categoryId">
                 <SelectValue placeholder="اختر فئة" />
@@ -400,7 +407,7 @@ export function AdForm({ mode, ad }: Props) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
           <FormField label="المدينة" htmlFor="city" required error={fieldError('city')}>
             <Select value={values.city} onValueChange={(v) => { set('city', v); handleBlur('city'); }}>

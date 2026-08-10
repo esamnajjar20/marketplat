@@ -133,7 +133,12 @@ export function AdminUsersTable() {
 
   return (
     <div className="space-y-4">
-      <Input placeholder="بحث بالاسم أو البريد…" defaultValue={q}
+      {/* FIX BUG-XX: defaultValue is uncontrolled, so it only reflects `q`
+          on first mount. Browser back/forward changes `q` via history
+          navigation (no remount), leaving the input showing stale text
+          while the URL/results are already correct. `key={q}` forces a
+          fresh mount whenever `q` changes from an external source. */}
+      <Input key={q} placeholder="بحث بالاسم أو البريد…" defaultValue={q}
         onBlur={(e) => search(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
         className="max-w-xs" />

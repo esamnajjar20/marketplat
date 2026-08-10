@@ -40,11 +40,19 @@ export function RateSellerDialog({ sellerProfileId, open, onOpenChange }: Props)
           <DialogTitle>تقييم البائع</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="flex items-center justify-center gap-1" dir="ltr">
+          {/* FIX BUG-XX: no radio-group semantics — a screen-reader user
+              could activate a rating but had no indication of the
+              *currently selected* value (no aria-pressed/aria-checked
+              anywhere). role="radiogroup"/"radio" + aria-checked fixes
+              this; same gap and same fix in StoreReviewDialog and
+              ReviewServiceRequestDialog's identical star-picker. */}
+          <div className="flex items-center justify-center gap-1" dir="ltr" role="radiogroup" aria-label="التقييم">
             {[1, 2, 3, 4, 5].map(n => (
               <button
                 key={n}
                 type="button"
+                role="radio"
+                aria-checked={n === score}
                 aria-label={`${n} نجوم`}
                 onClick={() => setScore(n)}
                 onMouseEnter={() => setHoverScore(n)}

@@ -130,10 +130,12 @@ export function MyStoreCard({ store }: Props) {
         </FormField>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label htmlFor="my-store-city" className="text-sm font-medium">
-              المدينة <span className="text-destructive">*</span>
-            </label>
+          {/* FIX BUG-XX: same gap as ProductForm/AdForm/ServiceListingForm
+              — required Select hand-rolled outside FormField, error <p>
+              missing role="alert"/aria-live, Select missing
+              aria-describedby/aria-invalid. FormField's auto-clone
+              (UX-FIX P2-11) wires both. */}
+          <FormField label="المدينة" htmlFor="my-store-city" required error={fieldError('city')}>
             <Select value={city} onValueChange={setCity}>
               <SelectTrigger id="my-store-city"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -142,8 +144,7 @@ export function MyStoreCard({ store }: Props) {
                 ))}
               </SelectContent>
             </Select>
-            {fieldError('city') && <p className="text-xs text-destructive">{fieldError('city')}</p>}
-          </div>
+          </FormField>
 
           <FormField label="رقم الهاتف" htmlFor="my-store-phone" required error={fieldError('phone')}>
             <Input id="my-store-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />

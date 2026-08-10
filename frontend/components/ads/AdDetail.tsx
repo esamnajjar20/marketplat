@@ -118,7 +118,17 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-xl font-bold leading-snug">{ad.title}</h1>
             <div className="flex gap-1 shrink-0">
-              <Button variant="ghost" size="icon" onClick={handleFavorite} aria-label="حفظ">
+              {/* FIX BUG-XX: aria-label was static ("حفظ") regardless of
+                  toggled state — AdCard's equivalent button already
+                  does this correctly (isFavorited ? 'إزالة...' :
+                  'إضافة...' + aria-pressed); mirrored here. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleFavorite}
+                aria-label={favorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+                aria-pressed={favorited}
+              >
                 <Heart className={cn('h-5 w-5', favorited && 'fill-destructive text-destructive')} />
               </Button>
               <ShareAdButton title={ad.title} />

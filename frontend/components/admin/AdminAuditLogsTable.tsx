@@ -100,7 +100,16 @@ export function AdminAuditLogsTable() {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
+        {/* FIX BUG-XX: same uncontrolled-defaultValue gap as
+            AdminUsersTable/AdminStoresTable/etc — browser back/forward
+            changes userId/from/to via history navigation with no
+            remount, leaving these three inputs showing stale text
+            while the URL/results are already correct. Not in the
+            original audit's file list (admin/audit-logs was explicitly
+            marked "not covered"), found on a follow-up sweep of the
+            same pattern. key={...} forces a remount on external change. */}
         <Input
+          key={userId}
           placeholder="بحث بمعرّف المستخدم…"
           defaultValue={userId}
           onBlur={(e) => updateParam('userId', e.target.value)}
@@ -122,6 +131,7 @@ export function AdminAuditLogsTable() {
           </SelectContent>
         </Select>
         <Input
+          key={from}
           type="date"
           aria-label="من تاريخ"
           defaultValue={from}
@@ -129,6 +139,7 @@ export function AdminAuditLogsTable() {
           className="max-w-[160px]"
         />
         <Input
+          key={to}
           type="date"
           aria-label="إلى تاريخ"
           defaultValue={to}

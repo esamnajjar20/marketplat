@@ -258,10 +258,13 @@ export function ProductForm({ mode, product }: Props) {
       <div className="rounded-lg border bg-card p-4 space-y-4">
         <h2 className="font-semibold">معلومات المنتج</h2>
 
-        <div className="space-y-1.5">
-          <label htmlFor="categoryId" className="text-sm font-medium">
-            الفئة <span className="text-destructive">*</span>
-          </label>
+        {/* FIX BUG-XX: this field required Select but was hand-rolled
+            outside FormField — its error <p> had no role="alert"/
+            aria-live (unlike every sibling FormField's error, which
+            gets both), and the Select itself had no aria-describedby/
+            aria-invalid pointing at that error. FormField's auto-clone
+            (UX-FIX P2-11) wires both automatically. */}
+        <FormField label="الفئة" htmlFor="categoryId" required error={fieldError('categoryId')}>
           <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
             <SelectTrigger id="categoryId"><SelectValue placeholder="اختر فئة المنتج" /></SelectTrigger>
             <SelectContent>
@@ -270,10 +273,7 @@ export function ProductForm({ mode, product }: Props) {
               ))}
             </SelectContent>
           </Select>
-          {fieldError('categoryId') && (
-            <p className="text-xs text-destructive">{fieldError('categoryId')}</p>
-          )}
-        </div>
+        </FormField>
 
         <FormField label="اسم المنتج" htmlFor="name" required error={fieldError('name')}>
           <Input

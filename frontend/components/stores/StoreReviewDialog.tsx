@@ -44,11 +44,15 @@ export function StoreReviewDialog({ storeId, storeName, open, onOpenChange }: Pr
         <div className="space-y-4 py-2">
           <p className="text-sm text-muted-foreground line-clamp-1">{storeName}</p>
 
-          <div className="flex items-center justify-center gap-1" dir="ltr">
+          {/* FIX BUG-XX: see RateSellerDialog — same missing radio-group
+              semantics fix. */}
+          <div className="flex items-center justify-center gap-1" dir="ltr" role="radiogroup" aria-label="التقييم">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
                 type="button"
+                role="radio"
+                aria-checked={n === score}
                 aria-label={`${n} نجوم`}
                 onClick={() => setScore(n)}
                 onMouseEnter={() => setHoverScore(n)}

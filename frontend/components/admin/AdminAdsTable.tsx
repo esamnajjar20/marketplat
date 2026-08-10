@@ -77,7 +77,10 @@ export function AdminAdsTable() {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap gap-3">
-        <Input placeholder="بحث بالعنوان…" defaultValue={q}
+        {/* FIX BUG-XX: see AdminUsersTable — key={q} forces a remount when
+            `q` changes via browser back/forward, so the uncontrolled
+            defaultValue doesn't go stale relative to the URL/results. */}
+        <Input key={q} placeholder="بحث بالعنوان…" defaultValue={q}
           onBlur={(e) => search(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
           className="max-w-xs" />

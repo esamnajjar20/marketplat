@@ -44,7 +44,12 @@ export function ServiceCategoryFilter() {
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">بحث</label>
         <div className="relative">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {/* FIX BUG-XX: key={...} forces a remount when the param changes
+              via browser back/forward, so the uncontrolled defaultValue
+              doesn't go stale relative to the URL/results. Applied here
+              and to minPrice/maxPrice below — same root cause. */}
           <input
+            key={sp.get('search') ?? ''}
             type="search"
             placeholder="ابحث عن خدمة…"
             defaultValue={sp.get('search') ?? ''}
@@ -98,6 +103,7 @@ export function ServiceCategoryFilter() {
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">أقل سعر</label>
           <input
+            key={sp.get('minPrice') ?? ''}
             type="number"
             min="0"
             defaultValue={sp.get('minPrice') ?? ''}
@@ -108,6 +114,7 @@ export function ServiceCategoryFilter() {
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">أعلى سعر</label>
           <input
+            key={sp.get('maxPrice') ?? ''}
             type="number"
             min="0"
             defaultValue={sp.get('maxPrice') ?? ''}

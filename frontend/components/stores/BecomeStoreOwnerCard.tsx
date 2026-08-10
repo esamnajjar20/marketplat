@@ -149,11 +149,16 @@ export function BecomeStoreOwnerCard() {
           <p className="text-xs text-muted-foreground text-end">{description.length}/1000</p>
         </FormField>
 
+        {/* FIX BUG-XX: same gap as ProductForm/AdForm/ServiceListingForm/
+            MyStoreCard — required Select hand-rolled outside FormField,
+            error <p> missing role="alert"/aria-live, Select missing
+            aria-describedby/aria-invalid. FormField's auto-clone
+            (UX-FIX P2-11) wires both. Not in the original audit's
+            file list (BecomeStoreOwnerCard was explicitly marked
+            "not covered in depth"), found on a follow-up sweep of the
+            same pattern. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label htmlFor="store-city" className="text-sm font-medium">
-              المدينة <span className="text-destructive">*</span>
-            </label>
+          <FormField label="المدينة" htmlFor="store-city" required error={fieldError('city')}>
             <Select value={city} onValueChange={setCity}>
               <SelectTrigger id="store-city"><SelectValue placeholder="اختر المدينة" /></SelectTrigger>
               <SelectContent>
@@ -162,8 +167,7 @@ export function BecomeStoreOwnerCard() {
                 ))}
               </SelectContent>
             </Select>
-            {fieldError('city') && <p className="text-xs text-destructive">{fieldError('city')}</p>}
-          </div>
+          </FormField>
 
           <FormField label="رقم الهاتف" htmlFor="store-phone" required error={fieldError('phone')}>
             <Input

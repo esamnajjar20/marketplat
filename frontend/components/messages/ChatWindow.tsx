@@ -170,9 +170,15 @@ export function ChatWindow({ conversationId }: Props) {
                 <div
                   className={cn(
                     'max-w-[75%] rounded-2xl px-3 py-2 text-sm',
+                    // FIX BUG-XX: rounded-br-sm/rounded-bl-sm are physical
+                    // (bottom-right/bottom-left) in a dir="rtl" app
+                    // (app/layout.tsx), so the "pointed" corner sat on the
+                    // wrong side of the bubble. rounded-ee-sm/rounded-es-sm
+                    // are logical (bottom-end/bottom-start) and follow the
+                    // actual text direction instead.
                     isMine
-                      ? 'bg-primary text-primary-foreground rounded-br-sm'
-                      : 'bg-muted rounded-bl-sm'
+                      ? 'bg-primary text-primary-foreground rounded-ee-sm'
+                      : 'bg-muted rounded-es-sm'
                   )}
                 >
                   <p className="whitespace-pre-wrap break-words">{message.body}</p>

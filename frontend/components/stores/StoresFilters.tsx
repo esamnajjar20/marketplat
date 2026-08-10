@@ -19,6 +19,7 @@ import { CITIES, ROUTES, STORE_SORT_OPTIONS } from '@/lib/constants';
 export function StoresFilters() {
   const router = useRouter();
   const sp = useSearchParams();
+  const search = sp.get('search') ?? '';
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -38,10 +39,14 @@ export function StoresFilters() {
         <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">بحث</label>
         <div className="relative">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {/* FIX BUG-XX: key={search} forces a remount when the `search`
+              param changes via browser back/forward, so the uncontrolled
+              defaultValue doesn't go stale relative to the URL/results. */}
           <input
+            key={search}
             type="search"
             placeholder="ابحث عن متجر…"
-            defaultValue={sp.get('search') ?? ''}
+            defaultValue={search}
             onKeyDown={(e) => {
               if (e.key === 'Enter') update('search', (e.target as HTMLInputElement).value);
             }}

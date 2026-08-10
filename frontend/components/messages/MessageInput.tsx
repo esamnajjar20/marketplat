@@ -52,7 +52,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
         placeholder="اكتب رسالتك..."
         className="flex-1 resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-h-32"
       />
-      <Button type="submit" size="icon" disabled={!body.trim() || sendMessage.isPending}>
+      {/* FIX BUG-XX: icon-only button had no aria-label — every other
+          icon-only button in the codebase has one (see AdDetail's
+          favorite button, ShareAdButton, etc.). Without it, a screen
+          reader announces only "button", not what it does. */}
+      <Button type="submit" size="icon" aria-label="إرسال" disabled={!body.trim() || sendMessage.isPending}>
         <Send className="h-4 w-4" />
       </Button>
     </form>

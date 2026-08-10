@@ -12,11 +12,10 @@ import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES } from '@/lib/constants';
 import { getSafeRedirectPath } from '@/lib/cookies';
-import { parseApiError } from '@/lib/errorParser';
 
 export function LoginForm() {
   const searchParams = useSearchParams();
-  const { mutate: login, isPending, error } = useLogin();
+  const { mutate: login, isPending } = useLogin();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -132,18 +131,12 @@ export function LoginForm() {
         </Link>
       </div>
 
-      {error && (
-        <p role="alert" className="text-sm text-destructive text-center">
-          {/* FIX FRIENDLY-01: error here is the raw mutation error object —
-              error.message is the underlying Axios/JS message ("Request
-              failed with status code 401", "Network Error", ...), never
-              meant to reach the user (see app/error.tsx's SEC-06 rule,
-              which this line previously violated). parseApiError() maps it
-              to the same Arabic message the toast in useLogin's onError
-              already shows. */}
-          {parseApiError(error).message}
-        </p>
-      )}
+      {/* FIX BUG-XX: this block duplicated useLogin's onError toast —
+          both showed the exact same mapped error message at once.
+          RegisterForm's identical flow relies on its mutation's toast
+          alone with no inline block; removed here to match, since the
+          toast (not this block) is the pattern used by every other
+          mutation in the app (see useAuthMutations.ts). */}
 
       <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
