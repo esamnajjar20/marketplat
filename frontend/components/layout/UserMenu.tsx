@@ -9,6 +9,16 @@
  * DropdownMenu (the same primitive family already used by Dialog/Select
  * elsewhere in this project) with actual navigation links and a working
  * logout action.
+ *
+ * ROLE-SEP 5: small text badges ("بائع" / "مقدّم خدمة") next to the
+ * username, driven by the same useMySellerProfile()/useMyServiceProvider()
+ * queries ProtectedSidebar/ProtectedMobileNav already call. React Query
+ * dedupes by queryKey, so this doesn't add a network request — it's the
+ * same cached entry, just read here too. Same gating as those two:
+ * isSuccess && data is the only positive signal, no isError branch —
+ * no badge while loading and no badge on a genuine fetch error, not
+ * because either is treated as "confirmed not a seller" but because
+ * both are simply absence of the one positive signal.
  */
 'use client';
 
@@ -16,6 +26,8 @@ import Link from 'next/link';
 import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut } from 'lucide-react';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
 import {
   DropdownMenu,
@@ -30,6 +42,10 @@ export function UserMenu() {
   const user      = useAuthStore(selectUser);
   const isAdmin   = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending } = useLogout();
+  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
+  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const isSeller = sellerLoaded && Boolean(sellerProfile);
+  const isProvider = providerLoaded && Boolean(serviceProvider);
 
   if (!user) return null;
 
@@ -50,6 +66,20 @@ export function UserMenu() {
           <p className="text-xs leading-none text-muted-foreground mt-1 truncate" dir="ltr">
             {user.email}
           </p>
+          {(isSeller || isProvider) && (
+            <div className="mt-2 flex gap-1.5">
+              {isSeller && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  بائع
+                </span>
+              )}
+              {isProvider && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  مقدّم خدمة
+                </span>
+              )}
+            </div>
+          )}
         </DropdownMenuLabel>
 
         <DropdownMenuSeparator />

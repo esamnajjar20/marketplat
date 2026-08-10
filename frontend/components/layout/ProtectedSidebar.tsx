@@ -42,6 +42,24 @@
  *   destinations. Item count at the top level is unchanged from before;
  *   only two rows became expandable. "متجري" itself is new at this
  *   breakpoint — it never had a desktop entry point before.
+ *
+ * ROLE-SEP 3.2: "خدماتي"/"متجري" now read useMyServiceProvider()/
+ *   useMySellerProfile() and collapse to a single CTA row (become a
+ *   provider / open your store) until that profile exists. Before this,
+ *   every user saw the full 4-item disclosure group regardless of
+ *   whether they had a SellerProfile or ServiceProviderDetails —
+ *   /my-store/products was one tap away for someone with no store.
+ *   The full group is the exception, gated on the one unambiguous
+ *   positive signal (isSuccess && data — the query resolved and a
+ *   profile exists); every other state (loading, 404-as-"not yet",
+ *   or a genuine network error) is left as "absence of data" and
+ *   falls through to the same CTA row, with no branch that inspects
+ *   isError or treats it as a concept the UI reasons about. First
+ *   paint after login (query still in flight) is indistinguishable
+ *   from "confirmed not a seller" — both show the CTA — and it
+ *   flips to the full group the moment isSuccess lands, no separate
+ *   skeleton — CACHE_TTL.sellerProfile means it's already in cache
+ *   on every load after the first this session.
  */
 'use client';
 
@@ -51,10 +69,12 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ListOrdered, Heart, BellPlus,
   MessageSquare, Wrench, Flag, Settings, History,
-  Store, ChevronDown, ChevronRight,
+  Store, ChevronDown, ChevronRight, Plus,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 
 const NAV_ITEMS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: LayoutDashboard },
@@ -181,6 +201,13 @@ function DisclosureGroup({
 
 export function ProtectedSidebar() {
   const pathname = usePathname();
+  // ROLE-SEP 3.2: isSuccess && data is the only positive signal —
+  // everything else (loading, 404, network error) reads as "no
+  // profile yet" and renders the CTA. No isError branch.
+  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
+  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const isSeller = sellerLoaded && Boolean(sellerProfile);
+  const isProvider = providerLoaded && Boolean(serviceProvider);
 
   return (
     // UX-09 FIX: border-e is the logical equivalent of border-r, correct in RTL
@@ -197,8 +224,26 @@ export function ProtectedSidebar() {
           );
         })}
 
-        <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />
-        <DisclosureGroup group={STORE_GROUP} pathname={pathname} />
+        {isProvider ? (
+          <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />
+        ) : (
+          <NavLink
+            label="أصبح مقدّم خدمة"
+            href={ROUTES.settings.serviceProvider}
+            icon={Plus}
+            isActive={pathname.startsWith(ROUTES.settings.serviceProvider)}
+          />
+        )}
+        {isSeller ? (
+          <DisclosureGroup group={STORE_GROUP} pathname={pathname} />
+        ) : (
+          <NavLink
+            label="افتح متجرك"
+            href={ROUTES.myStore}
+            icon={Plus}
+            isActive={pathname.startsWith(ROUTES.myStore)}
+          />
+        )}
 
         {TRAILING_NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);

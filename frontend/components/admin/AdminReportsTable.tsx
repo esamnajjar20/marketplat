@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle, ExternalLink, AlertTriangle } from 'lucide-react';
+import { CheckCircle, ExternalLink, AlertTriangle, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Pagination }   from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useAdminReports }   from '@/hooks/queries/useAdmin';
 import { useAdminUpdateReportStatus } from '@/hooks/mutations/useAdminMutations';
 import { REPORT_REASON_LABELS, ROUTES } from '@/lib/constants';
@@ -189,7 +190,7 @@ export function AdminReportsTable() {
                 </tr>
               ))}
               {items.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">لا توجد بلاغات</td></tr>
+                <tr><td colSpan={5}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد بلاغات" /></td></tr>
               )}
             </tbody>
           </table>

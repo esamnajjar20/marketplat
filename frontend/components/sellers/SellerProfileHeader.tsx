@@ -33,7 +33,7 @@ export function SellerProfileHeader({ seller }: Props) {
         <div className="flex items-center justify-center sm:justify-start gap-2">
           <h1 className="text-xl font-bold">{seller.displayName}</h1>
           {seller.verified && (
-            <Badge className="gap-1">
+            <Badge variant="success" className="gap-1">
               <BadgeCheck className="h-3.5 w-3.5" /> بائع موثّق
             </Badge>
           )}

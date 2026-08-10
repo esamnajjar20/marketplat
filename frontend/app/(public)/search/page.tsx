@@ -7,6 +7,7 @@ import { SearchFilters } from '@/components/search/SearchFilters';
 import { SearchFiltersSheet } from '@/components/search/SearchFiltersSheet';
 import { SearchResults } from '@/components/search/SearchResults';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { WovenTexture } from '@/components/shared/ui/WovenTexture';
 
 export const metadata: Metadata = buildMetadata({ title: 'البحث', noIndex: true });
 
@@ -34,14 +35,7 @@ export default async function SearchPage({ searchParams }: Props) {
         the results below, which are the actual job of this page.
       */}
       <div className="relative overflow-hidden bg-primary px-4 py-6 text-primary-foreground">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(135deg, currentColor 0, currentColor 1px, transparent 1px, transparent 14px)',
-          }}
-        />
+        <WovenTexture opacity={0.06} />
         <div className="relative container mx-auto space-y-4">
           <Suspense>
             <SearchBox

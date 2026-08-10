@@ -32,18 +32,28 @@
  * same structure/children as ProtectedSidebar's DisclosureGroup, so the
  * two navs stay in sync instead of one having flat links to just the
  * group roots.
+ *
+ * ROLE-SEP 3.2: same state layer as ProtectedSidebar — collapses to a
+ * single CTA row per group until the user has a SellerProfile /
+ * ServiceProviderDetails. See ProtectedSidebar's doc comment: gated on
+ * isSuccess && data only, no isError branch — loading and "not yet"
+ * and a real fetch error all render identically as the CTA row.
+ * Duplicated here rather than shared because the two navs already
+ * don't share a component, only the group constants' shape.
  */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Store as StoreIcon, Wrench as WrenchIcon, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { Home, Search, Store as StoreIcon, Wrench as WrenchIcon, Users, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 
 const selectCloseMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
@@ -160,6 +170,10 @@ export function ProtectedMobileNav() {
   const isAdmin = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
+  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const isSeller = sellerLoaded && Boolean(sellerProfile);
+  const isProvider = providerLoaded && Boolean(serviceProvider);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -262,8 +276,34 @@ export function ProtectedMobileNav() {
             );
           })}
 
-          <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
-          <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />
+          {isProvider ? (
+            <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
+          ) : (
+            <li>
+              <Link
+                href={ROUTES.settings.serviceProvider}
+                onClick={close}
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+              >
+                <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                أصبح مقدّم خدمة
+              </Link>
+            </li>
+          )}
+          {isSeller ? (
+            <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />
+          ) : (
+            <li>
+              <Link
+                href={ROUTES.myStore}
+                onClick={close}
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+              >
+                <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                افتح متجرك
+              </Link>
+            </li>
+          )}
 
           {TRAILING_LINKS.map((link) => {
             const isActive = pathname.startsWith((link as { activeMatch?: string }).activeMatch ?? link.href);

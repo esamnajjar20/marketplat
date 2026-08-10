@@ -12,12 +12,12 @@ export const SERVICE_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string>
 
 export const SERVICE_REQUEST_STATUS_VARIANT: Record<
   ServiceRequestStatus,
-  'default' | 'secondary' | 'destructive' | 'outline'
+  'success' | 'warning' | 'destructive' | 'outline'
 > = {
-  PENDING: 'secondary',
-  ACCEPTED: 'default',
+  PENDING: 'warning',
+  ACCEPTED: 'success',
   REJECTED: 'destructive',
-  IN_PROGRESS: 'default',
+  IN_PROGRESS: 'success',
   COMPLETED: 'outline',
   CANCELLED: 'destructive',
 };

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button }    from '@/components/shared/ui/Button';
 import { SearchBar } from '@/components/layout/SearchBar';
+import { WovenTexture } from '@/components/shared/ui/WovenTexture';
 import { ROUTES }    from '@/lib/constants';
 
 /**
@@ -18,14 +19,7 @@ export function HeroBanner() {
     <section className="relative overflow-hidden bg-primary px-4 py-14 text-primary-foreground sm:py-20">
       {/* Subtle repeating diagonal pattern — a woven/textile texture
           reference kept quiet enough not to compete with the copy. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(135deg, currentColor 0, currentColor 1px, transparent 1px, transparent 14px)',
-        }}
-      />
+      <WovenTexture opacity={0.07} />
 
       <div className="relative mx-auto max-w-2xl space-y-6 text-center">
         <span className="inline-block rounded-full border border-primary-foreground/30 px-3 py-1 text-xs font-medium tracking-wide text-primary-foreground/90">

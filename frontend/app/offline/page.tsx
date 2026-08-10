@@ -83,7 +83,7 @@ export default function OfflinePage() {
       </p>
 
       {queuedCount > 0 && (
-        <p className="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800">
+        <p className="rounded-lg bg-warning/10 border border-warning/30 px-4 py-2 text-sm text-foreground">
           لديك {queuedCount} طلب{queuedCount > 1 ? 'ات' : ''} بانتظار الإرسال — سيُرسل تلقائيًا
           عند عودة الاتصال.
         </p>

@@ -66,7 +66,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
               </Badge>
             )}
             {store.sellerProfile.verified && (
-              <Badge className="gap-1">
+              <Badge variant="success" className="gap-1">
                 <BadgeCheck className="h-3.5 w-3.5" /> موثّق
               </Badge>
             )}

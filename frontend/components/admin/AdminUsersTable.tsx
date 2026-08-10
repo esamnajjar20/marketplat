@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldOff, ShieldCheck, ChevronDown, AlertTriangle, Crown, ShieldAlert, User as UserIcon } from 'lucide-react';
+import { ShieldOff, ShieldCheck, ChevronDown, AlertTriangle, Crown, ShieldAlert, User as UserIcon, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Input }        from '@/components/shared/ui/Input';
 import { Pagination }   from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -38,11 +39,11 @@ function canManageRole(actorRole: UserRole, targetCurrentRole: UserRole, targetN
   return ROLE_RANK[targetCurrentRole] < actorRank && ROLE_RANK[targetNewRole] < actorRank;
 }
 
-const ROLE_BADGE: Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }> = {
+const ROLE_BADGE: Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning'; className?: string }> = {
   USER:        { label: 'مستخدم',        variant: 'secondary' },
   MODERATOR:   { label: 'مشرف مساعد',    variant: 'outline', className: 'border-primary text-primary' },
   ADMIN:       { label: 'مدير',          variant: 'default' },
-  SUPER_ADMIN: { label: 'مدير أعلى',     variant: 'default', className: 'bg-warning text-warning-foreground hover:bg-warning/80' },
+  SUPER_ADMIN: { label: 'مدير أعلى',     variant: 'warning' },
 };
 
 const ROLE_ICON: Record<AssignableRole, typeof UserIcon> = {
@@ -197,7 +198,7 @@ export function AdminUsersTable() {
                       </Badge>
                     </td>
                     <td className="p-3 hidden sm:table-cell">
-                      <Badge variant={user.isActive ? 'default' : 'destructive'} className="text-xs">
+                      <Badge variant={user.isActive ? 'success' : 'destructive'} className="text-xs">
                         {user.isActive ? 'نشط' : 'موقوف'}
                       </Badge>
                     </td>
@@ -279,7 +280,7 @@ export function AdminUsersTable() {
                 );
               })}
               {items.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">لا يوجد مستخدمون</td></tr>
+                <tr><td colSpan={6}><EmptyState icon={<Search className="h-8 w-8" />} title="لا يوجد مستخدمون" /></td></tr>
               )}
             </tbody>
           </table>

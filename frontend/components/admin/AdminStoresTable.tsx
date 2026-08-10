@@ -23,13 +23,14 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Ban, RotateCcw, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Ban, RotateCcw, AlertTriangle, Search } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useAdminStores } from '@/hooks/queries/useAdmin';
 import { useAdminUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatDate } from '@/lib/formatters';
@@ -55,9 +56,9 @@ function isAdminStoreStatus(value: string | null): value is AdminStoreStatus {
   return !!value && VALID_STORE_STATUSES.has(value as AdminStoreStatus);
 }
 
-const STATUS_BADGE: Record<AdminStoreStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
-  PENDING: { label: 'قيد المراجعة', variant: 'secondary' },
-  ACTIVE:  { label: 'نشط',          variant: 'default' },
+const STATUS_BADGE: Record<AdminStoreStatus, { label: string; variant: 'success' | 'warning' | 'destructive' }> = {
+  PENDING: { label: 'قيد المراجعة', variant: 'warning' },
+  ACTIVE:  { label: 'نشط',          variant: 'success' },
   BLOCKED: { label: 'محظور',        variant: 'destructive' },
 };
 
@@ -213,7 +214,7 @@ export function AdminStoresTable() {
                 );
               })}
               {items.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد متاجر</td></tr>
+                <tr><td colSpan={6}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد متاجر" /></td></tr>
               )}
             </tbody>
           </table>

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Star, Trash2, Pin } from 'lucide-react';
+import { Star, Trash2, Pin, Search } from 'lucide-react';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
 import { Input }      from '@/components/shared/ui/Input';
@@ -14,6 +14,7 @@ import {
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog }  from '@/components/shared/feedback/ConfirmDialog';
+import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAdminAds }    from '@/hooks/queries/useAdmin';
 import { useAdminSetFeatured, useAdminSetPinned, useAdminForceDeleteAd } from '@/hooks/mutations/useAdminMutations';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
@@ -155,7 +156,10 @@ export function AdminAdsTable() {
                     <td className="p-3 hidden md:table-cell text-muted-foreground">{ad.user?.name ?? '—'}</td>
                     <td className="p-3 font-semibold">{formatPrice(ad.price)}</td>
                     <td className="p-3 hidden sm:table-cell">
-                      <Badge variant={ad.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-xs">
+                      <Badge
+                        variant={ad.status === 'ACTIVE' ? 'success' : ad.status === 'DELETED' ? 'destructive' : 'secondary'}
+                        className="text-xs"
+                      >
                         {STATUS_LABELS[ad.status] ?? ad.status}
                       </Badge>
                     </td>
@@ -193,7 +197,7 @@ export function AdminAdsTable() {
                 );
               })}
               {items.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد إعلانات</td></tr>
+                <tr><td colSpan={6}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد إعلانات" /></td></tr>
               )}
             </tbody>
           </table>

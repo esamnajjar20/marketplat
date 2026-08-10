@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from '@/components/layout/Logo';
+import { WovenTexture } from '@/components/shared/ui/WovenTexture';
 
 /**
  * (auth) route group layout.
@@ -23,14 +24,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         that identity beyond the color itself.
       */}
       <div className="relative hidden flex-col justify-between overflow-hidden bg-primary p-12 text-primary-foreground lg:flex">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(135deg, currentColor 0, currentColor 1px, transparent 1px, transparent 14px)',
-          }}
-        />
+        <WovenTexture opacity={0.07} />
         <Link href="/" className="relative">
           <Logo variant="light" />
         </Link>
@@ -59,14 +53,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             identity signal at all.
           */}
           <div className="relative -mx-8 -mt-8 mb-8 overflow-hidden bg-primary px-8 py-6 lg:hidden">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-[0.07]"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(135deg, currentColor 0, currentColor 1px, transparent 1px, transparent 14px)',
-              }}
-            />
+            <WovenTexture opacity={0.07} />
             <Link href="/" className="relative flex justify-center">
               <Logo variant="light" />
             </Link>

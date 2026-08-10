@@ -37,7 +37,7 @@ export function ServiceProviderHeader({ provider }: Props) {
         <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
           <h1 className="text-xl font-bold">{provider.businessName}</h1>
           {provider.sellerProfile.verified && (
-            <Badge className="gap-1">
+            <Badge variant="success" className="gap-1">
               <BadgeCheck className="h-3.5 w-3.5" /> موثّق
             </Badge>
           )}

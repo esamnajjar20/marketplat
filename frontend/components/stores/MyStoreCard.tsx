@@ -23,9 +23,9 @@ const STATUS_LABELS: Record<StoreStatus, string> = {
   BLOCKED: 'محظور',
 };
 
-const STATUS_VARIANTS: Record<StoreStatus, 'default' | 'secondary' | 'destructive'> = {
-  PENDING: 'secondary',
-  ACTIVE: 'default',
+const STATUS_VARIANTS: Record<StoreStatus, 'success' | 'warning' | 'destructive'> = {
+  PENDING: 'warning',
+  ACTIVE: 'success',
   BLOCKED: 'destructive',
 };
 
