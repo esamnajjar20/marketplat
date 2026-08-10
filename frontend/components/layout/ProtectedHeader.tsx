@@ -22,6 +22,26 @@ export function ProtectedHeader() {
       <Link href={ROUTES.home}>
         <Logo />
       </Link>
+
+      {/* REORG-06: a signed-in user inside /dashboard or any other
+          protected page had no direct path to public browse (stores/
+          services/service-providers) without leaving the protected
+          section first (back button or logo → home). Mirrors
+          PublicHeader's same three links, same position (between logo
+          and account controls), same lg breakpoint — below lg they stay
+          reachable via ProtectedMobileNav's "تصفح" section (REORG-07). */}
+      <nav className="hidden items-center gap-1 lg:flex">
+        <Button asChild variant="ghost" size="sm">
+          <Link href={ROUTES.stores}>المتاجر</Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link href={ROUTES.services}>الخدمات</Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
+        </Button>
+      </nav>
+
       <div className="me-auto flex items-center gap-3">
         <Button asChild size="sm">
           <Link href={ROUTES.adCreate}>+ نشر إعلان</Link>

@@ -30,14 +30,28 @@
  * AUDIT-FIX (protected #5): "نشاطي" (/activity) had a fully-built page
  *   (page.tsx + loading.tsx) but no link anywhere in the app — same
  *   discoverability gap as #2/#4 above, just missed in that pass.
+ *
+ * REORG-04: PAGE_MAP documented four real routes with no direct Nav
+ *   link at all — /my-store, /my-store/followed, /my-requests,
+ *   /my-services/appointments, /my-services/requests. Rather than
+ *   adding five more flat top-level items (which would just make the
+ *   sidebar longer without addressing why those routes were missed in
+ *   the first place — they're sub-destinations of "خدماتي"/"متجري",
+ *   not peers of it), "خدماتي" and a new "متجري" are now disclosure
+ *   groups: one visible top-level row each, expanding to their related
+ *   destinations. Item count at the top level is unchanged from before;
+ *   only two rows became expandable. "متجري" itself is new at this
+ *   breakpoint — it never had a desktop entry point before.
  */
 'use client';
 
+import { useState } from 'react';
 import Link           from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ListOrdered, Heart, BellPlus,
   MessageSquare, Wrench, Flag, Settings, History,
+  Store, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
@@ -49,7 +63,9 @@ const NAV_ITEMS = [
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
   { label: 'نشاطي',       href: ROUTES.activity,          icon: History },
   { label: 'الرسائل',     href: ROUTES.messages,          icon: MessageSquare },
-  { label: 'خدماتي',      href: ROUTES.myServices,        icon: Wrench },
+] as const;
+
+const TRAILING_NAV_ITEMS = [
   // FEAT-REPORT-USER-STORE: without a link here, /my-reports would be
   // reachable only by direct URL — same discoverability gap the
   // "AUDIT-FIX (protected #2, #4)" note above already fixed once for
@@ -57,6 +73,111 @@ const NAV_ITEMS = [
   { label: 'بلاغاتي',     href: ROUTES.myReports,         icon: Flag },
   { label: 'الإعدادات',   href: ROUTES.settings.profile,  icon: Settings, activeMatch: ROUTES.settings.root },
 ] as const;
+
+// REORG-04: "خدماتي" disclosure — provider-side (my listed services,
+// incoming requests, appointments calendar) and customer-side (requests
+// I made) collapsed under one root instead of /my-requests dangling off
+// a QuickActions button on /dashboard as its only entry point.
+const SERVICES_GROUP = {
+  label: 'خدماتي',
+  href: ROUTES.myServices,
+  icon: Wrench,
+  children: [
+    { label: 'خدماتي', href: ROUTES.myServices },
+    { label: 'الطلبات الواردة', href: ROUTES.incomingServiceRequests },
+    { label: 'مواعيدي', href: ROUTES.myServiceAppointments },
+    { label: 'طلباتي', href: ROUTES.myServiceRequests },
+  ],
+} as const;
+
+// REORG-04: "متجري" — entirely new at this breakpoint. /my-store and
+// /my-store/followed previously had zero desktop Nav link (only a Card
+// inside /my-store itself linked to /followed).
+const STORE_GROUP = {
+  label: 'متجري',
+  href: ROUTES.myStore,
+  icon: Store,
+  children: [
+    { label: 'متجري', href: ROUTES.myStore },
+    { label: 'منتجاتي', href: ROUTES.myStoreProducts },
+    { label: 'المتاجر المتابَعة', href: ROUTES.myFollowedStores },
+  ],
+} as const;
+
+function NavLink({
+  label, href, icon: Icon, isActive, indent = false,
+}: {
+  label: string; href: string; icon?: React.ComponentType<{ className?: string }>;
+  isActive: boolean; indent?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      // UX-08 FIX: aria-current="page" on the active item
+      aria-current={isActive ? 'page' : undefined}
+      className={cn(
+        'flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors',
+        indent ? 'px-3 ms-7' : 'px-3',
+        isActive
+          ? 'bg-primary text-primary-foreground'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+      )}
+    >
+      {/* UX-15 FIX: aria-hidden so screen readers skip the decorative icon */}
+      {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
+      {label}
+    </Link>
+  );
+}
+
+function DisclosureGroup({
+  group, pathname,
+}: {
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP;
+  pathname: string;
+}) {
+  const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
+  // Starts open if the user is already somewhere inside the group, so
+  // landing on e.g. /my-services/requests doesn't hide the very link
+  // that got them there.
+  const [isOpen, setIsOpen] = useState(isAnyChildActive);
+  const Icon = group.icon;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-expanded={isOpen}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+          isAnyChildActive && !isOpen
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        )}
+      >
+        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className="flex-1 text-start">{group.label}</span>
+        {isOpen
+          ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+      </button>
+      {isOpen && (
+        <div className="mt-1 flex flex-col gap-1">
+          {group.children.map((child) => (
+            <NavLink
+              key={child.href}
+              label={child.label}
+              href={child.href}
+              isActive={pathname.startsWith(child.href)}
+              indent
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ProtectedSidebar() {
   const pathname = usePathname();
@@ -71,24 +192,18 @@ export function ProtectedSidebar() {
           // marks the single "الإعدادات" link active — startsWith(item.href)
           // alone only matched the exact profile sub-route.
           const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);
-          const Icon = item.icon;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              // UX-08 FIX: aria-current="page" on the active item
-              aria-current={isActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
-              {/* UX-15 FIX: aria-hidden so screen readers skip the decorative icon */}
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {item.label}
-            </Link>
+            <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
+          );
+        })}
+
+        <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />
+        <DisclosureGroup group={STORE_GROUP} pathname={pathname} />
+
+        {TRAILING_NAV_ITEMS.map((item) => {
+          const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);
+          return (
+            <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
           );
         })}
       </nav>

@@ -1,18 +1,25 @@
 /**
  * __tests__/components/ProtectedSidebar.test.tsx
  *
+ * REORG-04: "خدماتي" and "متجري" became disclosure-group buttons
+ * (expand/collapse) instead of plain links — this rewrite reflects
+ * that: they're queried as buttons, their children only render once
+ * expanded (either by click or by an active pathname inside the
+ * group), and "متجري" is new here since it never had a desktop entry
+ * point before.
+ *
  * Coverage targets:
- *  - Renders all 5 nav items
+ *  - Renders top-level nav items (links + the two disclosure buttons)
  *  - Active item: aria-current="page" on the matching pathname
- *  - Active item: gets primary background class
  *  - Inactive items: no aria-current
  *  - Icon spans have aria-hidden="true" (UX-15 FIX)
  *  - Nav has correct aria-label
  *  - Matches /settings/* as active for settings link
- *  - Multiple links: only the matching one is active
+ *  - Disclosure groups: closed by default unless pathname is inside them,
+ *    expand on click, children link to the right hrefs
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
 
 // usePathname is already mocked in vitest.setup.ts to return '/dashboard'
@@ -43,19 +50,22 @@ vi.mock('next/link', () => ({
 }));
 
 describe('ProtectedSidebar', () => {
-  // ── Renders all nav items ──────────────────────────────────────
+  // ── Renders top-level items ───────────────────────────────────
 
-  it('renders all 8 navigation items', () => {
+  it('renders all top-level navigation items', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     render(<ProtectedSidebar />);
     expect(screen.getByText('لوحة التحكم')).toBeDefined();
     expect(screen.getByText('إعلاناتي')).toBeDefined();
     expect(screen.getByText('المفضلة')).toBeDefined();
     expect(screen.getByText('البحثات المحفوظة')).toBeDefined();
+    expect(screen.getByText('نشاطي')).toBeDefined();
     expect(screen.getByText('الرسائل')).toBeDefined();
-    expect(screen.getByText('خدماتي')).toBeDefined();
     expect(screen.getByText('بلاغاتي')).toBeDefined();
     expect(screen.getByText('الإعدادات')).toBeDefined();
+    // REORG-04: disclosure group roots — rendered as buttons, not links.
+    expect(screen.getByRole('button', { name: /خدماتي/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /متجري/ })).toBeDefined();
   });
 
   it('renders a nav landmark with aria-label', () => {
@@ -97,6 +107,12 @@ describe('ProtectedSidebar', () => {
     expect(screen.getByText('المفضلة').closest('a')?.getAttribute('aria-current')).toBe('page');
   });
 
+  it('sets aria-current on /activity when pathname is /activity', () => {
+    mockUsePathname.mockReturnValue('/activity');
+    render(<ProtectedSidebar />);
+    expect(screen.getByText('نشاطي').closest('a')?.getAttribute('aria-current')).toBe('page');
+  });
+
   it('sets aria-current on settings link for /settings/profile (startsWith match)', () => {
     mockUsePathname.mockReturnValue('/settings/profile');
     render(<ProtectedSidebar />);
@@ -110,7 +126,7 @@ describe('ProtectedSidebar', () => {
     expect(screen.getByText('الإعدادات').closest('a')?.getAttribute('aria-current')).toBe('page');
   });
 
-  it('only one link is active at a time', () => {
+  it('only one top-level link is active at a time', () => {
     mockUsePathname.mockReturnValue('/my-ads');
     render(<ProtectedSidebar />);
     const links = screen.getAllByRole('link');
@@ -126,8 +142,9 @@ describe('ProtectedSidebar', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     const { container } = render(<ProtectedSidebar />);
     const iconSpans = container.querySelectorAll('[aria-hidden="true"]');
-    // 8 nav items × 1 icon each
-    expect(iconSpans.length).toBe(8);
+    // 8 top-level items (each with an icon) + 2 disclosure-group icons
+    // + 2 chevrons (also aria-hidden, one per closed group) = 12.
+    expect(iconSpans.length).toBe(12);
   });
 
   // ── Correct hrefs ──────────────────────────────────────────────
@@ -151,5 +168,59 @@ describe('ProtectedSidebar', () => {
     render(<ProtectedSidebar />);
     const link = screen.getByText('الإعدادات').closest('a');
     expect(link?.getAttribute('href')).toBe('/settings/profile');
+  });
+
+  // ── REORG-04: disclosure groups ─────────────────────────────────
+
+  describe('"خدماتي" disclosure group', () => {
+    it('is collapsed by default when pathname is outside the group', () => {
+      mockUsePathname.mockReturnValue('/dashboard');
+      render(<ProtectedSidebar />);
+      const toggle = screen.getByRole('button', { name: /خدماتي/ });
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByText('الطلبات الواردة')).not.toBeInTheDocument();
+    });
+
+    it('expands on click and reveals its children', () => {
+      mockUsePathname.mockReturnValue('/dashboard');
+      render(<ProtectedSidebar />);
+      fireEvent.click(screen.getByRole('button', { name: /خدماتي/ }));
+      expect(screen.getByText('الطلبات الواردة').closest('a')?.getAttribute('href')).toBe('/my-services/requests');
+      expect(screen.getByText('مواعيدي').closest('a')?.getAttribute('href')).toBe('/my-services/appointments');
+      expect(screen.getByText('طلباتي').closest('a')?.getAttribute('href')).toBe('/my-requests');
+    });
+
+    it('is expanded by default when pathname is inside the group (e.g. /my-requests)', () => {
+      mockUsePathname.mockReturnValue('/my-requests');
+      render(<ProtectedSidebar />);
+      const toggle = screen.getByRole('button', { name: /خدماتي/ });
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(screen.getByText('طلباتي')).toBeDefined();
+    });
+  });
+
+  describe('"متجري" disclosure group', () => {
+    it('is collapsed by default when pathname is outside the group', () => {
+      mockUsePathname.mockReturnValue('/dashboard');
+      render(<ProtectedSidebar />);
+      const toggle = screen.getByRole('button', { name: /متجري/ });
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByText('المتاجر المتابَعة')).not.toBeInTheDocument();
+    });
+
+    it('expands on click and reveals its children', () => {
+      mockUsePathname.mockReturnValue('/dashboard');
+      render(<ProtectedSidebar />);
+      fireEvent.click(screen.getByRole('button', { name: /متجري/ }));
+      expect(screen.getByText('منتجاتي').closest('a')?.getAttribute('href')).toBe('/my-store/products');
+      expect(screen.getByText('المتاجر المتابَعة').closest('a')?.getAttribute('href')).toBe('/my-store/followed');
+    });
+
+    it('is expanded by default when pathname is inside the group (e.g. /my-store/followed)', () => {
+      mockUsePathname.mockReturnValue('/my-store/followed');
+      render(<ProtectedSidebar />);
+      const toggle = screen.getByRole('button', { name: /متجري/ });
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    });
   });
 });

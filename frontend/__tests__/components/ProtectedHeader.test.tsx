@@ -49,4 +49,14 @@ describe('ProtectedHeader', () => {
     render(<ProtectedHeader />);
     expect(screen.getByTestId('user-menu')).toBeInTheDocument();
   });
+
+  // REORG-06: browse links (stores/services/service-providers), mirroring
+  // PublicHeader, so a signed-in user isn't stuck inside the protected
+  // section to reach public browse.
+  it('renders stores/services/service-providers links', () => {
+    render(<ProtectedHeader />);
+    expect(screen.getByText('المتاجر').closest('a')).toHaveAttribute('href', ROUTES.stores);
+    expect(screen.getByText('الخدمات').closest('a')).toHaveAttribute('href', ROUTES.services);
+    expect(screen.getByText('مقدمو الخدمة').closest('a')).toHaveAttribute('href', ROUTES.serviceProviders);
+  });
 });

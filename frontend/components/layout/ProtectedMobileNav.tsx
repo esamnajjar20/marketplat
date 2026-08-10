@@ -17,12 +17,28 @@
  * المحفوظة" (#4, already added onto ProtectedSidebar directly, included
  * here too for parity since ProtectedSidebar is exactly what's hidden
  * at this breakpoint).
+ *
+ * REORG-07: added a "تصفح" section (same 5 links as public MobileNav —
+ * home/search/stores/services/service-providers) as the first section.
+ * Previously this drawer only had account links; a signed-in user on
+ * mobile had no path back to public browse without leaving the
+ * protected section, same gap REORG-06 closed on desktop via
+ * ProtectedHeader.
+ *
+ * REORG-08: "نشاطي" (/activity) added to LINKS — present in MobileNav
+ * and ProtectedSidebar already, was the one place it was missing.
+ *
+ * REORG-04: "خدماتي" and "متجري" became disclosure groups here too,
+ * same structure/children as ProtectedSidebar's DisclosureGroup, so the
+ * two navs stay in sync instead of one having flat links to just the
+ * group roots.
  */
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Home, Search, Store as StoreIcon, Wrench as WrenchIcon, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin } from '@/store/auth.store';
@@ -32,14 +48,49 @@ import { ROUTES } from '@/lib/constants';
 const selectCloseMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 
+// REORG-07: identical to MobileNav.tsx's BROWSE_LINKS.
+const BROWSE_LINKS = [
+  { label: 'الرئيسية', href: ROUTES.home, icon: Home },
+  { label: 'البحث', href: ROUTES.search, icon: Search },
+  { label: 'المتاجر', href: ROUTES.stores, icon: StoreIcon },
+  { label: 'الخدمات', href: ROUTES.services, icon: WrenchIcon },
+  { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
+] as const;
+
 const LINKS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard },
   { label: 'إعلاناتي', href: ROUTES.myAds },
   { label: 'المفضلة', href: ROUTES.favorites },
   { label: 'الرسائل', href: ROUTES.messages },
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches },
-  { label: 'خدماتي', href: ROUTES.myServices },
-  { label: 'متجري', href: ROUTES.myStore },
+  // REORG-08
+  { label: 'نشاطي', href: ROUTES.activity },
+] as const;
+
+// REORG-04: same grouping as ProtectedSidebar's SERVICES_GROUP.
+const SERVICES_GROUP = {
+  label: 'خدماتي',
+  href: ROUTES.myServices,
+  children: [
+    { label: 'خدماتي', href: ROUTES.myServices },
+    { label: 'الطلبات الواردة', href: ROUTES.incomingServiceRequests },
+    { label: 'مواعيدي', href: ROUTES.myServiceAppointments },
+    { label: 'طلباتي', href: ROUTES.myServiceRequests },
+  ],
+} as const;
+
+// REORG-04: same grouping as ProtectedSidebar's STORE_GROUP.
+const STORE_GROUP = {
+  label: 'متجري',
+  href: ROUTES.myStore,
+  children: [
+    { label: 'متجري', href: ROUTES.myStore },
+    { label: 'منتجاتي', href: ROUTES.myStoreProducts },
+    { label: 'المتاجر المتابَعة', href: ROUTES.myFollowedStores },
+  ],
+} as const;
+
+const TRAILING_LINKS = [
   // FEAT-REPORT-USER-STORE: added for parity with ProtectedSidebar,
   // same reasoning as this file's own doc comment on "البحثات المحفوظة".
   { label: 'بلاغاتي', href: ROUTES.myReports },
@@ -48,6 +99,58 @@ const LINKS = [
 
 const NAV_ID = 'protected-mobile-nav-drawer';
 const TOGGLE_ID = 'protected-mobile-nav-toggle';
+
+function DrawerDisclosureGroup({
+  group, pathname, onNavigate,
+}: {
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
+  const [isOpen, setIsOpen] = useState(isAnyChildActive);
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-expanded={isOpen}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+          isAnyChildActive && !isOpen ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+        )}
+      >
+        <span className="flex-1 text-start">{group.label}</span>
+        {isOpen
+          ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+      </button>
+      {isOpen && (
+        <ul className="mt-1 flex flex-col gap-1">
+          {group.children.map((child) => {
+            const isActive = pathname.startsWith(child.href);
+            return (
+              <li key={child.href}>
+                <Link
+                  href={child.href}
+                  onClick={onNavigate}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'block rounded-md px-3 py-2 ms-4 text-base font-medium transition-colors',
+                    isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                  )}
+                >
+                  {child.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
+  );
+}
 
 export function ProtectedMobileNav() {
   const isOpen = useUIStore(selectIsMobileNavOpen);
@@ -121,7 +224,25 @@ export function ProtectedMobileNav() {
           </button>
         </div>
 
-        <ul className="mt-6 flex flex-col gap-1">
+        {/* REORG-07: "تصفح" section — same content/order as public
+            MobileNav's own BROWSE_LINKS, first in the drawer. */}
+        <p className="mt-6 px-3 pb-1 text-xs font-medium text-muted-foreground">تصفح</p>
+        <ul className="flex flex-col gap-1">
+          {BROWSE_LINKS.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                onClick={close}
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+              >
+                <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <ul className="mt-3 flex flex-col gap-1 border-t pt-3">
           {LINKS.map((link) => {
             const isActive = pathname.startsWith((link as { activeMatch?: string }).activeMatch ?? link.href);
             return (
@@ -140,6 +261,29 @@ export function ProtectedMobileNav() {
               </li>
             );
           })}
+
+          <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
+          <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />
+
+          {TRAILING_LINKS.map((link) => {
+            const isActive = pathname.startsWith((link as { activeMatch?: string }).activeMatch ?? link.href);
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  onClick={close}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'block rounded-md px-3 py-2 text-base font-medium transition-colors',
+                    isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                  )}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            );
+          })}
+
           {isAdmin && (
             <li>
               <Link

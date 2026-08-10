@@ -15,11 +15,15 @@
  * comment); this test targets it directly. The old route's own
  * behavior — that it redirects here — is covered separately in
  * LegacyEditAdRedirectPage.test.tsx.
+ *
+ * REORG-03: canonical page moved from /my-ads/[id]/page.tsx to
+ * /my-ads/[id]/edit/page.tsx (naming-only, see that file's comment) —
+ * import path updated to match.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { Suspense } from 'react';
-import EditAdPage from '@/app/(protected)/my-ads/[id]/page';
+import EditAdPage from '@/app/(protected)/my-ads/[id]/edit/page';
 import { useAd } from '@/hooks/queries/useAds';
 import { useAuthStore } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';

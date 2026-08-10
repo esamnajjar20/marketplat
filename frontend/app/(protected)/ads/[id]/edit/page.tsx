@@ -19,7 +19,7 @@
  *
  * middleware.ts's PROTECTED_AD_EDIT_RE still matches this path, so an
  * unauthenticated visit is bounced to /login before ever reaching this
- * redirect — same protection /my-ads/[id] gets via the '/my-ads'
+ * redirect — same protection /my-ads/[id]/edit gets via the '/my-ads'
  * prefix entry.
  */
 import { use, useEffect } from 'react';
