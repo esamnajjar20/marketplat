@@ -1,12 +1,16 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
+import Link from 'next/link';
+import { SearchX } from 'lucide-react';
 import { SellerProfileHeader } from '@/components/sellers/SellerProfileHeader';
 import { SellerProfileAds } from '@/components/sellers/SellerProfileAds';
 import { SellerRatingsList } from '@/components/sellers/SellerRatingsList';
 import { ServiceReviewsList } from '@/components/services/ServiceReviewsList';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { buildMetadata } from '@/lib/seo';
 import { sellersApi } from '@/api/sellers.api';
+import { ROUTES } from '@/lib/constants';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -42,8 +46,25 @@ export default async function SellerProfilePage({ params }: Props) {
     /* seller 404 */
   }
 
+  // P1 FIX (layout audit §3): was a bare centered line of muted text
+  // with no icon and no way back — one of the three inconsistent
+  // "not found" treatments the audit flagged. Now matches the
+  // EmptyState pattern already used by /stores/[id] and /ads/[id].
   if (!seller) {
-    return <div className="text-center py-20 text-muted-foreground">البائع غير موجود</div>;
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <EmptyState
+          icon={<SearchX className="h-10 w-10" />}
+          title="البائع غير موجود"
+          description="ربما تم حذف هذا الملف الشخصي أو أن الرابط غير صحيح"
+          action={
+            <Link href={ROUTES.search} className="text-sm text-primary hover:underline">
+              تصفح الإعلانات
+            </Link>
+          }
+        />
+      </div>
+    );
   }
 
   return (

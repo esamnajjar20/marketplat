@@ -12,9 +12,12 @@ export const metadata: Metadata = buildMetadata({ title: 'خدماتي', noIndex
 export default function MyServicesPage() {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      {/* P1 FIX (layout audit §6): 3 header buttons with no flex-wrap —
+          overflow risk on narrow screens that my-store/products (2
+          buttons, already flex-wrap) doesn't have. */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-xl font-bold">خدماتي</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link href={ROUTES.incomingServiceRequests}>
             <Button size="sm" variant="outline" className="gap-1.5"><Inbox className="h-4 w-4" />الطلبات الواردة</Button>
           </Link>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Heart, MessageCircle, Menu } from 'lucide-react';
+import { Home, Search, Heart, MessageCircle, Menu, Plus } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
@@ -32,15 +32,27 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  * pwa-safe-bottom (globals.css) handles the iOS home-indicator / Android
  * gesture-bar safe area — see that utility's own comment, which already
  * anticipated "Bottom navigation" as a consumer.
+ *
+ * P1 FIX (layout audit §9): "نشر إعلان" — the site's single most
+ * important conversion action — had no direct entry point in this bar;
+ * reaching it required hamburger → drawer → scroll to the "أضف إعلانك"
+ * link. It's now a raised center button (common "post/create" pattern
+ * on tabbed-navigation apps), splitting the 4 nav items 2+2 around it.
+ * /ads/create lives under (protected), so ProtectedLayout's own
+ * auth-redirect handles guests exactly like "المفضلة" already does —
+ * no extra branching needed here either.
  */
 export function BottomNav() {
   const pathname = usePathname();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
 
-  const items = [
+  const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
     { label: 'البحث', href: ROUTES.search, icon: Search },
+  ] as const;
+
+  const trailingItems = [
     // Favorites requires an account either way (see ROUTES.favorites'
     // own (protected) route group) — for a guest this still routes
     // correctly to /login?from=/favorites via ProtectedLayout's own
@@ -49,34 +61,51 @@ export function BottomNav() {
     { label: 'الرسائل', href: ROUTES.messages, icon: MessageCircle },
   ] as const;
 
+  function renderItem({ label, href, icon: Icon }: {
+    label: string; href: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  }) {
+    const isActive = href === ROUTES.home ? pathname === href : pathname.startsWith(href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        aria-current={isActive ? 'page' : undefined}
+        className={cn(
+          'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+          isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        <Icon className="h-5 w-5" aria-hidden={true} />
+        {label}
+      </Link>
+    );
+  }
+
   return (
     <nav
       aria-label="التنقل الرئيسي"
-      className="pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
+      className="pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
     >
-      {items.map(({ label, href, icon: Icon }) => {
-        const isActive = href === ROUTES.home ? pathname === href : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={isActive ? 'page' : undefined}
-            className={cn(
-              'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
-              isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Icon className="h-5 w-5" aria-hidden="true" />
-            {label}
-          </Link>
-        );
-      })}
+      {leadingItems.map(renderItem)}
+
+      <div className="flex flex-1 justify-center">
+        <Link
+          href={ROUTES.adCreate}
+          aria-label="نشر إعلان"
+          className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+        >
+          <Plus className="h-6 w-6" aria-hidden={true} />
+        </Link>
+      </div>
+
+      {trailingItems.map(renderItem)}
+
       <button
         type="button"
         onClick={toggleMobileNav}
         className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
-        <Menu className="h-5 w-5" aria-hidden="true" />
+        <Menu className="h-5 w-5" aria-hidden={true} />
         {isAuthenticated ? 'حسابي' : 'القائمة'}
       </button>
     </nav>

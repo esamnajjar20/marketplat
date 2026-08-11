@@ -172,6 +172,18 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             {ad.isNegotiable && <span className="text-sm font-normal text-muted-foreground ms-2">قابل للتفاوض</span>}
           </p>
 
+          {/* P1 FIX (layout audit §2): SellerCard — the page's most
+              important CTA (مراسلة البائع) — used to sit in the RIGHT
+              column, which stacks *below* gallery+price+description+
+              report on mobile (grid-cols-1). A buyer had to scroll past
+              all of that before reaching it. Rendered here, right after
+              price, and hidden on `lg:` where the RIGHT-column copy
+              below takes over — so desktop's two-column layout is
+              pixel-identical to before. */}
+          <div className="lg:hidden">
+            <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {ad.status !== 'ACTIVE' && (
               <Badge variant={ad.status === 'SOLD' ? 'secondary' : 'destructive'}>
@@ -206,8 +218,9 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
         </div>
       </div>
 
-      {/* RIGHT: seller + action */}
-      <div className="space-y-4">
+      {/* RIGHT: seller + action (desktop only — see the mobile copy
+          rendered inline above, right after price) */}
+      <div className="hidden lg:block space-y-4">
         <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
         <div className="rounded-lg border bg-card p-4 text-xs text-muted-foreground space-y-1">
           <p>رقم الإعلان: <span className="font-mono text-foreground">{ad.id.slice(-8)}</span></p>

@@ -8,7 +8,7 @@
  *   border-r draws on the left side of the sidebar which is the wrong edge.
  *   border-e always draws on the inline-end edge regardless of direction.
  *
- * UX-15 FIX: Unicode icon spans now have aria-hidden="true" so screen
+ * UX-15 FIX: Unicode icon spans now have aria-hidden={true} so screen
  *   readers don't read out "◈" or "♡" before each nav item label.
  *
  * FIX P2-1: replaced the Unicode glyphs themselves (▦ ◈ ♡ 🔖 ✉ 🛠 🚩 ⚙)
@@ -87,12 +87,34 @@ const NAV_ITEMS = [
 
 const TRAILING_NAV_ITEMS = [
   // FEAT-REPORT-USER-STORE: without a link here, /my-reports would be
-  // reachable only by direct URL — same discoverability gap the
+  // reachable only by direct URL — same discoverability gap as the
   // "AUDIT-FIX (protected #2, #4)" note above already fixed once for
   // /my-services and /saved-searches.
   { label: 'بلاغاتي',     href: ROUTES.myReports,         icon: Flag },
-  { label: 'الإعدادات',   href: ROUTES.settings.profile,  icon: Settings, activeMatch: ROUTES.settings.root },
 ] as const;
+
+// P1 FIX (layout audit §6, "sidebar داخل sidebar"): /settings/layout.tsx
+// used to mount its own SettingsSidebar (8 links) alongside this sidebar's
+// single flat "الإعدادات" entry — three visually nested navigation levels
+// (ProtectedSidebar → SettingsSidebar → content) at the desktop breakpoint.
+// Folding the same 8 destinations in here as a disclosure group — same
+// pattern as SERVICES_GROUP/STORE_GROUP above — collapses that back to
+// the two levels every other protected route already has.
+const SETTINGS_GROUP = {
+  label: 'الإعدادات',
+  href: ROUTES.settings.profile,
+  icon: Settings,
+  children: [
+    { label: 'الملف الشخصي', href: ROUTES.settings.profile },
+    { label: 'ملف البائع', href: ROUTES.settings.seller },
+    { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
+    { label: 'متجري', href: ROUTES.myStore },
+    { label: 'الأمان', href: ROUTES.settings.security },
+    { label: 'الجلسات', href: ROUTES.settings.sessions },
+    { label: 'الإشعارات', href: ROUTES.settings.notifications },
+    { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
+  ],
+} as const;
 
 // REORG-04: "خدماتي" disclosure — provider-side (my listed services,
 // incoming requests, appointments calendar) and customer-side (requests
@@ -144,7 +166,7 @@ function NavLink({
       )}
     >
       {/* UX-15 FIX: aria-hidden so screen readers skip the decorative icon */}
-      {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
+      {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />}
       {label}
     </Link>
   );
@@ -153,7 +175,7 @@ function NavLink({
 function DisclosureGroup({
   group, pathname,
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP;
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | typeof SETTINGS_GROUP;
   pathname: string;
 }) {
   const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
@@ -176,11 +198,11 @@ function DisclosureGroup({
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
-          ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+          ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden={true} />
+          : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden={true} />}
       </button>
       {isOpen && (
         <div className="mt-1 flex flex-col gap-1">
@@ -214,10 +236,6 @@ export function ProtectedSidebar() {
     <aside className="hidden w-56 shrink-0 border-e bg-muted/20 lg:block">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1 p-4">
         {NAV_ITEMS.map((item) => {
-          // Settings has its own activeMatch (its root '/settings') so any
-          // sub-route (/settings/security, /settings/sessions, …) still
-          // marks the single "الإعدادات" link active — startsWith(item.href)
-          // alone only matched the exact profile sub-route.
           const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);
           return (
             <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
@@ -251,6 +269,8 @@ export function ProtectedSidebar() {
             <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
           );
         })}
+
+        <DisclosureGroup group={SETTINGS_GROUP} pathname={pathname} />
       </nav>
     </aside>
   );

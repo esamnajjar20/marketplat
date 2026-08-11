@@ -40,6 +40,14 @@
  * and a real fetch error all render identically as the CTA row.
  * Duplicated here rather than shared because the two navs already
  * don't share a component, only the group constants' shape.
+ *
+ * P3 FIX (layout audit §9, "أضف إعلانك" غائب عن هذا الـdrawer):
+ * deliberately not adding a duplicate entry here. "نشر إعلان" already
+ * has two always-visible entry points at this breakpoint — the CTA in
+ * ProtectedHeader (unconditionally rendered, not `hidden` at any
+ * width) and BottomNav's raised center button — so a third copy inside
+ * this drawer would be redundant, not a gap. If either of those is
+ * ever removed, add ROUTES.adCreate back into LINKS/TRAILING_LINKS.
  */
 'use client';
 

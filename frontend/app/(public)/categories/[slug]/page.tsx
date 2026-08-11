@@ -3,6 +3,7 @@ import { Suspense }         from 'react';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { CategoryHero }     from '@/components/home/CategoryHero';
 import { SearchFilters }    from '@/components/ads/SearchFilters';
+import { SearchFiltersSheet } from '@/components/ads/SearchFiltersSheet';
 import { SearchResults }    from '@/components/ads/SearchResults';
 import { getQueryClient }   from '@/lib/queryClient';
 import { prefetchCategories } from '@/lib/prefetch';
@@ -25,8 +26,14 @@ export default async function CategoryPage({ params }: Props) {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <HydrationBoundary state={dehydrate(qc)}>
         <CategoryHero slug={slug} />
+        {/* P0 FIX (layout audit §1): SearchFiltersSheet mirrors /search's
+            FIX P1-2 — full filter panel behind a "تصفية" trigger below
+            `lg`, so mobile users see results before they see filters. */}
+        <Suspense>
+          <SearchFiltersSheet categorySlug={slug} />
+        </Suspense>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <aside className="lg:col-span-1">
+          <aside className="hidden lg:col-span-1 lg:block">
             <Suspense><SearchFilters categorySlug={slug} /></Suspense>
           </aside>
           <main className="lg:col-span-3">

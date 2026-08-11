@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
+import Link from 'next/link';
+import { SearchX } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { ServiceProviderHeader } from '@/components/services/ServiceProviderHeader';
 import { ServiceProviderListings } from '@/components/services/ServiceProviderListings';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ROUTES } from '@/lib/constants';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -38,8 +42,25 @@ export default async function ServiceProviderPage({ params }: Props) {
     /* 404 */
   }
 
+  // P1 FIX (layout audit §3): was a bare centered line of muted text
+  // with no icon and no way back — one of the three inconsistent
+  // "not found" treatments the audit flagged. Now matches the
+  // EmptyState pattern already used by /stores/[id] and /ads/[id].
   if (!provider) {
-    return <div className="text-center py-20 text-muted-foreground">مقدم الخدمة غير موجود</div>;
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <EmptyState
+          icon={<SearchX className="h-10 w-10" />}
+          title="مقدم الخدمة غير موجود"
+          description="ربما تم حذف هذا الملف الشخصي أو أن الرابط غير صحيح"
+          action={
+            <Link href={ROUTES.serviceProviders} className="text-sm text-primary hover:underline">
+              تصفح مقدمي الخدمات
+            </Link>
+          }
+        />
+      </div>
+    );
   }
 
   return (

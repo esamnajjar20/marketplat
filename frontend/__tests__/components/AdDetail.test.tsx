@@ -143,7 +143,13 @@ describe('AdDetail', () => {
 
     it('renders SellerCard with the ad author', () => {
       renderWithClient(<AdDetail ad={baseAd} />);
-      expect(screen.getByText('SellerCard: أحمد')).toBeInTheDocument();
+      // P1 FIX (layout audit §2): SellerCard now renders twice in the
+      // DOM — once inline after price (lg:hidden, for mobile) and once
+      // in the desktop-only right column (hidden lg:block) — so the
+      // CTA sits high on the page without a JS breakpoint check. Both
+      // copies carry the same content; jsdom has no viewport, so both
+      // are present regardless of the CSS that hides one at runtime.
+      expect(screen.getAllByText('SellerCard: أحمد').length).toBe(2);
     });
 
     it('renders the last 8 characters of the ad id as a reference number', () => {

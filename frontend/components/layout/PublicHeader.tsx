@@ -58,7 +58,12 @@ export function PublicHeader() {
           <ThemeToggle />
           {isAuthenticated ? (
             <>
-              <Button asChild variant="ghost" size="sm">
+              {/* P1 FIX (layout audit §9): this is the site's primary
+                  conversion CTA (matches ProtectedHeader's "+ نشر إعلان"),
+                  but was rendered as a ghost button here — the opposite
+                  of what its importance calls for, and inconsistent with
+                  its own prominent treatment once the user is signed in. */}
+              <Button asChild size="sm">
                 <Link href={ROUTES.adCreate}>نشر إعلان</Link>
               </Button>
               <NotificationBell />

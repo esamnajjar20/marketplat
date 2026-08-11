@@ -14,10 +14,10 @@ export default function StoresPage() {
       {/*
         Design pass: previously a bare <h1> + grid with no filter UI at
         all (BUG-02) and no visual identity distinct from any other
-        list page. Matches the header treatment /categories/[slug] and
-        /services already use — an icon-badge + heading pair — instead
-        of a plain text title, and now has a real filter sidebar
-        (StoresFilters) so the search/city/sort the grid already
+        list page. Matches the header treatment /categories/[slug] uses
+        — an icon-badge + heading pair — instead of a plain text title,
+        and now has a real filter sidebar (StoresFilters) so the
+        search/city/sort the grid already
         supports is actually reachable.
       */}
       <div className="border-b bg-secondary/40">
