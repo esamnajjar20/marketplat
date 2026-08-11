@@ -3,8 +3,16 @@
  *
  * UX-06 FIX: Added explicit ✕ close button inside drawer + Escape key handler.
  * UX-07 FIX: end-0 (logical) instead of right-0 — RTL-safe drawer anchor.
- *            translate-x-full still works: in RTL the browser already
- *            mirrors the transform direction for end-anchored elements.
+ *
+ * CORRECTED: end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
+ * to left:0 — verified against spec (MDN: "with direction rtl,
+ * inset-inline-end moves the element from the right side to the left
+ * side"). A prior edit here wrongly assumed it mapped to right:0 and
+ * flipped the closed-state transform to positive translate-x-full,
+ * which pushed the drawer onto the visible right portion of the screen
+ * instead of off it. transform is physical and never mirrors with
+ * dir="rtl" — closing a left-anchored (end-0) drawer must move it LEFT
+ * (negative translate-x-full, restored below) to clear the viewport.
  *
  * FIX UX-12: the link list used to be a single hardcoded constant that
  * always showed "تسجيل الدخول" / "إنشاء حساب", even to an already
@@ -183,6 +191,20 @@ export function MobileNav() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isMobileNavOpen, closeMobileNav]);
 
+  // BUG FIX: opening this drawer previously left <body> free to scroll
+  // — the page underneath kept scrolling along with (or independently
+  // of) the fixed-positioned drawer. Locking <body> overflow while open
+  // is the standard fix; restored on close/unmount. Same fix applied
+  // to ProtectedMobileNav's identical drawer.
+  useEffect(() => {
+    if (!isMobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileNavOpen]);
+
   // Move focus into drawer when opened; restore to toggle when closed
   useEffect(() => {
     if (isMobileNavOpen) {
@@ -238,12 +260,14 @@ export function MobileNav() {
             />
           )}
 
-          {/* Drawer — end-0 is logical (right in LTR, left in RTL).
-              translate-x-full is a PHYSICAL property (always moves toward
-              +X / visual right) — it does NOT flip with dir="rtl" the way
-              end-0 does. Since this app is RTL-only (dir="rtl" on <html>),
-              the closed state must slide toward the left (-translate-x-full)
-              to match the drawer's left-anchored (end-0) position. */}
+          {/* Drawer — end-0 is logical, and in this RTL app (dir="rtl")
+              resolves to left:0 (drawer is anchored to the LEFT edge —
+              verified against spec: inset-inline-end maps to left when
+              direction is rtl). transform is a PHYSICAL property and
+              is NEVER mirrored by dir="rtl". A left-anchored (end-0)
+              drawer must translate LEFT (negative translate-x-full) to
+              clear the viewport when closed — positive translate-x-full
+              instead pushes it right onto the visible screen area. */}
           <nav
             id={NAV_ID}
             className={`fixed inset-y-0 end-0 z-[60] flex w-72 flex-col bg-background shadow-xl transition-transform duration-200 ${

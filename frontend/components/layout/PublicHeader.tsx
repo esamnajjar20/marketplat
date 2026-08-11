@@ -81,14 +81,24 @@ export function PublicHeader() {
           )}
         </nav>
 
-        {/* Mobile: hamburger */}
+        {/* Mobile: notification bell + hamburger */}
         {/* FIX UX-01: ml-auto is a physical (not logical) property — in
             this RTL layout it pushes the hamburger to the visual right,
             which happens to coincide with the trailing edge here only
             because flex order puts it last; me-auto is the logical
             equivalent and stays correct if the app ever adds an LTR
             locale. */}
-        <div className="me-auto md:hidden">
+        {/* BUG FIX (notifications missing on mobile home): NotificationBell
+            previously only rendered inside the `hidden md:flex` nav
+            above, so a signed-in user on a phone (< md) had zero access
+            to notifications on the home page — no bell, and no entry in
+            MobileNav's drawer either. Placed here, next to the
+            hamburger, mirroring ProtectedHeader's unconditional
+            (non-breakpoint-gated) placement of the same component. Kept
+            behind isAuthenticated since NotificationBell's own data
+            hooks (useMyNotifications) require an authenticated user. */}
+        <div className="me-auto flex items-center gap-1 md:hidden">
+          {isAuthenticated && <NotificationBell />}
           <MobileNav />
         </div>
       </div>

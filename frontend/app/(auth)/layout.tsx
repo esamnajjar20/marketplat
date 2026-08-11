@@ -39,7 +39,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </blockquote>
       </div>
       {/* Form panel */}
-      <div className="flex flex-col items-center justify-center p-8">
+      {/* BUG FIX: `justify-center` here vertically centers the entire
+          panel (logo strip + title + form card) in the viewport,
+          leaving a large empty gap above the "سوق غزة" logo strip on
+          shorter content / taller screens (reported: logo strip sits
+          mid-screen instead of at the top). Switched to `justify-start`
+          with top padding so the panel — and the logo strip inside it —
+          anchors to the top instead of floating in the vertical center. */}
+      <div className="flex flex-col items-center justify-start p-8 pt-12">
         <div className="w-full max-w-sm">
           {/*
             Design pass: on mobile/tablet the branding panel above is

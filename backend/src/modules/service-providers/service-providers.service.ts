@@ -1,10 +1,11 @@
 import { prisma } from '../../config/prisma';
-import { ServiceProviderDetails } from '@prisma/client';
+import { ServiceProviderDetails, ServiceListing } from '@prisma/client';
 import {
   serviceProvidersRepository,
   ServiceProviderWithSeller,
   NearbyServiceProviderRow,
 } from './service-providers.repository';
+import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import {
   CreateServiceProviderInput,
   UpdateServiceProviderInput,
@@ -103,10 +104,34 @@ export const serviceProvidersService = {
     return serviceProvidersRepository.update(details.id, input);
   },
 
-  getPublicServiceProvider: async (id: string): Promise<ServiceProviderWithSeller> => {
+  // BUG FIX: findPublicById only ever fetched the provider row +
+  // sellerProfile — never `listings`, even though the frontend's
+  // ServiceProviderPublic type (types/service.types.ts) and
+  // ServiceProviderListings component have always expected a
+  // `listings` array on this response. That mismatch surfaced as a
+  // runtime crash on /service-providers/[id] ("Cannot read properties
+  // of undefined (reading 'filter')") rather than a compile-time
+  // error, since this function's own return type never claimed to
+  // include listings in the first place.
+  //
+  // Only ACTIVE listings are attached — this is the public provider
+  // page, so PAUSED/DELETED listings a provider is still managing
+  // privately (see getMyServiceListings) have no reason to reach an
+  // anonymous visitor. limit: 100 avoids an unbounded fetch for a
+  // provider with an unusually large catalog while still comfortably
+  // covering the normal case; a provider with more active listings
+  // than that is a pagination feature to add later, not a case to
+  // silently truncate without any signal today.
+  getPublicServiceProvider: async (
+    id: string
+  ): Promise<ServiceProviderWithSeller & { listings: ServiceListing[] }> => {
     const details = await serviceProvidersRepository.findPublicById(id);
     if (!details) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
-    return details;
+    const { listings } = await serviceListingsRepository.findManyByProviderId(id, {
+      status: 'ACTIVE',
+      limit: 100,
+    });
+    return { ...details, listings };
   },
 
   findNearby: async (

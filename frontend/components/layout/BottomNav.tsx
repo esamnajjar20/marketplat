@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Heart, MessageCircle, Menu, Plus } from 'lucide-react';
+import { Home, Search, MessageCircle, Menu, Plus } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
@@ -15,9 +15,15 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  * hamburger drawer (MobileNav/ProtectedMobileNav) — every common
  * destination (home, search, favorites, messages) required opening the
  * drawer first instead of a direct tap, adding friction to every mobile
- * session. Adds a fixed 5-item bottom bar below `md`, following the
- * same "primary destinations always reachable, everything else in the
+ * session. Adds a fixed bottom bar below `md`, following the same
+ * "primary destinations always reachable, everything else in the
  * drawer" split the audit asked for.
+ *
+ * BUG FIX: removed "المفضلة" (favorites) from this bar per request —
+ * bar is now 5 items total (home, search, +create, messages, menu).
+ * Favorites remains reachable via the drawer (MobileNav/
+ * ProtectedMobileNav already list it) and via ProtectedSidebar on
+ * desktop — this only removes its bottom-bar shortcut.
  *
  * Deliberately reuses ui.store's existing isMobileNavOpen/toggleMobileNav
  * for its own "القائمة" tab instead of introducing a second drawer state
@@ -37,10 +43,10 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  * important conversion action — had no direct entry point in this bar;
  * reaching it required hamburger → drawer → scroll to the "أضف إعلانك"
  * link. It's now a raised center button (common "post/create" pattern
- * on tabbed-navigation apps), splitting the 4 nav items 2+2 around it.
- * /ads/create lives under (protected), so ProtectedLayout's own
- * auth-redirect handles guests exactly like "المفضلة" already does —
- * no extra branching needed here either.
+ * on tabbed-navigation apps), splitting the remaining nav items around
+ * it. /ads/create lives under (protected), so ProtectedLayout's own
+ * auth-redirect handles guests the same way it already does for other
+ * protected destinations — no extra branching needed here either.
  */
 export function BottomNav() {
   const pathname = usePathname();
@@ -53,11 +59,6 @@ export function BottomNav() {
   ] as const;
 
   const trailingItems = [
-    // Favorites requires an account either way (see ROUTES.favorites'
-    // own (protected) route group) — for a guest this still routes
-    // correctly to /login?from=/favorites via ProtectedLayout's own
-    // redirect, so no extra branching needed here.
-    { label: 'المفضلة', href: ROUTES.favorites, icon: Heart },
     { label: 'الرسائل', href: ROUTES.messages, icon: MessageCircle },
   ] as const;
 
@@ -88,14 +89,18 @@ export function BottomNav() {
     >
       {leadingItems.map(renderItem)}
 
-      <div className="flex flex-1 justify-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
         <Link
           href={ROUTES.adCreate}
-          aria-label="نشر إعلان"
           className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
         >
           <Plus className="h-6 w-6" aria-hidden={true} />
         </Link>
+        {/* Label added to match the other four items' icon+label
+            pattern — this button was the only one in the bar with no
+            visible text, breaking visual consistency with its
+            siblings. */}
+        <span className="text-[11px] font-medium text-muted-foreground">نشر إعلان</span>
       </div>
 
       {trailingItems.map(renderItem)}

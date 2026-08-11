@@ -192,6 +192,22 @@ export function ProtectedMobileNav() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isOpen, close]);
 
+  // BUG FIX: opening this drawer previously left <body> free to scroll
+  // — with the drawer fixed-positioned on top, scrolling (touch drag or
+  // wheel) still moved the dashboard content underneath it, since
+  // nothing told the page itself to stop scrolling while the drawer is
+  // open. Locking overflow on <body> for the duration is the standard
+  // fix (same technique any modal/sheet needs); restored on close or
+  // unmount so normal scrolling always resumes.
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen) {
       closeButtonRef.current?.focus();
@@ -227,6 +243,17 @@ export function ProtectedMobileNav() {
         id={NAV_ID}
         className={cn(
           'fixed inset-y-0 end-0 z-[60] w-72 bg-background p-6 shadow-xl transition-transform duration-200 lg:hidden',
+          // end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
+          // to left:0 — verified against the CSS spec (MDN:
+          // "with direction rtl, inset-inline-end moves the element
+          // from the right side to the left side"), not right:0 as an
+          // earlier edit here incorrectly assumed. transform is a
+          // physical property and never mirrors with dir. For a
+          // left-anchored (end-0/left:0) drawer, closing must move it
+          // LEFT (negative translate-x-full) to clear the viewport —
+          // translate-x-full (positive) instead pushes it right, onto
+          // the visible portion of the screen, which is the bug this
+          // reverts.
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
         aria-label="القائمة الشخصية"

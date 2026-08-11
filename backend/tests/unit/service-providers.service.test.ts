@@ -1,5 +1,6 @@
 import { serviceProvidersService } from '../../src/modules/service-providers/service-providers.service';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
+import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { withServiceProviderCreationLock } from '../../src/shared/utils/serviceProviderLock';
@@ -9,6 +10,7 @@ import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
 jest.mock('../../src/modules/service-providers/service-providers.repository');
+jest.mock('../../src/modules/service-listings/service-listings.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/shared/utils/serviceProviderLock');
 jest.mock('../../src/config/prisma', () => ({
@@ -201,11 +203,36 @@ describe('serviceProvidersService', () => {
       );
     });
 
-    it('returns the provider (with seller) when found', async () => {
+    // BUG FIX: findPublicById alone never included `listings` — the
+    // frontend's ServiceProviderPublic type and ServiceProviderListings
+    // component have always expected one, and its absence crashed
+    // /service-providers/[id] at runtime ("Cannot read properties of
+    // undefined (reading 'filter')"). getPublicServiceProvider now also
+    // fetches the provider's ACTIVE listings and attaches them.
+    it('returns the provider (with seller) plus its ACTIVE listings when found', async () => {
       const withSeller = { ...mockProvider, sellerProfile: { id: 'seller-profile-1' } };
+      const activeListings = [{ id: 'listing-1', status: 'ACTIVE' }] as any;
       (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(withSeller);
+      (serviceListingsRepository.findManyByProviderId as jest.Mock).mockResolvedValue({
+        listings: activeListings,
+        total: 1,
+      });
+
       const result = await serviceProvidersService.getPublicServiceProvider('provider-1');
-      expect(result).toEqual(withSeller);
+
+      expect(serviceListingsRepository.findManyByProviderId).toHaveBeenCalledWith('provider-1', {
+        status: 'ACTIVE',
+        limit: 100,
+      });
+      expect(result).toEqual({ ...withSeller, listings: activeListings });
+    });
+
+    it('does not fetch listings when the provider is not found', async () => {
+      (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(null);
+      await expect(serviceProvidersService.getPublicServiceProvider('missing')).rejects.toThrow(
+        NotFoundError
+      );
+      expect(serviceListingsRepository.findManyByProviderId).not.toHaveBeenCalled();
     });
   });
 
