@@ -22,7 +22,26 @@ export function PublicHeader() {
 
   return (
     <header className="pwa-safe-top sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
+      {/* VISUAL (mobile top-bar redesign): a dedicated compact title
+          row for < md, replacing the cramped single h-16 row that used
+          to squeeze the logo, bell and hamburger together with no
+          search bar (search only appeared in the second row below).
+          Mirrors the reference layout's title bar — small centered
+          brand mark, bell kept unconditionally reachable next to it —
+          while staying on the same theme tokens as the rest of the
+          header so it needs no separate dark-mode treatment. */}
+      <div className="flex h-14 items-center justify-between px-4 md:hidden">
+        <Link href={ROUTES.home} className="shrink-0">
+          <Logo size="sm" />
+        </Link>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          {isAuthenticated && <NotificationBell />}
+          <MobileNav />
+        </div>
+      </div>
+
+      <div className="container mx-auto hidden h-16 max-w-7xl items-center gap-4 px-4 md:flex">
         <Link href={ROUTES.home} className="shrink-0">
           <Logo />
         </Link>
@@ -80,30 +99,12 @@ export function PublicHeader() {
             </>
           )}
         </nav>
-
-        {/* Mobile: notification bell + hamburger */}
-        {/* FIX UX-01: ml-auto is a physical (not logical) property — in
-            this RTL layout it pushes the hamburger to the visual right,
-            which happens to coincide with the trailing edge here only
-            because flex order puts it last; me-auto is the logical
-            equivalent and stays correct if the app ever adds an LTR
-            locale. */}
-        {/* BUG FIX (notifications missing on mobile home): NotificationBell
-            previously only rendered inside the `hidden md:flex` nav
-            above, so a signed-in user on a phone (< md) had zero access
-            to notifications on the home page — no bell, and no entry in
-            MobileNav's drawer either. Placed here, next to the
-            hamburger, mirroring ProtectedHeader's unconditional
-            (non-breakpoint-gated) placement of the same component. Kept
-            behind isAuthenticated since NotificationBell's own data
-            hooks (useMyNotifications) require an authenticated user. */}
-        <div className="me-auto flex items-center gap-1 md:hidden">
-          {isAuthenticated && <NotificationBell />}
-          <MobileNav />
-        </div>
       </div>
 
-      {/* Mobile search bar */}
+      {/* Mobile search bar — kept as its own row (not merged into the
+          title row above) since the title row's job is brand + quick
+          actions (theme/bell/menu), while search needs its full
+          width to stay comfortably tappable. */}
       <div className="border-t px-4 py-2 md:hidden">
         <SearchBar />
       </div>

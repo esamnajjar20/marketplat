@@ -43,41 +43,83 @@ function iconFor(slug: string, nameAr: string): LucideIcon {
   return match?.icon ?? Tag;
 }
 
+/**
+ * VISUAL (mobile top-bar redesign): a fixed rotation of theme-token
+ * background/text pairs (not raw Tailwind colors) for the mobile pill
+ * row, matching the reference layout's colorful chip look. Every pair
+ * is a semantic token (primary/accent/success/warning/destructive)
+ * rather than e.g. bg-blue-500, so each pill's contrast is whatever
+ * that token already resolves to in light vs. dark mode — no separate
+ * dark-mode pill palette needed. Cycles by index so it stays stable
+ * regardless of how many categories the backend returns.
+ */
+const PILL_COLOR_ROTATION = [
+  'bg-primary/15 text-primary',
+  'bg-success/15 text-success',
+  'bg-warning/20 text-warning-foreground',
+  'bg-accent/15 text-accent',
+  'bg-destructive/10 text-destructive',
+] as const;
+
 export function CategoryGrid() {
   const { data: categories, isLoading } = useCategories();
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 rounded-xl" />
-        ))}
-      </div>
+      <>
+        <div className="flex gap-2 overflow-x-auto sm:hidden">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-24 shrink-0 rounded-full" />
+          ))}
+        </div>
+        <div className="hidden grid-cols-3 gap-3 sm:grid md:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      </>
     );
   }
 
   const top = (categories ?? []).filter((c) => !c.parentId).slice(0, 8);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-      {top.map((cat) => {
-        const Icon = iconFor(cat.slug, cat.nameAr);
-        return (
+    <>
+      {/* Mobile: horizontal-scroll colorful pills, matching the
+          reference layout ("ماذا تبحث عنه؟" chip row). */}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:hidden [&::-webkit-scrollbar]:hidden">
+        {top.map((cat, i) => (
           <Link
             key={cat.id}
             href={ROUTES.category(cat.slug)}
-            className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap ${PILL_COLOR_ROTATION[i % PILL_COLOR_ROTATION.length]}`}
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              <Icon className="h-5 w-5" />
-            </span>
-            <span className="truncate text-sm font-medium">{cat.nameAr}</span>
-            {cat._count && (
-              <span className="text-xs text-muted-foreground">{cat._count.ads} إعلان</span>
-            )}
+            {cat.nameAr}
           </Link>
-        );
-      })}
-    </div>
+        ))}
+      </div>
+
+      {/* Desktop/tablet: original icon-card grid. */}
+      <div className="hidden grid-cols-3 gap-3 sm:grid md:grid-cols-4">
+        {top.map((cat) => {
+          const Icon = iconFor(cat.slug, cat.nameAr);
+          return (
+            <Link
+              key={cat.id}
+              href={ROUTES.category(cat.slug)}
+              className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="truncate text-sm font-medium">{cat.nameAr}</span>
+              {cat._count && (
+                <span className="text-xs text-muted-foreground">{cat._count.ads} إعلان</span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }
