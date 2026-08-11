@@ -242,7 +242,11 @@ export function ProtectedMobileNav() {
       <nav
         id={NAV_ID}
         className={cn(
-          'fixed inset-y-0 end-0 z-[60] w-72 bg-background p-6 shadow-xl transition-transform duration-200 lg:hidden',
+          // FIX MOBILE-01: max-w-[85vw] added — a fixed w-72 (288px)
+          // with no relative cap can exceed the viewport on narrow
+          // phones, forcing this drawer itself (not the page) into
+          // horizontal overflow.
+          'fixed inset-y-0 end-0 z-[60] w-72 max-w-[85vw] bg-background p-6 shadow-xl transition-transform duration-200 lg:hidden',
           // end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
           // to left:0 — verified against the CSS spec (MDN:
           // "with direction rtl, inset-inline-end moves the element

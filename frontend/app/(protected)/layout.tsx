@@ -68,13 +68,25 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    // FIX OVERFLOW-01: this container and every flex child in the
+    // chain below (the row div, <main>) were missing min-w-0. Default
+    // flex-item min-width is `auto`, meaning a flex item never shrinks
+    // narrower than its own content — so Timeline's 8-tab row (which
+    // relies on its own overflow-x-auto to scroll internally) was
+    // instead pushing <main>, this row, and this outer column wider
+    // than the viewport. That page-level horizontal overflow is what
+    // stretched the whole layout and clipped BottomNav's fixed
+    // inset-x-0 items off the visible edge — not a BottomNav bug
+    // itself. min-w-0 at each level lets children's own overflow
+    // handling (Timeline's overflow-x-auto) actually take effect
+    // instead of being bypassed by an ancestor refusing to shrink.
+    <div className="flex min-h-screen min-w-0 flex-col">
       <ProtectedHeader />
-      <div className="flex flex-1">
+      <div className="flex min-w-0 flex-1">
         <ProtectedSidebar />
         {/* FIX P1-3: pb-20 reserves space for BottomNav on mobile, same
             as the (public) layout's identical change. */}
-        <main className="flex-1 p-6 pb-20 md:pb-6">{children}</main>
+        <main className="min-w-0 flex-1 p-6 pb-20 md:pb-6">{children}</main>
       </div>
       <BottomNav />
     </div>

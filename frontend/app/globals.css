@@ -108,6 +108,17 @@
 @layer base {
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
+
+  /* FIX OVERFLOW-01 (defense-in-depth): the actual bug was missing
+     min-w-0 on flex ancestors in (protected)/layout.tsx and
+     (public)/layout.tsx, allowing a wide flex child (e.g. Timeline's
+     tab row) to stretch <main>/the layout column past viewport width
+     instead of scrolling internally — that's fixed at the source. This
+     is a second line of defense at the document root: if any future
+     component reintroduces the same class of bug, html/body clip
+     instead of the whole page (including fixed elements like
+     BottomNav) silently growing past the visible viewport again. */
+  html, body { @apply overflow-x-hidden; }
 }
 
 /**

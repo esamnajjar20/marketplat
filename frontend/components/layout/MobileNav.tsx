@@ -270,7 +270,9 @@ export function MobileNav() {
               instead pushes it right onto the visible screen area. */}
           <nav
             id={NAV_ID}
-            className={`fixed inset-y-0 end-0 z-[60] flex w-72 flex-col bg-background shadow-xl transition-transform duration-200 ${
+            // FIX MOBILE-01: max-w-[85vw] — see identical fix in
+            // ProtectedMobileNav.tsx.
+            className={`fixed inset-y-0 end-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
               isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
