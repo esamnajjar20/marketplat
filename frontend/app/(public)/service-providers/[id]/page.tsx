@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
 import Link from 'next/link';
-import { SearchX } from 'lucide-react';
+import { SearchX, Wrench } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { ServiceProviderHeader } from '@/components/services/ServiceProviderHeader';
@@ -67,7 +67,10 @@ export default async function ServiceProviderPage({ params }: Props) {
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
       <ServiceProviderHeader provider={provider} />
       <section className="space-y-3">
-        <h2 className="font-semibold text-lg">الخدمات المتاحة</h2>
+        <h2 className="flex items-center gap-1.5 text-lg font-bold">
+          <Wrench className="h-4 w-4 text-muted-foreground" />
+          الخدمات المتاحة
+        </h2>
         <ServiceProviderListings provider={provider} listings={provider.listings} />
       </section>
     </div>

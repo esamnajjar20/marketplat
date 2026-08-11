@@ -92,9 +92,9 @@ export function BottomNav() {
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
         <Link
           href={ROUTES.adCreate}
-          className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+          className="-mt-3 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
         >
-          <Plus className="h-6 w-6" aria-hidden={true} />
+          <Plus className="h-5 w-5" aria-hidden={true} />
         </Link>
         {/* Label added to match the other four items' icon+label
             pattern — this button was the only one in the bar with no

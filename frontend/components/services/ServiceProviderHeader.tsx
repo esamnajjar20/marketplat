@@ -1,6 +1,5 @@
 import Image from 'next/image';
 import { BadgeCheck, Star, Phone, MapPin } from 'lucide-react';
-import { Badge } from '@/components/shared/ui/Badge';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import type { ServiceProviderPublic, ServiceAvailability } from '@/types/service.types';
@@ -23,47 +22,68 @@ const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
   UNAVAILABLE: 'bg-muted-foreground',
 };
 
+/**
+ * REDESIGN: same mock StoreHeader.tsx was rebuilt against — centered
+ * avatar with a verified badge on it, name, stats card, full-width call
+ * button, centered bio. A provider has no cover photo or follow
+ * relationship (that's a store concept), so those are omitted; the
+ * stats card uses what a provider actually has (rating / service
+ * areas / availability) instead of a store's (followers/products/
+ * city). Same data as before — only the layout changed.
+ */
 export function ServiceProviderHeader({ provider }: Props) {
-  const avatar = getAvatarUrl(provider.logoUrl ?? provider.sellerProfile.avatarUrl ?? '', 96);
+  const avatar = getAvatarUrl(provider.logoUrl ?? provider.sellerProfile.avatarUrl ?? '', 128);
   const rating = parseFloat(provider.sellerProfile.averageRating);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-lg border bg-card">
-      <div className="relative w-20 h-20 rounded-full overflow-hidden bg-muted shrink-0">
-        <Image src={avatar} alt={provider.businessName} fill className="object-cover" sizes="80px" />
+    <div className="flex flex-col w-full items-center text-center pt-6">
+      <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
+        <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
+          <Image src={avatar} alt={provider.businessName} fill className="object-cover" sizes="96px" />
+        </div>
+        {provider.sellerProfile.verified && (
+          <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">
+            <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 space-y-1.5 text-center sm:text-start">
-        <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-          <h1 className="text-xl font-bold">{provider.businessName}</h1>
-          {provider.sellerProfile.verified && (
-            <Badge variant="success" className="gap-1">
-              <BadgeCheck className="h-3.5 w-3.5" /> موثّق
-            </Badge>
-          )}
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span className={`h-1.5 w-1.5 rounded-full ${AVAILABILITY_DOT[provider.availabilityStatus]}`} />
-            {AVAILABILITY_LABEL[provider.availabilityStatus]}
-          </span>
-        </div>
+      <h1 className="mt-4 text-xl font-bold text-foreground">{provider.businessName}</h1>
 
-        <div className="flex items-center justify-center sm:justify-start gap-3 text-sm text-muted-foreground flex-wrap">
-          {provider.sellerProfile.totalRatings > 0 && (
-            <span className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              {rating.toFixed(1)} ({provider.sellerProfile.totalRatings} تقييم)
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <MapPin className="h-4 w-4" /> {provider.serviceAreaCities.join('، ')}
-          </span>
-          <span className="flex items-center gap-1">
-            <Phone className="h-4 w-4" /> {formatPhone(provider.contactPhone)}
-          </span>
-        </div>
+      <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+        <span className={`h-1.5 w-1.5 rounded-full ${AVAILABILITY_DOT[provider.availabilityStatus]}`} />
+        {AVAILABILITY_LABEL[provider.availabilityStatus]}
+      </span>
 
-        <p className="text-sm mt-2 max-w-md">{provider.description}</p>
+      {provider.sellerProfile.totalRatings > 0 && (
+        <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+          {rating.toFixed(1)} ({provider.sellerProfile.totalRatings} تقييم)
+        </span>
+      )}
+
+      {/* Stats card */}
+      <div className="mt-4 w-full max-w-sm bg-card border rounded-xl p-4 shadow-sm">
+        <div className="flex justify-around items-center">
+          <div className="flex flex-col items-center">
+            <MapPin className="h-5 w-5 text-primary mb-1" />
+            <span className="text-xs text-muted-foreground">{provider.serviceAreaCities.join('، ')}</span>
+          </div>
+        </div>
       </div>
+
+      <div className="mt-4 w-full max-w-sm">
+        <a
+          href={`tel:${provider.contactPhone}`}
+          className="w-full bg-primary text-primary-foreground rounded-full py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-transform active:scale-95"
+        >
+          <Phone className="h-4 w-4" /> {formatPhone(provider.contactPhone)}
+        </a>
+      </div>
+
+      <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">
+        {provider.description}
+      </p>
     </div>
   );
 }

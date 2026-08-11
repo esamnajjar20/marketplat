@@ -1,5 +1,6 @@
 import type { Metadata }       from 'next';
 import { Suspense, cache }     from 'react';
+import { FileText }            from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { PublicProfileAds }    from '@/components/profile/PublicProfileAds';
 import { LoadingSpinner }      from '@/components/shared/feedback/LoadingSpinner';
@@ -47,7 +48,10 @@ export default async function PublicProfilePage({ params }: Props) {
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
       <PublicProfileHeader user={{ id, ...user }} />
       <section className="space-y-3">
-        <h2 className="font-semibold text-lg">إعلانات المستخدم</h2>
+        <h2 className="flex items-center gap-1.5 text-lg font-bold">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          إعلانات المستخدم
+        </h2>
         <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
           <PublicProfileAds userId={id} />
         </Suspense>

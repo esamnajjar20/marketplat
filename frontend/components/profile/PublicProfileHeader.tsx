@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { MapPin, Calendar } from 'lucide-react';
+import { MapPin, Calendar, FileText } from 'lucide-react';
 import { getAvatarUrl }   from '@/lib/cloudinary';
 import { formatDate }     from '@/lib/formatters';
 import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
@@ -7,30 +7,63 @@ import type { PublicUser } from '@/types/user.types';
 
 interface Props { user: PublicUser; }
 
+/**
+ * REDESIGN: matches the same mock StoreHeader.tsx was rebuilt against —
+ * centered avatar, name, a stats card, centered bio. A plain user has no
+ * cover photo, follow relationship, phone, or "verified" concept the
+ * way a store does, so those pieces of the mock are simply omitted here
+ * rather than faked; the stats card uses what a profile actually has
+ * (ad count / city / member-since) in place of store's
+ * (followers/products/city). Same data and same ReportUserButtonGate
+ * guard as before — only the layout changed.
+ */
 export function PublicProfileHeader({ user }: Props) {
-  const avatar = getAvatarUrl(user.avatarUrl ?? '', 96);
+  const avatar = getAvatarUrl(user.avatarUrl ?? '', 128);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-lg border bg-card">
-      <div className="relative w-20 h-20 rounded-full overflow-hidden bg-muted shrink-0">
-        <Image src={avatar} alt={user.name} fill className="object-cover" sizes="80px" />
+    <div className="flex flex-col w-full items-center text-center pt-6">
+      <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
+        <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
+          <Image src={avatar} alt={user.name} fill className="object-cover" sizes="96px" />
+        </div>
       </div>
-      <div className="space-y-1 text-center sm:text-start">
-        <h1 className="text-xl font-bold">{user.name}</h1>
-        {user.city && (
-          <p className="flex items-center justify-center sm:justify-start gap-1 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4" />{user.city}
-          </p>
-        )}
-        <p className="flex items-center justify-center sm:justify-start gap-1 text-sm text-muted-foreground">
-          <Calendar className="h-4 w-4" />عضو منذ {formatDate(user.createdAt)}
-        </p>
-        {user.bio && <p className="text-sm mt-2 max-w-md">{user.bio}</p>}
-        <p className="text-sm text-muted-foreground">{user._count.ads} إعلان</p>
-        {/* FEAT-REPORT-USER-STORE: PublicProfileHeader itself has no
-            'use client' — this is a client component that hides itself
-            when viewing your own profile (via useAuthStore), the same
-            self-report guard reportsService already enforces server-side. */}
+
+      <h1 className="mt-4 text-xl font-bold text-foreground">{user.name}</h1>
+
+      {/* Stats card */}
+      <div className="mt-4 w-full max-w-sm bg-card border rounded-xl p-4 shadow-sm">
+        <div className="flex justify-around items-center">
+          <div className="flex flex-col items-center">
+            <FileText className="h-5 w-5 text-primary mb-1" />
+            <span className="text-xl font-semibold text-foreground">{user._count.ads}</span>
+            <span className="text-xs text-muted-foreground">إعلان</span>
+          </div>
+          {user.city && (
+            <>
+              <div className="w-px h-8 bg-border" />
+              <div className="flex flex-col items-center">
+                <MapPin className="h-5 w-5 text-primary mb-1" />
+                <span className="text-xs text-muted-foreground">{user.city}</span>
+              </div>
+            </>
+          )}
+          <div className="w-px h-8 bg-border" />
+          <div className="flex flex-col items-center">
+            <Calendar className="h-5 w-5 text-primary mb-1" />
+            <span className="text-xs text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
+          </div>
+        </div>
+      </div>
+
+      {user.bio && (
+        <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">{user.bio}</p>
+      )}
+
+      {/* FEAT-REPORT-USER-STORE: PublicProfileHeader itself has no
+          'use client' — this is a client component that hides itself
+          when viewing your own profile (via useAuthStore), the same
+          self-report guard reportsService already enforces server-side. */}
+      <div className="mt-3">
         <ReportUserButtonGate targetUserId={user.id} />
       </div>
     </div>

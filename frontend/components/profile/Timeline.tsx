@@ -80,7 +80,44 @@ function linkFor(activity: UserActivity): string | null {
   }
 }
 
-function ActivityRow({ activity }: { activity: UserActivity }) {
+/** BUG FIX: sending several messages in the same conversation back to
+ * back (e.g. "محمد بعت رسالة" repeated) used to render one identical
+ * row per message — same icon, same title, same recipient — instead
+ * of a single collapsed row. The backend intentionally keeps one
+ * UserActivity row per message sent (that's the correct source of
+ * truth), so the merge happens here at render time: consecutive
+ * MESSAGE_SENT rows pointing at the same conversation (entityId) are
+ * folded into one GroupedActivity with a count, same idea as chat
+ * apps collapsing repeated system messages. Only *consecutive* rows
+ * merge — if another activity type happened in between, the streak
+ * breaks and a new group starts, so the feed's chronological order
+ * never gets reshuffled.
+ */
+type GroupedActivity = UserActivity & { count: number };
+
+function groupConsecutiveMessages(items: UserActivity[]): GroupedActivity[] {
+  const grouped: GroupedActivity[] = [];
+  for (const activity of items) {
+    const prev = grouped[grouped.length - 1];
+    const canMerge =
+      prev &&
+      activity.type === 'MESSAGE_SENT' &&
+      prev.type === 'MESSAGE_SENT' &&
+      activity.entityId != null &&
+      activity.entityId === prev.entityId;
+    if (canMerge) {
+      prev.count += 1;
+      // Keep the most recent timestamp of the group (items arrive
+      // newest-first from the API) so "قبل 3 دقائق" reflects the
+      // latest message, not the oldest one in the streak.
+    } else {
+      grouped.push({ ...activity, count: 1 });
+    }
+  }
+  return grouped;
+}
+
+function ActivityRow({ activity }: { activity: GroupedActivity }) {
   const Icon = iconFor(activity.type);
   const href = linkFor(activity);
   const statusChange =
@@ -94,10 +131,16 @@ function ActivityRow({ activity }: { activity: UserActivity }) {
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center justify-between gap-2">
           <p className="font-medium text-sm">{activity.title}</p>
-          {statusChange && (
+          {activity.count > 1 ? (
             <Badge variant="secondary" className="shrink-0 font-normal">
-              {statusChange}
+              ×{activity.count}
             </Badge>
+          ) : (
+            statusChange && (
+              <Badge variant="secondary" className="shrink-0 font-normal">
+                {statusChange}
+              </Badge>
+            )
           )}
         </div>
         {activity.description && (
@@ -206,7 +249,7 @@ export function Timeline() {
       ) : (
         <>
           <div className="space-y-3">
-            {data!.items.map((activity) => (
+            {groupConsecutiveMessages(data!.items).map((activity) => (
               <ActivityRow key={activity.id} activity={activity} />
             ))}
           </div>

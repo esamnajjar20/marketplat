@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
 import Link from 'next/link';
-import { SearchX } from 'lucide-react';
+import { SearchX, ShoppingBag, Star } from 'lucide-react';
 import { SellerProfileHeader } from '@/components/sellers/SellerProfileHeader';
 import { SellerProfileAds } from '@/components/sellers/SellerProfileAds';
 import { SellerRatingsList } from '@/components/sellers/SellerRatingsList';
@@ -71,11 +71,17 @@ export default async function SellerProfilePage({ params }: Props) {
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
       <SellerProfileHeader seller={seller} />
       <section className="space-y-3">
-        <h2 className="font-semibold text-lg">إعلانات البائع</h2>
+        <h2 className="flex items-center gap-1.5 text-lg font-bold">
+          <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+          إعلانات البائع
+        </h2>
         <SellerProfileAds ads={seller.ads} />
       </section>
       <section className="space-y-3">
-        <h2 className="font-semibold text-lg">تقييمات الإعلانات</h2>
+        <h2 className="flex items-center gap-1.5 text-lg font-bold">
+          <Star className="h-4 w-4 text-muted-foreground" />
+          تقييمات الإعلانات
+        </h2>
         {/* TRACK-AD-RATINGS-LIST: same render-time-throw isolation as
             the service reviews boundary directly below — a malformed
             rating row shouldn't blank the rest of this profile page. */}
@@ -90,7 +96,10 @@ export default async function SellerProfilePage({ params }: Props) {
         </ErrorBoundary>
       </section>
       <section className="space-y-3">
-        <h2 className="font-semibold text-lg">تقييمات الخدمات</h2>
+        <h2 className="flex items-center gap-1.5 text-lg font-bold">
+          <Star className="h-4 w-4 text-muted-foreground" />
+          تقييمات الخدمات
+        </h2>
         {/* AUDIT-FIX (issue #7.4): ServiceReviewsList's own isError branch
             only covers a failed fetch. An unexpected render-time throw
             (e.g. malformed review data) had nothing catching it here,

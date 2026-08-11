@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { BadgeCheck, Star, Phone, MapPin, Sparkles, Users, Package } from 'lucide-react';
+import { BadgeCheck, Star, Phone, MapPin, Sparkles, UserPlus, UserMinus } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
@@ -26,6 +26,16 @@ interface Props {
   isFollowing?: boolean;
 }
 
+/**
+ * REDESIGN: rebuilt to match the "متجر" mock (cover photo with rounded
+ * bottom corners, overlapping circular avatar + verified badge, centered
+ * name/stats card, full-width call + follow row, centered bio). All
+ * data/behavior is unchanged from before — same store fields, same
+ * follow/own-store/report logic — only the layout and visual treatment
+ * moved to match the design. Kept scoped to this component rather than
+ * the shared Button/Badge primitives or Tailwind theme, since only this
+ * page was asked to match the mock.
+ */
 export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
@@ -33,88 +43,104 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const derivedIsFollowing = useIsFollowingStore(store.id);
   const isFollowing = isFollowingProp ?? derivedIsFollowing;
   const isOwnStore = currentUser?.id === store.sellerProfile.userId;
-  const avatar = getAvatarUrl(store.logoUrl ?? store.sellerProfile.avatarUrl ?? '', 96);
+  const avatar = getAvatarUrl(store.logoUrl ?? store.sellerProfile.avatarUrl ?? '', 128);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;
   const rating = parseFloat(store.sellerProfile.averageRating);
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      {cover && (
-        <div className="relative h-32 sm:h-44 w-full bg-muted">
-          <Image src={cover} alt="" fill className="object-cover" sizes="100vw" />
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4">
-        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-muted shrink-0 -mt-10 sm:mt-0 ring-4 ring-card">
-          <Image src={avatar} alt={store.name} fill className="object-cover" sizes="80px" />
-        </div>
-
-        <div className="flex-1 space-y-1.5 text-center sm:text-start w-full">
-          <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-            <h1 className="text-xl font-bold">{store.name}</h1>
-            {store.plan === 'FEATURED' && (
-              // FIX P1-4: raw bg-amber-500 was the one remaining "مميز"
-              // badge still on a hand-picked color — AdCard's matching
-              // badge (FIX UX-01) already moved to the semantic
-              // accent/accent-foreground tokens reserved app-wide for
-              // this exact "featured" concept. Unifying here so the
-              // same idea doesn't read as two different colors
-              // depending on whether it's an ad or a store.
-              <Badge className="gap-1 bg-accent hover:bg-accent text-accent-foreground">
-                <Sparkles className="h-3.5 w-3.5" /> متجر مميز
-              </Badge>
-            )}
-            {store.sellerProfile.verified && (
-              <Badge variant="success" className="gap-1">
-                <BadgeCheck className="h-3.5 w-3.5" /> موثّق
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center justify-center sm:justify-start gap-3 text-sm text-muted-foreground flex-wrap">
-            {store.sellerProfile.totalRatings > 0 && (
-              <span className="flex items-center gap-1">
-                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                {rating.toFixed(1)} ({store.sellerProfile.totalRatings} تقييم)
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <MapPin className="h-4 w-4" /> {store.city}
-            </span>
-            <span className="flex items-center gap-1">
-              <Phone className="h-4 w-4" /> {formatPhone(store.phone)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Package className="h-4 w-4" /> {store._count.products} منتج
-            </span>
-            <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" /> {store._count.followers} متابع
-            </span>
-          </div>
-
-          <p className="text-sm mt-2 max-w-md">{store.description}</p>
-
-          {isAuthenticated && !isOwnStore && (
-            <div className="pt-1 flex items-center gap-3">
-              <Button
-                size="sm"
-                variant={isFollowing ? 'outline' : 'default'}
-                disabled={toggleFollow.isPending}
-                onClick={() => toggleFollow.mutate(store.id)}
-              >
-                {isFollowing ? 'إلغاء المتابعة' : 'متابعة المتجر'}
-              </Button>
-              {/* FEAT-REPORT-USER-STORE: same isOwnStore/isAuthenticated
-                  guard the follow button already uses above — a store's
-                  own seller shouldn't see (or be able to submit) a
-                  report against their own store, matching the
-                  self-report check reports.service.ts already enforces
-                  server-side. */}
-              <ReportStoreButton storeId={store.id} />
+    <div className="flex flex-col w-full -mx-4 sm:mx-0">
+      {/* Cover + overlapping avatar */}
+      <div className="relative w-full h-48 bg-muted flex items-end justify-center sm:rounded-b-xl overflow-hidden shadow-sm">
+        {cover && <Image src={cover} alt="" fill className="object-cover opacity-90" sizes="100vw" priority />}
+        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex justify-center w-full">
+          <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
+            <div className="relative w-full h-full rounded-full overflow-hidden">
+              <Image src={avatar} alt={store.name} fill className="object-cover" sizes="96px" />
             </div>
+            {store.sellerProfile.verified && (
+              <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">
+                <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Store info */}
+      <div className="pt-14 px-4 text-center flex flex-col items-center">
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2 justify-center flex-wrap">
+          {store.name}
+          {store.plan === 'FEATURED' && (
+            <Badge className="gap-1 bg-accent hover:bg-accent text-accent-foreground">
+              <Sparkles className="h-3.5 w-3.5" /> مميز
+            </Badge>
+          )}
+        </h1>
+
+        {store.sellerProfile.totalRatings > 0 && (
+          <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            {rating.toFixed(1)} ({store.sellerProfile.totalRatings} تقييم)
+          </span>
+        )}
+
+        {/* Stats card */}
+        <div className="mt-4 w-full max-w-sm bg-card border rounded-xl p-4 shadow-sm">
+          <div className="flex justify-around items-center">
+            <div className="flex flex-col items-center">
+              <span className="text-xl font-semibold text-foreground">{store._count.followers}</span>
+              <span className="text-xs text-muted-foreground">متابع</span>
+            </div>
+            <div className="w-px h-8 bg-border" />
+            <div className="flex flex-col items-center">
+              <span className="text-xl font-semibold text-foreground">{store._count.products}</span>
+              <span className="text-xs text-muted-foreground">منتج</span>
+            </div>
+            <div className="w-px h-8 bg-border" />
+            <div className="flex flex-col items-center">
+              <MapPin className="h-5 w-5 text-primary mb-1" />
+              <span className="text-xs text-muted-foreground">{store.city}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Call + follow row */}
+        <div className="mt-4 flex gap-3 w-full max-w-sm justify-center">
+          <a
+            href={`tel:${store.phone}`}
+            className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-transform active:scale-95"
+          >
+            <Phone className="h-4 w-4" /> {formatPhone(store.phone)}
+          </a>
+          {isAuthenticated && !isOwnStore && (
+            <Button
+              variant={isFollowing ? 'outline' : 'default'}
+              disabled={toggleFollow.isPending}
+              onClick={() => toggleFollow.mutate(store.id)}
+              className="flex-1 rounded-full py-3 h-auto gap-2"
+            >
+              {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+              {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
+            </Button>
           )}
         </div>
+
+        {store.description && (
+          <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">
+            {store.description}
+          </p>
+        )}
+
+        {isAuthenticated && !isOwnStore && (
+          <div className="mt-3">
+            {/* FEAT-REPORT-USER-STORE: same isOwnStore/isAuthenticated
+                guard the follow button above uses — a store's own
+                seller shouldn't see (or submit) a report against their
+                own store, matching the self-report check
+                reports.service.ts already enforces server-side. */}
+            <ReportStoreButton storeId={store.id} />
+          </div>
+        )}
       </div>
     </div>
   );

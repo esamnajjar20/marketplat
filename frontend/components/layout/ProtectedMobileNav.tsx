@@ -246,7 +246,20 @@ export function ProtectedMobileNav() {
           // with no relative cap can exceed the viewport on narrow
           // phones, forcing this drawer itself (not the page) into
           // horizontal overflow.
-          'fixed inset-y-0 end-0 z-[60] w-72 max-w-[85vw] bg-background p-6 shadow-xl transition-transform duration-200 lg:hidden',
+          //
+          // BUG FIX: overflow-y-auto + overscroll-contain added. The
+          // panel is fixed inset-y-0 (full viewport height) with no
+          // scroll container of its own, while the body-scroll-lock
+          // effect above sets document.body's overflow to hidden while
+          // open. Once a DrawerDisclosureGroup ("متجري"/"خدماتي")
+          // expands and pushes the list taller than the viewport, there
+          // was nothing left that could scroll — not the body (locked)
+          // and not the panel (no overflow rule) — so the extra items
+          // were just clipped and unreachable. overflow-y-auto lets the
+          // panel itself scroll; overscroll-contain stops that scroll
+          // from chaining to the locked body once the panel hits its
+          // own top/bottom.
+          'fixed inset-y-0 end-0 z-[60] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 shadow-xl transition-transform duration-200 lg:hidden',
           // end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
           // to left:0 — verified against the CSS spec (MDN:
           // "with direction rtl, inset-inline-end moves the element

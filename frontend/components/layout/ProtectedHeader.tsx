@@ -43,7 +43,11 @@ export function ProtectedHeader() {
       </nav>
 
       <div className="me-auto flex items-center gap-3">
-        <Button asChild size="sm">
+        {/* Hidden on mobile — BottomNav already has a dedicated raised
+            "نشر إعلان" button, so this top-bar CTA is redundant on
+            small screens; kept visible from `md` up where BottomNav
+            is itself hidden (md:hidden). */}
+        <Button asChild size="sm" className="hidden md:inline-flex">
           <Link href={ROUTES.adCreate}>+ نشر إعلان</Link>
         </Button>
         <NotificationBell />
