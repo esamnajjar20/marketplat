@@ -131,7 +131,16 @@ export function MyAdsList() {
                   {ad.status === 'ACTIVE' && (
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-success hover:text-success"
                       title="تعليم كمباع" aria-label={`تعليم ${ad.title} كمباع`}
-                      disabled={markAsSold.isPending}
+                      /* UX-FIX P2-1: markAsSold is a single mutation hook
+                         instance shared across every row in this list, so
+                         a bare `markAsSold.isPending` disabled every row's
+                         button while any one ad's request was in flight —
+                         unlike MyProductsList/MyServiceListingsList, which
+                         scope the same shared-hook pattern to the specific
+                         row via `.variables`. mutationFn here takes the
+                         adId directly (not an object), so `.variables` IS
+                         the id — compare it straight to ad.id. */
+                      disabled={markAsSold.isPending && markAsSold.variables === ad.id}
                       onClick={() => markAsSold.mutate(ad.id)}>
                       <CheckCircle className="h-3.5 w-3.5" />
                     </Button>

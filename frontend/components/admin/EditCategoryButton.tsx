@@ -59,6 +59,13 @@ export function EditCategoryButton({ category }: Props) {
     });
   }
 
+  // UX-FIX P1-1: block Escape / overlay-click / cancel-button close while
+  // updateCategory is in flight — same rationale as CreateCategoryButton.
+  function handleOpenChange(next: boolean) {
+    if (updateCategory.isPending) return;
+    setOpen(next);
+  }
+
   return (
     <>
       <Button
@@ -70,7 +77,7 @@ export function EditCategoryButton({ category }: Props) {
       >
         <Pencil className="h-3.5 w-3.5" />
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogHeader><DialogTitle>تعديل الفئة</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
@@ -86,7 +93,9 @@ export function EditCategoryButton({ category }: Props) {
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+              <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={updateCategory.isPending}>
+                إلغاء
+              </Button>
               <Button onClick={handleSave} disabled={updateCategory.isPending}>
                 {updateCategory.isPending ? 'جارٍ الحفظ…' : 'حفظ'}
               </Button>

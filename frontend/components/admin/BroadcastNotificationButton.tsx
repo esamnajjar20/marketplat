@@ -30,7 +30,14 @@ export function BroadcastNotificationButton() {
   const [body, setBody] = useState('');
   const broadcast = useAdminBroadcastNotification();
 
+  // UX-FIX P1-2: the inner ConfirmDialog was already pending-aware (via
+  // isPending={broadcast.isPending}), but this outer form Dialog was not —
+  // it reset+closed on any onOpenChange call regardless of broadcast being
+  // in flight. Since a sent broadcast can't be recalled, closing this
+  // dialog mid-send and reopening it invited a duplicate broadcast to
+  // every active user before the first request had even resolved.
   function handleOpenChange(next: boolean) {
+    if (broadcast.isPending) return;
     setOpen(next);
     if (!next) {
       setTitle('');
@@ -97,7 +104,9 @@ export function BroadcastNotificationButton() {
               <p className="text-xs text-muted-foreground text-end">{body.length}/{BODY_MAX}</p>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => handleOpenChange(false)}>إلغاء</Button>
+              <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={broadcast.isPending}>
+                إلغاء
+              </Button>
               <Button onClick={handleSubmit} disabled={broadcast.isPending}>
                 {broadcast.isPending ? 'جارٍ الإرسال…' : 'إرسال'}
               </Button>

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
 import { SellerCard } from '@/components/ads/SellerCard';
@@ -12,6 +13,8 @@ import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
 import { formatPrice, formatDate } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
+import { useIsFavorited } from '@/hooks/queries/useFavorites';
+import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { toast } from 'sonner';
@@ -45,10 +48,41 @@ export function useCategoryHref(categoryId: string | undefined) {
 interface Props { ad: Ad; isFavorited?: boolean; }
 
 export function AdDetail({ ad, isFavorited = false }: Props) {
-  const [imgIdx,    setImgIdx]    = useState(0);
-  const [favorited, setFavorited] = useState(isFavorited);
+  const [imgIdx, setImgIdx] = useState(0);
   const isAuth = useAuthStore(selectIsAuthenticated);
   const toggleFavorite = useToggleFavorite();
+  const queryClient = useQueryClient();
+
+  // UX-FIX P1-3: previously this component tracked its own local
+  // `favorited` useState, toggled synchronously on every click and
+  // independently from useToggleFavorite's own optimistic update to the
+  // shared favorites.ids() cache. Two sources of truth updating on their
+  // own schedules meant rapid clicks (unguarded — no `disabled` existed
+  // here at all, unlike AdCard/FavoritesList using the same hook) could
+  // fire overlapping requests whose responses resolved out of order,
+  // leaving the heart's displayed state diverged from the server.
+  //
+  // Fix: drop the local state and read from the same shared cache AdCard
+  // and FavoritesList already use (useIsFavorited), so there is exactly
+  // one source of truth. Server-rendered pages still pass `isFavorited`
+  // as an initial prop (the client favorites-ids Set may not be
+  // populated yet on a fresh detail-page load, e.g. direct navigation
+  // before any favorites list has been fetched) — seed the shared cache
+  // from that prop once on mount so useIsFavorited has a correct value
+  // immediately instead of momentarily reporting "not favorited".
+  useEffect(() => {
+    if (!isFavorited) return;
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (prev) => {
+      const next = new Set(prev ?? []);
+      next.add(ad.id);
+      return next;
+    });
+    // Only seed once per ad on mount — after that, useToggleFavorite's
+    // own optimistic updates and onError rollback are the source of truth.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ad.id]);
+
+  const favorited = useIsFavorited(ad.id);
 
   const images = ad.images.length > 0 ? ad.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
@@ -56,10 +90,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   function handleFavorite() {
     if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
-    setFavorited((p) => !p);
-    toggleFavorite.mutate(ad.id, {
-      onError: () => setFavorited((p) => !p),
-    });
+    toggleFavorite.mutate(ad.id);
   }
 
   return (
@@ -126,6 +157,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 variant="ghost"
                 size="icon"
                 onClick={handleFavorite}
+                disabled={toggleFavorite.isPending}
                 aria-label={favorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
                 aria-pressed={favorited}
               >

@@ -40,7 +40,13 @@ export function CreateAppointmentDialog({
   const [notes, setNotes] = useState('');
   const createAppointment = useCreateAppointment();
 
+  // UX-FIX P1-2: block Escape / overlay-click / cancel-button close while
+  // createAppointment is in flight. Previously this only reset local form
+  // state on close with no pending check at all, so closing and reopening
+  // mid-request (this dialog is reused across two entry points) could
+  // submit a second booking attempt before the first one resolved.
   function handleClose(next: boolean) {
+    if (!next && createAppointment.isPending) return;
     if (!next) {
       setSelectedRange(null);
       setNotes('');
@@ -99,7 +105,11 @@ export function CreateAppointmentDialog({
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => handleClose(false)}>
+            <Button
+              variant="outline"
+              onClick={() => handleClose(false)}
+              disabled={createAppointment.isPending}
+            >
               إلغاء
             </Button>
             <Button

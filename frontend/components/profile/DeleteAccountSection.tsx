@@ -34,6 +34,16 @@ export function DeleteAccountSection() {
     deleteAccount.mutate();
   }
 
+  // UX-FIX P0-1: block Escape / overlay-click / cancel-button close while
+  // the delete request is in flight. Previously the raw Dialog's
+  // onOpenChange={setOpen} let the user close the dialog mid-request; the
+  // request kept running in the background with no visible success/error
+  // path once the dialog was gone. Mirrors ConfirmDialog's handleOpenChange.
+  function handleOpenChange(next: boolean) {
+    if (deleteAccount.isPending) return;
+    setOpen(next);
+  }
+
   return (
     <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
       <h2 className="font-semibold text-destructive">حذف الحساب</h2>
@@ -43,7 +53,7 @@ export function DeleteAccountSection() {
       </p>
       <Button variant="destructive" onClick={handleOpen}>حذف حسابي</Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>هل أنت متأكد من حذف حسابك؟</DialogTitle>
@@ -65,7 +75,13 @@ export function DeleteAccountSection() {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+              <Button
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                disabled={deleteAccount.isPending}
+              >
+                إلغاء
+              </Button>
               <Button
                 variant="destructive"
                 onClick={handleDelete}

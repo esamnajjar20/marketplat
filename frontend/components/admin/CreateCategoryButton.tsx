@@ -33,12 +33,23 @@ export function CreateCategoryButton() {
     );
   }
 
+  // UX-FIX P1-1: block Escape / overlay-click / cancel-button close while
+  // createCategory is in flight. Previously onOpenChange={setOpen} let the
+  // dialog close mid-request; since this mutation hook is recreated fresh
+  // every time the dialog reopens, isPending "forgets" the earlier request
+  // once closed — the user could close, reopen, and submit a second create
+  // before the first one resolved, with no UI-level guard against it.
+  function handleOpenChange(next: boolean) {
+    if (createCategory.isPending) return;
+    setOpen(next);
+  }
+
   return (
     <>
       <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
         <Plus className="h-4 w-4" /> فئة جديدة
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogHeader><DialogTitle>إنشاء فئة جديدة</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
@@ -54,7 +65,9 @@ export function CreateCategoryButton() {
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+              <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={createCategory.isPending}>
+                إلغاء
+              </Button>
               <Button onClick={handleCreate} disabled={createCategory.isPending}>
                 {createCategory.isPending ? 'جارٍ الإنشاء…' : 'إنشاء'}
               </Button>
