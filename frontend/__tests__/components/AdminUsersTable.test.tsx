@@ -200,17 +200,25 @@ describe('AdminUsersTable', () => {
     // (UserMenu.test.tsx), rather than a role-based query that
     // depends on Radix's exact ARIA role timing.
     it('does not call mutate immediately on selecting an option — opens a confirmation dialog first', async () => {
+      // Selecting MODERATOR (not ADMIN) here since a plain ADMIN actor
+      // can assign MODERATOR but not ADMIN (canManageRole requires
+      // targetNewRank < actorRank; see roleHierarchy.test.ts).
       const user = userEvent.setup();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
-      await user.click(await screen.findByText('مدير'));
+      await user.click(await screen.findByText('مشرف مساعد'));
 
       expect(mockChangeRoleMutate).not.toHaveBeenCalled();
-      expect(screen.getByText('ترقية إلى مدير؟')).toBeInTheDocument();
+      expect(screen.getByText('تعيين كمشرف مساعد؟')).toBeInTheDocument();
     });
 
     it('calls useAdminChangeRole.mutate with role: ADMIN only after confirming a promotion', async () => {
+      // Promoting to ADMIN requires an actor strictly above ADMIN rank
+      // (canManageRole: targetNewRank < actorRank) — a plain ADMIN
+      // cannot assign ADMIN (see roleHierarchy.test.ts: canManageRole
+      // ('ADMIN','USER','ADMIN') is false). Only SUPER_ADMIN can.
+      mockActor('SUPER_ADMIN');
       const user = userEvent.setup();
       render(<AdminUsersTable />);
 
@@ -255,11 +263,14 @@ describe('AdminUsersTable', () => {
     });
 
     it('does not call mutate when the confirmation is cancelled', async () => {
+      // MODERATOR again — a plain ADMIN can't reach the ADMIN option at
+      // all (disabled), so the cancel path is exercised on a role it
+      // can legally assign. See canManageRole rank rule above.
       const user = userEvent.setup();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
-      await user.click(await screen.findByText('مدير'));
+      await user.click(await screen.findByText('مشرف مساعد'));
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
       expect(mockChangeRoleMutate).not.toHaveBeenCalled();
@@ -275,7 +286,10 @@ describe('AdminUsersTable', () => {
       // not open the confirmation dialog at all.
       await user.click(currentItem);
 
-      expect(screen.queryByText(/ترقية|تنزيل|تعيين/)).not.toBeInTheDocument();
+      // Regex must not match the always-present "تعيين كـ" dropdown
+      // label — only the confirmation-dialog titles, which start with
+      // these exact words ("ترقية إلى...", "تنزيل إلى...", "تعيين كـ<role>؟").
+      expect(screen.queryByText(/^(ترقية|تنزيل|تعيين كمشرف)/)).not.toBeInTheDocument();
       expect(mockChangeRoleMutate).not.toHaveBeenCalled();
     });
 

@@ -53,7 +53,11 @@ describe('CategoryGrid', () => {
     } as never);
     render(<CategoryGrid />);
 
-    expect(screen.getByText('سيارات')).toBeInTheDocument();
+    // VISUAL (mobile top-bar redesign): every top-level category renders
+    // twice — once as a mobile pill (sm:hidden) and once in the desktop
+    // grid (hidden sm:grid) — both present in jsdom since there's no real
+    // viewport to hide either via CSS. getAllByText, not getByText.
+    expect(screen.getAllByText('سيارات').length).toBe(2);
     expect(screen.queryByText('قطع غيار')).not.toBeInTheDocument();
   });
 
@@ -64,7 +68,8 @@ describe('CategoryGrid', () => {
     mockUseCategories.mockReturnValue({ data: categories, isLoading: false } as never);
     const { container } = render(<CategoryGrid />);
 
-    expect(container.querySelectorAll('a')).toHaveLength(8);
+    // 8 categories × 2 parallel layouts (mobile pills + desktop grid) = 16 links.
+    expect(container.querySelectorAll('a')).toHaveLength(16);
   });
 
   it('links each category to ROUTES.category(slug)', () => {
@@ -74,8 +79,9 @@ describe('CategoryGrid', () => {
     } as never);
     render(<CategoryGrid />);
 
-    const link = screen.getByText('سيارات').closest('a');
-    expect(link).toHaveAttribute('href', ROUTES.category('cars'));
+    const links = screen.getAllByText('سيارات').map((el) => el.closest('a'));
+    expect(links.length).toBe(2);
+    links.forEach((link) => expect(link).toHaveAttribute('href', ROUTES.category('cars')));
   });
 
   it('shows the ad count when _count is present', () => {

@@ -81,16 +81,18 @@ export function ConversationList({ selectedId }: Props = {}) {
   }
 
   return (
-    // DESKTOP-SPLIT-01: rounded-lg border matches every other standalone
-    // card in this app (mobile, and this same list under lg where it's
-    // still its own free-standing block). At >=lg it's mounted inside
-    // messages/layout.tsx's <aside>, which already draws its own
-    // border-e — the lg:rounded-none lg:border-0 here drops this
-    // component's own frame there so the two don't double up.
-    <div className="divide-y rounded-lg border bg-card overflow-hidden lg:rounded-none lg:border-0">
-      {items.map((conversation) => {
+    // DESKTOP-SPLIT-01: rounded-xl shadow card matches every other
+    // standalone card in this app (mobile, and this same list under lg
+    // where it's still its own free-standing block). At >=lg it's
+    // mounted inside messages/layout.tsx's <aside>, which already draws
+    // its own border-e — the lg:rounded-none lg:border-0 lg:shadow-none
+    // here drops this component's own frame there so the two don't
+    // double up.
+    <div className="flex flex-col rounded-xl bg-card shadow-sm overflow-hidden lg:rounded-none lg:shadow-none">
+      {items.map((conversation, index) => {
         const party = otherParty(conversation, user?.id);
-        const avatar = getAvatarUrl(party.avatarUrl ?? '', 48);
+        const avatar = getAvatarUrl(party.avatarUrl ?? '', 56);
+        const isLast = index === items.length - 1;
 
         return (
           <Link
@@ -98,16 +100,18 @@ export function ConversationList({ selectedId }: Props = {}) {
             href={ROUTES.conversationDetail(conversation.id)}
             aria-current={conversation.id === selectedId ? 'page' : undefined}
             className={cn(
-              'flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors',
-              conversation.id === selectedId && 'bg-muted/70'
+              'group relative flex items-center gap-3 p-4 transition-colors active:scale-[0.99] touch-manipulation hover:bg-muted/40',
+              conversation.id === selectedId && 'bg-muted/60'
             )}
           >
-            <div className="relative w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0">
-              <Image src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
+            <div className="relative shrink-0">
+              <div className="w-14 h-14 rounded-full overflow-hidden bg-muted border-2 border-card shadow-sm">
+                <Image src={avatar} alt={party.name} fill className="object-cover" sizes="56px" />
+              </div>
             </div>
-            <div className="flex-1 min-w-0 space-y-0.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium text-sm line-clamp-1">{party.name}</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline justify-between gap-2 mb-1">
+                <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
                 <span className="text-xs text-muted-foreground shrink-0">
                   {formatRelativeTime(conversation.updatedAt)}
                 </span>
@@ -121,6 +125,9 @@ export function ConversationList({ selectedId }: Props = {}) {
                 {conversation.ad ? conversation.ad.title : 'محادثة عامة'}
               </p>
             </div>
+            {!isLast && (
+              <div className="absolute bottom-0 inset-x-4 h-px bg-border" />
+            )}
           </Link>
         );
       })}

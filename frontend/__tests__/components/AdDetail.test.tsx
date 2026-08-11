@@ -24,6 +24,7 @@ import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/formatters';
+import { queryKeys } from '@/lib/queryKeys';
 import type { Ad } from '@/types/ad.types';
 
 vi.mock('@/hooks/mutations/useFavoriteMutations', () => ({
@@ -85,7 +86,17 @@ const baseAd: Ad = {
 
 function renderWithClient(ui: ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  const result = render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  // Wrap rerender so callers can pass just the component (as before) and
+  // still keep it inside the same QueryClientProvider — a bare
+  // rerender(<Component />) replaces the whole tree RTL rendered,
+  // including the provider from the initial render() call above.
+  return {
+    ...result,
+    qc,
+    rerender: (nextUi: ReactElement) =>
+      result.rerender(<QueryClientProvider client={qc}>{nextUi}</QueryClientProvider>),
+  };
 }
 
 function mockAuth(isAuthenticated: boolean) {
@@ -215,7 +226,10 @@ describe('AdDetail', () => {
       const user = userEvent.setup();
       renderWithClient(<AdDetail ad={baseAd} />);
 
-      await user.click(screen.getByLabelText('حفظ'));
+      // aria-label is dynamic (favorited ? 'إزالة من المفضلة' :
+      // 'إضافة إلى المفضلة'), not the static 'حفظ' — mirrors AdCard's
+      // equivalent button (see the FIX BUG-XX comment in AdDetail.tsx).
+      await user.click(screen.getByLabelText('إضافة إلى المفضلة'));
 
       expect(toast.error).toHaveBeenCalledWith('يرجى تسجيل الدخول أولاً');
       expect(mockToggleMutate).not.toHaveBeenCalled();
@@ -225,18 +239,31 @@ describe('AdDetail', () => {
       const user = userEvent.setup();
       renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
 
-      await user.click(screen.getByLabelText('حفظ'));
+      await user.click(screen.getByLabelText('إضافة إلى المفضلة'));
 
-      expect(mockToggleMutate).toHaveBeenCalledWith('ad-12345678', expect.objectContaining({
-        onError: expect.any(Function),
-      }));
+      // useToggleFavorite owns its own onMutate/onError internally (see
+      // hooks/mutations/useFavoriteMutations.ts) — AdDetail just passes
+      // the ad id, it doesn't pass a per-call onError.
+      expect(mockToggleMutate).toHaveBeenCalledWith('ad-12345678');
     });
 
     it('optimistically fills the heart icon immediately on click, before the mutation resolves', async () => {
+      // The optimistic write lives in useToggleFavorite's own onMutate
+      // (see hooks/mutations/useFavoriteMutations.ts), which is mocked
+      // out in this file. Reproduce that one write here so the shared
+      // cache AdDetail reads via useIsFavorited actually changes —
+      // otherwise the mock mutate() is a no-op and the heart can't fill.
       const user = userEvent.setup();
-      renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
+      const { qc } = renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
+      mockToggleMutate.mockImplementation((adId: string) => {
+        qc.setQueryData<Set<string>>(queryKeys.favorites.ids(), (old) => {
+          const next = new Set(old ?? []);
+          next.add(adId);
+          return next;
+        });
+      });
 
-      const heartButton = screen.getByLabelText('حفظ');
+      const heartButton = screen.getByLabelText('إضافة إلى المفضلة');
       const heartIcon = heartButton.querySelector('svg');
       expect(heartIcon).not.toHaveClass('fill-destructive');
 
@@ -246,24 +273,37 @@ describe('AdDetail', () => {
     });
 
     it('rolls back the optimistic update when the mutation fails', async () => {
-      mockToggleMutate.mockImplementation((_id, { onError }) => onError());
+      // Same gap as the optimistic-fill test above: the real rollback
+      // happens inside useToggleFavorite's onMutate/onError (mocked out
+      // here), so reproduce optimistic-write-then-rollback against the
+      // actual shared cache the component reads.
       const user = userEvent.setup();
-      renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
+      const { qc } = renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
+      mockToggleMutate.mockImplementation((adId: string) => {
+        const previous = qc.getQueryData<Set<string>>(queryKeys.favorites.ids());
+        qc.setQueryData<Set<string>>(queryKeys.favorites.ids(), (old) => {
+          const next = new Set(old ?? []);
+          next.add(adId);
+          return next;
+        });
+        // Simulate the mutation failing: onError rolls back to the
+        // pre-mutate snapshot, same as the real hook.
+        qc.setQueryData(queryKeys.favorites.ids(), previous ?? new Set());
+      });
 
-      const heartButton = screen.getByLabelText('حفظ');
+      const heartButton = screen.getByLabelText('إضافة إلى المفضلة');
       const heartIcon = heartButton.querySelector('svg');
 
       await user.click(heartButton);
 
-      // onError flips it back to false synchronously in this mock,
-      // so the net visible state after the click is "not favorited".
       expect(heartIcon).not.toHaveClass('fill-destructive');
     });
 
     it('starts filled when isFavorited is initially true', () => {
       renderWithClient(<AdDetail ad={baseAd} isFavorited />);
 
-      const heartIcon = screen.getByLabelText('حفظ').querySelector('svg');
+      // Already favorited on mount, so the label reads "إزالة من المفضلة".
+      const heartIcon = screen.getByLabelText('إزالة من المفضلة').querySelector('svg');
       expect(heartIcon).toHaveClass('fill-destructive');
     });
   });

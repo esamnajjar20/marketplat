@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck } from 'lucide-react';
+import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -112,18 +112,21 @@ export function ChatWindow({ conversationId }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-card">
-      <div className="flex items-center gap-2 border-b p-3">
-        <Link href={ROUTES.messages} className="lg:hidden text-muted-foreground">
+    <div className="flex h-full flex-col bg-background">
+      <div className="flex items-center gap-3 bg-card/90 backdrop-blur-md shadow-sm px-3 py-3 sticky top-0 z-10">
+        <Link
+          href={ROUTES.messages}
+          className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors shrink-0"
+        >
           <ChevronRight className="h-5 w-5" />
         </Link>
-        <div className="relative w-9 h-9 rounded-full overflow-hidden bg-muted shrink-0">
-          <Image src={avatar} alt={party.name} fill className="object-cover" sizes="36px" />
+        <div className="relative w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0">
+          <Image src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm line-clamp-1">{party.name}</p>
+          <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
           {conversation.ad && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{conversation.ad.title}</p>
+            <p className="text-xs text-muted-foreground line-clamp-1">بخصوص: {conversation.ad.title}</p>
           )}
         </div>
 
@@ -131,7 +134,7 @@ export function ChatWindow({ conversationId }: Props) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:bg-muted"
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
               aria-label="خيارات المحادثة"
             >
               <MoreVertical className="h-4 w-4" />
@@ -153,7 +156,7 @@ export function ChatWindow({ conversationId }: Props) {
         </DropdownMenu>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3">
         {messagesLoading ? (
           <div className="flex justify-center py-8"><LoadingSpinner /></div>
         ) : messages.length === 0 ? (
@@ -166,10 +169,13 @@ export function ChatWindow({ conversationId }: Props) {
           messages.map((message) => {
             const isMine = message.senderId === user?.id;
             return (
-              <div key={message.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
+              <div
+                key={message.id}
+                className={cn('flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
+              >
                 <div
                   className={cn(
-                    'max-w-[75%] rounded-2xl px-3 py-2 text-sm',
+                    'rounded-2xl px-4 py-2.5 text-sm shadow-sm',
                     // FIX BUG-XX: rounded-br-sm/rounded-bl-sm are physical
                     // (bottom-right/bottom-left) in a dir="rtl" app
                     // (app/layout.tsx), so the "pointed" corner sat on the
@@ -178,18 +184,20 @@ export function ChatWindow({ conversationId }: Props) {
                     // actual text direction instead.
                     isMine
                       ? 'bg-primary text-primary-foreground rounded-ee-sm'
-                      : 'bg-muted rounded-es-sm'
+                      : 'bg-card text-foreground rounded-es-sm'
                   )}
                 >
                   <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                  <p
-                    className={cn(
-                      'mt-1 text-[10px]',
-                      isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                    )}
-                  >
+                </div>
+                <div className="flex items-center gap-1 px-1">
+                  <span className="text-[10px] text-muted-foreground">
                     {formatTime(message.createdAt)}
-                  </p>
+                  </span>
+                  {isMine && (
+                    message.readAt
+                      ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
+                      : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
+                  )}
                 </div>
               </div>
             );

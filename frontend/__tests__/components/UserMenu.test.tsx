@@ -19,10 +19,24 @@ vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
   selectUser: (s: { user: unknown }) => s.user,
   selectIsAdmin: (s: { user?: { role?: string } }) => s.user?.role === 'ADMIN',
+  selectIsAuthenticated: (s: { user: unknown }) => Boolean(s.user),
 }));
 
 vi.mock('@/hooks/mutations/useAuthMutations', () => ({
   useLogout: vi.fn(),
+}));
+
+// UserMenu also drives seller/provider-specific menu items via
+// useMySellerProfile()/useMyServiceProvider() (both react-query hooks
+// requiring a QueryClientProvider and, internally, useAuthStore's
+// selectIsAuthenticated). Out of scope for this file's own tests — mock
+// both hooks directly so UserMenu can render without either dependency.
+vi.mock('@/hooks/queries/useSellers', () => ({
+  useMySellerProfile: vi.fn(() => ({ data: undefined, isSuccess: false })),
+}));
+
+vi.mock('@/hooks/queries/useServiceProviders', () => ({
+  useMyServiceProvider: vi.fn(() => ({ data: undefined, isSuccess: false })),
 }));
 
 const mockUseAuthStore = vi.mocked(useAuthStore);

@@ -102,7 +102,11 @@ describe('AdminAuditLogsTable', () => {
       const table = screen.getByRole('table');
       await user.click(within(table).getByRole('button', { name: /تفاصيل/ }));
 
-      expect(screen.getByText(/targetUserId/)).toBeInTheDocument();
+      // FIX P1-6: details render as a translated key/value table, not raw
+      // JSON — the raw key "targetUserId" never appears; its Arabic label
+      // (DETAIL_KEY_LABELS) does. The string value itself passes through
+      // formatDetailValue unchanged, so 'user-1' is still findable as-is.
+      expect(screen.getByText('المستخدم المستهدف')).toBeInTheDocument();
       expect(screen.getByText(/user-1/)).toBeInTheDocument();
     });
 

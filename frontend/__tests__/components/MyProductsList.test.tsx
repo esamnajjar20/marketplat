@@ -81,9 +81,11 @@ describe('MyProductsList', () => {
   // ── Loading / empty states ──────────────────────────────────────
 
   it('shows a loading spinner while fetching', () => {
+    // FIX P1-9: the loading state renders skeleton rows (AdListItemSkeleton,
+    // using animate-pulse), not a spinner — mirrors MyAdsList's same fix.
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: true });
     const { container } = render(<MyProductsList />);
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
   it('shows the empty state when there are no products', () => {
@@ -284,13 +286,14 @@ describe('MyProductsList', () => {
   // ── Out-of-range page recovery ────────────────────────────────────
 
   it('shows a spinner (not the empty state) when the current page exceeds totalPages', () => {
+    // Same P1-9 skeleton swap as the loading-state test above.
     mockSearchParams = new URLSearchParams('page=5');
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [], meta: { totalPages: 2 } },
       isLoading: false,
     });
     const { container } = render(<MyProductsList />);
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
     expect(screen.queryByText('لا توجد منتجات')).not.toBeInTheDocument();
   });
 });

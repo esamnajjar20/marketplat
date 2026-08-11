@@ -69,9 +69,11 @@ describe('MyAdsList', () => {
   // ── Loading / empty states ──────────────────────────────────────
 
   it('shows a loading spinner while fetching', () => {
+    // Loading state renders skeleton rows (AdListItemSkeleton, using
+    // animate-pulse), not a spinner.
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: true });
     const { container } = render(<MyAdsList />);
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
   it('shows the empty state when there are no ads', () => {
@@ -137,7 +139,13 @@ describe('MyAdsList', () => {
   });
 
   it('disables the mark-as-sold button while the mutation is pending', () => {
-    (useMarkAsSold as ReturnType<typeof vi.fn>).mockReturnValue({ mutate: mockMarkAsSoldMutate, isPending: true });
+    // UX-FIX P2-1: markAsSold is a shared hook instance scoped to the row
+    // via `.variables === ad.id` (mutationFn takes the id directly) — the
+    // mock must supply `variables` matching the rendered ad's id, or the
+    // component correctly reports "not this row's mutation" and stays enabled.
+    (useMarkAsSold as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: mockMarkAsSoldMutate, isPending: true, variables: 'ad-1',
+    });
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ status: 'ACTIVE' })], meta: { totalPages: 1 } },
       isLoading: false,

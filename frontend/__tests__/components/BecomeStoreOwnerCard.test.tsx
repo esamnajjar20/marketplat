@@ -47,11 +47,21 @@ describe('BecomeStoreOwnerCard', () => {
   });
 
   async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {
-    await user.type(screen.getByLabelText('اسم المتجر'), 'متجر أبو محمد');
-    await user.type(screen.getByLabelText('الوصف'), 'وصف كافٍ لمتجرنا الجديد');
-    await user.click(screen.getByLabelText('المدينة'));
-    await user.click(screen.getByText('غزة'));
-    await user.type(screen.getByLabelText('رقم الهاتف'), '0599123456');
+    // Required fields render a visible "*" plus sr-only "(required)"
+    // text alongside the label (FormField, a11y requirement), so the
+    // accessible name is "<label> *(required)", not the bare label —
+    // exact-string getByLabelText fails on all of them. Match by
+    // prefix instead.
+    await user.type(screen.getByLabelText(/^اسم المتجر/), 'متجر أبو محمد');
+    await user.type(screen.getByLabelText(/^الوصف/), 'وصف كافٍ لمتجرنا الجديد');
+    await user.click(screen.getByLabelText(/^المدينة/));
+    // The shadcn/Radix Select renders a hidden native <select><option>
+    // (for form autofill/submit) alongside the visible listbox item —
+    // once open, both contain a "غزة" text node, so getByText is
+    // ambiguous. Scope to the accessible "option" role, which only the
+    // visible Radix listbox item exposes.
+    await user.click(screen.getByRole('option', { name: 'غزة' }));
+    await user.type(screen.getByLabelText(/^رقم الهاتف/), '0599123456');
     await user.click(screen.getByRole('button', { name: 'إنشاء المتجر' }));
   }
 

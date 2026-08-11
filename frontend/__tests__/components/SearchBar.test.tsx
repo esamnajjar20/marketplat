@@ -45,22 +45,25 @@ describe('SearchBar', () => {
     expect(mockPush).toHaveBeenCalledWith(`${ROUTES.search}?q=${encodeURIComponent('شقة')}`);
   });
 
-  it('does not navigate when the query is empty', async () => {
+  it('navigates to /search with no query param when the query is empty (FIX P1-5)', async () => {
+    // FIX P1-5: an empty submit used to be blocked outright; it now
+    // matches SearchInput's "browse everything" behavior and navigates
+    // to /search with no `q` param, per the component's own comment.
     render(<SearchBar />);
 
     await userEvent.click(screen.getByRole('button', { name: 'بحث' }));
 
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith(ROUTES.search);
   });
 
-  it('does not navigate when the query is only whitespace', async () => {
+  it('navigates to /search with no query param when the query is only whitespace (FIX P1-5)', async () => {
     render(<SearchBar />);
 
     const input = screen.getByLabelText('ابحث في الإعلانات');
     await userEvent.type(input, '   ');
     await userEvent.click(screen.getByRole('button', { name: 'بحث' }));
 
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith(ROUTES.search);
   });
 
   it('applies a custom className when provided', () => {

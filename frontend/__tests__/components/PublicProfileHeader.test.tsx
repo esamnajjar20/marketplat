@@ -51,7 +51,11 @@ describe('PublicProfileHeader', () => {
 
   it('always shows the ad count regardless of optional fields', () => {
     render(<PublicProfileHeader user={makeUser({ city: null, bio: null, _count: { ads: 12 } })} />);
-    expect(screen.getByText(/12 إعلان/)).toBeInTheDocument();
+    // The count and its "إعلان" label render as two separate <span>
+    // elements (not one text node), so a single-node regex can't match
+    // "12 إعلان" — check each piece individually instead.
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('إعلان')).toBeInTheDocument();
   });
 
   it('always shows the member-since date', () => {

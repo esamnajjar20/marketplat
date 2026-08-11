@@ -11,6 +11,11 @@
  *     historical bug was that this value was computed but never used)
  *   - falls back to the dashboard route when no `from` param is present
  *   - disables the submit button and shows a loading label while pending
+ *
+ * NOTE: password field queries use a prefix regex (/^كلمة المرور/), not an
+ * exact string — FormField's `required` prop appends a visible "*" and
+ * sr-only "(required)" to the label's accessible name, so the full name is
+ * "كلمة المرور *(required)", not the bare label text.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -55,7 +60,7 @@ describe('LoginForm', () => {
       // control means Enter in a text field does NOT implicitly submit
       // the form (jsdom correctly enforces this), so dispatch a real
       // submit event on the <form> directly instead.
-      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
+      await user.type(screen.getByLabelText(/^كلمة المرور/), 'password123');
       fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('البريد الإلكتروني مطلوب')).toBeInTheDocument();
@@ -67,7 +72,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'not-an-email');
-      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
+      await user.type(screen.getByLabelText(/^كلمة المرور/), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(screen.getByText('بريد إلكتروني غير صالح')).toBeInTheDocument();
@@ -94,7 +99,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText('كلمة المرور'), 'ab');
+      await user.type(screen.getByLabelText(/^كلمة المرور/), 'ab');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(screen.queryByText('كلمة المرور مطلوبة')).not.toBeInTheDocument();
@@ -108,7 +113,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
+      await user.type(screen.getByLabelText(/^كلمة المرور/), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(mockLogin).toHaveBeenCalledWith({
@@ -124,7 +129,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
+      await user.type(screen.getByLabelText(/^كلمة المرور/), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(mockLogin).toHaveBeenCalledWith({
@@ -140,7 +145,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
-      await user.type(screen.getByLabelText('كلمة المرور'), 'password123');
+      await user.type(screen.getByLabelText(/^كلمة المرور/), 'password123');
       await user.click(screen.getByRole('button', { name: 'تسجيل الدخول' }));
 
       expect(mockLogin).toHaveBeenCalledWith({

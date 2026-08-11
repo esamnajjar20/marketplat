@@ -6,7 +6,7 @@
  * conditional branches (phone/city only validated/sent when non-empty).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { RegisterForm } from '@/components/auth/RegisterForm';
@@ -98,14 +98,16 @@ describe('RegisterForm', () => {
 
     it('shows required error when name is empty', async () => {
       const user = userEvent.setup();
-      render(<RegisterForm />);
+      const { container } = render(<RegisterForm />);
       // Name deliberately left blank, which means isFormIncomplete keeps
       // the submit button disabled (see RegisterForm's own guard) — a
-      // click on it would be a no-op. Enter in the last field submits
-      // the form the same way it would for a real user who tabs through
-      // and hits Enter without noticing the button is greyed out.
+      // click on it would be a no-op. A disabled submit control also
+      // means Enter in a text field does NOT implicitly submit the form
+      // in jsdom (see the same note in LoginForm.test.tsx /
+      // ResetPasswordForm.test.tsx / SecuritySettingsForm.test.tsx) —
+      // dispatch the form's submit event directly instead.
       await fillRequiredFields(user, { name: '' });
-      await user.type(getConfirmPasswordInput(), '{Enter}');
+      fireEvent.submit(container.querySelector('form')!);
       expect(screen.getByText('الاسم الكامل مطلوب')).toBeInTheDocument();
     });
 
@@ -122,17 +124,19 @@ describe('RegisterForm', () => {
 
     it('requires a password of at least 8 characters', async () => {
       const user = userEvent.setup();
-      render(<RegisterForm />);
+      const { container } = render(<RegisterForm />);
 
       // A 6-char password keeps isFormIncomplete's password.length < 8
       // check true, so the submit button stays disabled the same way
-      // the empty-name case above does — a click on it is a no-op.
-      // Enter in the last-touched field submits the form directly,
-      // exercising validate()'s own length check instead.
+      // the empty-name case above does — a click on it is a no-op, and
+      // a disabled submit control also means Enter in a text field does
+      // NOT implicitly submit the form in jsdom — dispatch the form's
+      // submit event directly instead.
       await user.type(screen.getByLabelText(/الاسم الكامل/), 'أحمد محمد');
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
       await user.type(getPasswordInput(), 'short1');
-      await user.type(getConfirmPasswordInput(), 'short1{Enter}');
+      await user.type(getConfirmPasswordInput(), 'short1');
+      fireEvent.submit(container.querySelector('form')!);
 
       expect(screen.getByText('كلمة المرور 8 أحرف على الأقل')).toBeInTheDocument();
       expect(mockRegister).not.toHaveBeenCalled();

@@ -124,7 +124,9 @@ describe('RecentAds', () => {
 
     expect(screen.getByText('لا توجد إعلانات بعد')).toBeInTheDocument();
     expect(screen.queryByText('نشر إعلان مجاناً')).not.toBeInTheDocument();
-    const loginLink = screen.getByText('تسجيل الدخول').closest('a');
+    // Actual CTA text is "تسجيل الدخول لنشر إعلان" (full phrase), not the
+    // bare "تسجيل الدخول" — match by prefix.
+    const loginLink = screen.getByText(/^تسجيل الدخول/).closest('a');
     expect(loginLink).toHaveAttribute(
       'href',
       `${ROUTES.login}?from=${encodeURIComponent(ROUTES.adCreate)}`,
