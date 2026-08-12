@@ -142,7 +142,10 @@ describe('MyServiceRequestsList', () => {
     render(<MyServiceRequestsList />);
     expect(screen.getByText('خدمة تجريبية')).toBeInTheDocument();
     expect(screen.getByText('إلى مزود الخدمة')).toBeInTheDocument();
-    expect(screen.getByText('قيد الانتظار')).toBeInTheDocument();
+    // The status filter tab and the row's status badge both render this
+    // text — the tab is a <button>, so excluding that role isolates the badge.
+    const pendingMatches = screen.getAllByText('قيد الانتظار');
+    expect(pendingMatches.some((el) => el.tagName !== 'BUTTON')).toBe(true);
     expect(screen.getByText('تفاصيل الطلب التجريبي')).toBeInTheDocument();
   });
 

@@ -126,19 +126,29 @@ describe('ProductForm', () => {
     });
   });
 
+  // FormField renders required fields as
+  // <label>اسم المنتج<span aria-hidden>*</span><span class="sr-only">(required)</span></label>
+  // — getByLabelText matches against the label's full textContent, so an
+  // exact string like 'اسم المنتج' never matches once the required
+  // decoration is appended. Match by prefix instead.
+  function getField(label: string) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return screen.getByLabelText(new RegExp(`^${escaped}`));
+  }
+
   async function selectCategory(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(screen.getByLabelText('الفئة'));
+    await user.click(getField('الفئة'));
     await user.click(await screen.findByRole('option', { name: 'إلكترونيات' }));
   }
 
   async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
     await selectCategory(user);
-    await user.type(screen.getByLabelText('اسم المنتج'), 'منتج تجريبي جديد');
+    await user.type(getField('اسم المنتج'), 'منتج تجريبي جديد');
     await user.type(
-      screen.getByLabelText('الوصف'),
+      getField('الوصف'),
       'هذا وصف تجريبي طويل بما فيه الكفاية لاجتياز التحقق',
     );
-    await user.type(screen.getByLabelText('السعر (₪)'), '50');
+    await user.type(getField('السعر (₪)'), '50');
   }
 
   // isFormIncomplete keeps the submit button disabled for every
@@ -155,12 +165,15 @@ describe('ProductForm', () => {
       const user = userEvent.setup();
       const { container } = render(<ProductForm mode="create" />);
 
-      await user.type(screen.getByLabelText('اسم المنتج'), 'منتج تجريبي جديد');
-      await user.type(screen.getByLabelText('الوصف'), 'وصف تجريبي طويل بما فيه الكفاية');
-      await user.type(screen.getByLabelText('السعر (₪)'), '50');
+      await user.type(getField('اسم المنتج'), 'منتج تجريبي جديد');
+      await user.type(getField('الوصف'), 'وصف تجريبي طويل بما فيه الكفاية');
+      await user.type(getField('السعر (₪)'), '50');
       submitForm(container);
 
-      expect(screen.getByText('اختر فئة المنتج')).toBeInTheDocument();
+      // The Select's own placeholder text is identical to the validation
+      // error message, so getByText matches both — scope to the actual
+      // error element (role="alert") instead.
+      expect(screen.getByRole('alert')).toHaveTextContent('اختر فئة المنتج');
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
@@ -169,7 +182,7 @@ describe('ProductForm', () => {
       const { container } = render(<ProductForm mode="create" />);
 
       await selectCategory(user);
-      await user.type(screen.getByLabelText('اسم المنتج'), 'ا');
+      await user.type(getField('اسم المنتج'), 'ا');
       submitForm(container);
 
       expect(screen.getByText('اسم المنتج قصير جداً')).toBeInTheDocument();
@@ -181,8 +194,8 @@ describe('ProductForm', () => {
       const { container } = render(<ProductForm mode="create" />);
 
       await selectCategory(user);
-      await user.type(screen.getByLabelText('اسم المنتج'), 'منتج صالح');
-      await user.type(screen.getByLabelText('الوصف'), 'قصير');
+      await user.type(getField('اسم المنتج'), 'منتج صالح');
+      await user.type(getField('الوصف'), 'قصير');
       submitForm(container);
 
       expect(screen.getByText('الوصف قصير جداً (10 أحرف على الأقل)')).toBeInTheDocument();
@@ -194,8 +207,8 @@ describe('ProductForm', () => {
       const { container } = render(<ProductForm mode="create" />);
 
       await selectCategory(user);
-      await user.type(screen.getByLabelText('اسم المنتج'), 'منتج صالح');
-      await user.type(screen.getByLabelText('الوصف'), 'وصف تجريبي طويل بما فيه الكفاية');
+      await user.type(getField('اسم المنتج'), 'منتج صالح');
+      await user.type(getField('الوصف'), 'وصف تجريبي طويل بما فيه الكفاية');
       submitForm(container);
 
       expect(screen.getByText('أدخل سعراً صحيحاً')).toBeInTheDocument();
@@ -207,7 +220,7 @@ describe('ProductForm', () => {
       const { container } = render(<ProductForm mode="create" />);
 
       await fillRequiredFields(user);
-      await user.type(screen.getByLabelText('سعر بعد الخصم (اختياري)'), '999');
+      await user.type(getField('سعر بعد الخصم (اختياري)'), '999');
       submitForm(container);
 
       expect(
@@ -221,7 +234,7 @@ describe('ProductForm', () => {
       const { container } = render(<ProductForm mode="create" />);
 
       await fillRequiredFields(user);
-      await user.type(screen.getByLabelText('سعر الجملة (اختياري)'), '30');
+      await user.type(getField('سعر الجملة (اختياري)'), '30');
       submitForm(container);
 
       expect(
@@ -235,7 +248,7 @@ describe('ProductForm', () => {
       const { container } = render(<ProductForm mode="create" />);
 
       await fillRequiredFields(user);
-      await user.type(screen.getByLabelText('الحد الأدنى للكمية (للجملة)'), '10');
+      await user.type(getField('الحد الأدنى للكمية (للجملة)'), '10');
       submitForm(container);
 
       expect(
@@ -283,7 +296,7 @@ describe('ProductForm', () => {
       const user = userEvent.setup();
       render(<ProductForm mode="edit" product={existingProduct} />);
 
-      const nameInput = screen.getByLabelText('اسم المنتج') as HTMLInputElement;
+      const nameInput = getField('اسم المنتج') as HTMLInputElement;
       await user.clear(nameInput);
       await user.type(nameInput, '  منتج بمسافات زائدة  ');
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -315,10 +328,10 @@ describe('ProductForm', () => {
       const user = userEvent.setup();
       render(<ProductForm mode="edit" product={existingProduct} />);
 
-      await user.clear(screen.getByLabelText('سعر بعد الخصم (اختياري)'));
-      await user.type(screen.getByLabelText('سعر بعد الخصم (اختياري)'), '80');
-      await user.type(screen.getByLabelText('سعر الجملة (اختياري)'), '60');
-      await user.type(screen.getByLabelText('الحد الأدنى للكمية (للجملة)'), '5');
+      await user.clear(getField('سعر بعد الخصم (اختياري)'));
+      await user.type(getField('سعر بعد الخصم (اختياري)'), '80');
+      await user.type(getField('سعر الجملة (اختياري)'), '60');
+      await user.type(getField('الحد الأدنى للكمية (للجملة)'), '5');
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
       await waitFor(() => expect(mockUpdateMutate).toHaveBeenCalledTimes(1));
@@ -450,9 +463,9 @@ describe('ProductForm', () => {
     it('pre-fills the form fields from the given product', () => {
       render(<ProductForm mode="edit" product={existingProduct} />);
 
-      expect(screen.getByLabelText('اسم المنتج')).toHaveValue(existingProduct.name);
-      expect(screen.getByLabelText('الوصف')).toHaveValue(existingProduct.description);
-      expect(screen.getByLabelText('السعر (₪)')).toHaveValue(100);
+      expect(getField('اسم المنتج')).toHaveValue(existingProduct.name);
+      expect(getField('الوصف')).toHaveValue(existingProduct.description);
+      expect(getField('السعر (₪)')).toHaveValue(100);
     });
   });
 
@@ -464,7 +477,7 @@ describe('ProductForm', () => {
       const user = userEvent.setup();
       render(<ProductForm mode="create" />);
 
-      await user.type(screen.getByLabelText('اسم المنتج'), 'منتج جديد');
+      await user.type(getField('اسم المنتج'), 'منتج جديد');
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
       expect(backSpy).toHaveBeenCalledTimes(1);

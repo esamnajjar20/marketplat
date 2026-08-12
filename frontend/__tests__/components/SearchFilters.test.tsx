@@ -84,6 +84,10 @@ describe('SearchFilters', () => {
   });
 
   it('navigates to /search when "كل الفئات" is chosen while on a category page', async () => {
+    // Radix Select only fires onValueChange on an actual value change, so
+    // the category combobox must start on a real selection (not already
+    // 'ALL') for clicking "كل الفئات" to register as a click at all.
+    mockSearchParams = new URLSearchParams('categoryId=cat-1');
     mockPathname = '/categories/electronics';
     const user = userEvent.setup();
     render(<SearchFilters categorySlug="electronics" />);
@@ -95,6 +99,7 @@ describe('SearchFilters', () => {
   });
 
   it('navigates to the current pathname when "كل الفئات" is chosen without a categorySlug', async () => {
+    mockSearchParams = new URLSearchParams('categoryId=cat-1');
     const user = userEvent.setup();
     render(<SearchFilters />);
 

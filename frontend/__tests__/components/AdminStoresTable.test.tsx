@@ -112,14 +112,14 @@ describe('AdminStoresTable', () => {
   describe('status filter tabs', () => {
     it('defaults to the PENDING tab when ?status is absent', () => {
       render(<AdminStoresTable />);
-      const pendingTab = screen.getByText('قيد المراجعة');
+      const pendingTab = screen.getByRole('button', { name: 'قيد المراجعة' });
       expect(pendingTab.className).toContain('bg-primary');
     });
 
     it('defaults to PENDING when ?status is an invalid/unrecognized value (FIX SEC-3.9)', () => {
       mockSearchParams = new URLSearchParams('status=NOT_A_REAL_STATUS');
       render(<AdminStoresTable />);
-      const pendingTab = screen.getByText('قيد المراجعة');
+      const pendingTab = screen.getByRole('button', { name: 'قيد المراجعة' });
       expect(pendingTab.className).toContain('bg-primary');
     });
 

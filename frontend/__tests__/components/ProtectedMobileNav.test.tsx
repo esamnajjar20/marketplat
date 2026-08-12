@@ -104,9 +104,13 @@ describe('ProtectedMobileNav', () => {
 
   it('renders a closed drawer by default with aria-hidden="true"', () => {
     isMobileNavOpen = false;
-    render(<ProtectedMobileNav />);
-    const nav = screen.getByRole('navigation', { name: 'القائمة الشخصية' });
-    expect(nav.getAttribute('aria-hidden')).toBe('true');
+    const { container } = render(<ProtectedMobileNav />);
+    // getByRole excludes aria-hidden elements from the accessibility
+    // tree by design, so it can never find the nav while it's closed —
+    // query the DOM directly instead.
+    const nav = container.querySelector('nav[aria-label="القائمة الشخصية"]');
+    expect(nav).not.toBeNull();
+    expect(nav?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('toggle button calls toggleMobileNav on click', () => {
@@ -188,6 +192,7 @@ describe('ProtectedMobileNav', () => {
 
   describe('role-gated groups', () => {
     it('renders "خدماتي" as a disclosure group when the user is a service provider', () => {
+      isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: { id: 'provider-1' }, isSuccess: true,
       });
@@ -197,6 +202,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('renders "أصبح مقدّم خدمة" CTA when the user has no service-provider profile', () => {
+      isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
       });
@@ -208,6 +214,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('treats a still-loading service-provider query the same as "not yet" (CTA, not group)', () => {
+      isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: false,
       });
@@ -216,6 +223,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('renders "متجري" as a disclosure group when the user is a seller', () => {
+      isMobileNavOpen = true;
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: { id: 'seller-1' }, isSuccess: true,
       });
@@ -225,6 +233,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('renders "افتح متجرك" CTA when the user has no store yet', () => {
+      isMobileNavOpen = true;
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
       });
@@ -236,6 +245,7 @@ describe('ProtectedMobileNav', () => {
 
   describe('disclosure groups', () => {
     it('"خدماتي" is collapsed by default outside the group and expands on click', () => {
+      isMobileNavOpen = true;
       render(<ProtectedMobileNav />);
       const toggle = screen.getByRole('button', { name: /خدماتي/ });
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
@@ -251,6 +261,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('"خدماتي" is expanded by default when pathname is inside the group', () => {
+      isMobileNavOpen = true;
       mockUsePathname.mockReturnValue('/my-requests');
       render(<ProtectedMobileNav />);
       expect(screen.getByRole('button', { name: /خدماتي/ }).getAttribute('aria-expanded')).toBe(
@@ -259,6 +270,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('"متجري" is collapsed by default outside the group and expands on click', () => {
+      isMobileNavOpen = true;
       render(<ProtectedMobileNav />);
       const toggle = screen.getByRole('button', { name: /متجري/ });
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
@@ -272,6 +284,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('"متجري" is expanded by default when pathname is inside the group', () => {
+      isMobileNavOpen = true;
       mockUsePathname.mockReturnValue('/my-store/followed');
       render(<ProtectedMobileNav />);
       expect(screen.getByRole('button', { name: /متجري/ }).getAttribute('aria-expanded')).toBe(
@@ -280,6 +293,7 @@ describe('ProtectedMobileNav', () => {
     });
 
     it('clicking a disclosure child link closes the drawer via onNavigate', () => {
+      isMobileNavOpen = true;
       render(<ProtectedMobileNav />);
       fireEvent.click(screen.getByRole('button', { name: /خدماتي/ }));
       fireEvent.click(screen.getByText('طلباتي'));
@@ -289,12 +303,14 @@ describe('ProtectedMobileNav', () => {
 
   describe('admin link', () => {
     it('does not render the admin link for non-admins', () => {
+      isMobileNavOpen = true;
       isAdmin = false;
       render(<ProtectedMobileNav />);
       expect(screen.queryByText('لوحة الإدارة')).not.toBeInTheDocument();
     });
 
     it('renders the admin link for admins', () => {
+      isMobileNavOpen = true;
       isAdmin = true;
       render(<ProtectedMobileNav />);
       expect(screen.getByText('لوحة الإدارة').closest('a')?.getAttribute('href')).toBe(
@@ -305,6 +321,7 @@ describe('ProtectedMobileNav', () => {
 
   describe('logout', () => {
     it('calls logout and closes the drawer on click', () => {
+      isMobileNavOpen = true;
       render(<ProtectedMobileNav />);
       fireEvent.click(screen.getByRole('button', { name: 'تسجيل الخروج' }));
       expect(mockLogout).toHaveBeenCalledTimes(1);
