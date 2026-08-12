@@ -1,0 +1,155 @@
+/**
+ * __tests__/components/ConversationList.test.tsx
+ *
+ * Real logic under test: loading/error(-with-retry)/empty states,
+ * resolving "the other party" from buyerId (mirrors ChatWindow's own
+ * otherParty()), falling back to "محادثة عامة" when a conversation has
+ * no linked ad, each row's href, and the `selectedId` prop driving
+ * `aria-current="page"` / highlight for the DESKTOP-SPLIT-01 split view.
+ */
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ConversationList } from '@/components/messages/ConversationList';
+import { useMyConversations } from '@/hooks/queries/useConversations';
+import { useAuthStore } from '@/store/auth.store';
+
+vi.mock('@/hooks/queries/useConversations', () => ({
+  useMyConversations: vi.fn(),
+}));
+
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectUser: (s: { user: unknown }) => s.user,
+}));
+
+const mockUseMyConversations = vi.mocked(useMyConversations);
+const mockUseAuthStore = vi.mocked(useAuthStore);
+
+const me = { id: 'user-me', name: 'أنا' };
+const seller = { id: 'user-seller', name: 'متجر سارة', avatarUrl: null };
+const buyer = { id: 'user-buyer', name: 'خالد', avatarUrl: null };
+
+function mockAuthState(user: typeof me | null) {
+  mockUseAuthStore.mockImplementation((selector: (s: { user: unknown }) => unknown) => selector({ user }));
+}
+
+function makeConversation(overrides: Partial<{
+  id: string; buyerId: string; buyer: typeof buyer; seller: typeof seller;
+  ad: { title: string } | null; updatedAt: string;
+}> = {}) {
+  return {
+    id: 'conv-1',
+    buyerId: me.id,
+    buyer: me,
+    seller,
+    ad: { title: 'دراجة للبيع' },
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+describe('ConversationList', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthState(me);
+  });
+
+  it('shows a loading spinner while fetching', () => {
+    mockUseMyConversations.mockReturnValue({ data: undefined, isLoading: true, isError: false, refetch: vi.fn() } as never);
+    render(<ConversationList />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('shows an error state with a retry option that calls refetch', async () => {
+    const refetch = vi.fn();
+    mockUseMyConversations.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as never);
+    const user = userEvent.setup();
+    render(<ConversationList />);
+
+    expect(screen.getByText('حدث خطأ أثناء تحميل المحادثات')).toBeInTheDocument();
+    await user.click(screen.getByText('إعادة المحاولة'));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the empty state when there are no conversations', () => {
+    mockUseMyConversations.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false, refetch: vi.fn() } as never);
+    render(<ConversationList />);
+    expect(screen.getByText('لا توجد محادثات')).toBeInTheDocument();
+  });
+
+  it("renders the other party's name (seller, since I am the buyer) and links to the conversation", () => {
+    mockUseMyConversations.mockReturnValue({
+      data: { items: [makeConversation({ id: 'conv-42' })] },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    } as never);
+    render(<ConversationList />);
+
+    expect(screen.getByText('متجر سارة')).toBeInTheDocument();
+    expect(screen.getByText('متجر سارة').closest('a')).toHaveAttribute('href', '/messages/conv-42');
+  });
+
+  it('resolves the other party as the buyer when I am the seller', () => {
+    mockAuthState(seller as never);
+    mockUseMyConversations.mockReturnValue({
+      data: { items: [makeConversation({ buyerId: buyer.id, buyer })] },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    } as never);
+    render(<ConversationList />);
+    expect(screen.getByText('خالد')).toBeInTheDocument();
+  });
+
+  it('shows the ad title when the conversation is linked to an ad', () => {
+    mockUseMyConversations.mockReturnValue({
+      data: { items: [makeConversation({ ad: { title: 'هاتف للبيع' } })] },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    } as never);
+    render(<ConversationList />);
+    expect(screen.getByText('هاتف للبيع')).toBeInTheDocument();
+  });
+
+  it('falls back to "محادثة عامة" when the conversation has no linked ad', () => {
+    mockUseMyConversations.mockReturnValue({
+      data: { items: [makeConversation({ ad: null })] },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    } as never);
+    render(<ConversationList />);
+    expect(screen.getByText('محادثة عامة')).toBeInTheDocument();
+  });
+
+  it('marks the selected conversation with aria-current="page"', () => {
+    mockUseMyConversations.mockReturnValue({
+      data: {
+        items: [
+          makeConversation({ id: 'conv-1' }),
+          makeConversation({ id: 'conv-2', seller: buyer as never }),
+        ],
+      },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    } as never);
+    render(<ConversationList selectedId="conv-2" />);
+
+    const links = screen.getAllByRole('link');
+    const selectedLink = links.find((l) => l.getAttribute('href') === '/messages/conv-2');
+    const otherLink = links.find((l) => l.getAttribute('href') === '/messages/conv-1');
+
+    expect(selectedLink).toHaveAttribute('aria-current', 'page');
+    expect(otherLink).not.toHaveAttribute('aria-current');
+  });
+
+  it('renders multiple conversations', () => {
+    mockUseMyConversations.mockReturnValue({
+      data: {
+        items: [
+          makeConversation({ id: 'conv-1', seller: { ...seller, name: 'متجر أ' } }),
+          makeConversation({ id: 'conv-2', seller: { ...seller, name: 'متجر ب' } }),
+        ],
+      },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    } as never);
+    render(<ConversationList />);
+
+    expect(screen.getByText('متجر أ')).toBeInTheDocument();
+    expect(screen.getByText('متجر ب')).toBeInTheDocument();
+  });
+});

@@ -1,0 +1,218 @@
+/**
+ * __tests__/components/ChatWindow.test.tsx
+ *
+ * Real logic under test: conversation loading/error states, resolving
+ * "the other party" from buyerId (see otherParty()), read-receipt
+ * icon (Check vs CheckCheck) shown only for my own messages, the
+ * empty-thread state, and the block/unblock flow — unblock is a
+ * single click while block opens a ConfirmDialog first (mirrors
+ * AdminStoresTable/AdminSellersTable's asymmetric-confirm pattern).
+ * MessageInput is mocked out since it owns its own mutation hook
+ * (useSendMessage) that's out of scope here — only its `disabled` prop
+ * (driven by isBlocked) is asserted.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ChatWindow } from '@/components/messages/ChatWindow';
+import { useConversation, useMessages } from '@/hooks/queries/useConversations';
+import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
+import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
+import { useAuthStore } from '@/store/auth.store';
+
+vi.mock('@/hooks/queries/useConversations', () => ({
+  useConversation: vi.fn(),
+  useMessages: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/useBlockedUsers', () => ({
+  useIsUserBlocked: vi.fn(),
+}));
+
+vi.mock('@/hooks/mutations/useBlockedUsersMutations', () => ({
+  useToggleUserBlock: vi.fn(),
+}));
+
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectUser: (s: { user: unknown }) => s.user,
+}));
+
+vi.mock('@/components/messages/MessageInput', () => ({
+  MessageInput: ({ disabled }: { disabled?: boolean }) => (
+    <div data-testid="message-input" data-disabled={String(!!disabled)} />
+  ),
+}));
+
+const mockUseConversation = vi.mocked(useConversation);
+const mockUseMessages = vi.mocked(useMessages);
+const mockUseIsUserBlocked = vi.mocked(useIsUserBlocked);
+const mockUseToggleUserBlock = vi.mocked(useToggleUserBlock);
+const mockUseAuthStore = vi.mocked(useAuthStore);
+
+const me = { id: 'user-me', name: 'أنا' };
+const seller = { id: 'user-seller', name: 'متجر سارة', avatarUrl: null };
+
+const conversation = {
+  id: 'conv-1',
+  buyerId: me.id,
+  buyer: me,
+  seller,
+  ad: { title: 'دراجة للبيع' },
+};
+
+const mockToggleBlockMutate = vi.fn();
+
+function mockAuthState(user: typeof me | null) {
+  mockUseAuthStore.mockImplementation((selector: (s: { user: unknown }) => unknown) => selector({ user }));
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockAuthState(me);
+  mockUseIsUserBlocked.mockReturnValue(false);
+  mockUseToggleUserBlock.mockReturnValue({ mutate: mockToggleBlockMutate, isPending: false } as never);
+  mockUseMessages.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
+  mockUseConversation.mockReturnValue({ data: conversation, isLoading: false, isError: false } as never);
+});
+
+describe('ChatWindow', () => {
+  it('shows a loading spinner while the conversation is loading', () => {
+    mockUseConversation.mockReturnValue({ data: undefined, isLoading: true, isError: false } as never);
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('shows an error state with a link back to messages on failure', () => {
+    mockUseConversation.mockReturnValue({ data: undefined, isLoading: false, isError: true } as never);
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByText('تعذّر تحميل المحادثة')).toBeInTheDocument();
+    expect(screen.getByText('العودة للمحادثات').closest('a')).toHaveAttribute('href', '/messages');
+  });
+
+  it('shows the error state when conversation data is missing even without isError', () => {
+    mockUseConversation.mockReturnValue({ data: undefined, isLoading: false, isError: false } as never);
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByText('تعذّر تحميل المحادثة')).toBeInTheDocument();
+  });
+
+  it("renders the other party's name (seller, since I am the buyer) and the ad subject", () => {
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByText('متجر سارة')).toBeInTheDocument();
+    expect(screen.getByText('بخصوص: دراجة للبيع')).toBeInTheDocument();
+  });
+
+  it('resolves the other party as the buyer when I am the seller', () => {
+    mockAuthState(seller as never);
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByText('أنا')).toBeInTheDocument();
+  });
+
+  it('shows the empty-thread state when there are no messages', () => {
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByText('ابدأ المحادثة')).toBeInTheDocument();
+  });
+
+  it('shows a loading spinner for messages while the thread itself has loaded', () => {
+    mockUseMessages.mockReturnValue({ data: undefined, isLoading: true } as never);
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+  });
+
+  it('renders message bodies and shows a read/sent icon only for my own messages', () => {
+    mockUseMessages.mockReturnValue({
+      data: {
+        items: [
+          { id: 'm1', senderId: me.id, body: 'مرحبا', createdAt: new Date().toISOString(), readAt: null },
+          { id: 'm2', senderId: seller.id, body: 'أهلاً بك', createdAt: new Date().toISOString(), readAt: null },
+        ],
+      },
+      isLoading: false,
+    } as never);
+    render(<ChatWindow conversationId="conv-1" />);
+
+    expect(screen.getByText('مرحبا')).toBeInTheDocument();
+    expect(screen.getByText('أهلاً بك')).toBeInTheDocument();
+    // Only my own message (m1, unread) gets a "تم الإرسال" sent-icon.
+    expect(screen.getByLabelText('تم الإرسال')).toBeInTheDocument();
+    expect(screen.queryByLabelText('تمت القراءة')).not.toBeInTheDocument();
+  });
+
+  it('shows the read-receipt icon for my own read message', () => {
+    mockUseMessages.mockReturnValue({
+      data: {
+        items: [
+          { id: 'm1', senderId: me.id, body: 'مرحبا', createdAt: new Date().toISOString(), readAt: new Date().toISOString() },
+        ],
+      },
+      isLoading: false,
+    } as never);
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByLabelText('تمت القراءة')).toBeInTheDocument();
+  });
+
+  it('passes disabled=false to MessageInput when the other party is not blocked', () => {
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByTestId('message-input')).toHaveAttribute('data-disabled', 'false');
+  });
+
+  it('passes disabled=true to MessageInput when the other party is blocked', () => {
+    mockUseIsUserBlocked.mockReturnValue(true);
+    render(<ChatWindow conversationId="conv-1" />);
+    expect(screen.getByTestId('message-input')).toHaveAttribute('data-disabled', 'true');
+  });
+
+  describe('block / unblock', () => {
+    it('unblocking is a single click with no confirmation dialog', async () => {
+      mockUseIsUserBlocked.mockReturnValue(true);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(await screen.findByText('إلغاء حظر المستخدم'));
+
+      expect(mockToggleBlockMutate).toHaveBeenCalledWith(seller.id);
+      expect(screen.queryByText(`حظر ${seller.name}؟`)).not.toBeInTheDocument();
+    });
+
+    it('clicking block opens the confirm dialog without blocking yet', async () => {
+      mockUseIsUserBlocked.mockReturnValue(false);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(await screen.findByText('حظر المستخدم'));
+
+      expect(screen.getByText(`حظر ${seller.name}؟`)).toBeInTheDocument();
+      expect(mockToggleBlockMutate).not.toHaveBeenCalled();
+    });
+
+    it('confirming the block dialog calls toggleBlock with the party id', async () => {
+      mockUseIsUserBlocked.mockReturnValue(false);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(await screen.findByText('حظر المستخدم'));
+      await user.click(screen.getByRole('button', { name: 'حظر' }));
+
+      expect(mockToggleBlockMutate).toHaveBeenCalledWith(
+        seller.id,
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
+    });
+
+    it('cancelling the block dialog does not toggle the block', async () => {
+      mockUseIsUserBlocked.mockReturnValue(false);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(await screen.findByText('حظر المستخدم'));
+      await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+      expect(mockToggleBlockMutate).not.toHaveBeenCalled();
+      expect(screen.queryByText(`حظر ${seller.name}؟`)).not.toBeInTheDocument();
+    });
+  });
+});
