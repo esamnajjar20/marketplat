@@ -147,7 +147,11 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // its own try/catch and awaited (not fire-and-forget) only to
         // keep it inside this function's existing 8s abort window.
         try {
-          const favRes = await favoritesApi.getAll({ page: 1 });
+          // FIX AUTH-05b: pass the same signal used for refresh/getMe so
+          // this call is actually cancelled by the 8s timeout or an
+          // unmount, instead of running to completion in the background
+          // regardless (see favoritesApi.getAll's doc comment).
+          const favRes = await favoritesApi.getAll({ page: 1 }, { signal: controller.signal });
           const favData = favRes.data.data; // { items: FavoriteRecord[]; meta: PaginationMeta }
           if (!favData) throw new Error('empty /favorites response');
           const idSet   = new Set(favData.items.map((fav) => fav.ad.id));

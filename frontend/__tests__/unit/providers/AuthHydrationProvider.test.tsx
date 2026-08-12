@@ -40,6 +40,7 @@ import { AuthHydrationProvider } from '@/providers/AuthHydrationProvider';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi } from '@/api/auth.api';
 import { usersApi } from '@/api/users.api';
+import { favoritesApi } from '@/api/favorites.api';
 import { deleteCookie } from '@/lib/cookies';
 
 vi.mock('@/api/auth.api', () => ({
@@ -48,6 +49,24 @@ vi.mock('@/api/auth.api', () => ({
 
 vi.mock('@/api/users.api', () => ({
   usersApi: { getMe: vi.fn() },
+}));
+
+/**
+ * FIX TEST-AUTH-05b: previously unmocked — every test that reached the
+ * post-/me favorites prefetch inside AuthHydrationProvider made a real,
+ * unaborted axios call to a nonexistent server. Since the component awaits
+ * that call before its outer finally{} runs setAuthResolved(), that left
+ * isAuthResolving stuck true until the real request settled on its own
+ * (axios's own default timeout — well past waitFor's 1s default), and — worse
+ * — that promise outlived the component's unmount (cleanup() in afterEach),
+ * so it could still resolve and flip the shared useAuthStore singleton's
+ * isAuthResolving mid-way through a LATER test. That's what produced the
+ * false-logout-race test's failure: it wasn't this component's actual
+ * behavior, it was cross-test pollution from the previous test's still-
+ * in-flight, unmocked, un-abortable favorites call.
+ */
+vi.mock('@/api/favorites.api', () => ({
+  favoritesApi: { getAll: vi.fn() },
 }));
 
 /**
@@ -81,6 +100,15 @@ function resetStoreToHydrated() {
 describe('AuthHydrationProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: any test that reaches the post-/me favorites prefetch gets a
+    // fast, deterministic empty result unless it overrides this itself.
+    // Prevents a real unmocked network call regardless of test order.
+    // favoritesApi is mocked wholesale (see vi.mock above), so this bypasses
+    // unwrapPaginated — shape must match what the component actually reads
+    // (favRes.data.data.items), not the raw pre-unwrap axios response.
+    (favoritesApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false } } },
+    });
     // BUGFIX (found during a post-implementation code audit):
     // `document.cookie = ''` does NOT clear existing cookies in jsdom
     // (or real browsers) — assigning to document.cookie only
@@ -219,7 +247,7 @@ describe('AuthHydrationProvider', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
-  it('REGRESSION (dead AbortController): passes a real AbortSignal through to both authApi.refresh and usersApi.getMe', async () => {
+  it('REGRESSION (dead AbortController): passes a real AbortSignal through to authApi.refresh, usersApi.getMe, and favoritesApi.getAll', async () => {
     resetStoreToHydrated();
     (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
@@ -240,6 +268,15 @@ describe('AuthHydrationProvider', () => {
     expect(getMeCallArgs[0]?.signal).toBeInstanceOf(AbortSignal);
 
     expect(getMeCallArgs[0].signal).toBe(refreshCallArgs[0].signal);
+
+    // FIX AUTH-05b: the favorites prefetch is the third call in this same
+    // 8s-abort flow and must share the identical signal, or it silently
+    // keeps running after a timeout/unmount instead of actually cancelling
+    // — which is exactly what caused this component's async work to leak
+    // across tests (see the favoritesApi mock's comment above).
+    const favoritesCallArgs = (favoritesApi.getAll as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(favoritesCallArgs[1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(favoritesCallArgs[1].signal).toBe(refreshCallArgs[0].signal);
   });
 
   it('only runs the restore flow once, even if re-rendered with the same hydrated state', async () => {

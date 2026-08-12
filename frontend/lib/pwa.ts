@@ -9,7 +9,18 @@
 
 import { apiClient } from '@/api/client';
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
+// FIX PWA-05: previously read once as a module-level constant
+// (`const VAPID_PUBLIC_KEY = process.env...`), which freezes the value at
+// import time. In Next.js NEXT_PUBLIC_* vars are inlined at build time so
+// this is harmless in production, but it silently breaks anything that
+// needs the current value read at call time (tests that set the env var
+// per-case, or any future runtime-config override) — subscribeToPush()
+// would keep using whatever was present the moment the module first
+// loaded. Reading it inside a function each call fixes both without any
+// behavior change in production.
+function getVapidPublicKey(): string {
+  return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
+}
 
 export type SwUpdateListener = (registration: ServiceWorkerRegistration) => void;
 
@@ -117,7 +128,8 @@ export async function getPushSubscriptionState(): Promise<'subscribed' | 'unsubs
  */
 export async function subscribeToPush(): Promise<boolean> {
   if (!isPushSupported()) return false;
-  if (!VAPID_PUBLIC_KEY) {
+  const vapidPublicKey = getVapidPublicKey();
+  if (!vapidPublicKey) {
     console.warn('NEXT_PUBLIC_VAPID_PUBLIC_KEY غير مضبوط — لا يمكن تفعيل الإشعارات.');
     return false;
   }
@@ -128,7 +140,7 @@ export async function subscribeToPush(): Promise<boolean> {
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
   });
 
   try {

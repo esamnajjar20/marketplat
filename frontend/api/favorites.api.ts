@@ -21,6 +21,7 @@
  *   shape (data: FavoriteRecord[] directly, meta.pagination for paging)
  *   via unwrapPaginated — see lib/apiPagination.ts.
  */
+import type { AxiosRequestConfig } from 'axios';
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { AdListItem } from '@/types/ad.types';
@@ -43,10 +44,22 @@ export interface FavoriteRecord {
 }
 
 export const favoritesApi = {
-  /** GET /favorites — paginated list of favorited ads */
-  getAll: (params?: { page?: number; limit?: number }) =>
+  /**
+   * GET /favorites — paginated list of favorited ads.
+   *
+   * FIX AUTH-05b: accepts an AxiosRequestConfig (signal, etc.) so callers
+   * that need the request to be abortable can pass one through — notably
+   * AuthHydrationProvider's post-login favorites prefetch, which previously
+   * called this with no config at all. That left it as the one call in that
+   * component's 8s-abort flow that couldn't actually be aborted: the
+   * component's own AbortController fired on timeout/unmount, but this
+   * request kept running to completion regardless, holding the outer
+   * try/finally (and therefore setAuthResolved()) open for however long
+   * the request took — up to its own unrelated axios-level timeout.
+   */
+  getAll: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<FavoriteRecord[]>>('/favorites', { params })
+      .get<ApiResponse<FavoriteRecord[]>>('/favorites', { ...config, params })
       .then((r) => unwrapPaginated<FavoriteRecord>(r)),
 
   /**
