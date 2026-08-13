@@ -130,7 +130,7 @@ async function main(): Promise<void> {
         body,
         url: "/dashboard",
         tag: "weekly-ad-views-report",
-      });
+      }).catch(() => {});
 
       await prisma.notification.create({
         data: {

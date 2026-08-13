@@ -24,6 +24,7 @@ const mockProvider = {
 
 describe('ServiceRequestsService', () => {
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => jest.restoreAllMocks());
 
   describe('createRequest — self-dealing guard (audit finding #1)', () => {
     it('rejects a request where the customer is the listing owner', async () => {
@@ -44,7 +45,7 @@ describe('ServiceRequestsService', () => {
     it('allows a request from a genuinely different customer', async () => {
       (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
       (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(mockProvider);
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (serviceRequestsRepository.create as jest.Mock).mockResolvedValue({ id: 'req-1' });
 
       const result = await serviceRequestsService.createRequest('customer-user-2', {

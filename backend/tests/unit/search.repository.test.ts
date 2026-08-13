@@ -11,6 +11,7 @@ jest.mock('../../src/config/prisma', () => ({
 const baseQuery: SearchQuery = {
   type: 'all',
   sort: 'relevance',
+  radius: 10,
 };
 
 describe('searchRepository', () => {

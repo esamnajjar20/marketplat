@@ -26,6 +26,7 @@ const mockListing = {
   providerId: 'provider-1',
   status: 'ACTIVE',
   images: ['https://res.cloudinary.com/demo/image/upload/v1/service-listings/abc.webp'],
+  provider: { sellerProfile: { suspended: false } },
 };
 
 describe('serviceListingsService — additional coverage', () => {
@@ -34,6 +35,8 @@ describe('serviceListingsService — additional coverage', () => {
     (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
     (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(mockProvider);
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   describe('createServiceListing — category and image validation', () => {
     it('throws BadRequestError when the category does not exist', async () => {
@@ -69,7 +72,7 @@ describe('serviceListingsService — additional coverage', () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       const files = Array.from({ length: 10 }, () => ({ buffer: Buffer.from('x') })) as any;
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (serviceListingsRepository.create as jest.Mock).mockResolvedValue(mockListing);
 
       const result = await serviceListingsService.createServiceListing(
@@ -86,7 +89,7 @@ describe('serviceListingsService — additional coverage', () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       const files = [{ buffer: Buffer.from('x') }] as any;
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      (prisma.$transaction as jest.Mock) = jest.fn().mockRejectedValue(new Error('DB write failed'));
+      jest.spyOn(prisma, '$transaction').mockImplementation().mockRejectedValue(new Error('DB write failed') as any);
       (deleteImage as jest.Mock).mockResolvedValue(undefined);
 
       await expect(
@@ -100,7 +103,7 @@ describe('serviceListingsService — additional coverage', () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       const files = [{ buffer: Buffer.from('x') }] as any;
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      (prisma.$transaction as jest.Mock) = jest.fn().mockRejectedValue(new Error('DB write failed'));
+      jest.spyOn(prisma, '$transaction').mockImplementation().mockRejectedValue(new Error('DB write failed') as any);
       (deleteImage as jest.Mock).mockRejectedValue(new Error('cloudinary also down'));
 
       await expect(
@@ -110,7 +113,7 @@ describe('serviceListingsService — additional coverage', () => {
 
     it('creates successfully with no images at all', async () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (serviceListingsRepository.create as jest.Mock).mockResolvedValue(mockListing);
 
       const result = await serviceListingsService.createServiceListing(

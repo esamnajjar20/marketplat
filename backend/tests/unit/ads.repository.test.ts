@@ -55,7 +55,7 @@ describe('adsRepository', () => {
       await adsRepository.findMany({});
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith({
-        where: { status: AdStatus.ACTIVE },
+        where: { status: AdStatus.ACTIVE, sellerProfile: { suspended: false } },
         select: expect.any(Object),
         orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
         skip: 0,
@@ -72,7 +72,13 @@ describe('adsRepository', () => {
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: AdStatus.ACTIVE, city: 'Gaza', categoryId: 'cat-1', condition: 'NEW' },
+          where: {
+            status: AdStatus.ACTIVE,
+            city: 'Gaza',
+            categoryId: 'cat-1',
+            condition: 'NEW',
+            sellerProfile: { suspended: false },
+          },
         })
       );
     });
@@ -85,7 +91,11 @@ describe('adsRepository', () => {
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: AdStatus.ACTIVE, price: { gte: 10, lte: 100 } },
+          where: {
+            status: AdStatus.ACTIVE,
+            price: { gte: 10, lte: 100 },
+            sellerProfile: { suspended: false },
+          },
         })
       );
     });
@@ -97,7 +107,9 @@ describe('adsRepository', () => {
       await adsRepository.findMany({ minPrice: 10 });
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: AdStatus.ACTIVE, price: { gte: 10 } } })
+        expect.objectContaining({
+          where: { status: AdStatus.ACTIVE, price: { gte: 10 }, sellerProfile: { suspended: false } },
+        })
       );
     });
 

@@ -1,4 +1,42 @@
 import request from 'supertest';
+import type { Express } from 'express';
+
+/**
+ * Performs the real two-step OAuth handshake against `app`:
+ *   1. GET /auth/google — this sets the `oauth_state` httpOnly cookie
+ *      (see authCookies.ts's generateAndSetOAuthState) and redirects
+ *      to Google with that same value as the `state` query param.
+ *   2. GET /auth/google/callback?state=<that value> — with the cookie
+ *      from step 1 attached, via a persistent agent.
+ *
+ * The callback route's FIX M-004 guard (auth.routes.ts) rejects the
+ * callback outright — redirecting to /google/failure before Passport
+ * or the stubbed strategy ever runs — unless the `state` query param
+ * matches the `oauth_state` cookie set in step 1. Calling the callback
+ * directly, as this file previously did, always fails that check.
+ */
+async function performGoogleOAuthCallback(app: Express) {
+  const agent = request.agent(app);
+  const startRes = await agent.get('/api/v1/auth/google').redirects(0);
+
+  // The server itself generated this value and set it via
+  // Set-Cookie (authCookies.ts's generateAndSetOAuthState). Parsed
+  // directly off the response header rather than superagent's
+  // internal cookie jar, which isn't a stable public API to depend
+  // on. The agent still carries the cookie forward automatically on
+  // its next request; this parse is only to read the value back out
+  // for the `state` query param the callback route requires to match it.
+  const setCookieHeader = (startRes.headers['set-cookie'] as unknown as string[]) ?? [];
+  const stateCookieHeader = setCookieHeader.find((c) => c.startsWith('oauth_state='));
+  const state = stateCookieHeader?.split(';')[0]?.split('=')[1];
+  if (!state) {
+    throw new Error('GET /auth/google did not set the oauth_state cookie');
+  }
+
+  return agent
+    .get(`/api/v1/auth/google/callback?state=${state}`)
+    .redirects(0);
+}
 
 /**
  * FIX OAUTH-01 integration coverage.
@@ -160,7 +198,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     });
 
     const { app } = await import('../../src/app');
-    const res = await request(app).get('/api/v1/auth/google/callback').redirects(0);
+    const res = await performGoogleOAuthCallback(app);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('http://localhost:3000');
@@ -206,7 +244,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     process.env = { ...ORIGINAL_ENV, ...GOOGLE_ENV };
     const { app: googleApp } = await import('../../src/app');
 
-    const res = await request(googleApp).get('/api/v1/auth/google/callback').redirects(0);
+    const res = await performGoogleOAuthCallback(googleApp);
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('http://localhost:3000');
 

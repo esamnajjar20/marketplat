@@ -264,6 +264,9 @@ export const fraudService = {
     adminUserId: string
   ): Promise<void> => {
     await prisma.$transaction(async tx => {
+      const ad = await tx.ad.findUnique({ where: { id: adId }, select: { riskScore: true } });
+      if (!ad) throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+
       await tx.fraudSignal.create({
         data: {
           type: 'MANUAL_ADMIN_FLAG',
@@ -273,8 +276,6 @@ export const fraudService = {
           userId: input.userId,
         },
       });
-      const ad = await tx.ad.findUnique({ where: { id: adId }, select: { riskScore: true } });
-      if (!ad) throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       const newRiskScore = Math.min(100, ad.riskScore + input.weight);
       await tx.ad.update({
         where: { id: adId },

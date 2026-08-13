@@ -12,6 +12,7 @@ jest.mock('../../src/config/env', () => ({
   env: {
     frontendUrl: 'http://localhost:3000',
     googleOAuth: { isConfigured: true, clientId: 'x', clientSecret: 'y', callbackUrl: 'z' },
+    ads: { maxPerUser: 50, imageLockTtlSeconds: 30 },
   },
 }));
 

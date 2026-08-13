@@ -22,9 +22,11 @@ const mockRow: RawSearchRow = {
   url_id: 'ad-1',
   created_at: new Date('2026-01-01T00:00:00.000Z'),
   rank: 0.5,
+  seller_type: 'user',
+  distance_km: null,
 };
 
-const baseQuery: SearchQuery = { type: 'all', sort: 'relevance' };
+const baseQuery: SearchQuery = { type: 'all', sort: 'relevance', radius: 10 };
 
 describe('searchService', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -47,9 +49,10 @@ describe('searchService', () => {
           rating: 4.5,
           views: 10,
           price: '500',
-          seller: { id: 'seller-1', name: 'Ahmad', verified: true },
+          seller: { id: 'seller-1', name: 'Ahmad', verified: true, type: 'user' },
           url: '/ads/ad-1',
           createdAt: '2026-01-01T00:00:00.000Z',
+          distanceKm: null,
         },
       ]);
     });

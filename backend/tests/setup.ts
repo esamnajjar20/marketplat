@@ -3,7 +3,28 @@ import { prisma } from '../src/config/prisma';
 jest.mock('../src/config/redis', () => {
   const store = new Map<string, string>();
   const zsets = new Map<string, Map<string, number>>();
+  const lists = new Map<string, string[]>();
   const rateLimitCounters = new Map<string, { count: number; resetAt: number }>();
+
+  // List commands (activityBuffer.ts: RPUSH via pipeline, LPOP/LLEN
+  // directly). Kept in their own Map rather than reusing `store` since
+  // list values aren't single strings.
+  const rpush = jest.fn(async (key: string, value: string) => {
+    const list = lists.get(key) ?? [];
+    list.push(value);
+    lists.set(key, list);
+    return list.length;
+  });
+  const lpop = jest.fn(async (key: string, count?: number) => {
+    const list = lists.get(key);
+    if (!list || list.length === 0) return null;
+    const n = count ?? 1;
+    const popped = list.splice(0, n);
+    if (list.length === 0) lists.delete(key);
+    else lists.set(key, list);
+    return popped;
+  });
+  const llen = jest.fn(async (key: string) => lists.get(key)?.length ?? 0);
 
   const get = jest.fn(async (key: string) => store.get(key) ?? null);
   const setex = jest.fn(async (key: string, _ttl: number, value: string) => {
@@ -59,6 +80,9 @@ jest.mock('../src/config/redis', () => {
     ttl: jest.fn(async () => 604800),
     expire: jest.fn(async () => 1),
     mget: jest.fn(async (...keys: string[]) => keys.map((key) => store.get(key) ?? null)),
+    rpush,
+    lpop,
+    llen,
     zadd,
     zrem,
     zrange,
@@ -201,6 +225,7 @@ jest.mock('../src/config/redis', () => {
         zadd: jest.fn((key: string, score: number | string, member: string) => { queued.push(() => zadd(key, score, member)); return pipeline; }),
         zrem: jest.fn((key: string, member: string) => { queued.push(() => zrem(key, member)); return pipeline; }),
         incr: jest.fn((key: string) => { queued.push(() => incr(key)); return pipeline; }),
+        rpush: jest.fn((key: string, value: string) => { queued.push(() => rpush(key, value)); return pipeline; }),
         exec: jest.fn(async () => Promise.all(queued.map(async (op) => [null, await op()]))),
       };
       return pipeline;
@@ -225,6 +250,7 @@ jest.mock('../src/config/redis', () => {
     __clear: () => {
       store.clear();
       zsets.clear();
+      lists.clear();
       rateLimitCounters.clear();
     },
   };
@@ -268,6 +294,7 @@ afterEach(async () => {
   // rejected.
   await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = 'replica'`);
+    await tx.passwordResetToken.deleteMany();
     await tx.report.deleteMany();
     await tx.favorite.deleteMany();
     await tx.ad.deleteMany();

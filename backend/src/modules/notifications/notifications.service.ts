@@ -101,7 +101,7 @@ function fanOutSameContentNotification(
   // un-awaited — pushService.notifyUser(s) catches every internal
   // failure and logs it, so this can never produce an unhandled
   // promise rejection.
-  void pushService.notifyUsers(userIds, { title, body, url: pushUrl, tag: pushTag });
+  void pushService.notifyUsers(userIds, { title, body, url: pushUrl, tag: pushTag }).catch(() => {});
   return notificationsRepository.createMany(
     userIds.map((userId) => ({ userId, type, title, body, data }))
   );
@@ -127,7 +127,7 @@ export const notificationEvents = {
       body,
       url: `/messages/${conversationId}`,
       tag: `conversation-${conversationId}`,
-    });
+    }).catch(() => {});
     return notificationsRepository.create({
       userId: recipientUserId,
       type: 'NEW_MESSAGE',

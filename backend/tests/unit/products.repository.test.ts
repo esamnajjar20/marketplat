@@ -131,7 +131,10 @@ describe('productsRepository', () => {
     it('applies only the base ACTIVE + store-ACTIVE filter with no optional filters given', async () => {
       await productsRepository.findMany({} as any);
       const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.where).toEqual({ status: 'ACTIVE', store: { status: 'ACTIVE' } });
+      expect(call.where).toEqual({
+        status: 'ACTIVE',
+        store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
+      });
       expect(call.orderBy).toEqual({ createdAt: 'desc' });
     });
 
@@ -156,7 +159,11 @@ describe('productsRepository', () => {
     it('applies city filter via the store relation (overriding the base store filter)', async () => {
       await productsRepository.findMany({ city: 'Gaza' } as any);
       const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.where.store).toEqual({ status: 'ACTIVE', city: 'Gaza' });
+      expect(call.where.store).toEqual({
+        status: 'ACTIVE',
+        sellerProfile: { suspended: false },
+        city: 'Gaza',
+      });
     });
 
     it('applies only minPrice when maxPrice is omitted', async () => {
@@ -204,7 +211,7 @@ describe('productsRepository', () => {
         categoryId: 'cat-1',
         storeId: 'store-1',
         availability: 'OUT_OF_STOCK',
-        store: { status: 'ACTIVE', city: 'Gaza' },
+        store: { status: 'ACTIVE', sellerProfile: { suspended: false }, city: 'Gaza' },
         price: { gte: 50, lte: 200 },
         OR: [
           { name: { contains: 'phone', mode: 'insensitive' } },

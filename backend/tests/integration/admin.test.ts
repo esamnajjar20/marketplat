@@ -360,7 +360,7 @@ describe('Admin API', () => {
       expect(promote.body.data.role).toBe('ADMIN');
     });
 
-    it('revokes the target\'s existing session after a role change', async () => {
+    it("reflects the new role immediately on the target's existing session (cache invalidated, no access-token revocation)", async () => {
       const admin = await createTestAdmin();
       const user = await createTestUser();
 
@@ -374,7 +374,8 @@ describe('Admin API', () => {
         .get('/api/v1/users/me')
         .set('Authorization', `Bearer ${user.accessToken}`);
 
-      expect(meRes.status).toBe(401);
+      expect(meRes.status).toBe(200);
+      expect(meRes.body.data.role).toBe('MODERATOR');
     });
 
     it('returns 404 for a non-existent target user', async () => {

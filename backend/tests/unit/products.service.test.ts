@@ -39,12 +39,14 @@ describe('productsService', () => {
     (notificationEvents.onStoreNewProduct as jest.Mock).mockResolvedValue({ count: 0 });
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   describe('createProduct', () => {
     beforeEach(() => {
       (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (productsRepository.create as jest.Mock).mockResolvedValue({ id: 'product-1' });
     });
 
@@ -135,10 +137,12 @@ describe('productsService', () => {
     });
 
     it('cleans up uploaded images and rethrows if the transaction fails', async () => {
+      const files = [{ buffer: Buffer.from('a') }] as any;
+      (uploadImage as jest.Mock).mockResolvedValueOnce({ url: 'http://img1', publicId: 'pub-1' });
       const dbError = new Error('db failure');
-      (prisma.$transaction as jest.Mock) = jest.fn().mockRejectedValue(dbError);
+      jest.spyOn(prisma, '$transaction').mockImplementation().mockRejectedValue(dbError as any);
 
-      await expect(productsService.createProduct('user-1', validInput, [])).rejects.toThrow(
+      await expect(productsService.createProduct('user-1', validInput, files)).rejects.toThrow(
         'db failure'
       );
       expect(cleanupUploadedImages).toHaveBeenCalledWith(['pub-1']);
@@ -217,12 +221,17 @@ describe('productsService', () => {
       (productsRepository.findPublicById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         status: 'ACTIVE',
+        store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
       });
       (productsRepository.incrementViews as jest.Mock).mockResolvedValue({});
 
       const result = await productsService.getProductById('product-1');
 
-      expect(result).toEqual({ id: 'product-1', status: 'ACTIVE' });
+      expect(result).toEqual({
+        id: 'product-1',
+        status: 'ACTIVE',
+        store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
+      });
       expect(productsRepository.incrementViews).toHaveBeenCalledWith('product-1');
     });
 
@@ -247,12 +256,14 @@ describe('productsService', () => {
       (productsRepository.findPublicById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         status: 'ACTIVE',
+        store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
       });
       (productsRepository.incrementViews as jest.Mock).mockRejectedValue(new Error('db down'));
 
       await expect(productsService.getProductById('product-1')).resolves.toEqual({
         id: 'product-1',
         status: 'ACTIVE',
+        store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
       });
     });
   });

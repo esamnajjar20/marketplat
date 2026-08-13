@@ -3,6 +3,7 @@ import { adsRepository } from '../../src/modules/ads/ads.repository';
 import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
 import { notificationEvents } from '../../src/modules/notifications';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { prisma } from '../../src/config/prisma';
 import { ROLES } from '../../src/shared/constants/roles';
 import { AdStatus, Prisma } from '@prisma/client';
 
@@ -15,6 +16,16 @@ import { AdStatus, Prisma } from '@prisma/client';
 jest.mock('../../src/modules/ads/ads.repository');
 jest.mock('../../src/modules/favorites/favorites.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
+// The ACTIVE -> SOLD path with a sellerProfileId set bypasses
+// adsRepository entirely and opens a real prisma.$transaction (see
+// ads.service.ts's updateAd, the `justSold` branch) so tx.ad.update
+// runs against a real, unmocked prisma otherwise — mock $transaction
+// to hand the callback a fake tx whose ad.update just echoes back the
+// expected updated ad, matching what adsRepository.update's mock
+// would have returned on the non-sellerProfile path.
+jest.mock('../../src/config/prisma', () => ({
+  prisma: { $transaction: jest.fn() },
+}));
 jest.mock('../../src/modules/notifications', () => ({
   notificationEvents: {
     onFavoritedAdPriceChanged: jest.fn(),
@@ -24,7 +35,12 @@ jest.mock('../../src/modules/notifications', () => ({
 jest.mock('../../src/config/env', () => ({
   env: {
     cloudinary: { cloudName: 'demo' },
-    ads: { maxPerUser: 50 },
+    ads: { maxPerUser: 50, imageLockTtlSeconds: 30 },
+    locks: {
+      sellerLockTtlSeconds: 30,
+      storeLockTtlSeconds: 30,
+      serviceProviderLockTtlSeconds: 30,
+    },
     jwt: {
       secret: 'test-only-jwt-secret-not-for-real-use-0000000000000000',
       refreshSecret: 'test-only-jwt-refresh-secret-not-for-real-use-000000',
@@ -79,6 +95,9 @@ describe('AdsService.updateAd — FAV_AD_SOLD notification trigger (Gap #15)', (
     const ad = { ...baseAd, sellerProfileId: 'seller-1' };
     (adsRepository.findById as jest.Mock).mockResolvedValue(ad);
     (sellersRepository.decrementActiveAdsOnSold as jest.Mock).mockResolvedValue(undefined);
+    (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
+      cb({ ad: { update: jest.fn().mockResolvedValue({ ...ad, status: AdStatus.SOLD }) } })
+    );
 
     await adsService.updateAd('ad-1', 'user-1', ROLES.USER, { status: AdStatus.SOLD });
     await flushMicrotasks();

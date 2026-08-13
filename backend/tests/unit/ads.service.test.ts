@@ -15,7 +15,12 @@ jest.mock('../../src/modules/ads/ads.repository');
 jest.mock('../../src/config/env', () => ({
   env: {
     cloudinary: { cloudName: 'demo' },
-    ads: { maxPerUser: 50 },
+    ads: { maxPerUser: 50, imageLockTtlSeconds: 30 },
+    locks: {
+      sellerLockTtlSeconds: 30,
+      storeLockTtlSeconds: 30,
+      serviceProviderLockTtlSeconds: 30,
+    },
     // createTestUser() (via tests/helpers/auth.helper.ts) calls the real
     // signTokenPair/signAccessToken/signRefreshToken, which read
     // env.jwt.secret/refreshSecret/expiresIn — without these the mock

@@ -28,7 +28,11 @@ jest.mock('../../src/modules/stores/store-reviews.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/shared/utils/storeLock');
 jest.mock('../../src/config/prisma', () => ({
-  prisma: { $transaction: jest.fn() },
+  prisma: {
+    $transaction: jest.fn(),
+    userBlock: { count: jest.fn().mockResolvedValue(0) },
+    auditLog: { create: jest.fn().mockResolvedValue({}) },
+  },
 }));
 
 const userId = 'user-1';

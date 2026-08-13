@@ -175,12 +175,16 @@ describe('AuthService', () => {
         token: 'valid-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
         user: mockUser,
       } as any);
-      const transactionSpy = jest.spyOn(prisma, '$transaction').mockResolvedValue([{}, {}] as any);
+      jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 1 } as any);
+      jest.spyOn(prisma.user, 'update').mockResolvedValue(mockUser as any);
       (tokenStore.deleteAllRefreshTokens as jest.Mock).mockResolvedValue(undefined);
 
       await authService.resetPassword('valid-token', 'newPassword123');
 
-      expect(transactionSpy).toHaveBeenCalledTimes(1);
+      expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        where: { token: 'valid-token', used: false },
+        data: { used: true },
+      });
       expect(tokenStore.deleteAllRefreshTokens).toHaveBeenCalledWith(mockUser.id);
     });
 

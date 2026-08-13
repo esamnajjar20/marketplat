@@ -98,7 +98,10 @@ describe('serviceListingsRepository', () => {
     it('applies only the base ACTIVE filter with no optional filters given', async () => {
       await serviceListingsRepository.findMany({} as any);
       const call = (prisma.serviceListing.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.where).toEqual({ status: 'ACTIVE' });
+      expect(call.where).toEqual({
+        status: 'ACTIVE',
+        provider: { sellerProfile: { suspended: false } },
+      });
       expect(call.orderBy).toEqual({ createdAt: 'desc' });
     });
 
@@ -123,7 +126,10 @@ describe('serviceListingsRepository', () => {
     it('applies city filter via provider.serviceAreaCities relation', async () => {
       await serviceListingsRepository.findMany({ city: 'Amman' } as any);
       const call = (prisma.serviceListing.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.where.provider).toEqual({ serviceAreaCities: { has: 'Amman' } });
+      expect(call.where.provider).toEqual({
+        serviceAreaCities: { has: 'Amman' },
+        sellerProfile: { suspended: false },
+      });
     });
 
     it('applies only minPrice when maxPrice is omitted', async () => {
@@ -171,7 +177,7 @@ describe('serviceListingsRepository', () => {
         categoryId: 'cat-1',
         providerId: 'provider-1',
         serviceLocation: 'REMOTE',
-        provider: { serviceAreaCities: { has: 'Amman' } },
+        provider: { serviceAreaCities: { has: 'Amman' }, sellerProfile: { suspended: false } },
         price: { gte: 50, lte: 200 },
         OR: [
           { title: { contains: 'cleaning', mode: 'insensitive' } },

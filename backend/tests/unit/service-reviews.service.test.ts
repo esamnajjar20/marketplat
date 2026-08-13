@@ -11,16 +11,27 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 jest.mock('../../src/modules/service-reviews/service-reviews.repository');
 jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/blocked-users', () => ({
+  blockedUsersService: {
+    isBlockedEitherDirection: jest.fn().mockResolvedValue(false),
+  },
+}));
 
 const mockCompletedRequest = {
   id: 'req-1',
   customerId: 'customer-1',
   status: 'COMPLETED',
-  listing: { provider: { sellerProfileId: 'seller-profile-1' } },
+  listing: {
+    provider: {
+      sellerProfileId: 'seller-profile-1',
+      sellerProfile: { userId: 'provider-user-1' },
+    },
+  },
 };
 
 describe('ServiceReviewsService', () => {
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => jest.restoreAllMocks());
 
   describe('createReview', () => {
     it('rejects a reviewer who is not the request customer', async () => {
@@ -63,7 +74,7 @@ describe('ServiceReviewsService', () => {
     it('creates a review and recomputes the seller rating aggregate for a valid completed request', async () => {
       (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(mockCompletedRequest);
       (serviceReviewsRepository.findByRequestId as jest.Mock).mockResolvedValue(null);
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (serviceReviewsRepository.create as jest.Mock).mockResolvedValue({ id: 'review-1' });
       (sellersRepository.recomputeRatingAggregate as jest.Mock).mockResolvedValue(undefined);
 
@@ -83,7 +94,7 @@ describe('ServiceReviewsService', () => {
     it('translates a P2002 race-condition error into ConflictError', async () => {
       (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(mockCompletedRequest);
       (serviceReviewsRepository.findByRequestId as jest.Mock).mockResolvedValue(null);
-      (prisma.$transaction as jest.Mock) = jest.fn().mockRejectedValue({ code: 'P2002' });
+      jest.spyOn(prisma, '$transaction').mockImplementation().mockRejectedValue({ code: 'P2002' } as any);
 
       await expect(
         serviceReviewsService.createReview('customer-1', {

@@ -27,6 +27,7 @@ const mockCategory = { id: 'cat-1', isActive: true };
 
 describe('ServiceListingsService', () => {
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => jest.restoreAllMocks());
 
   describe('createServiceListing — availability gate (audit #8/#10)', () => {
     it('blocks listing creation when the provider is marked UNAVAILABLE', async () => {
@@ -50,7 +51,7 @@ describe('ServiceListingsService', () => {
       );
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (serviceListingsRepository.create as jest.Mock).mockResolvedValue({ id: 'listing-1' });
 
       const result = await serviceListingsService.createServiceListing(
@@ -70,7 +71,7 @@ describe('ServiceListingsService', () => {
       });
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (serviceListingsRepository.create as jest.Mock).mockResolvedValue({ id: 'listing-2' });
 
       const result = await serviceListingsService.createServiceListing(

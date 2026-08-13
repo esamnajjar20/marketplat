@@ -79,10 +79,13 @@ describe('savedSearchesRepository', () => {
   });
 
   describe('findAllForMatching', () => {
-    it('queries all saved searches unfiltered', async () => {
+    it('queries all saved searches unfiltered, ordered oldest-first, capped at the hard matching ceiling', async () => {
       (prisma.savedSearch.findMany as jest.Mock).mockResolvedValue([]);
       await savedSearchesRepository.findAllForMatching();
-      expect(prisma.savedSearch.findMany).toHaveBeenCalledWith();
+      expect(prisma.savedSearch.findMany).toHaveBeenCalledWith({
+        orderBy: { createdAt: 'asc' },
+        take: 5000,
+      });
     });
   });
 

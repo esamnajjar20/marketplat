@@ -24,6 +24,8 @@ describe('sellersService — additional coverage', () => {
     (redis as any).__clear();
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   describe('createSellerProfile', () => {
     it('throws NotFoundError when the user record does not exist', async () => {
       (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(null);
@@ -49,7 +51,7 @@ describe('sellersService — additional coverage', () => {
         ...user,
         avatarUrl: 'https://example.com/avatar.png',
       });
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (sellersRepository.create as jest.Mock).mockResolvedValue(mockProfile);
 
       const result = await sellersService.createSellerProfile(userId, {
@@ -70,7 +72,7 @@ describe('sellersService — additional coverage', () => {
     it('uses the explicitly provided displayName/bio/avatarUrl over the user defaults', async () => {
       (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(null);
       (usersRepository.findById as jest.Mock).mockResolvedValue(user);
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (sellersRepository.create as jest.Mock).mockResolvedValue(mockProfile);
 
       await sellersService.createSellerProfile(userId, {
@@ -115,7 +117,7 @@ describe('sellersService — additional coverage', () => {
     it('translates a P2002 unique-constraint error into ConflictError (belt-and-suspenders)', async () => {
       (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(null);
       (usersRepository.findById as jest.Mock).mockResolvedValue(user);
-      (prisma.$transaction as jest.Mock) = jest.fn().mockRejectedValue({ code: 'P2002' });
+      jest.spyOn(prisma, '$transaction').mockImplementation().mockRejectedValue({ code: 'P2002' } as any);
 
       await expect(
         sellersService.createSellerProfile(userId, { agreedToSellerTerms: true } as any)
@@ -126,7 +128,7 @@ describe('sellersService — additional coverage', () => {
       (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(null);
       (usersRepository.findById as jest.Mock).mockResolvedValue(user);
       const dbError = new Error('connection pool exhausted');
-      (prisma.$transaction as jest.Mock) = jest.fn().mockRejectedValue(dbError);
+      jest.spyOn(prisma, '$transaction').mockImplementation().mockRejectedValue(dbError as any);
 
       await expect(
         sellersService.createSellerProfile(userId, { agreedToSellerTerms: true } as any)
@@ -139,7 +141,7 @@ describe('sellersService — additional coverage', () => {
         created ? mockProfile : null
       );
       (usersRepository.findById as jest.Mock).mockResolvedValue(user);
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (sellersRepository.create as jest.Mock).mockImplementation(async () => {
         created = true;
         return mockProfile;
@@ -160,7 +162,7 @@ describe('sellersService — additional coverage', () => {
     it('allows two different users to create profiles concurrently without contending on the same lock key', async () => {
       (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(null);
       (usersRepository.findById as jest.Mock).mockResolvedValue(user);
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (sellersRepository.create as jest.Mock).mockResolvedValue(mockProfile);
 
       const results = await Promise.allSettled([

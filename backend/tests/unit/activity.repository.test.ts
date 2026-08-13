@@ -1,4 +1,5 @@
 import { activityRepository } from '../../src/modules/activity/activity.repository';
+import type { CreateActivityInput } from '../../src/modules/activity/activity.repository';
 import { prisma } from '../../src/config/prisma';
 import { UserActivityType } from '@prisma/client';
 
@@ -17,7 +18,7 @@ describe('activityRepository', () => {
 
   describe('create', () => {
     it('creates a row with the input passed straight through as data', async () => {
-      const input = {
+      const input: CreateActivityInput = {
         userId: 'user-1',
         type: UserActivityType.AD_CREATED,
         title: 'تم نشر إعلان جديد',

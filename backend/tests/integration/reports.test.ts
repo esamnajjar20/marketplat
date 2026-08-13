@@ -241,7 +241,7 @@ describe('Reports API', () => {
       const ad = await createTestAd(owner.id);
 
       await prisma.report.create({
-        data: { userId: reporter.id, adId: ad.id, reason: 'SPAM' },
+        data: { userId: reporter.id, adId: ad.id, targetType: 'AD', targetId: ad.id, reason: 'SPAM' },
       });
 
       const res = await request(app)
@@ -263,7 +263,7 @@ describe('Reports API', () => {
       const ad = await createTestAd(owner.id);
 
       const report = await prisma.report.create({
-        data: { userId: reporter.id, adId: ad.id, reason: 'OFFENSIVE' },
+        data: { userId: reporter.id, adId: ad.id, targetType: 'AD', targetId: ad.id, reason: 'OFFENSIVE' },
       });
 
       const res = await request(app)
@@ -293,7 +293,7 @@ describe('Reports API', () => {
       const ad = await createTestAd(owner.id);
 
       const report = await prisma.report.create({
-        data: { userId: reporter.id, adId: ad.id, reason: 'SCAM' },
+        data: { userId: reporter.id, adId: ad.id, targetType: 'AD', targetId: ad.id, reason: 'SCAM' },
       });
 
       const res = await request(app)

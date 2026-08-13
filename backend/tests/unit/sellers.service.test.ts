@@ -17,6 +17,7 @@ const mockProfile = { id: 'seller-profile-1', userId: 'user-1', suspended: false
 
 describe('SellersService', () => {
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => jest.restoreAllMocks());
 
   describe('createRating — self-rating guard', () => {
     it('rejects a seller rating their own profile', async () => {
@@ -31,7 +32,7 @@ describe('SellersService', () => {
 
     it('allows a genuinely different rater', async () => {
       (sellersRepository.findById as jest.Mock).mockResolvedValue(mockProfile);
-      (prisma.$transaction as jest.Mock) = jest.fn(async (cb: any) => cb({}));
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
       (sellersRepository.createRating as jest.Mock).mockResolvedValue(undefined);
       (sellersRepository.recomputeRatingAggregate as jest.Mock).mockResolvedValue(undefined);
 
@@ -47,7 +48,7 @@ describe('SellersService', () => {
 
     it('translates a duplicate-rating P2002 into ConflictError', async () => {
       (sellersRepository.findById as jest.Mock).mockResolvedValue(mockProfile);
-      (prisma.$transaction as jest.Mock) = jest.fn().mockRejectedValue({ code: 'P2002' });
+      jest.spyOn(prisma, '$transaction').mockImplementation().mockRejectedValue({ code: 'P2002' } as any);
 
       await expect(
         sellersService.createRating('seller-profile-1', 'other-user', {

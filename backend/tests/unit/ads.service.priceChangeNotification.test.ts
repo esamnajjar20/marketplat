@@ -20,7 +20,12 @@ jest.mock('../../src/modules/notifications', () => ({
 jest.mock('../../src/config/env', () => ({
   env: {
     cloudinary: { cloudName: 'demo' },
-    ads: { maxPerUser: 50 },
+    ads: { maxPerUser: 50, imageLockTtlSeconds: 30 },
+    locks: {
+      sellerLockTtlSeconds: 30,
+      storeLockTtlSeconds: 30,
+      serviceProviderLockTtlSeconds: 30,
+    },
     jwt: {
       secret: 'test-only-jwt-secret-not-for-real-use-0000000000000000',
       refreshSecret: 'test-only-jwt-refresh-secret-not-for-real-use-000000',
