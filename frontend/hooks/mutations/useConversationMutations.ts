@@ -7,10 +7,14 @@ import { toast } from 'sonner';
 import type { StartConversationPayload, SendMessagePayload } from '@/types/conversation.types';
 
 /**
- * POST /conversations — SellerCard's "مراسلة البائع" button. Idempotent
- * server-side (startFromAd reuses an existing thread for the same ad),
- * so the caller can navigate straight to the returned conversation's id
- * either way — no need to distinguish "created" from "reopened" here.
+ * POST /conversations — SellerCard's "مراسلة البائع" (adId) and
+ * PublicProfileHeader's "مراسلة" (userId) both go through this same
+ * mutation; the payload's shape picks which backend branch handles it
+ * (startFromAd vs startFromUser). Idempotent server-side either way —
+ * both branches reuse an existing thread instead of creating a
+ * duplicate — so the caller can navigate straight to the returned
+ * conversation's id without needing to distinguish "created" from
+ * "reopened" here.
  */
 export function useStartConversation() {
   const queryClient = useQueryClient();

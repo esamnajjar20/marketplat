@@ -26,12 +26,25 @@ export const conversationsRepository = {
    * triple — mirrors the @@unique([adId, buyerId, sellerId]) constraint
    * exactly, so this is always a unique lookup, never a list. */
   findExisting: (
-    adId: string | null,
+    adId: string,
     buyerId: string,
     sellerId: string
   ): Promise<Conversation | null> =>
     prisma.conversation.findUnique({
-      where: { adId_buyerId_sellerId: { adId: adId as string, buyerId, sellerId } },
+      where: { adId_buyerId_sellerId: { adId, buyerId, sellerId } },
+    }),
+
+  /**
+   * Same idempotent-lookup idea as findExisting, but for the no-ad case
+   * (userId-based start). Postgres treats NULL as distinct from itself
+   * in a unique index, so @@unique([adId, buyerId, sellerId]) does NOT
+   * dedupe rows where adId is null — findUnique can't be used here the
+   * way findExisting uses it above. findFirst against (adId: null,
+   * buyerId, sellerId) is the correct equivalent lookup for this case.
+   */
+  findExistingWithoutAd: (buyerId: string, sellerId: string): Promise<Conversation | null> =>
+    prisma.conversation.findFirst({
+      where: { adId: null, buyerId, sellerId },
     }),
 
   create: (adId: string | null, buyerId: string, sellerId: string): Promise<Conversation> =>

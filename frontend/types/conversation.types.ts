@@ -53,9 +53,10 @@ export interface Message {
 /** POST /conversations — always ad-scoped from the current UI's only
  * entry point (SellerCard's "مراسلة البائع"). Reopens the existing
  * thread for that (ad, caller, seller) triple if one already exists. */
-export interface StartConversationPayload {
-  adId: string;
-}
+// Exactly one of adId or userId — mirrors the backend's refine() guard.
+// adId: SellerCard's "مراسلة البائع" (ad-scoped). userId: PublicProfileHeader's
+// "مراسلة" (direct, no ad in context).
+export type StartConversationPayload = { adId: string; userId?: never } | { userId: string; adId?: never };
 
 /** POST /conversations/:id/messages. */
 export interface SendMessagePayload {

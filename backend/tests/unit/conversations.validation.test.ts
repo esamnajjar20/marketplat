@@ -20,6 +20,25 @@ describe('conversations.validation', () => {
     it('rejects an empty adId', () => {
       expect(() => startConversationSchema.parse({ body: { adId: '' } })).toThrow();
     });
+
+    it('accepts a valid userId', () => {
+      const result = startConversationSchema.parse({ body: { userId: 'user-1' } });
+      expect(result.body.userId).toBe('user-1');
+    });
+
+    it('rejects an empty userId', () => {
+      expect(() => startConversationSchema.parse({ body: { userId: '' } })).toThrow();
+    });
+
+    it('rejects both adId and userId provided together', () => {
+      expect(() =>
+        startConversationSchema.parse({ body: { adId: 'ad-1', userId: 'user-1' } })
+      ).toThrow();
+    });
+
+    it('rejects neither adId nor userId provided', () => {
+      expect(() => startConversationSchema.parse({ body: {} })).toThrow();
+    });
   });
 
   describe('conversationIdSchema', () => {

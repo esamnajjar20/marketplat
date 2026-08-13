@@ -3,6 +3,7 @@ import { MapPin, Calendar, FileText } from 'lucide-react';
 import { getAvatarUrl }   from '@/lib/cloudinary';
 import { formatDate }     from '@/lib/formatters';
 import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import type { PublicUser } from '@/types/user.types';
 
 interface Props { user: PublicUser; }
@@ -63,7 +64,8 @@ export function PublicProfileHeader({ user }: Props) {
           'use client' — this is a client component that hides itself
           when viewing your own profile (via useAuthStore), the same
           self-report guard reportsService already enforces server-side. */}
-      <div className="mt-3">
+      <div className="mt-3 flex items-center gap-2">
+        <MessageUserButtonGate targetUserId={user.id} />
         <ReportUserButtonGate targetUserId={user.id} />
       </div>
     </div>

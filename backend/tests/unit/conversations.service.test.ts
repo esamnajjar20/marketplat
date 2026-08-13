@@ -1,6 +1,7 @@
 import { conversationsService } from '../../src/modules/conversations/conversations.service';
 import { conversationsRepository, messagesRepository } from '../../src/modules/conversations/conversations.repository';
 import { adsRepository } from '../../src/modules/ads/ads.repository';
+import { usersRepository } from '../../src/modules/users/users.repository';
 import { notificationEvents } from '../../src/modules/notifications';
 import { blockedUsersService } from '../../src/modules/blocked-users';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
@@ -9,6 +10,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
 jest.mock('../../src/modules/conversations/conversations.repository');
 jest.mock('../../src/modules/ads/ads.repository');
+jest.mock('../../src/modules/users/users.repository');
 jest.mock('../../src/modules/notifications', () => ({
   notificationEvents: { onNewMessage: jest.fn() },
 }));
@@ -94,6 +96,75 @@ describe('conversationsService', () => {
       );
       expect(blockedUsersService.isBlockedEitherDirection).toHaveBeenCalledWith(buyerId, sellerId);
       expect(conversationsRepository.findExisting).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('startFromUser', () => {
+    const mockTarget = { id: sellerId, name: 'Seller Name', isActive: true } as any;
+    const mockConversationNoAd = { ...mockConversation, adId: null, ad: null };
+
+    it('throws NotFoundError when the target user does not exist', async () => {
+      (usersRepository.findPublicById as jest.Mock).mockResolvedValue(null);
+
+      await expect(conversationsService.startFromUser(buyerId, sellerId)).rejects.toThrow(
+        NotFoundError
+      );
+    });
+
+    it('throws NotFoundError when the target user is inactive', async () => {
+      (usersRepository.findPublicById as jest.Mock).mockResolvedValue({
+        ...mockTarget,
+        isActive: false,
+      });
+
+      await expect(conversationsService.startFromUser(buyerId, sellerId)).rejects.toThrow(
+        NotFoundError
+      );
+    });
+
+    it('throws BadRequestError when the caller targets themselves', async () => {
+      (usersRepository.findPublicById as jest.Mock).mockResolvedValue({
+        ...mockTarget,
+        id: buyerId,
+      });
+
+      await expect(conversationsService.startFromUser(buyerId, buyerId)).rejects.toThrow(
+        BadRequestError
+      );
+      expect(conversationsRepository.findExistingWithoutAd).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenError when either party has blocked the other', async () => {
+      (usersRepository.findPublicById as jest.Mock).mockResolvedValue(mockTarget);
+      (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
+
+      await expect(conversationsService.startFromUser(buyerId, sellerId)).rejects.toThrow(
+        ForbiddenError
+      );
+      expect(conversationsRepository.findExistingWithoutAd).not.toHaveBeenCalled();
+    });
+
+    it('reuses an existing no-ad conversation for the same (buyer, seller) pair', async () => {
+      (usersRepository.findPublicById as jest.Mock).mockResolvedValue(mockTarget);
+      (conversationsRepository.findExistingWithoutAd as jest.Mock).mockResolvedValue(
+        mockConversationNoAd
+      );
+
+      const result = await conversationsService.startFromUser(buyerId, sellerId);
+
+      expect(result).toEqual(mockConversationNoAd);
+      expect(conversationsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a new no-ad conversation when none exists yet', async () => {
+      (usersRepository.findPublicById as jest.Mock).mockResolvedValue(mockTarget);
+      (conversationsRepository.findExistingWithoutAd as jest.Mock).mockResolvedValue(null);
+      (conversationsRepository.create as jest.Mock).mockResolvedValue(mockConversationNoAd);
+
+      const result = await conversationsService.startFromUser(buyerId, sellerId);
+
+      expect(conversationsRepository.create).toHaveBeenCalledWith(null, buyerId, sellerId);
+      expect(result).toEqual(mockConversationNoAd);
     });
   });
 

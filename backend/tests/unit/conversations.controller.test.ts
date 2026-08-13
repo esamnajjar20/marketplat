@@ -71,6 +71,35 @@ describe('conversationsController', () => {
 
       expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
     });
+
+    it('routes to startFromUser and returns 201 when userId is given instead of adId', async () => {
+      const req = mockRequest({ body: { userId: 'seller-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+      const mockConversationNoAd = { ...mockConversation, adId: null };
+      (conversationsService.startFromUser as jest.Mock).mockResolvedValue(mockConversationNoAd);
+
+      await conversationsController.startConversation(req, res, next);
+
+      expect(conversationsService.startFromUser).toHaveBeenCalledWith('buyer-1', 'seller-1');
+      expect(conversationsService.startFromAd).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, data: mockConversationNoAd })
+      );
+    });
+
+    it('calls next(error) when both adId and userId are provided', async () => {
+      const req = mockRequest({ body: { adId: 'ad-1', userId: 'seller-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await conversationsController.startConversation(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(conversationsService.startFromAd).not.toHaveBeenCalled();
+      expect(conversationsService.startFromUser).not.toHaveBeenCalled();
+    });
   });
 
   describe('getMyConversations', () => {

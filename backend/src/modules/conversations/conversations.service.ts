@@ -1,6 +1,7 @@
 import { Conversation, Message } from '@prisma/client';
 import { conversationsRepository, messagesRepository, ConversationWithRelations } from './conversations.repository';
 import { adsRepository } from '../ads/ads.repository';
+import { usersRepository } from '../users/users.repository';
 import { notificationEvents } from '../notifications';
 import { blockedUsersService } from '../blocked-users';
 import { activityService, activityTemplates } from '../activity';
@@ -59,6 +60,36 @@ export const conversationsService = {
     if (existing) return existing;
 
     return conversationsRepository.create(adId, buyerId, sellerId);
+  },
+
+  /**
+   * Starts (or reopens) a thread directly with a user, with no ad in
+   * context — PublicProfileHeader's "مراسلة" button, for a visitor who
+   * wants to reach someone without going through one of their listings
+   * first. Mirrors startFromAd's guard order (self-message, then block
+   * check, then idempotent reuse) but resolves the target user instead
+   * of an ad, and uses findExistingWithoutAd since the ad-based unique
+   * lookup doesn't apply when adId is null.
+   */
+  startFromUser: async (buyerId: string, targetUserId: string): Promise<Conversation> => {
+    const target = await usersRepository.findPublicById(targetUserId);
+    if (!target || !target.isActive) {
+      throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    }
+
+    const sellerId = target.id;
+    if (sellerId === buyerId) {
+      throw new BadRequestError('You cannot message yourself.', 'CANNOT_MESSAGE_SELF');
+    }
+
+    if (await blockedUsersService.isBlockedEitherDirection(buyerId, sellerId)) {
+      throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
+    }
+
+    const existing = await conversationsRepository.findExistingWithoutAd(buyerId, sellerId);
+    if (existing) return existing;
+
+    return conversationsRepository.create(null, buyerId, sellerId);
   },
 
   getConversationById: async (userId: string, id: string): Promise<ConversationWithRelations> => {

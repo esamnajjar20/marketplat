@@ -5,6 +5,7 @@ jest.mock('../../src/config/prisma', () => ({
   prisma: {
     conversation: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
@@ -43,14 +44,24 @@ describe('conversationsRepository', () => {
       });
     });
 
-    it('passes a null adId through unchanged for an ad-less thread lookup', async () => {
-      (prisma.conversation.findUnique as jest.Mock).mockResolvedValue(null);
+  });
 
-      await conversationsRepository.findExisting(null, buyerId, sellerId);
+  // NOTE: findExisting no longer accepts a null adId. Postgres treats NULL
+  // as distinct from itself inside a unique index, so
+  // @@unique([adId, buyerId, sellerId]) does not dedupe adId: null rows —
+  // findUnique against a null adId would silently never find a match,
+  // breaking the idempotent-reuse guarantee for ad-less threads. That case
+  // is handled below by findExistingWithoutAd instead, which uses findFirst.
+  describe('findExistingWithoutAd', () => {
+    it('queries by (adId: null, buyerId, sellerId) via findFirst, not findUnique', async () => {
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValue(null);
 
-      expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
-        where: { adId_buyerId_sellerId: { adId: null, buyerId, sellerId } },
+      await conversationsRepository.findExistingWithoutAd(buyerId, sellerId);
+
+      expect(prisma.conversation.findFirst).toHaveBeenCalledWith({
+        where: { adId: null, buyerId, sellerId },
       });
+      expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
     });
   });
 
