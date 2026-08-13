@@ -89,13 +89,20 @@ describe('Audit Logs API', () => {
 
     it('filters by date range (from/to)', async () => {
       const admin = await createTestAdmin();
+      // FIX: previously created the row via `create` then backdated it
+      // via a follow-up `update` — but audit_logs is append-only at
+      // the DB level (see migration 20260807130000's own header) and
+      // its BEFORE UPDATE trigger rejects that unconditionally, so
+      // this update always threw and the test never actually reached
+      // its assertions. Setting createdAt directly on `create` achieves
+      // the same "one entry outside the query window" setup without
+      // ever touching the row again afterward.
       const old = await prisma.auditLog.create({
-        data: { event: 'LOGIN_SUCCESS', userId: admin.id },
-      });
-      // Backdate one entry outside the query window.
-      await prisma.auditLog.update({
-        where: { id: old.id },
-        data: { createdAt: new Date('2020-01-01T00:00:00.000Z') },
+        data: {
+          event: 'LOGIN_SUCCESS',
+          userId: admin.id,
+          createdAt: new Date('2020-01-01T00:00:00.000Z'),
+        },
       });
       await prisma.auditLog.create({ data: { event: 'LOGIN_SUCCESS', userId: admin.id } });
 

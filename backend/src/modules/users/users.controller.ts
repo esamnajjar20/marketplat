@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { usersService } from './users.service';
-import { updateProfileSchema, getUserByIdSchema, changePasswordSchema, updateNotificationPreferencesSchema } from './users.validation';
+import { updateProfileSchema, getUserByIdSchema, changePasswordSchema, updateNotificationPreferencesSchema, getPresenceSchema } from './users.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { paginationQuerySchema } from '../../shared/utils/pagination';
@@ -12,6 +12,26 @@ export const usersController = {
       const user = requireUser(req);
       const result = await usersService.getMe(user.userId);
       res.status(200).json(successResponse('Profile fetched', result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  touchPresence: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      await usersService.touchPresence(user.userId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getPresence: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { query } = getPresenceSchema.parse({ query: req.query });
+      const result = await usersService.getPresence(query.ids);
+      res.status(200).json(successResponse('Presence fetched', result));
     } catch (error) {
       next(error);
     }

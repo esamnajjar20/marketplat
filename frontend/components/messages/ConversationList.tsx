@@ -6,6 +6,7 @@ import { AlertTriangle, MessageSquare } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyConversations } from '@/hooks/queries/useConversations';
+import { usePresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
@@ -53,6 +54,14 @@ export function ConversationList({ selectedId }: Props = {}) {
   const { data, isLoading, isError, refetch } = useMyConversations({ page: 1, limit: 20 });
 
   const items = data?.items ?? [];
+
+  // One bulk presence lookup for every row's other party at once,
+  // rather than each row polling on its own — same "single request for
+  // the whole visible set" idea as ChatWindow's single-id usage of the
+  // same hook. Backend caps bulk lookups at 50 ids; this page is
+  // limit: 20, so it's always within that cap.
+  const otherPartyIds = items.map((c) => otherParty(c, user?.id).id);
+  const { data: onlineMap } = usePresence(otherPartyIds);
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
@@ -108,6 +117,13 @@ export function ConversationList({ selectedId }: Props = {}) {
               <div className="w-14 h-14 rounded-full overflow-hidden bg-muted border-2 border-card shadow-sm">
                 <Image src={avatar} alt={party.name} fill className="object-cover" sizes="56px" />
               </div>
+              {onlineMap?.[party.id] && (
+                <span
+                  className="absolute bottom-0 end-0 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-card"
+                  aria-label="متصل الآن"
+                  title="متصل الآن"
+                />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between gap-2 mb-1">

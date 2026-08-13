@@ -12,10 +12,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConversationList } from '@/components/messages/ConversationList';
 import { useMyConversations } from '@/hooks/queries/useConversations';
+import { usePresence } from '@/hooks/queries/usePresence';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/hooks/queries/useConversations', () => ({
   useMyConversations: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/usePresence', () => ({
+  usePresence: vi.fn(),
 }));
 
 vi.mock('@/store/auth.store', () => ({
@@ -24,6 +29,7 @@ vi.mock('@/store/auth.store', () => ({
 }));
 
 const mockUseMyConversations = vi.mocked(useMyConversations);
+const mockUsePresence = vi.mocked(usePresence);
 const mockUseAuthStore = vi.mocked(useAuthStore);
 
 const me = { id: 'user-me', name: 'أنا' };
@@ -53,6 +59,7 @@ describe('ConversationList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuthState(me);
+    mockUsePresence.mockReturnValue({ data: {} } as never);
   });
 
   it('shows a loading spinner while fetching', () => {
@@ -151,5 +158,60 @@ describe('ConversationList', () => {
 
     expect(screen.getByText('متجر أ')).toBeInTheDocument();
     expect(screen.getByText('متجر ب')).toBeInTheDocument();
+  });
+
+  describe('online presence', () => {
+    it('does not show an online dot when the other party is offline', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: { items: [makeConversation({ id: 'conv-1' })] },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      mockUsePresence.mockReturnValue({ data: { [seller.id]: false } } as never);
+      render(<ConversationList />);
+
+      expect(screen.queryByLabelText('متصل الآن')).not.toBeInTheDocument();
+    });
+
+    it('shows an online dot for a row whose other party is online', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: { items: [makeConversation({ id: 'conv-1' })] },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      mockUsePresence.mockReturnValue({ data: { [seller.id]: true } } as never);
+      render(<ConversationList />);
+
+      expect(screen.getByLabelText('متصل الآن')).toBeInTheDocument();
+    });
+
+    it('requests presence for every row\'s other party id in one call', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: {
+          items: [
+            makeConversation({ id: 'conv-1', seller: { ...seller, id: 'seller-a' } }),
+            makeConversation({ id: 'conv-2', seller: { ...seller, id: 'seller-b' } }),
+          ],
+        },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      render(<ConversationList />);
+
+      expect(mockUsePresence).toHaveBeenCalledWith(['seller-a', 'seller-b']);
+    });
+
+    it('only shows the dot for the row whose party is actually online, not every row', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: {
+          items: [
+            makeConversation({ id: 'conv-1', seller: { ...seller, id: 'seller-a' } }),
+            makeConversation({ id: 'conv-2', seller: { ...seller, id: 'seller-b' } }),
+          ],
+        },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      mockUsePresence.mockReturnValue({ data: { 'seller-a': true, 'seller-b': false } } as never);
+      render(<ConversationList />);
+
+      expect(screen.getAllByLabelText('متصل الآن')).toHaveLength(1);
+    });
   });
 });

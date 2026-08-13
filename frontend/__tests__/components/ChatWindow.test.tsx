@@ -18,6 +18,8 @@ import { ChatWindow } from '@/components/messages/ChatWindow';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
+import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
+import { useIsUserOnline } from '@/hooks/queries/usePresence';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/hooks/queries/useConversations', () => ({
@@ -31,6 +33,14 @@ vi.mock('@/hooks/queries/useBlockedUsers', () => ({
 
 vi.mock('@/hooks/mutations/useBlockedUsersMutations', () => ({
   useToggleUserBlock: vi.fn(),
+}));
+
+vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+  useDeleteMessage: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/usePresence', () => ({
+  useIsUserOnline: vi.fn(),
 }));
 
 vi.mock('@/store/auth.store', () => ({
@@ -48,6 +58,8 @@ const mockUseConversation = vi.mocked(useConversation);
 const mockUseMessages = vi.mocked(useMessages);
 const mockUseIsUserBlocked = vi.mocked(useIsUserBlocked);
 const mockUseToggleUserBlock = vi.mocked(useToggleUserBlock);
+const mockUseDeleteMessage = vi.mocked(useDeleteMessage);
+const mockUseIsUserOnline = vi.mocked(useIsUserOnline);
 const mockUseAuthStore = vi.mocked(useAuthStore);
 
 const me = { id: 'user-me', name: 'أنا' };
@@ -62,6 +74,7 @@ const conversation = {
 };
 
 const mockToggleBlockMutate = vi.fn();
+const mockDeleteMessageMutate = vi.fn();
 
 function mockAuthState(user: typeof me | null) {
   mockUseAuthStore.mockImplementation((selector: (s: { user: unknown }) => unknown) => selector({ user }));
@@ -71,7 +84,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockAuthState(me);
   mockUseIsUserBlocked.mockReturnValue(false);
+  mockUseIsUserOnline.mockReturnValue(false);
   mockUseToggleUserBlock.mockReturnValue({ mutate: mockToggleBlockMutate, isPending: false } as never);
+  mockUseDeleteMessage.mockReturnValue({ mutate: mockDeleteMessageMutate, isPending: false } as never);
   mockUseMessages.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
   mockUseConversation.mockReturnValue({ data: conversation, isLoading: false, isError: false } as never);
 });
@@ -213,6 +228,147 @@ describe('ChatWindow', () => {
 
       expect(mockToggleBlockMutate).not.toHaveBeenCalled();
       expect(screen.queryByText(`حظر ${seller.name}؟`)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('online presence', () => {
+    it('does not show the online indicator when the other party is offline', () => {
+      mockUseIsUserOnline.mockReturnValue(false);
+      render(<ChatWindow conversationId="conv-1" />);
+      expect(screen.queryByLabelText('متصل الآن')).not.toBeInTheDocument();
+    });
+
+    it('shows the online indicator when the other party is online', () => {
+      mockUseIsUserOnline.mockReturnValue(true);
+      render(<ChatWindow conversationId="conv-1" />);
+      expect(screen.getAllByLabelText('متصل الآن').length).toBeGreaterThan(0);
+    });
+
+    it('queries presence for the resolved other party id, not the caller', () => {
+      render(<ChatWindow conversationId="conv-1" />);
+      expect(mockUseIsUserOnline).toHaveBeenCalledWith(seller.id);
+    });
+  });
+
+  describe('delete message', () => {
+    const myLiveMessage = {
+      id: 'm1',
+      senderId: me.id,
+      body: 'مرحبا',
+      createdAt: new Date().toISOString(),
+      readAt: null,
+      deletedAt: null,
+    };
+    const theirLiveMessage = {
+      id: 'm2',
+      senderId: seller.id,
+      body: 'أهلاً بك',
+      createdAt: new Date().toISOString(),
+      readAt: null,
+      deletedAt: null,
+    };
+    const myDeletedMessage = {
+      id: 'm3',
+      senderId: me.id,
+      body: '', // already redacted by the backend
+      createdAt: new Date().toISOString(),
+      readAt: null,
+      deletedAt: new Date().toISOString(),
+    };
+
+    it('shows a delete option only on my own live messages, not the other party\'s', async () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [myLiveMessage, theirLiveMessage] },
+        isLoading: false,
+      } as never);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      const messageOptionButtons = screen.getAllByLabelText('خيارات الرسالة');
+      expect(messageOptionButtons).toHaveLength(1);
+
+      await user.click(messageOptionButtons[0]);
+      expect(await screen.findByText('حذف الرسالة')).toBeInTheDocument();
+    });
+
+    it('does not show a delete option on an already-deleted message', () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [myDeletedMessage] },
+        isLoading: false,
+      } as never);
+      render(<ChatWindow conversationId="conv-1" />);
+
+      expect(screen.queryByLabelText('خيارات الرسالة')).not.toBeInTheDocument();
+    });
+
+    it('renders the placeholder text instead of the body for a deleted message', () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [myDeletedMessage] },
+        isLoading: false,
+      } as never);
+      render(<ChatWindow conversationId="conv-1" />);
+
+      expect(screen.getByText('تم حذف هذه الرسالة')).toBeInTheDocument();
+    });
+
+    it('does not show the sent/read icon on a deleted message', () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [myDeletedMessage] },
+        isLoading: false,
+      } as never);
+      render(<ChatWindow conversationId="conv-1" />);
+
+      expect(screen.queryByLabelText('تم الإرسال')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('تمت القراءة')).not.toBeInTheDocument();
+    });
+
+    it('clicking delete opens a confirm dialog without deleting yet', async () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [myLiveMessage] },
+        isLoading: false,
+      } as never);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      await user.click(screen.getByLabelText('خيارات الرسالة'));
+      await user.click(await screen.findByText('حذف الرسالة'));
+
+      expect(screen.getByText('حذف هذه الرسالة؟')).toBeInTheDocument();
+      expect(mockDeleteMessageMutate).not.toHaveBeenCalled();
+    });
+
+    it('confirming delete calls the mutation with the message id', async () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [myLiveMessage] },
+        isLoading: false,
+      } as never);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      await user.click(screen.getByLabelText('خيارات الرسالة'));
+      await user.click(await screen.findByText('حذف الرسالة'));
+      await user.click(screen.getByRole('button', { name: 'حذف' }));
+
+      expect(mockDeleteMessageMutate).toHaveBeenCalledWith(
+        'm1',
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
+    });
+
+    it('cancelling the delete dialog does not call the mutation', async () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [myLiveMessage] },
+        isLoading: false,
+      } as never);
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      await user.click(screen.getByLabelText('خيارات الرسالة'));
+      await user.click(await screen.findByText('حذف الرسالة'));
+      await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+      expect(mockDeleteMessageMutate).not.toHaveBeenCalled();
+      expect(screen.queryByText('حذف هذه الرسالة؟')).not.toBeInTheDocument();
     });
   });
 });

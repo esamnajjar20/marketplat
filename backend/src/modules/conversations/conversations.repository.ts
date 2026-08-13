@@ -77,6 +77,15 @@ export const messagesRepository = {
   create: (conversationId: string, senderId: string, body: string): Promise<Message> =>
     prisma.message.create({ data: { conversationId, senderId, body } }),
 
+  findById: (id: string): Promise<Message | null> =>
+    prisma.message.findUnique({ where: { id } }),
+
+  /** Soft-delete: sets deletedAt, leaves `body` and every other column
+   * untouched. Caller (messagesService.deleteMessage) has already
+   * verified the requester is the sender before this is called. */
+  softDelete: (id: string): Promise<Message> =>
+    prisma.message.update({ where: { id }, data: { deletedAt: new Date() } }),
+
   findManyByConversationId: async (
     conversationId: string,
     query: { page?: number; limit?: number }
@@ -89,7 +98,11 @@ export const messagesRepository = {
       // Newest-first at the DB level (cheap for pagination), same as
       // every other list endpoint in this codebase — the frontend
       // reverses this into chronological order for the actual thread
-      // view (see useMessages's own doc comment for why).
+      // view (see useMessages's own doc comment for why). Soft-deleted
+      // rows are still included (not filtered out) — the thread must
+      // keep the placeholder in its correct chronological slot; only
+      // `body` is stripped, in the service layer just before the
+      // response is built.
       prisma.message.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       prisma.message.count({ where }),
     ]);

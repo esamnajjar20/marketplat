@@ -46,3 +46,26 @@ export function useSendMessage(conversationId: string) {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+/**
+ * DELETE /conversations/:id/messages/:messageId — soft-delete. Only
+ * invalidates this thread's messages, not the conversation list: a
+ * deleted message doesn't change updatedAt server-side (softDelete
+ * doesn't touch the conversation row), so the list's ordering/preview
+ * is unaffected — same "invalidate only what actually changed" idea as
+ * every other mutation here.
+ */
+export function useDeleteMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (messageId: string) =>
+      conversationsApi.deleteMessage(conversationId, messageId).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+      });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}

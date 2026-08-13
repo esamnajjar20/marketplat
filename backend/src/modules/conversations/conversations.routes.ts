@@ -29,3 +29,8 @@ conversationsRouter.post(
   sendMessageRateLimit,
   conversationsController.sendMessage
 );
+conversationsRouter.delete(
+  '/:id/messages/:messageId',
+  authenticate,
+  conversationsController.deleteMessage
+);

@@ -14,8 +14,23 @@ import { prisma } from '../../config/prisma';
 import { AdStatus } from '@prisma/client';
 import { uploadAvatar, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import { presence } from '../../shared/utils/presence';
 
 export const usersService = {
+  /** PATCH /users/me/presence — heartbeat. No DB write, no response
+   * body beyond the envelope; see presence.touch's own doc comment for
+   * why this is fire-and-forget from the caller's point of view. */
+  touchPresence: async (userId: string): Promise<void> => {
+    await presence.touch(userId);
+  },
+
+  /** GET /users/presence?ids=... — bulk online lookup for however many
+   * user IDs the caller's current view needs a dot for. */
+  getPresence: async (userIds: string[]): Promise<Record<string, boolean>> => {
+    const online = await presence.getOnlineIds(userIds);
+    return Object.fromEntries(userIds.map((id) => [id, online.has(id)]));
+  },
+
   getMe: async (userId: string): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');

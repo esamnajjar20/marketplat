@@ -669,6 +669,15 @@ model Message {
   senderId       String
   body           String       @db.VarChar(2000)
   readAt         DateTime?
+  // Soft-delete: set by the sender via DELETE /conversations/:id/messages/:messageId.
+  // The row is kept (not physically removed) so the other party's thread
+  // still shows a "تم حذف هذه الرسالة" placeholder in place, rather than a
+  // gap that could read as a missing/broken message — same reasoning as
+  // Ad's own soft states elsewhere in this schema. `body` itself is left
+  // untouched on delete (not blanked) so a future admin/audit read path
+  // isn't blocked by this decision; every read-facing repository method
+  // is responsible for not leaking `body` once `deletedAt` is set.
+  deletedAt      DateTime?
   createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)

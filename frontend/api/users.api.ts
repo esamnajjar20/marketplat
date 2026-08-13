@@ -73,4 +73,18 @@ export const usersApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
+  /** PATCH /users/me/presence — heartbeat, called on an interval by
+   * useHeartbeat while the caller is authenticated. 204 No Content, so
+   * there's no response body to unwrap. */
+  touchPresence: () => apiClient.patch<void>('/users/me/presence'),
+
+  /** GET /users/presence?ids=a,b,c — bulk online lookup. Backend caps
+   * this at 50 ids per call (see backend's getPresenceSchema) — callers
+   * are expected to only ask for however many dots the current view
+   * actually needs, not the whole conversation list at once. */
+  getPresence: (userIds: string[]) =>
+    apiClient.get<ApiResponse<Record<string, boolean>>>('/users/presence', {
+      params: { ids: userIds.join(',') },
+    }),
 };

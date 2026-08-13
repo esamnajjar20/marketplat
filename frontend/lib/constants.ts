@@ -167,6 +167,12 @@ export const MAX_FILE_SIZE_MB = 5;
 /** Must match backend upload.middleware.ts: ALLOWED_MIME_TYPES exactly. */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as const;
 
+/** How often the frontend pings PATCH /users/me/presence to refresh the
+ * caller's own online marker. Must stay comfortably under the backend's
+ * presence.ts PRESENCE_TTL_SECONDS (90s) so a slow tick or one missed
+ * beat doesn't flip the caller to "offline" between heartbeats. */
+export const PRESENCE_HEARTBEAT_INTERVAL = 45_000; // 45 s
+
 /** Base URL for the backend API, consumed by api/client.ts */
 export const API_BASE_URL =
   (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000') + '/api/v1';
@@ -218,6 +224,12 @@ export const CACHE_TTL = {
   // at 20s) since a conversation is exactly as live as those.
   conversations: 20_000,   // 20 s
   messages: 5_000,         // 5 s — the actively-open thread polls faster
+  // Online dots — refreshed at the same cadence as messages (the one
+  // view where "are they even around right now" actually matters) so
+  // the dot and the thread never feel out of sync with each other.
+  // Half of PRESENCE_HEARTBEAT_INTERVAL below, so a viewer's read of
+  // someone's presence never lags a full heartbeat cycle behind.
+  presence: 5_000,         // 5 s
   // Epic 6: the unread count badge needs to feel live (a new message's
   // notification should show up on the bell without a full page
   // reload) but doesn't need messages' 5s aggressiveness — nobody is

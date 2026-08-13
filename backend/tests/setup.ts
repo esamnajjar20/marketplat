@@ -237,10 +237,42 @@ afterAll(async () => { await prisma.$disconnect(); });
 afterEach(async () => {
   const { redis } = await import('../src/config/redis');
   (redis as any).__clear();
-  await prisma.auditLog.deleteMany();
-  await prisma.report.deleteMany();
-  await prisma.favorite.deleteMany();
-  await prisma.ad.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.user.deleteMany();
+
+  // audit_logs is intentionally append-only at the DB level (see
+  // migration 20260807130000_audit_logs_append_only's own header): a
+  // BEFORE UPDATE OR DELETE trigger unconditionally rejects both, with
+  // deliberately no toggle from application code — the migration's own
+  // rollback note says this must only ever be lifted by an operator
+  // running DROP TRIGGER directly.
+  //
+  // That trigger fires even for the UPDATE ... SET "userId" = NULL that
+  // Postgres itself issues under the hood for AuditLog.userId's
+  // `ON DELETE SET NULL` FK action — so user.deleteMany() below doesn't
+  // just skip auditLog cleanup, it fails outright the moment it tries
+  // to delete a user any audit_logs row still references. There is no
+  // ordering of these deleteMany() calls that avoids this: the trigger
+  // is unconditional, not conditional on which column changed.
+  //
+  // `session_replication_role = replica` makes Postgres treat this
+  // session as a replication target for the duration of the
+  // transaction: ALL triggers (including audit_logs_prevent_update_delete,
+  // and ordinary FK-enforcement triggers) are skipped, but the actual
+  // DELETEs and the resulting SET NULL still happen — this only
+  // silences the trigger firing, not the underlying operation. Reset to
+  // 'origin' before commit so nothing about the trigger's protection is
+  // weakened outside this one cleanup transaction. This is local to the
+  // test-runner's own DB session; the trigger itself is never touched,
+  // dropped, or altered, and production is completely unaffected — see
+  // the two options weighed in chat before this change for why altering
+  // the trigger itself (rather than this session-local bypass) was
+  // rejected.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = 'replica'`);
+    await tx.report.deleteMany();
+    await tx.favorite.deleteMany();
+    await tx.ad.deleteMany();
+    await tx.category.deleteMany();
+    await tx.user.deleteMany();
+    await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = 'origin'`);
+  });
 });

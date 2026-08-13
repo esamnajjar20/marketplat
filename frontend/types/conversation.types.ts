@@ -40,6 +40,11 @@ export interface Message {
   senderId: string;
   body: string;
   readAt: string | null;
+  // Soft-delete marker — mirrors backend's Message.deletedAt. When set,
+  // `body` has already been redacted to '' by the backend (see
+  // conversations.service.ts's redactIfDeleted) — the frontend never
+  // needs to blank it itself, only decide how to render the placeholder.
+  deletedAt: string | null;
   createdAt: string;
 }
 

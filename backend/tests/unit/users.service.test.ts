@@ -9,6 +9,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { hashPassword } from '../../src/shared/utils/hash';
 import { uploadAvatar, deleteImage } from '../../src/config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../src/shared/utils/cloudinaryHelpers';
+import { presence } from '../../src/shared/utils/presence';
 import jwt from 'jsonwebtoken';
 
 jest.mock('../../src/modules/users/users.repository');
@@ -20,6 +21,9 @@ jest.mock('../../src/config/cloudinary', () => ({
 jest.mock('../../src/shared/utils/cloudinaryHelpers', () => ({
   extractCloudinaryPublicId: jest.fn(),
   cleanupUploadedImages: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('../../src/shared/utils/presence', () => ({
+  presence: { touch: jest.fn().mockResolvedValue(undefined), getOnlineIds: jest.fn() },
 }));
 
 const mockUser = {
@@ -263,6 +267,32 @@ describe('UsersService', () => {
       await expect(usersService.uploadAvatar('user-1', mockFile)).rejects.toThrow();
       // The OLD avatar must survive since the new one never got persisted.
       expect(deleteImage).not.toHaveBeenCalledWith('classifieds/avatars/old-id');
+    });
+  });
+
+  describe('touchPresence', () => {
+    it('delegates to presence.touch with the caller’s userId', async () => {
+      await usersService.touchPresence('user-1');
+
+      expect(presence.touch).toHaveBeenCalledWith('user-1');
+    });
+  });
+
+  describe('getPresence', () => {
+    it('maps every requested id to true/false based on presence.getOnlineIds', async () => {
+      (presence.getOnlineIds as jest.Mock).mockResolvedValue(new Set(['user-1', 'user-3']));
+
+      const result = await usersService.getPresence(['user-1', 'user-2', 'user-3']);
+
+      expect(result).toEqual({ 'user-1': true, 'user-2': false, 'user-3': true });
+    });
+
+    it('returns an empty object for an empty id list', async () => {
+      (presence.getOnlineIds as jest.Mock).mockResolvedValue(new Set());
+
+      const result = await usersService.getPresence([]);
+
+      expect(result).toEqual({});
     });
   });
 });

@@ -354,4 +354,71 @@ describe('usersController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
     });
   });
+
+  describe('touchPresence', () => {
+    it('returns 204 with no body on success', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+      const next = mockNext();
+      (usersService.touchPresence as jest.Mock).mockResolvedValue(undefined);
+
+      await usersController.touchPresence(req, res, next);
+
+      expect(usersService.touchPresence).toHaveBeenCalledWith('user-1');
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalledWith();
+    });
+
+    it('calls next(error) when unauthenticated', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await usersController.touchPresence(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+    });
+  });
+
+  describe('getPresence', () => {
+    it('parses the comma-separated ids and returns 200 with the map', async () => {
+      const req = mockRequest({ query: { ids: 'user-1,user-2' } });
+      const res = mockResponse();
+      const next = mockNext();
+      const mockMap = { 'user-1': true, 'user-2': false };
+      (usersService.getPresence as jest.Mock).mockResolvedValue(mockMap);
+
+      await usersController.getPresence(req, res, next);
+
+      expect(usersService.getPresence).toHaveBeenCalledWith(['user-1', 'user-2']);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: mockMap }));
+    });
+
+    it('calls next(error) when ids is missing', async () => {
+      const req = mockRequest({ query: {} });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await usersController.getPresence(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.anything());
+      expect(usersService.getPresence).not.toHaveBeenCalled();
+    });
+
+    it('calls next(error) when more than 50 ids are supplied', async () => {
+      const tooMany = Array.from({ length: 51 }, (_, i) => `user-${i}`).join(',');
+      const req = mockRequest({ query: { ids: tooMany } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await usersController.getPresence(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.anything());
+      expect(usersService.getPresence).not.toHaveBeenCalled();
+    });
+  });
 });

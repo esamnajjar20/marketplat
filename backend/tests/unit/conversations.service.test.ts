@@ -293,5 +293,105 @@ describe('conversationsService', () => {
 
       expect(messagesRepository.markReadForRecipient).toHaveBeenCalledWith('conv-1', buyerId);
     });
+
+    it('strips body from soft-deleted messages but leaves the other fields intact', async () => {
+      const liveMessage = { id: 'msg-1', body: 'still here', deletedAt: null };
+      const deletedMessage = { id: 'msg-2', body: 'secret text', deletedAt: new Date('2026-08-01') };
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({
+        messages: [liveMessage, deletedMessage],
+        total: 2,
+      });
+      (messagesRepository.markReadForRecipient as jest.Mock).mockResolvedValue({ count: 0 });
+
+      const result = await conversationsService.getMessages(buyerId, 'conv-1', {});
+
+      expect(result.items[0]).toEqual(liveMessage);
+      expect(result.items[1]).toEqual({ ...deletedMessage, body: '' });
+    });
+  });
+
+  describe('deleteMessage', () => {
+    const mockMessage = {
+      id: 'msg-1',
+      conversationId: 'conv-1',
+      senderId: buyerId,
+      body: 'Hi',
+      deletedAt: null,
+    } as any;
+
+    it('throws NotFoundError when the conversation does not exist', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        conversationsService.deleteMessage(buyerId, 'conv-1', 'msg-1')
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws ForbiddenError when the caller is not a party to the conversation', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+
+      await expect(
+        conversationsService.deleteMessage('stranger-1', 'conv-1', 'msg-1')
+      ).rejects.toThrow(ForbiddenError);
+      expect(messagesRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when the message does not exist', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        conversationsService.deleteMessage(buyerId, 'conv-1', 'msg-1')
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the message belongs to a different conversation', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockMessage,
+        conversationId: 'other-conv',
+      });
+
+      await expect(
+        conversationsService.deleteMessage(buyerId, 'conv-1', 'msg-1')
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws ForbiddenError when the caller is a party but not the sender', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findById as jest.Mock).mockResolvedValue(mockMessage); // sender is buyerId
+
+      await expect(
+        conversationsService.deleteMessage(sellerId, 'conv-1', 'msg-1')
+      ).rejects.toThrow(ForbiddenError);
+      expect(messagesRepository.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('soft-deletes the message and returns it with body redacted', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findById as jest.Mock).mockResolvedValue(mockMessage);
+      (messagesRepository.softDelete as jest.Mock).mockResolvedValue({
+        ...mockMessage,
+        deletedAt: new Date('2026-08-13'),
+      });
+
+      const result = await conversationsService.deleteMessage(buyerId, 'conv-1', 'msg-1');
+
+      expect(messagesRepository.softDelete).toHaveBeenCalledWith('msg-1');
+      expect(result.body).toBe('');
+      expect(result.deletedAt).toBeTruthy();
+    });
+
+    it('is idempotent — calling delete on an already-deleted message does not call softDelete again', async () => {
+      const alreadyDeleted = { ...mockMessage, deletedAt: new Date('2026-08-01'), body: 'old text' };
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findById as jest.Mock).mockResolvedValue(alreadyDeleted);
+
+      const result = await conversationsService.deleteMessage(buyerId, 'conv-1', 'msg-1');
+
+      expect(messagesRepository.softDelete).not.toHaveBeenCalled();
+      expect(result.body).toBe('');
+    });
   });
 });

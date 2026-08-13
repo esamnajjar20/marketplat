@@ -14,7 +14,7 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from '@/hooks/mutations/useNotificationMutations';
-import { useStartConversation, useSendMessage } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation, useSendMessage, useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
 import {
   useCreateServiceProvider,
   useUpdateServiceProvider,
@@ -33,7 +33,7 @@ vi.mock('@/api/notifications.api', () => ({
   notificationsApi: { markRead: vi.fn(), markAllRead: vi.fn() },
 }));
 vi.mock('@/api/conversations.api', () => ({
-  conversationsApi: { start: vi.fn(), sendMessage: vi.fn() },
+  conversationsApi: { start: vi.fn(), sendMessage: vi.fn(), deleteMessage: vi.fn() },
 }));
 vi.mock('@/api/service-providers.api', () => ({
   serviceProvidersApi: { createMyProvider: vi.fn(), updateMyProvider: vi.fn() },
@@ -256,6 +256,51 @@ describe('useSendMessage', () => {
 
     const { result } = renderHook(() => useSendMessage('c1'), { wrapper });
     act(() => { result.current.mutate({} as Parameters<typeof conversationsApi.sendMessage>[1]); });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(toast.error).toHaveBeenCalled();
+  });
+});
+
+describe('useDeleteMessage', () => {
+  it('calls conversationsApi.deleteMessage with the conversationId and messageId', async () => {
+    (conversationsApi.deleteMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'm1', body: '', deletedAt: '2026-08-13T00:00:00.000Z' } },
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useDeleteMessage('c1'), { wrapper });
+    act(() => { result.current.mutate('m1'); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(conversationsApi.deleteMessage).toHaveBeenCalledWith('c1', 'm1');
+  });
+
+  it('invalidates this thread\'s messages but not the conversations list', async () => {
+    (conversationsApi.deleteMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'm1', body: '', deletedAt: '2026-08-13T00:00:00.000Z' } },
+    });
+    const { wrapper, invalidateSpy } = createWrapper();
+
+    const { result } = renderHook(() => useDeleteMessage('c1'), { wrapper });
+    act(() => { result.current.mutate('m1'); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
+    expect(invalidatedKeys.some((k) => k === JSON.stringify(['conversations', 'detail', 'c1', 'messages']))).toBe(true);
+    // Unlike useSendMessage, a deleted message doesn't bump the
+    // conversation's updatedAt server-side, so the list itself is
+    // never invalidated here — see useConversationMutations.ts's own
+    // doc comment on useDeleteMessage for why.
+    expect(invalidatedKeys.some((k) => k === JSON.stringify(['conversations', 'me']))).toBe(false);
+  });
+
+  it('shows an error toast on failure', async () => {
+    (conversationsApi.deleteMessage as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Server error'));
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useDeleteMessage('c1'), { wrapper });
+    act(() => { result.current.mutate('m1'); });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(toast.error).toHaveBeenCalled();

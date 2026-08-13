@@ -145,6 +145,15 @@ export const queryKeys = {
       ['conversations', 'detail', id, 'messages', params ?? {}] as const,
   },
 
+  // ── Presence — online/offline dots on chat, heartbeat-based ────────
+  presence: {
+    // Sorted+joined ids as the key's own identity, same "stable string
+    // from a set of ids" idea as favorites/blockedUsers' id-set keys —
+    // two calls with the same parties (regardless of array order)
+    // resolve to the same cache entry instead of duplicating it.
+    bulk: (userIds: string[]) => ['presence', 'bulk', [...userIds].sort().join(',')] as const,
+  },
+
   // ── Notifications (Epic 6) ────────────────────────────────────
   notifications: {
     mine:        (params?: object) => ['notifications', 'me', params ?? {}] as const,

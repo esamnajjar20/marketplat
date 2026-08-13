@@ -17,6 +17,16 @@ const assertParty = (conversation: Conversation, userId: string): void => {
   }
 };
 
+/** Strips `body` from a soft-deleted message before it ever leaves the
+ * service layer — the row itself stays in place (see Message.deletedAt's
+ * schema comment) so the thread keeps its placeholder in the right slot,
+ * but the actual text must never reach a client response once deleted,
+ * for either party. Applied at every read path, not just deleteMessage's
+ * own response, since a message can be deleted by one party and then
+ * read by the other via getMessages moments later. */
+const redactIfDeleted = (message: Message): Message =>
+  message.deletedAt ? { ...message, body: '' } : message;
+
 export const conversationsService = {
   /**
    * Starts (or reopens) a thread about a specific ad. The only entry
@@ -110,6 +120,33 @@ export const conversationsService = {
   },
 
   /**
+   * Soft-deletes a message — only the sender may delete their own
+   * message (not the other party, and not based on conversation
+   * membership alone, which is why this checks message.senderId rather
+   * than reusing assertParty). Idempotent on an already-deleted message:
+   * calling this twice just returns the same already-redacted result
+   * rather than erroring, since the end state either way is "deleted".
+   */
+  deleteMessage: async (userId: string, conversationId: string, messageId: string): Promise<Message> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+
+    const message = await messagesRepository.findById(messageId);
+    if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundError('Message not found', 'MESSAGE_NOT_FOUND');
+    }
+    if (message.senderId !== userId) {
+      throw new ForbiddenError('You can only delete your own messages.', 'NOT_YOUR_MESSAGE');
+    }
+
+    if (message.deletedAt) return redactIfDeleted(message);
+
+    const deleted = await messagesRepository.softDelete(messageId);
+    return redactIfDeleted(deleted);
+  },
+
+  /**
    * Fetches a page of messages and marks the caller's unread inbound
    * messages as read in the same call — matches how a real chat UI
    * actually behaves (opening/polling a thread you're a party to is
@@ -131,7 +168,7 @@ export const conversationsService = {
     ]);
 
     return {
-      items: messages,
+      items: messages.map(redactIfDeleted),
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),
     };
   },

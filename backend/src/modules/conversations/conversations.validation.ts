@@ -42,3 +42,10 @@ export const getMessagesSchema = z.object({
 });
 
 export type GetMessagesQuery = z.infer<typeof getMessagesSchema>['query'];
+
+export const deleteMessageSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Conversation ID is required'),
+    messageId: z.string().min(1, 'Message ID is required'),
+  }),
+});

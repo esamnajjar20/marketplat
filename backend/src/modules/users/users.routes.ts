@@ -18,7 +18,12 @@ usersRouter.delete('/me', authenticate, usersController.deleteMe);
 usersRouter.post('/me/password', authenticate, changePasswordRateLimit, usersController.changePassword);
 usersRouter.post('/me/avatar', authenticate, uploadMiddleware, usersController.uploadAvatar);
 usersRouter.patch('/me/notifications', authenticate, usersController.updateNotificationPreferences);
+usersRouter.patch('/me/presence', authenticate, usersController.touchPresence);
 
-// Public — after /me so the literal string "me" is not intercepted
+// Protected, but registered before the public /:id below for the same
+// reason /me is: "presence" would otherwise match /:id with id="presence".
+usersRouter.get('/presence', authenticate, usersController.getPresence);
+
+// Public — after /me and /presence so those literal strings are not intercepted
 usersRouter.get('/:id', usersController.getUserById);
 usersRouter.get('/:id/ads', usersController.getUserAds);

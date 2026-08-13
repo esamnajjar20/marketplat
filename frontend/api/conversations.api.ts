@@ -47,4 +47,13 @@ export const conversationsApi = {
   /** POST /conversations/:id/messages */
   sendMessage: (id: string, payload: SendMessagePayload) =>
     apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages`, payload),
+
+  /** DELETE /conversations/:id/messages/:messageId — soft-delete; only
+   * the sender may call this (backend 403s otherwise, see
+   * conversations.service.ts's deleteMessage). Returns the message with
+   * body already redacted. */
+  deleteMessage: (conversationId: string, messageId: string) =>
+    apiClient.delete<ApiResponse<Message>>(
+      `/conversations/${conversationId}/messages/${messageId}`
+    ),
 };

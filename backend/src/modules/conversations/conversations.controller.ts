@@ -6,6 +6,7 @@ import {
   getConversationsSchema,
   sendMessageSchema,
   getMessagesSchema,
+  deleteMessageSchema,
 } from './conversations.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -65,6 +66,17 @@ export const conversationsController = {
       const { params, body } = sendMessageSchema.parse({ params: req.params, body: req.body });
       const message = await conversationsService.sendMessage(user.userId, params.id, body.body);
       res.status(201).json(successResponse('Message sent', message));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = deleteMessageSchema.parse({ params: req.params });
+      const message = await conversationsService.deleteMessage(user.userId, params.id, params.messageId);
+      res.status(200).json(successResponse('Message deleted', message));
     } catch (error) {
       next(error);
     }

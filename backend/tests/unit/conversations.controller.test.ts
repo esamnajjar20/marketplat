@@ -240,4 +240,73 @@ describe('conversationsController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
     });
   });
+
+  describe('deleteMessage', () => {
+    it('returns 200 with the redacted message on success', async () => {
+      const req = mockRequest({ params: { id: 'conv-1', messageId: 'msg-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+      const deletedMessage = { ...mockMessage, body: '', deletedAt: new Date('2026-08-13') };
+      (conversationsService.deleteMessage as jest.Mock).mockResolvedValue(deletedMessage);
+
+      await conversationsController.deleteMessage(req, res, next);
+
+      expect(conversationsService.deleteMessage).toHaveBeenCalledWith('buyer-1', 'conv-1', 'msg-1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, data: deletedMessage })
+      );
+    });
+
+    it('calls next(error) when the caller is unauthenticated', async () => {
+      const req = mockRequest({ params: { id: 'conv-1', messageId: 'msg-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await conversationsController.deleteMessage(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(conversationsService.deleteMessage).not.toHaveBeenCalled();
+    });
+
+    it('calls next(error) when messageId param is missing', async () => {
+      const req = mockRequest({ params: { id: 'conv-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await conversationsController.deleteMessage(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(conversationsService.deleteMessage).not.toHaveBeenCalled();
+    });
+
+    it('calls next(error) when the service throws ForbiddenError (not the sender)', async () => {
+      const req = mockRequest({ params: { id: 'conv-1', messageId: 'msg-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (conversationsService.deleteMessage as jest.Mock).mockRejectedValue(
+        new ForbiddenError('You can only delete your own messages.')
+      );
+
+      await conversationsController.deleteMessage(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+    });
+
+    it('calls next(error) when the service throws NotFoundError (message not found)', async () => {
+      const req = mockRequest({ params: { id: 'conv-1', messageId: 'msg-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (conversationsService.deleteMessage as jest.Mock).mockRejectedValue(
+        new NotFoundError('Message not found')
+      );
+
+      await conversationsController.deleteMessage(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+    });
+  });
 });

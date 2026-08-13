@@ -8,7 +8,7 @@ async function main() {
       email: "esamnajjar6@gmail.com",
     },
     data: {
-      role: "ADMIN",
+      role: "SUPER_ADMIN",
     },
   });
 

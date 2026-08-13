@@ -17,6 +17,7 @@ import { AuthHydrationProvider } from './AuthHydrationProvider';
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
+import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -73,6 +74,10 @@ export function AppProviders({ children }: AppProvidersProps) {
         {/* Gap #7 (product analytics): see PageViewTracker.tsx's own
             header for why this is mounted here rather than per-page. */}
         <PageViewTracker />
+
+        {/* Chat presence heartbeat — see PresenceHeartbeat.tsx's own
+            header; same mount-once, no-props posture as the two above. */}
+        <PresenceHeartbeat />
 
         {process.env.NODE_ENV === 'development' && (
           <ReactQueryDevtools initialIsOpen={false} />

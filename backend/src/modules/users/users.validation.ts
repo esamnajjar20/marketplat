@@ -26,6 +26,25 @@ export const updateProfileSchema = z.object({
   }),
 });
 
+/** GET /users/presence?ids=a,b,c — comma-separated, deduped and capped
+ * so a caller can't turn this into an unbounded MGET (see presence.ts's
+ * getOnlineIds, one Redis round trip per call regardless of count). Same
+ * cap-a-comma-list shape as no existing endpoint yet, chosen to comfortably
+ * cover a single conversation list page (CACHE_TTL.conversations' default
+ * page size) plus the one open thread's other party. */
+export const getPresenceSchema = z.object({
+  query: z.object({
+    ids: z
+      .string()
+      .min(1, 'ids is required')
+      .transform((val) => Array.from(new Set(val.split(',').map((id) => id.trim()).filter(Boolean))))
+      .refine((ids) => ids.length > 0, 'At least one id is required')
+      .refine((ids) => ids.length <= 50, 'At most 50 ids per request'),
+  }),
+});
+
+export type GetPresenceQuery = z.infer<typeof getPresenceSchema>['query'];
+
 export const getUserByIdSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
