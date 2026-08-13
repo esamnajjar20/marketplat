@@ -5,11 +5,15 @@
  *  - Loading state shows a spinner
  *  - Empty state shown when there are no ads
  *  - Renders each ad's title, price, status badge
- *  - Mark-as-sold button (report item #4):
+ *  - Mark-as-sold flow now goes through ConfirmDialog, mirroring delete
+ *    (UX-FIX — previously fired immediately on click with no
+ *    confirmation, inconsistent with the delete button right next to it):
  *      * shown only for ACTIVE ads
  *      * hidden for SOLD/DELETED ads
- *      * clicking it calls markAsSold.mutate with the ad's ID directly
- *        (no confirmation needed for this non-destructive action)
+ *      * clicking it opens the confirm dialog, does NOT call
+ *        markAsSold.mutate yet
+ *      * confirming the dialog calls markAsSold.mutate with the ad's ID
+ *      * cancelling the dialog does NOT call markAsSold.mutate
  *  - Delete flow now goes through ConfirmDialog instead of window.confirm()
  *    (report item #5):
  *      * clicking the trash icon opens the confirm dialog, does NOT call
@@ -85,6 +89,25 @@ describe('MyAdsList', () => {
     expect(screen.getByText('لا توجد إعلانات')).toBeInTheDocument();
   });
 
+  // UX-FIX: the empty-state description is now scoped to the active
+  // filter tab instead of always reading "لم تنشر أي إعلانات بعد" — that
+  // message was misleading on an empty SOLD/DELETED tab for a seller who
+  // does have active ads elsewhere. `status` here reflects whatever
+  // useOwnedListPage reads from the URL's ?status= — these mocks assume
+  // its default with no query param (status undefined/''), matching the
+  // "no ads at all" case; per-tab wording is exercised implicitly by the
+  // component's own status-driven ternary and not re-derived here since
+  // useOwnedListPage itself isn't mocked in this file.
+  it('shows the publish-ad CTA in the empty state when there is no active filter', () => {
+    (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { items: [], meta: { totalPages: 1 } },
+      isLoading: false,
+    });
+    render(<MyAdsList />);
+    expect(screen.getByText('لم تنشر أي إعلانات بعد')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'نشر إعلان' })).toBeInTheDocument();
+  });
+
   // ── Rendering ad rows ────────────────────────────────────────────
 
   it('renders the ad title and status badge', () => {
@@ -126,7 +149,21 @@ describe('MyAdsList', () => {
     expect(screen.queryByTitle('تعليم كمباع')).not.toBeInTheDocument();
   });
 
-  it('calls markAsSold.mutate with the ad ID immediately on click (no confirmation step)', async () => {
+  // ── Mark-as-sold flow via ConfirmDialog (UX-FIX) ──────────────────
+  // Previously fired markAsSold.mutate immediately on click with no
+  // confirmation. Now mirrors the delete flow below: click opens a
+  // ConfirmDialog, mutate() only fires on confirm.
+
+  it('does not show the mark-as-sold confirm dialog initially', () => {
+    (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { items: [makeAd({ status: 'ACTIVE' })], meta: { totalPages: 1 } },
+      isLoading: false,
+    });
+    render(<MyAdsList />);
+    expect(screen.queryByText('تعليم الإعلان كمباع؟')).not.toBeInTheDocument();
+  });
+
+  it('clicking the mark-as-sold icon opens the confirm dialog without mutating yet', async () => {
     const user = userEvent.setup();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-42', status: 'ACTIVE' })], meta: { totalPages: 1 } },
@@ -135,14 +172,52 @@ describe('MyAdsList', () => {
     render(<MyAdsList />);
 
     await user.click(screen.getByTitle('تعليم كمباع'));
-    expect(mockMarkAsSoldMutate).toHaveBeenCalledWith('ad-42');
+
+    expect(screen.getByText('تعليم الإعلان كمباع؟')).toBeInTheDocument();
+    expect(mockMarkAsSoldMutate).not.toHaveBeenCalled();
   });
 
-  it('disables the mark-as-sold button while the mutation is pending', () => {
-    // UX-FIX P2-1: markAsSold is a shared hook instance scoped to the row
-    // via `.variables === ad.id` (mutationFn takes the id directly) — the
-    // mock must supply `variables` matching the rendered ad's id, or the
-    // component correctly reports "not this row's mutation" and stays enabled.
+  it('confirming the dialog calls markAsSold.mutate with the correct ad ID', async () => {
+    const user = userEvent.setup();
+    (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { items: [makeAd({ id: 'ad-42', status: 'ACTIVE' })], meta: { totalPages: 1 } },
+      isLoading: false,
+    });
+    render(<MyAdsList />);
+
+    await user.click(screen.getByTitle('تعليم كمباع'));
+    // The icon button's accessible name is "تعليم <title> كمباع" (includes
+    // the ad title, for per-row disambiguation — see aria-label above);
+    // the dialog's confirm button is the plain "تعليم كمباع", so the two
+    // don't collide and no extra scoping is needed here (unlike if both
+    // shared the exact same name).
+    await user.click(screen.getByRole('button', { name: 'تعليم كمباع' }));
+
+    expect(mockMarkAsSoldMutate).toHaveBeenCalledWith('ad-42', expect.objectContaining({
+      onSuccess: expect.any(Function),
+    }));
+  });
+
+  it('cancelling the mark-as-sold dialog does not call markAsSold.mutate', async () => {
+    const user = userEvent.setup();
+    (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { items: [makeAd({ id: 'ad-42', status: 'ACTIVE' })], meta: { totalPages: 1 } },
+      isLoading: false,
+    });
+    render(<MyAdsList />);
+
+    await user.click(screen.getByTitle('تعليم كمباع'));
+    await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+    expect(mockMarkAsSoldMutate).not.toHaveBeenCalled();
+    expect(screen.queryByText('تعليم الإعلان كمباع؟')).not.toBeInTheDocument();
+  });
+
+  it('disables the mark-as-sold icon button while the mutation is pending', () => {
+    // UX-FIX P2-1 (preserved): markAsSold is a shared hook instance scoped
+    // to the row via `.variables === ad.id` — the mock must supply
+    // `variables` matching the rendered ad's id, or the component
+    // correctly reports "not this row's mutation" and stays enabled.
     (useMarkAsSold as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockMarkAsSoldMutate, isPending: true, variables: 'ad-1',
     });

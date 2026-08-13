@@ -30,6 +30,12 @@ export function MyAdsList() {
 
   // Tracks which ad the delete-confirmation dialog applies to (null = closed).
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  // UX-FIX: "تعليم كمباع" changes the ad's status platform-wide (removed
+  // from active search/listings) with no easy undo path, same class of
+  // action as delete — but previously fired straight from onClick with
+  // zero confirmation, inconsistent with delete's ConfirmDialog just
+  // below. Mirrors the same controlled-target pattern.
+  const [soldTargetId, setSoldTargetId] = useState<string | null>(null);
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -98,10 +104,21 @@ export function MyAdsList() {
       </div>
 
       {items.length === 0 ? (
+        // UX-FIX: "لم تنشر أي إعلانات بعد" was shown for every filter tab,
+        // including SOLD/DELETED — misleading for a seller who has active
+        // ads but is looking at an empty "مباعة" or "محذوفة" tab, since it
+        // reads as "you have no ads at all" rather than "none in this
+        // filter". The publish-ad CTA is also only relevant for the
+        // "no ads at all" case (status === ''), not the filtered ones.
         <EmptyState icon={<ShoppingBag className="h-8 w-8" />}
           title="لا توجد إعلانات"
-          description="لم تنشر أي إعلانات بعد"
-          action={<Link href={ROUTES.adCreate}><Button>نشر إعلان</Button></Link>} />
+          description={
+            !status ? 'لم تنشر أي إعلانات بعد'
+            : status === 'ACTIVE' ? 'لا توجد إعلانات نشطة حالياً'
+            : status === 'SOLD' ? 'لم تُعلّم أي إعلانات كمباعة بعد'
+            : 'لا توجد إعلانات محذوفة'
+          }
+          action={!status ? <Link href={ROUTES.adCreate}><Button>نشر إعلان</Button></Link> : undefined} />
       ) : (
         <div className="space-y-3">
           {items.map((ad) => {
@@ -141,7 +158,7 @@ export function MyAdsList() {
                          adId directly (not an object), so `.variables` IS
                          the id — compare it straight to ad.id. */
                       disabled={markAsSold.isPending && markAsSold.variables === ad.id}
-                      onClick={() => markAsSold.mutate(ad.id)}>
+                      onClick={() => setSoldTargetId(ad.id)}>
                       <CheckCircle className="h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -182,6 +199,22 @@ export function MyAdsList() {
           // redirect + cache invalidation — this just also closes the
           // dialog so it doesn't linger if navigation is ever delayed).
           deleteAd.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
+        }}
+      />
+
+      {/* UX-FIX: confirmation for "تعليم كمباع" — same pending-aware
+          pattern as the delete dialog above (close only on confirmed
+          success, disabled while in flight). */}
+      <ConfirmDialog
+        open={soldTargetId !== null}
+        onOpenChange={(open) => { if (!open) setSoldTargetId(null); }}
+        title="تعليم الإعلان كمباع؟"
+        description="سيُخفى الإعلان من نتائج البحث والقوائم النشطة. يمكنك مراجعة الإعلانات المباعة من تبويب «مباعة»."
+        confirmLabel="تعليم كمباع"
+        isPending={markAsSold.isPending && markAsSold.variables === soldTargetId}
+        onConfirm={() => {
+          if (!soldTargetId) return;
+          markAsSold.mutate(soldTargetId, { onSuccess: () => setSoldTargetId(null) });
         }}
       />
     </div>

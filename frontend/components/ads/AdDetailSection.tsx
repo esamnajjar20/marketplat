@@ -23,7 +23,7 @@ import Link from 'next/link';
 import { AdDetail }       from '@/components/ads/AdDetail';
 import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
 import { RelatedAds }     from '@/components/ads/RelatedAds';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { AdDetailsSkeleton } from '@/components/shared/skeletons';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAd }          from '@/hooks/queries/useAds';
 import { useFavorites, useIsFavorited } from '@/hooks/queries/useFavorites';
@@ -50,7 +50,24 @@ export function AdDetailSection({ id }: { id: string }) {
     if (ad?.id) track('AD_VIEW', { adId: ad.id, categoryId: ad.category?.id });
   }, [ad?.id, ad?.category?.id]);
 
-  if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
+  // UX-FIX: route-level loading.tsx already shows AdDetailsSkeleton
+  // during the initial server navigation, but any client-side refetch
+  // of useAd() (e.g. this query going stale/invalidated while the user
+  // is still on the page) fell back to a plain centered LoadingSpinner
+  // that wiped the whole layout — a jarring mismatch with the richer
+  // skeleton the user already saw once. Same skeleton both times.
+  // role="status"/aria-live/aria-busy added here (AdDetailsSkeleton's
+  // own internals stay aria-hidden, matching loading.tsx's usage) so
+  // screen-reader users still get a "loading" announcement, same as
+  // the LoadingSpinner this replaces.
+  if (isLoading) {
+    return (
+      <div role="status" aria-live="polite" aria-busy="true">
+        <span className="sr-only">جارٍ تحميل الإعلان…</span>
+        <AdDetailsSkeleton />
+      </div>
+    );
+  }
 
   // UX-FIX P0-1: this used to be `if (!ad) return null;`, which fired
   // on *any* fetch failure — network blip, 500, or a genuinely deleted
