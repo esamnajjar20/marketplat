@@ -1,151 +1,87 @@
 /**
  * __tests__/components/DashboardStats.test.tsx
  *
- * DashboardStats's real logic: aggregates raw ad/favorite data into 4
- * derived stats — active-ad count, sold-ad count, total views summed
- * across all ads, and favorites count — plus a combined loading state
- * (waits for both useMyAds AND useFavorites). These are the kind of
- * off-by-one/wrong-filter bugs (e.g. counting SOLD as ACTIVE, or
- * summing views incorrectly) that are easy to introduce silently.
+ * FIX BUG-06/BUG-07 (superseded): DashboardStats no longer aggregates
+ * raw ad/favorite lists client-side — it renders whatever
+ * GET /ads/me/stats (via useMyAdStats) returns directly. The
+ * off-by-one/wrong-filter risk this test used to guard against moved
+ * server-side, to ads.repository.ts's getStatsByUserId and
+ * favorites.repository.ts's countByUserId — this test now only checks
+ * loading/error/render-mapping behavior, which is where the risk
+ * actually remains on the frontend.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { DashboardStats } from '@/components/profile/DashboardStats';
-import { useMyAds } from '@/hooks/queries/useAds';
-import { useFavorites } from '@/hooks/queries/useFavorites';
-import type { Ad } from '@/types/ad.types';
+import { useMyAdStats } from '@/hooks/queries/useAds';
 
 vi.mock('@/hooks/queries/useAds', () => ({
-  useMyAds: vi.fn(),
+  useMyAdStats: vi.fn(),
 }));
 
-vi.mock('@/hooks/queries/useFavorites', () => ({
-  useFavorites: vi.fn(),
-}));
-
-const mockUseMyAds = vi.mocked(useMyAds);
-const mockUseFavorites = vi.mocked(useFavorites);
-
-function makeAd(overrides: Partial<Ad>): Ad {
-  return { id: 'a', status: 'ACTIVE', views: 0, ...overrides } as Ad;
-}
+const mockUseMyAdStats = vi.mocked(useMyAdStats);
 
 describe('DashboardStats', () => {
-  it('shows a loading spinner while ads are loading, even if favorites already loaded', () => {
-    mockUseMyAds.mockReturnValue({ data: undefined, isLoading: true } as never);
-    mockUseFavorites.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
+  it('shows a loading spinner while stats are loading', () => {
+    mockUseMyAdStats.mockReturnValue({ data: undefined, isLoading: true, isError: false, refetch: vi.fn() } as never);
     const { container } = render(<DashboardStats />);
 
     expect(container.querySelector('.py-8')).toBeInTheDocument();
     expect(screen.queryByText('الإعلانات النشطة')).not.toBeInTheDocument();
   });
 
-  it('shows a loading spinner while favorites are loading, even if ads already loaded', () => {
-    mockUseMyAds.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
-    mockUseFavorites.mockReturnValue({ data: undefined, isLoading: true } as never);
+  it('shows an error state with retry when the stats query fails, instead of rendering zeros silently', () => {
+    const refetch = vi.fn();
+    mockUseMyAdStats.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as never);
     render(<DashboardStats />);
 
+    expect(screen.getByText('حدث خطأ أثناء تحميل الإحصائيات')).toBeInTheDocument();
     expect(screen.queryByText('الإعلانات النشطة')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('إعادة المحاولة'));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('counts only ACTIVE ads toward "الإعلانات النشطة", excluding SOLD and others', () => {
-    mockUseMyAds.mockReturnValue({
-      data: {
-        items: [
-          makeAd({ status: 'ACTIVE' }),
-          makeAd({ status: 'ACTIVE' }),
-          makeAd({ status: 'SOLD' }),
-        ],
-      },
+  it('renders each stat card with its corresponding value from the API response', () => {
+    mockUseMyAdStats.mockReturnValue({
+      data: { activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 },
       isLoading: false,
-    } as never);
-    mockUseFavorites.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
-    render(<DashboardStats />);
-
-    const activeCard = screen.getByText('الإعلانات النشطة').closest('div');
-    expect(activeCard).toHaveTextContent((2).toLocaleString('ar'));
-  });
-
-  it('counts only SOLD ads toward "إعلانات تم بيعها"', () => {
-    mockUseMyAds.mockReturnValue({
-      data: {
-        items: [makeAd({ status: 'SOLD' }), makeAd({ status: 'ACTIVE' })],
-      },
-      isLoading: false,
-    } as never);
-    mockUseFavorites.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
-    render(<DashboardStats />);
-
-    const soldCard = screen.getByText('إعلانات تم بيعها').closest('div');
-    expect(soldCard).toHaveTextContent((1).toLocaleString('ar'));
-  });
-
-  it('sums views across all ads regardless of status', () => {
-    mockUseMyAds.mockReturnValue({
-      data: {
-        items: [
-          makeAd({ status: 'ACTIVE', views: 10 }),
-          makeAd({ status: 'SOLD', views: 25 }),
-        ],
-      },
-      isLoading: false,
-    } as never);
-    mockUseFavorites.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
-    render(<DashboardStats />);
-
-    const viewsCard = screen.getByText('إجمالي المشاهدات').closest('div');
-    expect(viewsCard).toHaveTextContent((35).toLocaleString('ar'));
-  });
-
-  it('shows the favorites count from useFavorites, independent of ad data', () => {
-    mockUseMyAds.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
-    mockUseFavorites.mockReturnValue({
-      data: { items: [{ id: 'f1' }, { id: 'f2' }, { id: 'f3' }], meta: { total: 3 } },
-      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     } as never);
     render(<DashboardStats />);
 
-    const favCard = screen.getByText('المفضلة').closest('div');
-    expect(favCard).toHaveTextContent((3).toLocaleString('ar'));
+    expect(screen.getByText('الإعلانات النشطة').closest('div')).toHaveTextContent((4).toLocaleString('ar'));
+    expect(screen.getByText('إعلانات تم بيعها').closest('div')).toHaveTextContent((2).toLocaleString('ar'));
+    expect(screen.getByText('إجمالي المشاهدات').closest('div')).toHaveTextContent((137).toLocaleString('ar'));
+    expect(screen.getByText('المفضلة').closest('div')).toHaveTextContent((9).toLocaleString('ar'));
   });
 
-  it('defaults every stat to 0 when both queries return no data', () => {
-    mockUseMyAds.mockReturnValue({ data: undefined, isLoading: false } as never);
-    mockUseFavorites.mockReturnValue({ data: undefined, isLoading: false } as never);
+  it('defaults every stat to 0 when the query resolves with no data', () => {
+    mockUseMyAdStats.mockReturnValue({ data: undefined, isLoading: false, isError: false, refetch: vi.fn() } as never);
     render(<DashboardStats />);
 
-    // All four cards render with a "0" value (٠), not a crash.
     expect(screen.getByText('الإعلانات النشطة')).toBeInTheDocument();
     const activeCard = screen.getByText('الإعلانات النشطة').closest('div');
     expect(activeCard).toHaveTextContent((0).toLocaleString('ar'));
   });
 
-  // FIX BUG-06: useMyAds() previously ran with no params, so the
-  // backend silently capped it at its default limit of 20 — a seller
-  // with more ads than that got wrong stats with no error or warning.
-  it('requests useMyAds with an explicit limit above the backend default of 20', () => {
-    mockUseMyAds.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
-    mockUseFavorites.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
+  // Guards against the exact class of bug BUG-06/BUG-07 were: a stat
+  // silently correct only up to some hidden page-size ceiling. With no
+  // client-side list/reduce left in this component at all, there is no
+  // ceiling to regress to — this just documents that expectation.
+  it('renders correctly for counts well beyond the old 100-item page-size ceiling', () => {
+    mockUseMyAdStats.mockReturnValue({
+      data: { activeAds: 430, soldAds: 215, totalViews: 98_000, favoritesCount: 640 },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never);
     render(<DashboardStats />);
 
-    expect(mockUseMyAds).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: expect.any(Number) }),
-    );
-    const [[calledWith]] = mockUseMyAds.mock.calls;
-    expect((calledWith as { limit: number }).limit).toBeGreaterThan(20);
-  });
-
-  it('correctly counts active/sold ads and sums views for a seller with more than 20 ads', () => {
-    const manyAds = [
-      ...Array.from({ length: 30 }, (_, i) => makeAd({ id: `active-${i}`, status: 'ACTIVE', views: 1 })),
-      ...Array.from({ length: 15 }, (_, i) => makeAd({ id: `sold-${i}`, status: 'SOLD', views: 2 })),
-    ];
-    mockUseMyAds.mockReturnValue({ data: { items: manyAds }, isLoading: false } as never);
-    mockUseFavorites.mockReturnValue({ data: { items: [] }, isLoading: false } as never);
-    render(<DashboardStats />);
-
-    expect(screen.getByText('الإعلانات النشطة').closest('div')).toHaveTextContent((30).toLocaleString('ar'));
-    expect(screen.getByText('إعلانات تم بيعها').closest('div')).toHaveTextContent((15).toLocaleString('ar'));
-    expect(screen.getByText('إجمالي المشاهدات').closest('div')).toHaveTextContent((60).toLocaleString('ar'));
+    expect(screen.getByText('الإعلانات النشطة').closest('div')).toHaveTextContent((430).toLocaleString('ar'));
+    expect(screen.getByText('إعلانات تم بيعها').closest('div')).toHaveTextContent((215).toLocaleString('ar'));
+    expect(screen.getByText('إجمالي المشاهدات').closest('div')).toHaveTextContent((98_000).toLocaleString('ar'));
+    expect(screen.getByText('المفضلة').closest('div')).toHaveTextContent((640).toLocaleString('ar'));
   });
 });

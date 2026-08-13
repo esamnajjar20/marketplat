@@ -5,22 +5,21 @@ import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useAds }         from '@/hooks/queries/useAds';
 
 const DISPLAY_COUNT = 4;
-// FIX FEAT-06: the backend has no `isFeatured` query param to filter by
-// server-side — it only sorts featured ads first (isPinned DESC,
-// isFeatured DESC — see ads.repository.ts). Previously this fetched
-// exactly DISPLAY_COUNT ads and filtered client-side, so with fewer
-// than DISPLAY_COUNT featured ads in the whole system this section
-// showed fewer cards than were actually available, or nothing at all,
-// even though more featured ads existed further down the sorted list
-// (behind non-featured ads once fewer than DISPLAY_COUNT are featured).
-// Fetching a larger page before filtering — and slicing back down to
-// DISPLAY_COUNT after — means every currently-featured ad within this
-// wider window is found instead of only the first four overall.
-const FETCH_COUNT = 20;
 
+// FIX FEAT-06 (superseded): this used to fetch a wider page (20) and
+// filter isFeatured client-side, because the backend had no isFeatured
+// query param — it only sorted featured ads first. That broke once the
+// marketplace grew past a small number of ads: if fewer than the
+// fetched-window size were currently featured, some or all of them
+// could sit further down the isFeatured-sorted list than the window
+// reached, so this section would show fewer cards than actually exist,
+// or nothing at all, even though featured ads were live elsewhere.
+// The backend now accepts `isFeatured` directly (ads.validation.ts +
+// ads.repository.ts, indexed via the existing [isFeatured, isPinned]
+// index), so this always gets an accurate count regardless of scale.
 export function FeaturedAds() {
-  const { data, isLoading } = useAds({ limit: FETCH_COUNT });
-  const items = (data?.items?.filter((a) => a.isFeatured) ?? []).slice(0, DISPLAY_COUNT);
+  const { data, isLoading } = useAds({ isFeatured: true, limit: DISPLAY_COUNT });
+  const items = data?.items ?? [];
 
   if (isLoading) {
     return (

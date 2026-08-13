@@ -98,10 +98,10 @@ export function getFollowedStoreIdsSnapshot(
  * There is no single-store "am I following this" endpoint, so — same
  * reasoning and shape as useIsFavorited — this fetches the full
  * followed-stores list once (capped at the backend's max page size of
- * 100, matching the MAX_ADS_FOR_STATS / useFavorites({ limit: 100 })
- * convention already used elsewhere) and checks membership reactively
- * against the shared cache Set, which useToggleStoreFollow keeps in
- * sync on every successful toggle.
+ * 100, matching the useFavorites({ limit: 100 }) convention already
+ * used elsewhere) and checks membership reactively against the shared
+ * cache Set, which useToggleStoreFollow keeps in sync on every
+ * successful toggle.
  */
 export function useIsFollowingStore(storeId: string): boolean {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);

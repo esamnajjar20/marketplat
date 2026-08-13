@@ -124,3 +124,28 @@ describe('getAdsSchema — sortBy (FIX H-1)', () => {
     if (result.success) expect(result.data.query.sortBy).toBeUndefined();
   });
 });
+
+describe('getAdsSchema — isFeatured (FIX FEAT-06)', () => {
+  it('accepts the string "true" (query string, same shape as isNegotiable) and parses it as boolean true', () => {
+    const result = getAdsSchema.safeParse({ query: { isFeatured: 'true' } });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.query.isFeatured).toBe(true);
+  });
+
+  it('accepts the string "false" and parses it as boolean false — NOT true', () => {
+    const result = getAdsSchema.safeParse({ query: { isFeatured: 'false' } });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.query.isFeatured).toBe(false);
+  });
+
+  it('leaves isFeatured undefined when omitted (repository applies no filter)', () => {
+    const result = getAdsSchema.safeParse({ query: {} });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.query.isFeatured).toBeUndefined();
+  });
+
+  it('rejects a nonsense string value rather than silently coercing it', () => {
+    const result = getAdsSchema.safeParse({ query: { isFeatured: 'maybe' } });
+    expect(result.success).toBe(false);
+  });
+});

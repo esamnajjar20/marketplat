@@ -69,6 +69,30 @@ describe('favoritesRepository', () => {
     });
   });
 
+  describe('countByUserId (FIX BUG-07)', () => {
+    it('counts favorites for the user, excluding ads with status DELETED (same filter as findManyByUserId)', async () => {
+      (prisma.favorite.count as jest.Mock).mockResolvedValue(9);
+
+      const result = await favoritesRepository.countByUserId(userId);
+
+      expect(prisma.favorite.count).toHaveBeenCalledWith({
+        where: { userId, ad: { status: { not: 'DELETED' } } },
+      });
+      expect(result).toBe(9);
+    });
+
+    // FIX BUG-07 regression guard: the whole point of this method is
+    // that it has no page to outgrow — count() has no skip/take, so it
+    // stays accurate however many favorites the user has.
+    it('is not affected by favorite counts far beyond the old 100-item stats page-size cap', async () => {
+      (prisma.favorite.count as jest.Mock).mockResolvedValue(640);
+
+      const result = await favoritesRepository.countByUserId(userId);
+
+      expect(result).toBe(640);
+    });
+  });
+
   describe('findUserIdsByAdId', () => {
     it('queries favorites for the ad and returns just the userIds', async () => {
       (prisma.favorite.findMany as jest.Mock).mockResolvedValue([

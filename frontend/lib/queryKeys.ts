@@ -28,6 +28,7 @@ export const queryKeys = {
     detail:  (id: string)          => ['ads', 'detail', id]     as const,
     related: (id: string)          => ['ads', 'related', id]    as const,
     mine:    (params?: object)     => ['ads', 'me', params ?? {}] as const,
+    myStats: ()                    => ['ads', 'me', 'stats']       as const,
   },
 
   // ── Recommendations (Gap #9) ──────────────────────────────────

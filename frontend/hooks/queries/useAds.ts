@@ -97,6 +97,23 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
   });
 }
 
+/**
+ * GET /ads/me/stats — aggregate dashboard counts (active/sold ads,
+ * total views, favorites count). FIX BUG-06/BUG-07: replaces
+ * DashboardStats.tsx's previous approach of fetching a page of ads +
+ * a page of favorites (capped at 100 each) and reducing them
+ * client-side, which silently undercounted for any user past that
+ * cap. This is a single real aggregate query server-side — see
+ * ads.service.ts's getMyStats — so it's correct at any scale.
+ */
+export function useMyAdStats() {
+  return useQuery({
+    queryKey:  queryKeys.ads.myStats(),
+    queryFn:   () => adsApi.getMyStats().then((r) => r.data.data),
+    staleTime: CACHE_TTL.myAds,
+  });
+}
+
 /** GET /users/:id/ads — public ads of another user */
 export function useUserAds(userId: string, params?: { page?: number; limit?: number }) {
   return useQuery({

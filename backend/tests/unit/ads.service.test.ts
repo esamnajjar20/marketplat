@@ -1,5 +1,6 @@
 import { adsService } from '../../src/modules/ads/ads.service';
 import { adsRepository } from '../../src/modules/ads/ads.repository';
+import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
 import { viewsBuffer } from '../../src/shared/utils/viewsBuffer';
 import { redis } from '../../src/config/redis';
@@ -12,6 +13,12 @@ import { createTestUser } from '../helpers/auth.helper';
 import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 
 jest.mock('../../src/modules/ads/ads.repository');
+jest.mock('../../src/modules/favorites/favorites.repository', () => ({
+  favoritesRepository: {
+    countByUserId: jest.fn(),
+    findUserIdsByAdId: jest.fn().mockResolvedValue([]),
+  },
+}));
 jest.mock('../../src/config/env', () => ({
   env: {
     cloudinary: { cloudName: 'demo' },
@@ -394,6 +401,36 @@ describe('AdsService', () => {
 
       const result = await adsService.getRelatedAds('ad-1');
       expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('getMyStats (FIX BUG-06/BUG-07)', () => {
+    it('runs the ad-stats and favorites-count queries in parallel and merges them', async () => {
+      (adsRepository.getStatsByUserId as jest.Mock).mockResolvedValue({
+        activeAds: 4,
+        soldAds: 2,
+        totalViews: 137,
+      });
+      (favoritesRepository.countByUserId as jest.Mock).mockResolvedValue(9);
+
+      const result = await adsService.getMyStats('user-1');
+
+      expect(adsRepository.getStatsByUserId).toHaveBeenCalledWith('user-1');
+      expect(favoritesRepository.countByUserId).toHaveBeenCalledWith('user-1');
+      expect(result).toEqual({ activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 });
+    });
+
+    it('propagates zeros correctly for a user with no ads and no favorites', async () => {
+      (adsRepository.getStatsByUserId as jest.Mock).mockResolvedValue({
+        activeAds: 0,
+        soldAds: 0,
+        totalViews: 0,
+      });
+      (favoritesRepository.countByUserId as jest.Mock).mockResolvedValue(0);
+
+      const result = await adsService.getMyStats('user-1');
+
+      expect(result).toEqual({ activeAds: 0, soldAds: 0, totalViews: 0, favoritesCount: 0 });
     });
   });
 

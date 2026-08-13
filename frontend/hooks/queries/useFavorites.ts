@@ -62,8 +62,8 @@ export function useFavorites(params?: { page?: number; limit?: number }) {
   // existing Set instead of only ever writing page 1 and discarding the
   // rest. Callers that want the whole list up front (e.g. any screen that
   // just needs "is this favorited" everywhere) should call
-  // useFavorites({ limit: 100 }) — the backend's max page size — the same
-  // pattern already used by DashboardStats' MAX_ADS_FOR_STATS fix.
+  // useFavorites({ limit: 100 }) — the backend's max page size — as
+  // AdDetailSection.tsx already does.
   useEffect(() => {
     const data = query.data;
     if (!data) return;

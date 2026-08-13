@@ -11,6 +11,8 @@ jest.mock('../../src/config/prisma', () => ({
       findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
+      groupBy: jest.fn(),
+      aggregate: jest.fn(),
     },
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
@@ -133,6 +135,29 @@ describe('adsRepository', () => {
       await adsRepository.findMany({ page: 3, limit: 10 });
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 20, take: 10 }));
+    });
+
+    it('applies isFeatured filter when provided (FIX FEAT-06)', async () => {
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.ad.count as jest.Mock).mockResolvedValue(0);
+
+      await adsRepository.findMany({ isFeatured: true });
+
+      expect(prisma.ad.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: AdStatus.ACTIVE, isFeatured: true, sellerProfile: { suspended: false } },
+        })
+      );
+    });
+
+    it('omits isFeatured from where when not provided', async () => {
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.ad.count as jest.Mock).mockResolvedValue(0);
+
+      await adsRepository.findMany({});
+
+      const call = (prisma.ad.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where).not.toHaveProperty('isFeatured');
     });
 
     it('returns ads and total from the parallel queries', async () => {
@@ -290,6 +315,76 @@ describe('adsRepository', () => {
       await adsRepository.findManyByUserId(userId, { page: 2, limit: 5 });
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 5, take: 5 }));
+    });
+  });
+
+  describe('getStatsByUserId (FIX BUG-06/BUG-07)', () => {
+    it('runs groupBy and aggregate scoped to the user, excluding DELETED ads', async () => {
+      (prisma.ad.groupBy as jest.Mock).mockResolvedValue([
+        { status: AdStatus.ACTIVE, _count: { _all: 3 } },
+        { status: AdStatus.SOLD, _count: { _all: 1 } },
+      ]);
+      (prisma.ad.aggregate as jest.Mock).mockResolvedValue({ _sum: { views: 42 } });
+
+      await adsRepository.getStatsByUserId(userId);
+
+      expect(prisma.ad.groupBy).toHaveBeenCalledWith({
+        by: ['status'],
+        where: { userId, status: { not: AdStatus.DELETED } },
+        _count: { _all: true },
+      });
+      expect(prisma.ad.aggregate).toHaveBeenCalledWith({
+        _sum: { views: true },
+        where: { userId, status: { not: AdStatus.DELETED } },
+      });
+    });
+
+    it('maps groupBy rows to activeAds/soldAds by status and reads totalViews from the aggregate sum', async () => {
+      (prisma.ad.groupBy as jest.Mock).mockResolvedValue([
+        { status: AdStatus.ACTIVE, _count: { _all: 7 } },
+        { status: AdStatus.SOLD, _count: { _all: 2 } },
+      ]);
+      (prisma.ad.aggregate as jest.Mock).mockResolvedValue({ _sum: { views: 150 } });
+
+      const result = await adsRepository.getStatsByUserId(userId);
+
+      expect(result).toEqual({ activeAds: 7, soldAds: 2, totalViews: 150 });
+    });
+
+    it('defaults activeAds/soldAds to 0 when groupBy has no row for that status (a seller with only SOLD ads)', async () => {
+      (prisma.ad.groupBy as jest.Mock).mockResolvedValue([
+        { status: AdStatus.SOLD, _count: { _all: 4 } },
+      ]);
+      (prisma.ad.aggregate as jest.Mock).mockResolvedValue({ _sum: { views: 20 } });
+
+      const result = await adsRepository.getStatsByUserId(userId);
+
+      expect(result).toEqual({ activeAds: 0, soldAds: 4, totalViews: 20 });
+    });
+
+    it('defaults totalViews to 0 when the aggregate sum is null (a user with zero non-deleted ads)', async () => {
+      (prisma.ad.groupBy as jest.Mock).mockResolvedValue([]);
+      (prisma.ad.aggregate as jest.Mock).mockResolvedValue({ _sum: { views: null } });
+
+      const result = await adsRepository.getStatsByUserId(userId);
+
+      expect(result).toEqual({ activeAds: 0, soldAds: 0, totalViews: 0 });
+    });
+
+    // FIX BUG-06/BUG-07 regression guard: the entire point of this method
+    // is that it's a real aggregate with no page-size ceiling — a seller
+    // with hundreds of ads must produce an accurate count exactly like a
+    // seller with a handful, since groupBy/aggregate never LIMIT/OFFSET.
+    it('is not affected by ad counts far beyond the old 100-item stats page-size cap', async () => {
+      (prisma.ad.groupBy as jest.Mock).mockResolvedValue([
+        { status: AdStatus.ACTIVE, _count: { _all: 430 } },
+        { status: AdStatus.SOLD, _count: { _all: 215 } },
+      ]);
+      (prisma.ad.aggregate as jest.Mock).mockResolvedValue({ _sum: { views: 98_000 } });
+
+      const result = await adsRepository.getStatsByUserId(userId);
+
+      expect(result).toEqual({ activeAds: 430, soldAds: 215, totalViews: 98_000 });
     });
   });
 

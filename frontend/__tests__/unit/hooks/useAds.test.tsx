@@ -23,12 +23,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useAds, useSearchAds, useAd, useRelatedAds, useMyAds, useUserAds } from '@/hooks/queries/useAds';
+import { useAds, useSearchAds, useAd, useRelatedAds, useMyAds, useMyAdStats, useUserAds } from '@/hooks/queries/useAds';
 import { adsApi } from '@/api/ads.api';
 import { usersApi } from '@/api/users.api';
 
 vi.mock('@/api/ads.api', () => ({
-  adsApi: { getAll: vi.fn(), searchAds: vi.fn(), getById: vi.fn(), getRelated: vi.fn(), getMyAds: vi.fn() },
+  adsApi: { getAll: vi.fn(), searchAds: vi.fn(), getById: vi.fn(), getRelated: vi.fn(), getMyAds: vi.fn(), getMyStats: vi.fn() },
 }));
 
 vi.mock('@/api/users.api', () => ({
@@ -52,6 +52,9 @@ beforeEach(() => {
   // which go through unwrapPaginated and resolve to { items, meta }.
   (adsApi.getRelated as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: [] } });
   (adsApi.getMyAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
+  (adsApi.getMyStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+    data: { data: { activeAds: 0, soldAds: 0, totalViews: 0, favoritesCount: 0 } },
+  });
   (usersApi.getUserAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
 });
 
@@ -140,6 +143,18 @@ describe('useMyAds', () => {
     const { result } = renderHook(() => useMyAds({ page: 1, status: 'ACTIVE' as any }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(adsApi.getMyAds).toHaveBeenCalledWith({ page: 1, status: 'ACTIVE' });
+  });
+});
+
+describe('useMyAdStats', () => {
+  it('calls adsApi.getMyStats and resolves with the aggregate response', async () => {
+    (adsApi.getMyStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 } },
+    });
+    const { result } = renderHook(() => useMyAdStats(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(adsApi.getMyStats).toHaveBeenCalled();
+    expect(result.current.data).toEqual({ activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 });
   });
 });
 

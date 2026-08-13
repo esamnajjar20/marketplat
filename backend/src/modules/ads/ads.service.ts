@@ -313,6 +313,22 @@ export const adsService = {
     return { items: ads, meta: buildPaginationMeta(total, page, limit) };
   },
 
+  // FIX BUG-06/BUG-07: replaces DashboardStats.tsx's previous approach
+  // of fetching up to 100 ads + 100 favorites and reducing them
+  // client-side (itself a fix for an even smaller silent-undercount
+  // bug at the default page size of 20) — see ads.repository.ts's
+  // getStatsByUserId and favorites.repository.ts's countByUserId for
+  // the aggregation detail. Correct at any scale, one request.
+  getMyStats: async (
+    userId: string
+  ): Promise<{ activeAds: number; soldAds: number; totalViews: number; favoritesCount: number }> => {
+    const [adStats, favoritesCount] = await Promise.all([
+      adsRepository.getStatsByUserId(userId),
+      favoritesRepository.countByUserId(userId),
+    ]);
+    return { ...adStats, favoritesCount };
+  },
+
   getRelatedAds: async (adId: string): Promise<AdListRow[]> => {
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');

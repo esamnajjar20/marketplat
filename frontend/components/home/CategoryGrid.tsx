@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { ROUTES }        from '@/lib/constants';
 import { Skeleton }      from '@/components/shared/ui/Skeleton';
+import { Button }        from '@/components/shared/ui/Button';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Car, Home, Smartphone, Sofa, Briefcase, Shirt,
   Baby, Dumbbell, Wrench, PawPrint, BookOpen, Tag,
@@ -81,14 +84,37 @@ export function CategoryGrid() {
     );
   }
 
-  const top = (categories ?? []).filter((c) => !c.parentId).slice(0, 8);
+  const all = (categories ?? []).filter((c) => !c.parentId);
+  return <CategoryGridContent categories={all} />;
+}
+
+/**
+ * FIX UX-GAP-06: both the mobile pill row and the desktop grid used to
+ * `.slice(0, 8)` unconditionally with no signal that more categories
+ * existed. On desktop the wide grid made 8 look complete; on mobile
+ * the same cap hid entries behind a horizontal-scroll row with no
+ * visible cue that anything was missing. Mobile now scrolls through
+ * every top-level category (the row was already a horizontal-scroll
+ * affordance — the cap was actively fighting its own UI pattern).
+ * Desktop shows the first 8 and reveals the rest via an inline
+ * expand/collapse toggle rather than linking to a "view all
+ * categories" page, since no such route exists yet in this app.
+ */
+const DESKTOP_INITIAL_COUNT = 8;
+
+function CategoryGridContent({ categories }: { categories: NonNullable<ReturnType<typeof useCategories>['data']> }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? categories : categories.slice(0, DESKTOP_INITIAL_COUNT);
+  const hasMore = categories.length > DESKTOP_INITIAL_COUNT;
 
   return (
     <>
       {/* Mobile: horizontal-scroll colorful pills, matching the
-          reference layout ("ماذا تبحث عنه؟" chip row). */}
+          reference layout ("ماذا تبحث عنه؟" chip row). Shows every
+          top-level category — the row already scrolls, so nothing
+          needs to be capped or hidden here. */}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:hidden [&::-webkit-scrollbar]:hidden">
-        {top.map((cat, i) => (
+        {categories.map((cat, i) => (
           <Link
             key={cat.id}
             href={ROUTES.category(cat.slug)}
@@ -99,26 +125,39 @@ export function CategoryGrid() {
         ))}
       </div>
 
-      {/* Desktop/tablet: original icon-card grid. */}
-      <div className="hidden grid-cols-3 gap-3 sm:grid md:grid-cols-4">
-        {top.map((cat) => {
-          const Icon = iconFor(cat.slug, cat.nameAr);
-          return (
-            <Link
-              key={cat.id}
-              href={ROUTES.category(cat.slug)}
-              className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <Icon className="h-5 w-5" />
-              </span>
-              <span className="truncate text-sm font-medium">{cat.nameAr}</span>
-              {cat._count && (
-                <span className="text-xs text-muted-foreground">{cat._count.ads} إعلان</span>
+      {/* Desktop/tablet: icon-card grid, expandable past the initial 8. */}
+      <div className="hidden sm:block">
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-4">
+          {visible.map((cat) => {
+            const Icon = iconFor(cat.slug, cat.nameAr);
+            return (
+              <Link
+                key={cat.id}
+                href={ROUTES.category(cat.slug)}
+                className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="truncate text-sm font-medium">{cat.nameAr}</span>
+                {cat._count && (
+                  <span className="text-xs text-muted-foreground">{cat._count.ads} إعلان</span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+        {hasMore && (
+          <div className="mt-3 flex justify-center">
+            <Button variant="ghost" size="sm" onClick={() => setExpanded((v) => !v)}>
+              {expanded ? (
+                <>عرض أقل <ChevronUp className="h-4 w-4" /></>
+              ) : (
+                <>عرض كل الفئات ({categories.length}) <ChevronDown className="h-4 w-4" /></>
               )}
-            </Link>
-          );
-        })}
+            </Button>
+          </div>
+        )}
       </div>
     </>
   );

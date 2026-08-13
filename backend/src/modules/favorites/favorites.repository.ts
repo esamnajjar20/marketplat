@@ -103,6 +103,15 @@ export const favoritesRepository = {
   // ad.status: 'DELETED' at the query level (not filtered client-side
   // after the fact) means both the returned rows AND the pagination
   // total/count are correct together.
+  // FIX BUG-07 (dashboard stats, superseded): DashboardStats.tsx
+  // previously read favorites?.meta?.total after fetching a page of up
+  // to 100 favorites just to get the count — same over-fetch pattern
+  // as ads.repository.ts's old getMyAds-for-stats approach, and same
+  // ceiling bug at >100. A plain count() needs no page fetch at all and
+  // has no limit.
+  countByUserId: async (userId: string): Promise<number> =>
+    prisma.favorite.count({ where: { userId, ad: { status: { not: 'DELETED' } } } }),
+
   findManyByUserId: async (
     userId: string,
     query: GetFavoritesQuery

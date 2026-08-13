@@ -14,10 +14,10 @@ import { cn } from '@/lib/utils';
  * them together into "here's what to do first". Every step below
  * reads from data the dashboard is already fetching elsewhere
  * (useMySellerProfile is CreateAdGate's own check; useMyAds({limit:1})
- * is a cheap existence probe, not a duplicate of DashboardStats' full
- * MAX_ADS_FOR_STATS fetch — React Query caches them under different
- * query keys since the params differ) rather than inventing new
- * client-side "completeness" state.
+ * is a cheap existence probe with its own query key — unrelated to
+ * DashboardStats, which now reads from the separate useMyAdStats
+ * aggregate endpoint, not from a list of ads) rather than inventing
+ * new client-side "completeness" state.
  *
  * Collapses to nothing (returns null) once all steps are done, so it
  * doesn't linger as dead chrome for an established seller.

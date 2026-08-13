@@ -120,6 +120,7 @@ export const adsRepository = {
       minPrice,
       maxPrice,
       condition,
+      isFeatured,
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = query;
@@ -155,6 +156,9 @@ export const adsRepository = {
       if (condition) whereParts.push(Prisma.sql`"condition" = ${condition}::"AdCondition"`);
       if (minPrice !== undefined) whereParts.push(Prisma.sql`"price" >= ${minPrice}`);
       if (maxPrice !== undefined) whereParts.push(Prisma.sql`"price" <= ${maxPrice}`);
+      // FIX FEAT-06: same param, search-branch side — see the plain
+      // where-clause branch below for the full rationale.
+      if (isFeatured !== undefined) whereParts.push(Prisma.sql`"isFeatured" = ${isFeatured}`);
 
       const whereSql = Prisma.sql`WHERE ${Prisma.join(whereParts, ' AND ')}`;
       // FIX H-1 (previously): 'views' became a valid sortBy value in
@@ -223,6 +227,18 @@ export const adsRepository = {
       ...(city && { city }),
       ...(categoryId && { categoryId }),
       ...(condition && { condition }),
+      // FIX FEAT-06: previously there was no server-side way to ask for
+      // only featured ads — FeaturedAds.tsx (frontend) fetched a fixed
+      // page of the default-sorted list (which already sorts isPinned
+      // DESC, isFeatured DESC — see orderBy below) and filtered
+      // isFeatured client-side. That broke once fewer than the page
+      // size were actually featured: the featured ones could be pushed
+      // past the fetched window by newer non-featured ads, or the
+      // section could show nothing at all even though featured ads
+      // existed elsewhere in the sorted list. Filtering here means the
+      // count returned is always accurate regardless of how large the
+      // marketplace grows.
+      ...(isFeatured !== undefined && { isFeatured }),
       // AUDIT-FIX L-01: the `search` branch above already returns
       // early via $queryRaw + to_tsvector full-text search, so this
       // where-clause (used only for the non-search list/filter path)
@@ -253,6 +269,39 @@ export const adsRepository = {
 
   findById: async (id: string): Promise<AdWithAuthor | null> =>
     prisma.ad.findUnique({ where: { id }, include: adWithRelations }),
+
+  // FIX BUG-06/BUG-07 (dashboard stats, superseded): DashboardStats.tsx
+  // previously computed activeAds/soldAds/totalViews by fetching up to
+  // 100 of the user's ads (getAdsSchema's own max page size) and
+  // reducing them client-side — a seller with more than 100 ads still
+  // got silently wrong numbers, just at a higher threshold than the
+  // original bug (page-default 20) it replaced. This runs real
+  // aggregations instead: groupBy for per-status counts (index-backed
+  // by the existing [userId, status] composite index — same index
+  // countActiveByUserId above already relies on) and a single SUM for
+  // views, both scoped server-side to this user's non-deleted ads.
+  // Correct at any ad count, one request, no page-size ceiling.
+  getStatsByUserId: async (
+    userId: string
+  ): Promise<{ activeAds: number; soldAds: number; totalViews: number }> => {
+    const [statusCounts, viewsAgg] = await Promise.all([
+      prisma.ad.groupBy({
+        by: ['status'],
+        where: { userId, status: { not: AdStatus.DELETED } },
+        _count: { _all: true },
+      }),
+      prisma.ad.aggregate({
+        _sum: { views: true },
+        where: { userId, status: { not: AdStatus.DELETED } },
+      }),
+    ]);
+
+    const activeAds = statusCounts.find((s) => s.status === AdStatus.ACTIVE)?._count._all ?? 0;
+    const soldAds = statusCounts.find((s) => s.status === AdStatus.SOLD)?._count._all ?? 0;
+    const totalViews = viewsAgg._sum.views ?? 0;
+
+    return { activeAds, soldAds, totalViews };
+  },
 
   findManyByUserId: async (
     userId: string,

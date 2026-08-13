@@ -88,6 +88,11 @@ const adsQueryBaseSchema = z.object({
   search: z.string().min(1).max(200).optional(),
   sortBy: z.enum(AD_SORT_FIELDS).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
+  // FIX FEAT-06: lets a caller ask for featured ads directly instead of
+  // over-fetching a page and filtering client-side (see FeaturedAds.tsx).
+  // Query strings arrive as "true"/"false" strings, same shape as
+  // isNegotiable above — reuses the same coercion helper.
+  isFeatured: z.preprocess(preprocessFormBoolean, z.boolean()).optional(),
 });
 
 const adsQuerySchema = adsQueryBaseSchema.refine(

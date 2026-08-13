@@ -67,6 +67,19 @@ export const adsApi = {
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /**
+   * GET /ads/me/stats — aggregate counts for the dashboard
+   * (active/sold ads, total views, favorites count). Not paginated —
+   * bare object response, no unwrapPaginated needed.
+   */
+  getMyStats: () =>
+    apiClient.get<ApiResponse<{
+      activeAds: number;
+      soldAds: number;
+      totalViews: number;
+      favoritesCount: number;
+    }>>('/ads/me/stats'),
+
+  /**
    * POST /ads — create new ad (multipart/form-data).
    *
    * UX-FIX P3-10b: accepts an optional onUploadProgress callback so

@@ -1,58 +1,42 @@
 'use client';
 
-import { useMyAds }      from '@/hooks/queries/useAds';
-import { useFavorites }  from '@/hooks/queries/useFavorites';
+import { useMyAdStats } from '@/hooks/queries/useAds';
 import { Eye, Heart, ShoppingBag, TrendingUp, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 
 /**
- * FIX BUG-06: useMyAds() with no params sent no `limit`, so the backend
- * fell back to its default of 20 — every stat below (active/sold count,
- * total views) was silently computed from only the user's first 20 ads,
- * with no test exercising more than that. There's no dedicated
- * aggregate-stats endpoint for a regular user (unlike admin's
- * getStats()), so this requests the backend's actual max page size
- * (100, enforced by getAdsSchema) instead of its default. A seller
- * with more than 100 ads is not fully covered by this fix — that would
- * need a real server-side aggregate endpoint — but it closes the gap
- * for the overwhelming majority of sellers today.
+ * FIX BUG-06/BUG-07 (superseded): both fixes previously worked around
+ * the lack of a real aggregate-stats endpoint by requesting the
+ * backend's max page size (100) for ads and favorites and reducing
+ * them client-side — correct for the overwhelming majority of sellers,
+ * but still silently wrong past 100 items, same bug shape as the
+ * original default-page-size-of-20 bug, just at a higher ceiling.
  *
- * FIX BUG-07: favCount read `favorites?.items?.length` — the length of
- * whatever page was fetched (also capped at the default limit) — instead
- * of the real total from `favorites?.data.meta.total`. Same bug pattern
- * as BUG-06, just left unfixed here: a user with more favorites than fit
- * on one page saw an undercount. Fixed to request the max page size (for
- * consistency with myAds above) and read the true total from meta.
+ * Now backed by a real server-side aggregate: GET /ads/me/stats runs
+ * groupBy/count/sum queries directly (see ads.service.ts's getMyStats
+ * and ads.repository.ts's getStatsByUserId), so every number here is
+ * exact regardless of how many ads or favorites the user has — no page
+ * size to outgrow.
  */
-const MAX_ADS_FOR_STATS = 100;
-
 export function DashboardStats() {
-  const { data: myAds,    isLoading: adsLoading, isError: adsError, refetch: refetchAds }
-    = useMyAds({ limit: MAX_ADS_FOR_STATS });
-  const { data: favorites, isLoading: favLoading, isError: favError, refetch: refetchFav }
-    = useFavorites({ limit: MAX_ADS_FOR_STATS });
+  const { data: stats, isLoading, isError, refetch } = useMyAdStats();
 
-  if (adsLoading || favLoading) return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
+  if (isLoading) return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
 
   // UX-FIX P1-11: this is the most silent failure mode found in the
   // whole audit — a failed fetch produced no empty state at all, just
   // every stat quietly computed as 0 via the `?? 0` fallbacks below.
   // A seller would see "0 إعلانات نشطة، 0 مشاهدات" and could reasonably
   // read that as their real numbers rather than "we couldn't load
-  // this". Surfacing the failure explicitly, with a retry that re-fires
-  // whichever query(ies) actually failed.
-  if (adsError || favError) {
+  // this". Surfacing the failure explicitly, with a retry.
+  if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
         <AlertTriangle className="h-8 w-8 text-muted-foreground" />
         <p className="text-destructive">حدث خطأ أثناء تحميل الإحصائيات</p>
         <button
           type="button"
-          onClick={() => { if (adsError) {
-            void refetchAds();
-          } if (favError) {
-            void refetchFav();
-          } }}
+          onClick={() => refetch()}
           className="text-sm text-primary hover:underline"
         >
           إعادة المحاولة
@@ -61,24 +45,19 @@ export function DashboardStats() {
     );
   }
 
-  const activeAds  = myAds?.items?.filter((a) => a.status === 'ACTIVE').length  ?? 0;
-  const soldAds    = myAds?.items?.filter((a) => a.status === 'SOLD').length    ?? 0;
-  const totalViews = myAds?.items?.reduce((sum, a) => sum + a.views, 0) ?? 0;
-  const favCount   = favorites?.meta?.total ?? 0;
-
-  const stats = [
+  const items = [
     // FIX A11Y/UX-01: same fix as AdminStatsGrid — primary/accent
     // instead of stock blue-500/purple-500, so every color here comes
     // from the actual design system tokens.
-    { label: 'الإعلانات النشطة', value: activeAds,  icon: ShoppingBag, color: 'text-primary' },
-    { label: 'إعلانات تم بيعها', value: soldAds,    icon: TrendingUp,  color: 'text-success' },
-    { label: 'إجمالي المشاهدات', value: totalViews, icon: Eye,         color: 'text-accent' },
-    { label: 'المفضلة',          value: favCount,   icon: Heart,       color: 'text-destructive' },
+    { label: 'الإعلانات النشطة', value: stats?.activeAds ?? 0,       icon: ShoppingBag, color: 'text-primary' },
+    { label: 'إعلانات تم بيعها', value: stats?.soldAds ?? 0,         icon: TrendingUp,  color: 'text-success' },
+    { label: 'إجمالي المشاهدات', value: stats?.totalViews ?? 0,      icon: Eye,         color: 'text-accent' },
+    { label: 'المفضلة',          value: stats?.favoritesCount ?? 0,  icon: Heart,       color: 'text-destructive' },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map(({ label, value, icon: Icon, color }) => (
+      {items.map(({ label, value, icon: Icon, color }) => (
         <div key={label} className="rounded-lg border bg-card p-4 space-y-2">
           <Icon className={`h-5 w-5 ${color}`} />
           <p className="text-2xl font-bold">{value.toLocaleString('ar')}</p>

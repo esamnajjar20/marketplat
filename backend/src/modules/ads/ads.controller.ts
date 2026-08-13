@@ -86,6 +86,19 @@ export const adsController = {
     }
   },
 
+  // FIX BUG-06/BUG-07: dedicated aggregate-stats endpoint for
+  // DashboardStats.tsx — see ads.service.ts's getMyStats for why this
+  // replaces the previous fetch-a-page-and-reduce-client-side approach.
+  getMyStats: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const stats = await adsService.getMyStats(user.userId);
+      res.status(200).json(successResponse('My stats fetched', stats));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getRelatedAds: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { params } = adIdSchema.parse({ params: req.params });

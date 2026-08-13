@@ -2,15 +2,22 @@
  * __tests__/components/CategoryGrid.test.tsx
  *
  * CategoryGrid's real logic: a loading-skeleton branch, filtering to
- * top-level categories only (parentId === null) capped at 8, the
- * keyword-based icon-matching rules (the part called out in the
- * component's own comment as worth testing), and the fallback Tag icon
- * for unmatched categories. ROUTES.category is a function (not a
- * string), unlike most ROUTES entries — asserted explicitly since
- * that's an easy thing to get wrong.
+ * top-level categories only (parentId === null), the keyword-based
+ * icon-matching rules (the part called out in the component's own
+ * comment as worth testing), and the fallback Tag icon for unmatched
+ * categories. ROUTES.category is a function (not a string), unlike
+ * most ROUTES entries — asserted explicitly since that's an easy
+ * thing to get wrong.
+ *
+ * FIX UX-GAP-06: the mobile pill row no longer caps at 8 (it was
+ * already a horizontal-scroll affordance, so capping it just hid
+ * categories with no indication). The desktop grid still shows an
+ * initial 8 but reveals the rest via an expand toggle rather than
+ * dropping them.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { ROUTES } from '@/lib/constants';
@@ -61,15 +68,41 @@ describe('CategoryGrid', () => {
     expect(screen.queryByText('قطع غيار')).not.toBeInTheDocument();
   });
 
-  it('caps the grid at 8 top-level categories', () => {
+  it('shows every category as a mobile pill, but caps the desktop grid at 8 until expanded', () => {
     const categories = Array.from({ length: 12 }, (_, i) =>
       makeCategory({ id: String(i), nameAr: `تصنيف ${i}`, slug: `cat-${i}`, parentId: null }),
     );
     mockUseCategories.mockReturnValue({ data: categories, isLoading: false } as never);
     const { container } = render(<CategoryGrid />);
 
-    // 8 categories × 2 parallel layouts (mobile pills + desktop grid) = 16 links.
-    expect(container.querySelectorAll('a')).toHaveLength(16);
+    // 12 mobile pills (uncapped) + 8 desktop grid links (initial cap) = 20 links.
+    expect(container.querySelectorAll('a')).toHaveLength(20);
+    expect(screen.getByText(/عرض كل الفئات \(12\)/)).toBeInTheDocument();
+  });
+
+  it('expands the desktop grid to show all categories on toggle click', async () => {
+    const categories = Array.from({ length: 12 }, (_, i) =>
+      makeCategory({ id: String(i), nameAr: `تصنيف ${i}`, slug: `cat-${i}`, parentId: null }),
+    );
+    mockUseCategories.mockReturnValue({ data: categories, isLoading: false } as never);
+    const user = userEvent.setup();
+    const { container } = render(<CategoryGrid />);
+
+    await user.click(screen.getByText(/عرض كل الفئات/));
+
+    // 12 mobile pills + 12 desktop grid links (expanded) = 24 links.
+    expect(container.querySelectorAll('a')).toHaveLength(24);
+    expect(screen.getByText('عرض أقل')).toBeInTheDocument();
+  });
+
+  it('does not show the expand toggle when 8 or fewer categories exist', () => {
+    const categories = Array.from({ length: 5 }, (_, i) =>
+      makeCategory({ id: String(i), nameAr: `تصنيف ${i}`, slug: `cat-${i}`, parentId: null }),
+    );
+    mockUseCategories.mockReturnValue({ data: categories, isLoading: false } as never);
+    render(<CategoryGrid />);
+
+    expect(screen.queryByText(/عرض كل الفئات/)).not.toBeInTheDocument();
   });
 
   it('links each category to ROUTES.category(slug)', () => {
@@ -150,3 +183,4 @@ describe('CategoryGrid', () => {
     expect(container.querySelectorAll('a')).toHaveLength(0);
   });
 });
+

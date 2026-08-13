@@ -198,6 +198,36 @@ describe('adsController', () => {
     });
   });
 
+  describe('getMyStats (FIX BUG-06/BUG-07)', () => {
+    it('returns 200 with the aggregate stats for the authenticated user', async () => {
+      const req = mockRequest({ query: {} });
+      const res = mockResponse();
+      const next = mockNext();
+      const stats = { activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 };
+      (adsService.getMyStats as jest.Mock).mockResolvedValue(stats);
+
+      await adsController.getMyStats(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: stats }));
+      expect(adsService.getMyStats).toHaveBeenCalledWith('user-1');
+    });
+
+    it('calls next(error) when unauthenticated', async () => {
+      const req = mockRequest({ query: {} });
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await adsController.getMyStats(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(adsService.getMyStats).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getRelatedAds', () => {
     it('returns 200 with related ads on success', async () => {
       const req = mockRequest({ params: { id: 'ad-1' } });
