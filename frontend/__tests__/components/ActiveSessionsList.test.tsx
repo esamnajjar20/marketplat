@@ -87,11 +87,26 @@ describe('ActiveSessionsList', () => {
     expect(screen.getByText('لا توجد جلسات نشطة')).toBeInTheDocument();
   });
 
-  it('renders each session with its user agent, IP, and last-seen date', () => {
+  it('renders each session with its user agent, masked IP, and last-seen date', () => {
     render(<ActiveSessionsList />);
 
     expect(screen.getByText(/Windows NT 10.0/)).toBeInTheDocument();
-    expect(screen.getByText(/10\.0\.0\.1/)).toBeInTheDocument();
+    // FIX SEC-GAP-01: the full IP must never render — only a masked
+    // form (last octet hidden) survives. Both fixture sessions share
+    // the same first three octets (10.0.0.1 / 10.0.0.2), so they mask
+    // to the identical string — that collision is the masking working
+    // as intended, not a bug, hence getAllByText/length here rather
+    // than getByText.
+    expect(screen.getAllByText(/10\.0\.0\.•••/)).toHaveLength(2);
+    expect(screen.queryByText(/10\.0\.0\.1\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/10\.0\.0\.2\b/)).not.toBeInTheDocument();
+  });
+
+  it('masks IPv6 addresses down to the first two segments', () => {
+    mockSessions({ data: [{ ...currentSession, ip: '2001:0db8:85a3:0000:0000:8a2e:0370:7334' }] });
+    render(<ActiveSessionsList />);
+
+    expect(screen.getByText(/2001:0db8:•••/)).toBeInTheDocument();
   });
 
   it('shows a fallback label when userAgent is missing', () => {

@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { AlertTriangle, MessageSquare } from 'lucide-react';
+import { AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { Button } from '@/components/shared/ui/Button';
 import { useMyConversations } from '@/hooks/queries/useConversations';
 import { usePresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -18,6 +20,8 @@ import type { Conversation } from '@/types/conversation.types';
 function otherParty(conversation: Conversation, userId: string | undefined) {
   return conversation.buyerId === userId ? conversation.seller : conversation.buyer;
 }
+
+const PAGE_SIZE = 20;
 
 interface Props {
   /**
@@ -48,19 +52,39 @@ interface Props {
  * (no onClick-based selection) — the layout for >=lg renders both
  * panes from the same URL segment, so navigation alone is enough to
  * keep the list mounted while swapping ChatWindow's content.
+ *
+ * FIX UX-GAP-02: this used to fetch a flat `limit: 20` with no way to
+ * see anything past the 20 most recently active threads — the same
+ * silent-cap pattern the homepage's FeaturedAds/DashboardStats had.
+ * A "تحميل المزيد" button raises `limit` (not `page`) on click: since
+ * this list also polls (CACHE_TTL.conversations) to surface newly
+ * active threads without a refresh, paging by page-number risks
+ * boundary drift/duplicates the moment a poll reorders results
+ * between page fetches — bumping the single window's size instead
+ * keeps "most recently active first" correct at any point regardless
+ * of what the poll just refreshed underneath it.
  */
 export function ConversationList({ selectedId }: Props = {}) {
   const user = useAuthStore(selectUser);
-  const { data, isLoading, isError, refetch } = useMyConversations({ page: 1, limit: 20 });
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const { data, isLoading, isError, refetch, isFetching } = useMyConversations({ page: 1, limit });
 
   const items = data?.items ?? [];
+  const hasMore = Boolean(data?.meta?.hasNextPage);
+  // isFetching (not isLoading) so the "تحميل المزيد" button itself shows
+  // a pending state on click without the whole list dropping back to
+  // the full-page spinner — isLoading is only true before any data has
+  // ever loaded.
+  const loadingMore = isFetching && !isLoading;
 
   // One bulk presence lookup for every row's other party at once,
   // rather than each row polling on its own — same "single request for
   // the whole visible set" idea as ChatWindow's single-id usage of the
-  // same hook. Backend caps bulk lookups at 50 ids; this page is
-  // limit: 20, so it's always within that cap.
-  const otherPartyIds = items.map((c) => otherParty(c, user?.id).id);
+  // same hook. Backend caps bulk lookups at 50 ids — FIX UX-GAP-02:
+  // this list's own limit can now grow past that via "تحميل المزيد",
+  // so this trims to the most recent 50 rather than assuming the two
+  // caps always match.
+  const otherPartyIds = items.slice(0, 50).map((c) => otherParty(c, user?.id).id);
   const { data: onlineMap } = usePresence(otherPartyIds);
 
   if (isLoading) {
@@ -147,6 +171,13 @@ export function ConversationList({ selectedId }: Props = {}) {
           </Link>
         );
       })}
+      {hasMore && (
+        <div className="flex justify-center border-t p-3">
+          <Button variant="ghost" size="sm" disabled={loadingMore} onClick={() => setLimit((l) => l + PAGE_SIZE)}>
+            {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : 'تحميل المزيد'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

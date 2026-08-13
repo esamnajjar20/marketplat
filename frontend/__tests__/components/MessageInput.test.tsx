@@ -141,4 +141,40 @@ describe('MessageInput', () => {
     render(<MessageInput conversationId="conv-1" />);
     expect(getTextarea()).toHaveAttribute('maxLength', '2000');
   });
+
+  describe('character counter (FIX UX-GAP-05)', () => {
+    it('shows no counter for a short message', async () => {
+      const user = userEvent.setup();
+      render(<MessageInput conversationId="conv-1" />);
+
+      await user.type(getTextarea(), 'رسالة قصيرة');
+
+      expect(screen.queryByText(/\/2000/)).not.toBeInTheDocument();
+    });
+
+    it('shows the counter once the body reaches the warn threshold', async () => {
+      render(<MessageInput conversationId="conv-1" />);
+      const textarea = getTextarea();
+
+      // userEvent.type is too slow for 1800 chars in a unit test —
+      // fireEvent-style direct value + change event covers the same
+      // component logic (the counter reads body.length, not how it
+      // got there).
+      const { fireEvent } = await import('@testing-library/react');
+      fireEvent.change(textarea, { target: { value: 'ا'.repeat(1800) } });
+
+      expect(screen.getByText('1800/2000')).toBeInTheDocument();
+    });
+
+    it('marks the counter as destructive once the body hits the max length', async () => {
+      render(<MessageInput conversationId="conv-1" />);
+      const textarea = getTextarea();
+
+      const { fireEvent } = await import('@testing-library/react');
+      fireEvent.change(textarea, { target: { value: 'ا'.repeat(2000) } });
+
+      const counter = screen.getByText('2000/2000');
+      expect(counter).toHaveClass('text-destructive');
+    });
+  });
 });

@@ -10,6 +10,30 @@ import { useAuthSessions }   from '@/hooks/queries/useAuth';
 import { useRevokeSession, useLogoutAll } from '@/hooks/mutations/useAuthMutations';
 import { formatDate }        from '@/lib/formatters';
 
+/**
+ * FIX SEC-GAP-01: this used to render `IP: {s.ip}` in full — a
+ * security screen leaking the exact network address of every
+ * logged-in device to anyone who sees the tab, a screenshot, or a
+ * screen-share. The backend only sends a raw `ip: string` (no
+ * derived city/region field to show instead — see auth.types.ts),
+ * so this masks the last octet/segment client-side rather than
+ * hiding the field entirely: still enough for a user to recognize
+ * "yes, that's my home network" vs. a genuinely unfamiliar one,
+ * without exposing the full address to anyone glancing at the
+ * screen. Handles both IPv4 (dotted) and IPv6 (colon) shapes.
+ */
+function maskIp(ip: string): string {
+  if (ip.includes('.')) {
+    const parts = ip.split('.');
+    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.•••`;
+  }
+  if (ip.includes(':')) {
+    const parts = ip.split(':').filter(Boolean);
+    if (parts.length >= 2) return `${parts.slice(0, 2).join(':')}:•••`;
+  }
+  return '•••';
+}
+
 export function ActiveSessionsList() {
   const { data: sessions, isLoading, isError, refetch } = useAuthSessions();
   // UX-FIX P1-6: useRevokeSession's own isPending is shared across every
@@ -81,7 +105,7 @@ export function ActiveSessionsList() {
                   <p className="text-sm font-medium break-words">{s.userAgent ?? 'جهاز غير معروف'}</p>
                   {s.isCurrent && <Badge variant="default" className="text-xs">الجلسة الحالية</Badge>}
                 </div>
-                <p className="text-xs text-muted-foreground break-words">IP: {s.ip} · آخر نشاط: {formatDate(s.lastSeen)}</p>
+                <p className="text-xs text-muted-foreground break-words">IP: {maskIp(s.ip)} · آخر نشاط: {formatDate(s.lastSeen)}</p>
               </div>
             </div>
             {!s.isCurrent && (

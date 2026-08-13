@@ -4,9 +4,12 @@
  * Real logic under test: conversation loading/error states, resolving
  * "the other party" from buyerId (see otherParty()), read-receipt
  * icon (Check vs CheckCheck) shown only for my own messages, the
- * empty-thread state, and the block/unblock flow — unblock is a
- * single click while block opens a ConfirmDialog first (mirrors
- * AdminStoresTable/AdminSellersTable's asymmetric-confirm pattern).
+ * empty-thread state, the block/unblock flow — unblock is a single
+ * click while block opens a ConfirmDialog first (mirrors
+ * AdminStoresTable/AdminSellersTable's asymmetric-confirm pattern) —
+ * and FIX UX-GAP-03's load-older-messages flow (button visibility
+ * driven by meta.hasNextPage, page-2 fetch merged above the live
+ * page, dedup by message id at the page boundary).
  * MessageInput is mocked out since it owns its own mutation hook
  * (useSendMessage) that's out of scope here — only its `disabled` prop
  * (driven by isBlocked) is asserted.
@@ -369,6 +372,109 @@ describe('ChatWindow', () => {
 
       expect(mockDeleteMessageMutate).not.toHaveBeenCalled();
       expect(screen.queryByText('حذف هذه الرسالة؟')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('load older messages', () => {
+    const oldMessage = {
+      id: 'old-1',
+      senderId: seller.id,
+      body: 'رسالة قديمة',
+      createdAt: new Date('2026-01-01').toISOString(),
+      readAt: null,
+      deletedAt: null,
+    };
+    const recentMessage = {
+      id: 'recent-1',
+      senderId: me.id,
+      body: 'رسالة حديثة',
+      createdAt: new Date().toISOString(),
+      readAt: null,
+      deletedAt: null,
+    };
+
+    it('does not show "تحميل رسائل أقدم" when the live page has no further pages', () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [recentMessage], meta: { hasNextPage: false } },
+        isLoading: false,
+        isFetching: false,
+      } as never);
+      render(<ChatWindow conversationId="conv-1" />);
+
+      expect(screen.queryByText('تحميل رسائل أقدم')).not.toBeInTheDocument();
+    });
+
+    it('shows "تحميل رسائل أقدم" when more history exists beyond the live page', () => {
+      mockUseMessages.mockReturnValue({
+        data: { items: [recentMessage], meta: { hasNextPage: true } },
+        isLoading: false,
+        isFetching: false,
+      } as never);
+      render(<ChatWindow conversationId="conv-1" />);
+
+      expect(screen.getByText('تحميل رسائل أقدم')).toBeInTheDocument();
+    });
+
+    it('fetches page 2 and prepends older messages above the live page on click', async () => {
+      // Both calls to useMessages share one mock in this test file, so
+      // this simulates the sequence: first render uses the live-page
+      // args (no `page`), then re-renders after olderPage is set use
+      // the page:2 args — mockImplementation lets each call's args
+      // decide which page's data comes back, matching what the real
+      // hook does per query key.
+      mockUseMessages.mockImplementation(((_id: string, params?: { page?: number }) => {
+        if (params?.page === 2) {
+          return {
+            data: { items: [oldMessage], meta: { hasNextPage: false } },
+            isLoading: false,
+            isFetching: false,
+          };
+        }
+        return {
+          data: { items: [recentMessage], meta: { hasNextPage: true } },
+          isLoading: false,
+          isFetching: false,
+        };
+      }) as never);
+
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+
+      expect(screen.queryByText('رسالة قديمة')).not.toBeInTheDocument();
+
+      await user.click(screen.getByText('تحميل رسائل أقدم'));
+
+      expect(await screen.findByText('رسالة قديمة')).toBeInTheDocument();
+      expect(screen.getByText('رسالة حديثة')).toBeInTheDocument();
+      // The load-older button disappears once the fetched older page
+      // itself reports no further pages (hasNextPage: false above).
+      expect(screen.queryByText('تحميل رسائل أقدم')).not.toBeInTheDocument();
+    });
+
+    it('does not duplicate a message that appears in both the live and an older page fetch', async () => {
+      mockUseMessages.mockImplementation(((_id: string, params?: { page?: number }) => {
+        if (params?.page === 2) {
+          // Same id as the live page's item — simulates the boundary
+          // overlap the component's dedup-by-id logic guards against.
+          return {
+            data: { items: [recentMessage], meta: { hasNextPage: false } },
+            isLoading: false,
+            isFetching: false,
+          };
+        }
+        return {
+          data: { items: [recentMessage], meta: { hasNextPage: true } },
+          isLoading: false,
+          isFetching: false,
+        };
+      }) as never);
+
+      const user = userEvent.setup();
+      render(<ChatWindow conversationId="conv-1" />);
+      await user.click(screen.getByText('تحميل رسائل أقدم'));
+
+      await screen.findByText('رسالة حديثة');
+      expect(screen.getAllByText('رسالة حديثة')).toHaveLength(1);
     });
   });
 });

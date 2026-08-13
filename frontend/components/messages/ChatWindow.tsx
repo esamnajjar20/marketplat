@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Trash2, Loader2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { Button } from '@/components/shared/ui/Button';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -24,7 +25,9 @@ import { ROUTES } from '@/lib/constants';
 import { formatTime } from '@/lib/formatters';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
-import type { Conversation } from '@/types/conversation.types';
+import type { Conversation, Message } from '@/types/conversation.types';
+
+const MESSAGES_PAGE_SIZE = 50;
 
 interface Props {
   conversationId: string;
@@ -61,10 +64,22 @@ function otherParty(conversation: Conversation, userId: string | undefined) {
  * back navigation matters; at lg and above the sidebar in
  * messages/layout.tsx is already on screen, so a back arrow inside
  * the thread itself would be redundant.
+ *
+ * FIX UX-GAP-03: this used to fetch only the latest 50 messages with
+ * no way to reach anything older — a long negotiation thread just
+ * lost its own beginning with no signal that earlier messages
+ * existed. "تحميل رسائل أقدم" fetches subsequent backend pages (the
+ * API returns newest-first — page 2 is the next-older 50, not a
+ * bigger page 1) and merges them into the live page-1 result, deduped
+ * by message id since the live page keeps polling and could overlap
+ * with an older page at the boundary. Scroll position is anchored on
+ * the height delta so prepending older messages doesn't yank the
+ * user's current reading position down the thread.
  */
 export function ChatWindow({ conversationId }: Props) {
   const user = useAuthStore(selectUser);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
   const {
     data: conversation,
@@ -72,7 +87,7 @@ export function ChatWindow({ conversationId }: Props) {
     isError: conversationError,
   } = useConversation(conversationId);
   const { data: messagesPage, isLoading: messagesLoading } = useMessages(conversationId, {
-    limit: 50,
+    limit: MESSAGES_PAGE_SIZE,
   });
   const party = conversation ? otherParty(conversation, user?.id) : null;
   const isBlocked = useIsUserBlocked(party?.id ?? '');
@@ -81,11 +96,67 @@ export function ChatWindow({ conversationId }: Props) {
   const { mutate: deleteMessage, isPending: deletingMessage } = useDeleteMessage(conversationId);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
 
-  const messages = messagesPage?.items ?? [];
+  // FIX UX-GAP-03: `page` starts at null (unused — the live query above
+  // already covers page 1) and only becomes a real second fetch once
+  // "تحميل رسائل أقدم" is clicked, via the `enabled`-equivalent branch
+  // below (page argument only set once olderPage is non-null).
+  const [olderPage, setOlderPage] = useState<number | null>(null);
+  const [olderMessages, setOlderMessages] = useState<Message[]>([]);
+
+  const { data: olderPageData, isFetching: fetchingOlder } = useMessages(
+    conversationId,
+    olderPage !== null ? { page: olderPage, limit: MESSAGES_PAGE_SIZE } : { limit: MESSAGES_PAGE_SIZE },
+  );
+
+  useEffect(() => {
+    if (olderPage === null || !olderPageData) return;
+    setOlderMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const fresh = olderPageData.items.filter((m) => !seen.has(m.id));
+      return fresh.length ? [...fresh, ...prev] : prev;
+    });
+  }, [olderPage, olderPageData]);
+
+  const liveMessages = messagesPage?.items ?? [];
+  // FIX UX-GAP-03 (dedup bug): the effect above only deduped a newly
+  // fetched older page against `olderMessages`' own prior state — it
+  // never checked against `liveMessages`, so a message id present in
+  // both (e.g. the live page's oldest item lands on an older page's
+  // newest slot, a real possibility since both are independent fetches
+  // hitting a list that can shift between them) rendered twice. Filter
+  // olderMessages against the live set here, where both are actually
+  // known together, rather than trying to guess it inside the effect.
+  const liveIds = new Set(liveMessages.map((m) => m.id));
+  const messages = [...olderMessages.filter((m) => !liveIds.has(m.id)), ...liveMessages];
+  // Whether an older page beyond whichever page was fetched last is
+  // still available: before any click, that's the live page-1 fetch's
+  // own hasNextPage; after a click, it's the latest older-page fetch's
+  // hasNextPage, since that one's now the frontier of what's loaded.
+  const hasMoreOlder = Boolean((olderPage === null ? messagesPage : olderPageData)?.meta?.hasNextPage);
+
+  function handleLoadOlder() {
+    if (!scrollRef.current) {
+      setOlderPage((p) => (p ?? 1) + 1);
+      return;
+    }
+    const el = scrollRef.current;
+    const prevScrollHeight = el.scrollHeight;
+    const prevScrollTop = el.scrollTop;
+    setOlderPage((p) => (p ?? 1) + 1);
+    // Runs after the DOM updates with the newly prepended messages —
+    // requestAnimationFrame (not useLayoutEffect keyed to state, which
+    // would fire before the new rows are actually measurable) restores
+    // the same visual scroll offset the user had before older content
+    // was added above it.
+    requestAnimationFrame(() => {
+      const newScrollHeight = el.scrollHeight;
+      el.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+    });
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  }, [liveMessages.length]);
 
   if (conversationLoading) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
@@ -170,7 +241,7 @@ export function ChatWindow({ conversationId }: Props) {
         </DropdownMenu>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3">
         {messagesLoading ? (
           <div className="flex justify-center py-8"><LoadingSpinner /></div>
         ) : messages.length === 0 ? (
@@ -180,71 +251,80 @@ export function ChatWindow({ conversationId }: Props) {
             description="أرسل أول رسالة لبدء الحديث"
           />
         ) : (
-          messages.map((message) => {
-            const isMine = message.senderId === user?.id;
-            const isDeleted = Boolean(message.deletedAt);
-            return (
-              <div
-                key={message.id}
-                className={cn('group flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
-              >
-                <div className="flex items-center gap-1">
-                  {isMine && !isDeleted && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted shrink-0"
-                          aria-label="خيارات الرسالة"
-                        >
-                          <MoreVertical className="h-3.5 w-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
-                          onClick={() => setConfirmDeleteMessageId(message.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          حذف الرسالة
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                  <div
-                    className={cn(
-                      'rounded-2xl px-4 py-2.5 text-sm shadow-sm',
-                      // FIX BUG-XX: rounded-br-sm/rounded-bl-sm are physical
-                      // (bottom-right/bottom-left) in a dir="rtl" app
-                      // (app/layout.tsx), so the "pointed" corner sat on the
-                      // wrong side of the bubble. rounded-ee-sm/rounded-es-sm
-                      // are logical (bottom-end/bottom-start) and follow the
-                      // actual text direction instead.
-                      isDeleted
-                        ? 'bg-muted text-muted-foreground italic'
-                        : isMine
-                          ? 'bg-primary text-primary-foreground rounded-ee-sm'
-                          : 'bg-card text-foreground rounded-es-sm'
+          <>
+            {hasMoreOlder && (
+              <div className="flex justify-center pb-1">
+                <Button variant="ghost" size="sm" disabled={fetchingOlder} onClick={handleLoadOlder}>
+                  {fetchingOlder ? <Loader2 className="h-4 w-4 animate-spin" /> : 'تحميل رسائل أقدم'}
+                </Button>
+              </div>
+            )}
+            {messages.map((message) => {
+              const isMine = message.senderId === user?.id;
+              const isDeleted = Boolean(message.deletedAt);
+              return (
+                <div
+                  key={message.id}
+                  className={cn('group flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
+                >
+                  <div className="flex items-center gap-1">
+                    {isMine && !isDeleted && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted shrink-0"
+                            aria-label="خيارات الرسالة"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setConfirmDeleteMessageId(message.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            حذف الرسالة
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
-                  >
-                    <p className="whitespace-pre-wrap break-words">
-                      {isDeleted ? 'تم حذف هذه الرسالة' : message.body}
-                    </p>
+                    <div
+                      className={cn(
+                        'rounded-2xl px-4 py-2.5 text-sm shadow-sm',
+                        // FIX BUG-XX: rounded-br-sm/rounded-bl-sm are physical
+                        // (bottom-right/bottom-left) in a dir="rtl" app
+                        // (app/layout.tsx), so the "pointed" corner sat on the
+                        // wrong side of the bubble. rounded-ee-sm/rounded-es-sm
+                        // are logical (bottom-end/bottom-start) and follow the
+                        // actual text direction instead.
+                        isDeleted
+                          ? 'bg-muted text-muted-foreground italic'
+                          : isMine
+                            ? 'bg-primary text-primary-foreground rounded-ee-sm'
+                            : 'bg-card text-foreground rounded-es-sm'
+                      )}
+                    >
+                      <p className="whitespace-pre-wrap break-words">
+                        {isDeleted ? 'تم حذف هذه الرسالة' : message.body}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 px-1">
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatTime(message.createdAt)}
+                    </span>
+                    {isMine && !isDeleted && (
+                      message.readAt
+                        ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
+                        : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 px-1">
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatTime(message.createdAt)}
-                  </span>
-                  {isMine && !isDeleted && (
-                    message.readAt
-                      ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
-                      : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
-                  )}
-                </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </>
         )}
         <div ref={bottomRef} />
       </div>
