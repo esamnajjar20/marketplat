@@ -15,6 +15,7 @@
 import { use } from 'react';
 import { notFound } from 'next/navigation';
 import { ServiceListingForm } from '@/components/services/ServiceListingForm';
+import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useServiceListing, useMyServiceListings } from '@/hooks/queries/useServiceListings';
 import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
@@ -44,7 +45,7 @@ export default function EditServiceListingPage({ params }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">تعديل الخدمة</h1>
+      <EditPageHeader backTo={ROUTES.myServices} backLabel="الخدمات" title="تعديل الخدمة" />
       <ServiceListingForm mode="edit" listing={listing} />
     </div>
   );

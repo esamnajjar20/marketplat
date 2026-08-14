@@ -36,6 +36,7 @@
 import { use }      from 'react';
 import { notFound } from 'next/navigation';
 import { EditAdForm }     from '@/components/ads/EditAdForm';
+import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useAd }          from '@/hooks/queries/useAds';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
@@ -61,7 +62,7 @@ export default function EditAdPage({ params }: EditAdPageProps) {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">تعديل الإعلان</h1>
+      <EditPageHeader backTo={ROUTES.myAds} backLabel="الإعلانات" title="تعديل الإعلان" />
       <EditAdForm ad={ad} />
     </div>
   );

@@ -149,7 +149,7 @@ export function MyServiceRequestsList() {
                   </Link>
                   {request.status === 'COMPLETED' && !canReview && (
                     <p className="text-xs text-success flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-amber-400 text-amber-400" />تم إرسال تقييمك
+                      <Star className="h-3 w-3 fill-rating text-rating" />تم إرسال تقييمك
                     </p>
                   )}
                   {canReview && (

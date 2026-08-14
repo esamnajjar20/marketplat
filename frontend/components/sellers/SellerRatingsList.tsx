@@ -88,7 +88,7 @@ export function SellerRatingsList({ sellerProfileId }: Props) {
                       <Star
                         key={n}
                         className={`h-3.5 w-3.5 ${
-                          n <= rating.score ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'
+                          n <= rating.score ? 'fill-rating text-rating' : 'text-muted-foreground'
                         }`}
                       />
                     ))}

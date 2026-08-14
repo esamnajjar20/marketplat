@@ -50,7 +50,7 @@ export function StoreCard({ store, className }: Props) {
           </span>
           {store.sellerProfile.totalRatings > 0 && (
             <span className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              <Star className="h-3.5 w-3.5 fill-rating text-rating" />
               {rating.toFixed(1)} ({store.sellerProfile.totalRatings})
             </span>
           )}

@@ -3,17 +3,19 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle, ExternalLink, AlertTriangle, Search } from 'lucide-react';
+import { CheckCircle, ExternalLink, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Pagination }   from '@/components/shared/ui/Pagination';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
+import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useAdminReports }   from '@/hooks/queries/useAdmin';
 import { useAdminUpdateReportStatus } from '@/hooks/mutations/useAdminMutations';
 import { REPORT_REASON_LABELS, ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
+import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
 
 const REPORT_STATUSES = ['PENDING', 'RESOLVED', 'DISMISSED'] as const;
@@ -52,7 +54,7 @@ export function AdminReportsTable() {
     ? (targetTypeParam as ReportTargetType)
     : undefined;
 
-  const { data, isLoading, isError, refetch } = useAdminReports({ page, status, targetType });
+  const { data, isLoading, isError, error, refetch } = useAdminReports({ page, status, targetType });
   const resolveReport = useAdminUpdateReportStatus();
 
   // UX-FIX (same pattern as AdminUsersTable's FIX UX-11): resolveReport's
@@ -126,18 +128,16 @@ export function AdminReportsTable() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><LoadingSpinner /></div>
+        // FIX AUDIT-1: TableSkeleton instead of a centered LoadingSpinner
+        // on refetch — see AdminAdsTable for the full rationale.
+        <TableSkeleton columns={5} />
       ) : isError ? (
         // UX-FIX P1-9 (admin variant): must not render as "لا توجد
         // بلاغات" on a failed fetch — an admin could wrongly conclude
         // the queue is genuinely empty and stop checking it.
-        <div className="flex flex-col items-center gap-3 py-12 text-center rounded-lg border">
-          <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-          <p className="text-destructive">حدث خطأ أثناء تحميل البلاغات</p>
-          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-            إعادة المحاولة
-          </button>
-        </div>
+        // FIX AUDIT-1: shared ApiError instead of a hand-rolled block —
+        // see AdminAdsTable for the full rationale.
+        <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">

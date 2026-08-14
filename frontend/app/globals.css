@@ -55,9 +55,55 @@
     --warning: 37.7 61.7% 52.9%;
     --warning-foreground: 33.3 15.8% 11.2%;
 
+    /* FIX AUDIT-3: dedicated tokens for the two remaining hand-picked
+       Tailwind stock colors found repeated across the app — rating
+       stars (fill-amber-400/text-amber-400, 12 files) and the
+       "online now" indicator (emerald-500/600, 3 files). Same
+       rationale as --success/--warning above: centralise so future
+       palette changes don't require a multi-file find-and-replace. */
+    --rating: 37.7 61.7% 52.9%;
+    --rating-foreground: 33.3 15.8% 11.2%;
+    --online: 142.6 33.3% 35.9%;
+    --online-foreground: 40 60% 98%;
+
     --border: 37.9 27.5% 86.5%;
     --input: 37.9 27.5% 86.5%;
     --ring: 148.7 32.9% 27.5%;
+
+    /* AUDIT-5 (documentation only — no component changes made): the
+       audit's finding of "no clear rounded-* rule" is only half true.
+       An implicit but real hierarchy already exists, inherited from
+       shadcn/ui's own primitives and followed consistently by every
+       component built on top of them:
+         rounded-sm  → small elements nested inside another control
+                       (DropdownMenuItem, SelectItem — components/ui/
+                       dropdown-menu.tsx, select.tsx)
+         rounded-md  → standalone interactive controls (Button, Input,
+                       Select trigger, Badge, popovers — --radius below
+                       drives this exact value). 93 uses vs. 1 outlier
+                       app-wide; this is the most consistent tier.
+         rounded-lg  → modal/dialog-level containers (Dialog —
+                       components/ui/dialog.tsx)
+         rounded-xl  → full-bleed sheets (Sheet's rounded-t-xl) *and*
+                       the app's core content cards (AdCard, ProductCard,
+                       ServiceListingCard, UnifiedResultCard, StoreCard
+                       — confirmed byte-for-byte identical across all
+                       five, see audit item #5's findings)
+       So: Button/Input/Badge/Dialog/Sheet and the five card components
+       are NOT part of the reported inconsistency — don't "fix" them by
+       matching a different tier.
+       The real drift is in hand-rolled containers with no shared
+       component to inherit a value from — icon circles, small alert/
+       info boxes, secondary wrappers, skeleton placeholders — where
+       rounded-lg/md/xl are picked ad hoc per call site with no
+       standard to defer to. That's ~150-200 individual call sites
+       app-wide with no single mechanical rule to sort correct from
+       incorrect; each needs a real visual judgment call, which is why
+       this pass documents the existing hierarchy rather than force a
+       bulk rewrite. New code for this kind of small custom container
+       should default to rounded-md (matching the interactive-control
+       tier) unless it's a full-bleed/card-level element, in which case
+       match rounded-xl above. */
     --radius: 0.6rem;
 
     /* FIX OFFLINE-01: previously generated automatically by
@@ -98,6 +144,11 @@
     --success-foreground: 150 20% 8%;
     --warning: 38 65% 58%;
     --warning-foreground: 33 16% 11%;
+
+    --rating: 38 65% 58%;
+    --rating-foreground: 33 16% 11%;
+    --online: 143 35% 48%;
+    --online-foreground: 150 20% 8%;
 
     --border: 150 10% 20%;
     --input: 150 10% 20%;

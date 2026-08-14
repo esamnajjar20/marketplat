@@ -79,7 +79,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
 
         {store.sellerProfile.totalRatings > 0 && (
           <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            <Star className="h-4 w-4 fill-rating text-rating" />
             {rating.toFixed(1)} ({store.sellerProfile.totalRatings} تقييم)
           </span>
         )}

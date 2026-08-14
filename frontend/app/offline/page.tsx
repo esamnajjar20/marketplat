@@ -66,7 +66,7 @@ export default function OfflinePage() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8 text-center">
       <span
         className={`flex h-20 w-20 items-center justify-center rounded-full ${
-          isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
+          isOnline ? 'bg-online/10 text-online' : 'bg-muted text-muted-foreground'
         }`}
       >
         <WifiOff className="h-10 w-10" />

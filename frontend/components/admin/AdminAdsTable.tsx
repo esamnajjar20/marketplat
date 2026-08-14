@@ -12,13 +12,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
+import { ApiError }       from '@/components/shared/ApiError';
 import { ConfirmDialog }  from '@/components/shared/feedback/ConfirmDialog';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAdminAds }    from '@/hooks/queries/useAdmin';
 import { useAdminSetFeatured, useAdminSetPinned, useAdminForceDeleteAd } from '@/hooks/mutations/useAdminMutations';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { parseApiError } from '@/lib/errorParser';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 
 export function AdminAdsTable() {
@@ -38,7 +40,7 @@ export function AdminAdsTable() {
   const q      = sp.get('q') ?? '';
   const status = sp.get('status') ?? '';
 
-  const { data, isLoading, isError, refetch } = useAdminAds({ page, q: q || undefined, status: status || undefined });
+  const { data, isLoading, isError, error, refetch } = useAdminAds({ page, q: q || undefined, status: status || undefined });
   const featureAd = useAdminSetFeatured();
   const pinAd     = useAdminSetPinned();
   const deleteAd  = useAdminForceDeleteAd();
@@ -116,12 +118,18 @@ export function AdminAdsTable() {
         // the `items.length === 0` empty-state row below, indistinguishable
         // from "no ads exist" — an admin had no way to tell a real fetch
         // failure apart from a genuinely empty result set.
-        <div className="rounded-lg border p-12 text-center text-muted-foreground space-y-3">
-          <p>تعذّر تحميل الإعلانات. يرجى المحاولة مرة أخرى.</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>إعادة المحاولة</Button>
-        </div>
+        // FIX AUDIT-1: swapped the hand-rolled error block for the shared
+        // ApiError component (401/403/404/500+ handling, consistent
+        // icons — see ApiError.tsx) instead of one generic message with
+        // no icon and no status differentiation.
+        <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : isLoading ? (
-        <div className="flex justify-center py-12"><LoadingSpinner /></div>
+        // FIX AUDIT-1: TableSkeleton instead of a centered LoadingSpinner
+        // on refetch (filter/page/search change) — previously only the
+        // *first* load (via loading.tsx) got the table-shaped skeleton;
+        // every subsequent refetch collapsed to a spinner, losing the
+        // table's shape and causing a layout jump each time.
+        <TableSkeleton columns={6} />
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">

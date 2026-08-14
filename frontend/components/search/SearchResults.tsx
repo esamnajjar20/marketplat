@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { useSearch } from '@/hooks/queries/useSearch';
@@ -70,9 +70,18 @@ export function SearchResults() {
   }, [q, city, type, categoryId, page]);
 
   if (isLoading) {
+    // FIX AUDIT-2: was a single centered LoadingSpinner that replaced
+    // the whole results area, discarding the grid shape on every
+    // filter/page/search change — the older ads-only SearchResults.tsx
+    // already reuses AdCardSkeleton for exactly this; UnifiedResultCard
+    // shares that same outer shape (rounded-xl border bg-card), so the
+    // same skeleton fits here without introducing a new one.
     return (
-      <div className="flex justify-center py-12">
-        <LoadingSpinner />
+      <div className="space-y-4">
+        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        </div>
       </div>
     );
   }

@@ -23,17 +23,19 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Ban, RotateCcw, AlertTriangle, Search } from 'lucide-react';
+import { CheckCircle2, Ban, RotateCcw, Search } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
+import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useAdminStores } from '@/hooks/queries/useAdmin';
 import { useAdminUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatDate } from '@/lib/formatters';
+import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 import type { AdminStoreStatus } from '@/types/admin.types';
 
@@ -75,7 +77,7 @@ export function AdminStoresTable() {
     ? 'ALL'
     : isAdminStoreStatus(statusParam) ? statusParam : 'PENDING';
 
-  const { data, isLoading, isError, refetch } = useAdminStores({
+  const { data, isLoading, isError, error, refetch } = useAdminStores({
     page,
     q: q || undefined,
     status: status === 'ALL' ? undefined : status,
@@ -134,18 +136,16 @@ export function AdminStoresTable() {
         className="max-w-xs" />
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><LoadingSpinner /></div>
+        // FIX AUDIT-1: TableSkeleton instead of a centered LoadingSpinner
+        // on refetch — see AdminAdsTable for the full rationale.
+        <TableSkeleton columns={6} />
       ) : isError ? (
         // Same UX-FIX P1-9 reasoning as AdminSellersTable: a failed
         // fetch must not render as "لا توجد متاجر" — that would wrongly
         // read as "there are genuinely no pending stores."
-        <div className="flex flex-col items-center gap-3 py-12 text-center rounded-lg border">
-          <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-          <p className="text-destructive">حدث خطأ أثناء تحميل المتاجر</p>
-          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-            إعادة المحاولة
-          </button>
-        </div>
+        // FIX AUDIT-1: shared ApiError instead of a hand-rolled block —
+        // see AdminAdsTable for the full rationale.
+        <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">

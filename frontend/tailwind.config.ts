@@ -70,6 +70,16 @@ const config: Config = {
           DEFAULT:    'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
         },
+        // FIX AUDIT-3: semantic tokens for rating stars and the
+        // "online now" indicator — see globals.css comment.
+        rating: {
+          DEFAULT:    'hsl(var(--rating))',
+          foreground: 'hsl(var(--rating-foreground))',
+        },
+        online: {
+          DEFAULT:    'hsl(var(--online))',
+          foreground: 'hsl(var(--online-foreground))',
+        },
         card: {
           DEFAULT:    'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',

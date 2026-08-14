@@ -143,7 +143,7 @@ export function ConversationList({ selectedId }: Props = {}) {
               </div>
               {onlineMap?.[party.id] && (
                 <span
-                  className="absolute bottom-0 end-0 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-card"
+                  className="absolute bottom-0 end-0 w-3.5 h-3.5 rounded-full bg-online ring-2 ring-card"
                   aria-label="متصل الآن"
                   title="متصل الآن"
                 />

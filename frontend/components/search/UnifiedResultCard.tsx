@@ -113,7 +113,7 @@ export function UnifiedResultCard({ result, className }: Props) {
           <span className="flex items-center gap-2">
             {result.rating > 0 && (
               <span className="flex items-center gap-0.5">
-                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                <Star className="h-3 w-3 fill-rating text-rating" />
                 {result.rating.toFixed(1)}
               </span>
             )}

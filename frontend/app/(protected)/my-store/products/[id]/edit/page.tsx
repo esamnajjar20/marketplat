@@ -16,6 +16,7 @@
 import { use } from 'react';
 import { notFound } from 'next/navigation';
 import { ProductForm } from '@/components/stores/ProductForm';
+import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useProduct, useMyProducts } from '@/hooks/queries/useProducts';
 import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
@@ -45,7 +46,7 @@ export default function EditProductPage({ params }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">تعديل المنتج</h1>
+      <EditPageHeader backTo={ROUTES.myStoreProducts} backLabel="المنتجات" title="تعديل المنتج" />
       <ProductForm mode="edit" product={product} />
     </div>
   );

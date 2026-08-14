@@ -114,7 +114,7 @@ describe('ServiceReviewsList', () => {
   it('fills exactly `score` stars and leaves the rest unfilled', () => {
     mockReviewsState({ data: { items: [makeReview({ score: 3 })], meta: { total: 1, totalPages: 1 } } });
     const { container: rendered } = render(<ServiceReviewsList sellerProfileId="seller-1" />);
-    const filled = rendered.querySelectorAll('.fill-amber-400');
+    const filled = rendered.querySelectorAll('.fill-rating');
     expect(filled).toHaveLength(3);
   });
 

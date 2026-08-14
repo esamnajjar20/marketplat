@@ -63,7 +63,7 @@ export function RateSellerDialog({ sellerProfileId, open, onOpenChange }: Props)
                   className={cn(
                     'h-7 w-7 transition-colors',
                     n <= (hoverScore || score)
-                      ? 'fill-amber-400 text-amber-400'
+                      ? 'fill-rating text-rating'
                       : 'text-muted-foreground'
                   )}
                 />

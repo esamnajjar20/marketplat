@@ -200,7 +200,7 @@ export function ChatWindow({ conversationId }: Props) {
           <Image src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
           {isPartyOnline && (
             <span
-              className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-card"
+              className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-online ring-2 ring-card"
               aria-label="متصل الآن"
               title="متصل الآن"
             />
@@ -211,7 +211,7 @@ export function ChatWindow({ conversationId }: Props) {
           {conversation.ad ? (
             <p className="text-xs text-muted-foreground line-clamp-1">بخصوص: {conversation.ad.title}</p>
           ) : isPartyOnline ? (
-            <p className="text-xs text-emerald-600 line-clamp-1">متصل الآن</p>
+            <p className="text-xs text-online line-clamp-1">متصل الآن</p>
           ) : null}
         </div>
 

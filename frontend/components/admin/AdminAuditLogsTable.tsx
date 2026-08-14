@@ -11,7 +11,8 @@ import {
 } from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
+import { ApiError } from '@/components/shared/ApiError';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
 import { useAdminAuditLogs } from '@/hooks/queries/useAdmin';
 import { AUDIT_EVENT_LABELS } from '@/lib/constants';
 import { formatDateTime } from '@/lib/formatters';
+import { parseApiError } from '@/lib/errorParser';
 import type { AuditLog, AuditEventType } from '@/types/admin.types';
 
 const AUDIT_EVENT_TYPES = Object.keys(AUDIT_EVENT_LABELS) as AuditEventType[];
@@ -76,7 +78,7 @@ export function AdminAuditLogsTable() {
   const from = sp.get('from') ?? '';
   const to = sp.get('to') ?? '';
 
-  const { data, isLoading, isError, refetch } = useAdminAuditLogs({
+  const { data, isLoading, isError, error, refetch } = useAdminAuditLogs({
     page,
     event: event ? (event as AuditEventType) : undefined,
     userId: userId || undefined,
@@ -149,13 +151,13 @@ export function AdminAuditLogsTable() {
       </div>
 
       {isError ? (
-        <div className="rounded-lg border p-12 text-center text-muted-foreground space-y-3">
-          <AlertTriangle className="h-8 w-8 mx-auto" />
-          <p className="text-destructive">حدث خطأ أثناء تحميل سجل العمليات</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>إعادة المحاولة</Button>
-        </div>
+        // FIX AUDIT-1: shared ApiError instead of a hand-rolled block —
+        // see AdminAdsTable for the full rationale.
+        <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : isLoading ? (
-        <div className="flex justify-center py-12"><LoadingSpinner /></div>
+        // FIX AUDIT-1: TableSkeleton instead of a centered LoadingSpinner
+        // on refetch — see AdminAdsTable for the full rationale.
+        <TableSkeleton columns={6} />
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
