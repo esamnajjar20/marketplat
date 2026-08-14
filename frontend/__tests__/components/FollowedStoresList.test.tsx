@@ -9,6 +9,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FollowedStoresList } from '@/components/stores/FollowedStoresList';
 import { useMyFollowedStores } from '@/hooks/queries/useStores';
+import { ROUTES } from '@/lib/constants';
 
 vi.mock('@/hooks/queries/useStores', () => ({
   useMyFollowedStores: vi.fn(),
@@ -64,11 +65,15 @@ describe('FollowedStoresList', () => {
     expect(mockRefetch).toHaveBeenCalled();
   });
 
-  it('shows the empty state when following no stores', () => {
+  it('shows the empty state with a CTA to browse stores', () => {
     mockFollowed({ data: { items: [], meta: { totalPages: 1 } } });
     render(<FollowedStoresList />);
 
     expect(screen.getByText('لا تتابع أي متجر بعد')).toBeInTheDocument();
+    // FIX P2-09-B (audit item #9): this empty state previously had no
+    // action at all, unlike its FavoritesList/SavedSearchesList siblings.
+    const cta = screen.getByText('تصفح المتاجر');
+    expect(cta.closest('a')).toHaveAttribute('href', ROUTES.stores);
   });
 
   it('renders a StoreCard for each followed store', () => {

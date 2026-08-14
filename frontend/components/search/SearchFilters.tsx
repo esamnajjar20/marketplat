@@ -13,20 +13,6 @@ import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
 import type { SearchType } from '@/types/search.types';
 
-const SORT_LABELS: Record<string, string> = {
-  relevance: 'الأكثر تطابقاً',
-  rating: 'الأعلى تقييماً',
-  newest: 'الأحدث',
-  views: 'الأكثر مشاهدة',
-};
-
-// TRACK-NEARBY-SEARCH: separate from SORT_LABELS above — 'distance'
-// is only ever a valid choice once lat/lng are on the URL (see
-// searchQuerySchema's .refine() on the backend), so it's appended to
-// the select's option list conditionally in the component below
-// instead of always being present like the other four.
-const DISTANCE_SORT_LABEL = 'الأقرب';
-
 /**
  * City / category / sort filters for the unified search page. Follows
  * ads/SearchFilters.tsx's same "read from URL, push a new URL on
@@ -44,6 +30,12 @@ const DISTANCE_SORT_LABEL = 'الأقرب';
  * lists (ProductCategory/ServiceCategory have no children field) — two
  * genuinely different shapes, rendered with two different option-list
  * branches below rather than forced into one shared loop.
+ *
+ * FIX P2-08 (audit item #8): sort used to have its own Select right
+ * here. It's now SearchSortBar, rendered independently above the
+ * results (see app/(public)/search/page.tsx) instead of nested inside
+ * this filters panel/sheet — so changing sort on mobile no longer
+ * requires opening "تصفية" for something that isn't really a filter.
  */
 export function SearchFilters() {
   const router = useRouter();
@@ -64,7 +56,6 @@ export function SearchFilters() {
   }
 
   const showCategoryFilter = type === 'ads' || type === 'products' || type === 'services';
-  const hasGeo = sp.get('lat') !== null && sp.get('lng') !== null;
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-4">
@@ -115,20 +106,6 @@ export function SearchFilters() {
           <SelectContent>
             <SelectItem value="ALL">كل المدن</SelectItem>
             {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الترتيب</label>
-        <Select value={sp.get('sort') ?? 'relevance'} onValueChange={(v) => update('sort', v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {Object.entries(SORT_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
-            {/* TRACK-NEARBY-SEARCH: only offered once a position is set — selecting it with no lat/lng would 400 against searchQuerySchema's .refine(). */}
-            {hasGeo && <SelectItem value="distance">{DISTANCE_SORT_LABEL}</SelectItem>}
           </SelectContent>
         </Select>
       </div>

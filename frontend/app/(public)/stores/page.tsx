@@ -4,6 +4,8 @@ import { Store } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { StoresGrid } from '@/components/stores/StoresGrid';
 import { StoresFilters } from '@/components/stores/StoresFilters';
+import { StoresFiltersSheet } from '@/components/stores/StoresFiltersSheet';
+import { SearchSortBarWrapper } from '@/components/stores/SearchSortBarWrapper';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 
 export const metadata: Metadata = buildMetadata({ title: 'المتاجر', path: '/stores' });
@@ -32,9 +34,29 @@ export default function StoresPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 pt-6">
+      <div className="container mx-auto px-4 pt-6 space-y-6">
+        {/* FIX P2-09: on mobile, StoresFilters used to render inline
+            here — full-height, above every result — so a user had to
+            scroll past search/city controls before seeing a single
+            store. Below `lg` that's now a "تصفية" trigger that opens
+            the same StoresFilters in a bottom sheet instead; above
+            `lg` the sheet trigger hides itself and the always-visible
+            <aside> (now explicitly `hidden lg:block`, mirroring
+            /search and the ads category page) takes over. */}
+        {/* FIX P2-08 (audit item #8): sort independent of the filters
+            trigger/panel on every breakpoint. */}
+        <div className="flex items-center gap-2">
+          <Suspense>
+            <StoresFiltersSheet />
+          </Suspense>
+          <div className="flex-1 sm:flex-none sm:w-48 lg:ms-auto">
+            <Suspense>
+              <SearchSortBarWrapper />
+            </Suspense>
+          </div>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <aside className="lg:col-span-1">
+          <aside className="hidden lg:col-span-1 lg:block">
             <Suspense><StoresFilters /></Suspense>
           </aside>
           <main className="lg:col-span-3">

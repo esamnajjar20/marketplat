@@ -13,7 +13,12 @@
  *  - city/condition updates set the param, clear ?page
  *  - FIX P2-5: price inputs debounce (500ms) before pushing, so
  *    rapid typing in both fields doesn't fire once per keystroke/blur
- *  - sort combines sortBy_sortOrder into two separate params
+ *
+ * Sort moved out to the shared SearchSortBar (audit item #8, FIX
+ * P2-08) — its combined sortBy_sortOrder push logic is covered in
+ * __tests__/components/shared/SearchSortBar.test.tsx instead, and its
+ * usePathname()-based wiring in
+ * __tests__/components/ads/SearchSortBarWrapper.test.tsx.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -38,10 +43,11 @@ vi.mock('next/navigation', () => ({
 const mockUseCategories = vi.mocked(useCategories);
 const mockUseCategoryBySlug = vi.mocked(useCategoryBySlug);
 
-// The four <Select>s (category, city, condition, sort) sit under plain
+// The three <Select>s (category, city, condition) sit under plain
 // <label>s with no htmlFor, so getByLabelText can't reach them —
-// select by their fixed document order instead.
-const COMBOBOX_ORDER = { category: 0, city: 1, condition: 2, sort: 3 } as const;
+// select by their fixed document order instead. Sort no longer lives
+// here (moved to SearchSortBar, FIX P2-08).
+const COMBOBOX_ORDER = { category: 0, city: 1, condition: 2 } as const;
 function getCombobox(which: keyof typeof COMBOBOX_ORDER) {
   return screen.getAllByRole('combobox')[COMBOBOX_ORDER[which]];
 }
@@ -129,17 +135,6 @@ describe('SearchFilters', () => {
     await user.click(await screen.findByRole('option', { name: 'غزة' }));
 
     expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/categories/electronics?'));
-  });
-
-  it('sets both sortBy and sortOrder params when a sort option is chosen', async () => {
-    const user = userEvent.setup();
-    render(<SearchFilters />);
-
-    await user.click(getCombobox('sort'));
-    await user.click(await screen.findByRole('option', { name: 'السعر (أقل)' }));
-
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('sortBy=price'));
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('sortOrder=asc'));
   });
 
   it('resets to the current pathname with no query string when the reset button is clicked', async () => {

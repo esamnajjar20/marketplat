@@ -4,9 +4,14 @@
  * Covers components/search/SearchFilters.tsx:
  *   - the category filter is hidden for type=all/stores, shown for
  *     ads/products/services, with the right category source per type.
- *   - city/sort selects push the corresponding param and drop page.
- *   - the 'distance' sort option only appears once lat/lng are set.
+ *   - city select pushes the corresponding param and drops page.
  *   - reset preserves q but drops every other filter.
+ *
+ * Sort moved out to the shared SearchSortBar (audit item #8, FIX
+ * P2-08) — its own coverage (single-param mode, the sort/page
+ * interaction, and the wrapper's distance-option logic) lives in
+ * __tests__/components/shared/SearchSortBar.test.tsx and
+ * __tests__/components/search/SearchSortBarWrapper.test.tsx instead.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
@@ -131,7 +136,8 @@ describe('SearchFilters', () => {
     const user = userEvent.setup();
     render(<SearchFilters />);
 
-    // type=all -> only city + sort combos are rendered, city is first.
+    // type=all -> only the city combo is rendered (no category select,
+    // sort lives in SearchSortBar now).
     const combos = screen.getAllByRole('combobox');
     await user.click(combos[0]);
     await user.click(await screen.findByRole('option', { name: 'غزة' }));
@@ -139,37 +145,6 @@ describe('SearchFilters', () => {
     const params = paramsFromPush();
     expect(params.get('city')).toBe('غزة');
     expect(params.has('page')).toBe(false);
-  });
-
-  it('sets the sort param and drops page when a sort option is picked', async () => {
-    const user = userEvent.setup();
-    render(<SearchFilters />);
-
-    const combos = screen.getAllByRole('combobox');
-    await user.click(combos[1]); // sort is second when type=all (no category select)
-    await user.click(await screen.findByRole('option', { name: 'الأحدث' }));
-
-    const params = paramsFromPush();
-    expect(params.get('sort')).toBe('newest');
-  });
-
-  it('does not offer the distance sort option when no lat/lng are set', async () => {
-    const user = userEvent.setup();
-    render(<SearchFilters />);
-
-    const combos = screen.getAllByRole('combobox');
-    await user.click(combos[1]);
-    expect(screen.queryByRole('option', { name: 'الأقرب' })).not.toBeInTheDocument();
-  });
-
-  it('offers the distance sort option once lat/lng are set', async () => {
-    mockSearchParams = new URLSearchParams({ lat: '31.9', lng: '35.2' });
-    const user = userEvent.setup();
-    render(<SearchFilters />);
-
-    const combos = screen.getAllByRole('combobox');
-    await user.click(combos[1]);
-    expect(await screen.findByRole('option', { name: 'الأقرب' })).toBeInTheDocument();
   });
 
   it('reset keeps q but drops every other filter', async () => {

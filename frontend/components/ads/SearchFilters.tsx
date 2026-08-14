@@ -7,7 +7,7 @@ import { Input }   from '@/components/shared/ui/Input';
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
-import { CITIES, CONDITION_LABELS, AD_SORT_OPTIONS, ROUTES } from '@/lib/constants';
+import { CITIES, CONDITION_LABELS, ROUTES } from '@/lib/constants';
 import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
 import { SlidersHorizontal } from 'lucide-react';
 
@@ -20,6 +20,13 @@ import { SlidersHorizontal } from 'lucide-react';
 // not once per field per blur.
 const PRICE_DEBOUNCE_MS = 500;
 
+/**
+ * FIX P2-08 (audit item #8): sort used to have its own combined
+ * sortBy_sortOrder Select right in this panel. It's now SearchSortBar,
+ * rendered independently above the results (see
+ * app/(public)/categories/[slug]/page.tsx) instead of nested inside
+ * this filters panel/sheet.
+ */
 interface Props {
   /** Present when rendered from the category page — see SearchResults' categorySlug prop for context. */
   categorySlug?: string;
@@ -153,28 +160,6 @@ export function SearchFilters({ categorySlug }: Props = {}) {
             onChange={(e) => { setMaxPrice(e.target.value); updatePrice('maxPrice', e.target.value); }}
             className="w-full" />
         </div>
-      </div>
-
-      {/* Sort */}
-      <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الترتيب</label>
-        <Select
-          value={`${sp.get('sortBy') ?? 'createdAt'}_${sp.get('sortOrder') ?? 'desc'}`}
-          onValueChange={(value) => {
-            const [sortBy = 'createdAt', sortOrder = 'desc'] = value.split('_');
-            const params = new URLSearchParams(sp.toString());
-            params.set('sortBy', sortBy); params.set('sortOrder', sortOrder);
-            params.delete('page');
-            router.push(`${pathname}?${params.toString()}`);
-          }}
-        >
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {AD_SORT_OPTIONS.map((o) => (
-              <SelectItem key={`${o.sortBy}_${o.sortOrder}`} value={`${o.sortBy}_${o.sortOrder}`}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Reset */}

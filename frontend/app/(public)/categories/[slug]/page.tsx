@@ -4,6 +4,7 @@ import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { CategoryHero }     from '@/components/home/CategoryHero';
 import { SearchFilters }    from '@/components/ads/SearchFilters';
 import { SearchFiltersSheet } from '@/components/ads/SearchFiltersSheet';
+import { SearchSortBarWrapper } from '@/components/ads/SearchSortBarWrapper';
 import { SearchResults }    from '@/components/ads/SearchResults';
 import { getQueryClient }   from '@/lib/queryClient';
 import { prefetchCategories } from '@/lib/prefetch';
@@ -45,9 +46,18 @@ export default async function CategoryPage({ params }: Props) {
         {/* P0 FIX (layout audit §1): SearchFiltersSheet mirrors /search's
             FIX P1-2 — full filter panel behind a "تصفية" trigger below
             `lg`, so mobile users see results before they see filters. */}
-        <Suspense>
-          <SearchFiltersSheet categorySlug={slug} />
-        </Suspense>
+        {/* FIX P2-08 (audit item #8): sort sits next to the filters
+            trigger, independent of it, on every breakpoint. */}
+        <div className="flex items-center gap-2">
+          <Suspense>
+            <SearchFiltersSheet categorySlug={slug} />
+          </Suspense>
+          <div className="flex-1 sm:flex-none sm:w-48 lg:ms-auto">
+            <Suspense>
+              <SearchSortBarWrapper />
+            </Suspense>
+          </div>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <aside className="hidden lg:col-span-1 lg:block">
             <Suspense><SearchFilters categorySlug={slug} /></Suspense>

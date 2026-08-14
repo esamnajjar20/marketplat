@@ -5,6 +5,7 @@ import { SearchBox } from '@/components/search/SearchBox';
 import { SearchTabsWrapper } from '@/components/search/SearchTabsWrapper';
 import { SearchFilters } from '@/components/search/SearchFilters';
 import { SearchFiltersSheet } from '@/components/search/SearchFiltersSheet';
+import { SearchSortBarWrapper } from '@/components/search/SearchSortBarWrapper';
 import { SearchResults } from '@/components/search/SearchResults';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { WovenTexture } from '@/components/shared/ui/WovenTexture';
@@ -59,9 +60,19 @@ export default async function SearchPage({ searchParams }: Props) {
             above `lg` the sheet trigger hides itself and the always-
             visible <aside> (now explicitly `hidden lg:block`, matching
             the audit's suggested fix) takes over, unchanged from before. */}
-        <Suspense>
-          <SearchFiltersSheet />
-        </Suspense>
+        {/* FIX P2-08 (audit item #8): sort sits next to the filters
+            trigger, independent of it, on every breakpoint — not nested
+            inside the "تصفية" sheet/panel it used to live in. */}
+        <div className="flex items-center gap-2">
+          <Suspense>
+            <SearchFiltersSheet />
+          </Suspense>
+          <div className="flex-1 sm:flex-none sm:w-48 lg:ms-auto">
+            <Suspense>
+              <SearchSortBarWrapper />
+            </Suspense>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <aside className="hidden lg:col-span-1 lg:block">

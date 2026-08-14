@@ -5,8 +5,11 @@
  * previously entirely missing while the data layer already read
  * these params). Covers the search input's Enter-to-apply and
  * blur-to-apply paths, that changing a filter always clears `page`,
- * the city select (including the ALL -> cleared-param case), and the
- * combined sortBy_sortOrder select.
+ * and the city select (including the ALL -> cleared-param case).
+ *
+ * Sort moved out to the shared SearchSortBar (audit item #8, FIX
+ * P2-08) — its combined sortBy_sortOrder push logic is covered in
+ * __tests__/components/shared/SearchSortBar.test.tsx instead.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -83,17 +86,5 @@ describe('StoresFilters', () => {
     await user.click((await screen.findAllByText('كل المدن'))[0]);
 
     expect(mockPush).toHaveBeenCalledWith(expect.not.stringContaining('city='));
-  });
-
-  it('renders all sort options and applies sortBy/sortOrder together on selection', async () => {
-    const user = userEvent.setup();
-    render(<StoresFilters />);
-
-    const triggers = screen.getAllByRole('combobox');
-    await user.click(triggers[1]);
-    await user.click(await screen.findByText('الاسم (أ-ي)'));
-
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('sortBy=name'));
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('sortOrder=asc'));
   });
 });

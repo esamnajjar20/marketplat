@@ -1,11 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Heart } from 'lucide-react';
 import { StoreCard } from './StoreCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { Button } from '@/components/shared/ui/Button';
 import { useMyFollowedStores } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
 
@@ -32,11 +34,17 @@ export function FollowedStoresList() {
   }
 
   if (items.length === 0) {
+    // FIX P2-09-B (audit item #9): every sibling empty state on this
+    // page family ("nothing saved/followed yet") points somewhere —
+    // FavoritesList/SavedSearchesList both send the user to browse
+    // (ROUTES.home / ROUTES.search). This one had no action at all
+    // despite ROUTES.stores existing and being the obvious next step.
     return (
       <EmptyState
         icon={<Heart className="h-10 w-10" />}
         title="لا تتابع أي متجر بعد"
         description="تابع متاجرك المفضلة لتصلك آخر منتجاتها"
+        action={<Link href={ROUTES.stores}><Button variant="outline">تصفح المتاجر</Button></Link>}
       />
     );
   }
