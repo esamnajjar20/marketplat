@@ -1,11 +1,14 @@
 import type { Metadata }       from 'next';
 import { Suspense, cache }     from 'react';
-import { FileText }            from 'lucide-react';
+import Link                    from 'next/link';
+import { FileText, UserX }     from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { PublicProfileAds }    from '@/components/profile/PublicProfileAds';
 import { LoadingSpinner }      from '@/components/shared/feedback/LoadingSpinner';
+import { EmptyState }          from '@/components/shared/feedback/EmptyState';
 import { buildMetadata }       from '@/lib/seo';
 import { usersApi }            from '@/api/users.api';
+import { ROUTES }              from '@/lib/constants';
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -40,8 +43,25 @@ export default async function PublicProfilePage({ params }: Props) {
     user = (res.data.data as ProfileUser | undefined) ?? null;
   } catch { /* user 404 */ }
 
+  // UX-FIX (audit P2-06): was bare centered text with no icon and, more
+  // importantly, no way back into the app — every other not-found state
+  // in the app (AdDetailSection, CategoryHero, SearchResults) uses
+  // EmptyState with a recovery action; this was the one dead end.
   if (!user) {
-    return <div className="text-center py-20 text-muted-foreground">المستخدم غير موجود</div>;
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <EmptyState
+          icon={<UserX className="h-10 w-10" />}
+          title="المستخدم غير موجود"
+          description="ربما تم حذف هذا الحساب أو أن الرابط غير صحيح"
+          action={
+            <Link href={ROUTES.home} className="text-sm text-primary hover:underline">
+              العودة للرئيسية
+            </Link>
+          }
+        />
+      </div>
+    );
   }
 
   return (

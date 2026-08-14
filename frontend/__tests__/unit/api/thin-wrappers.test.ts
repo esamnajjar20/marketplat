@@ -144,6 +144,14 @@ describe('favoritesApi', () => {
     await favoritesApi.toggle('ad-1');
     expect(apiClient.post).toHaveBeenCalledWith('/favorites/ad-1');
   });
+
+  // UX-FIX (frontend audit P2-03): guards the same class of URL-typo
+  // bug this file exists to catch — GET /favorites/:adId/check, not
+  // /favorites/:adId or /favorites/check/:adId.
+  it('check → GET /favorites/:adId/check', async () => {
+    await favoritesApi.check('ad-1');
+    expect(apiClient.get).toHaveBeenCalledWith('/favorites/ad-1/check', undefined);
+  });
 });
 
 describe('reportsApi', () => {

@@ -9,12 +9,28 @@ import { getQueryClient }   from '@/lib/queryClient';
 import { prefetchCategories } from '@/lib/prefetch';
 import { buildCategoryMetadata } from '@/lib/seo';
 import { LoadingSpinner }   from '@/components/shared/feedback/LoadingSpinner';
+import { categoriesApi }    from '@/api/categories.api';
 
 interface Props { params: Promise<{ slug: string }> }
 
+// UX-FIX (audit P2-04): previously called buildCategoryMetadata({ slug,
+// name: slug }) — the raw URL slug stood in for the display name, so
+// <title>/meta description showed e.g. "electronics-devices — App"
+// while the page's own <h1> (CategoryHero, via useCategoryBySlug)
+// correctly showed the Arabic name. Same try/catch-with-fallback shape
+// already used by ads/[id]/page.tsx and profile/[id]/page.tsx — a
+// failed/unknown slug still renders a sane generic title instead of
+// throwing out of generateMetadata.
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  return buildCategoryMetadata({ slug, name: slug });
+  try {
+    const res = await categoriesApi.getBySlug(slug);
+    const category = res.data.data;
+    if (!category) return { title: 'القسم غير موجود' };
+    return buildCategoryMetadata({ slug, name: category.nameAr });
+  } catch {
+    return { title: 'الفئات' };
+  }
 }
 
 export default async function CategoryPage({ params }: Props) {

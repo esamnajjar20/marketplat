@@ -8,15 +8,15 @@
  * ad detail page always rendered the heart as "not saved" on first
  * load, even for ads the user had already favorited.
  *
- * FIX H-BUG-01: useIsFavorited() only ever reads whatever's already in
- * the favorites.ids() cache — it never fetches anything itself. If the
- * user hadn't separately paged through their full favorites list this
- * session, and the favorited ad wasn't on page 1, the Set never
- * contained its id and the heart showed "not saved" even for a genuinely
- * favorited ad. There's no per-ad check endpoint (removed per FIX H-05),
- * so this now also calls useFavorites({ limit: 100 }) — the backend's
- * max page size — so visiting any ad detail page while authenticated
- * warms the Set with the user's complete favorites, not just page 1.
+ * UX-FIX (frontend audit P2-03): previously seeded the shared
+ * favorites.ids() Set via useFavorites({ limit: 100 }) — the backend's
+ * max page size — fetching the user's entire favorites list just to
+ * check one ad, and silently wrong for any ad favorited past page 1 of
+ * >100 favorites. Now uses useFavoriteCheck(id), backed by the real
+ * GET /favorites/:adId/check endpoint, which seeds the same Set with
+ * just this one ad's id if favorited — useIsFavorited() below still
+ * reads that Set exactly as before, so toggling stays in sync the same
+ * way it always did.
  */
 import { useEffect } from 'react';
 import Link from 'next/link';
@@ -26,7 +26,7 @@ import { RelatedAds }     from '@/components/ads/RelatedAds';
 import { AdDetailsSkeleton } from '@/components/shared/skeletons';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAd }          from '@/hooks/queries/useAds';
-import { useFavorites, useIsFavorited } from '@/hooks/queries/useFavorites';
+import { useFavoriteCheck, useIsFavorited } from '@/hooks/queries/useFavorites';
 import { parseApiError }  from '@/lib/errorParser';
 import { ROUTES }         from '@/lib/constants';
 import { track }          from '@/lib/analytics';
@@ -34,11 +34,10 @@ import { SearchX, AlertTriangle } from 'lucide-react';
 
 export function AdDetailSection({ id }: { id: string }) {
   const { data: ad, isLoading, isError, error, refetch } = useAd(id);
-  // Warms the shared favorites.ids() Set with the user's full favorites
-  // list (up to the backend's max page size) so useIsFavorited below is
-  // accurate even for ads beyond page 1. No-ops (query disabled) when
-  // the user isn't authenticated — see useFavorites' `enabled` check.
-  useFavorites({ limit: 100 });
+  // Warms the shared favorites.ids() Set with just this ad's status —
+  // no-ops (query disabled) when the user isn't authenticated, same as
+  // useFavorites' `enabled` check.
+  useFavoriteCheck(id);
   const isFavorited = useIsFavorited(id);
 
   // Gap #7 (product analytics): fires once per successful ad load —

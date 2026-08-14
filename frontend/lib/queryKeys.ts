@@ -197,6 +197,13 @@ export const queryKeys = {
      * Used by useIsFavorited() for O(1) lookup per AdCard.
      */
     ids:  ()                 => ['favorites', 'ids']               as const,
+    /**
+     * GET /favorites/:adId/check — single-ad favorite status.
+     * UX-FIX (frontend audit P2-03): used by useFavoriteCheck() for
+     * single-ad views (ad detail page) instead of paging through the
+     * whole favorites list just to check one ad.
+     */
+    check: (adId: string)    => ['favorites', 'check', adId]        as const,
   },
 
   // ── Saved Searches ─────────────────────────────────────────────

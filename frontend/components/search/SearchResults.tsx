@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { Button } from '@/components/shared/ui/Button';
 import { useSearch } from '@/hooks/queries/useSearch';
 import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
@@ -21,6 +22,7 @@ import type { SearchSort, SearchType } from '@/types/search.types';
  */
 export function SearchResults() {
   const sp = useSearchParams();
+  const router = useRouter();
 
   const q          = sp.get('q') ?? undefined;
   const city       = sp.get('city') ?? undefined;
@@ -41,6 +43,11 @@ export function SearchResults() {
   const lng         = lngParam !== null ? Number(lngParam) : undefined;
   const radiusParam = sp.get('radius');
   const radius      = radiusParam !== null ? Number(radiusParam) : undefined;
+
+  // UX-FIX (audit P2-02): mirrors exactly what SearchFilters.tsx's own
+  // reset button clears (city/categoryId/sort/geo — q is deliberately
+  // preserved by that button, so it's not "active" in this sense).
+  const hasActiveFilters = Boolean(city || categoryId || (sort && sort !== 'relevance') || lat !== undefined);
 
   const { data, isLoading, isError, refetch } = useSearch({
     q, city, type, categoryId, sort, page, lat, lng, radius,
@@ -94,10 +101,28 @@ export function SearchResults() {
       </p>
 
       {items.length === 0 ? (
+        // UX-FIX (audit P2-02): SearchFilters.tsx already has a working
+        // reset button (clears city/categoryId/sort/geo, keeps q), but
+        // it wasn't surfaced here where a filtered-to-zero result
+        // actually lands — a user had to scroll to the filter panel/
+        // sheet themselves. hasActiveFilters mirrors exactly what that
+        // reset button clears, so the action only appears when there's
+        // something for it to actually do.
         <EmptyState
           icon={<Search className="h-10 w-10" />}
           title="لا توجد نتائج"
           description={q ? `لم نجد نتائج لـ "${q}"` : 'لا توجد نتائج مطابقة لهذه الفلاتر'}
+          action={
+            hasActiveFilters ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(q ? `${ROUTES.search}?q=${encodeURIComponent(q)}` : ROUTES.search)}
+              >
+                مسح الفلاتر
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

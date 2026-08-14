@@ -5,12 +5,15 @@
  * isFavorited prop. Its one piece of real logic is wiring
  * useIsFavorited(id) through to that prop — this pins that down so it
  * can't silently regress back to the always-false default.
+ *
+ * UX-FIX (frontend audit P2-03): useFavorites({ limit: 100 }) replaced
+ * with useFavoriteCheck(id) — mock updated to match.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AdDetailSection } from '@/components/ads/AdDetailSection';
 import { useAd } from '@/hooks/queries/useAds';
-import { useIsFavorited } from '@/hooks/queries/useFavorites';
+import { useFavoriteCheck, useIsFavorited } from '@/hooks/queries/useFavorites';
 import type { Ad } from '@/types/ad.types';
 
 vi.mock('@/hooks/queries/useAds', () => ({
@@ -18,7 +21,7 @@ vi.mock('@/hooks/queries/useAds', () => ({
 }));
 
 vi.mock('@/hooks/queries/useFavorites', () => ({
-  useFavorites: vi.fn(),
+  useFavoriteCheck: vi.fn(),
   useIsFavorited: vi.fn(),
 }));
 

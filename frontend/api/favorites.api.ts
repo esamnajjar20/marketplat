@@ -1,8 +1,14 @@
 /**
  * Favorites API — maps to backend /api/v1/favorites/* endpoints.
  *
- * FIX H-05: Removed favoritesApi.check() — GET /favorites/:adId/check does NOT exist.
- *           Favorite state is now derived from the favorites list cache.
+ * FIX H-05 (superseded — see check() below): favoritesApi.check() was
+ *           removed because GET /favorites/:adId/check didn't exist yet;
+ *           favorite state was derived from the favorites list cache
+ *           instead. UX-FIX (frontend audit P2-03) adds the real
+ *           endpoint backend-side and restores check() against it,
+ *           replacing the limit:100 list-fetch workaround that filled
+ *           the gap in the meantime (see useFavorites.ts's
+ *           useIsFavorited for that workaround's removal).
  *
  * FIX T-06: FavoriteToggleResponse corrected to match backend:
  *           { action: 'added' | 'removed' } (not { favorited: boolean }).
@@ -68,4 +74,15 @@ export const favoritesApi = {
    */
   toggle: (adId: string) =>
     apiClient.post<ApiResponse<FavoriteToggleResponse>>(`/favorites/${adId}`),
+
+  /**
+   * GET /favorites/:adId/check — is this one ad favorited by the current
+   * user? UX-FIX (frontend audit P2-03): replaces the previous
+   * limit:100 favorites-list fetch that AdDetailSection.tsx used just to
+   * derive this one boolean — and was silently wrong past 100 favorites.
+   */
+  check: (adId: string, config?: AxiosRequestConfig) =>
+    apiClient
+      .get<ApiResponse<{ isFavorited: boolean }>>(`/favorites/${adId}/check`, config)
+      .then((r) => r.data.data?.isFavorited ?? false),
 };

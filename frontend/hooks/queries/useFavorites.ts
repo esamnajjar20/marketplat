@@ -1,12 +1,15 @@
 /**
  * Favorites query hooks.
  *
- * FIX H-05: useIsFavorited replaced with a derivation approach.
- *           We maintain a Set<string> of favorited ad IDs in the cache
- *           (queryKeys.favorites.ids). This is populated from the list response
- *           and updated optimistically by useToggleFavorite.
- *
- *           No extra API call needed — no non-existent /check endpoint.
+ * FIX H-05 (superseded): useIsFavorited was originally built as a pure
+ *           derivation off a shared Set<string> (queryKeys.favorites.ids())
+ *           because no per-ad check endpoint existed. GET
+ *           /favorites/:adId/check now exists (UX-FIX, frontend audit
+ *           P2-03) and is used by useFavoriteCheck() below for
+ *           single-ad views — but the Set/useIsFavorited() pattern is
+ *           kept as-is for grid/list views (search results, home page,
+ *           my-ads), where one request per visible card would be a
+ *           real regression, not an improvement.
  *
  * API-INT-07 FIX: queryFn must be a pure function — no side effects.
  *   Previously, queryFn called queryClient.setQueryData() to populate the
@@ -55,15 +58,12 @@ export function useFavorites(params?: { page?: number; limit?: number }) {
   // favorites.ids() Set. Any favorited ad living beyond page 1 (and not
   // separately paged into the cache elsewhere) was invisible to
   // useIsFavorited(), so its heart icon rendered as "not saved" even
-  // though it genuinely was. There's no per-ad GET /favorites/:adId/check
-  // endpoint (removed per FIX H-05), so the only way to keep the Set
-  // complete without a new backend endpoint is for every settled fetch —
-  // regardless of which page was requested — to merge its ids into the
-  // existing Set instead of only ever writing page 1 and discarding the
-  // rest. Callers that want the whole list up front (e.g. any screen that
-  // just needs "is this favorited" everywhere) should call
-  // useFavorites({ limit: 100 }) — the backend's max page size — as
-  // AdDetailSection.tsx already does.
+  // though it genuinely was. Fixed for grid/list contexts (search
+  // results, home page, my-ads) by merging every settled fetch's ids
+  // into the existing Set instead of only ever writing page 1. For a
+  // single ad's status (e.g. one ad detail page), use
+  // useFavoriteCheck(adId) instead of paging through the whole list —
+  // see its doc comment; that's what AdDetailSection.tsx does.
   useEffect(() => {
     const data = query.data;
     if (!data) return;
@@ -74,6 +74,46 @@ export function useFavorites(params?: { page?: number; limit?: number }) {
       return idSet;
     });
   }, [query.data, queryClient]);
+
+  return query;
+}
+
+/**
+ * Seeds the shared favorites.ids() Set with a single ad's status via
+ * GET /favorites/:adId/check. UX-FIX (frontend audit P2-03): replaces
+ * AdDetailSection.tsx's previous useFavorites({ limit: 100 }) call,
+ * which fetched the user's full favorites list (the backend's max page
+ * size) just to warm the Set for one ad — and was silently wrong for
+ * any ad favorited past page 1 of >100 favorites. Writes into the same
+ * favorites.ids() Set useIsFavorited() already reads and
+ * useToggleFavorite() already keeps in sync, so toggling still works
+ * exactly as before — this only changes how the Set gets seeded for a
+ * single-ad view, not how it's read or mutated.
+ */
+export function useFavoriteCheck(adId: string) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const queryClient     = useQueryClient();
+
+  const query = useQuery({
+    queryKey: queryKeys.favorites.check(adId),
+    queryFn:  () => favoritesApi.check(adId),
+    staleTime: CACHE_TTL.favorites,
+    enabled:   isAuthenticated && Boolean(adId),
+  });
+
+  // Same API-INT-07 reasoning as useFavorites above: side effect lives
+  // in useEffect on the settled result, not in queryFn itself.
+  useEffect(() => {
+    if (query.data === undefined) return;
+    if (!query.data) return; // false: nothing to add, and don't risk
+                              // clobbering a concurrent optimistic add.
+
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (prev) => {
+      const idSet = new Set(prev ?? []);
+      idSet.add(adId);
+      return idSet;
+    });
+  }, [query.data, adId, queryClient]);
 
   return query;
 }

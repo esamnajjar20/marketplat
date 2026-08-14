@@ -30,4 +30,19 @@ export const favoritesController = {
       next(error);
     }
   },
+
+  // UX-FIX (frontend audit P2-03): single-ad check, replacing the
+  // frontend's previous workaround of paging through up to 100
+  // favorites to answer one boolean. Reuses favoriteAdSchema — same
+  // { adId } param shape the toggle route already validates.
+  checkFavorited: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = favoriteAdSchema.parse({ params: req.params });
+      const isFavorited = await favoritesService.isFavorited(user.userId, params.adId);
+      res.status(200).json(successResponse('Favorite status fetched', { isFavorited }));
+    } catch (error) {
+      next(error);
+    }
+  },
 };

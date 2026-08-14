@@ -76,4 +76,43 @@ describe('Favorites API', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  // UX-FIX (frontend audit P2-03): single-ad check endpoint, replacing
+  // the frontend's previous limit:100 favorites-list workaround.
+  describe('GET /api/v1/favorites/:adId/check', () => {
+    it('returns isFavorited=true after favoriting', async () => {
+      const owner = await createTestUser();
+      const user = await createTestUser();
+      const ad = await createTestAd(owner.id);
+
+      await request(app)
+        .post(`/api/v1/favorites/${ad.id}`)
+        .set('Authorization', `Bearer ${user.accessToken}`);
+
+      const res = await request(app)
+        .get(`/api/v1/favorites/${ad.id}/check`)
+        .set('Authorization', `Bearer ${user.accessToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.isFavorited).toBe(true);
+    });
+
+    it('returns isFavorited=false for an ad never favorited', async () => {
+      const owner = await createTestUser();
+      const user = await createTestUser();
+      const ad = await createTestAd(owner.id);
+
+      const res = await request(app)
+        .get(`/api/v1/favorites/${ad.id}/check`)
+        .set('Authorization', `Bearer ${user.accessToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.isFavorited).toBe(false);
+    });
+
+    it('returns 401 without token', async () => {
+      const res = await request(app).get('/api/v1/favorites/some-id/check');
+      expect(res.status).toBe(401);
+    });
+  });
 });

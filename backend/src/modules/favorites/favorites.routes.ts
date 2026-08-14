@@ -6,4 +6,5 @@ import { favoritesRateLimit } from '../../middlewares/rateLimit.middleware';
 export const favoritesRouter = Router();
 
 favoritesRouter.get('/', authenticate, favoritesController.getMyFavorites);
+favoritesRouter.get('/:adId/check', authenticate, favoritesController.checkFavorited);
 favoritesRouter.post('/:adId', authenticate, favoritesRateLimit, favoritesController.toggleFavorite);

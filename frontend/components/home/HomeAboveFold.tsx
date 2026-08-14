@@ -62,7 +62,14 @@ function SectionHeader({
 
 export function HomeAboveFold() {
   const { isLoading: categoriesLoading } = useCategories();
-  const { isLoading: featuredLoading } = useAds({ limit: 20 });
+  // UX-FIX (audit P2-01): was useAds({ limit: 20 }) — a different query
+  // key than FeaturedAds' own useAds({ isFeatured: true, limit: 4 }),
+  // so this fired a second, unnecessary request and its loading flag
+  // didn't actually track the Featured section it's meant to
+  // coordinate. Matched exactly to FeaturedAds.tsx's real query so
+  // React Query serves the same cache entry (no duplicate request) and
+  // the coordinated skeleton's timing reflects what's actually shown.
+  const { isLoading: featuredLoading } = useAds({ isFeatured: true, limit: 4 });
   const { isLoading: recentLoading } = useAds({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc' });
 
   const stillLoading = categoriesLoading || featuredLoading || recentLoading;

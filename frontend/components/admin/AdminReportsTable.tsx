@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, ExternalLink, AlertTriangle, Search } from 'lucide-react';
@@ -8,6 +9,7 @@ import { Badge }        from '@/components/shared/ui/Badge';
 import { Pagination }   from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useAdminReports }   from '@/hooks/queries/useAdmin';
 import { useAdminUpdateReportStatus } from '@/hooks/mutations/useAdminMutations';
 import { REPORT_REASON_LABELS, ROUTES } from '@/lib/constants';
@@ -60,6 +62,17 @@ export function AdminReportsTable() {
   // admin could double-click, or fire two different rows' mutations
   // concurrently, with no visual feedback that anything was in progress.
   const pendingReportId = resolveReport.isPending ? resolveReport.variables?.reportId : undefined;
+
+  // UX-FIX (audit P2-05): "حل"/"رفض" previously fired the mutation
+  // directly on click — the one moderation-weight action in the app
+  // with no confirmation, unlike role changes (AdminUsersTable), ad
+  // deletion (AdminAdsTable), account deletion, and user blocking
+  // (ChatWindow), which all gate through ConfirmDialog. A misclick
+  // while triaging a report queue had no visible recovery. Same
+  // controlled-target pattern as MyAdsList.tsx's deleteTargetId/
+  // soldTargetId — tracks which report + which action the dialog
+  // currently applies to (null = closed).
+  const [confirmTarget, setConfirmTarget] = useState<{ reportId: string; status: 'RESOLVED' | 'DISMISSED' } | null>(null);
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -176,12 +189,12 @@ export function AdminReportsTable() {
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" className="h-7 text-success"
                           disabled={pendingReportId === report.id}
-                          onClick={() => resolveReport.mutate({ reportId: report.id, status: 'RESOLVED' })}>
+                          onClick={() => setConfirmTarget({ reportId: report.id, status: 'RESOLVED' })}>
                           <CheckCircle className="h-3.5 w-3.5 me-1" />حل
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 text-muted-foreground"
                           disabled={pendingReportId === report.id}
-                          onClick={() => resolveReport.mutate({ reportId: report.id, status: 'DISMISSED' })}>
+                          onClick={() => setConfirmTarget({ reportId: report.id, status: 'DISMISSED' })}>
                           رفض
                         </Button>
                       </div>
@@ -201,6 +214,23 @@ export function AdminReportsTable() {
         <Pagination totalPages={totalPages} currentPage={page}
           baseUrl="/admin/reports" searchParams={Object.fromEntries(sp.entries())} />
       )}
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        onOpenChange={(open) => { if (!open) setConfirmTarget(null); }}
+        title={confirmTarget?.status === 'RESOLVED' ? 'حل هذا البلاغ؟' : 'رفض هذا البلاغ؟'}
+        description={
+          confirmTarget?.status === 'RESOLVED'
+            ? 'سيُعتبر هذا البلاغ محلولاً. يمكنك مراجعته لاحقاً من تبويب «محلولة».'
+            : 'سيُعتبر هذا البلاغ مرفوضاً. يمكنك مراجعته لاحقاً من تبويب «مرفوضة».'
+        }
+        confirmLabel={confirmTarget?.status === 'RESOLVED' ? 'حل البلاغ' : 'رفض البلاغ'}
+        isPending={resolveReport.isPending && resolveReport.variables?.reportId === confirmTarget?.reportId}
+        onConfirm={() => {
+          if (!confirmTarget) return;
+          resolveReport.mutate(confirmTarget, { onSuccess: () => setConfirmTarget(null) });
+        }}
+      />
     </div>
   );
 }

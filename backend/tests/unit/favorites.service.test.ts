@@ -53,4 +53,22 @@ describe('FavoritesService', () => {
       expect(result.meta.total).toBe(1);
     });
   });
+
+  // UX-FIX (frontend audit P2-03): covers the new single-ad check that
+  // replaces the frontend's previous limit:100 list fetch.
+  describe('isFavorited', () => {
+    it('returns true when a favorite row exists', async () => {
+      (favoritesRepository.findByUserAndAd as jest.Mock).mockResolvedValue({ id: 'fav-1' });
+
+      const result = await favoritesService.isFavorited('user-1', 'ad-1');
+      expect(result).toBe(true);
+    });
+
+    it('returns false when no favorite row exists', async () => {
+      (favoritesRepository.findByUserAndAd as jest.Mock).mockResolvedValue(null);
+
+      const result = await favoritesService.isFavorited('user-1', 'ad-1');
+      expect(result).toBe(false);
+    });
+  });
 });

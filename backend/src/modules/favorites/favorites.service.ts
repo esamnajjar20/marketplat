@@ -57,4 +57,17 @@ export const favoritesService = {
     const { favorites, total } = await favoritesRepository.findManyByUserId(userId, query);
     return { items: favorites, meta: buildPaginationMeta(total, page, limit) };
   },
+
+  // UX-FIX (frontend audit P2-03): AdDetailSection.tsx previously called
+  // GET /favorites?limit=100 (the endpoint's max page size) on every ad
+  // detail view just to derive one boolean — whether *this* ad is
+  // favorited — and was silently wrong for any user with >100
+  // favorites, since the ad in question could sit past the cap. Reuses
+  // the same findByUserAndAd() the toggle endpoint already calls
+  // internally — no new query, just a new thin route onto existing,
+  // exercised repository code.
+  isFavorited: async (userId: string, adId: string): Promise<boolean> => {
+    const favorite = await favoritesRepository.findByUserAndAd(userId, adId);
+    return favorite !== null;
+  },
 };
