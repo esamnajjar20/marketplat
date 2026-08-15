@@ -84,3 +84,22 @@ export const suspendSellerSchema = z.object({
 });
 
 export type SuspendSellerInput = z.infer<typeof suspendSellerSchema>['body'];
+
+// BULK-ADMIN (item 17): same 1-100 id-array cap as
+// admin.validation.ts's bulkIdsSchema — kept as its own local const
+// rather than importing across modules for a single shared array
+// shape (sellers.validation.ts has no other dependency on
+// admin.validation.ts, and duplicating one z.array(...).min(1).max(100)
+// line avoids introducing one just for this).
+const bulkSellerIdsSchema = z.array(z.string().min(1)).min(1, 'At least one id is required').max(100);
+
+export const bulkVerifySellersSchema = z.object({
+  body: z.object({ sellerProfileIds: bulkSellerIdsSchema, verified: z.boolean() }),
+});
+
+export const bulkSuspendSellersSchema = z.object({
+  body: z.object({ sellerProfileIds: bulkSellerIdsSchema, suspended: z.boolean() }),
+});
+
+export type BulkVerifySellersInput = z.infer<typeof bulkVerifySellersSchema>['body'];
+export type BulkSuspendSellersInput = z.infer<typeof bulkSuspendSellersSchema>['body'];

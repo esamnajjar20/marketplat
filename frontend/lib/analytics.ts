@@ -41,6 +41,30 @@ const SESSION_STORAGE_KEY = 'analytics_session_id';
 const FLUSH_INTERVAL_MS = 5_000;
 const MAX_BATCH_SIZE = 20; // matches backend's trackEventsSchema cap
 
+/**
+ * crypto.randomUUID() only exists in secure contexts (https/localhost)
+ * and in reasonably recent browsers. Analytics must never throw, so
+ * fall back to crypto.getRandomValues (wider support) and finally to
+ * Math.random if even that is missing.
+ */
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+    bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 const queue: QueuedEvent[] = [];
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -54,7 +78,7 @@ function getSessionId(): string {
   try {
     let id = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!id) {
-      id = crypto.randomUUID();
+      id = generateId();
       sessionStorage.setItem(SESSION_STORAGE_KEY, id);
     }
     return id;
@@ -62,7 +86,7 @@ function getSessionId(): string {
     // sessionStorage unavailable (private browsing edge cases, etc.) —
     // fall back to a per-call id rather than throwing; funnel
     // continuity is lost for this visitor, tracking still works.
-    return crypto.randomUUID();
+    return generateId();
   }
 }
 

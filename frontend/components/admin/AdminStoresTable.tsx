@@ -21,19 +21,21 @@
  * AdminSellersTable's verify vs. suspend.
  */
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle2, Ban, RotateCcw, Search } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
+import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import { useAdminStores } from '@/hooks/queries/useAdmin';
-import { useAdminUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
+import { useAdminUpdateStoreStatus, useAdminBulkUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
@@ -82,6 +84,7 @@ export function AdminStoresTable() {
     status: status === 'ALL' ? undefined : status,
   });
   const updateStatus = useAdminUpdateStoreStatus();
+  const bulkUpdateStatus = useAdminBulkUpdateStoreStatus();
 
   const pendingId = updateStatus.isPending ? updateStatus.variables?.storeId : undefined;
 
@@ -91,8 +94,39 @@ export function AdminStoresTable() {
   // PENDING store and un-blocking a BLOCKED one are both single-click.
   const [blockTarget, setBlockTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const items      = data?.items ?? [];
+  const items      = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
+
+  // BULK-ADMIN (item 17): the realistic bulk workflow is clearing the
+  // PENDING queue (approve many at once) — every row is selectable
+  // regardless of its current status (mirrors AdminSellersTable), but
+  // the bulk bar's actions are still meaningful whatever status a
+  // selected row happens to be in: "bulk approve" sets ACTIVE on
+  // whichever selected rows aren't already ACTIVE, "bulk block" sets
+  // BLOCKED. A selected row already in the target status is simply a
+  // no-op update on the backend (findById succeeds, update sets the
+  // same value) — not worth filtering out client-side for the
+  // marginal case of a mixed-status selection.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBlockConfirmOpen, setBulkBlockConfirmOpen] = useState(false);
+
+  const allSelected = items.length > 0 && items.every((s) => selectedIds.has(s.id));
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, q, status]);
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(items.map((s) => s.id)));
+  }
 
   function updateParams(next: Record<string, string | undefined>) {
     const params = new URLSearchParams(sp.toString());
@@ -134,10 +168,24 @@ export function AdminStoresTable() {
         onKeyDown={(e) => { if (e.key === 'Enter') updateParams({ q: (e.target as HTMLInputElement).value }); }}
         className="max-w-xs" />
 
+      <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+        <Button variant="outline" size="sm" className="h-7 text-success"
+          onClick={() => bulkUpdateStatus.mutate(
+            { storeIds: Array.from(selectedIds), status: 'ACTIVE' },
+            { onSuccess: () => setSelectedIds(new Set()) },
+          )}>
+          <CheckCircle2 className="h-3.5 w-3.5 me-1" />الموافقة على المحدد
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 text-destructive"
+          onClick={() => setBulkBlockConfirmOpen(true)}>
+          <Ban className="h-3.5 w-3.5 me-1" />حظر المحدد
+        </Button>
+      </BulkActionBar>
+
       {isLoading ? (
         // FIX AUDIT-1: TableSkeleton instead of a centered LoadingSpinner
         // on refetch — see AdminAdsTable for the full rationale.
-        <TableSkeleton columns={6} />
+        <TableSkeleton columns={7} />
       ) : isError ? (
         // Same UX-FIX P1-9 reasoning as AdminSellersTable: a failed
         // fetch must not render as "لا توجد متاجر" — that would wrongly
@@ -150,6 +198,11 @@ export function AdminStoresTable() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
+                <th className="w-10 p-3">
+                  {items.length > 0 && (
+                    <Checkbox checked={allSelected} onChange={toggleAll} aria-label="تحديد كل المتاجر" />
+                  )}
+                </th>
                 <th className="text-start p-3 font-medium">المتجر</th>
                 <th className="text-start p-3 font-medium hidden md:table-cell">البائع</th>
                 <th className="text-start p-3 font-medium hidden sm:table-cell">المدينة</th>
@@ -163,6 +216,13 @@ export function AdminStoresTable() {
                 const badge = { label: STORE_STATUS_LABELS[store.status], variant: STORE_STATUS_VARIANT[store.status] };
                 return (
                   <tr key={store.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-3">
+                      <Checkbox
+                        checked={selectedIds.has(store.id)}
+                        onChange={() => toggleOne(store.id)}
+                        aria-label={`تحديد متجر ${store.name}`}
+                      />
+                    </td>
                     <td className="p-3">
                       <span className="font-medium">{store.name}</span>
                       <span className="block text-xs text-muted-foreground md:hidden">
@@ -213,7 +273,7 @@ export function AdminStoresTable() {
                 );
               })}
               {items.length === 0 && (
-                <tr><td colSpan={6}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد متاجر" /></td></tr>
+                <tr><td colSpan={7}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد متاجر" /></td></tr>
               )}
             </tbody>
           </table>
@@ -238,6 +298,30 @@ export function AdminStoresTable() {
           updateStatus.mutate(
             { storeId: blockTarget.id, status: 'BLOCKED' },
             { onSuccess: () => setBlockTarget(null) },
+          );
+        }}
+      />
+
+      {/* BULK-ADMIN (item 17): separate dialog/state from the
+          single-row block above — same reasoning as the other tables'
+          bulk ConfirmDialogs. */}
+      <ConfirmDialog
+        open={bulkBlockConfirmOpen}
+        onOpenChange={setBulkBlockConfirmOpen}
+        title={`حظر ${selectedIds.size} متجر؟`}
+        description="ستختفي هذه المتاجر فورًا من الدليل العام ولن يتمكن متابعوها من رؤيتها حتى يتم رفع الحظر."
+        confirmLabel="حظر"
+        destructive
+        isPending={bulkUpdateStatus.isPending}
+        onConfirm={() => {
+          bulkUpdateStatus.mutate(
+            { storeIds: Array.from(selectedIds), status: 'BLOCKED' },
+            {
+              onSuccess: () => {
+                setSelectedIds(new Set());
+                setBulkBlockConfirmOpen(false);
+              },
+            },
           );
         }}
       />

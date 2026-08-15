@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ShieldOff, ShieldCheck, ChevronDown, Crown, ShieldAlert, User as UserIcon, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Input }        from '@/components/shared/ui/Input';
+import { Checkbox }     from '@/components/shared/ui/Checkbox';
 import { Pagination }   from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,7 +22,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/shared/ui/DropdownMenu';
 import { useAdminUsers }  from '@/hooks/queries/useAdmin';
-import { useAdminToggleUserActive, useAdminChangeRole } from '@/hooks/mutations/useAdminMutations';
+import { useAdminToggleUserActive, useAdminChangeRole, useAdminBulkToggleUserActive } from '@/hooks/mutations/useAdminMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { formatDate }     from '@/lib/formatters';
 import { parseApiError }  from '@/lib/errorParser';
@@ -81,6 +83,7 @@ export function AdminUsersTable() {
   const { data, isLoading, isError, error, refetch } = useAdminUsers({ page, q: q || undefined });
   const changeUserStatus = useAdminToggleUserActive();
   const changeRole       = useAdminChangeRole();
+  const bulkChangeUserStatus = useAdminBulkToggleUserActive();
   const currentUser      = useAuthStore(selectUser);
   const actorRole: UserRole = (currentUser?.role as UserRole) ?? 'USER';
 
@@ -98,8 +101,42 @@ export function AdminUsersTable() {
   // single click.
   const [roleTarget, setRoleTarget] = useState<{ id: string; currentRole: UserRole; nextRole: AssignableRole; name: string } | null>(null);
 
-  const items      = data?.items ?? [];
+  const items      = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
+
+  // BULK-ADMIN (item 17): bulk selection is scoped to active/inactive
+  // only (see this table's own comment below on why role changes are
+  // never batched). A row is only selectable when canManageStatus is
+  // true for it — the exact same canManageRole(actorRole, userRole,
+  // userRole) check the single-row button already applies — so an
+  // admin can never select a row the backend would reject anyway
+  // (SUPER_ADMIN targets, peers/superiors by rank).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatusConfirm, setBulkStatusConfirm] = useState<'activate' | 'deactivate' | null>(null);
+
+  const selectableIds = useMemo(
+    () => items
+      .filter((u: AdminUser) => (u.role as UserRole) !== 'SUPER_ADMIN' && canManageRole(actorRole, u.role as UserRole, u.role as UserRole))
+      .map((u: AdminUser) => u.id),
+    [items, actorRole],
+  );
+  const allSelectableSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, q]);
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelectedIds(allSelectableSelected ? new Set() : new Set(selectableIds));
+  }
 
   function search(value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -147,10 +184,21 @@ export function AdminUsersTable() {
         onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
         className="max-w-xs" />
 
+      <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+        <Button variant="outline" size="sm" className="h-7"
+          onClick={() => setBulkStatusConfirm('activate')}>
+          <ShieldCheck className="h-3.5 w-3.5 me-1 text-success" />تفعيل المحدد
+        </Button>
+        <Button variant="outline" size="sm" className="h-7"
+          onClick={() => setBulkStatusConfirm('deactivate')}>
+          <ShieldOff className="h-3.5 w-3.5 me-1 text-destructive" />إيقاف المحدد
+        </Button>
+      </BulkActionBar>
+
       {isLoading ? (
         // FIX AUDIT-1: TableSkeleton instead of a centered LoadingSpinner
         // on refetch — see AdminAdsTable for the full rationale.
-        <TableSkeleton columns={6} />
+        <TableSkeleton columns={7} />
       ) : isError ? (
         // UX-FIX P1-9 (admin variant): a failed fetch must not render as
         // "لا يوجد مستخدمون" — an admin reading that could wrongly
@@ -163,6 +211,11 @@ export function AdminUsersTable() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
+                <th className="w-10 p-3">
+                  {selectableIds.length > 0 && (
+                    <Checkbox checked={allSelectableSelected} onChange={toggleAll} aria-label="تحديد كل المستخدمين" />
+                  )}
+                </th>
                 <th className="text-start p-3 font-medium">المستخدم</th>
                 <th className="text-start p-3 font-medium hidden md:table-cell">البريد</th>
                 <th className="text-start p-3 font-medium">الدور</th>
@@ -189,6 +242,15 @@ export function AdminUsersTable() {
 
                 return (
                   <tr key={user.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-3">
+                      {canManageStatus && (
+                        <Checkbox
+                          checked={selectedIds.has(user.id)}
+                          onChange={() => toggleOne(user.id)}
+                          aria-label={`تحديد ${user.name}`}
+                        />
+                      )}
+                    </td>
                     <td className="p-3">
                       <span className="font-medium">{user.name}</span>
                     </td>
@@ -281,7 +343,7 @@ export function AdminUsersTable() {
                 );
               })}
               {items.length === 0 && (
-                <tr><td colSpan={6}><EmptyState icon={<Search className="h-8 w-8" />} title="لا يوجد مستخدمون" /></td></tr>
+                <tr><td colSpan={7}><EmptyState icon={<Search className="h-8 w-8" />} title="لا يوجد مستخدمون" /></td></tr>
               )}
             </tbody>
           </table>
@@ -306,6 +368,41 @@ export function AdminUsersTable() {
           changeRole.mutate(
             { userId: roleTarget.id, role: roleTarget.nextRole },
             { onSuccess: () => setRoleTarget(null) },
+          );
+        }}
+      />
+
+      {/* BULK-ADMIN (item 17): active/inactive only — a deactivation is
+          reversible (unlike a role change), so this mirrors the
+          activate/deactivate flow's own low-friction nature rather
+          than the heavier role-change dialog above, but still confirms
+          since it can affect many accounts at once from one click. */}
+      <ConfirmDialog
+        open={bulkStatusConfirm !== null}
+        onOpenChange={(open) => { if (!open) setBulkStatusConfirm(null); }}
+        title={
+          bulkStatusConfirm === 'activate'
+            ? `تفعيل ${selectedIds.size} حساب؟`
+            : `إيقاف ${selectedIds.size} حساب؟`
+        }
+        description={
+          bulkStatusConfirm === 'deactivate'
+            ? 'سيتم إنهاء جلسات هذه الحسابات فوراً ولن يتمكنوا من تسجيل الدخول.'
+            : 'ستتمكن هذه الحسابات من تسجيل الدخول مجدداً.'
+        }
+        confirmLabel={bulkStatusConfirm === 'activate' ? 'تفعيل' : 'إيقاف'}
+        destructive={bulkStatusConfirm === 'deactivate'}
+        isPending={bulkChangeUserStatus.isPending}
+        onConfirm={() => {
+          if (!bulkStatusConfirm) return;
+          bulkChangeUserStatus.mutate(
+            { userIds: Array.from(selectedIds), isActive: bulkStatusConfirm === 'activate' },
+            {
+              onSuccess: () => {
+                setSelectedIds(new Set());
+                setBulkStatusConfirm(null);
+              },
+            },
           );
         }}
       />

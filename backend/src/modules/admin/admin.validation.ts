@@ -60,3 +60,31 @@ export const changeRoleSchema = z.object({
 
 export type AdminGetAdsQuery = z.infer<typeof adminGetAdsSchema>['query'];
 export type AdminGetUsersQuery = z.infer<typeof adminGetUsersSchema>['query'];
+
+// BULK-ADMIN (item 17): shared 1-100 id-array shape, same cap as
+// reports.validation.ts's bulkUpdateReportStatusSchema and for the
+// same reason — never let a single bulk request become a full-table
+// operation; an admin clearing more than that does it in a couple of
+// requests instead.
+const bulkIdsSchema = z.array(z.string().min(1)).min(1, 'At least one id is required').max(100);
+
+export const bulkSetAdFeaturedSchema = z.object({
+  body: z.object({ adIds: bulkIdsSchema, isFeatured: z.boolean() }),
+});
+
+export const bulkSetAdPinnedSchema = z.object({
+  body: z.object({ adIds: bulkIdsSchema, isPinned: z.boolean() }),
+});
+
+export const bulkDeleteAdsSchema = z.object({
+  body: z.object({ adIds: bulkIdsSchema }),
+});
+
+export const bulkToggleUserActiveSchema = z.object({
+  body: z.object({ userIds: bulkIdsSchema, isActive: z.boolean() }),
+});
+
+export type BulkSetAdFeaturedInput = z.infer<typeof bulkSetAdFeaturedSchema>['body'];
+export type BulkSetAdPinnedInput = z.infer<typeof bulkSetAdPinnedSchema>['body'];
+export type BulkDeleteAdsInput = z.infer<typeof bulkDeleteAdsSchema>['body'];
+export type BulkToggleUserActiveInput = z.infer<typeof bulkToggleUserActiveSchema>['body'];

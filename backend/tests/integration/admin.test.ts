@@ -3,6 +3,8 @@ import { app } from '../../src/app';
 import { prisma } from '../../src/config/prisma';
 import { createTestUser, createTestAdmin, createTestModerator, createTestSuperAdmin } from '../helpers/auth.helper';
 import { createTestAd } from '../helpers/ad.helper';
+import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
+import { createTestStore } from '../helpers/store.helper';
 
 describe('Admin API', () => {
   // FIX E2E-GAP-01: GET /admin/stats had zero integration (HTTP) test
@@ -153,6 +155,111 @@ describe('Admin API', () => {
     });
   });
 
+  describe('PATCH /api/v1/admin/ads/bulk/featured (item 17)', () => {
+    it('features every ad in the batch', async () => {
+      const admin = await createTestAdmin();
+      const user = await createTestUser();
+      const ad1 = await createTestAd(user.id);
+      const ad2 = await createTestAd(user.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/ads/bulk/featured')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ adIds: [ad1.id, ad2.id], isFeatured: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(2);
+      expect(res.body.meta.failed).toEqual([]);
+
+      const refetched = await prisma.ad.findUnique({ where: { id: ad1.id } });
+      expect(refetched?.isFeatured).toBe(true);
+    });
+
+    it('reports partial failure for a non-existent id without failing the whole batch', async () => {
+      const admin = await createTestAdmin();
+      const user = await createTestUser();
+      const ad = await createTestAd(user.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/ads/bulk/featured')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ adIds: [ad.id, 'non-existent-id'], isFeatured: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(1);
+      expect(res.body.meta.failed).toEqual([{ id: 'non-existent-id', reason: 'Ad not found' }]);
+    });
+
+    it('returns 400 for an empty adIds array', async () => {
+      const admin = await createTestAdmin();
+
+      const res = await request(app)
+        .patch('/api/v1/admin/ads/bulk/featured')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ adIds: [], isFeatured: true });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a non-authenticated request', async () => {
+      const res = await request(app)
+        .patch('/api/v1/admin/ads/bulk/featured')
+        .send({ adIds: ['x'], isFeatured: true });
+
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('PATCH /api/v1/admin/ads/bulk/pinned (item 17)', () => {
+    it('pins every ad in the batch — reachable by MODERATOR (ads moderation tier)', async () => {
+      const moderator = await createTestModerator();
+      const user = await createTestUser();
+      const ad = await createTestAd(user.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/ads/bulk/pinned')
+        .set('Authorization', `Bearer ${moderator.accessToken}`)
+        .send({ adIds: [ad.id], isPinned: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(1);
+    });
+  });
+
+  describe('DELETE /api/v1/admin/ads/bulk (item 17)', () => {
+    it('force-deletes every ad in the batch', async () => {
+      const admin = await createTestAdmin();
+      const user = await createTestUser();
+      const ad1 = await createTestAd(user.id);
+      const ad2 = await createTestAd(user.id);
+
+      const res = await request(app)
+        .delete('/api/v1/admin/ads/bulk')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ adIds: [ad1.id, ad2.id] });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(2);
+
+      const refetched1 = await prisma.ad.findUnique({ where: { id: ad1.id } });
+      const refetched2 = await prisma.ad.findUnique({ where: { id: ad2.id } });
+      expect(refetched1?.status).toBe('DELETED');
+      expect(refetched2?.status).toBe('DELETED');
+    });
+
+    it('returns 400 for more than 100 ids', async () => {
+      const admin = await createTestAdmin();
+      const adIds = Array.from({ length: 101 }, (_, i) => `id-${i}`);
+
+      const res = await request(app)
+        .delete('/api/v1/admin/ads/bulk')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ adIds });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe('GET /api/v1/admin/users', () => {
     it('returns paginated users', async () => {
       const admin = await createTestAdmin();
@@ -236,6 +343,75 @@ describe('Admin API', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.isActive).toBe(false);
+    });
+  });
+
+  describe('PATCH /api/v1/admin/users/bulk/active (item 17)', () => {
+    it('deactivates every user in the batch', async () => {
+      const admin = await createTestAdmin();
+      const user1 = await createTestUser();
+      const user2 = await createTestUser();
+
+      const res = await request(app)
+        .patch('/api/v1/admin/users/bulk/active')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ userIds: [user1.id, user2.id], isActive: false });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(2);
+      expect(res.body.meta.failed).toEqual([]);
+
+      const refetched = await prisma.user.findUnique({ where: { id: user1.id } });
+      expect(refetched?.isActive).toBe(false);
+    });
+
+    // Real-world race this endpoint must handle correctly: an admin
+    // selects a mixed batch including a peer ADMIN they aren't ranked
+    // above (canManageRole rejects it) — that one id must fail without
+    // blocking the ordinary user in the same batch.
+    it('reports a per-id failure for a target the actor cannot manage, without failing the rest of the batch', async () => {
+      const admin = await createTestAdmin();
+      const otherAdmin = await createTestAdmin();
+      const user = await createTestUser();
+
+      const res = await request(app)
+        .patch('/api/v1/admin/users/bulk/active')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ userIds: [user.id, otherAdmin.id], isActive: false });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(1);
+      expect(res.body.meta.failed).toHaveLength(1);
+      expect(res.body.meta.failed[0].id).toBe(otherAdmin.id);
+
+      const refetchedUser = await prisma.user.findUnique({ where: { id: user.id } });
+      const refetchedOtherAdmin = await prisma.user.findUnique({ where: { id: otherAdmin.id } });
+      expect(refetchedUser?.isActive).toBe(false);
+      expect(refetchedOtherAdmin?.isActive).toBe(true);
+    });
+
+    it('rejects a MODERATOR — user account management is ADMIN+ only', async () => {
+      const moderator = await createTestModerator();
+      const user = await createTestUser();
+
+      const res = await request(app)
+        .patch('/api/v1/admin/users/bulk/active')
+        .set('Authorization', `Bearer ${moderator.accessToken}`)
+        .send({ userIds: [user.id], isActive: false });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 400 for more than 100 ids', async () => {
+      const admin = await createTestAdmin();
+      const userIds = Array.from({ length: 101 }, (_, i) => `id-${i}`);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/users/bulk/active')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ userIds, isActive: false });
+
+      expect(res.status).toBe(400);
     });
   });
 
@@ -387,6 +563,152 @@ describe('Admin API', () => {
         .send({ role: 'MODERATOR' });
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('PATCH /api/v1/admin/sellers/bulk/verify (item 17)', () => {
+    it('verifies every seller profile in the batch', async () => {
+      const admin = await createTestAdmin();
+      const user1 = await createTestUser();
+      const user2 = await createTestUser();
+      const seller1 = await createTestSellerProfile(user1.id);
+      const seller2 = await createTestSellerProfile(user2.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/sellers/bulk/verify')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ sellerProfileIds: [seller1.id, seller2.id], verified: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(2);
+      expect(res.body.meta.failed).toEqual([]);
+
+      const refetched = await prisma.sellerProfile.findUnique({ where: { id: seller1.id } });
+      expect(refetched?.verified).toBe(true);
+    });
+
+    it('reports partial failure for a non-existent id without failing the whole batch', async () => {
+      const admin = await createTestAdmin();
+      const user = await createTestUser();
+      const seller = await createTestSellerProfile(user.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/sellers/bulk/verify')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ sellerProfileIds: [seller.id, 'non-existent-id'], verified: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(1);
+      expect(res.body.meta.failed).toEqual([{ id: 'non-existent-id', reason: 'Seller not found' }]);
+    });
+
+    it('rejects a MODERATOR — sellers are outside the MODERATOR tier', async () => {
+      const moderator = await createTestModerator();
+      const user = await createTestUser();
+      const seller = await createTestSellerProfile(user.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/sellers/bulk/verify')
+        .set('Authorization', `Bearer ${moderator.accessToken}`)
+        .send({ sellerProfileIds: [seller.id], verified: true });
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('PATCH /api/v1/admin/sellers/bulk/suspend (item 17)', () => {
+    it('suspends every seller profile in the batch', async () => {
+      const admin = await createTestAdmin();
+      const user = await createTestUser();
+      const seller = await createTestSellerProfile(user.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/sellers/bulk/suspend')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ sellerProfileIds: [seller.id], suspended: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(1);
+
+      const refetched = await prisma.sellerProfile.findUnique({ where: { id: seller.id } });
+      expect(refetched?.suspended).toBe(true);
+    });
+
+    it('returns 400 for an empty sellerProfileIds array', async () => {
+      const admin = await createTestAdmin();
+
+      const res = await request(app)
+        .patch('/api/v1/admin/sellers/bulk/suspend')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ sellerProfileIds: [], suspended: true });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('PATCH /api/v1/admin/stores/bulk/status (item 17)', () => {
+    it('updates status for every store in the batch', async () => {
+      const admin = await createTestAdmin();
+      const user1 = await createTestUser();
+      const user2 = await createTestUser();
+      const seller1 = await createTestSellerProfile(user1.id);
+      const seller2 = await createTestSellerProfile(user2.id);
+      const store1 = await createTestStore(seller1.id, { status: 'PENDING' });
+      const store2 = await createTestStore(seller2.id, { status: 'PENDING' });
+
+      const res = await request(app)
+        .patch('/api/v1/admin/stores/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ storeIds: [store1.id, store2.id], status: 'ACTIVE' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(2);
+      expect(res.body.meta.failed).toEqual([]);
+
+      const refetched = await prisma.storeDetails.findUnique({ where: { id: store1.id } });
+      expect(refetched?.status).toBe('ACTIVE');
+    });
+
+    it('reports partial failure for a non-existent id without failing the whole batch', async () => {
+      const admin = await createTestAdmin();
+      const user = await createTestUser();
+      const seller = await createTestSellerProfile(user.id);
+      const store = await createTestStore(seller.id, { status: 'PENDING' });
+
+      const res = await request(app)
+        .patch('/api/v1/admin/stores/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ storeIds: [store.id, 'non-existent-id'], status: 'ACTIVE' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(1);
+      expect(res.body.meta.failed).toEqual([{ id: 'non-existent-id', reason: 'Store not found' }]);
+    });
+
+    it('rejects a MODERATOR — stores are outside the MODERATOR tier', async () => {
+      const moderator = await createTestModerator();
+      const user = await createTestUser();
+      const seller = await createTestSellerProfile(user.id);
+      const store = await createTestStore(seller.id, { status: 'PENDING' });
+
+      const res = await request(app)
+        .patch('/api/v1/admin/stores/bulk/status')
+        .set('Authorization', `Bearer ${moderator.accessToken}`)
+        .send({ storeIds: [store.id], status: 'ACTIVE' });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 400 for more than 100 ids', async () => {
+      const admin = await createTestAdmin();
+      const storeIds = Array.from({ length: 101 }, (_, i) => `id-${i}`);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/stores/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ storeIds, status: 'ACTIVE' });
+
+      expect(res.status).toBe(400);
     });
   });
 

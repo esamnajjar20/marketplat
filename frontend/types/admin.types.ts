@@ -269,3 +269,21 @@ export interface AdminGetAuditLogsParams extends PaginationParams {
   sortBy?: AuditLogSortField;
   sortOrder?: 'asc' | 'desc';
 }
+
+// BULK-ADMIN (item 17): shared response shape for every admin bulk
+// endpoint (reports/ads/users/sellers/stores) — each backend bulk
+// route returns { data: T[], meta: { updatedCount, failed } } via the
+// same successResponse(..., updated, { updatedCount, failed })
+// pattern (see reports.controller.ts's bulkUpdateReportStatus and its
+// siblings in admin.controller.ts / sellers.controller.ts /
+// stores.controller.ts).
+export interface BulkActionFailure {
+  id: string;
+  reason: string;
+}
+
+export interface BulkActionMeta {
+  updatedCount: number;
+  failed: BulkActionFailure[];
+}
+

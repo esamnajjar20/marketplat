@@ -9,10 +9,12 @@ import {
   updateStoreStatusSchema,
   createStoreReviewSchema,
   getStoreReviewsSchema,
+  bulkUpdateStoreStatusSchema,
 } from './stores.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { runBulk } from '../../shared/utils/bulkRunner';
 
 export const storesController = {
   createStore: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -91,6 +93,29 @@ export const storesController = {
       });
       const store = await storesService.updateStoreStatus(params.id, body, admin.userId);
       res.status(200).json(successResponse('Store status updated', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // BULK-ADMIN (item 17): calls storesService.updateStoreStatus once
+  // per id via runBulk — reuses its existing findById/NotFoundError
+  // check and audit logging exactly as-is per id. See bulkRunner.ts's
+  // doc comment for why the real service function (not a repository
+  // updateMany) is the point.
+  bulkUpdateStoreStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const admin = requireUser(req);
+      const { body } = bulkUpdateStoreStatusSchema.parse({ body: req.body });
+      const result = await runBulk(body.storeIds, (id) =>
+        storesService.updateStoreStatus(id, { status: body.status }, admin.userId)
+      );
+      res.status(200).json(
+        successResponse('Bulk store status update processed', result.updated, {
+          updatedCount: result.updated.length,
+          failed: result.failed,
+        })
+      );
     } catch (error) {
       next(error);
     }

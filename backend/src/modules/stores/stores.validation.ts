@@ -87,6 +87,18 @@ export const updateStoreStatusSchema = z.object({
 
 export type UpdateStoreStatusInput = z.infer<typeof updateStoreStatusSchema>['body'];
 
+// BULK-ADMIN (item 17): same 1-100 id-array cap as
+// admin.validation.ts's bulkIdsSchema / sellers.validation.ts's
+// bulkSellerIdsSchema — same reasoning as those, duplicated locally
+// rather than shared across modules for one array shape.
+const bulkStoreIdsSchema = z.array(z.string().min(1)).min(1, 'At least one id is required').max(100);
+
+export const bulkUpdateStoreStatusSchema = z.object({
+  body: z.object({ storeIds: bulkStoreIdsSchema, status: z.nativeEnum(StoreStatus) }),
+});
+
+export type BulkUpdateStoreStatusInput = z.infer<typeof bulkUpdateStoreStatusSchema>['body'];
+
 export const createStoreReviewSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),
   body: z.object({

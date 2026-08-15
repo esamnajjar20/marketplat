@@ -8,9 +8,12 @@ import {
   verifySellerSchema,
   suspendSellerSchema,
   adminGetSellersSchema,
+  bulkVerifySellersSchema,
+  bulkSuspendSellersSchema,
 } from './sellers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { runBulk } from '../../shared/utils/bulkRunner';
 
 export const sellersController = {
   createSellerProfile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -109,6 +112,48 @@ export const sellersController = {
       const { params, body } = suspendSellerSchema.parse({ params: req.params, body: req.body });
       const profile = await sellersService.setSuspension(params.id, body.suspended, admin.userId);
       res.status(200).json(successResponse('Seller suspension updated', profile));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // BULK-ADMIN (item 17): calls sellersService.setVerification once
+  // per id via runBulk — reuses its existing findById/NotFoundError
+  // check and audit logging exactly as-is per id. See bulkRunner.ts's
+  // doc comment for why the real service function (not a repository
+  // updateMany) is the point.
+  bulkVerifySellers: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const admin = requireUser(req);
+      const { body } = bulkVerifySellersSchema.parse({ body: req.body });
+      const result = await runBulk(body.sellerProfileIds, (id) =>
+        sellersService.setVerification(id, body.verified, admin.userId)
+      );
+      res.status(200).json(
+        successResponse('Bulk seller verification update processed', result.updated, {
+          updatedCount: result.updated.length,
+          failed: result.failed,
+        })
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Mirrors bulkVerifySellers exactly, for setSuspension.
+  bulkSuspendSellers: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const admin = requireUser(req);
+      const { body } = bulkSuspendSellersSchema.parse({ body: req.body });
+      const result = await runBulk(body.sellerProfileIds, (id) =>
+        sellersService.setSuspension(id, body.suspended, admin.userId)
+      );
+      res.status(200).json(
+        successResponse('Bulk seller suspension update processed', result.updated, {
+          updatedCount: result.updated.length,
+          failed: result.failed,
+        })
+      );
     } catch (error) {
       next(error);
     }

@@ -125,6 +125,55 @@ export function useAdminForceDeleteAd() {
   });
 }
 
+/**
+ * BULK-ADMIN (item 17): bulk feature/pin/delete for the admin ads
+ * table. No optimistic update — see useAdminBulkUpdateReportStatus's
+ * doc comment for why (the backend's per-id `updated`/`failed` result
+ * is the source of truth for a batch, so patching the cache
+ * optimistically first would just have to be selectively undone for
+ * whichever ids land in `failed`). No toastWithUndo for the same
+ * reason bulk report status has none: a batch of up to 100 has no
+ * single meaningful "undo".
+ */
+export function useAdminBulkSetFeatured() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ adIds, isFeatured }: { adIds: string[]; isFeatured: boolean }) =>
+      adminApi.bulkSetFeatured(adIds, isFeatured).then((r) => r.data),
+    onSuccess: (result) => toastBulkResult('إعلان', result.meta.updatedCount, result.meta.failed),
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
+  });
+}
+
+export function useAdminBulkSetPinned() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ adIds, isPinned }: { adIds: string[]; isPinned: boolean }) =>
+      adminApi.bulkSetPinned(adIds, isPinned).then((r) => r.data),
+    onSuccess: (result) => toastBulkResult('إعلان', result.meta.updatedCount, result.meta.failed),
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
+  });
+}
+
+export function useAdminBulkDeleteAds() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (adIds: string[]) => adminApi.bulkDeleteAds(adIds).then((r) => r.data),
+    onSuccess: (result) => {
+      // FIX (matches useAdminForceDeleteAd's single-row behavior):
+      // a bulk-deleted ad's own detail-page cache entry must not keep
+      // serving stale data if the admin happens to still have it open
+      // in another tab.
+      result.data.forEach((adId) => queryClient.removeQueries({ queryKey: queryKeys.ads.detail(adId) }));
+      toastBulkResult('إعلان محذوف', result.meta.updatedCount, result.meta.failed);
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
+  });
+}
+
 export function useAdminToggleUserActive() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -161,6 +210,25 @@ export function useAdminToggleUserActive() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
   });
   return mutation;
+}
+
+/**
+ * BULK-ADMIN (item 17): bulk activate/deactivate for the admin users
+ * table. Role changes are deliberately not batched (see admin.routes.ts
+ * / AdminUsersTable.tsx comments — canManageRole outcomes differ per
+ * target, so a mixed-role batch has no single safe "assign role X to
+ * everyone selected" semantics). Same no-optimistic-update /
+ * no-toastWithUndo reasoning as the other bulk hooks in this file.
+ */
+export function useAdminBulkToggleUserActive() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userIds, isActive }: { userIds: string[]; isActive: boolean }) =>
+      adminApi.bulkToggleUserActive(userIds, isActive).then((r) => r.data),
+    onSuccess: (result) => toastBulkResult('مستخدم', result.meta.updatedCount, result.meta.failed),
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  });
 }
 
 /**
@@ -249,6 +317,33 @@ export function useAdminSetSellerSuspended() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
   });
   return mutation;
+}
+
+/**
+ * BULK-ADMIN (item 17): bulk verify/suspend for the admin sellers
+ * table. Same no-optimistic-update / no-toastWithUndo reasoning as the
+ * other bulk hooks in this file.
+ */
+export function useAdminBulkSetSellerVerified() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sellerProfileIds, verified }: { sellerProfileIds: string[]; verified: boolean }) =>
+      adminApi.bulkSetSellerVerified(sellerProfileIds, verified).then((r) => r.data),
+    onSuccess: (result) => toastBulkResult('بائع', result.meta.updatedCount, result.meta.failed),
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+  });
+}
+
+export function useAdminBulkSetSellerSuspended() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sellerProfileIds, suspended }: { sellerProfileIds: string[]; suspended: boolean }) =>
+      adminApi.bulkSetSellerSuspended(sellerProfileIds, suspended).then((r) => r.data),
+    onSuccess: (result) => toastBulkResult('بائع', result.meta.updatedCount, result.meta.failed),
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+  });
 }
 
 const ROLE_LABELS_AR: Record<AssignableRole, string> = {
@@ -341,6 +436,23 @@ export function useAdminUpdateStoreStatus() {
 }
 
 /**
+ * BULK-ADMIN (item 17): bulk status update for the admin stores table
+ * — the realistic use case is clearing a queue of PENDING stores
+ * awaiting approval. Same no-optimistic-update / no-toastWithUndo
+ * reasoning as the other bulk hooks in this file.
+ */
+export function useAdminBulkUpdateStoreStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeIds, status }: { storeIds: string[]; status: 'PENDING' | 'ACTIVE' | 'BLOCKED' }) =>
+      adminApi.bulkUpdateStoreStatus(storeIds, status).then((r) => r.data),
+    onSuccess: (result) => toastBulkResult('متجر', result.meta.updatedCount, result.meta.failed),
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
+  });
+}
+
+/**
  * POST /admin/notifications/broadcast — existed fully server-side with
  * no reachable UI (see admin.api.ts's broadcastNotification doc
  * comment). No optimistic update here: unlike the toggles above there
@@ -357,6 +469,20 @@ export function useAdminBroadcastNotification() {
       toast.success(`تم إرسال الإشعار إلى ${result?.recipientCount ?? 0} مستخدم`),
     onError: (err) => toast.error(parseApiError(err).message),
   });
+}
+
+/**
+ * BULK-ADMIN (item 17): shared partial-success toast for every bulk
+ * mutation below — same message shape useAdminBulkUpdateReportStatus
+ * introduced first, factored out once it's about to be repeated for
+ * ads/users/sellers/stores rather than copy-pasted five times.
+ */
+function toastBulkResult(itemLabel: string, updatedCount: number, failed: { id: string; reason: string }[]) {
+  if (failed.length === 0) {
+    toast.success(`تم تحديث ${updatedCount} ${itemLabel}`);
+  } else {
+    toast.error(`تم تحديث ${updatedCount} من أصل ${updatedCount + failed.length} ${itemLabel} — فشل ${failed.length}`);
+  }
 }
 
 export function useAdminUpdateReportStatus() {
@@ -399,15 +525,7 @@ export function useAdminBulkUpdateReportStatus() {
       reportIds: string[];
       status: Extract<ReportStatus, 'RESOLVED' | 'DISMISSED'>;
     }) => adminApi.bulkUpdateReportStatus(reportIds, status).then((r) => r.data),
-    onSuccess: (result) => {
-      const updatedCount = result.meta?.updatedCount ?? result.data?.length ?? 0;
-      const failed = result.meta?.failed ?? [];
-      if (failed.length === 0) {
-        toast.success(`تم تحديث ${updatedCount} بلاغ`);
-      } else {
-        toast.error(`تم تحديث ${updatedCount} من أصل ${updatedCount + failed.length} بلاغ — فشل ${failed.length}`);
-      }
-    },
+    onSuccess: (result) => toastBulkResult('بلاغ', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] }),
   });

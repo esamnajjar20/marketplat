@@ -37,8 +37,13 @@ import type {
   BroadcastNotificationResult,
   AuditLog,
   AdminGetAuditLogsParams,
+  BulkActionMeta,
 } from '@/types/admin.types';
 import type { ApiResponse } from '@/types/api.types';
+
+/** BULK-ADMIN (item 17): shared response shape every bulk endpoint
+ * below returns — see admin.types.ts's BulkActionMeta doc comment. */
+type BulkApiResponse<T> = Omit<ApiResponse<T[]>, 'data'> & { data: T[]; meta: BulkActionMeta };
 
 export const adminApi = {
   /**
@@ -65,6 +70,17 @@ export const adminApi = {
   forceDeleteAd: (adId: string) =>
     apiClient.delete<ApiResponse<null>>(`/admin/ads/${adId}`),
 
+  // BULK-ADMIN (item 17): backend PATCH /admin/ads/bulk/featured,
+  // PATCH /admin/ads/bulk/pinned, DELETE /admin/ads/bulk.
+  bulkSetFeatured: (adIds: string[], isFeatured: boolean) =>
+    apiClient.patch<BulkApiResponse<AdminAd>>('/admin/ads/bulk/featured', { adIds, isFeatured }),
+
+  bulkSetPinned: (adIds: string[], isPinned: boolean) =>
+    apiClient.patch<BulkApiResponse<AdminAd>>('/admin/ads/bulk/pinned', { adIds, isPinned }),
+
+  bulkDeleteAds: (adIds: string[]) =>
+    apiClient.delete<BulkApiResponse<string>>('/admin/ads/bulk', { data: { adIds } }),
+
   // ── Users ─────────────────────────────────────────────────────────
 
   getUsers: (params?: AdminGetUsersParams) =>
@@ -74,6 +90,12 @@ export const adminApi = {
 
   toggleUserActive: (userId: string, payload: ToggleActivePayload) =>
     apiClient.patch<ApiResponse<AdminUser>>(`/admin/users/${userId}/active`, payload),
+
+  // BULK-ADMIN (item 17): active/inactive only — role changes are
+  // deliberately not batched (see AdminUsersTable.tsx / admin.routes.ts
+  // comments on why).
+  bulkToggleUserActive: (userIds: string[], isActive: boolean) =>
+    apiClient.patch<BulkApiResponse<AdminUser>>('/admin/users/bulk/active', { userIds, isActive }),
 
   /** FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): PATCH
    * /admin/users/:id/role. role is AssignableRole (USER/MODERATOR/
@@ -100,6 +122,20 @@ export const adminApi = {
   setSellerSuspended: (sellerProfileId: string, payload: SetSellerSuspendedPayload) =>
     apiClient.patch<ApiResponse<AdminSeller>>(`/admin/sellers/${sellerProfileId}/suspend`, payload),
 
+  // BULK-ADMIN (item 17): backend PATCH /admin/sellers/bulk/verify,
+  // PATCH /admin/sellers/bulk/suspend.
+  bulkSetSellerVerified: (sellerProfileIds: string[], verified: boolean) =>
+    apiClient.patch<BulkApiResponse<AdminSeller>>('/admin/sellers/bulk/verify', {
+      sellerProfileIds,
+      verified,
+    }),
+
+  bulkSetSellerSuspended: (sellerProfileIds: string[], suspended: boolean) =>
+    apiClient.patch<BulkApiResponse<AdminSeller>>('/admin/sellers/bulk/suspend', {
+      sellerProfileIds,
+      suspended,
+    }),
+
   // ── Stores (audit report issue #1) ───────────────────────────────
   // The report's finding: createStore requires admin approval but
   // GET /stores is public and hardcoded to status=ACTIVE only, so a
@@ -114,6 +150,10 @@ export const adminApi = {
 
   updateStoreStatus: (storeId: string, payload: UpdateStoreStatusPayload) =>
     apiClient.patch<ApiResponse<AdminStore>>(`/admin/stores/${storeId}/status`, payload),
+
+  // BULK-ADMIN (item 17): backend PATCH /admin/stores/bulk/status.
+  bulkUpdateStoreStatus: (storeIds: string[], status: UpdateStoreStatusPayload['status']) =>
+    apiClient.patch<BulkApiResponse<AdminStore>>('/admin/stores/bulk/status', { storeIds, status }),
 
   // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
 
@@ -144,11 +184,7 @@ export const adminApi = {
   bulkUpdateReportStatus: (
     reportIds: string[],
     status: Extract<ReportStatus, 'RESOLVED' | 'DISMISSED'>,
-  ) =>
-    apiClient.patch<ApiResponse<Report[]> & { meta: { updatedCount: number; failed: { id: string; reason: string }[] } }>(
-      '/reports/bulk/status',
-      { reportIds, status },
-    ),
+  ) => apiClient.patch<BulkApiResponse<Report>>('/reports/bulk/status', { reportIds, status }),
 
   // ── Notifications ────────────────────────────────────────────────
   // Backend: POST /admin/notifications/broadcast. Existed fully

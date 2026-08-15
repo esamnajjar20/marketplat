@@ -16,19 +16,24 @@
  * a confirmation the same way promote/demote to ADMIN does).
  */
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ShieldOff, ShieldCheck, BadgeCheck, BadgeX, Star, Search } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
+import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import { useAdminSellers } from '@/hooks/queries/useAdmin';
-import { useAdminSetSellerVerified, useAdminSetSellerSuspended } from '@/hooks/mutations/useAdminMutations';
+import {
+  useAdminSetSellerVerified, useAdminSetSellerSuspended,
+  useAdminBulkSetSellerVerified, useAdminBulkSetSellerSuspended,
+} from '@/hooks/mutations/useAdminMutations';
 import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 
@@ -47,6 +52,8 @@ export function AdminSellersTable() {
   const { data, isLoading, isError, error, refetch } = useAdminSellers({ page, q: q || undefined });
   const setVerified  = useAdminSetSellerVerified();
   const setSuspended = useAdminSetSellerSuspended();
+  const bulkSetVerified  = useAdminBulkSetSellerVerified();
+  const bulkSetSuspended = useAdminBulkSetSellerSuspended();
 
   // Same reasoning as AdminUsersTable's pendingStatusUserId: disable
   // only the row whose mutation is actually in flight, not the whole
@@ -62,8 +69,35 @@ export function AdminSellersTable() {
   // need the same friction.
   const [suspendTarget, setSuspendTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const items      = data?.items ?? [];
+  const items      = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
+
+  // BULK-ADMIN (item 17): every row is selectable here — unlike
+  // AdminUsersTable there's no per-row rank gate on seller actions.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Verify/unverify is a single reversible click on each row, so the
+  // bulk equivalent skips a confirm dialog too. Suspend mirrors the
+  // single-row flow: un-suspending fires immediately, suspending goes
+  // through ConfirmDialog.
+  const [bulkSuspendConfirmOpen, setBulkSuspendConfirmOpen] = useState(false);
+
+  const allSelected = items.length > 0 && items.every((s) => selectedIds.has(s.id));
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, q]);
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(items.map((s) => s.id)));
+  }
 
   function search(value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -82,10 +116,24 @@ export function AdminSellersTable() {
         onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
         className="max-w-xs" />
 
+      <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+        <Button variant="outline" size="sm" className="h-7"
+          onClick={() => bulkSetVerified.mutate(
+            { sellerProfileIds: Array.from(selectedIds), verified: true },
+            { onSuccess: () => setSelectedIds(new Set()) },
+          )}>
+          <BadgeCheck className="h-3.5 w-3.5 me-1 text-success" />توثيق المحدد
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 text-destructive"
+          onClick={() => setBulkSuspendConfirmOpen(true)}>
+          <ShieldOff className="h-3.5 w-3.5 me-1" />إيقاف المحدد
+        </Button>
+      </BulkActionBar>
+
       {isLoading ? (
         // FIX AUDIT-1: TableSkeleton instead of a centered LoadingSpinner
         // on refetch — see AdminAdsTable for the full rationale.
-        <TableSkeleton columns={7} />
+        <TableSkeleton columns={8} />
       ) : isError ? (
         // Same UX-FIX P1-9 reasoning as AdminUsersTable: a failed fetch
         // must not render as "لا يوجد بائعون" — that could wrongly read
@@ -98,6 +146,11 @@ export function AdminSellersTable() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
+                <th className="w-10 p-3">
+                  {items.length > 0 && (
+                    <Checkbox checked={allSelected} onChange={toggleAll} aria-label="تحديد كل البائعين" />
+                  )}
+                </th>
                 <th className="text-start p-3 font-medium">البائع</th>
                 <th className="text-start p-3 font-medium hidden md:table-cell">البريد</th>
                 <th className="text-start p-3 font-medium hidden sm:table-cell">التقييم</th>
@@ -110,6 +163,13 @@ export function AdminSellersTable() {
             <tbody className="divide-y">
               {items.map((seller) => (
                 <tr key={seller.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-3">
+                    <Checkbox
+                      checked={selectedIds.has(seller.id)}
+                      onChange={() => toggleOne(seller.id)}
+                      aria-label={`تحديد ${seller.displayName}`}
+                    />
+                  </td>
                   <td className="p-3">
                     <span className="font-medium">{seller.displayName}</span>
                     <span className="block text-xs text-muted-foreground md:hidden">{seller.user.email}</span>
@@ -173,7 +233,7 @@ export function AdminSellersTable() {
                 </tr>
               ))}
               {items.length === 0 && (
-                <tr><td colSpan={7}><EmptyState icon={<Search className="h-8 w-8" />} title="لا يوجد بائعون" /></td></tr>
+                <tr><td colSpan={8}><EmptyState icon={<Search className="h-8 w-8" />} title="لا يوجد بائعون" /></td></tr>
               )}
             </tbody>
           </table>
@@ -198,6 +258,30 @@ export function AdminSellersTable() {
           setSuspended.mutate(
             { sellerProfileId: suspendTarget.id, suspended: true },
             { onSuccess: () => setSuspendTarget(null) },
+          );
+        }}
+      />
+
+      {/* BULK-ADMIN (item 17): separate dialog/state from the
+          single-row suspend above — same reasoning as
+          AdminReportsTable/AdminAdsTable's bulk ConfirmDialogs. */}
+      <ConfirmDialog
+        open={bulkSuspendConfirmOpen}
+        onOpenChange={setBulkSuspendConfirmOpen}
+        title={`إيقاف ${selectedIds.size} بائع؟`}
+        description="لن يتمكنوا من نشر إعلانات أو خدمات جديدة حتى يتم رفع الإيقاف عنهم. إعلاناتهم الحالية تبقى كما هي."
+        confirmLabel="إيقاف"
+        destructive
+        isPending={bulkSetSuspended.isPending}
+        onConfirm={() => {
+          bulkSetSuspended.mutate(
+            { sellerProfileIds: Array.from(selectedIds), suspended: true },
+            {
+              onSuccess: () => {
+                setSelectedIds(new Set());
+                setBulkSuspendConfirmOpen(false);
+              },
+            },
           );
         }}
       />

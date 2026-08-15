@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -8,6 +8,7 @@ import { Star, Trash2, Pin, Search } from 'lucide-react';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
 import { Input }      from '@/components/shared/ui/Input';
+import { Checkbox }   from '@/components/shared/ui/Checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
@@ -16,8 +17,12 @@ import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError }       from '@/components/shared/ApiError';
 import { ConfirmDialog }  from '@/components/shared/feedback/ConfirmDialog';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
+import { BulkActionBar }  from '@/components/shared/admin/BulkActionBar';
 import { useAdminAds }    from '@/hooks/queries/useAdmin';
-import { useAdminSetFeatured, useAdminSetPinned, useAdminForceDeleteAd } from '@/hooks/mutations/useAdminMutations';
+import {
+  useAdminSetFeatured, useAdminSetPinned, useAdminForceDeleteAd,
+  useAdminBulkSetFeatured, useAdminBulkSetPinned, useAdminBulkDeleteAds,
+} from '@/hooks/mutations/useAdminMutations';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -45,6 +50,9 @@ export function AdminAdsTable() {
   const featureAd = useAdminSetFeatured();
   const pinAd     = useAdminSetPinned();
   const deleteAd  = useAdminForceDeleteAd();
+  const bulkFeatureAds = useAdminBulkSetFeatured();
+  const bulkPinAds     = useAdminBulkSetPinned();
+  const bulkDeleteAds  = useAdminBulkDeleteAds();
 
   // UX-FIX P1-5 / P2-11: featureAd/pinAd are each a single shared mutation
   // instance (see useToggleAdField), so isPending alone can't tell us
@@ -57,8 +65,40 @@ export function AdminAdsTable() {
   // Tracks which ad the delete-confirmation dialog applies to (null = closed).
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const items      = data?.items ?? [];
+  // BULK-ADMIN (item 17): selection is id-based, not row-index-based —
+  // every row is selectable here (unlike AdminReportsTable, where only
+  // PENDING rows are), since feature/pin/delete are all valid on an ad
+  // in any status.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Which bulk action's confirm dialog is open, if any. Feature/pin are
+  // reversible toggles (no confirm needed, same as their single-row
+  // buttons above) — only delete needs one, matching the single-row
+  // delete flow's own ConfirmDialog.
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+
+  const items      = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
+
+  const allSelected = items.length > 0 && items.every((ad) => selectedIds.has(ad.id));
+
+  // BULK-ADMIN (item 17): clear the selection whenever the visible row
+  // set changes underneath it — same reasoning as AdminReportsTable's
+  // identical effect.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, q, status]);
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(items.map((ad) => ad.id)));
+  }
 
   function toggleFeatured(adId: string, next: boolean) {
     setPendingToggle({ adId, field: 'featured' });
@@ -114,6 +154,30 @@ export function AdminAdsTable() {
         </Select>
       </div>
 
+      {/* BULK-ADMIN (item 17): unconditional — every row here is
+          selectable regardless of status, so unlike AdminReportsTable
+          this doesn't need a status-view guard. */}
+      <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+        <Button variant="outline" size="sm" className="h-7"
+          onClick={() => bulkFeatureAds.mutate(
+            { adIds: Array.from(selectedIds), isFeatured: true },
+            { onSuccess: () => setSelectedIds(new Set()) },
+          )}>
+          <Star className="h-3.5 w-3.5 me-1" />تمييز المحدد
+        </Button>
+        <Button variant="outline" size="sm" className="h-7"
+          onClick={() => bulkPinAds.mutate(
+            { adIds: Array.from(selectedIds), isPinned: true },
+            { onSuccess: () => setSelectedIds(new Set()) },
+          )}>
+          <Pin className="h-3.5 w-3.5 me-1" />تثبيت المحدد
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 text-destructive"
+          onClick={() => setBulkDeleteConfirmOpen(true)}>
+          <Trash2 className="h-3.5 w-3.5 me-1" />حذف المحدد
+        </Button>
+      </BulkActionBar>
+
       {isError ? (
         // UX-FIX P1-4: previously a failed fetch fell straight through to
         // the `items.length === 0` empty-state row below, indistinguishable
@@ -130,12 +194,17 @@ export function AdminAdsTable() {
         // *first* load (via loading.tsx) got the table-shaped skeleton;
         // every subsequent refetch collapsed to a spinner, losing the
         // table's shape and causing a layout jump each time.
-        <TableSkeleton columns={6} />
+        <TableSkeleton columns={7} />
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
+                <th className="w-10 p-3">
+                  {items.length > 0 && (
+                    <Checkbox checked={allSelected} onChange={toggleAll} aria-label="تحديد كل الإعلانات" />
+                  )}
+                </th>
                 <th className="text-start p-3 font-medium">الإعلان</th>
                 <th className="text-start p-3 font-medium hidden md:table-cell">البائع</th>
                 <th className="text-start p-3 font-medium">السعر</th>
@@ -149,6 +218,13 @@ export function AdminAdsTable() {
                 const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 80, 60) : PLACEHOLDER_SVG;
                 return (
                   <tr key={ad.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-3">
+                      <Checkbox
+                        checked={selectedIds.has(ad.id)}
+                        onChange={() => toggleOne(ad.id)}
+                        aria-label={`تحديد ${ad.title}`}
+                      />
+                    </td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <div className="relative w-12 h-9 rounded overflow-hidden bg-muted shrink-0">
@@ -206,7 +282,7 @@ export function AdminAdsTable() {
                 );
               })}
               {items.length === 0 && (
-                <tr><td colSpan={6}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد إعلانات" /></td></tr>
+                <tr><td colSpan={7}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد إعلانات" /></td></tr>
               )}
             </tbody>
           </table>
@@ -229,6 +305,27 @@ export function AdminAdsTable() {
         onConfirm={() => {
           if (!deleteTargetId) return;
           deleteAd.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
+        }}
+      />
+
+      {/* BULK-ADMIN (item 17): separate dialog/state from the
+          single-row delete above — same reasoning as
+          AdminReportsTable's bulk ConfirmDialog. */}
+      <ConfirmDialog
+        open={bulkDeleteConfirmOpen}
+        onOpenChange={setBulkDeleteConfirmOpen}
+        title={`حذف ${selectedIds.size} إعلان نهائياً؟`}
+        description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
+        confirmLabel="حذف"
+        destructive
+        isPending={bulkDeleteAds.isPending}
+        onConfirm={() => {
+          bulkDeleteAds.mutate(Array.from(selectedIds), {
+            onSuccess: () => {
+              setSelectedIds(new Set());
+              setBulkDeleteConfirmOpen(false);
+            },
+          });
         }}
       />
     </div>
