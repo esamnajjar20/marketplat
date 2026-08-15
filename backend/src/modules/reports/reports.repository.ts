@@ -107,4 +107,43 @@ export const reportsRepository = {
 
   updateStatus: async (id: string, status: ReportStatus): Promise<ReportWithDetails> =>
     prisma.report.update({ where: { id }, data: { status }, include: reportWithDetails }),
+
+  // BULK-ADMIN (item 17): updateMany would report zero per-row detail
+  // (Prisma's batch payload is only `{ count }`), so an admin batch of
+  // 50 with 3 bad ids would silently succeed at 47 with no way to see
+  // which 3 failed or why. This runs one update per id via
+  // Promise.allSettled instead — not a $transaction, since a single
+  // already-deleted/invalid id must not roll back the other 49 that
+  // are perfectly valid. Each row's own findById/update failure
+  // (P2025 = record not found, thrown by Prisma when the where clause
+  // matches nothing) is caught individually and reported back by id
+  // in the failed list, so the caller can see exactly which ones
+  // didn't apply and why, without partial success being invisible.
+  updateManyStatus: async (
+    ids: string[],
+    status: ReportStatus
+  ): Promise<{ updated: ReportWithDetails[]; failed: { id: string; reason: string }[] }> => {
+    const results = await Promise.allSettled(
+      ids.map((id) =>
+        prisma.report.update({ where: { id }, data: { status }, include: reportWithDetails })
+      )
+    );
+
+    const updated: ReportWithDetails[] = [];
+    const failed: { id: string; reason: string }[] = [];
+
+    results.forEach((result, index) => {
+      const id = ids[index];
+      if (result.status === 'fulfilled') {
+        updated.push(result.value);
+      } else {
+        const err = result.reason;
+        const isNotFound =
+          err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025';
+        failed.push({ id, reason: isNotFound ? 'Report not found' : 'Update failed' });
+      }
+    });
+
+    return { updated, failed };
+  },
 };

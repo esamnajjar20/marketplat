@@ -1,86 +1,55 @@
-# الإصلاحان المطبّقان
+# البند 17 — Bulk Actions (AdminReportsTable reference implementation)
 
-هذا الأرشيف يحتوي فقط على الملفات المعدّلة/الجديدة الناتجة عن إصلاحين
-تم التحقق منهما فعلياً على كود المشروع (وليس كل ما ورد في تقرير
-"الدفعة الثالثة" — أغلب ملاحظات ذلك التقرير تبيّن أنها غير منطبقة على
-هذا الكود بعد الفحص، وبعضها كان محلولاً مسبقاً).
+نطاق هذه الحزمة: `AdminReportsTable` فقط، كـ reference implementation
+كامل قبل التعميم على الجداول الخمسة الباقية (Ads, Users, Sellers,
+Stores). كل مسار داخل هذا الأرشيف مطابق لمساره الفعلي بالمشروع —
+انسخ فوق الملفات الموجودة، وأضف الجديدة بنفس المسار.
 
-## طريقة التطبيق
-انسخ محتوى مجلد `backend/` هنا فوق `backend/` في مشروعك (الملفات
-الجديدة تُنشأ، والملفات الموجودة تُستبدل بالكامل)، ثم شغّل:
-```
-cd backend
-npx prisma migrate deploy
-npm test -- activity audit
-```
+## ملفات جديدة
 
----
-
-## 1) activity — تجميع الكتابات بدل الكتابة المباشرة (36 نقطة استدعاء)
-
-**المشكلة المؤكدة:** `activityService.record()` كانت تكتب صفاً واحداً
-مباشرة إلى Postgres في كل استدعاء (نشر إعلان، فتح محادثة، إضافة
-مفضلة...)، بدون أي تجميع.
-
-**الحل:** أضيفت طبقة تجميع في Redis (نفس نمط `viewsBuffer.ts` الموجود
-مسبقاً في المشروع)، بفاصل تفريغ 5 ثوانٍ (أقصر من الـ 60 ثانية في
-`viewsBuffer` لأن صفحة "نشاطي" واجهة مستخدم مباشرة، على عكس عدّاد
-المشاهدات).
-
-**ملفات جديدة:**
-- `src/shared/utils/activityBuffer.ts` — التجميع والتفريغ عبر Redis List (RPUSH/LPOP) + `createMany`
-- `tests/unit/activityBuffer.test.ts`
-
-**ملفات معدّلة:**
-- `src/modules/activity/activity.service.ts` — `record()` تستخدم الآن `activityBuffer.push` بدل الكتابة المباشرة
-- `src/server.ts` — بدء/إيقاف مؤقّت التفريغ عند إقلاع/إغلاق السيرفر (بنفس أماكن `viewsBuffer`)
-- `tests/unit/activity.service.test.ts` — محدّث ليعكس المسار الجديد
-
-**ملاحظة:** لم يتم بناء سياسة أرشفة/تقسيم الجدول (partitioning) المذكورة
-في التقرير الأصلي — هذا تغيير بنيوي أكبر (يمس schema وربما استراتيجية
-النسخ الاحتياطي) ويحتاج قراراً منفصلاً قبل التنفيذ.
-
----
-
-## 2) audit-logs — تنقية الحقول الحساسة + منع التعديل/الحذف على مستوى DB
-
-**المشكلة المؤكدة:**
-- لا يوجد أي حاجز يمنع تمرير بيانات حساسة (كلمة مرور، توكن...) داخل
-  `details` عن طريق الخطأ من مطوّر مستقبلي (لا يوجد استغلال فعلي حالياً،
-  لكن لا يوجد أيضاً ما يمنعه).
-- لا يوجد أي قيد على مستوى قاعدة البيانات يمنع `UPDATE`/`DELETE` على
-  جدول `audit_logs` — الحماية كانت فقط أن التطبيق نفسه لا يستدعي هذين
-  الإجرائين (`audit-logs.repository.ts` قراءة فقط).
-
-**الحل:**
-- دالة تنقية تستبدل قيمة أي مفتاح يشبه بيانات حساسة (password, token,
-  secret, card, cvv, otp, pin, ssn...) بـ `[REDACTED]` قبل الكتابة إلى
-  الـ logger وقاعدة البيانات معاً.
-- Trigger على مستوى PostgreSQL يرفض أي `UPDATE`/`DELETE` على
-  `audit_logs` نهائياً (وليس `REVOKE` على دور معيّن، لأن اسم الدور
-  متغيّر بين البيئات عبر `POSTGRES_USER`). للصيانة الاستثنائية
-  (مثال: أمر قضائي بحذف سجل)، يحتاج الأمر تدخلاً يدوياً مباشراً على DB
-  لإسقاط الـ trigger مؤقتاً — التفاصيل موثّقة داخل ملف الـ migration.
-
-**ملفات جديدة:**
-- `src/shared/utils/sanitizeAuditDetails.ts`
-- `tests/unit/sanitizeAuditDetails.test.ts`
-- `prisma/migrations/20260807130000_audit_logs_append_only/migration.sql`
-
-**ملفات معدّلة:**
-- `src/shared/utils/auditLog.ts` — يطبّق التنقية قبل كلا مسارَي الكتابة
-- `tests/unit/auditLog.test.ts` — أُضيفت حالات اختبار للتنقية دون كسر الاختبارات الأصلية
-
----
-
-## ملاحظات فحص لملاحظات التقرير الأخرى (لم تُطبَّق لأنها غير منطبقة على الكود الفعلي)
-
-| الوحدة | السبب |
+| المسار | الوصف |
 |---|---|
-| analytics | لا `sellerId` في أي مسار؛ admin-only بالكامل؛ استعلامات محمية بـ `runWithQueryTimeout` مسبقاً |
-| notifications | push مُرسلة fire-and-forget بالفعل (`void pushService...`)؛ `markAllRead` مقيّد بـ `userId` بالفعل |
-| service-listings | محلولة سلفاً: `provider: { sellerProfile: { suspended: false } }` مطبّقة في الاستعلام العلني |
-| service-requests | لا يوجد نظام دفع/محفظة/escrow في المشروع إطلاقاً — الملاحظة مبنية على افتراض غير منطبق |
-| service-reviews | محلولة سلفاً بالكامل: تحقق COMPLETED + قيد فريد على DB + فحص الحظر |
-| service-categories | محلولة سلفاً: منع حذف فئة تحوي إعلانات نشطة + `onDelete: Restrict` |
-| service-providers | الملاحظة صحيحة لكنها ميزة KYC جديدة كاملة (migration + لوحة موافقات إدارية)، وليست "إصلاح ثغرة" — تحتاج تصميماً منفصلاً قبل التنفيذ |
+| `frontend/components/shared/ui/Checkbox.tsx` | checkbox مشترك بلا اعتماد على radix (غير مثبّت بالمشروع) |
+| `frontend/components/shared/admin/BulkActionBar.tsx` | الشريط اللي يظهر عند تحديد صفوف — قابل لإعادة الاستخدام بباقي الجداول |
+
+## ملفات معدّلة — Backend
+
+| المسار | التعديل |
+|---|---|
+| `backend/src/modules/reports/reports.validation.ts` | `bulkUpdateReportStatusSchema` (حد أقصى 100 id) |
+| `backend/src/modules/reports/reports.repository.ts` | `updateManyStatus` — best-effort عبر `Promise.allSettled`، مش `updateMany` (ما بيرجّع تفاصيل صف بصف) ومش `$transaction` (سجل فاشل ما لازم يسقط الباقي) |
+| `backend/src/modules/reports/reports.service.ts` | `bulkUpdateReportStatus` يربط validation بـ repository |
+| `backend/src/modules/reports/reports.controller.ts` | `bulkUpdateReportStatus` — يرجع 200 مع `meta.updatedCount`/`meta.failed` حتى لو فيه فشل جزئي |
+| `backend/src/modules/reports/reports.routes.ts` | `PATCH /reports/bulk/status` — **مسجّل قبل** `/:id/status` (وإلا Express راح يفسّر "bulk" كـ :id) |
+| `backend/tests/integration/reports.test.ts` | 7 اختبارات جديدة: نجاح كامل، فشل جزئي، حدود 0/101 عنصر، status غير صالح، 401، 403 |
+
+## ملفات معدّلة — Frontend
+
+| المسار | التعديل |
+|---|---|
+| `frontend/api/admin.api.ts` | `bulkUpdateReportStatus()` |
+| `frontend/hooks/mutations/useAdminMutations.ts` | `useAdminBulkUpdateReportStatus` — بلا optimistic update (نتيجة الباك إند مصدر الحقيقة لأنها partial-success)، بلا toastWithUndo (لا يوجد undo واحد منطقي لدفعة حتى 100 عنصر) |
+| `frontend/components/admin/AdminReportsTable.tsx` | checkboxes لكل صف + select-all، bulk action bar، bulk ConfirmDialog، تصفير التحديد عند تغيّر page/status/targetType |
+| `frontend/__tests__/components/AdminReportsTable.test.tsx` | إصلاح اختبار قديم (كان يتوقع عدم وجود ConfirmDialog رغم أن الكود يستخدمه فعليًا منذ UX-FIX P2-05) + 9 اختبارات جديدة لسلوك التحديد الجماعي |
+
+## ملاحظات تصميم مهمة
+
+1. **Best-effort لا all-or-nothing**: دفعة من 50 بلاغ لا يجب أن تفشل كاملة
+   لأن بلاغ واحد تمت معالجته من أدمن آخر بنفس اللحظة (race حقيقي بطابور
+   متعدد المشرفين). الاستجابة ترجع `updated[]` و`failed[]` بالتفصيل.
+2. **الحد الأقصى 100 لكل طلب** — نفس رتبة حد الصفحة الواحدة، لمنع تحويل
+   bulk endpoint لعملية على الجدول كامل.
+3. **تصفير التحديد عند تغيير الصفحة/الفلتر** — وإلا يبقى الـbulk bar
+   يعرض عددًا لبلاغات غير ظاهرة بالشاشة.
+4. **لا يوجد bulk toast-with-undo** — قرار واعٍ، موثّق بالكود.
+
+## غير مكتمل / خارج نطاق هذه الحزمة
+
+- تعميم نفس النمط على AdminAdsTable, AdminUsersTable, AdminSellersTable,
+  AdminStoresTable (البند التالي بعد مراجعتك لهذا النموذج).
+- AdminAuditLogsTable — مستبعد عمدًا (سجل تدقيق للعرض فقط، ليس جدول
+  moderation).
+- لم يتم تشغيل الاختبارات فعليًا في هذه البيئة (لا يوجد اتصال شبكة
+  لتثبيت node_modules) — تمت المراجعة يدويًا (توازن الأقواس، مطابقة
+  الأنواع، تتبع كل استدعاء) لكن التشغيل الفعلي لسلسلة CI ما زال مطلوبًا
+  قبل الدمج.

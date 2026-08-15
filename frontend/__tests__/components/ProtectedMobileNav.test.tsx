@@ -185,11 +185,24 @@ describe('ProtectedMobileNav', () => {
   });
 
   it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 8-destination group)', () => {
+    // FIX (test bug, not a component bug): getByRole excludes
+    // aria-hidden elements from the accessibility tree by design (see
+    // this file's own first test's comment) — the drawer's <nav> is
+    // aria-hidden="true" while isMobileNavOpen is false (the default),
+    // so getByRole('button', ...) could never find the settings
+    // toggle regardless of whether the component renders it correctly.
+    // Every other test here that needs an accessible-role query on
+    // drawer content sets isMobileNavOpen = true first (see 'shows a
+    // backdrop when open' etc.) — this test just needed the same.
+    isMobileNavOpen = true;
     render(<ProtectedMobileNav />);
     expect(screen.getByRole('button', { name: /الإعدادات/ })).toBeInTheDocument();
   });
 
   it('settings group opens automatically and shows all 8 sub-destinations when already on a /settings/* subpath', () => {
+    // Same fix as the test above — must open the drawer before
+    // getByRole can see anything inside it.
+    isMobileNavOpen = true;
     mockUsePathname.mockReturnValue('/settings/security');
     render(<ProtectedMobileNav />);
     const toggle = screen.getByRole('button', { name: /الإعدادات/ });

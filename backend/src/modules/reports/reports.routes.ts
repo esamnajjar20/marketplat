@@ -30,6 +30,19 @@ reportsRouter.post(
 reportsRouter.get('/me', authenticate, reportsController.getMyReports);
 
 reportsRouter.get('/', authenticate, requireMinRole(ROLES.MODERATOR), reportsController.getReports);
+
+// BULK-ADMIN (item 17): must be registered before GET/PATCH /:id below,
+// or Express would match the literal segment "bulk" against the :id
+// param first and route PATCH /reports/bulk/status into the
+// single-report handler instead of here — same ordering hazard already
+// documented above for GET /me vs GET /:id.
+reportsRouter.patch(
+  '/bulk/status',
+  authenticate,
+  requireMinRole(ROLES.MODERATOR),
+  reportsController.bulkUpdateReportStatus
+);
+
 reportsRouter.get('/:id', authenticate, requireMinRole(ROLES.MODERATOR), reportsController.getReportById);
 reportsRouter.patch(
   '/:id/status',

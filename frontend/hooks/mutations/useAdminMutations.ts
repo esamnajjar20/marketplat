@@ -372,3 +372,43 @@ export function useAdminUpdateReportStatus() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+/**
+ * BULK-ADMIN (item 17): batch resolve/dismiss from the reports queue.
+ * No optimistic update here (unlike the single-row toggles above) —
+ * the backend's own batch result (`updated`/`failed`) is the source of
+ * truth for which ids actually applied, and showing an optimistic
+ * change for ids that might come back in `failed` would have to be
+ * un-done selectively anyway, which is exactly what onSuccess already
+ * reports precisely. A plain invalidate on settle is simpler and
+ * equally fast for a queue-clearing action that isn't on a tight
+ * latency budget the way a single-row toggle is.
+ *
+ * Deliberately no toastWithUndo: unlike the single-toggle mutations,
+ * a batch of up to 100 reports has no single "undo" action that isn't
+ * itself just re-running the reverse batch — the caller decides
+ * whether that's worth offering, not this hook.
+ */
+export function useAdminBulkUpdateReportStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      reportIds,
+      status,
+    }: {
+      reportIds: string[];
+      status: Extract<ReportStatus, 'RESOLVED' | 'DISMISSED'>;
+    }) => adminApi.bulkUpdateReportStatus(reportIds, status).then((r) => r.data),
+    onSuccess: (result) => {
+      const updatedCount = result.meta?.updatedCount ?? result.data?.length ?? 0;
+      const failed = result.meta?.failed ?? [];
+      if (failed.length === 0) {
+        toast.success(`تم تحديث ${updatedCount} بلاغ`);
+      } else {
+        toast.error(`تم تحديث ${updatedCount} من أصل ${updatedCount + failed.length} بلاغ — فشل ${failed.length}`);
+      }
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] }),
+  });
+}

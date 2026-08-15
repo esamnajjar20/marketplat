@@ -137,6 +137,19 @@ export const adminApi = {
   updateReportStatus: (reportId: string, status: Extract<ReportStatus, 'RESOLVED' | 'DISMISSED'>) =>
     apiClient.patch<ApiResponse<Report>>(`/reports/${reportId}/status`, { status }),
 
+  // BULK-ADMIN (item 17): backend PATCH /reports/bulk/status. `data` on
+  // the response is the updated reports; `meta.updatedCount`/`meta.failed`
+  // carry the per-id outcome (best-effort batch, not all-or-nothing —
+  // see reports.service.ts's bulkUpdateReportStatus).
+  bulkUpdateReportStatus: (
+    reportIds: string[],
+    status: Extract<ReportStatus, 'RESOLVED' | 'DISMISSED'>,
+  ) =>
+    apiClient.patch<ApiResponse<Report[]> & { meta: { updatedCount: number; failed: { id: string; reason: string }[] } }>(
+      '/reports/bulk/status',
+      { reportIds, status },
+    ),
+
   // ── Notifications ────────────────────────────────────────────────
   // Backend: POST /admin/notifications/broadcast. Existed fully
   // server-side (controller/service/validation) with no frontend

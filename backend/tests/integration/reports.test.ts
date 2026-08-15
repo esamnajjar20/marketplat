@@ -316,4 +316,110 @@ describe('Reports API', () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe('PATCH /api/v1/reports/bulk/status (admin) — item 17', () => {
+    it('updates every report in the batch', async () => {
+      const admin = await createTestAdmin();
+      const owner = await createTestUser();
+      const reporter = await createTestUser();
+      const ad1 = await createTestAd(owner.id);
+      const ad2 = await createTestAd(owner.id);
+
+      const report1 = await prisma.report.create({
+        data: { userId: reporter.id, adId: ad1.id, targetType: 'AD', targetId: ad1.id, reason: 'SCAM' },
+      });
+      const report2 = await prisma.report.create({
+        data: { userId: reporter.id, adId: ad2.id, targetType: 'AD', targetId: ad2.id, reason: 'SPAM' },
+      });
+
+      const res = await request(app)
+        .patch('/api/v1/reports/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ reportIds: [report1.id, report2.id], status: 'RESOLVED' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(2);
+      expect(res.body.meta.failed).toEqual([]);
+      expect(res.body.data.map((r: { status: string }) => r.status)).toEqual(['RESOLVED', 'RESOLVED']);
+
+      const refetched = await prisma.report.findUnique({ where: { id: report1.id } });
+      expect(refetched?.status).toBe('RESOLVED');
+    });
+
+    it('reports partial failure without rejecting the whole batch', async () => {
+      const admin = await createTestAdmin();
+      const owner = await createTestUser();
+      const reporter = await createTestUser();
+      const ad = await createTestAd(owner.id);
+
+      const validReport = await prisma.report.create({
+        data: { userId: reporter.id, adId: ad.id, targetType: 'AD', targetId: ad.id, reason: 'SCAM' },
+      });
+
+      const res = await request(app)
+        .patch('/api/v1/reports/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ reportIds: [validReport.id, 'non-existent-id'], status: 'DISMISSED' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.updatedCount).toBe(1);
+      expect(res.body.meta.failed).toEqual([{ id: 'non-existent-id', reason: 'Report not found' }]);
+
+      const refetched = await prisma.report.findUnique({ where: { id: validReport.id } });
+      expect(refetched?.status).toBe('DISMISSED');
+    });
+
+    it('returns 400 for an empty reportIds array', async () => {
+      const admin = await createTestAdmin();
+
+      const res = await request(app)
+        .patch('/api/v1/reports/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ reportIds: [], status: 'RESOLVED' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for more than 100 ids', async () => {
+      const admin = await createTestAdmin();
+      const reportIds = Array.from({ length: 101 }, (_, i) => `id-${i}`);
+
+      const res = await request(app)
+        .patch('/api/v1/reports/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ reportIds, status: 'RESOLVED' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for an invalid status', async () => {
+      const admin = await createTestAdmin();
+
+      const res = await request(app)
+        .patch('/api/v1/reports/bulk/status')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ reportIds: ['some-id'], status: 'INVALID' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 401 without a token', async () => {
+      const res = await request(app)
+        .patch('/api/v1/reports/bulk/status')
+        .send({ reportIds: ['some-id'], status: 'RESOLVED' });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for a non-moderator user', async () => {
+      const user = await createTestUser();
+
+      const res = await request(app)
+        .patch('/api/v1/reports/bulk/status')
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .send({ reportIds: ['some-id'], status: 'RESOLVED' });
+
+      expect(res.status).toBe(403);
+    });
+  });
 });

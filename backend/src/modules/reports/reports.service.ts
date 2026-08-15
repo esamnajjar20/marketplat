@@ -6,6 +6,7 @@ import {
   CreateReportInput,
   CreateTargetReportInput,
   UpdateReportStatusInput,
+  BulkUpdateReportStatusInput,
   GetReportsQuery,
   GetMyReportsQuery,
 } from './reports.validation';
@@ -134,4 +135,16 @@ export const reportsService = {
     if (!report) throw new NotFoundError('Report not found');
     return reportsRepository.updateStatus(id, input.status);
   },
+
+  // BULK-ADMIN (item 17): best-effort batch, not all-or-nothing — an
+  // admin clearing a 50-report queue must not have the whole batch
+  // rejected because one report was already actioned by another admin
+  // moderator in the meantime (a real race in a multi-admin queue, not
+  // a hypothetical). Returns which ids actually updated and which
+  // didn't (with why), so the caller can show a precise partial-success
+  // result instead of a single opaque pass/fail.
+  bulkUpdateReportStatus: async (
+    input: BulkUpdateReportStatusInput
+  ): Promise<{ updated: ReportWithDetails[]; failed: { id: string; reason: string }[] }> =>
+    reportsRepository.updateManyStatus(input.reportIds, input.status),
 };

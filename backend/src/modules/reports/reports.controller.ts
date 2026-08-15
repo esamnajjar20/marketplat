@@ -4,6 +4,7 @@ import {
   createReportSchema,
   createTargetReportSchema,
   updateReportStatusSchema,
+  bulkUpdateReportStatusSchema,
   getReportsSchema,
   getMyReportsSchema,
   reportIdSchema,
@@ -91,6 +92,25 @@ export const reportsController = {
       });
       const report = await reportsService.updateReportStatus(params.id, body);
       res.status(200).json(successResponse('Report status updated', report));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // BULK-ADMIN (item 17): 200 even when `failed` is non-empty — this is
+  // a partial-success shape, not an error response, so the client can
+  // distinguish "3 of 50 failed" from a request-level failure (which
+  // would still throw via next(error) below and never reach here).
+  bulkUpdateReportStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { body } = bulkUpdateReportStatusSchema.parse({ body: req.body });
+      const result = await reportsService.bulkUpdateReportStatus(body);
+      res.status(200).json(
+        successResponse('Bulk report status update processed', result.updated, {
+          updatedCount: result.updated.length,
+          failed: result.failed,
+        })
+      );
     } catch (error) {
       next(error);
     }

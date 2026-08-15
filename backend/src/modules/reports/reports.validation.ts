@@ -78,6 +78,25 @@ export const reportIdSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
 
+// BULK-ADMIN (item 17): batch resolve/dismiss from the admin reports
+// queue. Capped at 100 per request — same order of magnitude as a
+// single page (getReportsSchema's own limit ceiling is 100) so a
+// batch call can never quietly become a full-table operation; an
+// admin who wants more clears it in a couple of requests instead.
+// reportIds intentionally not deduped here — the service processes
+// each id independently and a duplicate simply resolves twice
+// (second one becomes a no-op status write), so there is nothing
+// unsafe about leaving that to the service layer instead of failing
+// the whole request over a client-side duplicate.
+export const bulkUpdateReportStatusSchema = z.object({
+  body: z.object({
+    reportIds: z.array(z.string().min(1)).min(1, 'At least one reportId is required').max(100),
+    status: z.nativeEnum(ReportStatus, { errorMap: () => ({ message: 'Invalid report status' }) }),
+  }),
+});
+
+export type BulkUpdateReportStatusInput = z.infer<typeof bulkUpdateReportStatusSchema>['body'];
+
 // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter checking the status of
 // reports they personally filed. Same page/limit shape as getReportsSchema
 // but with no status/targetType filter (a user's own list is short enough
