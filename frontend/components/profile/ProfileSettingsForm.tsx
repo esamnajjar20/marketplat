@@ -14,7 +14,7 @@
  * all — there is nowhere in the store these two could have come from).
  */
 import { useRef, useState, useEffect } from 'react';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
@@ -123,7 +123,7 @@ export function ProfileSettingsForm() {
       {/* Avatar */}
       <div className="flex items-center gap-4">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
-          <Image src={getAvatarUrl(user?.avatarUrl ?? '', 64)} alt={user?.name ?? ''} fill className="object-cover" sizes="64px" />
+          <SafeImage variant="avatar" src={getAvatarUrl(user?.avatarUrl ?? '', 64)} alt={user?.name ?? ''} fill className="object-cover" sizes="64px" />
         </div>
         <div>
           <Button

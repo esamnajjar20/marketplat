@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import Link from 'next/link';
 import { BadgeCheck, MapPin, Clock, Eye } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -31,7 +31,7 @@ export function ServiceListingDetail({ listing }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {images.slice(0, 4).map((img, i) => (
           <div key={i} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
-            <Image
+            <SafeImage
               src={img === PLACEHOLDER_SVG ? img : getThumbnailUrl(img, 600, 450)}
               alt={`${listing.title} — صورة ${i + 1}`}
               fill

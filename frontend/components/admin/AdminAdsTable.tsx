@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Star, Trash2, Pin, Search } from 'lucide-react';
 import { Button }     from '@/components/shared/ui/Button';
@@ -19,6 +19,7 @@ import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { useAdminAds }    from '@/hooks/queries/useAdmin';
 import { useAdminSetFeatured, useAdminSetPinned, useAdminForceDeleteAd } from '@/hooks/mutations/useAdminMutations';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
+import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -83,7 +84,7 @@ export function AdminAdsTable() {
         {/* FIX BUG-XX: see AdminUsersTable — key={q} forces a remount when
             `q` changes via browser back/forward, so the uncontrolled
             defaultValue doesn't go stale relative to the URL/results. */}
-        <Input key={q} placeholder="بحث بالعنوان…" defaultValue={q}
+        <Input key={q} placeholder="بحث بالعنوان…" aria-label="بحث بالعنوان" defaultValue={q}
           onBlur={(e) => search(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
           className="max-w-xs" />
@@ -151,7 +152,7 @@ export function AdminAdsTable() {
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <div className="relative w-12 h-9 rounded overflow-hidden bg-muted shrink-0">
-                          <Image src={thumb} alt={ad.title} fill className="object-cover" sizes="48px" />
+                          <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="48px" />
                         </div>
                         <div className="min-w-0">
                           <Link href={ROUTES.adDetail(ad.id)} className="font-medium hover:underline line-clamp-1"
@@ -165,7 +166,7 @@ export function AdminAdsTable() {
                     <td className="p-3 font-semibold">{formatPrice(ad.price)}</td>
                     <td className="p-3 hidden sm:table-cell">
                       <Badge
-                        variant={ad.status === 'ACTIVE' ? 'success' : ad.status === 'DELETED' ? 'destructive' : 'secondary'}
+                        variant={AD_STATUS_VARIANT[ad.status]}
                         className="text-xs"
                       >
                         {STATUS_LABELS[ad.status] ?? ad.status}

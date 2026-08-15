@@ -37,6 +37,7 @@ import { useAdminUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
+import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
 import type { AdminStoreStatus } from '@/types/admin.types';
 
 const STATUS_TABS: { value: AdminStoreStatus | 'ALL'; label: string }[] = [
@@ -58,11 +59,9 @@ function isAdminStoreStatus(value: string | null): value is AdminStoreStatus {
   return !!value && VALID_STORE_STATUSES.has(value as AdminStoreStatus);
 }
 
-const STATUS_BADGE: Record<AdminStoreStatus, { label: string; variant: 'success' | 'warning' | 'destructive' }> = {
-  PENDING: { label: 'قيد المراجعة', variant: 'warning' },
-  ACTIVE:  { label: 'نشط',          variant: 'success' },
-  BLOCKED: { label: 'محظور',        variant: 'destructive' },
-};
+// FIX UX-13: was a locally hand-rolled STATUS_BADGE map — see
+// lib/storeStatus.ts for why this is now the shared source of truth
+// (MyStoreCard used a coincidentally-identical local copy).
 
 export function AdminStoresTable() {
   const sp     = useSearchParams();
@@ -130,7 +129,7 @@ export function AdminStoresTable() {
       {/* FIX BUG-XX: see AdminUsersTable — key={q} forces a remount when
           `q` changes via browser back/forward, so the uncontrolled
           defaultValue doesn't go stale relative to the URL/results. */}
-      <Input key={q} placeholder="بحث باسم المتجر…" defaultValue={q}
+      <Input key={q} placeholder="بحث باسم المتجر…" aria-label="بحث باسم المتجر" defaultValue={q}
         onBlur={(e) => updateParams({ q: e.target.value })}
         onKeyDown={(e) => { if (e.key === 'Enter') updateParams({ q: (e.target as HTMLInputElement).value }); }}
         className="max-w-xs" />
@@ -161,7 +160,7 @@ export function AdminStoresTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((store) => {
-                const badge = STATUS_BADGE[store.status];
+                const badge = { label: STORE_STATUS_LABELS[store.status], variant: STORE_STATUS_VARIANT[store.status] };
                 return (
                   <tr key={store.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-3">

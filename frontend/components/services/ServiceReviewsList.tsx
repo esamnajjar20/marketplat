@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, usePathname } from 'next/navigation';
 import { Star, AlertTriangle } from 'lucide-react';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -69,7 +69,7 @@ export function ServiceReviewsList({ sellerProfileId }: Props) {
           return (
             <div key={review.id} className="flex gap-3 p-3 rounded-lg border bg-card">
               <div className="relative w-10 h-10 rounded-full overflow-hidden bg-muted shrink-0">
-                <Image src={avatar} alt={review.rater.name} fill className="object-cover" sizes="40px" />
+                <SafeImage variant="avatar" src={avatar} alt={review.rater.name} fill className="object-cover" sizes="40px" />
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center justify-between gap-2">

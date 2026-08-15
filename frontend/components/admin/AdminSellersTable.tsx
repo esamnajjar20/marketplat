@@ -77,7 +77,7 @@ export function AdminSellersTable() {
       {/* FIX BUG-XX: see AdminUsersTable — key={q} forces a remount when
           `q` changes via browser back/forward, so the uncontrolled
           defaultValue doesn't go stale relative to the URL/results. */}
-      <Input key={q} placeholder="بحث بالاسم أو البريد…" defaultValue={q}
+      <Input key={q} placeholder="بحث بالاسم أو البريد…" aria-label="بحث بالاسم أو البريد" defaultValue={q}
         onBlur={(e) => search(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
         className="max-w-xs" />

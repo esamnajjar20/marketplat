@@ -34,6 +34,19 @@ export interface Conversation {
   seller: ConversationParticipant;
 }
 
+/**
+ * FIX UX-15: GET /conversations (the list) returns this shape — plain
+ * Conversation plus a per-thread unreadCount, mirroring the backend's
+ * ConversationListItem. Kept separate from Conversation itself since
+ * GET /conversations/:id (a single thread) has no unreadCount — that
+ * page marks messages read as a side effect of GET .../messages
+ * instead, so a badge on the thread you're currently viewing wouldn't
+ * mean anything.
+ */
+export interface ConversationListItem extends Conversation {
+  unreadCount: number;
+}
+
 export interface Message {
   id: string;
   conversationId: string;

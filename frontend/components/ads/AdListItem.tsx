@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -16,7 +16,7 @@ export function AdListItem({ ad, className }: Props) {
     <Link href={ROUTES.adDetail(ad.id)}
       className={cn('flex gap-3 p-3 rounded-lg border bg-card hover:shadow-sm transition-shadow', className)}>
       <div className="relative w-28 h-20 shrink-0 rounded overflow-hidden bg-muted">
-        <Image src={thumb} alt={ad.title} fill className="object-cover" sizes="112px" />
+        <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="112px" />
         {ad.status === 'SOLD' && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs font-bold">تم البيع</div>
         )}

@@ -10,6 +10,17 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   };
 }>;
 
+/**
+ * FIX UX-15: findManyForUser's own result type — ConversationWithRelations
+ * plus a per-conversation unreadCount. Kept separate from
+ * ConversationWithRelations itself (rather than adding _count there)
+ * since findById/getConversationById (single-thread view) has no use
+ * for it — that page already marks messages read via getMessages, and
+ * a badge on a thread the caller is currently looking at doesn't mean
+ * anything.
+ */
+export type ConversationListItem = ConversationWithRelations & { unreadCount: number };
+
 const conversationWithRelations = {
   // Epic 5: ad is nullable on the row itself (adId String?) — the
   // include still always resolves buyer/seller since those FKs are
@@ -55,11 +66,20 @@ export const conversationsRepository = {
 
   /** Every conversation the caller is a party to, as either buyer or
    * seller, most-recently-active first (updatedAt bumps on every new
-   * message — see touchUpdatedAt). */
+   * message — see touchUpdatedAt).
+   *
+   * FIX UX-15: now also returns unreadCount per conversation — was
+   * previously only available in aggregate across every conversation
+   * via countUnreadConversationsForUser, with nothing telling the
+   * frontend WHICH thread(s) in the list actually have unread
+   * messages. _count with a nested `where` (rather than a separate
+   * query per conversation) runs as one correlated subquery per row
+   * inside the single findMany call — not an N+1 round trip — same
+   * shape Prisma already generates for any relation count. */
   findManyForUser: async (
     userId: string,
     query: { page?: number; limit?: number }
-  ): Promise<{ conversations: ConversationWithRelations[]; total: number }> => {
+  ): Promise<{ conversations: ConversationListItem[]; total: number }> => {
     const { page = 1, limit = 20 } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.ConversationWhereInput = {
@@ -69,14 +89,28 @@ export const conversationsRepository = {
     const [conversations, total] = await Promise.all([
       prisma.conversation.findMany({
         where,
-        include: conversationWithRelations,
+        include: {
+          ...conversationWithRelations,
+          _count: {
+            select: {
+              messages: { where: { senderId: { not: userId }, readAt: null } },
+            },
+          },
+        },
         orderBy: { updatedAt: 'desc' },
         skip,
         take,
       }),
       prisma.conversation.count({ where }),
     ]);
-    return { conversations, total };
+
+    return {
+      conversations: conversations.map(({ _count, ...conversation }) => ({
+        ...conversation,
+        unreadCount: _count.messages,
+      })),
+      total,
+    };
   },
 
   /** Bumps updatedAt so the thread resorts to the top of the caller's

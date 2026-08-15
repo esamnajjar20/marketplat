@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { PackageX, Clock3 } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -41,7 +41,7 @@ export function ProductCard({ product, storeId, className }: Props) {
       )}
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
-        <Image
+        <SafeImage
           src={thumb}
           alt={product.name}
           fill

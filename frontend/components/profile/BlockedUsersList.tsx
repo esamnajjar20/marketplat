@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -60,7 +60,7 @@ export function BlockedUsersList() {
           <div key={row.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative w-9 h-9 rounded-full overflow-hidden bg-muted shrink-0">
-                <Image src={avatar} alt={row.blocked.name} fill className="object-cover" sizes="36px" />
+                <SafeImage variant="avatar" src={avatar} alt={row.blocked.name} fill className="object-cover" sizes="36px" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium line-clamp-1">{row.blocked.name}</p>

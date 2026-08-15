@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Star, BadgeCheck } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -61,7 +61,7 @@ export function UnifiedResultCard({ result, className }: Props) {
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <Image
+        <SafeImage
           src={thumb}
           alt={result.title}
           fill

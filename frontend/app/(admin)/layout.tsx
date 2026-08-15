@@ -29,6 +29,7 @@ import { ROUTES } from '@/lib/constants';
 
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader }  from '@/components/admin/AdminHeader';
+import { PageTransition } from '@/components/shared/PageTransition';
 
 // Gap #20 (admin permission tiers): the only two sections a MODERATOR
 // can reach — mirrors AdminSidebar's own tierRequired filter and the
@@ -107,7 +108,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
         <main className="flex-1 overflow-auto p-6">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     </div>

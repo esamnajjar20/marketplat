@@ -184,10 +184,24 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('المفضلة').closest('a')?.getAttribute('aria-current')).toBeNull();
   });
 
-  it('settings link uses activeMatch — aria-current set for any /settings/* subpath', () => {
+  it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 8-destination group)', () => {
+    render(<ProtectedMobileNav />);
+    expect(screen.getByRole('button', { name: /الإعدادات/ })).toBeInTheDocument();
+  });
+
+  it('settings group opens automatically and shows all 8 sub-destinations when already on a /settings/* subpath', () => {
     mockUsePathname.mockReturnValue('/settings/security');
     render(<ProtectedMobileNav />);
-    expect(screen.getByText('الإعدادات').closest('a')?.getAttribute('aria-current')).toBe('page');
+    const toggle = screen.getByRole('button', { name: /الإعدادات/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('الملف الشخصي').closest('a')?.getAttribute('href')).toBe('/settings/profile');
+    expect(screen.getByText('ملف البائع').closest('a')?.getAttribute('href')).toBe('/settings/seller');
+    expect(screen.getByText('ملف مقدم الخدمة').closest('a')?.getAttribute('href')).toBe('/settings/service-provider');
+    expect(screen.getByText('الأمان').closest('a')?.getAttribute('href')).toBe('/settings/security');
+    expect(screen.getByText('الجلسات').closest('a')?.getAttribute('href')).toBe('/settings/sessions');
+    expect(screen.getByText('الإشعارات').closest('a')?.getAttribute('href')).toBe('/settings/notifications');
+    expect(screen.getByText('المستخدمون المحظورون').closest('a')?.getAttribute('href')).toBe('/settings/blocked-users');
+    expect(screen.getByText('الأمان').closest('a')?.getAttribute('aria-current')).toBe('page');
   });
 
   describe('role-gated groups', () => {

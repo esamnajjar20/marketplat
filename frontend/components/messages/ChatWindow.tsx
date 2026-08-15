@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Trash2, Loader2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -197,7 +197,7 @@ export function ChatWindow({ conversationId }: Props) {
           <ChevronRight className="h-5 w-5" />
         </Link>
         <div className="relative w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0">
-          <Image src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
+          <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
           {isPartyOnline && (
             <span
               className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-online ring-2 ring-card"

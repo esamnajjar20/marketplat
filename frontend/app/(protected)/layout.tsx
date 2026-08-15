@@ -36,6 +36,7 @@ import {
 import { ProtectedHeader }  from '@/components/layout/ProtectedHeader';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
 import { BottomNav }        from '@/components/layout/BottomNav';
+import { PageTransition }   from '@/components/shared/PageTransition';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -85,8 +86,16 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <div className="flex min-w-0 flex-1">
         <ProtectedSidebar />
         {/* FIX P1-3: pb-20 reserves space for BottomNav on mobile, same
-            as the (public) layout's identical change. */}
-        <main className="min-w-0 flex-1 p-6 pb-20 md:pb-6">{children}</main>
+            as the (public) layout's identical change (BottomNav is
+            hidden md:, so md:pb-6 drops back to the normal scale).
+            FIX UX-19: p-6 was flat (24px) on every viewport with no
+            breakpoint variant — the doc's own recommendation is
+            16px mobile scaling to 24–32px desktop. px-4 py-4 (16px)
+            is the mobile base; md:p-6 (24px) and lg:p-8 (32px) scale
+            it up, with pb-20/md:pb-6 layered on top for BottomNav. */}
+        <main className="min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
       <BottomNav />
     </div>

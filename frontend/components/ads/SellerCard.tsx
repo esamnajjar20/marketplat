@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, BadgeCheck } from 'lucide-react';
+import { MessageSquare, BadgeCheck, Star } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { ROUTES } from '@/lib/constants';
@@ -61,7 +61,7 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
 
       <Link href={profileHref} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
         <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted shrink-0">
-          <Image src={avatar} alt={seller.name} fill className="object-cover" sizes="48px" />
+          <SafeImage variant="avatar" src={avatar} alt={seller.name} fill className="object-cover" sizes="48px" />
         </div>
         <div>
           <div className="flex items-center gap-1.5">
@@ -73,6 +73,18 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
             )}
           </div>
           {seller.city && <p className="text-sm text-muted-foreground">{seller.city}</p>}
+          {/* FIX UX-13: sellerProfile is already fetched above for the
+              verified check — it also carries averageRating/totalRatings,
+              the same fields SellerProfileHeader uses, so surface them
+              here too instead of leaving this highest-trust-moment card
+              (right where a buyer decides whether to message the seller)
+              without a rating. */}
+          {sellerProfile && sellerProfile.totalRatings > 0 && (
+            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Star className="h-3.5 w-3.5 fill-rating text-rating" />
+              {parseFloat(sellerProfile.averageRating).toFixed(1)} ({sellerProfile.totalRatings} تقييم)
+            </span>
+          )}
         </div>
       </Link>
 

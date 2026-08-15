@@ -101,7 +101,7 @@ describe('conversationsRepository', () => {
   });
 
   describe('findManyForUser', () => {
-    it('filters by buyerId OR sellerId, ordered by updatedAt desc', async () => {
+    it('filters by buyerId OR sellerId, ordered by updatedAt desc, with a per-conversation unread _count', async () => {
       (prisma.conversation.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.conversation.count as jest.Mock).mockResolvedValue(0);
 
@@ -109,7 +109,14 @@ describe('conversationsRepository', () => {
 
       expect(prisma.conversation.findMany).toHaveBeenCalledWith({
         where: { OR: [{ buyerId }, { sellerId: buyerId }] },
-        include: conversationWithRelationsInclude,
+        include: {
+          ...conversationWithRelationsInclude,
+          _count: {
+            select: {
+              messages: { where: { senderId: { not: buyerId }, readAt: null } },
+            },
+          },
+        },
         orderBy: { updatedAt: 'desc' },
         skip: 0,
         take: 20,
@@ -130,14 +137,26 @@ describe('conversationsRepository', () => {
       );
     });
 
-    it('returns the conversations and total from the parallel queries', async () => {
-      const conversations = [{ id: 'conv-1' }, { id: 'conv-2' }];
+    // FIX UX-15: findManyForUser now maps _count.messages onto a flat
+    // unreadCount field per conversation and drops _count from the
+    // returned shape — this locks in that mapping.
+    it('maps _count.messages onto a flat unreadCount and strips _count', async () => {
+      const conversations = [
+        { id: 'conv-1', _count: { messages: 3 } },
+        { id: 'conv-2', _count: { messages: 0 } },
+      ];
       (prisma.conversation.findMany as jest.Mock).mockResolvedValue(conversations);
       (prisma.conversation.count as jest.Mock).mockResolvedValue(2);
 
       const result = await conversationsRepository.findManyForUser(buyerId, {});
 
-      expect(result).toEqual({ conversations, total: 2 });
+      expect(result).toEqual({
+        conversations: [
+          { id: 'conv-1', unreadCount: 3 },
+          { id: 'conv-2', unreadCount: 0 },
+        ],
+        total: 2,
+      });
     });
   });
 

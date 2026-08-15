@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -139,7 +139,7 @@ export function ConversationList({ selectedId }: Props = {}) {
           >
             <div className="relative shrink-0">
               <div className="w-14 h-14 rounded-full overflow-hidden bg-muted border-2 border-card shadow-sm">
-                <Image src={avatar} alt={party.name} fill className="object-cover" sizes="56px" />
+                <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="56px" />
               </div>
               {onlineMap?.[party.id] && (
                 <span
@@ -148,17 +148,33 @@ export function ConversationList({ selectedId }: Props = {}) {
                   title="متصل الآن"
                 />
               )}
+              {/* FIX UX-15: unreadCount badge — was previously nowhere
+                  in this list at all (only an aggregate total existed
+                  on the backend, unused by any endpoint). Positioned
+                  opposite the online dot (top-end vs bottom-end) so
+                  the two never collide on the same corner. */}
+              {conversation.unreadCount > 0 && (
+                <span
+                  className="absolute -top-1 -end-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground ring-2 ring-card"
+                  aria-label={`${conversation.unreadCount} رسالة غير مقروءة`}
+                >
+                  {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between gap-2 mb-1">
-                <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
+                <p className={cn('text-sm line-clamp-1', conversation.unreadCount > 0 ? 'font-bold' : 'font-semibold')}>
+                  {party.name}
+                </p>
                 <span className="text-xs text-muted-foreground shrink-0">
                   {formatRelativeTime(conversation.updatedAt)}
                 </span>
               </div>
               <p
                 className={cn(
-                  'text-xs text-muted-foreground line-clamp-1',
+                  'text-xs line-clamp-1',
+                  conversation.unreadCount > 0 ? 'font-medium text-foreground' : 'text-muted-foreground',
                   !conversation.ad && 'italic'
                 )}
               >

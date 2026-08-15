@@ -15,6 +15,7 @@ import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
   Conversation,
+  ConversationListItem,
   Message,
   StartConversationPayload,
   SendMessagePayload,
@@ -23,11 +24,14 @@ import type {
 } from '@/types/conversation.types';
 
 export const conversationsApi = {
-  /** GET /conversations — every thread the caller is a party to. */
+  /** GET /conversations — every thread the caller is a party to.
+   * FIX UX-15: now includes a per-thread unreadCount (ConversationListItem,
+   * not plain Conversation) — see conversations.repository.ts's
+   * findManyForUser doc comment on the backend for why. */
   getMine: (params?: ConversationsQuery) =>
     apiClient
-      .get<ApiResponse<Conversation[]>>('/conversations', { params })
-      .then((r) => unwrapPaginated<Conversation>(r)),
+      .get<ApiResponse<ConversationListItem[]>>('/conversations', { params })
+      .then((r) => unwrapPaginated<ConversationListItem>(r)),
 
   /** POST /conversations — start (or reopen) a thread about an ad. */
   start: (payload: StartConversationPayload) =>

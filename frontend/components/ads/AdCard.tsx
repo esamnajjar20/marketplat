@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Heart } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -89,7 +89,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
 
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-          <Image
+          <SafeImage
             src={thumb}
             alt={ad.title}
             fill

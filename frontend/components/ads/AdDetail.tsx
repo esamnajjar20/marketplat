@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
@@ -10,6 +10,7 @@ import { SellerCard } from '@/components/ads/SellerCard';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
+import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatDate } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
@@ -101,7 +102,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
         {/* Gallery */}
         <div className="space-y-2">
           <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-muted">
-            <Image src={currentImg} alt={ad.title} fill className="object-contain" sizes="(max-width:1024px) 100vw, 66vw" priority />
+            <SafeImage src={currentImg} alt={ad.title} fill className="object-contain" sizes="(max-width:1024px) 100vw, 66vw" priority />
             {images.length > 1 && (
               <>
                 <button onClick={() => setImgIdx((i) => Math.max(0, i - 1))}
@@ -137,7 +138,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                       real Cloudinary-transformed thumbnail costs a
                       fraction of the bytes for a strip that never
                       displays larger than 64px wide. */}
-                  <Image src={getThumbnailUrl(img, 128, 96)} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="64px" loading="lazy" />
+                  <SafeImage src={getThumbnailUrl(img, 128, 96)} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="64px" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -186,7 +187,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
           <div className="flex flex-wrap gap-2">
             {ad.status !== 'ACTIVE' && (
-              <Badge variant={ad.status === 'SOLD' ? 'secondary' : 'destructive'}>
+              <Badge variant={AD_STATUS_VARIANT[ad.status]}>
                 {STATUS_LABELS[ad.status] ?? ad.status}
               </Badge>
             )}

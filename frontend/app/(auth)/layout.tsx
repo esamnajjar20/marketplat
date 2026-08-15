@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Logo } from '@/components/layout/Logo';
 import { WovenTexture } from '@/components/shared/ui/WovenTexture';
+import { PageTransition } from '@/components/shared/PageTransition';
 
 /**
  * (auth) route group layout.
@@ -65,7 +66,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               <Logo variant="light" />
             </Link>
           </div>
-          {children}
+          <PageTransition>{children}</PageTransition>
         </div>
       </div>
     </div>

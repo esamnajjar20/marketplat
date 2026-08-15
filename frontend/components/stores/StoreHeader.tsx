@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { BadgeCheck, Star, Phone, MapPin, Sparkles, UserPlus, UserMinus } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -51,11 +51,11 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
     <div className="flex flex-col w-full -mx-4 sm:mx-0">
       {/* Cover + overlapping avatar */}
       <div className="relative w-full h-48 bg-muted flex items-end justify-center sm:rounded-b-xl overflow-hidden shadow-sm">
-        {cover && <Image src={cover} alt="" fill className="object-cover opacity-90" sizes="100vw" priority />}
+        {cover && <SafeImage src={cover} alt="" fill className="object-cover opacity-90" sizes="100vw" priority />}
         <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex justify-center w-full">
           <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
             <div className="relative w-full h-full rounded-full overflow-hidden">
-              <Image src={avatar} alt={store.name} fill className="object-cover" sizes="96px" />
+              <SafeImage variant="avatar" src={avatar} alt={store.name} fill className="object-cover" sizes="96px" />
             </div>
             {store.sellerProfile.verified && (
               <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">

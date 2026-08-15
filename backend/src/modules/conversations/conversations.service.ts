@@ -1,5 +1,5 @@
 import { Conversation, Message } from '@prisma/client';
-import { conversationsRepository, messagesRepository, ConversationWithRelations } from './conversations.repository';
+import { conversationsRepository, messagesRepository, ConversationWithRelations, ConversationListItem } from './conversations.repository';
 import { adsRepository } from '../ads/ads.repository';
 import { usersRepository } from '../users/users.repository';
 import { notificationEvents } from '../notifications';
@@ -102,7 +102,7 @@ export const conversationsService = {
   getMyConversations: async (
     userId: string,
     query: { page?: number; limit?: number }
-  ): Promise<PaginatedResult<ConversationWithRelations>> => {
+  ): Promise<PaginatedResult<ConversationListItem>> => {
     const { conversations, total } = await conversationsRepository.findManyForUser(userId, query);
     return {
       items: conversations,

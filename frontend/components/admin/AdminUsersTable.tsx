@@ -24,6 +24,7 @@ import { useAdminToggleUserActive, useAdminChangeRole } from '@/hooks/mutations/
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { formatDate }     from '@/lib/formatters';
 import { parseApiError }  from '@/lib/errorParser';
+import { USER_ACTIVE_STATUS_VARIANT, USER_ACTIVE_STATUS_LABELS, userActiveKey } from '@/lib/userActiveStatus';
 import type { AdminUser, AssignableRole } from '@/types/admin.types';
 import type { UserRole } from '@/types/auth.types';
 
@@ -141,7 +142,7 @@ export function AdminUsersTable() {
           navigation (no remount), leaving the input showing stale text
           while the URL/results are already correct. `key={q}` forces a
           fresh mount whenever `q` changes from an external source. */}
-      <Input key={q} placeholder="بحث بالاسم أو البريد…" defaultValue={q}
+      <Input key={q} placeholder="بحث بالاسم أو البريد…" aria-label="بحث بالاسم أو البريد" defaultValue={q}
         onBlur={(e) => search(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
         className="max-w-xs" />
@@ -198,8 +199,8 @@ export function AdminUsersTable() {
                       </Badge>
                     </td>
                     <td className="p-3 hidden sm:table-cell">
-                      <Badge variant={user.isActive ? 'success' : 'destructive'} className="text-xs">
-                        {user.isActive ? 'نشط' : 'موقوف'}
+                      <Badge variant={USER_ACTIVE_STATUS_VARIANT[userActiveKey(user.isActive)]} className="text-xs">
+                        {USER_ACTIVE_STATUS_LABELS[userActiveKey(user.isActive)]}
                       </Badge>
                     </td>
                     <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{formatDate(user.createdAt)}</td>

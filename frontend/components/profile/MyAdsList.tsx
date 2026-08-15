@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Pencil, Trash2, Eye, CheckCircle } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
@@ -14,6 +14,7 @@ import { useMyAds }     from '@/hooks/queries/useAds';
 import { useDeleteAd, useMarkAsSold } from '@/hooks/mutations/useAdMutations';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
+import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { ShoppingBag, AlertTriangle } from 'lucide-react';
@@ -126,12 +127,12 @@ export function MyAdsList() {
             return (
               <div key={ad.id} className="flex gap-3 p-3 rounded-lg border bg-card">
                 <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
-                  <Image src={thumb} alt={ad.title} fill className="object-cover" sizes="96px" />
+                  <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="96px" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <Link href={ROUTES.adDetail(ad.id)} className="font-medium text-sm hover:underline line-clamp-1">{ad.title}</Link>
-                    <Badge variant={ad.status === 'ACTIVE' ? 'default' : 'secondary'} className="shrink-0 text-xs">
+                    <Badge variant={AD_STATUS_VARIANT[ad.status]} className="shrink-0 text-xs">
                       {STATUS_LABELS[ad.status]}
                     </Badge>
                   </div>

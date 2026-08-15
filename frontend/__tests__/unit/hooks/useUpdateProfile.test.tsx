@@ -13,8 +13,9 @@
  *   - calls usersApi.uploadAvatar with the given File
  *   - on success: patches only avatarUrl in the auth store
  *   - on success: invalidates the auth.me query
- *   - on success: shows a success toast
- *   - on error: shows an error toast
+ *   - FIX UX-11: uses toast.promise (loading→success/error) instead of
+ *     separate toast.success/toast.error calls, so a loading toast is
+ *     visible immediately rather than no feedback until it settles
  *
  *  useDeleteAccount (FIX INTEG-08):
  *   - calls usersApi.deleteMe with no arguments
@@ -48,7 +49,7 @@ vi.mock('@/api/users.api', () => ({
 }));
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), promise: vi.fn() },
 }));
 
 function createWrapper() {
@@ -180,7 +181,7 @@ describe('useUploadAvatar', () => {
     expect(useAuthStore.getState().user?.avatarUrl).toBeNull();
   });
 
-  it('shows a success toast on success', async () => {
+  it('shows a loading toast via toast.promise while the upload is pending', async () => {
     (usersApi.uploadAvatar as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { ...mockUser, avatarUrl: 'https://cdn/x.jpg' } },
     });
@@ -189,17 +190,26 @@ describe('useUploadAvatar', () => {
     act(() => { result.current.mutate(mockFile); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(toast.success).toHaveBeenCalledWith('تم تحديث الصورة الشخصية');
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        loading: 'جارٍ رفع الصورة…',
+        success: 'تم تحديث الصورة الشخصية',
+      }),
+    );
   });
 
-  it('shows an error toast on failure (e.g. oversized file rejected by backend)', async () => {
+  it('passes an error-message resolver to toast.promise for failures (e.g. oversized file rejected by backend)', async () => {
     (usersApi.uploadAvatar as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('File too large'));
 
     const { result } = renderHook(() => useUploadAvatar(), { wrapper: createWrapper() });
     act(() => { result.current.mutate(mockFile); });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(toast.error).toHaveBeenCalled();
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ error: expect.any(Function) }),
+    );
   });
 });
 

@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { BadgeCheck, Star, Phone, MapPin } from 'lucide-react';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
@@ -39,7 +39,7 @@ export function ServiceProviderHeader({ provider }: Props) {
     <div className="flex flex-col w-full items-center text-center pt-6">
       <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
         <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
-          <Image src={avatar} alt={provider.businessName} fill className="object-cover" sizes="96px" />
+          <SafeImage variant="avatar" src={avatar} alt={provider.businessName} fill className="object-cover" sizes="96px" />
         </div>
         {provider.sellerProfile.verified && (
           <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">

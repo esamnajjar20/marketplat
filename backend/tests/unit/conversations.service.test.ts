@@ -203,15 +203,23 @@ describe('conversationsService', () => {
   });
 
   describe('getMyConversations', () => {
-    it('returns paginated conversations with defaulted page/limit meta', async () => {
+    // FIX UX-15: separate from the shared mockConversation above —
+    // only findManyForUser's result shape (ConversationListItem) has
+    // unreadCount; other mockConversation consumers in this file use
+    // the plain ConversationWithRelations shape and shouldn't need to
+    // know about it.
+    const mockConversationListItem = { ...mockConversation, unreadCount: 2 };
+
+    it('returns paginated conversations (including unreadCount) with defaulted page/limit meta', async () => {
       (conversationsRepository.findManyForUser as jest.Mock).mockResolvedValue({
-        conversations: [mockConversation],
+        conversations: [mockConversationListItem],
         total: 1,
       });
 
       const result = await conversationsService.getMyConversations(buyerId, {});
 
-      expect(result.items).toEqual([mockConversation]);
+      expect(result.items).toEqual([mockConversationListItem]);
+      expect(result.items[0].unreadCount).toBe(2);
       expect(result.meta.page).toBe(1);
       expect(result.meta.limit).toBe(20);
       expect(result.meta.total).toBe(1);

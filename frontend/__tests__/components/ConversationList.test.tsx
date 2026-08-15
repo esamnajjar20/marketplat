@@ -42,7 +42,7 @@ function mockAuthState(user: typeof me | null) {
 
 function makeConversation(overrides: Partial<{
   id: string; buyerId: string; buyer: typeof buyer; seller: typeof seller;
-  ad: { title: string } | null; updatedAt: string;
+  ad: { title: string } | null; updatedAt: string; unreadCount: number;
 }> = {}) {
   return {
     id: 'conv-1',
@@ -51,6 +51,10 @@ function makeConversation(overrides: Partial<{
     seller,
     ad: { title: 'دراجة للبيع' },
     updatedAt: new Date().toISOString(),
+    // FIX UX-15: defaults to 0 (no badge) so every existing test below
+    // — none of which cares about the unread badge — keeps rendering
+    // exactly as before; only the new tests further down override it.
+    unreadCount: 0,
     ...overrides,
   };
 }
@@ -212,6 +216,55 @@ describe('ConversationList', () => {
       render(<ConversationList />);
 
       expect(screen.getAllByLabelText('متصل الآن')).toHaveLength(1);
+    });
+  });
+
+  // FIX UX-15: was previously nowhere in this list — a conversation
+  // with unread messages looked identical to one without.
+  describe('unread badge', () => {
+    it('shows no badge when unreadCount is 0', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: { items: [makeConversation({ unreadCount: 0 })] },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      render(<ConversationList />);
+
+      expect(screen.queryByLabelText(/رسالة غير مقروءة/)).not.toBeInTheDocument();
+    });
+
+    it('shows the exact count when there are unread messages', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: { items: [makeConversation({ unreadCount: 3 })] },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      render(<ConversationList />);
+
+      expect(screen.getByLabelText('3 رسالة غير مقروءة')).toHaveTextContent('3');
+    });
+
+    it('caps the displayed badge text at "9+" for large counts without losing the real count in aria-label', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: { items: [makeConversation({ unreadCount: 42 })] },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      render(<ConversationList />);
+
+      expect(screen.getByLabelText('42 رسالة غير مقروءة')).toHaveTextContent('9+');
+    });
+
+    it('only badges the row that actually has unread messages, not every row', () => {
+      mockUseMyConversations.mockReturnValue({
+        data: {
+          items: [
+            makeConversation({ id: 'conv-1', unreadCount: 2 }),
+            makeConversation({ id: 'conv-2', unreadCount: 0 }),
+          ],
+        },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      } as never);
+      render(<ConversationList />);
+
+      expect(screen.getAllByLabelText(/رسالة غير مقروءة/)).toHaveLength(1);
     });
   });
 });

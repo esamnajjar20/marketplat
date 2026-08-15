@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Calendar, FileText } from 'lucide-react';
 import { getAvatarUrl }   from '@/lib/cloudinary';
 import { formatDate }     from '@/lib/formatters';
@@ -25,7 +25,7 @@ export function PublicProfileHeader({ user }: Props) {
     <div className="flex flex-col w-full items-center text-center pt-6">
       <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
         <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
-          <Image src={avatar} alt={user.name} fill className="object-cover" sizes="96px" />
+          <SafeImage variant="avatar" src={avatar} alt={user.name} fill className="object-cover" sizes="96px" />
         </div>
       </div>
 

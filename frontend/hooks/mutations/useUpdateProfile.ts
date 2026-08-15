@@ -104,19 +104,34 @@ export function useDeleteAccount() {
  * endpoint (POST /users/me/avatar), closing the security gap from
  * report item #8 where avatars were uploaded directly from the client
  * to an unsigned Cloudinary preset.
+ *
+ * FIX UX-11: unlike ad/product/service-listing image uploads (which
+ * got a real onUploadProgress-driven progress bar in ImageUpload
+ * under P3-10b), this is a single small file with no progress UI at
+ * all — the only feedback was whatever the caller's own submit
+ * button did while pending, with no toast anywhere in the pending
+ * state. toast.promise covers exactly this case (a single
+ * medium-length async action, not worth a dedicated progress bar):
+ * shows a loading toast immediately, swaps to success/error when the
+ * mutation settles.
  */
 export function useUploadAvatar() {
   const queryClient = useQueryClient();
   const patchUser   = useAuthStore(selectPatchUser);
 
   return useMutation({
-    mutationFn: (file: File) =>
-      usersApi.uploadAvatar(file).then((r) => unwrapData(r)),
+    mutationFn: (file: File) => {
+      const promise = usersApi.uploadAvatar(file).then((r) => unwrapData(r));
+      toast.promise(promise, {
+        loading: 'جارٍ رفع الصورة…',
+        success: 'تم تحديث الصورة الشخصية',
+        error: (err) => parseApiError(err).message,
+      });
+      return promise;
+    },
     onSuccess: (updated) => {
       patchUser({ avatarUrl: updated.avatarUrl ?? null });
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
-      toast.success('تم تحديث الصورة الشخصية');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
   });
 }

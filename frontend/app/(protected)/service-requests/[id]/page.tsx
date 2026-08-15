@@ -19,7 +19,7 @@
  */
 import { use } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { notFound } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -85,7 +85,7 @@ export default function ServiceRequestDetailPage({ params }: Props) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex gap-3">
             <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded bg-muted">
-              <Image
+              <SafeImage
                 src={request.listing.images[0] ? getThumbnailUrl(request.listing.images[0], 160, 120) : PLACEHOLDER_SVG}
                 alt={request.listing.title}
                 fill
@@ -119,7 +119,7 @@ export default function ServiceRequestDetailPage({ params }: Props) {
               {request.attachedImages.map((url, i) => (
                 <a key={url} href={getDetailImageUrl(url)} target="_blank" rel="noopener noreferrer"
                   className="relative aspect-square overflow-hidden rounded-md bg-muted">
-                  <Image src={getThumbnailUrl(url, 200, 200)} alt={`صورة مرفقة ${i + 1}`} fill className="object-cover" sizes="150px" />
+                  <SafeImage src={getThumbnailUrl(url, 200, 200)} alt={`صورة مرفقة ${i + 1}`} fill className="object-cover" sizes="150px" />
                 </a>
               ))}
             </div>

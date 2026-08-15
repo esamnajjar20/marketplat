@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Pencil, Trash2, Eye, Briefcase, AlertTriangle, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -112,7 +112,7 @@ export function MyServiceListingsList() {
             return (
               <div key={listing.id} className="flex gap-3 p-3 rounded-lg border bg-card">
                 <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
-                  <Image src={thumb} alt={listing.title} fill className="object-cover" sizes="96px" />
+                  <SafeImage src={thumb} alt={listing.title} fill className="object-cover" sizes="96px" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">

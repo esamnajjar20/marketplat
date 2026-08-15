@@ -1,6 +1,7 @@
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { PageTransition } from '@/components/shared/PageTransition';
 
 /**
  * (public) route group layout.
@@ -20,7 +21,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       {/* FIX P1-3: pb-16 reserves space for BottomNav (fixed, md:hidden)
           so it never overlaps the last bit of page content on mobile —
           same footprint the bar itself occupies (py-2 + icon + label). */}
-      <main className="min-w-0 flex-1 pb-16 md:pb-0">{children}</main>
+      <main className="min-w-0 flex-1 pb-16 md:pb-0">
+        <PageTransition>{children}</PageTransition>
+      </main>
       <PublicFooter />
       <BottomNav />
     </div>

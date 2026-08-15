@@ -108,11 +108,35 @@ const STORE_GROUP = {
   ],
 } as const;
 
+// FIX UX-16: "الإعدادات" was a single flat link straight to
+// /settings/profile in TRAILING_LINKS below — unlike ProtectedSidebar,
+// which folds all 8 settings destinations into a disclosure group
+// (see ProtectedSidebar's SETTINGS_GROUP + its "sidebar داخل sidebar"
+// doc comment for why). None of security/sessions/notifications/
+// blocked-users/seller/service-provider had any navigation of their
+// own on this breakpoint, so there was no visible path from this
+// drawer (or from any settings sub-page itself) to any of them other
+// than the profile page — same group, same pattern as
+// SERVICES_GROUP/STORE_GROUP above, so mobile matches desktop.
+const SETTINGS_GROUP = {
+  label: 'الإعدادات',
+  href: ROUTES.settings.profile,
+  children: [
+    { label: 'الملف الشخصي', href: ROUTES.settings.profile },
+    { label: 'ملف البائع', href: ROUTES.settings.seller },
+    { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
+    { label: 'متجري', href: ROUTES.myStore },
+    { label: 'الأمان', href: ROUTES.settings.security },
+    { label: 'الجلسات', href: ROUTES.settings.sessions },
+    { label: 'الإشعارات', href: ROUTES.settings.notifications },
+    { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
+  ],
+} as const;
+
 const TRAILING_LINKS = [
   // FEAT-REPORT-USER-STORE: added for parity with ProtectedSidebar,
   // same reasoning as this file's own doc comment on "البحثات المحفوظة".
   { label: 'بلاغاتي', href: ROUTES.myReports },
-  { label: 'الإعدادات', href: ROUTES.settings.profile, activeMatch: ROUTES.settings.root },
 ] as const;
 
 const NAV_ID = 'protected-mobile-nav-drawer';
@@ -121,7 +145,7 @@ const TOGGLE_ID = 'protected-mobile-nav-toggle';
 function DrawerDisclosureGroup({
   group, pathname, onNavigate,
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP;
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | typeof SETTINGS_GROUP;
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -375,6 +399,8 @@ export function ProtectedMobileNav() {
               </li>
             );
           })}
+
+          <DrawerDisclosureGroup group={SETTINGS_GROUP} pathname={pathname} onNavigate={close} />
 
           {isAdmin && (
             <li>

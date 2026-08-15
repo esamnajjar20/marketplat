@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { BadgeCheck } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
@@ -52,7 +52,7 @@ export function ServiceListingCard({ listing, className }: Props) {
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <Image
+        <SafeImage
           src={thumb}
           alt={listing.title}
           fill

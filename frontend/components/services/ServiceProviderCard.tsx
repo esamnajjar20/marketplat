@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
@@ -50,7 +50,7 @@ export function ServiceProviderCard({ provider, className }: Props) {
       )}
     >
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
-        <Image src={avatar} alt={provider.businessName} fill className="object-cover" sizes="64px" />
+        <SafeImage variant="avatar" src={avatar} alt={provider.businessName} fill className="object-cover" sizes="64px" />
       </div>
 
       <div className="min-w-0 flex-1 space-y-1">

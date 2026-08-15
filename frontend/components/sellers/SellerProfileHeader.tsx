@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { BadgeCheck, Star, Calendar, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { getAvatarUrl } from '@/lib/cloudinary';
@@ -35,7 +35,7 @@ export function SellerProfileHeader({ seller }: Props) {
     <div className="flex flex-col w-full items-center text-center pt-6">
       <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
         <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
-          <Image src={avatar} alt={seller.displayName} fill className="object-cover" sizes="96px" />
+          <SafeImage variant="avatar" src={avatar} alt={seller.displayName} fill className="object-cover" sizes="96px" />
         </div>
         {seller.verified && (
           <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">

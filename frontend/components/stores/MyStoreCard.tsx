@@ -11,23 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUpdateStore } from '@/hooks/mutations/useStoreMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES, CITIES } from '@/lib/constants';
-import type { StoreDetails, StoreStatus } from '@/types/store.types';
+import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
+import type { StoreDetails } from '@/types/store.types';
 
 interface Props {
   store: StoreDetails;
 }
-
-const STATUS_LABELS: Record<StoreStatus, string> = {
-  PENDING: 'قيد المراجعة',
-  ACTIVE: 'نشط',
-  BLOCKED: 'محظور',
-};
-
-const STATUS_VARIANTS: Record<StoreStatus, 'success' | 'warning' | 'destructive'> = {
-  PENDING: 'warning',
-  ACTIVE: 'success',
-  BLOCKED: 'destructive',
-};
 
 interface Errors {
   name?: string;
@@ -91,7 +80,7 @@ export function MyStoreCard({ store }: Props) {
       <div className="flex items-center gap-2 flex-wrap">
         <Store className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-lg font-semibold">{store.name}</h2>
-        <Badge variant={STATUS_VARIANTS[store.status]}>{STATUS_LABELS[store.status]}</Badge>
+        <Badge variant={STORE_STATUS_VARIANT[store.status]}>{STORE_STATUS_LABELS[store.status]}</Badge>
         {store.plan === 'FEATURED' && (
           // FIX P1-4: same unification as StoreHeader.tsx — "مميز" now
           // reads as the same accent color everywhere it appears.
