@@ -23,7 +23,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut } from 'lucide-react';
+import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, User } from 'lucide-react';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
@@ -116,6 +116,13 @@ export function UserMenu() {
           <Link href={ROUTES.activity} className="flex items-center gap-2 cursor-pointer">
             <History className="h-4 w-4" />
             نشاطي
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href={ROUTES.userProfile(user.id)} className="flex items-center gap-2 cursor-pointer">
+            <User className="h-4 w-4" />
+            عرض الملف الشخصي
           </Link>
         </DropdownMenuItem>
 

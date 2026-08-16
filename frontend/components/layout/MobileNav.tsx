@@ -42,30 +42,22 @@ import { createPortal } from 'react-dom';
 import Link       from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Store, Wrench, Users, PlusCircle,
-  LayoutDashboard, ListOrdered, Heart, BellPlus, History, Settings, Shield,
-  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight,
+  PlusCircle,
+  LayoutDashboard, ListOrdered, Heart, BellPlus, History, Shield,
+  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight, User, Plus, Flag,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
+import { BROWSE_LINKS, SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 const selectCloseMobileNav  = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
-
-// AUDIT-FIX (issue #3 — 🔴 critical): stores/services/service-providers
-// had no entry point anywhere in primary navigation — same gap as
-// PublicHeader.tsx, mirrored here for the mobile drawer.
-const BROWSE_LINKS = [
-  { label: 'الرئيسية',      href: ROUTES.home,             icon: Home },
-  { label: 'البحث',         href: ROUTES.search,           icon: Search },
-  { label: 'المتاجر',       href: ROUTES.stores,           icon: Store },
-  { label: 'الخدمات',       href: ROUTES.services,         icon: Wrench },
-  { label: 'مقدمو الخدمة',  href: ROUTES.serviceProviders, icon: Users },
-] as const;
 
 const GUEST_ACCOUNT_LINKS = [
   { label: 'تسجيل الدخول', href: ROUTES.login,    icon: LogIn },
@@ -81,27 +73,17 @@ const AUTH_ACCOUNT_LINKS = [
   { label: 'نشاطي',         href: ROUTES.activity,        icon: History },
 ] as const;
 
-// FIX UX-SETTINGS-01: "الإعدادات" here was a flat Link straight to
-// /settings/profile — ProtectedMobileNav.tsx (used by ProtectedHeader,
-// the header shown on /dashboard etc.) already fixed this same link
-// into a disclosure group exposing all 8 settings destinations
-// (SETTINGS_GROUP), but this file — used by PublicHeader, the header
-// shown on public pages like / and /stores — kept the old direct-link
-// version. A logged-in user opening this drawer from a public page tapped
-// "الإعدادات" expecting a menu (same drawer, same label) and always
-// landed straight on the profile page instead, no matter which of the
-// 8 settings destinations they meant. Same 8 destinations, same order,
-// as ProtectedMobileNav's SETTINGS_GROUP.
-const SETTINGS_GROUP_LINKS = [
-  { label: 'الملف الشخصي', href: ROUTES.settings.profile },
-  { label: 'ملف البائع', href: ROUTES.settings.seller },
-  { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
-  { label: 'متجري', href: ROUTES.myStore },
-  { label: 'الأمان', href: ROUTES.settings.security },
-  { label: 'الجلسات', href: ROUTES.settings.sessions },
-  { label: 'الإشعارات', href: ROUTES.settings.notifications },
-  { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
+// PARITY-FIX: "بلاغاتي" — same gap as SERVICES_GROUP/STORE_GROUP below,
+// mirrors ProtectedMobileNav's TRAILING_LINKS.
+const TRAILING_LINKS = [
+  { label: 'بلاغاتي', href: ROUTES.myReports, icon: Flag },
 ] as const;
+
+// NAV-DEDUP: BROWSE_LINKS and SETTINGS_GROUP (used below as
+// SETTINGS_GROUP.children) moved to lib/navigation.ts — both were
+// byte-identical to ProtectedMobileNav's copies (SETTINGS_GROUP also
+// matched ProtectedSidebar's). See that file's doc comment for the
+// full reasoning.
 
 const NAV_ID    = 'mobile-nav-drawer';
 const TOGGLE_ID = 'mobile-nav-toggle';
@@ -183,12 +165,27 @@ function NavSection({
 /**
  * FIX UX-SETTINGS-01: "النظام" section's settings row, replacing a
  * flat Link with the same expand-in-place disclosure ProtectedMobileNav
- * already uses for its SETTINGS_GROUP — tap toggles the 8-destination
- * list open/closed instead of navigating immediately.
+ * already uses for its groups — tap toggles the destination list
+ * open/closed instead of navigating immediately.
+ *
+ * PARITY-FIX: generalized from a SETTINGS_GROUP-only row into a
+ * reusable disclosure so it can also render SERVICES_GROUP/STORE_GROUP
+ * below — this drawer previously had no path to "خدماتي"/"متجري"/
+ * "بلاغاتي" at all (only ProtectedSidebar/ProtectedMobileNav did),
+ * meaning a seller/provider opening the drawer from a public page had
+ * no way to reach their store or services without detouring through
+ * /dashboard first. Mirrors ProtectedMobileNav's DrawerDisclosureGroup.
  */
-function SettingsDisclosureRow({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
-  const isAnyChildActive = SETTINGS_GROUP_LINKS.some((c) => pathname.startsWith(c.href));
+function DisclosureGroup({
+  group, pathname, onNavigate,
+}: {
+  group: typeof SETTINGS_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
   const [isOpen, setIsOpen] = useState(isAnyChildActive);
+  const Icon = group.icon;
 
   return (
     <li>
@@ -201,15 +198,15 @@ function SettingsDisclosureRow({ pathname, onNavigate }: { pathname: string; onN
           isAnyChildActive && !isOpen ? 'bg-muted' : 'hover:bg-muted',
         )}
       >
-        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 text-start">الإعدادات</span>
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="flex-1 text-start">{group.label}</span>
         {isOpen
           ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
       </button>
       {isOpen && (
         <ul className="mt-1 flex flex-col gap-1">
-          {SETTINGS_GROUP_LINKS.map((child) => {
+          {group.children.map((child) => {
             const isActive = pathname.startsWith(child.href);
             return (
               <li key={child.href}>
@@ -244,6 +241,16 @@ export function MobileNav() {
   const isAdmin         = useAuthStore(selectIsAdmin);
   const user             = useAuthStore(selectUser);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
+  // PARITY-FIX: same "isSuccess && data is the only positive signal"
+  // gating ProtectedSidebar/ProtectedMobileNav use — loading, 404, and
+  // a genuine fetch error all render identically as the CTA row, no
+  // isError branch. Safe to call unconditionally: both hooks gate
+  // their query on isAuthenticated internally, so this issues no
+  // request at all for guests.
+  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
+  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const isSeller = sellerLoaded && Boolean(sellerProfile);
+  const isProvider = providerLoaded && Boolean(serviceProvider);
 
   // FIX UI-05: document.body isn't available during SSR, and even on
   // the client, createPortal needs a mounted DOM node to portal into
@@ -384,10 +391,106 @@ export function MobileNav() {
             {isAuthenticated ? (
               <>
                 <NavSection title="حسابك" links={AUTH_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+                {/* عرض الملف الشخصي — kept out of AUTH_ACCOUNT_LINKS
+                    (which has no user.id to build the href with).
+                    Mirrors the identical entry in ProtectedMobileNav/
+                    ProtectedSidebar/UserMenu so all four navs stay in
+                    sync. */}
+                {user && (
+                  <div className="border-t pt-3">
+                    <ul className="flex flex-col gap-1">
+                      <li>
+                        <Link
+                          href={ROUTES.userProfile(user.id)}
+                          onClick={closeMobileNav}
+                          aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
+                          className={cn(
+                            'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                            pathname.startsWith(ROUTES.userProfile(user.id))
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-muted',
+                          )}
+                        >
+                          <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          عرض ملفي
+                        </Link>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+                {/* PARITY-FIX: "خدماتي"/"متجري"/"بلاغاتي" were entirely
+                    absent from this drawer — a seller/provider opening
+                    it from a public page (home, a store page, an ad)
+                    had no way to reach their store or services without
+                    detouring through /dashboard first. Same structure
+                    as ProtectedMobileNav's identical section. */}
+                <div className="border-t pt-3">
+                  <ul className="flex flex-col gap-1">
+                    {isProvider ? (
+                      <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={closeMobileNav} />
+                    ) : (
+                      <li>
+                        <Link
+                          href={ROUTES.settings.serviceProvider}
+                          onClick={closeMobileNav}
+                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+                        >
+                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          أصبح مقدّم خدمة
+                        </Link>
+                      </li>
+                    )}
+                    {!isSeller && (
+                      <li>
+                        <Link
+                          href={ROUTES.settings.seller}
+                          onClick={closeMobileNav}
+                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+                        >
+                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          أصبح بائعاً
+                        </Link>
+                      </li>
+                    )}
+                    {isSeller ? (
+                      <DisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={closeMobileNav} />
+                    ) : (
+                      <li>
+                        <Link
+                          href={ROUTES.myStore}
+                          onClick={closeMobileNav}
+                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+                        >
+                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          افتح متجرك
+                        </Link>
+                      </li>
+                    )}
+                    {TRAILING_LINKS.map((link) => {
+                      const isActive = pathname.startsWith(link.href);
+                      return (
+                        <li key={link.href}>
+                          <Link
+                            href={link.href}
+                            onClick={closeMobileNav}
+                            aria-current={isActive ? 'page' : undefined}
+                            className={cn(
+                              'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                              isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                            )}
+                          >
+                            <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            {link.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
                 <div className="border-t pt-3">
                   <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">النظام</p>
                   <ul className="flex flex-col gap-1">
-                    <SettingsDisclosureRow pathname={pathname} onNavigate={closeMobileNav} />
+                    <DisclosureGroup group={SETTINGS_GROUP} pathname={pathname} onNavigate={closeMobileNav} />
                     {isAdmin && (
                       <li>
                         <Link

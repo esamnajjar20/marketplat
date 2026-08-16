@@ -68,11 +68,13 @@ import Link           from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ListOrdered, Heart, BellPlus,
-  MessageSquare, Wrench, Flag, Settings, History,
-  Store, ChevronDown, ChevronRight, Plus,
+  MessageSquare, Flag, History,
+  ChevronDown, ChevronRight, Plus, User,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
+import { SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 
@@ -93,58 +95,10 @@ const TRAILING_NAV_ITEMS = [
   { label: 'بلاغاتي',     href: ROUTES.myReports,         icon: Flag },
 ] as const;
 
-// P1 FIX (layout audit §6, "sidebar داخل sidebar"): /settings/layout.tsx
-// used to mount its own SettingsSidebar (8 links) alongside this sidebar's
-// single flat "الإعدادات" entry — three visually nested navigation levels
-// (ProtectedSidebar → SettingsSidebar → content) at the desktop breakpoint.
-// Folding the same 8 destinations in here as a disclosure group — same
-// pattern as SERVICES_GROUP/STORE_GROUP above — collapses that back to
-// the two levels every other protected route already has.
-const SETTINGS_GROUP = {
-  label: 'الإعدادات',
-  href: ROUTES.settings.profile,
-  icon: Settings,
-  children: [
-    { label: 'الملف الشخصي', href: ROUTES.settings.profile },
-    { label: 'ملف البائع', href: ROUTES.settings.seller },
-    { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
-    { label: 'متجري', href: ROUTES.myStore },
-    { label: 'الأمان', href: ROUTES.settings.security },
-    { label: 'الجلسات', href: ROUTES.settings.sessions },
-    { label: 'الإشعارات', href: ROUTES.settings.notifications },
-    { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
-  ],
-} as const;
-
-// REORG-04: "خدماتي" disclosure — provider-side (my listed services,
-// incoming requests, appointments calendar) and customer-side (requests
-// I made) collapsed under one root instead of /my-requests dangling off
-// a QuickActions button on /dashboard as its only entry point.
-const SERVICES_GROUP = {
-  label: 'خدماتي',
-  href: ROUTES.myServices,
-  icon: Wrench,
-  children: [
-    { label: 'خدماتي', href: ROUTES.myServices },
-    { label: 'الطلبات الواردة', href: ROUTES.incomingServiceRequests },
-    { label: 'مواعيدي', href: ROUTES.myServiceAppointments },
-    { label: 'طلباتي', href: ROUTES.myServiceRequests },
-  ],
-} as const;
-
-// REORG-04: "متجري" — entirely new at this breakpoint. /my-store and
-// /my-store/followed previously had zero desktop Nav link (only a Card
-// inside /my-store itself linked to /followed).
-const STORE_GROUP = {
-  label: 'متجري',
-  href: ROUTES.myStore,
-  icon: Store,
-  children: [
-    { label: 'متجري', href: ROUTES.myStore },
-    { label: 'منتجاتي', href: ROUTES.myStoreProducts },
-    { label: 'المتاجر المتابَعة', href: ROUTES.myFollowedStores },
-  ],
-} as const;
+// NAV-DEDUP: SETTINGS_GROUP / SERVICES_GROUP / STORE_GROUP moved to
+// lib/navigation.ts — they were byte-identical to ProtectedMobileNav's
+// (and, for SETTINGS_GROUP, MobileNav's) copies. See that file's doc
+// comment for the full reasoning.
 
 function NavLink({
   label, href, icon: Icon, isActive, indent = false,
@@ -223,6 +177,7 @@ function DisclosureGroup({
 
 export function ProtectedSidebar() {
   const pathname = usePathname();
+  const user = useAuthStore(selectUser);
   // ROLE-SEP 3.2: isSuccess && data is the only positive signal —
   // everything else (loading, 404, network error) reads as "no
   // profile yet" and renders the CTA. No isError branch.
@@ -241,6 +196,21 @@ export function ProtectedSidebar() {
             <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
           );
         })}
+
+        {/* عرض الملف الشخصي — standalone entry, distinct from the
+            "الإعدادات" disclosure group below whose children are all
+            edit/manage destinations. This one is a view-only link to
+            the public profile page, so it sits with the other
+            top-level view destinations (favorites, activity) rather
+            than inside SETTINGS_GROUP. */}
+        {user && (
+          <NavLink
+            label="عرض ملفي"
+            href={ROUTES.userProfile(user.id)}
+            icon={User}
+            isActive={pathname.startsWith(ROUTES.userProfile(user.id))}
+          />
+        )}
 
         {isProvider ? (
           <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />

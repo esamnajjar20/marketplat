@@ -54,26 +54,18 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Store as StoreIcon, Wrench as WrenchIcon, Users, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, User } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
-import { useAuthStore, selectIsAdmin } from '@/store/auth.store';
+import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
+import { BROWSE_LINKS, SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 
 const selectCloseMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
-
-// REORG-07: identical to MobileNav.tsx's BROWSE_LINKS.
-const BROWSE_LINKS = [
-  { label: 'الرئيسية', href: ROUTES.home, icon: Home },
-  { label: 'البحث', href: ROUTES.search, icon: Search },
-  { label: 'المتاجر', href: ROUTES.stores, icon: StoreIcon },
-  { label: 'الخدمات', href: ROUTES.services, icon: WrenchIcon },
-  { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
-] as const;
 
 const LINKS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard },
@@ -85,53 +77,10 @@ const LINKS = [
   { label: 'نشاطي', href: ROUTES.activity },
 ] as const;
 
-// REORG-04: same grouping as ProtectedSidebar's SERVICES_GROUP.
-const SERVICES_GROUP = {
-  label: 'خدماتي',
-  href: ROUTES.myServices,
-  children: [
-    { label: 'خدماتي', href: ROUTES.myServices },
-    { label: 'الطلبات الواردة', href: ROUTES.incomingServiceRequests },
-    { label: 'مواعيدي', href: ROUTES.myServiceAppointments },
-    { label: 'طلباتي', href: ROUTES.myServiceRequests },
-  ],
-} as const;
-
-// REORG-04: same grouping as ProtectedSidebar's STORE_GROUP.
-const STORE_GROUP = {
-  label: 'متجري',
-  href: ROUTES.myStore,
-  children: [
-    { label: 'متجري', href: ROUTES.myStore },
-    { label: 'منتجاتي', href: ROUTES.myStoreProducts },
-    { label: 'المتاجر المتابَعة', href: ROUTES.myFollowedStores },
-  ],
-} as const;
-
-// FIX UX-16: "الإعدادات" was a single flat link straight to
-// /settings/profile in TRAILING_LINKS below — unlike ProtectedSidebar,
-// which folds all 8 settings destinations into a disclosure group
-// (see ProtectedSidebar's SETTINGS_GROUP + its "sidebar داخل sidebar"
-// doc comment for why). None of security/sessions/notifications/
-// blocked-users/seller/service-provider had any navigation of their
-// own on this breakpoint, so there was no visible path from this
-// drawer (or from any settings sub-page itself) to any of them other
-// than the profile page — same group, same pattern as
-// SERVICES_GROUP/STORE_GROUP above, so mobile matches desktop.
-const SETTINGS_GROUP = {
-  label: 'الإعدادات',
-  href: ROUTES.settings.profile,
-  children: [
-    { label: 'الملف الشخصي', href: ROUTES.settings.profile },
-    { label: 'ملف البائع', href: ROUTES.settings.seller },
-    { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
-    { label: 'متجري', href: ROUTES.myStore },
-    { label: 'الأمان', href: ROUTES.settings.security },
-    { label: 'الجلسات', href: ROUTES.settings.sessions },
-    { label: 'الإشعارات', href: ROUTES.settings.notifications },
-    { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
-  ],
-} as const;
+// NAV-DEDUP: BROWSE_LINKS / SERVICES_GROUP / STORE_GROUP / SETTINGS_GROUP
+// moved to lib/navigation.ts — all four were byte-identical to
+// ProtectedSidebar's (and MobileNav's, for BROWSE_LINKS/SETTINGS_GROUP)
+// copies. See that file's doc comment for the full reasoning.
 
 const TRAILING_LINKS = [
   // FEAT-REPORT-USER-STORE: added for parity with ProtectedSidebar,
@@ -199,6 +148,7 @@ export function ProtectedMobileNav() {
   const toggle = useUIStore(selectToggleMobileNav);
   const close = useUIStore(selectCloseMobileNav);
   const pathname = usePathname();
+  const user = useAuthStore(selectUser);
   const isAdmin = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -351,6 +301,30 @@ export function ProtectedMobileNav() {
               </li>
             );
           })}
+
+          {/* عرض الملف الشخصي — standalone entry, kept out of LINKS
+              (which has no user.id to build the href with) and out of
+              SETTINGS_GROUP below (whose children are all edit/manage
+              destinations). Mirrors ProtectedSidebar's identical entry
+              so mobile and desktop navs stay in sync. */}
+          {user && (
+            <li>
+              <Link
+                href={ROUTES.userProfile(user.id)}
+                onClick={close}
+                aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  pathname.startsWith(ROUTES.userProfile(user.id))
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted',
+                )}
+              >
+                <User className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                عرض ملفي
+              </Link>
+            </li>
+          )}
 
           {isProvider ? (
             <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />

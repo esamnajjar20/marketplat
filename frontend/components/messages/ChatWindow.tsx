@@ -196,24 +196,29 @@ export function ChatWindow({ conversationId }: Props) {
         >
           <ChevronRight className="h-5 w-5" />
         </Link>
-        <div className="relative w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0">
-          <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
-          {isPartyOnline && (
-            <span
-              className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-online ring-2 ring-card"
-              aria-label="متصل الآن"
-              title="متصل الآن"
-            />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
-          {conversation.ad ? (
-            <p className="text-xs text-muted-foreground line-clamp-1">بخصوص: {conversation.ad.title}</p>
-          ) : isPartyOnline ? (
-            <p className="text-xs text-online line-clamp-1">متصل الآن</p>
-          ) : null}
-        </div>
+        <Link
+          href={ROUTES.userProfile(party.id)}
+          className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+        >
+          <div className="relative w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0">
+            <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
+            {isPartyOnline && (
+              <span
+                className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-online ring-2 ring-card"
+                aria-label="متصل الآن"
+                title="متصل الآن"
+              />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
+            {conversation.ad ? (
+              <p className="text-xs text-muted-foreground line-clamp-1">بخصوص: {conversation.ad.title}</p>
+            ) : isPartyOnline ? (
+              <p className="text-xs text-online line-clamp-1">متصل الآن</p>
+            ) : null}
+          </div>
+        </Link>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
