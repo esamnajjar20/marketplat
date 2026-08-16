@@ -26,8 +26,8 @@ import Link from 'next/link';
 import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, User, Store } from 'lucide-react';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
-import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useIsSeller } from '@/hooks/queries/useSellers';
+import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
 import {
   DropdownMenu,
@@ -42,10 +42,8 @@ export function UserMenu() {
   const user      = useAuthStore(selectUser);
   const isAdmin   = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending } = useLogout();
-  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
-  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
-  const isSeller = sellerLoaded && Boolean(sellerProfile);
-  const isProvider = providerLoaded && Boolean(serviceProvider);
+  const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
+  const { isProvider } = useIsProvider();
 
   if (!user) return null;
 
@@ -106,7 +104,7 @@ export function UserMenu() {
         {/* SELLER-CTA: mirrors ProtectedSidebar/ProtectedMobileNav —
             shown only while sellerLoaded && !sellerProfile, links to
             /settings/seller. Disappears once isSeller flips true. */}
-        {sellerLoaded && !sellerProfile && (
+        {sellerLoaded && !isSeller && (
           <DropdownMenuItem asChild>
             <Link href={ROUTES.settings.seller} className="flex items-center gap-2 cursor-pointer">
               <Store className="h-4 w-4" />

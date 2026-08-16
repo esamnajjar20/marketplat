@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { BadgeCheck, Star, Calendar, ShoppingBag } from 'lucide-react';
+import { Star, Calendar, ShoppingBag } from 'lucide-react';
+import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Button } from '@/components/shared/ui/Button';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatDate } from '@/lib/formatters';
@@ -37,11 +38,7 @@ export function SellerProfileHeader({ seller }: Props) {
         <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
           <SafeImage variant="avatar" src={avatar} alt={seller.displayName} fill className="object-cover" sizes="96px" />
         </div>
-        {seller.verified && (
-          <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">
-            <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-        )}
+        {seller.verified && <VerifiedBadge />}
       </div>
 
       <h1 className="mt-4 text-xl font-bold text-foreground">{seller.displayName}</h1>

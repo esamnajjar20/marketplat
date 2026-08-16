@@ -13,6 +13,7 @@ import { useAdminAnalyticsSummary } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { AlertTriangle, Eye, Search, Tag, MessageSquare, UserPlus, FileText } from 'lucide-react';
 import type { AnalyticsEventType } from '@/lib/analytics';
+import { formatNumber } from '@/lib/formatters';
 
 const EVENT_LABELS: Record<AnalyticsEventType, string> = {
   PAGE_VIEW: 'مشاهدات الصفحات',
@@ -95,7 +96,7 @@ export function AdminAnalyticsDashboard() {
         {totalsCards.map(({ label, value, icon: Icon }) => (
           <div key={label} className="rounded-lg border bg-card p-4 space-y-2">
             <Icon className="h-5 w-5 text-primary" />
-            <p className="text-2xl font-bold">{value.toLocaleString('ar')}</p>
+            <p className="text-2xl font-bold">{formatNumber(value)}</p>
             <p className="text-sm text-muted-foreground">{label}</p>
           </div>
         ))}
@@ -110,8 +111,8 @@ export function AdminAnalyticsDashboard() {
             {formatPercent(data.searchToContact.conversionRate)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {data.searchToContact.contactSessions.toLocaleString('ar')} من أصل{' '}
-            {data.searchToContact.searchSessions.toLocaleString('ar')} جلسة بحث تواصلت مع بائع
+            {formatNumber(data.searchToContact.contactSessions)} من أصل{' '}
+            {formatNumber(data.searchToContact.searchSessions)} جلسة بحث تواصلت مع بائع
           </p>
         </div>
         <div className="rounded-lg border bg-card p-4 space-y-2">
@@ -122,8 +123,8 @@ export function AdminAnalyticsDashboard() {
             {formatPercent(data.signupFunnel.conversionRate)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {data.signupFunnel.completedSessions.toLocaleString('ar')} من أصل{' '}
-            {data.signupFunnel.startedSessions.toLocaleString('ar')} محاولة تسجيل اكتملت
+            {formatNumber(data.signupFunnel.completedSessions)} من أصل{' '}
+            {formatNumber(data.signupFunnel.startedSessions)} محاولة تسجيل اكتملت
           </p>
         </div>
       </div>
@@ -144,7 +145,7 @@ export function AdminAnalyticsDashboard() {
                   <div
                     className="w-full bg-primary/70 rounded-t-sm"
                     style={{ height: `${Math.max(2, heightPct)}%` }}
-                    title={`${new Date(date).toLocaleDateString('ar')}: ${count.toLocaleString('ar')}`}
+                    title={`${new Date(date).toLocaleDateString('ar')}: ${formatNumber(count)}`}
                   />
                 </div>
               );
@@ -163,7 +164,7 @@ export function AdminAnalyticsDashboard() {
             {data.topCategories.map((cat) => (
               <li key={cat.categoryId} className="flex items-center justify-between text-sm">
                 <span>{cat.nameAr ?? cat.categoryId}</span>
-                <span className="font-medium">{cat.count.toLocaleString('ar')}</span>
+                <span className="font-medium">{formatNumber(cat.count)}</span>
               </li>
             ))}
           </ul>

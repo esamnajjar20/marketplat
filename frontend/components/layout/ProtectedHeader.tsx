@@ -12,7 +12,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { ProtectedMobileNav } from './ProtectedMobileNav';
 import { Button }  from '@/components/shared/ui/Button';
 import { ROUTES }  from '@/lib/constants';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useIsSeller } from '@/hooks/queries/useSellers';
 
 export function ProtectedHeader() {
   // SELLER-GATE: ad creation requires a SellerProfile server-side
@@ -20,8 +20,7 @@ export function ProtectedHeader() {
   // ProtectedSidebar/UserMenu already compute. Swaps the CTA to
   // "أنشئ حساب بائع" (→ /settings/seller) instead of hiding it
   // outright, since this is the site's primary conversion button.
-  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
-  const isSeller = sellerLoaded && Boolean(sellerProfile);
+  const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
 
   return (
     <header className="pwa-safe-top sticky top-0 z-50 flex min-h-16 w-full items-center border-b bg-background px-6 gap-4">

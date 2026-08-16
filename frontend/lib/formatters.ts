@@ -5,6 +5,20 @@
  *           Uses parseFloat() safely and returns '--' for null/NaN.
  */
 
+// ── Number ────────────────────────────────────────────────────────
+
+/**
+ * Locale-aware integer/count formatter (e.g. stats, analytics counts).
+ * Centralised so a future locale change (e.g. 'ar' → 'ar-EG' digits)
+ * is a one-line edit instead of a multi-file find/replace.
+ *
+ * @example formatNumber(12000) → "١٢٬٠٠٠" (ar) or "12,000" depending on locale
+ */
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '--';
+  return value.toLocaleString('ar');
+}
+
 // ── Price ─────────────────────────────────────────────────────────
 
 /**

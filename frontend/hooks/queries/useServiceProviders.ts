@@ -35,6 +35,17 @@ export function useMyServiceProvider() {
   });
 }
 
+/**
+ * Derived provider status. Same shape/rationale as useIsSeller
+ * (see useSellers.ts) — returns both isProvider and isLoaded since
+ * call sites need to distinguish "still loading" from "loaded, not
+ * a provider".
+ */
+export function useIsProvider(): { isProvider: boolean; isLoaded: boolean } {
+  const { data, isSuccess } = useMyServiceProvider();
+  return { isProvider: isSuccess && Boolean(data), isLoaded: isSuccess };
+}
+
 /** GET /service-providers/nearby — Haversine search, requires lat/lng. */
 export function useNearbyServiceProviders(params: NearbyServiceProvidersParams | null) {
   return useQuery({

@@ -60,8 +60,8 @@ import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
 import { BROWSE_LINKS, SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
-import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useIsSeller } from '@/hooks/queries/useSellers';
+import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
 
 const selectCloseMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
@@ -151,11 +151,9 @@ export function ProtectedMobileNav() {
   const isAdmin = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
-  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
+  const { isProvider } = useIsProvider();
   const { data: myStore } = useMyStore();
-  const isSeller = sellerLoaded && Boolean(sellerProfile);
-  const isProvider = providerLoaded && Boolean(serviceProvider);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -358,7 +356,7 @@ export function ProtectedMobileNav() {
           {/* SELLER-CTA: mirrors ProtectedSidebar's identical CTA —
               shown only while sellerLoaded && !sellerProfile, links to
               /settings/seller. Disappears once isSeller flips true. */}
-          {sellerLoaded && !sellerProfile && (
+          {sellerLoaded && !isSeller && (
             <li>
               <Link
                 href={ROUTES.settings.seller}

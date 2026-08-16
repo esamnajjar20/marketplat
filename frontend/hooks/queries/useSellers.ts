@@ -33,3 +33,18 @@ export function useMySellerProfile() {
     retry: false,
   });
 }
+
+/**
+ * Derived seller status, centralising the `isSuccess && Boolean(data)`
+ * check duplicated across 7 nav/layout components.
+ *
+ * Returns both `isSeller` and `isLoaded` (not just a boolean) because
+ * call sites need both signals: `isLoaded` alone gates a loading-flash
+ * guard (`if (!isLoaded) return null`) and drives the "no profile yet
+ * but query resolved" CTA (`isLoaded && !isSeller`), which is a
+ * different condition from "still loading".
+ */
+export function useIsSeller(): { isSeller: boolean; isLoaded: boolean } {
+  const { data, isSuccess } = useMySellerProfile();
+  return { isSeller: isSuccess && Boolean(data), isLoaded: isSuccess };
+}

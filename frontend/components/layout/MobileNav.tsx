@@ -51,8 +51,8 @@ import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
 import { BROWSE_LINKS, SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
-import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useIsSeller } from '@/hooks/queries/useSellers';
+import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 
@@ -254,10 +254,8 @@ export function MobileNav() {
   // isError branch. Safe to call unconditionally: both hooks gate
   // their query on isAuthenticated internally, so this issues no
   // request at all for guests.
-  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
-  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
-  const isSeller = sellerLoaded && Boolean(sellerProfile);
-  const isProvider = providerLoaded && Boolean(serviceProvider);
+  const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
+  const { isProvider } = useIsProvider();
 
   // FIX UI-05: document.body isn't available during SSR, and even on
   // the client, createPortal needs a mounted DOM node to portal into
@@ -410,7 +408,7 @@ export function MobileNav() {
                 {/* SELLER-CTA: mirrors ProtectedSidebar/ProtectedMobileNav/
                     UserMenu — shown only while sellerLoaded &&
                     !sellerProfile, links to /settings/seller. */}
-                {sellerLoaded && !sellerProfile && (
+                {sellerLoaded && !isSeller && (
                   <div className="border-t pt-3">
                     <ul className="flex flex-col gap-1">
                       <li>

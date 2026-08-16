@@ -2,6 +2,7 @@
 
 import { useAdminStats } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { formatNumber } from '@/lib/formatters';
 import { ShoppingBag, Users, Flag, Eye, AlertTriangle } from 'lucide-react';
 
 export function AdminStatsGrid() {
@@ -45,7 +46,7 @@ export function AdminStatsGrid() {
       {stats.map(({ label, value, icon: Icon, color }) => (
         <div key={label} className="rounded-lg border bg-card p-4 space-y-2">
           <Icon className={`h-5 w-5 ${color}`} />
-          <p className="text-2xl font-bold">{value.toLocaleString('ar')}</p>
+          <p className="text-2xl font-bold">{formatNumber(value)}</p>
           <p className="text-sm text-muted-foreground">{label}</p>
         </div>
       ))}

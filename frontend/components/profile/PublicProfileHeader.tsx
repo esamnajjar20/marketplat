@@ -1,5 +1,6 @@
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Calendar, FileText, BadgeCheck, Star } from 'lucide-react';
+import { MapPin, Calendar, FileText, Star } from 'lucide-react';
+import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { getAvatarUrl }   from '@/lib/cloudinary';
 import { formatDate }     from '@/lib/formatters';
 import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
@@ -39,11 +40,7 @@ export function PublicProfileHeader({ user }: Props) {
         <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
           <SafeImage variant="avatar" src={avatar} alt={user.name} fill className="object-cover" sizes="96px" />
         </div>
-        {seller?.verified && (
-          <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">
-            <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-        )}
+        {seller?.verified && <VerifiedBadge />}
       </div>
 
       <h1 className="mt-4 text-xl font-bold text-foreground">{user.name}</h1>

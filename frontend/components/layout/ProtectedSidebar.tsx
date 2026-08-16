@@ -75,8 +75,8 @@ import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
 import { SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
 import { useAuthStore, selectUser } from '@/store/auth.store';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
-import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useIsSeller } from '@/hooks/queries/useSellers';
+import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
 
 const NAV_ITEMS = [
@@ -181,11 +181,9 @@ export function ProtectedSidebar() {
   // ROLE-SEP 3.2: isSuccess && data is the only positive signal —
   // everything else (loading, 404, network error) reads as "no
   // profile yet" and renders the CTA. No isError branch.
-  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
-  const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
+  const { isProvider } = useIsProvider();
   const { data: myStore } = useMyStore();
-  const isSeller = sellerLoaded && Boolean(sellerProfile);
-  const isProvider = providerLoaded && Boolean(serviceProvider);
 
   return (
     // UX-09 FIX: border-e is the logical equivalent of border-r, correct in RTL
@@ -244,7 +242,7 @@ export function ProtectedSidebar() {
             /settings/seller, the existing seller-signup surface
             (SellerSettingsSection). Disappears the moment isSeller
             flips true; إعلاناتي + STORE_GROUP take its place. */}
-        {sellerLoaded && !sellerProfile && (
+        {sellerLoaded && !isSeller && (
           <NavLink
             label="أنشئ حساب بائع"
             href={ROUTES.settings.seller}

@@ -1,7 +1,8 @@
 'use client';
 
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { BadgeCheck, Star, Phone, MapPin, Sparkles, UserPlus, UserMinus } from 'lucide-react';
+import { Star, Phone, MapPin, Sparkles, UserPlus, UserMinus } from 'lucide-react';
+import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
@@ -57,11 +58,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             <div className="relative w-full h-full rounded-full overflow-hidden">
               <SafeImage variant="avatar" src={avatar} alt={store.name} fill className="object-cover" sizes="96px" />
             </div>
-            {store.sellerProfile.verified && (
-              <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">
-                <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
-              </div>
-            )}
+            {store.sellerProfile.verified && <VerifiedBadge />}
           </div>
         </div>
       </div>

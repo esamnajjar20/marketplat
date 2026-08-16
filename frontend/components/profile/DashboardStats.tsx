@@ -3,6 +3,7 @@
 import { useMyAdStats } from '@/hooks/queries/useAds';
 import { Eye, Heart, ShoppingBag, TrendingUp, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { formatNumber } from '@/lib/formatters';
 
 /**
  * FIX BUG-06/BUG-07 (superseded): both fixes previously worked around
@@ -60,7 +61,7 @@ export function DashboardStats() {
       {items.map(({ label, value, icon: Icon, color }) => (
         <div key={label} className="rounded-lg border bg-card p-4 space-y-2">
           <Icon className={`h-5 w-5 ${color}`} />
-          <p className="text-2xl font-bold">{value.toLocaleString('ar')}</p>
+          <p className="text-2xl font-bold">{formatNumber(value)}</p>
           <p className="text-sm text-muted-foreground">{label}</p>
         </div>
       ))}

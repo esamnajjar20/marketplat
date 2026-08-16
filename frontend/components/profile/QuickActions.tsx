@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Plus, List, Heart, Settings, MessageSquare, Store } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useIsSeller } from '@/hooks/queries/useSellers';
 
 // SELLER-GATE: "نشر إعلان جديد" / "إعلاناتي" require a SellerProfile
 // server-side (ads.service.ts's createAd → ensureSellerProfileForAdCreation
@@ -27,13 +27,12 @@ const SELLER_CTA_ACTION = {
 } as const;
 
 export function QuickActions() {
-  // sellerLoaded gates out a flash of the wrong action set before the
+  // isLoaded gates out a flash of the wrong action set before the
   // query resolves — same "isSuccess && data is the only positive
   // signal" pattern used everywhere else this gate appears.
-  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
-  const isSeller = sellerLoaded && Boolean(sellerProfile);
+  const { isSeller, isLoaded } = useIsSeller();
 
-  if (!sellerLoaded) return null;
+  if (!isLoaded) return null;
 
   const actions = isSeller
     ? [...SELLER_ACTIONS, ...NON_SELLER_ACTIONS]

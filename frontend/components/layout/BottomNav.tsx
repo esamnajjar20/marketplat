@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Home, Search, MessageCircle, Menu, Plus } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useIsSeller } from '@/hooks/queries/useSellers';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -59,8 +59,7 @@ export function BottomNav() {
   // ProtectedHeader's identical swap: seller → post button,
   // non-seller → seller-signup CTA, guest → falls through to
   // /ads/create's own auth-redirect same as before this fix.
-  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
-  const isSeller = sellerLoaded && Boolean(sellerProfile);
+  const { isSeller } = useIsSeller();
 
   const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
