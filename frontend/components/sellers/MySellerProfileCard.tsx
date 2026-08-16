@@ -62,8 +62,12 @@ export function MySellerProfileCard({ profile }: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.sellerProfile(profile.id)}>
-            عرض صفحتي العامة كبائع <ExternalLink className="h-3.5 w-3.5" />
+          {/* UNIFIED-PROFILE: /sellers/[id] is now just a redirect back
+              to /profile/[userId] (see that page's own comment) — link
+              straight there and skip the hop. profile.userId is the
+              SellerProfile's own userId column (see schema.prisma). */}
+          <Link href={ROUTES.userProfile(profile.userId)}>
+            عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
           </Link>
         </Button>
         {/* AUDIT-FIX (issue #5): becoming a seller had no next step —

@@ -3,6 +3,7 @@ import { savedSearchesRepository } from './saved-searches.repository';
 import { notificationEvents } from '../notifications';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { withSavedSearchCreationLock } from '../../shared/utils/adLock';
 import type { CreateSavedSearchInput, SavedSearchFilters } from './saved-searches.validation';
 import type { AdWithAuthor } from '../ads/ads.repository';
 
@@ -56,15 +57,24 @@ export const savedSearchesService = {
     userId: string,
     input: CreateSavedSearchInput
   ): Promise<SavedSearch> => {
-    const count = await savedSearchesRepository.countByUserId(userId);
-    if (count >= MAX_SAVED_SEARCHES_PER_USER) {
-      throw new BadRequestError(
-        `You have reached the maximum number of saved searches (${MAX_SAVED_SEARCHES_PER_USER}).`,
-        'SAVED_SEARCH_LIMIT_REACHED',
-        { maxPerUser: MAX_SAVED_SEARCHES_PER_USER }
-      );
-    }
-    return savedSearchesRepository.create(userId, input.label, input.filters);
+    // AUDIT-FIX (race conditions pass): count-then-create was
+    // previously two unlocked statements — two concurrent requests
+    // could both read a count one under MAX_SAVED_SEARCHES_PER_USER
+    // and both insert, letting a user exceed the cap. Serialized per
+    // user via withSavedSearchCreationLock (same primitive/pattern as
+    // ads.service.ts's createAd and products.service.ts's
+    // createProduct) so the check-and-insert is now atomic.
+    return withSavedSearchCreationLock(userId, async () => {
+      const count = await savedSearchesRepository.countByUserId(userId);
+      if (count >= MAX_SAVED_SEARCHES_PER_USER) {
+        throw new BadRequestError(
+          `You have reached the maximum number of saved searches (${MAX_SAVED_SEARCHES_PER_USER}).`,
+          'SAVED_SEARCH_LIMIT_REACHED',
+          { maxPerUser: MAX_SAVED_SEARCHES_PER_USER }
+        );
+      }
+      return savedSearchesRepository.create(userId, input.label, input.filters);
+    });
   },
 
   deleteSavedSearch: async (id: string, userId: string): Promise<void> => {

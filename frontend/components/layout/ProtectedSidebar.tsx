@@ -252,6 +252,25 @@ export function ProtectedSidebar() {
             isActive={pathname.startsWith(ROUTES.settings.serviceProvider)}
           />
         )}
+        {/* FIX UX-ROLES-01: "أصبح بائعاً" (/settings/seller) previously
+            had no top-level CTA here at all — it only lived nested
+            inside SETTINGS_GROUP's disclosure list, unlike "أصبح
+            مقدّم خدمة" and "افتح متجرك" right above/below it, which are
+            both single-tap top-level rows. A user could open a store
+            (which requires a SellerProfile first — see
+            BecomeStoreOwnerCard) but had no equally-visible path to
+            just become a seller without also wanting a storefront.
+            Only shown pre-seller; MySellerProfileCard (rendered once
+            isSeller is true) already surfaces "متجري" as its own next
+            step, so this row steps aside for STORE_GROUP below. */}
+        {!isSeller && (
+          <NavLink
+            label="أصبح بائعاً"
+            href={ROUTES.settings.seller}
+            icon={Plus}
+            isActive={pathname.startsWith(ROUTES.settings.seller)}
+          />
+        )}
         {isSeller ? (
           <DisclosureGroup group={STORE_GROUP} pathname={pathname} />
         ) : (

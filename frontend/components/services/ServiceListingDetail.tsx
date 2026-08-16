@@ -68,8 +68,15 @@ export function ServiceListingDetail({ listing }: Props) {
         <p className="text-sm whitespace-pre-line">{listing.description}</p>
       </div>
 
+      {/* UNIFIED-PROFILE: /service-providers/[id] is now just a
+          redirect back to /profile/[userId] (see that page's own
+          comment) — link straight there and skip the hop.
+          listing.provider.sellerProfile.userId is available directly
+          on ServiceListingWithProvider's Pick, unlike
+          NearbyServiceProviderRow (ServiceProviderCard.tsx), which has
+          no nested sellerProfile at all. */}
       <Link
-        href={ROUTES.serviceProvider(listing.provider.id)}
+        href={ROUTES.userProfile(listing.provider.sellerProfile.userId)}
         className="flex items-center gap-2 rounded-lg border p-3 hover:bg-muted/50 transition-colors"
       >
         <div className="flex-1">

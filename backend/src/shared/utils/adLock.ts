@@ -208,3 +208,49 @@ export async function withStoreProductCreationLock<T>(storeId: string, fn: () =>
   }
   return result;
 }
+
+// AUDIT-FIX (race conditions pass): saved-searches.service.ts's
+// createSavedSearch checked countByUserId() against
+// MAX_SAVED_SEARCHES_PER_USER, then create()'d — with nothing locking
+// the two together. Two concurrent createSavedSearch calls for the
+// same user could both read a count one under the cap (e.g. both see
+// 19) and both proceed to insert, letting the user end up with 21+
+// saved searches despite the cap — the exact same class of
+// check-then-act race withUserAdCreationLock/withStoreProductCreationLock
+// above already close for ad/product creation, applied here to
+// per-user saved-search creation. Same primitive, its own keyspace so
+// it never contends with any other creation lock.
+const SAVED_SEARCH_CREATION_LOCK_PREFIX = 'saved_search_creation_lock:';
+// Short TTL: only needs to cover the count re-check + DB insert — no
+// slow I/O (no image uploads) happens before this lock is taken, so
+// there's nothing to keep the lock held for beyond the query itself.
+const SAVED_SEARCH_CREATION_LOCK_TTL_SECONDS = 5;
+
+export class SavedSearchCreationLockedError extends AppError {
+  constructor() {
+    super('Another saved-search request is already in progress for this account — please try again in a moment', 409);
+  }
+}
+
+/**
+ * Runs `fn` while holding an exclusive lock on `userId`'s
+ * saved-search-creation slot, serializing the
+ * count-saved-searches-then-create sequence so two concurrent
+ * createSavedSearch calls for the same user can't both pass the
+ * MAX_SAVED_SEARCHES_PER_USER check before either has committed its
+ * insert. Unlike withUserAdCreationLock/withStoreProductCreationLock,
+ * there's no unlocked pre-check here — saved-search creation has no
+ * slow I/O (no file uploads) to fast-fail before, so a single
+ * check-inside-the-lock is enough.
+ */
+export async function withSavedSearchCreationLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const result = await withRedisLock(
+    `${SAVED_SEARCH_CREATION_LOCK_PREFIX}${userId}`,
+    SAVED_SEARCH_CREATION_LOCK_TTL_SECONDS,
+    fn
+  );
+  if (result === LOCK_NOT_ACQUIRED) {
+    throw new SavedSearchCreationLockedError();
+  }
+  return result;
+}

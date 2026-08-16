@@ -13,6 +13,8 @@
 // exporting from auth.types.ts makes it a single source of truth
 // instead of two definitions that can drift again.
 import type { UserRole } from './auth.types';
+import type { ServiceBusinessType, ServiceAvailability } from './service.types';
+import type { StorePlan } from './store.types';
 
 /** Full user — returned by GET /users/me */
 /** FIX FEAT-02: matches NotificationSettingsForm.tsx's SETTINGS keys
@@ -39,9 +41,56 @@ export interface User {
   updatedAt: string;
 }
 
+/**
+ * UNIFIED-PROFILE: the seller/store/service-provider "roles" attached to
+ * a public profile, mirroring backend users.repository.ts's
+ * publicUserSelect exactly (field-for-field — nothing here that
+ * endpoint doesn't already return). All three are optional/nullable on
+ * the person: a plain user has sellerProfile: null; a seller with
+ * neither a store nor a service business has both children null.
+ */
+export interface PublicProfileStore {
+  id:            string;
+  name:          string;
+  description:   string;
+  logoUrl:       string | null;
+  coverImageUrl: string | null;
+  city:          string;
+  plan:          StorePlan;
+  _count: { followers: number; products: number };
+}
+
+export interface PublicProfileServiceProvider {
+  id:                     string;
+  businessName:           string;
+  businessType:           ServiceBusinessType;
+  logoUrl:                string | null;
+  description:            string;
+  serviceAreaCities:      string[];
+  availabilityStatus:     ServiceAvailability;
+  completedRequestsCount: number;
+}
+
+export interface PublicSellerProfile {
+  id:              string;
+  displayName:     string;
+  bio:             string | null;
+  avatarUrl:       string | null;
+  verified:        boolean;
+  trustScore:      number;
+  averageRating:   string;
+  totalRatings:    number;
+  activeAds:       number;
+  joinedSellingAt: string;
+  _count: { serviceReviews: number };
+  storeDetails:            PublicProfileStore | null;
+  serviceProviderDetails:  PublicProfileServiceProvider | null;
+}
+
 /** Public profile — returned by GET /users/:id (no email/phone) */
 export type PublicUser = Pick<User, 'id' | 'name' | 'city' | 'bio' | 'avatarUrl' | 'createdAt'> & {
   _count: { ads: number };
+  sellerProfile: PublicSellerProfile | null;
 };
 
 /**

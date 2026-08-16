@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.validation';
 
 export type SafeUser = Omit<User, 'passwordHash'>;
@@ -42,6 +42,20 @@ const safeUserSelect = {
 // SEC-FIX: PII leak — GET /users/:id is a PUBLIC, unauthenticated route.
 // It must never expose email, phone, role, isActive or updatedAt for
 // other users. Only the fields below are safe to show on a public profile.
+//
+// UNIFIED-PROFILE: sellerProfile (and its storeDetails /
+// serviceProviderDetails children) is now included so /profile/:id can
+// render seller/store/service tabs without three extra round trips to
+// /sellers/:id, /stores/:id, /service-providers/:id. Every nested select
+// mirrors the field allowlist each of those endpoints already exposes
+// publicly (sellers.repository.ts's findPublicProfile, stores.repository.ts's
+// findPublicById, service-providers.repository.ts's findPublicById) — no
+// field reaches this response that wasn't already public elsewhere.
+// storeDetails is additionally gated to status: 'ACTIVE' since a
+// PENDING/BLOCKED store (see StoreStatus in schema.prisma —
+// stores.service.ts's own getPublicStore has no such gate today, but a
+// pending store has no business appearing on a public profile before an
+// admin has approved it) shouldn't surface here.
 const publicUserSelect = {
   id: true,
   name: true,
@@ -49,16 +63,63 @@ const publicUserSelect = {
   bio: true,
   avatarUrl: true,
   createdAt: true,
+  // S-05: count only ACTIVE ads on the public profile, same rule
+  // getUserAds already enforces — otherwise this leaks SOLD/removed count.
+  _count: { select: { ads: { where: { status: 'ACTIVE' } } } },
+  sellerProfile: {
+    select: {
+      id: true,
+      displayName: true,
+      bio: true,
+      avatarUrl: true,
+      verified: true,
+      trustScore: true,
+      averageRating: true,
+      totalRatings: true,
+      activeAds: true,
+      joinedSellingAt: true,
+      suspended: true,
+      // UNIFIED-PROFILE: totalRatings only counts ad-seller ratings
+      // (SellerRating) — a seller with service reviews but zero ad
+      // ratings still needs the "التقييمات" tab to appear, so this
+      // separately counts ServiceReview rows for the ratings-tab gate.
+      _count: { select: { serviceReviews: true } },
+      storeDetails: {
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          logoUrl: true,
+          coverImageUrl: true,
+          city: true,
+          plan: true,
+          _count: { select: { followers: true, products: true } },
+        },
+      },
+      serviceProviderDetails: {
+        select: {
+          id: true,
+          businessName: true,
+          businessType: true,
+          logoUrl: true,
+          description: true,
+          serviceAreaCities: true,
+          availabilityStatus: true,
+          completedRequestsCount: true,
+        },
+      },
+    },
+  },
 } as const;
 
-export type PublicUser = {
-  id: string;
-  name: string;
-  city: string | null;
-  bio: string | null;
-  avatarUrl: string | null;
-  createdAt: Date;
-};
+// Derived directly from publicUserSelect (Prisma.UserGetPayload) rather
+// than hand-written, so this type can never drift from what the query
+// actually returns — same convention as StoreWithSellerAndCounts in
+// stores.repository.ts and SellerProfileWithAds in sellers.repository.ts.
+type PublicUserQueryResult = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;
+export type PublicSellerProfile = NonNullable<PublicUserQueryResult['sellerProfile']>;
+export type PublicUser = PublicUserQueryResult;
 
 export const usersRepository = {
   findById: async (id: string): Promise<SafeUser | null> =>
@@ -68,7 +129,7 @@ export const usersRepository = {
   findPublicById: async (id: string): Promise<(PublicUser & { isActive: boolean }) | null> =>
     prisma.user.findUnique({
       where: { id },
-      select: { ...publicUserSelect, isActive: true },
+      select: { ...publicUserSelect, isActive: true } as const,
     }),
 
   findByPhone: async (phone: string): Promise<SafeUser | null> =>

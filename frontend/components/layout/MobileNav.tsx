@@ -40,10 +40,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link       from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Home, Search, Store, Wrench, Users, PlusCircle,
   LayoutDashboard, ListOrdered, Heart, BellPlus, History, Settings, Shield,
-  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone,
+  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -80,8 +81,26 @@ const AUTH_ACCOUNT_LINKS = [
   { label: 'نشاطي',         href: ROUTES.activity,        icon: History },
 ] as const;
 
-const SYSTEM_LINKS = [
-  { label: 'الإعدادات', href: ROUTES.settings.profile, icon: Settings },
+// FIX UX-SETTINGS-01: "الإعدادات" here was a flat Link straight to
+// /settings/profile — ProtectedMobileNav.tsx (used by ProtectedHeader,
+// the header shown on /dashboard etc.) already fixed this same link
+// into a disclosure group exposing all 8 settings destinations
+// (SETTINGS_GROUP), but this file — used by PublicHeader, the header
+// shown on public pages like / and /stores — kept the old direct-link
+// version. A logged-in user opening this drawer from a public page tapped
+// "الإعدادات" expecting a menu (same drawer, same label) and always
+// landed straight on the profile page instead, no matter which of the
+// 8 settings destinations they meant. Same 8 destinations, same order,
+// as ProtectedMobileNav's SETTINGS_GROUP.
+const SETTINGS_GROUP_LINKS = [
+  { label: 'الملف الشخصي', href: ROUTES.settings.profile },
+  { label: 'ملف البائع', href: ROUTES.settings.seller },
+  { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
+  { label: 'متجري', href: ROUTES.myStore },
+  { label: 'الأمان', href: ROUTES.settings.security },
+  { label: 'الجلسات', href: ROUTES.settings.sessions },
+  { label: 'الإشعارات', href: ROUTES.settings.notifications },
+  { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
 ] as const;
 
 const NAV_ID    = 'mobile-nav-drawer';
@@ -161,7 +180,61 @@ function NavSection({
   );
 }
 
+/**
+ * FIX UX-SETTINGS-01: "النظام" section's settings row, replacing a
+ * flat Link with the same expand-in-place disclosure ProtectedMobileNav
+ * already uses for its SETTINGS_GROUP — tap toggles the 8-destination
+ * list open/closed instead of navigating immediately.
+ */
+function SettingsDisclosureRow({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+  const isAnyChildActive = SETTINGS_GROUP_LINKS.some((c) => pathname.startsWith(c.href));
+  const [isOpen, setIsOpen] = useState(isAnyChildActive);
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-expanded={isOpen}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors',
+          isAnyChildActive && !isOpen ? 'bg-muted' : 'hover:bg-muted',
+        )}
+      >
+        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="flex-1 text-start">الإعدادات</span>
+        {isOpen
+          ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+      </button>
+      {isOpen && (
+        <ul className="mt-1 flex flex-col gap-1">
+          {SETTINGS_GROUP_LINKS.map((child) => {
+            const isActive = pathname.startsWith(child.href);
+            return (
+              <li key={child.href}>
+                <Link
+                  href={child.href}
+                  onClick={onNavigate}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'block rounded-md px-3 py-2 ms-7 text-base font-medium transition-colors',
+                    isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                  )}
+                >
+                  {child.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 export function MobileNav() {
+  const pathname = usePathname();
   const isMobileNavOpen = useUIStore(selectIsMobileNavOpen);
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const closeMobileNav  = useUIStore(selectCloseMobileNav);
@@ -311,11 +384,24 @@ export function MobileNav() {
             {isAuthenticated ? (
               <>
                 <NavSection title="حسابك" links={AUTH_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
-                <NavSection
-                  title="النظام"
-                  links={isAdmin ? [...SYSTEM_LINKS, { label: 'لوحة الإدارة', href: ROUTES.admin.dashboard, icon: Shield }] : SYSTEM_LINKS}
-                  onNavigate={closeMobileNav}
-                />
+                <div className="border-t pt-3">
+                  <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">النظام</p>
+                  <ul className="flex flex-col gap-1">
+                    <SettingsDisclosureRow pathname={pathname} onNavigate={closeMobileNav} />
+                    {isAdmin && (
+                      <li>
+                        <Link
+                          href={ROUTES.admin.dashboard}
+                          onClick={closeMobileNav}
+                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+                        >
+                          <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          لوحة الإدارة
+                        </Link>
+                      </li>
+                    )}
+                  </ul>
+                </div>
                 <div className="border-t pt-3">
                   <ThemeRow />
                 </div>

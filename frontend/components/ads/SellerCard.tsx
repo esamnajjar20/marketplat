@@ -32,9 +32,13 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
   const { data: sellerProfile } = useSellerProfile(sellerProfileId ?? '');
   const startConversation = useStartConversation();
 
-  const profileHref = sellerProfileId
-    ? ROUTES.sellerProfile(sellerProfileId)
-    : ROUTES.userProfile(seller.id);
+  // UNIFIED-PROFILE: previously branched to ROUTES.sellerProfile(id)
+  // (the old /sellers/[id] standalone page) when a seller profile
+  // existed. Now that /sellers/[id] is just a redirect back to
+  // /profile/[userId] (see that page's own comment), linking straight
+  // to the person's profile always works and saves the extra hop —
+  // seller.id (AdAuthor.id) is the User.id in both branches anyway.
+  const profileHref = ROUTES.userProfile(seller.id);
 
   // Epic 5: the backend rejects this as CANNOT_MESSAGE_SELF anyway, but
   // hiding the button for the ad's own owner avoids the round trip and

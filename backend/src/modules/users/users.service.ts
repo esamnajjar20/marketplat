@@ -37,9 +37,18 @@ export const usersService = {
     return user;
   },
 
+  // UNIFIED-PROFILE: a suspended seller's ratings/verification history
+  // stays visible elsewhere in the admin/own-profile views (see
+  // schema.prisma's comment on SellerProfile.suspended), but this is the
+  // public /profile/:id — same reasoning as sellersService never exposing
+  // a suspended seller's storefront to new business. Hide sellerProfile
+  // entirely rather than partially, so the frontend never has to special-case
+  // a "suspended seller" tab state it has no design for.
   getUserById: async (id: string): Promise<PublicUser> => {
     const user = await usersRepository.findPublicById(id);
     if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    const sellerProfile =
+      user.sellerProfile && !user.sellerProfile.suspended ? user.sellerProfile : null;
     return {
       id: user.id,
       name: user.name,
@@ -47,6 +56,8 @@ export const usersService = {
       bio: user.bio,
       avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
+      _count: user._count,
+      sellerProfile,
     };
   },
 

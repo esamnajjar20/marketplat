@@ -268,6 +268,27 @@ describe('ProtectedMobileNav', () => {
       expect(screen.getByText('افتح متجرك').closest('a')?.getAttribute('href')).toBe('/my-store');
       expect(screen.queryByRole('button', { name: /متجري/ })).not.toBeInTheDocument();
     });
+
+    // FIX UX-ROLES-01: mirrors ProtectedSidebar.test.tsx's identical
+    // coverage — "أصبح بائعاً" previously only lived nested inside the
+    // settings disclosure group.
+    it('renders "أصبح بائعاً" CTA when the user has no seller profile yet', () => {
+      isMobileNavOpen = true;
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined, isSuccess: true,
+      });
+      render(<ProtectedMobileNav />);
+      expect(screen.getByText('أصبح بائعاً').closest('a')?.getAttribute('href')).toBe('/settings/seller');
+    });
+
+    it('does not render "أصبح بائعاً" CTA when the user already has a seller profile', () => {
+      isMobileNavOpen = true;
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: { id: 'seller-1' }, isSuccess: true,
+      });
+      render(<ProtectedMobileNav />);
+      expect(screen.queryByText('أصبح بائعاً')).not.toBeInTheDocument();
+    });
   });
 
   describe('disclosure groups', () => {

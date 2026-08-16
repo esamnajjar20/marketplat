@@ -1,14 +1,14 @@
 import type { Metadata }       from 'next';
-import { Suspense, cache }     from 'react';
+import { cache }               from 'react';
 import Link                    from 'next/link';
-import { FileText, UserX }     from 'lucide-react';
+import { UserX }               from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
-import { PublicProfileAds }    from '@/components/profile/PublicProfileAds';
-import { LoadingSpinner }      from '@/components/shared/feedback/LoadingSpinner';
+import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
 import { EmptyState }          from '@/components/shared/feedback/EmptyState';
 import { buildMetadata }       from '@/lib/seo';
 import { usersApi }            from '@/api/users.api';
 import { ROUTES }              from '@/lib/constants';
+import type { PublicUser }     from '@/types/user.types';
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -36,11 +36,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicProfilePage({ params }: Props) {
   const { id } = await params;
-  type ProfileUser = { name: string; city: string | null; bio: string | null; avatarUrl: string | null; createdAt: string; _count: { ads: number } };
-  let user: ProfileUser | null = null;
+  let user: PublicUser | null = null;
   try {
     const res = await getCachedUser(id);
-    user = (res.data.data as ProfileUser | undefined) ?? null;
+    user = res.data.data ?? null;
   } catch { /* user 404 */ }
 
   // UX-FIX (audit P2-06): was bare centered text with no icon and, more
@@ -66,16 +65,8 @@ export default async function PublicProfilePage({ params }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
-      <PublicProfileHeader user={{ id, ...user }} />
-      <section className="space-y-3">
-        <h2 className="flex items-center gap-1.5 text-lg font-bold">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          إعلانات المستخدم
-        </h2>
-        <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
-          <PublicProfileAds userId={id} />
-        </Suspense>
-      </section>
+      <PublicProfileHeader user={user} />
+      <ProfileTabsSection user={user} />
     </div>
   );
 }

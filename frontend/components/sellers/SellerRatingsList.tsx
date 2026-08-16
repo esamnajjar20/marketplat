@@ -14,6 +14,17 @@ import { ROUTES } from '@/lib/constants';
 
 interface Props {
   sellerProfileId: string;
+  /**
+   * UNIFIED-PROFILE: pagination's baseUrl. Defaults to
+   * ROUTES.sellerProfile(sellerProfileId) (the legacy /sellers/[id]
+   * page, now a redirect — see that page's own comment) for any
+   * existing caller that doesn't pass one. ProfileTabsSection passes
+   * /profile/[userId] explicitly instead: paging through this list
+   * there must never round-trip through the /sellers redirect, which
+   * would silently drop the adRatingsPage query param on every click
+   * (the redirect forwards no query string).
+   */
+  baseUrl?: string;
 }
 
 /**
@@ -30,7 +41,7 @@ interface Props {
  * comment) — omitted entirely for a rating with no ad attached, since
  * CreateSellerRatingPayload.adId is optional.
  */
-export function SellerRatingsList({ sellerProfileId }: Props) {
+export function SellerRatingsList({ sellerProfileId, baseUrl }: Props) {
   const sp = useSearchParams();
   // Namespaced distinctly from ServiceReviewsList's bare `page` param —
   // both lists render on the same seller profile page (see
@@ -114,7 +125,7 @@ export function SellerRatingsList({ sellerProfileId }: Props) {
         <Pagination
           totalPages={totalPages}
           currentPage={page}
-          baseUrl={ROUTES.sellerProfile(sellerProfileId)}
+          baseUrl={baseUrl ?? ROUTES.sellerProfile(sellerProfileId)}
           searchParams={Object.fromEntries(
             Array.from(sp.entries()).filter(([k]) => k !== 'adRatingsPage')
           )}

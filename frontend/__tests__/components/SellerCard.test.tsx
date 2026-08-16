@@ -91,16 +91,20 @@ describe('SellerCard', () => {
     cleanup();
   });
 
-  it('links to the seller profile page when sellerProfileId is present', () => {
+  it('links to the person\'s unified profile when sellerProfileId is present', () => {
+    // UNIFIED-PROFILE: SellerCard.tsx no longer branches to
+    // ROUTES.sellerProfile — that page is now just a redirect back to
+    // /profile/[userId], so the card links straight there in both the
+    // sellerProfileId-present and legacy-ad (null) cases.
     renderWithClient(
       <SellerCard seller={baseSeller} adId="ad-1" sellerProfileId="sp-1" />
     );
 
     const profileLink = screen.getByText('محمد أحمد').closest('a');
-    expect(profileLink).toHaveAttribute('href', ROUTES.sellerProfile('sp-1'));
+    expect(profileLink).toHaveAttribute('href', ROUTES.userProfile(baseSeller.id));
   });
 
-  it('falls back to the plain user profile when sellerProfileId is null (legacy ad)', () => {
+  it('links to the person\'s unified profile when sellerProfileId is null (legacy ad)', () => {
     renderWithClient(
       <SellerCard seller={baseSeller} adId="ad-1" sellerProfileId={null} />
     );

@@ -366,6 +366,22 @@ export function ProtectedMobileNav() {
               </Link>
             </li>
           )}
+          {/* FIX UX-ROLES-01: mirrors ProtectedSidebar's identical fix —
+              "أصبح بائعاً" previously only lived nested inside
+              SETTINGS_GROUP, unlike its "أصبح مقدّم خدمة"/"افتح متجرك"
+              neighbors, both single-tap top-level rows. */}
+          {!isSeller && (
+            <li>
+              <Link
+                href={ROUTES.settings.seller}
+                onClick={close}
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+              >
+                <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                أصبح بائعاً
+              </Link>
+            </li>
+          )}
           {isSeller ? (
             <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />
           ) : (

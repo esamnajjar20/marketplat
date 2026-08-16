@@ -28,10 +28,21 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MyServiceProviderCard } from '@/components/services/MyServiceProviderCard';
 import { useUpdateServiceProvider } from '@/hooks/mutations/useServiceProviderMutations';
+import { useAuthStore } from '@/store/auth.store';
 import type { ServiceProviderDetails, WorkingHours } from '@/types/service.types';
 
 vi.mock('@/hooks/mutations/useServiceProviderMutations', () => ({
   useUpdateServiceProvider: vi.fn(),
+}));
+
+// UNIFIED-PROFILE: the "عرض صفحتي العامة" link now reads the current
+// user's own id from useAuthStore (see MyServiceProviderCard.tsx's own
+// comment on why — ServiceProviderDetails has no userId field, only
+// sellerProfileId), so this needs a mock the same way SellerCard.test.tsx
+// already mocks the same store.
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectUser: (s: { user: unknown }) => s.user,
 }));
 
 vi.mock('next/link', () => ({
@@ -86,6 +97,9 @@ function mockUpdateState(overrides: Partial<ReturnType<typeof useUpdateServicePr
 beforeEach(() => {
   vi.clearAllMocks();
   mockUpdateState();
+  vi.mocked(useAuthStore).mockImplementation(
+    (selector: (s: { user: unknown }) => unknown) => selector({ user: { id: 'user-1' } }),
+  );
 });
 
 describe('MyServiceProviderCard', () => {
@@ -200,10 +214,13 @@ describe('MyServiceProviderCard', () => {
   });
 
   describe('links', () => {
-    it('links to the public provider profile page', () => {
+    it('links to the current user\'s unified profile page', () => {
+      // UNIFIED-PROFILE: /service-providers/[id] is now just a redirect
+      // back to /profile/[userId] — this links straight to the logged-in
+      // user's own profile instead (see the component's own comment).
       render(<MyServiceProviderCard provider={makeProvider({ id: 'provider-77' })} />);
       expect(screen.getByText('عرض صفحتي العامة')).toHaveAttribute(
-        'href', expect.stringContaining('provider-77'),
+        'href', expect.stringContaining('user-1'),
       );
     });
 

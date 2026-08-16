@@ -14,6 +14,7 @@ import type { SellerProfile } from '@/types/seller.types';
 
 const baseProfile: SellerProfile = {
   id: 'seller-1',
+  userId: 'user-1',
   displayName: 'متجر أبو محمد',
   verified: true,
   bio: 'نبيع أجهزة كهربائية مستعملة بحالة ممتازة',
@@ -66,11 +67,14 @@ describe('MySellerProfileCard', () => {
     expect(screen.queryByText('4.5')).not.toBeInTheDocument();
   });
 
-  it('links to the public seller profile page', () => {
+  it('links to the person\'s unified public profile page', () => {
+    // UNIFIED-PROFILE: now links to /profile/[userId] directly rather
+    // than the old /sellers/[sellerProfileId] page (which is now just
+    // a redirect back here — see that page's own comment).
     render(<MySellerProfileCard profile={baseProfile} />);
 
-    const link = screen.getByText('عرض صفحتي العامة كبائع').closest('a');
-    expect(link).toHaveAttribute('href', expect.stringContaining('seller-1'));
+    const link = screen.getByText('عرض صفحتي العامة').closest('a');
+    expect(link).toHaveAttribute('href', expect.stringContaining('user-1'));
   });
 
   it('renders the "create your store" CTA (AUDIT-FIX #5)', () => {

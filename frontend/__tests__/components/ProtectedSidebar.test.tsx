@@ -253,6 +253,30 @@ describe('ProtectedSidebar', () => {
     });
   });
 
+  // ── FIX UX-ROLES-01: "أصبح بائعاً" top-level CTA ─────────────────
+  // Previously the only path to /settings/seller was nested inside the
+  // "الإعدادات" disclosure group, unlike its "أصبح مقدّم خدمة"/
+  // "افتح متجرك" neighbors — both single-tap top-level rows.
+
+  describe('"أصبح بائعاً" CTA', () => {
+    it('is not shown when the user already has a seller profile (default mock)', () => {
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+      expect(screen.queryByRole('link', { name: 'أصبح بائعاً' })).not.toBeInTheDocument();
+    });
+
+    it('is shown as a top-level link when the user has no seller profile yet', () => {
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined,
+        isSuccess: true,
+      });
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+      const link = screen.getByRole('link', { name: 'أصبح بائعاً' });
+      expect(link.getAttribute('href')).toBe('/settings/seller');
+    });
+  });
+
   // ── P1 FIX (layout audit §6): "الإعدادات" disclosure group ──────
   // Replaces the old flat-link settings tests; SettingsSidebar (the
   // second nav column previously rendered by app/(protected)/settings/

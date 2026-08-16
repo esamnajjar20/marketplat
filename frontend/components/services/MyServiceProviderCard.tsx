@@ -8,6 +8,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
 import { useUpdateServiceProvider } from '@/hooks/mutations/useServiceProviderMutations';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import type { ServiceAvailability, ServiceProviderDetails, WorkingHours } from '@/types/service.types';
 
@@ -44,6 +45,12 @@ function validateWorkingHours(hours: WorkingHours): string | undefined {
 
 export function MyServiceProviderCard({ provider }: Props) {
   const updateProvider = useUpdateServiceProvider();
+  // UNIFIED-PROFILE: /service-providers/[id] is now just a redirect
+  // back to /profile/[userId] (see that page's own comment). This is
+  // always the logged-in owner's own card, so the current user's own
+  // id is the target — ServiceProviderDetails itself only carries
+  // sellerProfileId, not userId, so there's no other source for it here.
+  const currentUser = useAuthStore(selectUser);
 
   // FIX BUG-XX: updateProvider is shared between the availability-status
   // Select above and the working-hours save button below. Without this,
@@ -152,7 +159,7 @@ export function MyServiceProviderCard({ provider }: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.serviceProvider(provider.id)}>
+          <Link href={ROUTES.userProfile(currentUser!.id)}>
             عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
           </Link>
         </Button>

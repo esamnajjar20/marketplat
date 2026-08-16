@@ -58,12 +58,41 @@ describe('MobileNav', () => {
       expect(screen.queryByRole('link', { name: 'إنشاء حساب' })).not.toBeInTheDocument();
     });
 
-    it('shows account links: dashboard, my ads, favorites, settings', () => {
+    it('shows account links: dashboard, my ads, favorites', () => {
       render(<MobileNav />);
       expect(screen.getByRole('link', { name: 'لوحة التحكم' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'إعلاناتي' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'المفضلة' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'الإعدادات' })).toBeInTheDocument();
+    });
+
+    // FIX UX-SETTINGS-01: "الإعدادات" used to be a flat link straight to
+    // /settings/profile — same gap ProtectedMobileNav.test.tsx's own
+    // "renders الإعدادات as a disclosure group" test pins down for the
+    // protected-header drawer. This mirrors that here for the
+    // public-header drawer, since a logged-in user can open this exact
+    // drawer from any public page (/, /stores, etc).
+    it('renders "الإعدادات" as a disclosure group, not a flat link', () => {
+      render(<MobileNav />);
+      expect(screen.queryByRole('link', { name: 'الإعدادات' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /الإعدادات/ })).toBeInTheDocument();
+    });
+
+    it('expands the settings disclosure group to reveal its destinations on click', async () => {
+      const user = userEvent.setup();
+      render(<MobileNav />);
+
+      expect(screen.queryByRole('link', { name: 'ملف البائع' })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
+
+      expect(screen.getByRole('link', { name: 'الملف الشخصي' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'ملف البائع' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'ملف مقدم الخدمة' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'متجري' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'الأمان' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'الجلسات' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'الإشعارات' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'المستخدمون المحظورون' })).toBeInTheDocument();
     });
 
     it('does not show the admin dashboard link for a regular user', () => {

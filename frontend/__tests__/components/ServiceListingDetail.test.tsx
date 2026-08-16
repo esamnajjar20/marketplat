@@ -130,9 +130,14 @@ describe('ServiceListingDetail', () => {
   });
 
   describe('provider link', () => {
-    it('links to the provider profile page', () => {
-      render(<ServiceListingDetail listing={makeListing({ provider: { ...makeListing().provider, id: 'provider-77' } })} />);
-      expect(screen.getByRole('link')).toHaveAttribute('href', '/service-providers/provider-77');
+    it('links to the provider\'s unified profile page', () => {
+      // UNIFIED-PROFILE: /service-providers/[id] is now a redirect back
+      // to /profile/[userId] — links straight there using the nested
+      // sellerProfile.userId instead.
+      render(<ServiceListingDetail listing={makeListing({
+        provider: { ...makeListing().provider, sellerProfile: { ...makeListing().provider.sellerProfile, userId: 'user-77' } },
+      })} />);
+      expect(screen.getByRole('link')).toHaveAttribute('href', '/profile/user-77');
     });
 
     it('renders the provider business name twice (label + "عرض كل خدمات" line)', () => {
