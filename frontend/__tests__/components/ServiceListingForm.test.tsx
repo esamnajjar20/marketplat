@@ -18,7 +18,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ServiceListingForm } from '@/components/services/ServiceListingForm';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import {
@@ -142,12 +142,12 @@ describe('ServiceListingForm', () => {
     return new RegExp(`^\\s*${escaped}`);
   }
 
-  async function selectCategory(user: ReturnType<typeof userEvent.setup>) {
+  async function selectCategory(user: ReturnType<typeof setupUser>) {
     await user.click(screen.getByRole('combobox', { name: requiredLabel('الفئة') }));
     await user.click(await screen.findByRole('option', { name: 'صيانة منزلية' }));
   }
 
-  async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
+  async function fillRequiredFields(user: ReturnType<typeof setupUser>) {
     await selectCategory(user);
     await user.type(screen.getByLabelText(requiredLabel('عنوان الخدمة')), 'عنوان خدمة تجريبية');
     await user.type(
@@ -167,7 +167,7 @@ describe('ServiceListingForm', () => {
 
   describe('validation', () => {
     it('requires a category', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ServiceListingForm mode="create" />);
 
       await user.type(screen.getByLabelText(requiredLabel('عنوان الخدمة')), 'عنوان خدمة تجريبية');
@@ -184,7 +184,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('requires a title of at least 3 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ServiceListingForm mode="create" />);
 
       await selectCategory(user);
@@ -196,7 +196,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('requires a description of at least 10 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ServiceListingForm mode="create" />);
 
       await selectCategory(user);
@@ -209,7 +209,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('requires at least one image', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ServiceListingForm mode="create" />);
 
       await fillRequiredFields(user);
@@ -229,14 +229,14 @@ describe('ServiceListingForm', () => {
       expect(screen.queryByLabelText(requiredLabel('السعر (₪)'))).not.toBeInTheDocument();
       expect(screen.queryByLabelText(requiredLabel('يبدأ من (₪)'))).not.toBeInTheDocument();
 
-      await userEvent.setup().click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
+      await setupUser().click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
       await waitFor(() => expect(mockUpdateMutate).toHaveBeenCalledTimes(1));
       const [payload] = mockUpdateMutate.mock.calls[0];
       expect(payload.price).toBeNull();
     });
 
     it('requires a valid positive price when pricingType is FIXED', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       const priceInput = screen.getByLabelText(requiredLabel('السعر (₪)'));
@@ -258,14 +258,14 @@ describe('ServiceListingForm', () => {
     it('does not require an image in edit mode when the listing already has existing images', async () => {
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
-      await userEvent.setup().click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
+      await setupUser().click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
       expect(screen.queryByText('أضف صورة واحدة على الأقل')).not.toBeInTheDocument();
       await waitFor(() => expect(mockUpdateMutate).toHaveBeenCalledTimes(1));
     });
 
     it('requires an image in edit mode if all existing images are removed and none re-added', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       await user.click(screen.getByText(`Remove ${existingListing.images[0]}`));
@@ -279,7 +279,7 @@ describe('ServiceListingForm', () => {
 
   describe('create mode submission', () => {
     it('trims the title/description before submitting (via edit mode, past the image gate)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       const titleInput = screen.getByLabelText(requiredLabel('عنوان الخدمة')) as HTMLInputElement;
@@ -293,7 +293,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('parses price as a number when pricingType is FIXED', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -305,7 +305,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('omits durationEstimate as null when left blank', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const listingNoDuration = { ...existingListing, durationEstimate: null };
       render(<ServiceListingForm mode="edit" listing={listingNoDuration} />);
 
@@ -321,7 +321,7 @@ describe('ServiceListingForm', () => {
 
   describe('edit mode submission — image reconciliation', () => {
     it('builds the PATCH payload WITHOUT an images field', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -332,7 +332,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('calls removeImage.mutateAsync only for URLs the user actually removed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       await user.click(screen.getByText(`Remove ${existingListing.images[0]}`));
@@ -349,7 +349,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('does not call removeImage or addImages at all when nothing image-related changed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
@@ -361,7 +361,7 @@ describe('ServiceListingForm', () => {
     it('does NOT call update.mutate when removeImage fails, so a failed image step cannot navigate past a half-applied edit', async () => {
       mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
       await user.click(screen.getByText(`Remove ${existingListing.images[0]}`));
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -373,7 +373,7 @@ describe('ServiceListingForm', () => {
     it('re-enables the submit button after a failed image step instead of leaving it stuck loading', async () => {
       mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
       await user.click(screen.getByText(`Remove ${existingListing.images[0]}`));
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -385,7 +385,7 @@ describe('ServiceListingForm', () => {
 
     it('requires a replacement image before removing the last existing image (cannot reach zero images)', async () => {
       const singleImageListing = { ...existingListing, images: [existingListing.images[0]] };
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ServiceListingForm mode="edit" listing={singleImageListing} />);
 
       await user.click(screen.getByText(`Remove ${singleImageListing.images[0]}`));
@@ -397,7 +397,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('reorders surviving existing images when their order changed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       await user.click(screen.getByRole('button', { name: 'Reverse order' }));
@@ -411,7 +411,7 @@ describe('ServiceListingForm', () => {
     });
 
     it('does not reorder when order is unchanged', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="edit" listing={existingListing} />);
 
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -456,7 +456,7 @@ describe('ServiceListingForm', () => {
   describe('cancel', () => {
     it('navigates back immediately on cancel, with no confirm dialog', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceListingForm mode="create" />);
 
       await user.type(screen.getByLabelText(requiredLabel('عنوان الخدمة')), 'عنوان جديد');

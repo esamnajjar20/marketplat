@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoresFiltersSheet } from '@/components/stores/StoresFiltersSheet';
 
 let mockSearchParams = new URLSearchParams();
@@ -66,7 +66,7 @@ describe('StoresFiltersSheet', () => {
   });
 
   it('opens the sheet and renders StoresFilters when the trigger is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoresFiltersSheet />);
 
     await user.click(screen.getByRole('button', { name: /تصفية/ }));

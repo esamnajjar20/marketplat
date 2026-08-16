@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { PushNotificationToggle } from '@/components/pwa/PushNotificationToggle';
 import {
   getPushSubscriptionState,
@@ -91,7 +91,7 @@ describe('PushNotificationToggle', () => {
   it('subscribes on click when currently unsubscribed, showing a success toast', async () => {
     mockGetState.mockResolvedValue('unsubscribed');
     mockSubscribe.mockResolvedValue(true);
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PushNotificationToggle />);
 
     await user.click(await screen.findByRole('button', { name: 'تفعيل' }));
@@ -103,7 +103,7 @@ describe('PushNotificationToggle', () => {
   it('shows an error toast and stays unsubscribed when the browser denies permission', async () => {
     mockGetState.mockResolvedValue('unsubscribed');
     mockSubscribe.mockResolvedValue(false);
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PushNotificationToggle />);
 
     await user.click(await screen.findByRole('button', { name: 'تفعيل' }));
@@ -115,7 +115,7 @@ describe('PushNotificationToggle', () => {
   it('unsubscribes on click when currently subscribed, showing a success toast', async () => {
     mockGetState.mockResolvedValue('subscribed');
     mockUnsubscribe.mockResolvedValue(undefined);
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PushNotificationToggle />);
 
     await user.click(await screen.findByRole('button', { name: 'إيقاف' }));
@@ -127,7 +127,7 @@ describe('PushNotificationToggle', () => {
   it('shows an error toast and re-resolves the real state when toggling throws', async () => {
     mockGetState.mockResolvedValueOnce('unsubscribed').mockResolvedValueOnce('unsubscribed');
     mockSubscribe.mockRejectedValue(new Error('network error'));
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PushNotificationToggle />);
 
     await user.click(await screen.findByRole('button', { name: 'تفعيل' }));
@@ -139,7 +139,7 @@ describe('PushNotificationToggle', () => {
   it('disables the button while a toggle is in flight', async () => {
     mockGetState.mockResolvedValue('unsubscribed');
     mockSubscribe.mockReturnValue(new Promise(() => {})); // never resolves
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PushNotificationToggle />);
 
     await user.click(await screen.findByRole('button', { name: 'تفعيل' }));

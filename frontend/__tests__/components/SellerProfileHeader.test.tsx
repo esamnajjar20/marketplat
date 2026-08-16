@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SellerProfileHeader } from '@/components/sellers/SellerProfileHeader';
 import { useAuthStore } from '@/store/auth.store';
 import type { SellerProfile } from '@/types/seller.types';
@@ -97,7 +97,7 @@ describe('SellerProfileHeader', () => {
   });
 
   it('opens the rate dialog when the CTA is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SellerProfileHeader seller={seller} />);
 
     await user.click(screen.getByRole('button', { name: 'قيّم هذا البائع' }));

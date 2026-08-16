@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -182,7 +182,7 @@ describe('AdminSidebar', () => {
   });
 
   it('opens the mobile drawer when the hamburger button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminSidebar />);
 
     await user.click(screen.getByLabelText('فتح القائمة'));
@@ -190,7 +190,7 @@ describe('AdminSidebar', () => {
   });
 
   it('closes the drawer when the close (X) button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminSidebar />);
 
     await user.click(screen.getByLabelText('فتح القائمة'));
@@ -201,7 +201,7 @@ describe('AdminSidebar', () => {
   });
 
   it('closes the drawer when the backdrop is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const { container } = render(<AdminSidebar />);
 
     await user.click(screen.getByLabelText('فتح القائمة'));
@@ -213,7 +213,7 @@ describe('AdminSidebar', () => {
   });
 
   it('closes the drawer when a nav link inside it is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminSidebar />);
 
     await user.click(screen.getByLabelText('فتح القائمة'));
@@ -225,7 +225,7 @@ describe('AdminSidebar', () => {
   });
 
   it('renders a second copy of the nav links inside the open drawer', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminSidebar />);
 
     await user.click(screen.getByLabelText('فتح القائمة'));

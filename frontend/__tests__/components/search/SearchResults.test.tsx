@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchResults } from '@/components/search/SearchResults';
 import { useSearch } from '@/hooks/queries/useSearch';
 import { track } from '@/lib/analytics';
@@ -100,7 +100,7 @@ describe('SearchResults', () => {
   it('shows an error message with a retry action on isError', async () => {
     const refetch = vi.fn();
     mockSearchState({ isError: true, refetch });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchResults />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل النتائج')).toBeInTheDocument();

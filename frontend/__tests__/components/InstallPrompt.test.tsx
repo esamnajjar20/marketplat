@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 
 const DISMISS_STORAGE_KEY = 'pwa-install-dismissed-at';
@@ -114,7 +114,7 @@ describe('InstallPrompt', () => {
     });
 
     it('calls prompt() and userChoice, then dismisses on install', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<InstallPrompt />);
       const event = makeBeforeInstallPromptEvent('accepted');
 
@@ -130,7 +130,7 @@ describe('InstallPrompt', () => {
     });
 
     it('still dismisses even when the user declines the native prompt', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<InstallPrompt />);
       const event = makeBeforeInstallPromptEvent('dismissed');
 
@@ -168,7 +168,7 @@ describe('InstallPrompt', () => {
     });
 
     it('dismisses the iOS hint via the close button and persists the dismissal', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<InstallPrompt />);
 
       await user.click(screen.getByRole('button', { name: 'إغلاق' }));

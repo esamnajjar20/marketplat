@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoreProducts } from '@/components/stores/StoreProducts';
 import { useProducts } from '@/hooks/queries/useProducts';
 
@@ -65,7 +65,7 @@ describe('StoreProducts', () => {
 
   it('shows an error message with retry on failure', async () => {
     mockProducts({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoreProducts storeId="store-1" />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المنتجات')).toBeInTheDocument();

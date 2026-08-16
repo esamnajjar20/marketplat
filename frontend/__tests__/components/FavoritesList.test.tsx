@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { FavoritesList } from '@/components/profile/FavoritesList';
 import { useFavorites } from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
@@ -72,7 +72,7 @@ describe('FavoritesList', () => {
 
   it('shows an error message with retry, not the empty state, on fetch failure (UX-FIX P1-8)', async () => {
     mockFavorites({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<FavoritesList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المفضلة')).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('FavoritesList', () => {
 
   it('calls toggleFavorite.mutate with the ad id when removing a deleted favorite', async () => {
     mockFavorites({ data: { items: [{ ad: deletedAd }], meta: { totalPages: 1 } } });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<FavoritesList />);
 
     await user.click(screen.getByRole('button', { name: 'إزالة من المفضلة' }));

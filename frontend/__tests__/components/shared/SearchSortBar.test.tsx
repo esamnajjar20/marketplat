@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchSortBar } from '@/components/shared/SearchSortBar';
 
 const mockPush = vi.fn();
@@ -67,7 +67,7 @@ describe('SearchSortBar', () => {
 
     it('pushes the selected value under paramKey, dropping page, on the given basePath', async () => {
       mockSearchParams = new URLSearchParams({ page: '3' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <SearchSortBar
           basePath="/search"
@@ -87,7 +87,7 @@ describe('SearchSortBar', () => {
 
     it('preserves other existing params when pushing', async () => {
       mockSearchParams = new URLSearchParams({ q: 'هاتف', city: 'غزة' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <SearchSortBar
           basePath="/search"
@@ -104,7 +104,7 @@ describe('SearchSortBar', () => {
     });
 
     it('pushes relative to a non-/search basePath (category-page style)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <SearchSortBar
           basePath="/categories/electronics"
@@ -150,7 +150,7 @@ describe('SearchSortBar', () => {
 
     it('pushes both sortBy and sortOrder, dropping page', async () => {
       mockSearchParams = new URLSearchParams({ page: '2' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <SearchSortBar
           basePath="/categories/electronics"
@@ -168,7 +168,7 @@ describe('SearchSortBar', () => {
     });
 
     it('pushes relative to the given basePath, not a hardcoded route', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <SearchSortBar
           basePath="/stores"
@@ -184,7 +184,7 @@ describe('SearchSortBar', () => {
     });
 
     it('supports custom sortByKey/sortOrderKey param names', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <SearchSortBar
           basePath="/stores"

@@ -29,7 +29,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { IncomingServiceRequestsList } from '@/components/services/IncomingServiceRequestsList';
 import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
@@ -130,7 +130,7 @@ describe('IncomingServiceRequestsList', () => {
   it('shows an error state with a retry option that calls refetch', async () => {
     const refetch = vi.fn();
     mockIncomingState({ isError: true, refetch });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<IncomingServiceRequestsList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل الطلبات الواردة')).toBeInTheDocument();
@@ -187,7 +187,7 @@ describe('IncomingServiceRequestsList', () => {
     it('navigates with the new status and clears the page param when a tab is clicked', async () => {
       mockSearchParams = new URLSearchParams('page=2');
       mockIncomingState({ data: { items: [], meta: { totalPages: 3 } } });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<IncomingServiceRequestsList />);
 
       await user.click(screen.getByRole('button', { name: 'مكتمل' }));
@@ -202,7 +202,7 @@ describe('IncomingServiceRequestsList', () => {
       mockIncomingState({
         data: { items: [makeRequest({ status: 'PENDING' })], meta: { totalPages: 1 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<IncomingServiceRequestsList />);
 
       // "قبول" as a substring also matches the "مقبول" filter tab, and
@@ -223,7 +223,7 @@ describe('IncomingServiceRequestsList', () => {
       mockIncomingState({
         data: { items: [makeRequest({ status: 'ACCEPTED' })], meta: { totalPages: 1 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<IncomingServiceRequestsList />);
 
       expect(screen.getByRole('button', { name: /حجز موعد/ })).toBeInTheDocument();
@@ -235,7 +235,7 @@ describe('IncomingServiceRequestsList', () => {
       mockIncomingState({
         data: { items: [makeRequest({ status: 'IN_PROGRESS' })], meta: { totalPages: 1 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<IncomingServiceRequestsList />);
 
       expect(screen.getByRole('button', { name: /حجز موعد/ })).toBeInTheDocument();
@@ -278,7 +278,7 @@ describe('IncomingServiceRequestsList', () => {
           meta: { totalPages: 1 },
         },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<IncomingServiceRequestsList />);
 
       await user.click(screen.getByRole('button', { name: /حجز موعد/ }));

@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { useReportAd } from '@/hooks/mutations/useReportMutations';
 import { useAuthStore } from '@/store/auth.store';
@@ -42,7 +42,7 @@ function mockAuth(isAuthenticated: boolean) {
 }
 
 async function openDialog() {
-  const user = userEvent.setup();
+  const user = setupUser();
   render(<ReportAdButton adId="ad-1" />);
   await user.click(screen.getByRole('button', { name: /الإبلاغ عن هذا الإعلان/ }));
   return user;
@@ -66,7 +66,7 @@ describe('ReportAdButton', () => {
   describe('auth gate', () => {
     it('shows an error toast and does not open the dialog when unauthenticated', async () => {
       mockAuth(false);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ReportAdButton adId="ad-1" />);
 
       await user.click(screen.getByRole('button', { name: /الإبلاغ عن هذا الإعلان/ }));

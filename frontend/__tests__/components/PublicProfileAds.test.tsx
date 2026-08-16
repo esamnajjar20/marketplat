@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { PublicProfileAds } from '@/components/profile/PublicProfileAds';
 import { useUserAds } from '@/hooks/queries/useAds';
 
@@ -60,7 +60,7 @@ describe('PublicProfileAds', () => {
 
   it('shows an error message with retry, not the empty state, on failure', async () => {
     mockUserAds({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PublicProfileAds userId="user-1" />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل الإعلانات')).toBeInTheDocument();

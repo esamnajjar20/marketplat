@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchTabs } from '@/components/search/SearchTabs';
 
 describe('SearchTabs', () => {
@@ -26,7 +26,7 @@ describe('SearchTabs', () => {
 
   it('calls onChange with the clicked tab value', async () => {
     const onChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchTabs value="all" onChange={onChange} />);
 
     await user.click(screen.getByRole('tab', { name: 'الخدمات' }));
@@ -35,7 +35,7 @@ describe('SearchTabs', () => {
 
   it('calls onChange even when clicking the already-active tab', async () => {
     const onChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchTabs value="stores" onChange={onChange} />);
 
     await user.click(screen.getByRole('tab', { name: 'المحلات' }));

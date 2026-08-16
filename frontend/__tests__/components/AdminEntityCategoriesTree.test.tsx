@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminEntityCategoriesTree } from '@/components/admin/AdminEntityCategoriesTree';
 
 interface TestCategory {
@@ -57,7 +57,7 @@ describe('AdminEntityCategoriesTree', () => {
 
   it('shows an error state with retry that calls refetch', async () => {
     const refetch = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminEntityCategoriesTree {...baseProps({
       useCategories: () => ({ data: undefined, isLoading: false, isError: true, refetch }),
     })} />);
@@ -89,7 +89,7 @@ describe('AdminEntityCategoriesTree', () => {
 
   it('does not render children until the root row is expanded', async () => {
     const parent = makeCategory({ id: 'p1', nameAr: 'أب', children: [makeCategory({ id: 'c1', nameAr: 'ابن' })] });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminEntityCategoriesTree {...baseProps({
       useCategories: () => ({ data: [parent], isLoading: false, isError: false, refetch: vi.fn() }),
     })} />);
@@ -104,7 +104,7 @@ describe('AdminEntityCategoriesTree', () => {
   });
 
   it('toggles isActive when the visibility button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminEntityCategoriesTree {...baseProps({
       useCategories: () => ({ data: [makeCategory({ id: 'cat-9', nameAr: 'فئة تسعة', isActive: true })], isLoading: false, isError: false, refetch: vi.fn() }),
     })} />);
@@ -128,7 +128,7 @@ describe('AdminEntityCategoriesTree', () => {
 
   describe('delete flow', () => {
     it('clicking delete opens the confirm dialog without deleting yet', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminEntityCategoriesTree {...baseProps({
         useCategories: () => ({ data: [makeCategory({ nameAr: 'فئة للحذف' })], isLoading: false, isError: false, refetch: vi.fn() }),
       })} />);
@@ -141,7 +141,7 @@ describe('AdminEntityCategoriesTree', () => {
     });
 
     it('confirming delete calls mutate with the category id', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminEntityCategoriesTree {...baseProps({
         useCategories: () => ({ data: [makeCategory({ id: 'cat-9', nameAr: 'فئة للحذف' })], isLoading: false, isError: false, refetch: vi.fn() }),
       })} />);
@@ -153,7 +153,7 @@ describe('AdminEntityCategoriesTree', () => {
     });
 
     it('cancelling the dialog does not delete', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminEntityCategoriesTree {...baseProps({
         useCategories: () => ({ data: [makeCategory({ nameAr: 'فئة للحذف' })], isLoading: false, isError: false, refetch: vi.fn() }),
       })} />);

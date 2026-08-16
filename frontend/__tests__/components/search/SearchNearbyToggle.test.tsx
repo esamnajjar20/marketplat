@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
 import { ROUTES } from '@/lib/constants';
 
@@ -69,7 +69,7 @@ describe('SearchNearbyToggle', () => {
       configurable: true,
     });
     mockSearchParams = new URLSearchParams({ page: '3' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchNearbyToggle />);
 
     await user.click(screen.getByRole('button', { name: /البحث ضمن 10 كم مني/ }));
@@ -91,7 +91,7 @@ describe('SearchNearbyToggle', () => {
       },
       configurable: true,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchNearbyToggle />);
 
     await user.click(screen.getByRole('button', { name: /البحث ضمن 10 كم مني/ }));
@@ -107,7 +107,7 @@ describe('SearchNearbyToggle', () => {
     // undefined. Actually delete the property to simulate an unsupported browser.
     // @ts-expect-error - intentionally deleting a normally-required property for this test
     delete global.navigator.geolocation;
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchNearbyToggle />);
 
     await user.click(screen.getByRole('button', { name: /البحث ضمن 10 كم مني/ }));
@@ -118,7 +118,7 @@ describe('SearchNearbyToggle', () => {
 
   it('clears lat/lng/radius and the distance sort together, dropping page', async () => {
     mockSearchParams = new URLSearchParams({ lat: '31.9', lng: '35.2', radius: '10', sort: 'distance', page: '2' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchNearbyToggle />);
 
     await user.click(screen.getByRole('button', { name: 'إلغاء البحث القريب' }));
@@ -133,7 +133,7 @@ describe('SearchNearbyToggle', () => {
 
   it('leaves a non-distance sort untouched when clearing', async () => {
     mockSearchParams = new URLSearchParams({ lat: '31.9', lng: '35.2', sort: 'newest' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchNearbyToggle />);
 
     await user.click(screen.getByRole('button', { name: 'إلغاء البحث القريب' }));

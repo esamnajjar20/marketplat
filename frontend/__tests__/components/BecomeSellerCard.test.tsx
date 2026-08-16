@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { BecomeSellerCard } from '@/components/sellers/BecomeSellerCard';
 import { useCreateSellerProfile } from '@/hooks/mutations/useSellerMutations';
 import { useAuthStore } from '@/store/auth.store';
@@ -46,7 +46,7 @@ describe('BecomeSellerCard', () => {
     });
   });
 
-  async function agreeAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+  async function agreeAndSubmit(user: ReturnType<typeof setupUser>) {
     await user.click(screen.getByLabelText('أوافق على شروط البيع الخاصة بالمنصة'));
     await user.click(screen.getByRole('button', { name: 'إنشاء ملف البائع' }));
   }
@@ -71,7 +71,7 @@ describe('BecomeSellerCard', () => {
   });
 
   it('submits with agreedToSellerTerms true and trims optional fields', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeSellerCard />);
 
     await user.type(screen.getByLabelText('اسم العرض'), '  متجر أحمد  ');
@@ -84,7 +84,7 @@ describe('BecomeSellerCard', () => {
   });
 
   it('does not redirect on success when there is no ?from= param', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeSellerCard />);
     await agreeAndSubmit(user);
 
@@ -96,7 +96,7 @@ describe('BecomeSellerCard', () => {
 
   it('redirects to the ?from= target on success (FIX P0-1)', async () => {
     mockSearchParams = new URLSearchParams('from=/ads/create');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeSellerCard />);
     await agreeAndSubmit(user);
 
@@ -108,7 +108,7 @@ describe('BecomeSellerCard', () => {
 
   it('falls back to not redirecting when ?from= is an unsafe absolute URL', async () => {
     mockSearchParams = new URLSearchParams('from=https://evil.example.com');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeSellerCard />);
     await agreeAndSubmit(user);
 

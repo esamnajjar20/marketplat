@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SellerRatingsList } from '@/components/sellers/SellerRatingsList';
 import { useSellerRatings } from '@/hooks/queries/useSellerRatings';
 
@@ -72,7 +72,7 @@ describe('SellerRatingsList', () => {
 
   it('shows an error message with retry on failure', async () => {
     mockRatings({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SellerRatingsList sellerProfileId="seller-1" />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل التقييمات')).toBeInTheDocument();

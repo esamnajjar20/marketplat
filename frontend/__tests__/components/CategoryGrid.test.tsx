@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { ROUTES } from '@/lib/constants';
@@ -85,7 +85,7 @@ describe('CategoryGrid', () => {
       makeCategory({ id: String(i), nameAr: `تصنيف ${i}`, slug: `cat-${i}`, parentId: null }),
     );
     mockUseCategories.mockReturnValue({ data: categories, isLoading: false } as never);
-    const user = userEvent.setup();
+    const user = setupUser();
     const { container } = render(<CategoryGrid />);
 
     await user.click(screen.getByText(/عرض كل الفئات/));

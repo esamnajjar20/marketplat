@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ActiveSessionsList } from '@/components/profile/ActiveSessionsList';
 import { useAuthSessions } from '@/hooks/queries/useAuth';
 import { useRevokeSession, useLogoutAll } from '@/hooks/mutations/useAuthMutations';
@@ -70,7 +70,7 @@ describe('ActiveSessionsList', () => {
 
   it('shows an explicit error message (not the empty-state message) on failure', async () => {
     mockSessions({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ActiveSessionsList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل الجلسات النشطة')).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('ActiveSessionsList', () => {
   });
 
   it('calls revoke with the session id when its button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ActiveSessionsList />);
 
     await user.click(screen.getByRole('button', { name: 'إنهاء' }));
@@ -140,7 +140,7 @@ describe('ActiveSessionsList', () => {
   });
 
   it('opens the logout-all confirm dialog rather than calling the mutation directly', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ActiveSessionsList />);
 
     await user.click(screen.getByRole('button', { name: 'تسجيل الخروج من الكل' }));
@@ -150,7 +150,7 @@ describe('ActiveSessionsList', () => {
   });
 
   it('calls logoutAll after confirming the dialog', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ActiveSessionsList />);
 
     await user.click(screen.getByRole('button', { name: 'تسجيل الخروج من الكل' }));

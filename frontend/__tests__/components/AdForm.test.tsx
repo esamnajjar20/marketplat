@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdForm } from '@/components/ads/AdForm';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
@@ -122,7 +122,7 @@ describe('AdForm', () => {
     });
   });
 
-  async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
+  async function fillRequiredFields(user: ReturnType<typeof setupUser>) {
     await user.type(screen.getByLabelText(/عنوان الإعلان/), 'إعلان تجريبي جديد');
     await user.type(
       screen.getByLabelText(/الوصف/),
@@ -155,7 +155,7 @@ describe('AdForm', () => {
   // real user, exercising validate()'s error paths instead.
   describe('validation', () => {
     it('requires a title of at least 5 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<AdForm mode="create" />);
 
       await user.type(screen.getByLabelText(/عنوان الإعلان/), 'قصير');
@@ -166,7 +166,7 @@ describe('AdForm', () => {
     });
 
     it('requires a description of at least 20 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<AdForm mode="create" />);
 
       await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان صالح للإعلان');
@@ -178,7 +178,7 @@ describe('AdForm', () => {
     });
 
     it('requires a city', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<AdForm mode="create" />);
 
       await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان صالح للإعلان');
@@ -199,7 +199,7 @@ describe('AdForm', () => {
     // images for now. Revert this test alongside re-enabling the check
     // in both places.
     it('does NOT require an image in create mode while the image-required check is temporarily disabled', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="create" />);
 
       await fillRequiredFields(user);
@@ -210,7 +210,7 @@ describe('AdForm', () => {
     });
 
     it('does NOT require an image in edit mode when the ad already has existing images', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="edit" ad={existingAd} />);
 
       // Fields are pre-filled from `ad` — just submit directly.
@@ -223,7 +223,7 @@ describe('AdForm', () => {
 
   describe('create mode submission', () => {
     it('builds the full create payload with trimmed title/description and optional fields', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       // AdForm only requires ad to be undefined for its *default* state;
       // passing an ad with images while mode="create" exercises the
       // create payload-building branch past the image-required check,
@@ -253,7 +253,7 @@ describe('AdForm', () => {
     });
 
     it('omits condition and categoryId from the payload when left unset', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="create" ad={{ ...existingAd, condition: null, categoryId: null }} />);
 
       await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
@@ -264,7 +264,7 @@ describe('AdForm', () => {
     });
 
     it('parses the price field to a number when provided', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       // Edit mode conveniently starts with existing images already
       // populated, letting us reach past the image-required branch to
       // assert on price parsing in the submitted payload.
@@ -281,7 +281,7 @@ describe('AdForm', () => {
     });
 
     it('omits price entirely (not 0, not NaN) when the price field is left blank', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="edit" ad={{ ...existingAd, price: null }} />);
 
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -294,7 +294,7 @@ describe('AdForm', () => {
 
   describe('edit mode submission — image reconciliation (I-04)', () => {
     it('builds the PATCH payload WITHOUT an images field', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="edit" ad={existingAd} />);
 
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -305,7 +305,7 @@ describe('AdForm', () => {
     });
 
     it('calls removeImage.mutateAsync only for URLs the user actually removed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="edit" ad={existingAd} />);
 
       // Remove one of the two existing images via the stubbed ImageUpload.
@@ -324,7 +324,7 @@ describe('AdForm', () => {
     });
 
     it('does not call removeImage at all when no existing images were removed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="edit" ad={existingAd} />);
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
@@ -347,7 +347,7 @@ describe('AdForm', () => {
         });
         mockUpdateMutate.mockImplementation(() => callOrder.push('updateAd'));
 
-        const user = userEvent.setup();
+        const user = setupUser();
         render(<AdForm mode="edit" ad={existingAd} />);
         await user.click(screen.getByText(`Remove ${existingAd.images[0]}`));
         await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -357,7 +357,7 @@ describe('AdForm', () => {
       });
 
       it('never calls addImages when no new files were queued', async () => {
-        const user = userEvent.setup();
+        const user = setupUser();
         render(<AdForm mode="edit" ad={existingAd} />);
         await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
@@ -368,7 +368,7 @@ describe('AdForm', () => {
       it('does NOT call updateAd when removeImage fails, so a failed image step cannot navigate the user away from a half-applied edit', async () => {
         mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
-        const user = userEvent.setup();
+        const user = setupUser();
         render(<AdForm mode="edit" ad={existingAd} />);
         await user.click(screen.getByText(`Remove ${existingAd.images[0]}`));
         await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -380,7 +380,7 @@ describe('AdForm', () => {
       it('re-enables the submit button after a failed image step instead of leaving it stuck loading', async () => {
         mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
-        const user = userEvent.setup();
+        const user = setupUser();
         render(<AdForm mode="edit" ad={existingAd} />);
         await user.click(screen.getByText(`Remove ${existingAd.images[0]}`));
         await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -426,7 +426,7 @@ describe('AdForm', () => {
   describe('cancel confirmation (FIX P0-2)', () => {
     it('navigates back immediately when the form is untouched', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="create" />);
 
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
@@ -438,7 +438,7 @@ describe('AdForm', () => {
 
     it('shows a confirm dialog instead of navigating when the form has unsaved changes', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="create" />);
 
       await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان جديد');
@@ -451,7 +451,7 @@ describe('AdForm', () => {
 
     it('navigates back only after confirming discard', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="create" />);
 
       await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان جديد');
@@ -464,7 +464,7 @@ describe('AdForm', () => {
 
     it('stays on the form when the user chooses to keep editing', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="create" />);
 
       await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان جديد');
@@ -478,7 +478,7 @@ describe('AdForm', () => {
 
     it('treats removing an existing image in edit mode as a change requiring confirmation', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdForm mode="edit" ad={existingAd} />);
 
       await user.click(screen.getByText(`Remove ${existingAd.images[0]}`));

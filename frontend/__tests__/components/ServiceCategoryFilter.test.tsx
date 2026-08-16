@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ServiceCategoryFilter } from '@/components/services/ServiceCategoryFilter';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 
@@ -51,7 +51,7 @@ describe('ServiceCategoryFilter', () => {
 
   describe('search input', () => {
     it('pushes the search param when Enter is pressed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const input = screen.getByPlaceholderText('ابحث عن خدمة…');
       await user.type(input, 'سباك{Enter}');
@@ -59,7 +59,7 @@ describe('ServiceCategoryFilter', () => {
     });
 
     it('pushes the search param on blur', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <>
           <ServiceCategoryFilter />
@@ -74,7 +74,7 @@ describe('ServiceCategoryFilter', () => {
 
     it('removes the search param when cleared', async () => {
       mockSearchParams = new URLSearchParams({ search: 'قديم' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <>
           <ServiceCategoryFilter />
@@ -91,7 +91,7 @@ describe('ServiceCategoryFilter', () => {
 
   describe('category select', () => {
     it('renders "كل الفئات" plus one option per category', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[0]);
@@ -101,7 +101,7 @@ describe('ServiceCategoryFilter', () => {
     });
 
     it('pushes categoryId when a category is selected', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[0]);
@@ -111,7 +111,7 @@ describe('ServiceCategoryFilter', () => {
 
     it('clears categoryId when "كل الفئات" is selected', async () => {
       mockSearchParams = new URLSearchParams({ categoryId: 'cat-1' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[0]);
@@ -122,7 +122,7 @@ describe('ServiceCategoryFilter', () => {
 
     it('renders no category options when the hook has no data yet', async () => {
       mockCategories(undefined);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[0]);
@@ -133,7 +133,7 @@ describe('ServiceCategoryFilter', () => {
 
   describe('city select', () => {
     it('renders every configured city as an option', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[1]);
@@ -142,7 +142,7 @@ describe('ServiceCategoryFilter', () => {
     });
 
     it('pushes city when selected', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[1]);
@@ -153,7 +153,7 @@ describe('ServiceCategoryFilter', () => {
 
   describe('service location select', () => {
     it('renders all three location labels', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[2]);
@@ -163,7 +163,7 @@ describe('ServiceCategoryFilter', () => {
     });
 
     it('pushes serviceLocation when selected', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
       await user.click(triggers[2]);
@@ -174,7 +174,7 @@ describe('ServiceCategoryFilter', () => {
 
   describe('price inputs', () => {
     it('pushes minPrice on blur', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <>
           <ServiceCategoryFilter />
@@ -188,7 +188,7 @@ describe('ServiceCategoryFilter', () => {
     });
 
     it('pushes maxPrice on blur', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(
         <>
           <ServiceCategoryFilter />
@@ -204,7 +204,7 @@ describe('ServiceCategoryFilter', () => {
 
   it('always removes the page param when any filter changes', async () => {
     mockSearchParams = new URLSearchParams({ page: '3', city: 'غزة' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ServiceCategoryFilter />);
     const triggers = screen.getAllByRole('combobox');
     await user.click(triggers[0]);
@@ -215,7 +215,7 @@ describe('ServiceCategoryFilter', () => {
 
   it('preserves existing params when updating one filter', async () => {
     mockSearchParams = new URLSearchParams({ city: 'غزة' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ServiceCategoryFilter />);
     const triggers = screen.getAllByRole('combobox');
     await user.click(triggers[0]);

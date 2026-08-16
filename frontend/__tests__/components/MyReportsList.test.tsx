@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MyReportsList } from '@/components/profile/MyReportsList';
 import { useMyReports } from '@/hooks/queries/useMyReports';
 
@@ -65,7 +65,7 @@ describe('MyReportsList', () => {
 
   it('shows an error message with retry on failure', async () => {
     mockReports({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyReportsList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل بلاغاتك')).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('MyReportsList', () => {
 
   it('advances to the next page on click', async () => {
     mockReports({ data: { items: [adReport], meta: { totalPages: 3 } } });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyReportsList />);
 
     await user.click(screen.getByRole('button', { name: 'التالي' }));

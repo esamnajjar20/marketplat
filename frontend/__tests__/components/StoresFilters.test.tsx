@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoresFilters } from '@/components/stores/StoresFilters';
 
 const mockPush = vi.fn();
@@ -30,7 +30,7 @@ describe('StoresFilters', () => {
   });
 
   it('applies the search term on Enter and clears the page param', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoresFilters />);
 
     const input = screen.getByPlaceholderText('ابحث عن متجر…');
@@ -41,7 +41,7 @@ describe('StoresFilters', () => {
   });
 
   it('applies the search term on blur', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoresFilters />);
 
     const input = screen.getByPlaceholderText('ابحث عن متجر…');
@@ -66,7 +66,7 @@ describe('StoresFilters', () => {
   });
 
   it('selecting a city updates the URL with that city and clears page', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoresFilters />);
 
     const triggers = screen.getAllByRole('combobox');
@@ -78,7 +78,7 @@ describe('StoresFilters', () => {
 
   it('selecting "كل المدن" again clears the city param entirely', async () => {
     mockSearchParams = new URLSearchParams('city=غزة');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoresFilters />);
 
     const triggers = screen.getAllByRole('combobox');

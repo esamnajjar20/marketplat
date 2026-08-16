@@ -25,7 +25,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MyServiceProviderCard } from '@/components/services/MyServiceProviderCard';
 import { useUpdateServiceProvider } from '@/hooks/mutations/useServiceProviderMutations';
 import { useAuthStore } from '@/store/auth.store';
@@ -128,7 +128,7 @@ describe('MyServiceProviderCard', () => {
 
   describe('availability select', () => {
     it('changing the availability select calls mutate with availabilityStatus', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MyServiceProviderCard provider={makeProvider({ availabilityStatus: 'AVAILABLE' })} />);
 
       await user.click(screen.getByRole('combobox'));
@@ -145,7 +145,7 @@ describe('MyServiceProviderCard', () => {
     });
 
     it('shows the save button once a day is toggled', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MyServiceProviderCard provider={makeProvider({ workingHours: FULL_HOURS })} />);
 
       // fri is currently null/closed — toggling it on changes local state.
@@ -156,7 +156,7 @@ describe('MyServiceProviderCard', () => {
     });
 
     it('clicking save calls mutate with the updated workingHours', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MyServiceProviderCard provider={makeProvider({ workingHours: FULL_HOURS })} />);
 
       const friCheckbox = screen.getAllByRole('checkbox')[6];
@@ -170,7 +170,7 @@ describe('MyServiceProviderCard', () => {
     });
 
     it('blocks save and shows a day-specific error when open >= close', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MyServiceProviderCard provider={makeProvider({ workingHours: FULL_HOURS })} />);
 
       // Change sat's open time to something >= its close time (17:00).
@@ -191,7 +191,7 @@ describe('MyServiceProviderCard', () => {
       // local state is seeded from provider.workingHours on mount. Toggle a
       // day first to reach the state under test.
       mockUpdateState({ isPending: true, variables: { workingHours: FULL_HOURS } });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MyServiceProviderCard provider={makeProvider({ workingHours: FULL_HOURS })} />);
 
       const friCheckbox = screen.getAllByRole('checkbox')[6];
@@ -202,7 +202,7 @@ describe('MyServiceProviderCard', () => {
 
     it('does not show "جارٍ الحفظ…" when the pending mutation is for availabilityStatus, not workingHours', async () => {
       mockUpdateState({ isPending: true, variables: { availabilityStatus: 'BUSY' } });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MyServiceProviderCard provider={makeProvider({ workingHours: FULL_HOURS })} />);
 
       const friCheckbox = screen.getAllByRole('checkbox')[6];

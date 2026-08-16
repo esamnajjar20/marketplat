@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
@@ -79,7 +79,7 @@ describe('MessageUserButtonGate', () => {
     mockStartConversation.mockImplementation((_payload, opts?: { onSuccess?: (c: { id: string }) => void }) => {
       opts?.onSuccess?.({ id: 'conv-1' });
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     renderWithClient(<MessageUserButtonGate targetUserId={targetUserId} />);
 
     await user.click(screen.getByRole('button', { name: 'مراسلة' }));
@@ -92,7 +92,7 @@ describe('MessageUserButtonGate', () => {
 
   it('shows an error toast and does not start a conversation when unauthenticated', async () => {
     mockAuth(false);
-    const user = userEvent.setup();
+    const user = setupUser();
     renderWithClient(<MessageUserButtonGate targetUserId={targetUserId} />);
 
     await user.click(screen.getByRole('button', { name: 'مراسلة' }));

@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { EditCategoryButton } from '@/components/admin/EditCategoryButton';
 import { useUpdateCategory } from '@/hooks/mutations/useCategoryMutations';
 import type { Category } from '@/types/category.types';
@@ -45,7 +45,7 @@ const baseCategory: Category = {
 };
 
 async function openDialog(category: Category = baseCategory) {
-  const user = userEvent.setup();
+  const user = setupUser();
   render(<EditCategoryButton category={category} />);
   await user.click(screen.getByRole('button', { name: `تعديل ${category.nameAr}` }));
   return user;
@@ -74,7 +74,7 @@ describe('EditCategoryButton', () => {
   });
 
   it('stops click propagation on the trigger button (it sits inside a clickable tree row)', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onRowClick = vi.fn();
     render(
       <div onClick={onRowClick}>

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SavedSearchesList } from '@/components/profile/SavedSearchesList';
 import { useSavedSearches } from '@/hooks/queries/useSavedSearches';
 import { useDeleteSavedSearch } from '@/hooks/mutations/useSavedSearchMutations';
@@ -65,7 +65,7 @@ describe('SavedSearchesList', () => {
 
   it('shows an error message with retry on failure', async () => {
     mockSearches({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SavedSearchesList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل البحثات المحفوظة')).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe('SavedSearchesList', () => {
   });
 
   it('calls delete with the search id when its delete button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SavedSearchesList />);
 
     await user.click(screen.getByRole('button', { name: 'حذف البحث المحفوظ شقق في غزة' }));

@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
@@ -78,7 +78,7 @@ describe('MobileNav', () => {
     });
 
     it('expands the settings disclosure group to reveal its destinations on click', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MobileNav />);
 
       expect(screen.queryByRole('link', { name: 'ملف البائع' })).not.toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('MobileNav', () => {
     });
 
     it('calls logout and closes the drawer when the logout button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MobileNav />);
 
       await user.click(screen.getByRole('button', { name: 'تسجيل الخروج' }));

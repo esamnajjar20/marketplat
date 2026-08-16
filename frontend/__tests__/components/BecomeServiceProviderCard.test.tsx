@@ -26,7 +26,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { BecomeServiceProviderCard } from '@/components/services/BecomeServiceProviderCard';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useCreateServiceProvider } from '@/hooks/mutations/useServiceProviderMutations';
@@ -73,7 +73,7 @@ beforeEach(() => {
   } as never);
 });
 
-async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
+async function fillRequiredFields(user: ReturnType<typeof setupUser>) {
   // FormField renders "<label> *" plus sr-only "(required)" for
   // required fields, so the accessible name is a prefix match, not the
   // bare label — same convention as BecomeStoreOwnerCard's test.
@@ -101,7 +101,7 @@ describe('BecomeServiceProviderCard', () => {
   });
 
   it('disables submit while the form is incomplete and enables it once filled', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeServiceProviderCard />);
 
     expect(screen.getByRole('button', { name: 'إنشاء ملف مقدم الخدمة' })).toBeDisabled();
@@ -110,7 +110,7 @@ describe('BecomeServiceProviderCard', () => {
   });
 
   it('submits the parsed payload with cities split into an array', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeServiceProviderCard />);
 
     await fillRequiredFields(user);
@@ -132,7 +132,7 @@ describe('BecomeServiceProviderCard', () => {
   });
 
   it('blocks submit and shows a day-specific error when a working-hours day has open >= close', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeServiceProviderCard />);
 
     await fillRequiredFields(user);
@@ -154,7 +154,7 @@ describe('BecomeServiceProviderCard', () => {
     mockCreateProvider.mockImplementation((_payload, { onError }) => {
       onError({});
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeServiceProviderCard />);
 
     await fillRequiredFields(user);
@@ -168,7 +168,7 @@ describe('BecomeServiceProviderCard', () => {
   });
 
   it('does not redirect on success when there is no ?from= param', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeServiceProviderCard />);
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: 'إنشاء ملف مقدم الخدمة' }));
@@ -181,7 +181,7 @@ describe('BecomeServiceProviderCard', () => {
 
   it('redirects to the ?from= target on success (FIX P0-1)', async () => {
     mockSearchParams = new URLSearchParams('from=/my-services/new');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeServiceProviderCard />);
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: 'إنشاء ملف مقدم الخدمة' }));

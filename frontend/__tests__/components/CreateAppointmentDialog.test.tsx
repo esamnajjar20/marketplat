@@ -29,7 +29,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { CreateAppointmentDialog } from '@/components/services/CreateAppointmentDialog';
 import { useCreateAppointment } from '@/hooks/mutations/useAppointmentMutations';
 
@@ -68,7 +68,7 @@ function renderDialog(overrides: { requestId?: string; contextLabel?: string } =
   );
 }
 
-async function selectRange(user: ReturnType<typeof userEvent.setup>) {
+async function selectRange(user: ReturnType<typeof setupUser>) {
   await user.click(screen.getByRole('button', { name: 'اختر 10:00–11:00' }));
 }
 
@@ -87,7 +87,7 @@ describe('CreateAppointmentDialog', () => {
   });
 
   it('enables submit and shows a summary once a range is selected', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await selectRange(user);
@@ -112,7 +112,7 @@ describe('CreateAppointmentDialog', () => {
   });
 
   it('submits scheduledStart/scheduledEnd with notes omitted when blank, no requestId for a standalone booking', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await selectRange(user);
@@ -130,7 +130,7 @@ describe('CreateAppointmentDialog', () => {
   });
 
   it('includes requestId when booking against an accepted request', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog({ requestId: 'req-9' });
 
     await selectRange(user);
@@ -143,7 +143,7 @@ describe('CreateAppointmentDialog', () => {
   });
 
   it('trims and includes notes when provided', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await selectRange(user);
@@ -157,7 +157,7 @@ describe('CreateAppointmentDialog', () => {
   });
 
   it('onSuccess closes the dialog and resets local state', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await selectRange(user);
@@ -170,7 +170,7 @@ describe('CreateAppointmentDialog', () => {
   });
 
   it('cancel resets and closes when not pending', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await selectRange(user);
@@ -185,7 +185,7 @@ describe('CreateAppointmentDialog', () => {
       mutate: mockMutate,
       isPending: true,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     // Cancel itself is disabled while pending — but assert the

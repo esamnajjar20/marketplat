@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminCategoriesTree } from '@/components/admin/AdminCategoriesTree';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useUpdateCategory, useDeleteCategory } from '@/hooks/mutations/useCategoryMutations';
@@ -63,7 +63,7 @@ describe('AdminCategoriesTree', () => {
 
   describe('editing', () => {
     it('opens the edit dialog pre-filled with the category values', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: 'تعديل إلكترونيات' }));
@@ -74,7 +74,7 @@ describe('AdminCategoriesTree', () => {
     });
 
     it('calls useUpdateCategory.mutate with only the changed fields', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: 'تعديل إلكترونيات' }));
@@ -90,7 +90,7 @@ describe('AdminCategoriesTree', () => {
     });
 
     it('does not call mutate when no field was actually changed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: 'تعديل إلكترونيات' }));
@@ -100,7 +100,7 @@ describe('AdminCategoriesTree', () => {
     });
 
     it('shows a required-field error and does not submit when the Arabic name is cleared', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: 'تعديل إلكترونيات' }));
@@ -113,7 +113,7 @@ describe('AdminCategoriesTree', () => {
 
   describe('deleting', () => {
     it('opens a confirmation dialog before deleting — does not delete immediately', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: 'حذف إلكترونيات' }));
@@ -123,7 +123,7 @@ describe('AdminCategoriesTree', () => {
     });
 
     it('calls useDeleteCategory.mutate with the category id on confirm', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: 'حذف إلكترونيات' }));
@@ -141,7 +141,7 @@ describe('AdminCategoriesTree', () => {
     });
 
     it('does not delete when cancelled', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: 'حذف إلكترونيات' }));
@@ -166,7 +166,7 @@ describe('AdminCategoriesTree', () => {
         isLoading: false,
       });
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminCategoriesTree />);
 
       await user.click(screen.getByRole('button', { name: /إلكترونيات — فتح الفئات الفرعية/ }));

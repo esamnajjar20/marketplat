@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { RecentActivityFeed } from '@/components/profile/RecentActivityFeed';
 import { useMyAds } from '@/hooks/queries/useAds';
 
@@ -46,7 +46,7 @@ describe('RecentActivityFeed', () => {
 
   it('shows an error message with retry, not the "publish first ad" empty state, on failure', async () => {
     mockAds({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<RecentActivityFeed />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل النشاط الأخير')).toBeInTheDocument();

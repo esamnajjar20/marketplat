@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminSellersTable } from '@/components/admin/AdminSellersTable';
 import { useAdminSellers } from '@/hooks/queries/useAdmin';
 import { useAdminSetSellerVerified, useAdminSetSellerSuspended } from '@/hooks/mutations/useAdminMutations';
@@ -99,7 +99,7 @@ describe('AdminSellersTable', () => {
     it('shows an error state with a retry option that calls refetch', async () => {
       const refetch = vi.fn();
       mockSellersData([], { isError: true, refetch });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       expect(screen.getByText('حدث خطأ أثناء تحميل البائعين')).toBeInTheDocument();
@@ -165,7 +165,7 @@ describe('AdminSellersTable', () => {
   describe('verify toggle (single click, no confirm)', () => {
     it('verifies an unverified seller on click', async () => {
       mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', verified: false })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.click(screen.getByLabelText('توثيق بائع تسعة'));
@@ -176,7 +176,7 @@ describe('AdminSellersTable', () => {
 
     it('unverifies a verified seller on click', async () => {
       mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', verified: true })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.click(screen.getByLabelText('إلغاء توثيق بائع تسعة'));
@@ -202,7 +202,7 @@ describe('AdminSellersTable', () => {
   describe('suspend action', () => {
     it('un-suspends with a single click (no confirm dialog)', async () => {
       mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', suspended: true })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.click(screen.getByLabelText('رفع الإيقاف عن بائع تسعة'));
@@ -213,7 +213,7 @@ describe('AdminSellersTable', () => {
 
     it('clicking suspend opens the confirm dialog without suspending yet', async () => {
       mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', suspended: false })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
@@ -224,7 +224,7 @@ describe('AdminSellersTable', () => {
 
     it('confirming the dialog calls setSuspended.mutate with suspended: true', async () => {
       mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', suspended: false })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
@@ -238,7 +238,7 @@ describe('AdminSellersTable', () => {
 
     it('cancelling the dialog does not suspend', async () => {
       mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', suspended: false })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
@@ -265,7 +265,7 @@ describe('AdminSellersTable', () => {
 
   describe('search', () => {
     it('pushes ?q= and clears ?page= when Enter is pressed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.type(screen.getByPlaceholderText('بحث بالاسم أو البريد…'), 'أحمد{Enter}');
@@ -276,7 +276,7 @@ describe('AdminSellersTable', () => {
 
     it('removes ?q= entirely when cleared (not sent as an empty string)', async () => {
       mockSearchParams = new URLSearchParams('q=old');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminSellersTable />);
 
       const input = screen.getByPlaceholderText('بحث بالاسم أو البريد…');

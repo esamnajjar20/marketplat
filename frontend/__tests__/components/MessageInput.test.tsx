@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MessageInput } from '@/components/messages/MessageInput';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 
@@ -56,7 +56,7 @@ describe('MessageInput', () => {
   });
 
   it('send button stays disabled for whitespace-only input', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), '   ');
@@ -65,7 +65,7 @@ describe('MessageInput', () => {
   });
 
   it('clicking send trims and submits the body', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), '  مرحباً  ');
@@ -78,7 +78,7 @@ describe('MessageInput', () => {
   });
 
   it('Enter (no Shift) submits the message', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة سريعة{Enter}');
@@ -90,7 +90,7 @@ describe('MessageInput', () => {
   });
 
   it('Shift+Enter inserts a newline instead of submitting', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'السطر الأول{Shift>}{Enter}{/Shift}السطر الثاني');
@@ -100,7 +100,7 @@ describe('MessageInput', () => {
   });
 
   it('Enter on an empty/whitespace body does not submit', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), '   {Enter}');
@@ -109,7 +109,7 @@ describe('MessageInput', () => {
   });
 
   it('onSuccess clears the composer', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة');
@@ -128,7 +128,7 @@ describe('MessageInput', () => {
       mutate: mockMutate,
       isPending: true,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة أخرى{Enter}');
@@ -144,7 +144,7 @@ describe('MessageInput', () => {
 
   describe('character counter (FIX UX-GAP-05)', () => {
     it('shows no counter for a short message', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<MessageInput conversationId="conv-1" />);
 
       await user.type(getTextarea(), 'رسالة قصيرة');

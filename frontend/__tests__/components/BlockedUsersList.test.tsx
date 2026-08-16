@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { BlockedUsersList } from '@/components/profile/BlockedUsersList';
 import { useMyBlockedUsers } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
@@ -63,7 +63,7 @@ describe('BlockedUsersList', () => {
 
   it('shows an error message with retry on failure', async () => {
     mockBlocked({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BlockedUsersList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المستخدمين المحظورين')).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('BlockedUsersList', () => {
   });
 
   it('calls the toggle-block mutation with the blockedId when unblock is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BlockedUsersList />);
 
     const buttons = screen.getAllByRole('button', { name: 'إلغاء الحظر' });

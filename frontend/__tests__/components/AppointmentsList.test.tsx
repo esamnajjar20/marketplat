@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AppointmentsList } from '@/components/services/AppointmentsList';
 import { useMyAppointments } from '@/hooks/queries/useAppointments';
 import { useUpdateAppointmentStatus } from '@/hooks/mutations/useAppointmentMutations';
@@ -99,7 +99,7 @@ describe('AppointmentsList', () => {
   it('shows an error state with a retry option that calls refetch', async () => {
     const refetch = vi.fn();
     mockAppointmentsState({ isError: true, refetch });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AppointmentsList providerId="provider-1" />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المواعيد')).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe('AppointmentsList', () => {
       mockAppointmentsState({
         data: { items: [makeAppointment({ id: 'appt-9', status: 'SCHEDULED' })], meta: { totalPages: 1 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AppointmentsList providerId="provider-1" />);
 
       await user.click(screen.getByRole('button', { name: /لم يحضر/ }));
@@ -163,7 +163,7 @@ describe('AppointmentsList', () => {
   describe('new appointment button', () => {
     it('opens CreateAppointmentDialog standalone (no requestId) when "حجز موعد جديد" is clicked', async () => {
       mockAppointmentsState({ data: { items: [], meta: { totalPages: 1 } } });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AppointmentsList providerId="provider-42" />);
 
       await user.click(screen.getByRole('button', { name: /حجز موعد جديد/ }));

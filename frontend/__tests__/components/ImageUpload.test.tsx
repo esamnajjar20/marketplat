@@ -18,7 +18,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { toast } from 'sonner';
 
@@ -232,7 +232,7 @@ describe('ImageUpload', () => {
 
   it('calls onRemoveExisting with the correct URL when its remove button is clicked', async () => {
     const onRemoveExisting = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <ImageUpload
         value={[]}
@@ -272,7 +272,7 @@ describe('ImageUpload', () => {
 
   it('removes a new file when its remove button is clicked', async () => {
     const onChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     const files = [JPEG_1KB(), PNG_1KB()];
     render(<ImageUpload value={files} onChange={onChange} />);
 

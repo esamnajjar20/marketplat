@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { useMyNotifications, useUnreadNotificationCount } from '@/hooks/queries/useNotifications';
 import {
@@ -58,7 +58,7 @@ function makeNotification(overrides: Partial<Notification>): Notification {
   };
 }
 
-async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+async function openMenu(user: ReturnType<typeof setupUser>) {
   await user.click(screen.getByRole('button', { name: 'الإشعارات' }));
 }
 
@@ -108,7 +108,7 @@ describe('NotificationBell', () => {
         data: undefined,
         isLoading: true,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -117,7 +117,7 @@ describe('NotificationBell', () => {
     });
 
     it('shows an empty state when there are no notifications', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -129,7 +129,7 @@ describe('NotificationBell', () => {
         data: { items: [makeNotification({ title: 'رسالة جديدة', body: 'محتوى الرسالة' })] },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -152,7 +152,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -173,7 +173,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -188,7 +188,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -204,7 +204,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -221,7 +221,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -244,7 +244,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -256,7 +256,7 @@ describe('NotificationBell', () => {
 
   describe('mark all as read', () => {
     it('does not render "mark all as read" when unread count is 0', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -266,7 +266,7 @@ describe('NotificationBell', () => {
 
     it('renders and calls the mutation when clicked', async () => {
       (useUnreadNotificationCount as ReturnType<typeof vi.fn>).mockReturnValue({ data: 3 });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -281,7 +281,7 @@ describe('NotificationBell', () => {
         mutate: mockMarkAllReadMutate,
         isPending: true,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -303,7 +303,7 @@ describe('NotificationBell', () => {
         data: { items: threeConsecutive() },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -316,7 +316,7 @@ describe('NotificationBell', () => {
         data: { items: threeConsecutive() },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -337,7 +337,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 
@@ -359,7 +359,7 @@ describe('NotificationBell', () => {
         },
         isLoading: false,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<NotificationBell />);
       await openMenu(user);
 

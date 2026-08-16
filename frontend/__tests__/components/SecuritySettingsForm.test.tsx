@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SecuritySettingsForm } from '@/components/profile/SecuritySettingsForm';
 import { useChangePassword } from '@/hooks/mutations/useAuthMutations';
 import { toast } from 'sonner';
@@ -44,7 +44,7 @@ afterEach(() => {
 const mockMutate = vi.fn();
 
 async function fillForm(
-  user: ReturnType<typeof userEvent.setup>,
+  user: ReturnType<typeof setupUser>,
   { current = 'oldpass123', next = 'newpass456', confirm = next }: Partial<Record<'current' | 'next' | 'confirm', string>> = {},
 ) {
   await user.type(screen.getByLabelText(/كلمة المرور الحالية/), current);
@@ -70,7 +70,7 @@ describe('SecuritySettingsForm', () => {
   // dispatch a real submit event on the <form> directly instead.
   describe('validation', () => {
     it('requires the current password', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<SecuritySettingsForm />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'newpass456');
@@ -82,7 +82,7 @@ describe('SecuritySettingsForm', () => {
     });
 
     it('requires the new password to be at least 8 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<SecuritySettingsForm />);
       await fillForm(user, { next: 'short1', confirm: 'short1' });
       fireEvent.submit(container.querySelector('form')!);
@@ -92,7 +92,7 @@ describe('SecuritySettingsForm', () => {
     });
 
     it('rejects a new password identical to the current password', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<SecuritySettingsForm />);
       await fillForm(user, { current: 'samepass123', next: 'samepass123', confirm: 'samepass123' });
       fireEvent.submit(container.querySelector('form')!);
@@ -102,7 +102,7 @@ describe('SecuritySettingsForm', () => {
     });
 
     it('rejects a mismatched confirmation', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<SecuritySettingsForm />);
       await fillForm(user, { confirm: 'differentpass789' });
       fireEvent.submit(container.querySelector('form')!);
@@ -114,7 +114,7 @@ describe('SecuritySettingsForm', () => {
 
   describe('submission', () => {
     it('calls the mutation with the current and new passwords', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SecuritySettingsForm />);
       await fillForm(user, { current: 'oldpass123', next: 'newpass456', confirm: 'newpass456' });
 
@@ -138,7 +138,7 @@ describe('SecuritySettingsForm', () => {
         opts?.onError?.(new Error('bad request'));
       });
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SecuritySettingsForm />);
       await fillForm(user);
 
@@ -164,7 +164,7 @@ describe('SecuritySettingsForm', () => {
         opts?.onError?.(new Error('bad request'));
       });
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SecuritySettingsForm />);
       await fillForm(user);
 
@@ -183,7 +183,7 @@ describe('SecuritySettingsForm', () => {
         opts?.onError?.(new Error('server error'));
       });
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SecuritySettingsForm />);
       await fillForm(user);
 
@@ -203,7 +203,7 @@ describe('SecuritySettingsForm', () => {
         opts?.onError?.(new Error('bad request'));
       });
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SecuritySettingsForm />);
       await fillForm(user, { current: 'oldpass123', next: 'newpass456', confirm: 'newpass456' });
 
@@ -218,7 +218,7 @@ describe('SecuritySettingsForm', () => {
       // clearing the session + redirecting (covered in
       // useAuthMutations.test.tsx), so this component has nothing
       // further to do beyond having called mutate.
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SecuritySettingsForm />);
       await fillForm(user, { current: 'oldpass123', next: 'newpass456', confirm: 'newpass456' });
 

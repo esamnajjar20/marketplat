@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoreHeader } from '@/components/stores/StoreHeader';
 import { useAuthStore } from '@/store/auth.store';
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
@@ -113,7 +113,7 @@ describe('StoreHeader', () => {
   });
 
   it('shows "متابعة" and calls toggleFollow.mutate with the store id on click', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoreHeader store={store} />);
 
     const followBtn = screen.getByRole('button', { name: /متابعة/ });

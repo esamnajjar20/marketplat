@@ -24,7 +24,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MyAdsList } from '@/components/profile/MyAdsList';
 import { useMyAds } from '@/hooks/queries/useAds';
 import { useDeleteAd, useMarkAsSold } from '@/hooks/mutations/useAdMutations';
@@ -164,7 +164,7 @@ describe('MyAdsList', () => {
   });
 
   it('clicking the mark-as-sold icon opens the confirm dialog without mutating yet', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-42', status: 'ACTIVE' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -178,7 +178,7 @@ describe('MyAdsList', () => {
   });
 
   it('confirming the dialog calls markAsSold.mutate with the correct ad ID', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-42', status: 'ACTIVE' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -199,7 +199,7 @@ describe('MyAdsList', () => {
   });
 
   it('cancelling the mark-as-sold dialog does not call markAsSold.mutate', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-42', status: 'ACTIVE' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -241,7 +241,7 @@ describe('MyAdsList', () => {
   });
 
   it('clicking the delete icon opens the confirm dialog without deleting yet', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-7', title: 'إعلان سبعة' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -258,7 +258,7 @@ describe('MyAdsList', () => {
   });
 
   it('confirming the dialog calls deleteAd.mutate with the correct ad ID', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-7', title: 'إعلان سبعة' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -280,7 +280,7 @@ describe('MyAdsList', () => {
   });
 
   it('cancelling the dialog does not call deleteAd.mutate', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-7', title: 'إعلان سبعة' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -295,7 +295,7 @@ describe('MyAdsList', () => {
   });
 
   it('targets the correct ad when multiple ads are present', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: {
         items: [makeAd({ id: 'ad-1', title: 'الأول' }), makeAd({ id: 'ad-2', title: 'الثاني' })],

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
@@ -60,7 +60,7 @@ describe('ResetPasswordForm', () => {
   // these dispatch a real submit event on the <form> directly instead.
   describe('validation', () => {
     it('requires a password', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
       await user.type(screen.getByLabelText(/تأكيد كلمة المرور/), 'password123');
@@ -71,7 +71,7 @@ describe('ResetPasswordForm', () => {
     });
 
     it('requires a password of at least 8 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'short1');
@@ -83,7 +83,7 @@ describe('ResetPasswordForm', () => {
     });
 
     it('requires the confirm field to be filled', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'password123');
@@ -94,7 +94,7 @@ describe('ResetPasswordForm', () => {
     });
 
     it('rejects mismatched password and confirmation — the critical safety check', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = renderWithClient(<ResetPasswordForm token="tok-1" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'password123');
@@ -109,7 +109,7 @@ describe('ResetPasswordForm', () => {
   describe('submission', () => {
     it('calls authApi.resetPassword with the token and new password, then redirects to login', async () => {
       (authApi.resetPassword as ReturnType<typeof vi.fn>).mockResolvedValue({});
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ResetPasswordForm token="reset-token-xyz" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'newpassword123');
@@ -128,7 +128,7 @@ describe('ResetPasswordForm', () => {
 
     it('shows a toast error and does NOT redirect when the API call fails (e.g. expired token)', async () => {
       (authApi.resetPassword as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Token expired'));
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ResetPasswordForm token="expired-token" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'newpassword123');
@@ -146,7 +146,7 @@ describe('ResetPasswordForm', () => {
       (authApi.resetPassword as ReturnType<typeof vi.fn>).mockReturnValue(
         new Promise<void>((resolve) => { resolveRequest = resolve; }),
       );
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ResetPasswordForm token="tok-1" />);
 
       await user.type(screen.getByLabelText(/كلمة المرور الجديدة/), 'newpassword123');

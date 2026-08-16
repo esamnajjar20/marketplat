@@ -25,7 +25,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ProductForm } from '@/components/stores/ProductForm';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import {
@@ -136,12 +136,12 @@ describe('ProductForm', () => {
     return screen.getByLabelText(new RegExp(`^${escaped}`));
   }
 
-  async function selectCategory(user: ReturnType<typeof userEvent.setup>) {
+  async function selectCategory(user: ReturnType<typeof setupUser>) {
     await user.click(getField('الفئة'));
     await user.click(await screen.findByRole('option', { name: 'إلكترونيات' }));
   }
 
-  async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
+  async function fillRequiredFields(user: ReturnType<typeof setupUser>) {
     await selectCategory(user);
     await user.type(getField('اسم المنتج'), 'منتج تجريبي جديد');
     await user.type(
@@ -162,7 +162,7 @@ describe('ProductForm', () => {
 
   describe('validation', () => {
     it('requires a category', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await user.type(getField('اسم المنتج'), 'منتج تجريبي جديد');
@@ -178,7 +178,7 @@ describe('ProductForm', () => {
     });
 
     it('requires a name of at least 2 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await selectCategory(user);
@@ -190,7 +190,7 @@ describe('ProductForm', () => {
     });
 
     it('requires a description of at least 10 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await selectCategory(user);
@@ -203,7 +203,7 @@ describe('ProductForm', () => {
     });
 
     it('requires a valid positive price', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await selectCategory(user);
@@ -216,7 +216,7 @@ describe('ProductForm', () => {
     });
 
     it('requires discountPrice to be less than price', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await fillRequiredFields(user);
@@ -230,7 +230,7 @@ describe('ProductForm', () => {
     });
 
     it('requires wholesalePrice and wholesaleMinQty together — price without qty', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await fillRequiredFields(user);
@@ -244,7 +244,7 @@ describe('ProductForm', () => {
     });
 
     it('requires wholesalePrice and wholesaleMinQty together — qty without price', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await fillRequiredFields(user);
@@ -259,7 +259,7 @@ describe('ProductForm', () => {
 
     // Unlike AdForm, this rule is NOT temporarily disabled here.
     it('requires at least one image in create mode', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
       await fillRequiredFields(user);
@@ -272,14 +272,14 @@ describe('ProductForm', () => {
     it('does not require an image in edit mode when the product already has existing images', async () => {
       render(<ProductForm mode="edit" product={existingProduct} />);
 
-      await userEvent.setup().click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
+      await setupUser().click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
       expect(screen.queryByText('أضف صورة واحدة على الأقل')).not.toBeInTheDocument();
       await waitFor(() => expect(mockUpdateMutate).toHaveBeenCalledTimes(1));
     });
 
     it('requires an image in edit mode if all existing images are removed and none re-added', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="edit" product={existingProduct} />);
 
       await user.click(screen.getByText(`Remove ${existingProduct.images[0]}`));
@@ -293,7 +293,7 @@ describe('ProductForm', () => {
 
   describe('create mode submission', () => {
     it('trims the name/description before submitting (via edit mode, past the image gate)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
 
       const nameInput = getField('اسم المنتج') as HTMLInputElement;
@@ -307,7 +307,7 @@ describe('ProductForm', () => {
     });
 
     it('parses numeric fields correctly and omits unset optional fields', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       // Edit mode starts with existing images already populated,
       // letting us reach past the image-required branch to assert on
       // payload shape without needing to stub file uploads.
@@ -325,7 +325,7 @@ describe('ProductForm', () => {
     });
 
     it('parses discountPrice/wholesalePrice/wholesaleMinQty when provided', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
 
       await user.clear(getField('سعر بعد الخصم (اختياري)'));
@@ -344,7 +344,7 @@ describe('ProductForm', () => {
 
   describe('edit mode submission — image reconciliation', () => {
     it('builds the PATCH payload WITHOUT an images field', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
 
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -355,7 +355,7 @@ describe('ProductForm', () => {
     });
 
     it('calls removeImage.mutateAsync only for URLs the user actually removed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
 
       await user.click(screen.getByText(`Remove ${existingProduct.images[0]}`));
@@ -372,7 +372,7 @@ describe('ProductForm', () => {
     });
 
     it('does not call removeImage at all when no existing images were removed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
@@ -389,7 +389,7 @@ describe('ProductForm', () => {
       });
       mockUpdateMutate.mockImplementation(() => callOrder.push('update'));
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
       await user.click(screen.getByText(`Remove ${existingProduct.images[0]}`));
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -401,7 +401,7 @@ describe('ProductForm', () => {
     it('does NOT call update.mutate when removeImage fails, so a failed image step cannot navigate past a half-applied edit', async () => {
       mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
       await user.click(screen.getByText(`Remove ${existingProduct.images[0]}`));
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -413,7 +413,7 @@ describe('ProductForm', () => {
     it('re-enables the submit button after a failed image step instead of leaving it stuck loading', async () => {
       mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="edit" product={existingProduct} />);
       await user.click(screen.getByText(`Remove ${existingProduct.images[0]}`));
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -425,7 +425,7 @@ describe('ProductForm', () => {
 
     it('requires a replacement image before removing the last existing image (cannot reach zero images)', async () => {
       const singleImageProduct = { ...existingProduct, images: [existingProduct.images[0]] };
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<ProductForm mode="edit" product={singleImageProduct} />);
 
       // Removing the only existing image with nothing staged to
@@ -474,7 +474,7 @@ describe('ProductForm', () => {
     // it calls history.back() directly and unconditionally.
     it('navigates back immediately on cancel, with no confirm dialog', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ProductForm mode="create" />);
 
       await user.type(getField('اسم المنتج'), 'منتج جديد');

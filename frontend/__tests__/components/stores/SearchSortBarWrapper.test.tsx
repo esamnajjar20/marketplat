@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchSortBarWrapper } from '@/components/stores/SearchSortBarWrapper';
 import { ROUTES } from '@/lib/constants';
 
@@ -34,7 +34,7 @@ describe('SearchSortBarWrapper (stores)', () => {
 
   it('sets sortBy/sortOrder and drops page on ROUTES.stores when a sort option is picked', async () => {
     mockSearchParams = new URLSearchParams({ page: '3' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSortBarWrapper />);
 
     await user.click(screen.getByRole('combobox'));
@@ -50,7 +50,7 @@ describe('SearchSortBarWrapper (stores)', () => {
 
   it('preserves other existing params (e.g. search, city) when pushing', async () => {
     mockSearchParams = new URLSearchParams({ search: 'أثاث', city: 'غزة' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSortBarWrapper />);
 
     await user.click(screen.getByRole('combobox'));

@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ChatWindow } from '@/components/messages/ChatWindow';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
@@ -183,7 +183,7 @@ describe('ChatWindow', () => {
   describe('block / unblock', () => {
     it('unblocking is a single click with no confirmation dialog', async () => {
       mockUseIsUserBlocked.mockReturnValue(true);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       await user.click(screen.getByLabelText('خيارات المحادثة'));
@@ -195,7 +195,7 @@ describe('ChatWindow', () => {
 
     it('clicking block opens the confirm dialog without blocking yet', async () => {
       mockUseIsUserBlocked.mockReturnValue(false);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       await user.click(screen.getByLabelText('خيارات المحادثة'));
@@ -207,7 +207,7 @@ describe('ChatWindow', () => {
 
     it('confirming the block dialog calls toggleBlock with the party id', async () => {
       mockUseIsUserBlocked.mockReturnValue(false);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       await user.click(screen.getByLabelText('خيارات المحادثة'));
@@ -222,7 +222,7 @@ describe('ChatWindow', () => {
 
     it('cancelling the block dialog does not toggle the block', async () => {
       mockUseIsUserBlocked.mockReturnValue(false);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       await user.click(screen.getByLabelText('خيارات المحادثة'));
@@ -284,7 +284,7 @@ describe('ChatWindow', () => {
         data: { items: [myLiveMessage, theirLiveMessage] },
         isLoading: false,
       } as never);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       const messageOptionButtons = screen.getAllByLabelText('خيارات الرسالة');
@@ -330,7 +330,7 @@ describe('ChatWindow', () => {
         data: { items: [myLiveMessage] },
         isLoading: false,
       } as never);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       await user.click(screen.getByLabelText('خيارات الرسالة'));
@@ -345,7 +345,7 @@ describe('ChatWindow', () => {
         data: { items: [myLiveMessage] },
         isLoading: false,
       } as never);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       await user.click(screen.getByLabelText('خيارات الرسالة'));
@@ -363,7 +363,7 @@ describe('ChatWindow', () => {
         data: { items: [myLiveMessage] },
         isLoading: false,
       } as never);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       await user.click(screen.getByLabelText('خيارات الرسالة'));
@@ -437,7 +437,7 @@ describe('ChatWindow', () => {
         };
       }) as never);
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
       expect(screen.queryByText('رسالة قديمة')).not.toBeInTheDocument();
@@ -469,7 +469,7 @@ describe('ChatWindow', () => {
         };
       }) as never);
 
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
       await user.click(screen.getByText('تحميل رسائل أقدم'));
 

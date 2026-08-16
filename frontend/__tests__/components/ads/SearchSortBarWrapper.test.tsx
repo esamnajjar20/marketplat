@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchSortBarWrapper } from '@/components/ads/SearchSortBarWrapper';
 import { usePathname } from 'next/navigation';
 
@@ -40,7 +40,7 @@ describe('SearchSortBarWrapper (ads)', () => {
 
   it('sets sortBy/sortOrder and drops page, staying on the current pathname (FIX BUG-06)', async () => {
     mockSearchParams = new URLSearchParams({ page: '2' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSortBarWrapper />);
 
     await user.click(screen.getByRole('combobox'));
@@ -57,7 +57,7 @@ describe('SearchSortBarWrapper (ads)', () => {
 
   it('pushes to a different pathname when rendered on a different category page', async () => {
     mockUsePathname.mockReturnValue('/categories/vehicles');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSortBarWrapper />);
 
     await user.click(screen.getByRole('combobox'));

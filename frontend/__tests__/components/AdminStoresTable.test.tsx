@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminStoresTable } from '@/components/admin/AdminStoresTable';
 import { useAdminStores } from '@/hooks/queries/useAdmin';
 import { useAdminUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
@@ -88,7 +88,7 @@ describe('AdminStoresTable', () => {
     it('shows an error state with a retry option that calls refetch', async () => {
       const refetch = vi.fn();
       mockStoresData([], { isError: true, refetch });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       expect(screen.getByText('حدث خطأ أثناء تحميل المتاجر')).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('AdminStoresTable', () => {
     });
 
     it('pushes the selected status and clears ?page when a tab is clicked', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
       await user.click(screen.getByText('نشطة'));
 
@@ -170,7 +170,7 @@ describe('AdminStoresTable', () => {
   describe('approve action (single click, no confirm)', () => {
     it('approves a PENDING store on click', async () => {
       mockStoresData([makeStore({ id: 'store-9', name: 'متجر تسعة', status: 'PENDING' })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       await user.click(screen.getByLabelText('الموافقة على متجر متجر تسعة'));
@@ -189,7 +189,7 @@ describe('AdminStoresTable', () => {
   describe('un-block action (single click, no confirm)', () => {
     it('un-blocks a BLOCKED store on click, setting status back to PENDING', async () => {
       mockStoresData([makeStore({ id: 'store-9', name: 'متجر تسعة', status: 'BLOCKED' })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       await user.click(screen.getByLabelText('رفع الحظر عن متجر متجر تسعة'));
@@ -201,7 +201,7 @@ describe('AdminStoresTable', () => {
   describe('block action (requires confirm)', () => {
     it('clicking block opens the confirm dialog without blocking yet', async () => {
       mockStoresData([makeStore({ id: 'store-9', name: 'متجر تسعة', status: 'ACTIVE' })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       await user.click(screen.getByLabelText('حظر متجر متجر تسعة'));
@@ -212,7 +212,7 @@ describe('AdminStoresTable', () => {
 
     it('confirming the dialog calls mutate with status: BLOCKED', async () => {
       mockStoresData([makeStore({ id: 'store-9', name: 'متجر تسعة', status: 'ACTIVE' })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       await user.click(screen.getByLabelText('حظر متجر متجر تسعة'));
@@ -226,7 +226,7 @@ describe('AdminStoresTable', () => {
 
     it('cancelling the dialog does not block the store', async () => {
       mockStoresData([makeStore({ id: 'store-9', name: 'متجر تسعة', status: 'ACTIVE' })]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       await user.click(screen.getByLabelText('حظر متجر متجر تسعة'));
@@ -255,7 +255,7 @@ describe('AdminStoresTable', () => {
 
   describe('search', () => {
     it('pushes ?q= and clears ?page= when Enter is pressed', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       await user.type(screen.getByPlaceholderText('بحث باسم المتجر…'), 'أمل{Enter}');
@@ -266,7 +266,7 @@ describe('AdminStoresTable', () => {
 
     it('removes ?q= entirely when cleared', async () => {
       mockSearchParams = new URLSearchParams('q=old');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminStoresTable />);
 
       const input = screen.getByPlaceholderText('بحث باسم المتجر…');

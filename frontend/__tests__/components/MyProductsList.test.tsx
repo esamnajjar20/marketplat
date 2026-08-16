@@ -25,7 +25,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MyProductsList } from '@/components/stores/MyProductsList';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useDeleteProduct, useToggleProductStatus } from '@/hooks/mutations/useProductMutations';
@@ -155,7 +155,7 @@ describe('MyProductsList', () => {
   });
 
   it('navigates with the new status (and clears the page param) when a status tab is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     // page=2 (not 3) so it stays in-range against totalPages: 3 below —
     // otherwise useOutOfRangeRedirect kicks in and the component never
     // gets past its redirect-in-progress loading spinner, which isn't
@@ -176,7 +176,7 @@ describe('MyProductsList', () => {
   // ── Pause / resume toggle ──────────────────────────────────────────
 
   it('shows a pause action for an ACTIVE product and toggles it to PAUSED on click', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeProduct({ id: 'prod-9', status: 'ACTIVE' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -188,7 +188,7 @@ describe('MyProductsList', () => {
   });
 
   it('shows a resume action for a PAUSED product and toggles it to ACTIVE on click', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeProduct({ id: 'prod-9', status: 'PAUSED' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -239,7 +239,7 @@ describe('MyProductsList', () => {
   });
 
   it('clicking the delete icon opens the confirm dialog without deleting yet', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeProduct({ id: 'prod-7', name: 'منتج سبعة' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -253,7 +253,7 @@ describe('MyProductsList', () => {
   });
 
   it('confirming the dialog calls deleteProduct.mutate with the correct id', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeProduct({ id: 'prod-7', name: 'منتج سبعة' })], meta: { totalPages: 1 } },
       isLoading: false,
@@ -269,7 +269,7 @@ describe('MyProductsList', () => {
   });
 
   it('cancelling the dialog does not call deleteProduct.mutate', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeProduct({ id: 'prod-7', name: 'منتج سبعة' })], meta: { totalPages: 1 } },
       isLoading: false,

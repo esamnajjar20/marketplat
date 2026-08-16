@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { UpdatePrompt } from '@/components/pwa/UpdatePrompt';
 import { onServiceWorkerUpdate, activateWaitingServiceWorker } from '@/lib/pwa';
 
@@ -59,7 +59,7 @@ describe('UpdatePrompt', () => {
       return mockUnsubscribe;
     });
 
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<UpdatePrompt />);
     act(() => {
       capturedListener(fakeRegistration);

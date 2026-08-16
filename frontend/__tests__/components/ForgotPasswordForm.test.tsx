@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
@@ -61,7 +61,7 @@ describe('ForgotPasswordForm', () => {
     });
 
     it('shows an invalid-email error for a malformed email', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ForgotPasswordForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'nope');
@@ -75,7 +75,7 @@ describe('ForgotPasswordForm', () => {
   describe('submission', () => {
     it('calls authApi.forgotPassword with the trimmed email and shows the confirmation screen', async () => {
       (authApi.forgotPassword as ReturnType<typeof vi.fn>).mockResolvedValue({});
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ForgotPasswordForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), '  ahmad@example.com  ');
@@ -89,7 +89,7 @@ describe('ForgotPasswordForm', () => {
 
     it('shows the submitted email address in the confirmation copy', async () => {
       (authApi.forgotPassword as ReturnType<typeof vi.fn>).mockResolvedValue({});
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ForgotPasswordForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'ahmad@example.com');
@@ -100,7 +100,7 @@ describe('ForgotPasswordForm', () => {
 
     it('shows a link back to login on the confirmation screen', async () => {
       (authApi.forgotPassword as ReturnType<typeof vi.fn>).mockResolvedValue({});
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ForgotPasswordForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'ahmad@example.com');
@@ -115,7 +115,7 @@ describe('ForgotPasswordForm', () => {
 
     it('shows a toast error and stays on the form when the API call fails', async () => {
       (authApi.forgotPassword as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ForgotPasswordForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'ahmad@example.com');
@@ -133,7 +133,7 @@ describe('ForgotPasswordForm', () => {
       (authApi.forgotPassword as ReturnType<typeof vi.fn>).mockReturnValue(
         new Promise<void>((resolve) => { resolveRequest = resolve; }),
       );
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<ForgotPasswordForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'ahmad@example.com');

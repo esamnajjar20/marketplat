@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { PriceInput } from '@/components/shared/forms/PriceInput';
 
 describe('PriceInput', () => {
@@ -30,7 +30,7 @@ describe('PriceInput', () => {
 
   it('calls onChange with the typed value', async () => {
     const onChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PriceInput value="" onChange={onChange} isNegotiable={false} onNegotiableChange={vi.fn()} />);
 
     await user.type(screen.getByRole('spinbutton'), '5');
@@ -50,7 +50,7 @@ describe('PriceInput', () => {
 
   it('calls onNegotiableChange when the checkbox is toggled', async () => {
     const onNegotiableChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<PriceInput value="" onChange={vi.fn()} isNegotiable={false} onNegotiableChange={onNegotiableChange} />);
 
     await user.click(screen.getByRole('checkbox', { name: 'السعر قابل للتفاوض' }));

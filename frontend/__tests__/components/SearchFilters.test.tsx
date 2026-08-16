@@ -22,7 +22,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchFilters } from '@/components/ads/SearchFilters';
 import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
 
@@ -70,7 +70,7 @@ describe('SearchFilters', () => {
   });
 
   it('navigates to the matched category\'s own page when a root category is selected', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     await user.click(getCombobox('category'));
@@ -80,7 +80,7 @@ describe('SearchFilters', () => {
   });
 
   it('navigates to a matched subcategory\'s own page when selected', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     await user.click(getCombobox('category'));
@@ -95,7 +95,7 @@ describe('SearchFilters', () => {
     // 'ALL') for clicking "كل الفئات" to register as a click at all.
     mockSearchParams = new URLSearchParams('categoryId=cat-1');
     mockPathname = '/categories/electronics';
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters categorySlug="electronics" />);
 
     await user.click(getCombobox('category'));
@@ -106,7 +106,7 @@ describe('SearchFilters', () => {
 
   it('navigates to the current pathname when "كل الفئات" is chosen without a categorySlug', async () => {
     mockSearchParams = new URLSearchParams('categoryId=cat-1');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     await user.click(getCombobox('category'));
@@ -116,7 +116,7 @@ describe('SearchFilters', () => {
   });
 
   it('sets ?city and clears ?page when a city is selected', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     await user.click(getCombobox('city'));
@@ -128,7 +128,7 @@ describe('SearchFilters', () => {
 
   it('updates the current pathname (not a hardcoded /search) on a category page (FIX BUG-06)', async () => {
     mockPathname = '/categories/electronics';
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters categorySlug="electronics" />);
 
     await user.click(getCombobox('city'));
@@ -139,7 +139,7 @@ describe('SearchFilters', () => {
 
   it('resets to the current pathname with no query string when the reset button is clicked', async () => {
     mockSearchParams = new URLSearchParams('city=غزة&minPrice=100');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     await user.click(screen.getByRole('button', { name: 'إعادة تعيين الفلاتر' }));
@@ -149,7 +149,7 @@ describe('SearchFilters', () => {
 
   it('resets to the category page pathname (not /search) when on a category page', async () => {
     mockPathname = '/categories/electronics';
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters categorySlug="electronics" />);
 
     await user.click(screen.getByRole('button', { name: 'إعادة تعيين الفلاتر' }));

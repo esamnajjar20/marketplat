@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SellerSettingsSection } from '@/components/sellers/SellerSettingsSection';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 
@@ -71,7 +71,7 @@ describe('SellerSettingsSection', () => {
 
   it('renders a distinct retry message (not BecomeSellerCard) for a non-404 error (UX-FIX P1-5)', async () => {
     mockProfile({ isError: true, error: { statusCode: 500 } });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SellerSettingsSection />);
 
     expect(screen.queryByTestId('become-seller-card')).not.toBeInTheDocument();

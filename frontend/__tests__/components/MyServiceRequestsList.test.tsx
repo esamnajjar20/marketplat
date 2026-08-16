@@ -27,7 +27,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MyServiceRequestsList } from '@/components/services/MyServiceRequestsList';
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
@@ -115,7 +115,7 @@ describe('MyServiceRequestsList', () => {
     (useMyServiceRequests as ReturnType<typeof vi.fn>).mockReturnValue({
       data: undefined, isLoading: false, isError: true, refetch,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyServiceRequestsList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل طلباتك')).toBeInTheDocument();
@@ -203,7 +203,7 @@ describe('MyServiceRequestsList', () => {
     (useMyServiceRequests as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [], meta: { totalPages: 3 } }, isLoading: false, isError: false,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyServiceRequestsList />);
 
     await user.click(screen.getByRole('button', { name: 'مكتمل' }));
@@ -243,7 +243,7 @@ describe('MyServiceRequestsList', () => {
       data: { items: [makeRequest({ status: 'PENDING' })], meta: { totalPages: 1 } },
       isLoading: false, isError: false,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyServiceRequestsList />);
 
     await user.click(screen.getByTitle('إلغاء الطلب'));
@@ -257,7 +257,7 @@ describe('MyServiceRequestsList', () => {
       data: { items: [makeRequest({ status: 'PENDING' })], meta: { totalPages: 1 } },
       isLoading: false, isError: false,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyServiceRequestsList />);
 
     await user.click(screen.getByTitle('إلغاء الطلب'));
@@ -312,7 +312,7 @@ describe('MyServiceRequestsList', () => {
       },
       isLoading: false, isError: false,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyServiceRequestsList />);
 
     await user.click(screen.getByText('قيّم الخدمة'));

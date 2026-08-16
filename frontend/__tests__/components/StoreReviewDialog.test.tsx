@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoreReviewDialog } from '@/components/stores/StoreReviewDialog';
 import { useCreateStoreReview } from '@/hooks/mutations/useStoreReviewMutations';
 
@@ -56,7 +56,7 @@ describe('StoreReviewDialog', () => {
   });
 
   it('enables the submit button after picking a star', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <StoreReviewDialog storeId="store-1" storeName="متجري" open={true} onOpenChange={vi.fn()} />
     );
@@ -66,7 +66,7 @@ describe('StoreReviewDialog', () => {
   });
 
   it('submits the picked score and the trimmed comment', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <StoreReviewDialog storeId="store-1" storeName="متجري" open={true} onOpenChange={vi.fn()} />
     );
@@ -82,7 +82,7 @@ describe('StoreReviewDialog', () => {
   });
 
   it('submits comment: undefined when the comment field is left blank', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <StoreReviewDialog storeId="store-1" storeName="متجري" open={true} onOpenChange={vi.fn()} />
     );
@@ -97,7 +97,7 @@ describe('StoreReviewDialog', () => {
   });
 
   it('does not submit when clicking submit with no star picked (button is disabled)', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <StoreReviewDialog storeId="store-1" storeName="متجري" open={true} onOpenChange={vi.fn()} />
     );
@@ -107,7 +107,7 @@ describe('StoreReviewDialog', () => {
   });
 
   it('calls onOpenChange(false) when Cancel is clicked, without submitting', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onOpenChange = vi.fn();
     render(
       <StoreReviewDialog storeId="store-1" storeName="متجري" open={true} onOpenChange={onOpenChange} />
@@ -133,7 +133,7 @@ describe('StoreReviewDialog', () => {
   });
 
   it('updates the character counter as the comment is typed', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <StoreReviewDialog storeId="store-1" storeName="متجري" open={true} onOpenChange={vi.fn()} />
     );

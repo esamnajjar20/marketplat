@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchSortBarWrapper } from '@/components/search/SearchSortBarWrapper';
 import { ROUTES } from '@/lib/constants';
 
@@ -41,7 +41,7 @@ describe('SearchSortBarWrapper (search)', () => {
 
   it('sets the sort param and drops page when a sort option is picked', async () => {
     mockSearchParams = new URLSearchParams({ page: '2' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSortBarWrapper />);
 
     await user.click(screen.getByRole('combobox'));
@@ -56,7 +56,7 @@ describe('SearchSortBarWrapper (search)', () => {
 
   it('does not offer the distance option when lat/lng are not both set', async () => {
     mockSearchParams = new URLSearchParams({ lat: '31.9' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSortBarWrapper />);
 
     await user.click(screen.getByRole('combobox'));
@@ -65,7 +65,7 @@ describe('SearchSortBarWrapper (search)', () => {
 
   it('offers the distance option once lat and lng are both set', async () => {
     mockSearchParams = new URLSearchParams({ lat: '31.9', lng: '35.2' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSortBarWrapper />);
 
     await user.click(screen.getByRole('combobox'));

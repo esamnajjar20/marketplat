@@ -27,7 +27,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MyServiceListingsList } from '@/components/services/MyServiceListingsList';
 import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
 import { useDeleteServiceListing, useToggleServiceListingStatus } from '@/hooks/mutations/useServiceListingMutations';
@@ -107,7 +107,7 @@ describe('MyServiceListingsList', () => {
   it('shows an error state with a retry option that calls refetch', async () => {
     const refetch = vi.fn();
     mockListingsState({ isError: true, refetch });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyServiceListingsList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل خدماتك')).toBeInTheDocument();
@@ -195,7 +195,7 @@ describe('MyServiceListingsList', () => {
     });
 
     it('clicking pause calls toggleStatus.mutate with PAUSED', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListingsState({
         data: { items: [makeListing({ id: 'l-9', title: 'خدمة أولى', status: 'ACTIVE' })], meta: { totalPages: 1 } },
       });
@@ -206,7 +206,7 @@ describe('MyServiceListingsList', () => {
     });
 
     it('clicking resume calls toggleStatus.mutate with ACTIVE', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListingsState({
         data: { items: [makeListing({ id: 'l-9', title: 'خدمة أولى', status: 'PAUSED' })], meta: { totalPages: 1 } },
       });
@@ -246,7 +246,7 @@ describe('MyServiceListingsList', () => {
     });
 
     it('clicking the delete icon opens the dialog without deleting yet', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListingsState({
         data: { items: [makeListing({ id: 'l-7', title: 'خدمة سبعة' })], meta: { totalPages: 1 } },
       });
@@ -258,7 +258,7 @@ describe('MyServiceListingsList', () => {
     });
 
     it('confirming the dialog calls deleteListing.mutate with the correct id', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListingsState({
         data: { items: [makeListing({ id: 'l-7', title: 'خدمة سبعة' })], meta: { totalPages: 1 } },
       });
@@ -273,7 +273,7 @@ describe('MyServiceListingsList', () => {
     });
 
     it('cancelling the dialog does not call deleteListing.mutate', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListingsState({
         data: { items: [makeListing({ id: 'l-7', title: 'خدمة سبعة' })], meta: { totalPages: 1 } },
       });

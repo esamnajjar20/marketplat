@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { DeleteAccountSection } from '@/components/profile/DeleteAccountSection';
 import { useDeleteAccount } from '@/hooks/mutations/useUpdateProfile';
 
@@ -22,7 +22,7 @@ vi.mock('@/hooks/mutations/useUpdateProfile', () => ({
 const mockMutate = vi.fn();
 
 async function openDialog() {
-  const user = userEvent.setup();
+  const user = setupUser();
   render(<DeleteAccountSection />);
   await user.click(screen.getByRole('button', { name: 'حذف حسابي' }));
   return user;

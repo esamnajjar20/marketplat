@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { FollowedStoresList } from '@/components/stores/FollowedStoresList';
 import { useMyFollowedStores } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
@@ -57,7 +57,7 @@ describe('FollowedStoresList', () => {
 
   it('shows an error message with retry on failure', async () => {
     mockFollowed({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<FollowedStoresList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المتاجر المتابَعة')).toBeInTheDocument();

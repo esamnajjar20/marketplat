@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
 import { useAdminAuditLogs } from '@/hooks/queries/useAdmin';
 import { AUDIT_EVENT_LABELS } from '@/lib/constants';
@@ -96,7 +96,7 @@ describe('AdminAuditLogsTable', () => {
 
   describe('details dialog', () => {
     it('opens and shows the formatted JSON details on clicking the details button', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAuditLogsTable />);
 
       const table = screen.getByRole('table');
@@ -112,7 +112,7 @@ describe('AdminAuditLogsTable', () => {
 
     it('shows a placeholder when details is null', async () => {
       mockAuditLogsData([{ ...baseLog, details: null }]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAuditLogsTable />);
 
       const table = screen.getByRole('table');
@@ -126,7 +126,7 @@ describe('AdminAuditLogsTable', () => {
   describe('filters', () => {
     it('pushes userId filter and clears the page param', async () => {
       mockSearchParams = new URLSearchParams('page=3');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAuditLogsTable />);
 
       const input = screen.getByPlaceholderText('بحث بمعرّف المستخدم…');
@@ -139,7 +139,7 @@ describe('AdminAuditLogsTable', () => {
     });
 
     it('pushes the selected event type filter', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAuditLogsTable />);
 
       // The event-type filter is a Radix Select (FIX UX-02 swapped the

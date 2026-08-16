@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { BecomeStoreOwnerCard } from '@/components/stores/BecomeStoreOwnerCard';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useCreateStore } from '@/hooks/mutations/useStoreMutations';
@@ -46,7 +46,7 @@ describe('BecomeStoreOwnerCard', () => {
     });
   });
 
-  async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+  async function fillAndSubmit(user: ReturnType<typeof setupUser>) {
     // Required fields render a visible "*" plus sr-only "(required)"
     // text alongside the label (FormField, a11y requirement), so the
     // accessible name is "<label> *(required)", not the bare label —
@@ -66,7 +66,7 @@ describe('BecomeStoreOwnerCard', () => {
   }
 
   it('does not redirect on success when there is no ?from= param', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeStoreOwnerCard />);
     await fillAndSubmit(user);
 
@@ -78,7 +78,7 @@ describe('BecomeStoreOwnerCard', () => {
 
   it('redirects to the ?from= target on success (FIX P0-1)', async () => {
     mockSearchParams = new URLSearchParams('from=/my-store/products/new');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeStoreOwnerCard />);
     await fillAndSubmit(user);
 
@@ -90,7 +90,7 @@ describe('BecomeStoreOwnerCard', () => {
 
   it('falls back to not redirecting when ?from= is an unsafe absolute URL', async () => {
     mockSearchParams = new URLSearchParams('from=https://evil.example.com');
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<BecomeStoreOwnerCard />);
     await fillAndSubmit(user);
 

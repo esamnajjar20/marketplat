@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoreReviewsList } from '@/components/stores/StoreReviewsList';
 import { useStoreReviews } from '@/hooks/queries/useStoreReviews';
 
@@ -68,7 +68,7 @@ describe('StoreReviewsList', () => {
 
   it('shows an error message with retry on failure', async () => {
     mockReviews({ data: undefined, isError: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoreReviewsList storeId="store-1" />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل التقييمات')).toBeInTheDocument();

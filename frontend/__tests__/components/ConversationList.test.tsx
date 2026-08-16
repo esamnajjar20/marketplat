@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ConversationList } from '@/components/messages/ConversationList';
 import { useMyConversations } from '@/hooks/queries/useConversations';
 import { usePresence } from '@/hooks/queries/usePresence';
@@ -75,7 +75,7 @@ describe('ConversationList', () => {
   it('shows an error state with a retry option that calls refetch', async () => {
     const refetch = vi.fn();
     mockUseMyConversations.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as never);
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ConversationList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المحادثات')).toBeInTheDocument();

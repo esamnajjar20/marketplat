@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchFilters } from '@/components/search/SearchFilters';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
@@ -74,7 +74,7 @@ describe('SearchFilters', () => {
 
     it('is shown for type=ads and lists ad categories', async () => {
       mockSearchParams = new URLSearchParams({ type: 'ads' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SearchFilters />);
 
       expect(screen.getByText('الفئة')).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe('SearchFilters', () => {
 
     it('is shown for type=products and lists product categories', async () => {
       mockSearchParams = new URLSearchParams({ type: 'products' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SearchFilters />);
 
       const combos = screen.getAllByRole('combobox');
@@ -95,7 +95,7 @@ describe('SearchFilters', () => {
 
     it('is shown for type=services and lists service categories', async () => {
       mockSearchParams = new URLSearchParams({ type: 'services' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<SearchFilters />);
 
       const combos = screen.getAllByRole('combobox');
@@ -106,7 +106,7 @@ describe('SearchFilters', () => {
 
   it('sets categoryId and drops page when a category is picked', async () => {
     mockSearchParams = new URLSearchParams({ type: 'products', page: '2' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     const combos = screen.getAllByRole('combobox');
@@ -120,7 +120,7 @@ describe('SearchFilters', () => {
 
   it('deletes categoryId when "كل الفئات" is chosen', async () => {
     mockSearchParams = new URLSearchParams({ type: 'products', categoryId: 'prod-cat-1' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     const combos = screen.getAllByRole('combobox');
@@ -133,7 +133,7 @@ describe('SearchFilters', () => {
 
   it('sets the city param and drops page when a city is picked', async () => {
     mockSearchParams = new URLSearchParams({ page: '4' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     // type=all -> only the city combo is rendered (no category select,
@@ -151,7 +151,7 @@ describe('SearchFilters', () => {
     mockSearchParams = new URLSearchParams({
       q: 'هاتف', type: 'products', categoryId: 'prod-cat-1', city: 'غزة', sort: 'newest', page: '2',
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     await user.click(screen.getByRole('button', { name: 'إعادة تعيين الفلاتر' }));
@@ -161,7 +161,7 @@ describe('SearchFilters', () => {
 
   it('reset navigates to the bare search route when there is no q', async () => {
     mockSearchParams = new URLSearchParams({ city: 'غزة', sort: 'newest' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFilters />);
 
     await user.click(screen.getByRole('button', { name: 'إعادة تعيين الفلاتر' }));

@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ApiError } from '@/components/shared/ApiError';
 import { Forbidden } from '@/components/shared/Forbidden';
 import { Unauthorized } from '@/components/shared/Unauthorized';
@@ -58,7 +58,7 @@ describe('ApiError — status code dispatch', () => {
   });
 
   it('shows a "Try again" button only when onRetry is provided, and calls it on click', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onRetry = vi.fn();
     render(<ApiError error={{ statusCode: 400, message: 'oops' }} onRetry={onRetry} />);
 

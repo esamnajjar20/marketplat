@@ -28,7 +28,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminReportsTable } from '@/components/admin/AdminReportsTable';
 import { useAdminReports } from '@/hooks/queries/useAdmin';
 import { useAdminUpdateReportStatus, useAdminBulkUpdateReportStatus } from '@/hooks/mutations/useAdminMutations';
@@ -136,7 +136,7 @@ describe('AdminReportsTable', () => {
 
   describe('resolve/dismiss — go through ConfirmDialog (UX-FIX P2-05)', () => {
     it('opens a confirm dialog on "حل" click without firing the mutation yet', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       const table = screen.getByRole('table');
@@ -147,7 +147,7 @@ describe('AdminReportsTable', () => {
     });
 
     it('calls useAdminUpdateReportStatus.mutate with RESOLVED after confirming', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       const table = screen.getByRole('table');
@@ -161,7 +161,7 @@ describe('AdminReportsTable', () => {
     });
 
     it('calls useAdminUpdateReportStatus.mutate with DISMISSED after confirming "رفض"', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('button', { name: 'رفض' }));
@@ -194,7 +194,7 @@ describe('AdminReportsTable', () => {
 
     it('pushes a URL with the selected status, clearing any page param', async () => {
       mockSearchParams = new URLSearchParams('page=4');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('button', { name: 'محلولة' }));
@@ -214,7 +214,7 @@ describe('AdminReportsTable', () => {
 
     it('shows the selected count after checking a row', async () => {
       mockReportsData([baseReport, secondReport]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
@@ -224,7 +224,7 @@ describe('AdminReportsTable', () => {
 
     it('select-all checks every PENDING row and updates the count', async () => {
       mockReportsData([baseReport, secondReport]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('checkbox', { name: 'تحديد كل البلاغات' }));
@@ -244,7 +244,7 @@ describe('AdminReportsTable', () => {
 
     it('opens a bulk confirm dialog and calls the bulk mutation with the selected ids on confirm', async () => {
       mockReportsData([baseReport, secondReport]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
@@ -264,7 +264,7 @@ describe('AdminReportsTable', () => {
 
     it('opens a dismiss confirm dialog for the "رفض المحدد" bulk action', async () => {
       mockReportsData([baseReport, secondReport]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
@@ -275,7 +275,7 @@ describe('AdminReportsTable', () => {
 
     it('clears the selection when "إلغاء التحديد" is clicked', async () => {
       mockReportsData([baseReport, secondReport]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
@@ -296,7 +296,7 @@ describe('AdminReportsTable', () => {
 
     it('clears the selection when the page param changes', async () => {
       mockReportsData([baseReport, secondReport]);
-      const user = userEvent.setup();
+      const user = setupUser();
       const { rerender } = render(<AdminReportsTable />);
 
       await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));

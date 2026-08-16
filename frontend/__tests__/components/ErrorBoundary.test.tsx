@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
 import { reportClientError } from '@/lib/errorReporter';
 
@@ -76,7 +76,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('clicking "أعد المحاولة" resets the boundary so children can re-render', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
 
     function Wrapper() {
       // After reset, the boundary re-renders its children; switching
@@ -94,7 +94,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('the retry button is present and clickable in the error state', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <ErrorBoundary>
         <Bomb shouldThrow />

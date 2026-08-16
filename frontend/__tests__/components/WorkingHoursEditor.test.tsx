@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { WorkingHoursEditor } from '@/components/services/WorkingHoursEditor';
 import type { WorkingHours } from '@/types/service.types';
 
@@ -54,7 +54,7 @@ describe('WorkingHoursEditor', () => {
 
   it('calls onChange with default hours when a day is enabled', async () => {
     const onChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<WorkingHoursEditor value={ALL_CLOSED} onChange={onChange} />);
 
     const sundayCheckbox = screen.getAllByRole('checkbox')[1]; // sat, sun, ...
@@ -69,7 +69,7 @@ describe('WorkingHoursEditor', () => {
   it('calls onChange with null when a scheduled day is disabled', async () => {
     const value: WorkingHours = { ...ALL_CLOSED, mon: { open: '08:00', close: '16:00' } };
     const onChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<WorkingHoursEditor value={value} onChange={onChange} />);
 
     // Day order is sat, sun, mon, ... — mon is the third checkbox.

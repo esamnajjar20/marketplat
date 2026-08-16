@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { CreateCategoryButton } from '@/components/admin/CreateCategoryButton';
 import { useCreateCategory } from '@/hooks/mutations/useCategoryMutations';
 
@@ -33,7 +33,7 @@ afterEach(() => {
 const mockMutate = vi.fn();
 
 async function openDialog() {
-  const user = userEvent.setup();
+  const user = setupUser();
   await user.click(screen.getByRole('button', { name: 'فئة جديدة' }));
   return user;
 }
@@ -169,7 +169,7 @@ describe('CreateCategoryButton', () => {
         isPending: true,
       } as never);
       render(<CreateCategoryButton />);
-      const user = userEvent.setup();
+      const user = setupUser();
       await user.click(screen.getAllByRole('button', { name: 'فئة جديدة' })[0]);
       const dialog = screen.getAllByRole('dialog')[0];
 

@@ -17,7 +17,7 @@
 import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdDetail } from '@/components/ads/AdDetail';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
@@ -185,7 +185,7 @@ describe('AdDetail', () => {
     });
 
     it('advances to the next image and updates the counter', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<AdDetail ad={baseAd} />);
 
       await user.click(screen.getByLabelText('الصورة التالية'));
@@ -195,7 +195,7 @@ describe('AdDetail', () => {
     });
 
     it('does not advance past the last image', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<AdDetail ad={baseAd} />);
 
       await user.click(screen.getByLabelText('الصورة التالية'));
@@ -205,7 +205,7 @@ describe('AdDetail', () => {
     });
 
     it('jumps to a specific image via its thumbnail', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<AdDetail ad={baseAd} />);
 
       await user.click(screen.getByLabelText('عرض الصورة 2 من 2'));
@@ -223,7 +223,7 @@ describe('AdDetail', () => {
   describe('favorite toggle', () => {
     it('shows an error toast and does not call mutate when the user is not authenticated', async () => {
       mockAuth(false);
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<AdDetail ad={baseAd} />);
 
       // aria-label is dynamic (favorited ? 'إزالة من المفضلة' :
@@ -236,7 +236,7 @@ describe('AdDetail', () => {
     });
 
     it('calls toggleFavorite.mutate with the ad id when authenticated', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
 
       await user.click(screen.getByLabelText('إضافة إلى المفضلة'));
@@ -253,7 +253,7 @@ describe('AdDetail', () => {
       // out in this file. Reproduce that one write here so the shared
       // cache AdDetail reads via useIsFavorited actually changes —
       // otherwise the mock mutate() is a no-op and the heart can't fill.
-      const user = userEvent.setup();
+      const user = setupUser();
       const { qc } = renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
       mockToggleMutate.mockImplementation((adId: string) => {
         qc.setQueryData<Set<string>>(queryKeys.favorites.ids(), (old) => {
@@ -277,7 +277,7 @@ describe('AdDetail', () => {
       // happens inside useToggleFavorite's onMutate/onError (mocked out
       // here), so reproduce optimistic-write-then-rollback against the
       // actual shared cache the component reads.
-      const user = userEvent.setup();
+      const user = setupUser();
       const { qc } = renderWithClient(<AdDetail ad={baseAd} isFavorited={false} />);
       mockToggleMutate.mockImplementation((adId: string) => {
         const previous = qc.getQueryData<Set<string>>(queryKeys.favorites.ids());

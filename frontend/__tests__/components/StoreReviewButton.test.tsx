@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -57,7 +57,7 @@ describe('StoreReviewButton', () => {
 
   it('redirects to login with a next param when unauthenticated', async () => {
     mockAuth({ user: null, isAuthenticated: false });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoreReviewButton storeId="store-1" storeName="متجر آخر" ownerUserId="owner-1" />);
 
     await user.click(screen.getByRole('button', { name: /إضافة تقييم/ }));
@@ -68,7 +68,7 @@ describe('StoreReviewButton', () => {
 
   it('opens the review dialog directly when authenticated', async () => {
     mockAuth({ user: { id: 'viewer-1' }, isAuthenticated: true });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<StoreReviewButton storeId="store-1" storeName="متجر آخر" ownerUserId="owner-1" />);
 
     await user.click(screen.getByRole('button', { name: /إضافة تقييم/ }));

@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { Timeline } from '@/components/profile/Timeline';
 import { useMyActivity } from '@/hooks/queries/useActivity';
 import type { UserActivity } from '@/types/activity.types';
@@ -75,7 +75,7 @@ describe('Timeline', () => {
 
     it('shows an error state with a retry button', async () => {
       mockActivityResult({ isError: true, data: undefined });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<Timeline />);
 
       expect(screen.getByText('حدث خطأ أثناء تحميل نشاطك')).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('Timeline', () => {
     });
 
     it('shows search-aware empty-state copy when a query is active', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<Timeline />);
 
       await user.type(screen.getByLabelText('بحث في النشاط'), 'شيء غير موجود');
@@ -103,7 +103,7 @@ describe('Timeline', () => {
 
   describe('tabs and search — reset page to 1', () => {
     it('calls useMyActivity with the selected group and resets page', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<Timeline />);
 
       await user.click(screen.getByRole('tab', { name: 'الخدمات' }));
@@ -114,7 +114,7 @@ describe('Timeline', () => {
     });
 
     it('marks the selected tab as aria-selected', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<Timeline />);
 
       await user.click(screen.getByRole('tab', { name: 'الرسائل' }));
@@ -124,7 +124,7 @@ describe('Timeline', () => {
     });
 
     it('debounced search text is trimmed and passed as q, undefined when blank', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<Timeline />);
 
       await user.type(screen.getByLabelText('بحث في النشاط'), '  رسالة  ');
@@ -290,7 +290,7 @@ describe('Timeline', () => {
       mockActivityResult({
         data: { items: [makeActivity({})], meta: { totalPages: 3, page: 1 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<Timeline />);
 
       await user.click(screen.getByText('التالي'));
@@ -304,7 +304,7 @@ describe('Timeline', () => {
       mockActivityResult({
         data: { items: [makeActivity({})], meta: { totalPages: 3, page: 1 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<Timeline />);
 
       await user.click(screen.getByText('التالي'));

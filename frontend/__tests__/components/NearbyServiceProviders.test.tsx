@@ -21,7 +21,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { NearbyServiceProviders } from '@/components/services/NearbyServiceProviders';
 import { useNearbyServiceProviders } from '@/hooks/queries/useServiceProviders';
 import type { NearbyServiceProviderRow } from '@/types/service.types';
@@ -87,7 +87,7 @@ describe('NearbyServiceProviders', () => {
   });
 
   it('calls navigator.geolocation.getCurrentPosition when the locate button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NearbyServiceProviders />);
     await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
     expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
@@ -111,7 +111,7 @@ describe('NearbyServiceProviders', () => {
   it('renders the unsupported state after clicking locate with no geolocation API', async () => {
     // @ts-expect-error simulating a browser without the geolocation API
     delete global.navigator.geolocation;
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NearbyServiceProviders />);
     await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
 
@@ -122,7 +122,7 @@ describe('NearbyServiceProviders', () => {
 
   it('renders the denied state with a retry locate button and the fallback link', async () => {
     mockGetCurrentPosition.mockImplementation((_success, error) => error());
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NearbyServiceProviders />);
     await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
 
@@ -135,7 +135,7 @@ describe('NearbyServiceProviders', () => {
     mockGetCurrentPosition.mockImplementation(() => {
       // never resolves synchronously — simulate an in-flight request
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NearbyServiceProviders />);
     await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
 
@@ -151,7 +151,7 @@ describe('NearbyServiceProviders', () => {
     mockGetCurrentPosition.mockImplementation((success) =>
       success({ coords: { latitude: 31.5, longitude: 34.4 } })
     );
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NearbyServiceProviders />);
     await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
 
@@ -165,7 +165,7 @@ describe('NearbyServiceProviders', () => {
     mockGetCurrentPosition.mockImplementation((success) =>
       success({ coords: { latitude: 31.5, longitude: 34.4 } })
     );
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NearbyServiceProviders />);
     await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
 
@@ -179,7 +179,7 @@ describe('NearbyServiceProviders', () => {
     mockGetCurrentPosition.mockImplementation((success) =>
       success({ coords: { latitude: 31.5, longitude: 34.4 } })
     );
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NearbyServiceProviders />);
     await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
 
@@ -187,7 +187,7 @@ describe('NearbyServiceProviders', () => {
   });
 
   describe('pagination', () => {
-    async function locate(user: ReturnType<typeof userEvent.setup>) {
+    async function locate(user: ReturnType<typeof setupUser>) {
       mockGetCurrentPosition.mockImplementation((success) =>
         success({ coords: { latitude: 31.5, longitude: 34.4 } })
       );
@@ -199,7 +199,7 @@ describe('NearbyServiceProviders', () => {
       mockNearbyState({
         data: { items: [makeProvider()], meta: { totalPages: 3 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       await locate(user);
 
       expect(screen.getByRole('button', { name: 'السابق' })).toBeDisabled();
@@ -211,7 +211,7 @@ describe('NearbyServiceProviders', () => {
       mockNearbyState({
         data: { items: [makeProvider()], meta: { totalPages: 1 } },
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       await locate(user);
 
       expect(screen.queryByRole('button', { name: 'التالي' })).not.toBeInTheDocument();

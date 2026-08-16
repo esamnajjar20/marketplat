@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminRecentActivity } from '@/components/admin/AdminRecentActivity';
 import { useAdminAds } from '@/hooks/queries/useAdmin';
 
@@ -40,7 +40,7 @@ describe('AdminRecentActivity', () => {
   it('shows an error state with retry, not the empty state', async () => {
     const refetch = vi.fn();
     mockUseAdminAds.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as never);
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AdminRecentActivity />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل النشاط الأخير')).toBeInTheDocument();

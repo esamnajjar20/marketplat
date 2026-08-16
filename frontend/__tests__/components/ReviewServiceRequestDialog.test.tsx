@@ -21,7 +21,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceRequestDialog';
 import { useCreateServiceReview } from '@/hooks/mutations/useServiceReviewMutations';
 
@@ -63,7 +63,7 @@ describe('ReviewServiceRequestDialog', () => {
   });
 
   it('does not call mutate on submit while score is 0', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await user.click(screen.getByRole('button', { name: 'إرسال التقييم' }));
@@ -71,7 +71,7 @@ describe('ReviewServiceRequestDialog', () => {
   });
 
   it('selecting a star enables submit and marks it aria-checked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     const fourStars = screen.getByRole('radio', { name: '4 نجوم' });
@@ -82,7 +82,7 @@ describe('ReviewServiceRequestDialog', () => {
   });
 
   it('submits { requestId, score, comment: undefined } when no comment is entered', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await user.click(screen.getByRole('radio', { name: '5 نجوم' }));
@@ -95,7 +95,7 @@ describe('ReviewServiceRequestDialog', () => {
   });
 
   it('trims and includes a comment when provided', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await user.click(screen.getByRole('radio', { name: '3 نجوم' }));
@@ -109,7 +109,7 @@ describe('ReviewServiceRequestDialog', () => {
   });
 
   it('onSuccess closes the dialog', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await user.click(screen.getByRole('radio', { name: '5 نجوم' }));
@@ -122,7 +122,7 @@ describe('ReviewServiceRequestDialog', () => {
   });
 
   it('cancel closes without calling mutate', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderDialog();
 
     await user.click(screen.getByRole('radio', { name: '2 نجوم' }));

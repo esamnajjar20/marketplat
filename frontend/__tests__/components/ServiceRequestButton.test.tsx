@@ -22,7 +22,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 import { useCreateServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { useAuthStore } from '@/store/auth.store';
@@ -79,7 +79,7 @@ describe('ServiceRequestButton', () => {
   describe('unauthenticated', () => {
     it('redirects to login with the encoded listing detail url instead of opening the dialog', async () => {
       mockAuth({ isAuthenticated: false, user: null });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
 
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
@@ -93,7 +93,7 @@ describe('ServiceRequestButton', () => {
 
   describe('authenticated', () => {
     it('opens the dialog on click', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
 
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
@@ -103,7 +103,7 @@ describe('ServiceRequestButton', () => {
     });
 
     it('disables submit while details are under 10 characters', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
 
@@ -113,7 +113,7 @@ describe('ServiceRequestButton', () => {
     });
 
     it('submit stays disabled and mutate is never called for a 9-character (one under minimum) value', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
 
@@ -123,7 +123,7 @@ describe('ServiceRequestButton', () => {
     });
 
     it('trims details and calls createRequest.mutate with listingId + trimmed details', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
 
@@ -141,7 +141,7 @@ describe('ServiceRequestButton', () => {
 
     it('closes the dialog and resets the textarea on successful submit', async () => {
       mockMutate.mockImplementation((_payload, { onSuccess }) => onSuccess());
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
       await user.type(screen.getByLabelText('وصّف اللي محتاجه بالتفصيل'), 'محتاج تصليح تسريب مياه');
@@ -155,7 +155,7 @@ describe('ServiceRequestButton', () => {
     });
 
     it('cancel closes the dialog without calling mutate', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
       await user.type(screen.getByLabelText('وصّف اللي محتاجه بالتفصيل'), 'محتاج تصليح تسريب مياه');
@@ -167,7 +167,7 @@ describe('ServiceRequestButton', () => {
     });
 
     it('shows the character counter', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
       await user.type(screen.getByLabelText('وصّف اللي محتاجه بالتفصيل'), 'محتاج');
@@ -179,7 +179,7 @@ describe('ServiceRequestButton', () => {
       (useCreateServiceRequest as ReturnType<typeof vi.fn>).mockReturnValue({
         mutate: mockMutate, isPending: true,
       });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" />);
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
 

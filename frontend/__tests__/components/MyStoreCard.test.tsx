@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { MyStoreCard } from '@/components/stores/MyStoreCard';
 import { useUpdateStore } from '@/hooks/mutations/useStoreMutations';
 import { parseApiError } from '@/lib/errorParser';
@@ -101,7 +101,7 @@ describe('MyStoreCard', () => {
   });
 
   it('disables submit (read-only mirror) once a required field is cleared', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyStoreCard store={activeStore} />);
 
     const nameInput = screen.getByDisplayValue('متجر الأمل');
@@ -123,7 +123,7 @@ describe('MyStoreCard', () => {
   });
 
   it('submits trimmed values and null address when address is blank', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyStoreCard store={{ ...activeStore, address: '' }} />);
 
     await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
@@ -138,7 +138,7 @@ describe('MyStoreCard', () => {
     (parseApiError as ReturnType<typeof vi.fn>).mockReturnValue({
       fieldErrors: { name: ['هذا الاسم مستخدم بالفعل'] },
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<MyStoreCard store={activeStore} />);
 
     await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));

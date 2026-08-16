@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { useLogin } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
@@ -52,7 +52,7 @@ describe('LoginForm', () => {
 
   describe('validation', () => {
     it('shows a required-field error and does not call login when email is empty', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<LoginForm />);
 
       // Email deliberately left blank, so isFormIncomplete keeps the
@@ -68,7 +68,7 @@ describe('LoginForm', () => {
     });
 
     it('shows an invalid-email error for a malformed email', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'not-an-email');
@@ -80,7 +80,7 @@ describe('LoginForm', () => {
     });
 
     it('shows a required-field error when password is empty (no min-length check — FIX V-01)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       const { container } = render(<LoginForm />);
 
       // Same disabled-button trap as above, mirrored for the password
@@ -95,7 +95,7 @@ describe('LoginForm', () => {
     });
 
     it('does not reject a short password client-side (server owns the strength check)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
@@ -109,7 +109,7 @@ describe('LoginForm', () => {
 
   describe('redirect handling (AUTH-06 regression coverage)', () => {
     it('submits with redirectTo = the dashboard route when no ?from= param is present', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
@@ -125,7 +125,7 @@ describe('LoginForm', () => {
 
     it('submits with redirectTo = the decoded ?from= value when present and safe', async () => {
       mockSearchParams = new URLSearchParams({ from: '/ads/create' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
@@ -141,7 +141,7 @@ describe('LoginForm', () => {
 
     it('falls back to the dashboard when ?from= is an unsafe/protocol-relative URL', async () => {
       mockSearchParams = new URLSearchParams({ from: '//evil.com' });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<LoginForm />);
 
       await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');

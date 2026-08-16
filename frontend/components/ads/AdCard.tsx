@@ -5,7 +5,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Heart } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
-import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
@@ -79,6 +79,14 @@ export function AdCard({ ad, className, priority = false }: Props) {
   // of its own.
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
 
+  // NOTE: AdListItem's user relation (AdAuthor) has no nested store
+  // fields in the current API response (ads.repository.ts's
+  // adListSelect only selects id/name/city/avatarUrl on user) — a
+  // store-badge variant here would need a backend select change,
+  // which is out of scope for this pass. Seller identity only, using
+  // data already present on the ad.
+  const sellerAvatar = getAvatarUrl(ad.user.avatarUrl ?? '', 32);
+
   return (
     <div className="relative">
       <Link href={ROUTES.adDetail(ad.id)}
@@ -137,6 +145,23 @@ export function AdCard({ ad, className, priority = false }: Props) {
             <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>
           </div>
           <p className={cn('text-xs', timeColorClass)}>{formatRelativeTime(ad.createdAt)}</p>
+
+          {/* Seller identity — small footer row, per design brief item 3.4.
+              Deliberately name + tiny avatar only, no rating/verified/etc.
+              (that detail lives in SellerCard on the ad detail page). */}
+          <div className="flex items-center gap-1.5 pt-1 border-t">
+            <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full bg-muted">
+              <SafeImage
+                variant="avatar"
+                src={sellerAvatar}
+                alt={ad.user.name}
+                fill
+                className="object-cover"
+                sizes="24px"
+              />
+            </div>
+            <span className="truncate text-xs text-muted-foreground">{ad.user.name}</span>
+          </div>
         </div>
       </Link>
 

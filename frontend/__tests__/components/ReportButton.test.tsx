@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ReportButton } from '@/components/shared/ReportButton';
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
@@ -53,7 +53,7 @@ function renderButton(isPending = false) {
 }
 
 async function openDialog(isPending = false) {
-  const user = userEvent.setup();
+  const user = setupUser();
   renderButton(isPending);
   await user.click(screen.getByRole('button', { name: /الإبلاغ عن هذا المستخدم/ }));
   return user;
@@ -68,7 +68,7 @@ describe('ReportButton', () => {
   describe('auth gate', () => {
     it('shows an error toast and does not open the dialog when unauthenticated', async () => {
       mockAuth(false);
-      const user = userEvent.setup();
+      const user = setupUser();
       renderButton();
 
       await user.click(screen.getByRole('button', { name: /الإبلاغ عن هذا المستخدم/ }));

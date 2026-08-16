@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { useAdminUsers } from '@/hooks/queries/useAdmin';
 import { useAdminToggleUserActive, useAdminChangeRole } from '@/hooks/mutations/useAdminMutations';
@@ -160,7 +160,7 @@ describe('AdminUsersTable', () => {
 
   describe('active/inactive toggle — fires immediately, no confirmation (AUDIT-V3-05 documented behavior)', () => {
     it('calls useAdminToggleUserActive.mutate directly on click, with no dialog', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'إيقاف أحمد محمد' }));
@@ -203,7 +203,7 @@ describe('AdminUsersTable', () => {
       // Selecting MODERATOR (not ADMIN) here since a plain ADMIN actor
       // can assign MODERATOR but not ADMIN (canManageRole requires
       // targetNewRank < actorRank; see roleHierarchy.test.ts).
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -219,7 +219,7 @@ describe('AdminUsersTable', () => {
       // cannot assign ADMIN (see roleHierarchy.test.ts: canManageRole
       // ('ADMIN','USER','ADMIN') is false). Only SUPER_ADMIN can.
       mockActor('SUPER_ADMIN');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -233,7 +233,7 @@ describe('AdminUsersTable', () => {
     });
 
     it('calls useAdminChangeRole.mutate with role: MODERATOR after confirming (Gap #20)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -248,7 +248,7 @@ describe('AdminUsersTable', () => {
 
     it('calls useAdminChangeRole.mutate with role: USER after confirming a demotion', async () => {
       mockUsersData([adminUser]);
-      const user = userEvent.setup();
+      const user = setupUser();
       mockActor('SUPER_ADMIN');
       render(<AdminUsersTable />);
 
@@ -266,7 +266,7 @@ describe('AdminUsersTable', () => {
       // MODERATOR again — a plain ADMIN can't reach the ADMIN option at
       // all (disabled), so the cancel path is exercised on a role it
       // can legally assign. See canManageRole rank rule above.
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -277,7 +277,7 @@ describe('AdminUsersTable', () => {
     });
 
     it('marks the current role with a "(الحالي)" hint and does not act on selecting it', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -296,7 +296,7 @@ describe('AdminUsersTable', () => {
     // Gap #20: a plain ADMIN actor can promote USER->MODERATOR but not
     // USER->ADMIN (new role must be strictly below the actor's own rank).
     it('does not act on selecting ADMIN when the actor is a plain ADMIN (disabled)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -307,7 +307,7 @@ describe('AdminUsersTable', () => {
     });
 
     it('MODERATOR remains selectable for the same actor/target that had ADMIN disabled', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -343,7 +343,7 @@ describe('AdminUsersTable', () => {
 
     it('a SUPER_ADMIN actor can promote a USER all the way to ADMIN in one step', async () => {
       mockActor('SUPER_ADMIN');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
@@ -364,7 +364,7 @@ describe('AdminUsersTable', () => {
 
   describe('search', () => {
     it('pushes a URL with the query param on Enter', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminUsersTable />);
 
       const input = screen.getByPlaceholderText('بحث بالاسم أو البريد…');

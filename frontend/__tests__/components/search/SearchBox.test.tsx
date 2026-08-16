@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchBox } from '@/components/search/SearchBox';
 import { ROUTES } from '@/lib/constants';
 
@@ -44,7 +44,7 @@ describe('SearchBox', () => {
   });
 
   it('navigates to /search with the trimmed query on submit', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchBox />);
 
     await user.type(screen.getByRole('searchbox', { name: 'بحث' }), '  لابتوب  ');
@@ -55,7 +55,7 @@ describe('SearchBox', () => {
 
   it('removes q instead of setting it when the query is empty', async () => {
     mockSearchParams = new URLSearchParams({ q: 'old', city: 'رام الله' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchBox defaultValue="old" />);
 
     await user.clear(screen.getByRole('searchbox', { name: 'بحث' }));
@@ -69,7 +69,7 @@ describe('SearchBox', () => {
 
   it('preserves existing filters and drops page on submit', async () => {
     mockSearchParams = new URLSearchParams({ city: 'نابلس', type: 'products', page: '3' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchBox />);
 
     await user.type(screen.getByRole('searchbox', { name: 'بحث' }), 'هاتف');
@@ -89,7 +89,7 @@ describe('SearchBox', () => {
   });
 
   it('shows suggestions on focus', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchBox />);
 
     await user.click(screen.getByRole('searchbox', { name: 'بحث' }));
@@ -97,7 +97,7 @@ describe('SearchBox', () => {
   });
 
   it('selecting a suggestion updates the input, hides the dropdown, and navigates with that suggestion', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchBox />);
 
     await user.click(screen.getByRole('searchbox', { name: 'بحث' }));

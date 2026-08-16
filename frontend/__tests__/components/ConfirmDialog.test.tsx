@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 describe('ConfirmDialog', () => {
@@ -90,7 +90,7 @@ describe('ConfirmDialog', () => {
 
   it('calls onConfirm when the confirm button is clicked', async () => {
     const onConfirm = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <ConfirmDialog open={true} onOpenChange={vi.fn()} title="عنوان" onConfirm={onConfirm} />,
     );
@@ -101,7 +101,7 @@ describe('ConfirmDialog', () => {
 
   it('closes the dialog (calls onOpenChange(false)) after confirming', async () => {
     const onOpenChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <ConfirmDialog open={true} onOpenChange={onOpenChange} title="عنوان" onConfirm={vi.fn()} />,
     );
@@ -114,7 +114,7 @@ describe('ConfirmDialog', () => {
     const calls: string[] = [];
     const onConfirm = vi.fn(() => calls.push('confirm'));
     const onOpenChange = vi.fn(() => calls.push('close'));
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <ConfirmDialog open={true} onOpenChange={onOpenChange} title="عنوان" onConfirm={onConfirm} />,
     );
@@ -128,7 +128,7 @@ describe('ConfirmDialog', () => {
   it('calls onOpenChange(false) when cancel is clicked, without calling onConfirm', async () => {
     const onConfirm = vi.fn();
     const onOpenChange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(
       <ConfirmDialog open={true} onOpenChange={onOpenChange} title="عنوان" onConfirm={onConfirm} />,
     );

@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ServiceProviderSettingsSection } from '@/components/services/ServiceProviderSettingsSection';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 
@@ -70,7 +70,7 @@ describe('ServiceProviderSettingsSection', () => {
   it('shows a retry message (not the become-provider card) for a non-404 error, and calls refetch', async () => {
     const refetch = vi.fn();
     mockProviderState({ isError: true, error: { statusCode: 500 }, refetch });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ServiceProviderSettingsSection />);
 
     expect(screen.getByText('تعذّر تحميل بيانات مزود الخدمة. يرجى المحاولة مرة أخرى.')).toBeInTheDocument();

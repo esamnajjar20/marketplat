@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { StoreSettingsSection } from '@/components/stores/StoreSettingsSection';
 import { useMyStore } from '@/hooks/queries/useStores';
 
@@ -84,7 +84,7 @@ describe('StoreSettingsSection', () => {
   });
 
   it('calls refetch() when the retry button is clicked in the non-404 error state', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const refetch = vi.fn();
     (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
       isLoading: false, isError: true, error: { statusCode: 500 }, data: undefined, refetch,

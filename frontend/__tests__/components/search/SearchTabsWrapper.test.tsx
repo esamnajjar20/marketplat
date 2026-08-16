@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchTabsWrapper } from '@/components/search/SearchTabsWrapper';
 import { ROUTES } from '@/lib/constants';
 
@@ -42,7 +42,7 @@ describe('SearchTabsWrapper', () => {
 
   it('sets the type param and drops categoryId/page when switching to a non-all tab', async () => {
     mockSearchParams = new URLSearchParams({ categoryId: 'cat-1', page: '2', q: 'هاتف' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchTabsWrapper />);
 
     await user.click(screen.getByRole('tab', { name: 'المنتجات' }));
@@ -58,7 +58,7 @@ describe('SearchTabsWrapper', () => {
 
   it('deletes the type param (rather than setting type=all) when switching back to "الكل"', async () => {
     mockSearchParams = new URLSearchParams({ type: 'stores', categoryId: 'cat-1' });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchTabsWrapper />);
 
     await user.click(screen.getByRole('tab', { name: 'الكل' }));

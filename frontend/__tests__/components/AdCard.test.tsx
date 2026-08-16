@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdCard } from '@/components/ads/AdCard';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
@@ -199,7 +199,7 @@ describe('AdCard', () => {
     });
 
     it('calls toggleFavorite.mutate with the ad id when clicked while authenticated', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdCard ad={baseAd} />);
       await user.click(screen.getByRole('button', { name: 'إضافة إلى المفضلة' }));
       expect(mockToggleMutate).toHaveBeenCalledWith(baseAd.id);
@@ -207,7 +207,7 @@ describe('AdCard', () => {
 
     it('shows a toast and does not mutate when clicked while unauthenticated', async () => {
       mockFavoriteState({ isAuth: false });
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdCard ad={baseAd} />);
       await user.click(screen.getByRole('button', { name: 'إضافة إلى المفضلة' }));
       expect(toast.error).toHaveBeenCalled();
@@ -215,7 +215,7 @@ describe('AdCard', () => {
     });
 
     it('does not navigate when the favorite button is clicked (stopPropagation)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdCard ad={baseAd} />);
       // If the click bubbled to the <Link>, jsdom would still not
       // actually navigate, but stopPropagation/preventDefault are

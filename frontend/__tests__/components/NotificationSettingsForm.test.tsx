@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { NotificationSettingsForm } from '@/components/profile/NotificationSettingsForm';
 import { useMe } from '@/hooks/queries/useAuth';
 import { useUpdateNotificationPreferences } from '@/hooks/mutations/useUpdateProfile';
@@ -80,7 +80,7 @@ describe('NotificationSettingsForm', () => {
       data: { notificationPreferences: { newMessage: true, adViews: false, favAdUpdated: true, promotions: false } },
       isLoading: false,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NotificationSettingsForm />);
 
     const adViewsSwitch = screen.getByRole('switch', { name: 'مشاهدات الإعلان' });
@@ -106,7 +106,7 @@ describe('NotificationSettingsForm', () => {
       data: { notificationPreferences: { newMessage: true, adViews: false, favAdUpdated: true, promotions: false } },
       isLoading: false,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NotificationSettingsForm />);
 
     await user.click(screen.getByRole('switch', { name: 'رسائل جديدة' }));
@@ -118,7 +118,7 @@ describe('NotificationSettingsForm', () => {
   });
 
   it('disables only the switch currently being toggled, not the others (UX-FIX P3-12)', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     (useMe as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { notificationPreferences: { newMessage: true, adViews: false, favAdUpdated: true, promotions: false } },
       isLoading: false,
@@ -149,7 +149,7 @@ describe('NotificationSettingsForm', () => {
     mockMutate.mockImplementation((_payload, options) => {
       options?.onError?.(new Error('network error'));
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<NotificationSettingsForm />);
 
     const adViewsSwitch = screen.getByRole('switch', { name: 'مشاهدات الإعلان' });

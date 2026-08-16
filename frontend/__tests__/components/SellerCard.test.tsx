@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SellerCard } from '@/components/ads/SellerCard';
 import { sellersApi } from '@/api/sellers.api';
@@ -142,7 +142,7 @@ describe('SellerCard', () => {
     mockStartConversation.mockImplementation((_payload, opts?: { onSuccess?: (c: { id: string }) => void }) => {
       opts?.onSuccess?.({ id: 'conv-1' });
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     renderWithClient(
       <SellerCard seller={baseSeller} adId="ad-1" sellerProfileId={null} />
     );
@@ -157,7 +157,7 @@ describe('SellerCard', () => {
 
   it('shows an error toast and does not start a conversation when unauthenticated', async () => {
     mockAuth(false);
-    const user = userEvent.setup();
+    const user = setupUser();
     renderWithClient(
       <SellerCard seller={baseSeller} adId="ad-1" sellerProfileId={null} />
     );

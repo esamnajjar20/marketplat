@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm';
 import { useUpdateProfile, useUploadAvatar } from '@/hooks/mutations/useUpdateProfile';
 import { useMe } from '@/hooks/queries/useAuth';
@@ -79,7 +79,7 @@ describe('ProfileSettingsForm — avatar upload', () => {
   });
 
   it('clicking the button triggers the hidden file input', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const { container } = render(<ProfileSettingsForm />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     const clickSpy = vi.spyOn(input, 'click');
@@ -151,7 +151,7 @@ describe('ProfileSettingsForm — profile fields', () => {
   });
 
   it('shows a validation error when submitting an empty name', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const { container } = render(<ProfileSettingsForm />);
 
     const nameInput = screen.getByDisplayValue('أحمد');
@@ -168,7 +168,7 @@ describe('ProfileSettingsForm — profile fields', () => {
   });
 
   it('calls updateProfile.mutate with the trimmed name on valid submit', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ProfileSettingsForm />);
 
     const nameInput = screen.getByDisplayValue('أحمد');
@@ -227,7 +227,7 @@ describe('ProfileSettingsForm — bio/phone load from useMe()', () => {
       data: { ...baseMe, bio: 'مطور برمجيات', phone: '+970599123456' },
       isLoading: false,
     });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ProfileSettingsForm />);
 
     await waitFor(() => expect(screen.getByDisplayValue('مطور برمجيات')).toBeInTheDocument());

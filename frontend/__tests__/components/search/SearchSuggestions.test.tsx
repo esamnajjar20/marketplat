@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchSuggestions } from '@/components/search/SearchSuggestions';
 import { useSearchSuggestions } from '@/hooks/queries/useSearch';
 
@@ -92,7 +92,7 @@ describe('SearchSuggestions', () => {
     vi.useRealTimers();
     mockHook(['لابتوب ديل'], false);
     const onSelect = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchSuggestions query="لابتوب" onSelect={onSelect} />);
 
     await user.click(screen.getByRole('option', { name: /لابتوب ديل/ }));

@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AvailabilityCalendar } from '@/components/services/AvailabilityCalendar';
 import { useAvailability } from '@/hooks/queries/useAppointments';
 import { formatTime } from '@/lib/formatters';
@@ -51,7 +51,7 @@ describe('AvailabilityCalendar', () => {
   it('shows an error message with a working retry button', async () => {
     const refetch = vi.fn();
     mockAvailabilityState({ isError: true, refetch });
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AvailabilityCalendar providerId="provider-1" />);
 
     expect(screen.getByText('تعذّر تحميل الأوقات المتاحة')).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('AvailabilityCalendar', () => {
     const data: AvailabilityResponse = { date: '2026-02-01', available: true, freeRanges: [range] };
     mockAvailabilityState({ data });
     const onSelectRange = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<AvailabilityCalendar providerId="provider-1" onSelectRange={onSelectRange} />);
 
     await user.click(screen.getByText(`${formatTime(range.start)} – ${formatTime(range.end)}`));

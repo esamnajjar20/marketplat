@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchFiltersSheet } from '@/components/ads/SearchFiltersSheet';
 import { useSearchParams } from 'next/navigation';
 
@@ -54,7 +54,7 @@ describe('SearchFiltersSheet', () => {
 
   it('opens the sheet when the trigger button is clicked', async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams() as never);
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFiltersSheet />);
 
     expect(screen.queryByText('تصفية النتائج')).not.toBeInTheDocument();

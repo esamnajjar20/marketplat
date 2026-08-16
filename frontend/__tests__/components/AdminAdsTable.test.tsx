@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { AdminAdsTable } from '@/components/admin/AdminAdsTable';
 import { useAdminAds } from '@/hooks/queries/useAdmin';
 import {
@@ -119,7 +119,7 @@ describe('AdminAdsTable', () => {
 
   describe('feature toggle — fires immediately, no confirmation', () => {
     it('calls useAdminSetFeatured.mutate with the inverted value on click', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       await user.click(screen.getByRole('button', { name: `تمييز ${baseAd.title}` }));
@@ -134,7 +134,7 @@ describe('AdminAdsTable', () => {
 
     it('uses the "un-feature" label and inverts back to false when already featured', async () => {
       mockAdsData([{ ...baseAd, isFeatured: true }]);
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       await user.click(screen.getByRole('button', { name: `إلغاء تمييز ${baseAd.title}` }));
@@ -148,7 +148,7 @@ describe('AdminAdsTable', () => {
 
   describe('pin toggle — fires immediately, no confirmation', () => {
     it('calls useAdminSetPinned.mutate with the inverted value on click', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       await user.click(screen.getByRole('button', { name: `تثبيت ${baseAd.title}` }));
@@ -162,7 +162,7 @@ describe('AdminAdsTable', () => {
 
   describe('delete — requires explicit confirmation via ConfirmDialog', () => {
     it('does not call mutate immediately — opens a confirmation dialog first', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       await user.click(screen.getByRole('button', { name: `حذف ${baseAd.title}` }));
@@ -172,7 +172,7 @@ describe('AdminAdsTable', () => {
     });
 
     it('calls useAdminForceDeleteAd.mutate with the ad id after confirming', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       await user.click(screen.getByRole('button', { name: `حذف ${baseAd.title}` }));
@@ -189,7 +189,7 @@ describe('AdminAdsTable', () => {
     });
 
     it('does not call mutate when the confirmation is cancelled', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       await user.click(screen.getByRole('button', { name: `حذف ${baseAd.title}` }));
@@ -202,7 +202,7 @@ describe('AdminAdsTable', () => {
   describe('search', () => {
     it('pushes a URL with the query param on Enter, clearing any page param', async () => {
       mockSearchParams = new URLSearchParams('page=3');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       const input = screen.getByPlaceholderText('بحث بالعنوان…');
@@ -217,7 +217,7 @@ describe('AdminAdsTable', () => {
   describe('status filter', () => {
     it('pushes a URL with the status param when a status is selected, clearing any page param', async () => {
       mockSearchParams = new URLSearchParams('page=2');
-      const user = userEvent.setup();
+      const user = setupUser();
       render(<AdminAdsTable />);
 
       // FIX UX-02 swapped the native <select> for this app's Radix

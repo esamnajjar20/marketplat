@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@/test-support/user-event';
 import { SearchFiltersSheet } from '@/components/search/SearchFiltersSheet';
 
 let mockSearchParams = new URLSearchParams();
@@ -72,7 +72,7 @@ describe('SearchFiltersSheet', () => {
   });
 
   it('opens the sheet and renders SearchFilters when the trigger is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<SearchFiltersSheet />);
 
     await user.click(screen.getByRole('button', { name: /تصفية/ }));
