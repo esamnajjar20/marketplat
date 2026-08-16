@@ -44,7 +44,7 @@ import { usePathname } from 'next/navigation';
 import {
   PlusCircle,
   LayoutDashboard, ListOrdered, Heart, BellPlus, History, Shield,
-  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight, User, Flag,
+  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight, User, Flag, Store,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -65,12 +65,19 @@ const GUEST_ACCOUNT_LINKS = [
 ] as const;
 
 const AUTH_ACCOUNT_LINKS = [
-  { label: 'أضف إعلانك',   href: ROUTES.adCreate,        icon: PlusCircle },
   { label: 'لوحة التحكم',   href: ROUTES.dashboard,       icon: LayoutDashboard },
-  { label: 'إعلاناتي',      href: ROUTES.myAds,           icon: ListOrdered },
   { label: 'المفضلة',       href: ROUTES.favorites,       icon: Heart },
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
   { label: 'نشاطي',         href: ROUTES.activity,        icon: History },
+] as const;
+
+// SELLER-GATE: both require a SellerProfile server-side (ads.service.ts's
+// createAd → ensureSellerProfileForAdCreation). Rendered separately from
+// AUTH_ACCOUNT_LINKS below, gated on isSeller, same as
+// ProtectedSidebar/ProtectedMobileNav/UserMenu.
+const SELLER_ACCOUNT_LINKS = [
+  { label: 'أضف إعلانك',   href: ROUTES.adCreate, icon: PlusCircle },
+  { label: 'إعلاناتي',      href: ROUTES.myAds,    icon: ListOrdered },
 ] as const;
 
 // PARITY-FIX: "بلاغاتي" — same gap as SERVICES_GROUP/STORE_GROUP below,
@@ -391,6 +398,40 @@ export function MobileNav() {
             {isAuthenticated ? (
               <>
                 <NavSection title="حسابك" links={AUTH_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+
+                {/* SELLER-GATE: "أضف إعلانك"/"إعلاناتي" moved out of
+                    AUTH_ACCOUNT_LINKS above — both require a
+                    SellerProfile server-side. Same isSeller gate as
+                    STORE_GROUP below. */}
+                {isSeller && (
+                  <NavSection links={SELLER_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+                )}
+
+                {/* SELLER-CTA: mirrors ProtectedSidebar/ProtectedMobileNav/
+                    UserMenu — shown only while sellerLoaded &&
+                    !sellerProfile, links to /settings/seller. */}
+                {sellerLoaded && !sellerProfile && (
+                  <div className="border-t pt-3">
+                    <ul className="flex flex-col gap-1">
+                      <li>
+                        <Link
+                          href={ROUTES.settings.seller}
+                          onClick={closeMobileNav}
+                          aria-current={pathname.startsWith(ROUTES.settings.seller) ? 'page' : undefined}
+                          className={cn(
+                            'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                            pathname.startsWith(ROUTES.settings.seller)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-muted',
+                          )}
+                        >
+                          <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          أنشئ حساب بائع
+                        </Link>
+                      </li>
+                    </ul>
+                  </div>
+                )}
                 {/* عرض الملف الشخصي — kept out of AUTH_ACCOUNT_LINKS
                     (which has no user.id to build the href with).
                     Mirrors the identical entry in ProtectedMobileNav/

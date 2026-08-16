@@ -14,9 +14,20 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
 
 vi.mock('@/hooks/mutations/useAuthMutations', () => ({
   useLogout: vi.fn(),
+}));
+
+// MobileNav also drives إعلاناتي/أضف إعلانك via useMySellerProfile()
+// (SELLER-GATE) — no MSW handler exists for this endpoint in this
+// suite, so mock the hook directly rather than let the query hang/
+// error unpredictably. Default: has a seller profile, matching this
+// file's existing "authenticated user has full access" assumption;
+// individual tests override for the no-profile case.
+vi.mock('@/hooks/queries/useSellers', () => ({
+  useMySellerProfile: vi.fn(() => ({ data: { id: 'seller-1' }, isSuccess: true })),
 }));
 
 const mockLogout = vi.fn();
@@ -27,6 +38,7 @@ describe('MobileNav', () => {
     useUIStore.setState({ isMobileNavOpen: true });
     useAuthStore.getState().logout();
     vi.mocked(useLogout).mockReturnValue({ mutate: mockLogout, isPending: false } as never);
+    vi.mocked(useMySellerProfile).mockReturnValue({ data: { id: 'seller-1' }, isSuccess: true } as never);
   });
 
   describe('guest (not authenticated)', () => {
@@ -63,6 +75,14 @@ describe('MobileNav', () => {
       expect(screen.getByRole('link', { name: 'لوحة التحكم' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'إعلاناتي' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'المفضلة' })).toBeInTheDocument();
+    });
+
+    it('hides إعلاناتي/أضف إعلانك and shows the seller-signup CTA when the user has no SellerProfile', () => {
+      vi.mocked(useMySellerProfile).mockReturnValue({ data: undefined, isSuccess: true } as never);
+      render(<MobileNav />);
+      expect(screen.queryByRole('link', { name: 'إعلاناتي' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'أضف إعلانك' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'أنشئ حساب بائع' })).toHaveAttribute('href', '/settings/seller');
     });
 
     // FIX UX-SETTINGS-01: "الإعدادات" used to be a flat link straight to

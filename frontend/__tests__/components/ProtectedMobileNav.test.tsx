@@ -269,7 +269,7 @@ describe('ProtectedMobileNav', () => {
       expect(screen.getByRole('button', { name: /متجري/ })).toBeInTheDocument();
     });
 
-    it('hides "متجري" and "عرض متجري" entirely when the user has no seller profile', () => {
+    it('hides "متجري" and "عرض متجري" entirely when the user has no seller profile, and shows إعلاناتي\'s CTA', () => {
       isMobileNavOpen = true;
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
@@ -282,9 +282,11 @@ describe('ProtectedMobileNav', () => {
       expect(screen.queryByText('افتح متجرك')).not.toBeInTheDocument();
       expect(screen.queryByText('أصبح بائعاً')).not.toBeInTheDocument();
       expect(screen.queryByText('عرض متجري')).not.toBeInTheDocument();
+      expect(screen.queryByText('إعلاناتي')).not.toBeInTheDocument();
+      expect(screen.getByText('أنشئ حساب بائع')).toBeInTheDocument();
     });
 
-    it('hides both sections when the user has neither role', () => {
+    it('hides both sections and shows the seller-signup CTA when the user has neither role', () => {
       isMobileNavOpen = true;
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
@@ -298,6 +300,9 @@ describe('ProtectedMobileNav', () => {
       render(<ProtectedMobileNav />);
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
+      // SELLER-GATE: إعلاناتي hidden for non-sellers, CTA shown instead.
+      expect(screen.queryByText('إعلاناتي')).not.toBeInTheDocument();
+      expect(screen.getByText('أنشئ حساب بائع').closest('a')?.getAttribute('href')).toBe('/settings/seller');
     });
 
     it('hides "عرض متجري" when the store exists but is not ACTIVE', () => {

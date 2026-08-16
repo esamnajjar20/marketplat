@@ -81,10 +81,29 @@ describe('UserMenu', () => {
     expect(await screen.findByText('أحمد محمد')).toBeInTheDocument();
     expect(screen.getByText('ahmad@example.com')).toBeInTheDocument();
     expect(screen.getByText('لوحة التحكم')).toBeInTheDocument();
-    expect(screen.getByText('إعلاناتي')).toBeInTheDocument();
     expect(screen.getByText('المفضلة')).toBeInTheDocument();
     expect(screen.getByText('الإعدادات')).toBeInTheDocument();
     expect(screen.queryByText('لوحة الإدارة')).not.toBeInTheDocument();
+    // SELLER-GATE: إعلاناتي requires a SellerProfile (ads.service.ts's
+    // createAd) — hidden here since useMySellerProfile's default mock
+    // resolves with no profile; seller-signup CTA shown instead.
+    expect(screen.queryByText('إعلاناتي')).not.toBeInTheDocument();
+    expect(screen.getByText('أنشئ حساب بائع')).toBeInTheDocument();
+  });
+
+  it('shows إعلاناتي (not the CTA) for a user with a SellerProfile', async () => {
+    const { useMySellerProfile } = await import('@/hooks/queries/useSellers');
+    (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { id: 'seller-1' },
+      isSuccess: true,
+    });
+    mockState(regularUser);
+    render(<UserMenu />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'قائمة المستخدم' }));
+
+    expect(screen.getByText('إعلاناتي')).toBeInTheDocument();
+    expect(screen.queryByText('أنشئ حساب بائع')).not.toBeInTheDocument();
   });
 
   it('shows the admin dashboard link for an admin user', async () => {

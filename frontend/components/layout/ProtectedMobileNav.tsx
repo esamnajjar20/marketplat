@@ -41,20 +41,19 @@
  * Duplicated here rather than shared because the two navs already
  * don't share a component, only the group constants' shape.
  *
- * P3 FIX (layout audit §9, "أضف إعلانك" غائب عن هذا الـdrawer):
- * deliberately not adding a duplicate entry here. "نشر إعلان" already
- * has two always-visible entry points at this breakpoint — the CTA in
- * ProtectedHeader (unconditionally rendered, not `hidden` at any
- * width) and BottomNav's raised center button — so a third copy inside
- * this drawer would be redundant, not a gap. If either of those is
- * ever removed, add ROUTES.adCreate back into LINKS/TRAILING_LINKS.
+ * SELLER-GATE UPDATE: "نشر إعلان" already has two always-visible entry
+ * points at this breakpoint — the CTA in ProtectedHeader and BottomNav's
+ * raised center button — both now swap to "أنشئ حساب بائع" for
+ * non-sellers, so no separate adCreate link was added here. إعلاناتي
+ * WAS added below (see SELLER-GATE comment near LINKS), since unlike
+ * adCreate it had no other entry point in this drawer.
  */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronRight, User, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, ExternalLink, Store } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -70,7 +69,6 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
 
 const LINKS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard },
-  { label: 'إعلاناتي', href: ROUTES.myAds },
   { label: 'المفضلة', href: ROUTES.favorites },
   { label: 'الرسائل', href: ROUTES.messages },
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches },
@@ -335,6 +333,48 @@ export function ProtectedMobileNav() {
               through SETTINGS_GROUP below. */}
           {isProvider && (
             <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
+          )}
+
+          {/* SELLER-GATE (myAds): mirrors ProtectedSidebar — ad creation
+              requires a SellerProfile server-side, so إعلاناتي moved out
+              of the always-visible LINKS above into the same isSeller
+              gate as STORE_GROUP. */}
+          {isSeller && (
+            <li>
+              <Link
+                href={ROUTES.myAds}
+                onClick={close}
+                aria-current={pathname.startsWith(ROUTES.myAds) ? 'page' : undefined}
+                className={cn(
+                  'block rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  pathname.startsWith(ROUTES.myAds) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+              >
+                إعلاناتي
+              </Link>
+            </li>
+          )}
+
+          {/* SELLER-CTA: mirrors ProtectedSidebar's identical CTA —
+              shown only while sellerLoaded && !sellerProfile, links to
+              /settings/seller. Disappears once isSeller flips true. */}
+          {sellerLoaded && !sellerProfile && (
+            <li>
+              <Link
+                href={ROUTES.settings.seller}
+                onClick={close}
+                aria-current={pathname.startsWith(ROUTES.settings.seller) ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  pathname.startsWith(ROUTES.settings.seller)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted',
+                )}
+              >
+                <Store className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                أنشئ حساب بائع
+              </Link>
+            </li>
           )}
           {isSeller && (
             <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />

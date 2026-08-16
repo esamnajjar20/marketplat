@@ -12,6 +12,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ProtectedHeader } from '@/components/layout/ProtectedHeader';
 import { ROUTES } from '@/lib/constants';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
 
 vi.mock('@/components/layout/UserMenu', () => ({
   UserMenu: () => <div data-testid="user-menu" />,
@@ -30,6 +31,15 @@ vi.mock('@/components/layout/ProtectedMobileNav', () => ({
   ProtectedMobileNav: () => <div data-testid="protected-mobile-nav" />,
 }));
 
+// SELLER-GATE: the "+ نشر إعلان"/"أنشئ حساب بائع" CTA now reads
+// useMySellerProfile() directly (ads.service.ts's createAd requires a
+// SellerProfile). Mocked rather than wrapped in a QueryClientProvider,
+// same reasoning as NotificationBell/ProtectedMobileNav above. Default:
+// has a profile, matching this file's existing "نشر إعلان" assertion.
+vi.mock('@/hooks/queries/useSellers', () => ({
+  useMySellerProfile: vi.fn(() => ({ data: { id: 'seller-1' }, isSuccess: true })),
+}));
+
 describe('ProtectedHeader', () => {
   it('renders the logo linking to the home route', () => {
     render(<ProtectedHeader />);
@@ -38,11 +48,20 @@ describe('ProtectedHeader', () => {
     expect(homeLink).toBeDefined();
   });
 
-  it('renders a "نشر إعلان" button linking to the real ad-create route', () => {
+  it('renders a "نشر إعلان" button linking to the real ad-create route for a seller', () => {
     render(<ProtectedHeader />);
 
     const createLink = screen.getByText('+ نشر إعلان').closest('a');
     expect(createLink).toHaveAttribute('href', ROUTES.adCreate);
+  });
+
+  it('renders an "أنشئ حساب بائع" CTA instead when the user has no SellerProfile', () => {
+    vi.mocked(useMySellerProfile).mockReturnValueOnce({ data: undefined, isSuccess: true } as never);
+    render(<ProtectedHeader />);
+
+    expect(screen.queryByText('+ نشر إعلان')).not.toBeInTheDocument();
+    const ctaLink = screen.getByText('أنشئ حساب بائع').closest('a');
+    expect(ctaLink).toHaveAttribute('href', ROUTES.settings.seller);
   });
 
   it('renders the UserMenu', () => {

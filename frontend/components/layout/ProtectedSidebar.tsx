@@ -69,7 +69,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ListOrdered, Heart, BellPlus,
   MessageSquare, Flag, History,
-  ChevronDown, ChevronRight, User, ExternalLink,
+  ChevronDown, ChevronRight, User, ExternalLink, Store,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
@@ -81,7 +81,6 @@ import { useMyStore } from '@/hooks/queries/useStores';
 
 const NAV_ITEMS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: LayoutDashboard },
-  { label: 'إعلاناتي',    href: ROUTES.myAds,             icon: ListOrdered },
   { label: 'المفضلة',     href: ROUTES.favorites,         icon: Heart },
   { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
   { label: 'نشاطي',       href: ROUTES.activity,          icon: History },
@@ -223,6 +222,36 @@ export function ProtectedSidebar() {
             top-level sidebar row for users who haven't taken either
             role yet. */}
         {isProvider && <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />}
+
+        {/* SELLER-GATE (myAds): ads.service.ts's createAd requires a
+            SellerProfile (ensureSellerProfileForAdCreation throws
+            BadRequestError otherwise) — moved out of the always-visible
+            NAV_ITEMS above since it's a seller feature, not a general
+            account feature. Same isSeller gate as STORE_GROUP below. */}
+        {isSeller && (
+          <NavLink
+            label="إعلاناتي"
+            href={ROUTES.myAds}
+            icon={ListOrdered}
+            isActive={pathname.startsWith(ROUTES.myAds)}
+          />
+        )}
+
+        {/* SELLER-CTA: shown only while the user has no SellerProfile
+            yet (sellerLoaded && !sellerProfile — mirrors isSeller's own
+            gating logic: loading/error states stay silent, no flash of
+            the CTA before the query resolves). Links to
+            /settings/seller, the existing seller-signup surface
+            (SellerSettingsSection). Disappears the moment isSeller
+            flips true; إعلاناتي + STORE_GROUP take its place. */}
+        {sellerLoaded && !sellerProfile && (
+          <NavLink
+            label="أنشئ حساب بائع"
+            href={ROUTES.settings.seller}
+            icon={Store}
+            isActive={pathname.startsWith(ROUTES.settings.seller)}
+          />
+        )}
         {isSeller && <DisclosureGroup group={STORE_GROUP} pathname={pathname} />}
 
         {/* عرض متجري — same pattern as "عرض ملفي" above: a view-only

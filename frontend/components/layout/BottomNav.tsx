@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Home, Search, MessageCircle, Menu, Plus } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +53,14 @@ export function BottomNav() {
   const pathname = usePathname();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
+  // SELLER-GATE: /ads/create requires a SellerProfile server-side
+  // (ads.service.ts's createAd) — hook internally gates its query on
+  // isAuthenticated, so this issues no request for guests. Mirrors
+  // ProtectedHeader's identical swap: seller → post button,
+  // non-seller → seller-signup CTA, guest → falls through to
+  // /ads/create's own auth-redirect same as before this fix.
+  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
+  const isSeller = sellerLoaded && Boolean(sellerProfile);
 
   const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
@@ -91,7 +100,7 @@ export function BottomNav() {
 
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
         <Link
-          href={ROUTES.adCreate}
+          href={isAuthenticated && !isSeller ? ROUTES.settings.seller : ROUTES.adCreate}
           className="-mt-3 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
         >
           <Plus className="h-5 w-5" aria-hidden={true} />
@@ -100,7 +109,9 @@ export function BottomNav() {
             pattern — this button was the only one in the bar with no
             visible text, breaking visual consistency with its
             siblings. */}
-        <span className="text-[11px] font-medium text-muted-foreground">نشر إعلان</span>
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {isAuthenticated && !isSeller ? 'أنشئ حساب بائع' : 'نشر إعلان'}
+        </span>
       </div>
 
       {trailingItems.map(renderItem)}

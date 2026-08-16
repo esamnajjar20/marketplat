@@ -1,16 +1,44 @@
-import Link from 'next/link';
-import { Plus, List, Heart, Settings, MessageSquare } from 'lucide-react';
-import { ROUTES } from '@/lib/constants';
+'use client';
 
-const actions = [
-  { href: ROUTES.adCreate,           label: 'نشر إعلان جديد', icon: Plus,          variant: 'primary' },
-  { href: ROUTES.myAds,              label: 'إعلاناتي',        icon: List,          variant: 'secondary' },
+import Link from 'next/link';
+import { Plus, List, Heart, Settings, MessageSquare, Store } from 'lucide-react';
+import { ROUTES } from '@/lib/constants';
+import { useMySellerProfile } from '@/hooks/queries/useSellers';
+
+// SELLER-GATE: "نشر إعلان جديد" / "إعلاناتي" require a SellerProfile
+// server-side (ads.service.ts's createAd → ensureSellerProfileForAdCreation
+// throws otherwise) — same gate already applied to
+// ProtectedSidebar/ProtectedMobileNav/UserMenu/MobileNav/ProtectedHeader/
+// BottomNav. Kept out of the static `actions` array below since these
+// two entries are now conditional; the rest stay role-agnostic.
+const NON_SELLER_ACTIONS = [
   { href: ROUTES.myServiceRequests,  label: 'طلباتي',          icon: MessageSquare, variant: 'secondary' },
   { href: '/favorites',              label: 'المفضلة',         icon: Heart,         variant: 'secondary' },
   { href: ROUTES.settings.profile,   label: 'الإعدادات',       icon: Settings,      variant: 'secondary' },
 ] as const;
 
+const SELLER_ACTIONS = [
+  { href: ROUTES.adCreate, label: 'نشر إعلان جديد', icon: Plus, variant: 'primary' },
+  { href: ROUTES.myAds,    label: 'إعلاناتي',        icon: List, variant: 'secondary' },
+] as const;
+
+const SELLER_CTA_ACTION = {
+  href: ROUTES.settings.seller, label: 'أنشئ حساب بائع', icon: Store, variant: 'primary',
+} as const;
+
 export function QuickActions() {
+  // sellerLoaded gates out a flash of the wrong action set before the
+  // query resolves — same "isSuccess && data is the only positive
+  // signal" pattern used everywhere else this gate appears.
+  const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
+  const isSeller = sellerLoaded && Boolean(sellerProfile);
+
+  if (!sellerLoaded) return null;
+
+  const actions = isSeller
+    ? [...SELLER_ACTIONS, ...NON_SELLER_ACTIONS]
+    : [SELLER_CTA_ACTION, ...NON_SELLER_ACTIONS];
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
       {actions.map(({ href, label, icon: Icon, variant }) => (

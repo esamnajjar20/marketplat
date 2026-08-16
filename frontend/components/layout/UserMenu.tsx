@@ -23,7 +23,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, User, Store } from 'lucide-react';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
@@ -91,12 +91,29 @@ export function UserMenu() {
           </Link>
         </DropdownMenuItem>
 
-        <DropdownMenuItem asChild>
-          <Link href={ROUTES.myAds} className="flex items-center gap-2 cursor-pointer">
-            <ListOrdered className="h-4 w-4" />
-            إعلاناتي
-          </Link>
-        </DropdownMenuItem>
+        {/* SELLER-GATE (myAds): ad creation requires a SellerProfile
+            server-side (ads.service.ts's createAd) — gated on isSeller,
+            same signal already computed above for the "بائع" badge. */}
+        {isSeller && (
+          <DropdownMenuItem asChild>
+            <Link href={ROUTES.myAds} className="flex items-center gap-2 cursor-pointer">
+              <ListOrdered className="h-4 w-4" />
+              إعلاناتي
+            </Link>
+          </DropdownMenuItem>
+        )}
+
+        {/* SELLER-CTA: mirrors ProtectedSidebar/ProtectedMobileNav —
+            shown only while sellerLoaded && !sellerProfile, links to
+            /settings/seller. Disappears once isSeller flips true. */}
+        {sellerLoaded && !sellerProfile && (
+          <DropdownMenuItem asChild>
+            <Link href={ROUTES.settings.seller} className="flex items-center gap-2 cursor-pointer">
+              <Store className="h-4 w-4" />
+              أنشئ حساب بائع
+            </Link>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuItem asChild>
           <Link href={ROUTES.favorites} className="flex items-center gap-2 cursor-pointer">

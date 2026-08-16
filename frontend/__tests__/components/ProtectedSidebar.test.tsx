@@ -189,7 +189,8 @@ describe('ProtectedSidebar', () => {
     const { container } = renderWithClient(<ProtectedSidebar />);
     const iconSpans = container.querySelectorAll('[aria-hidden="true"]');
     // With default mock (seller + provider + ACTIVE store, all groups
-    // collapsed at /dashboard): 6 NAV_ITEMS + 1 "عرض ملفي" + 1
+    // collapsed at /dashboard): 5 NAV_ITEMS (SELLER-GATE: إعلاناتي moved
+    // out) + 1 "إعلاناتي" (isSeller) + 1 "عرض ملفي" + 1
     // TRAILING_NAV_ITEMS ("بلاغاتي") = 8 flat-link icons; 3 disclosure
     // groups (خدماتي/متجري/الإعدادات) × (1 group icon + 1 chevron) = 6;
     // + 1 "عرض متجري" icon (AUDIT-FIX dynamic sidebar) = 15 total.
@@ -292,7 +293,7 @@ describe('ProtectedSidebar', () => {
       expect(screen.queryByRole('link', { name: 'أصبح مقدّم خدمة' })).not.toBeInTheDocument();
     });
 
-    it('hides "متجري" and "عرض متجري" entirely when the user is not a seller', () => {
+    it('hides "متجري" and "عرض متجري" entirely when the user is not a seller, and shows the seller-signup CTA', () => {
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined,
         isSuccess: true,
@@ -311,9 +312,14 @@ describe('ProtectedSidebar', () => {
       expect(screen.queryByRole('link', { name: 'أصبح بائعاً' })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'افتح متجرك' })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'عرض متجري' })).not.toBeInTheDocument();
+      // SELLER-GATE: إعلاناتي requires a SellerProfile server-side —
+      // hidden for non-sellers, replaced by the seller-signup CTA.
+      expect(screen.queryByRole('link', { name: 'إعلاناتي' })).not.toBeInTheDocument();
+      const cta = screen.getByRole('link', { name: 'أنشئ حساب بائع' });
+      expect(cta.getAttribute('href')).toBe('/settings/seller');
     });
 
-    it('hides both sections entirely when the user has neither role', () => {
+    it('hides both sections and إعلاناتي, shows CTA, when the user has neither role', () => {
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined,
         isSuccess: true,
@@ -330,6 +336,8 @@ describe('ProtectedSidebar', () => {
       renderWithClient(<ProtectedSidebar />);
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'إعلاناتي' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'أنشئ حساب بائع' })).toBeDefined();
       // "الإعدادات" (which still contains "ملف البائع"/"ملف مقدم
       // الخدمة" as edit-flow entry points) is unaffected.
       expect(screen.getByRole('button', { name: /الإعدادات/ })).toBeDefined();
