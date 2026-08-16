@@ -69,7 +69,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ListOrdered, Heart, BellPlus,
   MessageSquare, Flag, History,
-  ChevronDown, ChevronRight, Plus, User,
+  ChevronDown, ChevronRight, User, ExternalLink,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
@@ -77,6 +77,7 @@ import { SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useMyStore } from '@/hooks/queries/useStores';
 
 const NAV_ITEMS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: LayoutDashboard },
@@ -183,6 +184,7 @@ export function ProtectedSidebar() {
   // profile yet" and renders the CTA. No isError branch.
   const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
   const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const { data: myStore } = useMyStore();
   const isSeller = sellerLoaded && Boolean(sellerProfile);
   const isProvider = providerLoaded && Boolean(serviceProvider);
 
@@ -212,43 +214,30 @@ export function ProtectedSidebar() {
           />
         )}
 
-        {isProvider ? (
-          <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />
-        ) : (
+        {/* AUDIT-FIX (dynamic sidebar): sections for roles the user
+            doesn't hold are now fully absent rather than replaced by a
+            CTA row. "أصبح مقدّم خدمة"/"أصبح بائعاً"/"افتح متجرك" CTAs
+            removed from here — /settings/seller and
+            /settings/service-provider are unchanged and still reachable
+            through SETTINGS_GROUP below, just no longer surfaced as a
+            top-level sidebar row for users who haven't taken either
+            role yet. */}
+        {isProvider && <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />}
+        {isSeller && <DisclosureGroup group={STORE_GROUP} pathname={pathname} />}
+
+        {/* عرض متجري — same pattern as "عرض ملفي" above: a view-only
+            link to the public storefront, mirroring MyStoreCard's
+            existing "عرض صفحتي العامة" button (only shown once the
+            store is ACTIVE, since PENDING/BLOCKED stores have no
+            public page to view yet). Placed right after STORE_GROUP so
+            it reads as "متجري"'s view-mode counterpart, same as
+            ViewMyProfileLink sits apart from SETTINGS_GROUP above. */}
+        {isSeller && myStore?.status === 'ACTIVE' && (
           <NavLink
-            label="أصبح مقدّم خدمة"
-            href={ROUTES.settings.serviceProvider}
-            icon={Plus}
-            isActive={pathname.startsWith(ROUTES.settings.serviceProvider)}
-          />
-        )}
-        {/* FIX UX-ROLES-01: "أصبح بائعاً" (/settings/seller) previously
-            had no top-level CTA here at all — it only lived nested
-            inside SETTINGS_GROUP's disclosure list, unlike "أصبح
-            مقدّم خدمة" and "افتح متجرك" right above/below it, which are
-            both single-tap top-level rows. A user could open a store
-            (which requires a SellerProfile first — see
-            BecomeStoreOwnerCard) but had no equally-visible path to
-            just become a seller without also wanting a storefront.
-            Only shown pre-seller; MySellerProfileCard (rendered once
-            isSeller is true) already surfaces "متجري" as its own next
-            step, so this row steps aside for STORE_GROUP below. */}
-        {!isSeller && (
-          <NavLink
-            label="أصبح بائعاً"
-            href={ROUTES.settings.seller}
-            icon={Plus}
-            isActive={pathname.startsWith(ROUTES.settings.seller)}
-          />
-        )}
-        {isSeller ? (
-          <DisclosureGroup group={STORE_GROUP} pathname={pathname} />
-        ) : (
-          <NavLink
-            label="افتح متجرك"
-            href={ROUTES.myStore}
-            icon={Plus}
-            isActive={pathname.startsWith(ROUTES.myStore)}
+            label="عرض متجري"
+            href={ROUTES.storeDetail(myStore.id)}
+            icon={ExternalLink}
+            isActive={pathname.startsWith(ROUTES.storeDetail(myStore.id))}
           />
         )}
 

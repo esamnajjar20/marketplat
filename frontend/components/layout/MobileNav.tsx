@@ -44,7 +44,7 @@ import { usePathname } from 'next/navigation';
 import {
   PlusCircle,
   LayoutDashboard, ListOrdered, Heart, BellPlus, History, Shield,
-  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight, User, Plus, Flag,
+  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight, User, Flag,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -426,46 +426,19 @@ export function MobileNav() {
                     as ProtectedMobileNav's identical section. */}
                 <div className="border-t pt-3">
                   <ul className="flex flex-col gap-1">
-                    {isProvider ? (
+                    {/* AUDIT-FIX (dynamic sidebar): mirrors
+                        ProtectedSidebar/ProtectedMobileNav's identical
+                        fix - sections for roles the user doesn't hold
+                        are fully absent, no CTA row. /settings/seller
+                        and /settings/service-provider unchanged and
+                        still reachable through settings. */}
+                    {isProvider && (
                       <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={closeMobileNav} />
-                    ) : (
-                      <li>
-                        <Link
-                          href={ROUTES.settings.serviceProvider}
-                          onClick={closeMobileNav}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
-                        >
-                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                          أصبح مقدّم خدمة
-                        </Link>
-                      </li>
                     )}
-                    {!isSeller && (
-                      <li>
-                        <Link
-                          href={ROUTES.settings.seller}
-                          onClick={closeMobileNav}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
-                        >
-                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                          أصبح بائعاً
-                        </Link>
-                      </li>
-                    )}
-                    {isSeller ? (
+                    {isSeller && (
                       <DisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={closeMobileNav} />
-                    ) : (
-                      <li>
-                        <Link
-                          href={ROUTES.myStore}
-                          onClick={closeMobileNav}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
-                        >
-                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                          افتح متجرك
-                        </Link>
-                      </li>
                     )}
+
                     {TRAILING_LINKS.map((link) => {
                       const isActive = pathname.startsWith(link.href);
                       return (

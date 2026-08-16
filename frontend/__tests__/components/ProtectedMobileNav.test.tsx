@@ -26,6 +26,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useMyStore } from '@/hooks/queries/useStores';
 
 const mockUsePathname = vi.fn(() => '/dashboard');
 const mockToggle = vi.fn();
@@ -85,6 +86,10 @@ vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useMyServiceProvider: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStore: vi.fn(),
+}));
+
 describe('ProtectedMobileNav', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -98,6 +103,10 @@ describe('ProtectedMobileNav', () => {
     });
     (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { id: 'provider-1' },
+      isSuccess: true,
+    });
+    (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { id: 'store-1', status: 'ACTIVE' },
       isSuccess: true,
     });
   });
@@ -217,7 +226,12 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('الأمان').closest('a')?.getAttribute('aria-current')).toBe('page');
   });
 
-  describe('role-gated groups', () => {
+  // AUDIT-FIX (dynamic sidebar): "خدماتي"/"متجري" are fully absent for
+  // non-provider/non-seller users, no CTA fallback ("أصبح مقدّم
+  // خدمة"/"أصبح بائعاً"/"افتح متجرك" rows removed). /settings/seller and
+  // /settings/service-provider are unchanged and still reachable
+  // through the settings disclosure group.
+  describe('dynamic role sections', () => {
     it('renders "خدماتي" as a disclosure group when the user is a service provider', () => {
       isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -225,28 +239,25 @@ describe('ProtectedMobileNav', () => {
       });
       render(<ProtectedMobileNav />);
       expect(screen.getByRole('button', { name: /خدماتي/ })).toBeInTheDocument();
-      expect(screen.queryByText('أصبح مقدّم خدمة')).not.toBeInTheDocument();
     });
 
-    it('renders "أصبح مقدّم خدمة" CTA when the user has no service-provider profile', () => {
+    it('hides "خدماتي" entirely when the user has no service-provider profile', () => {
       isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
       });
       render(<ProtectedMobileNav />);
-      expect(screen.getByText('أصبح مقدّم خدمة').closest('a')?.getAttribute('href')).toBe(
-        '/settings/service-provider',
-      );
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
+      expect(screen.queryByText('أصبح مقدّم خدمة')).not.toBeInTheDocument();
     });
 
-    it('treats a still-loading service-provider query the same as "not yet" (CTA, not group)', () => {
+    it('treats a still-loading service-provider query the same as "not yet" (section absent)', () => {
       isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: false,
       });
       render(<ProtectedMobileNav />);
-      expect(screen.getByText('أصبح مقدّم خدمة')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
     });
 
     it('renders "متجري" as a disclosure group when the user is a seller', () => {
@@ -256,38 +267,53 @@ describe('ProtectedMobileNav', () => {
       });
       render(<ProtectedMobileNav />);
       expect(screen.getByRole('button', { name: /متجري/ })).toBeInTheDocument();
+    });
+
+    it('hides "متجري" and "عرض متجري" entirely when the user has no seller profile', () => {
+      isMobileNavOpen = true;
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined, isSuccess: true,
+      });
+      (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined, isSuccess: false,
+      });
+      render(<ProtectedMobileNav />);
+      expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
       expect(screen.queryByText('افتح متجرك')).not.toBeInTheDocument();
-    });
-
-    it('renders "افتح متجرك" CTA when the user has no store yet', () => {
-      isMobileNavOpen = true;
-      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: undefined, isSuccess: true,
-      });
-      render(<ProtectedMobileNav />);
-      expect(screen.getByText('افتح متجرك').closest('a')?.getAttribute('href')).toBe('/my-store');
-      expect(screen.queryByRole('button', { name: /متجري/ })).not.toBeInTheDocument();
-    });
-
-    // FIX UX-ROLES-01: mirrors ProtectedSidebar.test.tsx's identical
-    // coverage — "أصبح بائعاً" previously only lived nested inside the
-    // settings disclosure group.
-    it('renders "أصبح بائعاً" CTA when the user has no seller profile yet', () => {
-      isMobileNavOpen = true;
-      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: undefined, isSuccess: true,
-      });
-      render(<ProtectedMobileNav />);
-      expect(screen.getByText('أصبح بائعاً').closest('a')?.getAttribute('href')).toBe('/settings/seller');
-    });
-
-    it('does not render "أصبح بائعاً" CTA when the user already has a seller profile', () => {
-      isMobileNavOpen = true;
-      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: { id: 'seller-1' }, isSuccess: true,
-      });
-      render(<ProtectedMobileNav />);
       expect(screen.queryByText('أصبح بائعاً')).not.toBeInTheDocument();
+      expect(screen.queryByText('عرض متجري')).not.toBeInTheDocument();
+    });
+
+    it('hides both sections when the user has neither role', () => {
+      isMobileNavOpen = true;
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined, isSuccess: true,
+      });
+      (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined, isSuccess: true,
+      });
+      (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined, isSuccess: false,
+      });
+      render(<ProtectedMobileNav />);
+      expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
+    });
+
+    it('hides "عرض متجري" when the store exists but is not ACTIVE', () => {
+      isMobileNavOpen = true;
+      (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: { id: 'store-1', status: 'PENDING' }, isSuccess: true,
+      });
+      render(<ProtectedMobileNav />);
+      expect(screen.getByRole('button', { name: /^متجري/ })).toBeInTheDocument();
+      expect(screen.queryByText('عرض متجري')).not.toBeInTheDocument();
+    });
+
+    it('shows "عرض متجري" pointing at the public store page when ACTIVE', () => {
+      isMobileNavOpen = true;
+      render(<ProtectedMobileNav />);
+      expect(screen.getByText('عرض متجري').closest('a')?.getAttribute('href')).toBe('/stores/store-1');
     });
   });
 

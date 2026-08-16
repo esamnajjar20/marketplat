@@ -69,7 +69,22 @@ function safeTokenEquals(a: string, b: string): boolean {
  * (This mirrors how most real-world CSRF middleware — Django, Rails —
  * also exempts the login endpoint itself.)
  */
-const CSRF_EXEMPT_PATHS = new Set(["/auth/login", "/auth/register"]);
+const CSRF_EXEMPT_PATHS = new Set([
+  "/auth/login",
+  "/auth/register",
+  // Public, unauthenticated-by-design product-analytics beacon (see
+  // analytics.routes.ts). Not a sensitive state-changing action, so
+  // there's nothing here for CSRF to protect — but the frontend
+  // tracker (lib/analytics.ts) sends `credentials: 'include'` to get
+  // optional user attribution, which means a logged-in browser's
+  // csrfToken cookie rides along and trips this middleware even
+  // though no X-CSRF-Token header was ever meant to be sent (the
+  // tracker is deliberately not built on apiClient, and
+  // navigator.sendBeacon can't set custom headers at all). Without
+  // this exemption every analytics event from an authenticated
+  // session is silently 403'd.
+  "/analytics/events",
+]);
 
 export function csrfProtection(
   req: Request,

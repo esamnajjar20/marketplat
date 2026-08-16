@@ -130,12 +130,17 @@ export function ProductForm({ mode, product }: Props) {
     // Gap #3 fix: edit mode now has a real image-replace flow, so the
     // "at least one image" rule applies to the combined staged +
     // existing set, not just create-mode's staged uploads.
-    const totalImages = mode === 'create'
-      ? values.images.length
-      : values.images.length + values.existingImages.length;
-    if (totalImages === 0) {
-      e.images = 'أضف صورة واحدة على الأقل';
-    }
+    // TEMPORARY (remove once image hosting is configured — mirrors the
+    // matching disable in AdForm.tsx / backend's ads.controller.ts
+    // createAd): image upload requires configured storage that isn't
+    // set up in this local environment yet, so the required-image
+    // check is disabled here to allow local testing without it.
+    // const totalImages = mode === 'create'
+    //   ? values.images.length
+    //   : values.images.length + values.existingImages.length;
+    // if (totalImages === 0) {
+    //   e.images = 'أضف صورة واحدة على الأقل';
+    // }
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
@@ -144,15 +149,13 @@ export function ProductForm({ mode, product }: Props) {
   // UX-FIX: mirrors validate()'s required-field rules read-only
   // (category/name/description/price, plus the combined image count
   // now that edit mode supports add/remove too — Gap #3 fix).
-  const totalImageCount = mode === 'create'
-    ? values.images.length
-    : values.images.length + values.existingImages.length;
+  // TEMPORARY: totalImageCount required-image gate disabled to match
+  // validate() above — remove once image hosting is configured.
   const isFormIncomplete =
     !values.categoryId ||
     values.name.trim().length < 2 ||
     values.description.trim().length < 10 ||
-    !values.price || parseFloat(values.price) <= 0 ||
-    totalImageCount === 0;
+    !values.price || parseFloat(values.price) <= 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

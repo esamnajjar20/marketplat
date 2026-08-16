@@ -28,6 +28,7 @@ import type { ReactElement } from 'react';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useMyStore } from '@/hooks/queries/useStores';
 
 // usePathname is already mocked in vitest.setup.ts to return '/dashboard'
 // We re-mock it per-test to control active state.
@@ -76,6 +77,10 @@ vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useMyServiceProvider: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStore: vi.fn(),
+}));
+
 // ProtectedSidebar calls useMySellerProfile (useQuery) internally, which
 // throws "No QueryClient set" without a provider in the tree — every test
 // in this file needs one, same pattern as AdDetail.test.tsx's renderWithClient.
@@ -85,15 +90,20 @@ function renderWithClient(ui: ReactElement) {
 }
 
 beforeEach(() => {
-  // Default: user has both a seller profile and a service-provider
-  // profile, so the full SERVICES_GROUP/STORE_GROUP disclosure groups
-  // render instead of the "أصبح مقدّم خدمة"/"افتح متجرك" CTA rows.
+  // Default: user has a seller profile, a service-provider profile,
+  // and an ACTIVE store, so SERVICES_GROUP/STORE_GROUP disclosure
+  // groups render (AUDIT-FIX dynamic sidebar: no CTA fallback anymore —
+  // sections are either fully present or fully absent).
   (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
     data: { id: 'seller-1' },
     isSuccess: true,
   });
   (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
     data: { id: 'provider-1' },
+    isSuccess: true,
+  });
+  (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: { id: 'store-1', status: 'ACTIVE' },
     isSuccess: true,
   });
 });
@@ -178,9 +188,12 @@ describe('ProtectedSidebar', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     const { container } = renderWithClient(<ProtectedSidebar />);
     const iconSpans = container.querySelectorAll('[aria-hidden="true"]');
-    // 7 top-level items (each with an icon) + 3 disclosure-group icons
-    // + 3 chevrons (also aria-hidden, one per closed group) = 13.
-    expect(iconSpans.length).toBe(13);
+    // With default mock (seller + provider + ACTIVE store, all groups
+    // collapsed at /dashboard): 6 NAV_ITEMS + 1 "عرض ملفي" + 1
+    // TRAILING_NAV_ITEMS ("بلاغاتي") = 8 flat-link icons; 3 disclosure
+    // groups (خدماتي/متجري/الإعدادات) × (1 group icon + 1 chevron) = 6;
+    // + 1 "عرض متجري" icon (AUDIT-FIX dynamic sidebar) = 15 total.
+    expect(iconSpans.length).toBe(15);
   });
 
   // ── Correct hrefs ──────────────────────────────────────────────
@@ -253,27 +266,93 @@ describe('ProtectedSidebar', () => {
     });
   });
 
-  // ── FIX UX-ROLES-01: "أصبح بائعاً" top-level CTA ─────────────────
-  // Previously the only path to /settings/seller was nested inside the
-  // "الإعدادات" disclosure group, unlike its "أصبح مقدّم خدمة"/
-  // "افتح متجرك" neighbors — both single-tap top-level rows.
+  // ── AUDIT-FIX (dynamic sidebar): "خدماتي"/"متجري" fully absent for
+  // non-seller/non-provider users, no CTA fallback. Previously
+  // (FIX UX-ROLES-01) an absent role showed "أصبح بائعاً"/"أصبح مقدّم
+  // خدمة"/"افتح متجرك" as a top-level link instead — those rows are
+  // gone. /settings/seller and /settings/service-provider are
+  // unchanged and still reachable through "الإعدادات" below.
 
-  describe('"أصبح بائعاً" CTA', () => {
-    it('is not shown when the user already has a seller profile (default mock)', () => {
+  describe('dynamic role sections', () => {
+    it('shows "خدماتي" and "متجري" when the user has both roles (default mock)', () => {
       mockUsePathname.mockReturnValue('/dashboard');
       renderWithClient(<ProtectedSidebar />);
-      expect(screen.queryByRole('link', { name: 'أصبح بائعاً' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /خدماتي/ })).toBeDefined();
+      expect(screen.getByRole('button', { name: /متجري/ })).toBeDefined();
     });
 
-    it('is shown as a top-level link when the user has no seller profile yet', () => {
-      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+    it('hides "خدماتي" entirely when the user is not a service provider', () => {
+      (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined,
         isSuccess: true,
       });
       mockUsePathname.mockReturnValue('/dashboard');
       renderWithClient(<ProtectedSidebar />);
-      const link = screen.getByRole('link', { name: 'أصبح بائعاً' });
-      expect(link.getAttribute('href')).toBe('/settings/seller');
+      expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'أصبح مقدّم خدمة' })).not.toBeInTheDocument();
+    });
+
+    it('hides "متجري" and "عرض متجري" entirely when the user is not a seller', () => {
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined,
+        isSuccess: true,
+      });
+      (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined,
+        isSuccess: false,
+      });
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+      // Scope to the top-level "متجري" button specifically — "متجري"
+      // as text also appears as a child link inside the "الإعدادات"
+      // group, so queryByRole('button') here is the correct check
+      // rather than queryByText.
+      expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'أصبح بائعاً' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'افتح متجرك' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'عرض متجري' })).not.toBeInTheDocument();
+    });
+
+    it('hides both sections entirely when the user has neither role', () => {
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined,
+        isSuccess: true,
+      });
+      (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined,
+        isSuccess: true,
+      });
+      (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: undefined,
+        isSuccess: false,
+      });
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+      expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
+      // "الإعدادات" (which still contains "ملف البائع"/"ملف مقدم
+      // الخدمة" as edit-flow entry points) is unaffected.
+      expect(screen.getByRole('button', { name: /الإعدادات/ })).toBeDefined();
+    });
+
+    it('hides "عرض متجري" when the store exists but is not yet ACTIVE', () => {
+      (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: { id: 'store-1', status: 'PENDING' },
+        isSuccess: true,
+      });
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+      // "متجري" group itself still shows (isSeller is true), only the
+      // public-view link is gated on ACTIVE status.
+      expect(screen.getByRole('button', { name: /^متجري/ })).toBeDefined();
+      expect(screen.queryByRole('link', { name: 'عرض متجري' })).not.toBeInTheDocument();
+    });
+
+    it('shows "عرض متجري" pointing at the public store page when ACTIVE', () => {
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+      const link = screen.getByRole('link', { name: 'عرض متجري' });
+      expect(link.getAttribute('href')).toBe('/stores/store-1');
     });
   });
 

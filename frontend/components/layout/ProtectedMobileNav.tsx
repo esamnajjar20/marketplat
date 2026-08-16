@@ -54,7 +54,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronRight, Plus, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, ExternalLink } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -63,6 +63,7 @@ import { ROUTES } from '@/lib/constants';
 import { BROWSE_LINKS, SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useMyStore } from '@/hooks/queries/useStores';
 
 const selectCloseMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
@@ -154,6 +155,7 @@ export function ProtectedMobileNav() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { data: sellerProfile, isSuccess: sellerLoaded } = useMySellerProfile();
   const { data: serviceProvider, isSuccess: providerLoaded } = useMyServiceProvider();
+  const { data: myStore } = useMyStore();
   const isSeller = sellerLoaded && Boolean(sellerProfile);
   const isProvider = providerLoaded && Boolean(serviceProvider);
 
@@ -326,47 +328,37 @@ export function ProtectedMobileNav() {
             </li>
           )}
 
-          {isProvider ? (
+          {/* AUDIT-FIX (dynamic sidebar): mirrors ProtectedSidebar's
+              identical fix - sections for roles the user doesn't hold
+              are fully absent, no CTA row. /settings/seller and
+              /settings/service-provider unchanged and still reachable
+              through SETTINGS_GROUP below. */}
+          {isProvider && (
             <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
-          ) : (
-            <li>
-              <Link
-                href={ROUTES.settings.serviceProvider}
-                onClick={close}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
-              >
-                <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                أصبح مقدّم خدمة
-              </Link>
-            </li>
           )}
-          {/* FIX UX-ROLES-01: mirrors ProtectedSidebar's identical fix —
-              "أصبح بائعاً" previously only lived nested inside
-              SETTINGS_GROUP, unlike its "أصبح مقدّم خدمة"/"افتح متجرك"
-              neighbors, both single-tap top-level rows. */}
-          {!isSeller && (
-            <li>
-              <Link
-                href={ROUTES.settings.seller}
-                onClick={close}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
-              >
-                <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                أصبح بائعاً
-              </Link>
-            </li>
-          )}
-          {isSeller ? (
+          {isSeller && (
             <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />
-          ) : (
+          )}
+
+          {/* عرض متجري — mirrors "عرض ملفي" above and ProtectedSidebar's
+              identical entry; view-only link to the public storefront,
+              shown once the store is ACTIVE (matches MyStoreCard's own
+              gate on the same button). */}
+          {isSeller && myStore?.status === 'ACTIVE' && (
             <li>
               <Link
-                href={ROUTES.myStore}
+                href={ROUTES.storeDetail(myStore.id)}
                 onClick={close}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+                aria-current={pathname.startsWith(ROUTES.storeDetail(myStore.id)) ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  pathname.startsWith(ROUTES.storeDetail(myStore.id))
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted',
+                )}
               >
-                <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                افتح متجرك
+                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                عرض متجري
               </Link>
             </li>
           )}
