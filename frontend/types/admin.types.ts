@@ -245,7 +245,14 @@ export type AuditEventType =
   | 'ADMIN_STORE_STATUS_CHANGED'
   | 'OAUTH_LOGIN'
   | 'OAUTH_ACCOUNT_LINKED'
-  | 'OAUTH_SIGNUP';
+  | 'OAUTH_SIGNUP'
+  // FRAUD-UI: was missing here even though the backend has emitted
+  // these since the fraud module shipped (schema.prisma's
+  // AuditEventType enum, fraud.service.ts's reviewSignal/manualFlag) —
+  // any row with one of these events fell through AdminAuditLogsTable's
+  // event-label lookup with no matching type-checked filter option.
+  | 'ADMIN_FRAUD_SIGNAL_REVIEWED'
+  | 'ADMIN_FRAUD_MANUAL_FLAG';
 
 export interface AuditLog {
   id: string;
@@ -268,6 +275,73 @@ export interface AdminGetAuditLogsParams extends PaginationParams {
   to?: string;
   sortBy?: AuditLogSortField;
   sortOrder?: 'asc' | 'desc';
+}
+
+// ── Fraud detection (fraud module) ──────────────────────────────────
+// Backend: /admin/fraud/* (fraud.routes.ts), MODERATOR tier and above.
+// The service/repository/routes/tests all existed with zero frontend
+// caller — riskScore and flaggedForReview were computed and persisted
+// on every new ad with no reachable screen to see or act on them.
+// Types below mirror fraud.repository.ts's FlaggedAdRow/
+// FraudSignalWithSubjects select shapes exactly.
+
+/** Backend Prisma enum FraudSignalType (schema.prisma). */
+export type FraudSignalType =
+  | 'RAPID_POSTING'
+  | 'SUSPICIOUS_PRICE'
+  | 'SUSPICIOUS_CONTACT_PATTERN'
+  | 'SUSPICIOUS_KEYWORDS'
+  | 'DUPLICATE_LISTING'
+  | 'NEW_ACCOUNT_HIGH_ACTIVITY'
+  | 'MANUAL_ADMIN_FLAG';
+
+/** GET /admin/fraud/ads row — matches fraud.repository.ts's flaggedAdWithUser include. */
+export interface FlaggedAd {
+  id:               string;
+  title:            string;
+  status:           string;
+  price:            string | null; // Prisma Decimal serializes as a string over JSON
+  city:             string;
+  riskScore:        number;
+  flaggedForReview: boolean;
+  createdAt:        string;
+  user: {
+    id:        string;
+    name:      string;
+    email:     string;
+    createdAt: string;
+  };
+}
+
+/** GET /admin/fraud/signals row — matches fraud.repository.ts's fraudSignalWithSubjects include. */
+export interface FraudSignal {
+  id:         string;
+  type:       FraudSignalType;
+  weight:     number;
+  metadata:   Record<string, unknown>;
+  reviewed:   boolean;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  userId:     string;
+  adId:       string | null;
+  createdAt:  string;
+  user: { id: string; name: string; email: string } | null;
+  ad:   { id: string; title: string; status: string } | null;
+}
+
+export interface AdminGetFlaggedAdsParams extends PaginationParams {}
+
+export interface AdminGetFraudSignalsParams extends PaginationParams {
+  type?:     FraudSignalType;
+  userId?:   string;
+  adId?:     string;
+  reviewed?: boolean;
+}
+
+export interface ManualFraudFlagPayload {
+  reason:  string;
+  userId?: string;
+  weight?: number;
 }
 
 // BULK-ADMIN (item 17): shared response shape for every admin bulk

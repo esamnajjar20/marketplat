@@ -46,15 +46,16 @@ export function PublicHeader() {
           <Logo />
         </Link>
 
-        {/* AUDIT-FIX (issue #3 — 🔴 critical): the stores/services/
-            service-providers modules were fully built end-to-end
-            (API, hooks, pages) but had zero entry point from primary
-            navigation anywhere in the app — a user could never
-            discover them without typing the URL directly. These three
-            links are that missing entry point, placed where a returning
-            user already expects site sections: between the logo and
-            the search bar. */}
-        <nav className="hidden items-center gap-1 lg:flex">
+        {/* FIX HEADER-01: was `lg:flex` while every sibling in this row
+            (this whole container, the search bar below, the auth/menu
+            nav) all gate on `md:flex` — the mismatch left a dead zone
+            between 768px and 1023px (tablets, split-screen desktop
+            windows) where this row of nav appears "desktop" (logo +
+            search + auth all visible) but Stores/Services/Service
+            Providers silently vanish with zero fallback, since
+            MobileNav itself is md:hidden at that width. Matches the
+            container's own md:flex so the whole row turns on together. */}
+        <nav className="hidden items-center gap-1 md:flex">
           <Button asChild variant="ghost" size="sm">
             <Link href={ROUTES.stores}>المتاجر</Link>
           </Button>

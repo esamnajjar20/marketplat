@@ -253,4 +253,55 @@ describe('Fraud Detection API', () => {
       expect(signals.length).toBeGreaterThan(0);
     });
   });
+
+  // FIX FRAUD-GAP-01: scoreAd() previously only ever ran from
+  // ads.service.ts's createAd — an ad edited after a clean initial
+  // post never got re-evaluated, so a seller could post something
+  // innocuous, wait for it to clear scoring, then edit it into scam
+  // content with zero fraud-detection coverage for the rest of its
+  // lifetime. These exercise the real PATCH /ads/:id endpoint (not
+  // createTestAd, which writes the Ad row directly via Prisma and
+  // never touches fraudService at all) to prove scoring now re-runs
+  // on an edit that touches a fraud-relevant field.
+  describe('automatic scoring on ad update', () => {
+    it('flags an edit that introduces scam keywords into a previously clean ad', async () => {
+      const seller = await createTestUser();
+      const ad = await createTestAd(seller.id, {
+        title: 'Clean ad title',
+        description: 'A perfectly ordinary listing with no red flags at all here',
+      });
+
+      const res = await request(app)
+        .patch(`/api/v1/ads/${ad.id}`)
+        .set('Authorization', `Bearer ${seller.accessToken}`)
+        .send({ description: 'Great deal, wire transfer only, send deposit first please' });
+      expect(res.status).toBe(200);
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const signals = await prisma.fraudSignal.findMany({
+        where: { adId: ad.id, type: 'SUSPICIOUS_KEYWORDS' },
+      });
+      expect(signals.length).toBeGreaterThan(0);
+
+      const scored = await prisma.ad.findUniqueOrThrow({ where: { id: ad.id } });
+      expect(scored.flaggedForReview).toBe(true);
+    });
+
+    it('does not re-score an update that only touches fraud-irrelevant fields', async () => {
+      const seller = await createTestUser();
+      const ad = await createTestAd(seller.id);
+
+      const res = await request(app)
+        .patch(`/api/v1/ads/${ad.id}`)
+        .set('Authorization', `Bearer ${seller.accessToken}`)
+        .send({ isNegotiable: true });
+      expect(res.status).toBe(200);
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const signals = await prisma.fraudSignal.findMany({ where: { adId: ad.id } });
+      expect(signals.length).toBe(0);
+    });
+  });
 });

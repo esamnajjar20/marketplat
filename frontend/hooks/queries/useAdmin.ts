@@ -15,7 +15,7 @@ import { adminApi }  from '@/api/admin.api';
 import { analyticsApi, type GetAnalyticsSummaryParams } from '@/api/analytics.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, ReportStatus, ReportTargetType } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, ReportStatus, ReportTargetType, AdminGetFlaggedAdsParams, AdminGetFraudSignalsParams } from '@/types/admin.types';
 
 /**
  * GET /admin/ads
@@ -138,6 +138,34 @@ export function useAdminStats() {
  * top categories, and search→contact / signup funnel conversion rates
  * for the admin analytics dashboard.
  */
+/**
+ * GET /admin/fraud/ads — flagged-ad review queue, highest riskScore
+ * first (see fraud.repository.ts's findFlaggedAds orderBy). Mirrors
+ * useAdminReports exactly, same envelope-unwrap/placeholderData/
+ * staleTime pattern.
+ */
+export function useAdminFlaggedAds(params?: AdminGetFlaggedAdsParams) {
+  return useQuery({
+    queryKey:        queryKeys.admin.fraudAds(params),
+    queryFn:         () => adminApi.getFlaggedAds(params).then((r) => r.data.data),
+    placeholderData: keepPreviousData,
+    staleTime:       CACHE_TTL.adminList,
+  });
+}
+
+/** GET /admin/fraud/signals — raw signal log for one ad (drives the detail drawer). */
+export function useAdminFraudSignals(params?: AdminGetFraudSignalsParams) {
+  return useQuery({
+    queryKey:        queryKeys.admin.fraudSignals(params),
+    queryFn:         () => adminApi.getFraudSignals(params).then((r) => r.data.data),
+    placeholderData: keepPreviousData,
+    staleTime:       CACHE_TTL.adminList,
+    // Signals are fetched per-ad (params.adId) from an expandable row —
+    // no point issuing the request before an ad is actually expanded.
+    enabled:         Boolean(params?.adId),
+  });
+}
+
 export function useAdminAnalyticsSummary(params?: GetAnalyticsSummaryParams) {
   return useQuery({
     queryKey:  queryKeys.admin.analyticsSummary(params),

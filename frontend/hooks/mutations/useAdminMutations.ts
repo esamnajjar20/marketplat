@@ -29,7 +29,7 @@ import { adminApi }      from '@/api/admin.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
-import type { ReportStatus, AssignableRole, AdminAd, AdminUser, AdminSeller, AdminStore } from '@/types/admin.types';
+import type { ReportStatus, AssignableRole, AdminAd, AdminUser, AdminSeller, AdminStore, ManualFraudFlagPayload } from '@/types/admin.types';
 import type { PaginatedResponse } from '@/types/api.types';
 
 /**
@@ -528,5 +528,55 @@ export function useAdminBulkUpdateReportStatus() {
     onSuccess: (result) => toastBulkResult('بلاغ', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] }),
+  });
+}
+
+// ── Fraud detection ───────────────────────────────────────────────
+// Backend module (service/repository/routes/tests) shipped fully
+// working with zero frontend caller — see AdminFraudTable.tsx.
+
+/**
+ * PATCH /admin/fraud/ads/:adId/clear — admin decided a flagged ad is
+ * legitimate. No optimistic update (unlike useToggleAdField above):
+ * this is a one-way moderation decision gated behind its own
+ * ConfirmDialog at the call site, same reasoning as
+ * useAdminForceDeleteAd, so a plain invalidate-on-settle is enough.
+ */
+export function useAdminClearFraudFlag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (adId: string) => adminApi.clearAdFraudFlag(adId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'fraud'] });
+      toast.success('تم إلغاء علامة الاحتيال عن الإعلان');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/** POST /admin/fraud/ads/:adId/flag — manual flag, outside the automated scoring path. */
+export function useAdminManualFraudFlag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ adId, payload }: { adId: string; payload: ManualFraudFlagPayload }) =>
+      adminApi.manualFraudFlag(adId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'fraud'] });
+      toast.success('تم وضع علامة احتيال على الإعلان');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/** PATCH /admin/fraud/signals/:id/review — marks one signal as reviewed (doesn't clear the ad's own flag). */
+export function useAdminReviewFraudSignal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (signalId: string) => adminApi.reviewFraudSignal(signalId).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'fraud'] });
+      toast.success('تم تأكيد مراجعة الإشارة');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
   });
 }

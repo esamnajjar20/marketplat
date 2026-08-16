@@ -16,7 +16,7 @@
  */
 
 import type { AdSearchParams, AdSearchQuery } from '@/types/ad.types';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, AdminGetFlaggedAdsParams, AdminGetFraudSignalsParams } from '@/types/admin.types';
 
 export const queryKeys = {
   // ── Ads ────────────────────────────────────────────────────────
@@ -250,5 +250,10 @@ export const queryKeys = {
     // Gap #7 (product analytics): matches GetAnalyticsSummaryParams shape.
     analyticsSummary: (params?: { from?: string; to?: string; bucket?: 'day' | 'week' }) =>
       ['admin', 'analytics', 'summary', params ?? {}] as const,
+    // FRAUD-UI: /admin/fraud/* had a fully working backend module
+    // (service/repository/routes/tests) with no frontend query hook at
+    // all — see AdminFraudTable.tsx.
+    fraudAds:     (params?: AdminGetFlaggedAdsParams)    => ['admin', 'fraud', 'ads',     params ?? {}] as const,
+    fraudSignals: (params?: AdminGetFraudSignalsParams)  => ['admin', 'fraud', 'signals', params ?? {}] as const,
   },
 } as const;

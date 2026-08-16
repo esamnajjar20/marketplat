@@ -459,6 +459,56 @@ export const adsService = {
     // the contract this relies on.
     activityService.record({ userId, ...activityTemplates.adUpdated(adId, updated.title) });
 
+    // FIX FRAUD-GAP-01: scoreAd() previously only ever ran from
+    // createAd — an ad could pass a clean initial scoring, get
+    // published, and then be edited via this endpoint straight into
+    // scam content (wire-transfer-only payment terms, a bait price, an
+    // off-platform contact pattern) with zero re-evaluation, silently
+    // bypassing the entire fraud detection system for its whole
+    // post-creation lifetime. Re-scores here whenever an edit actually
+    // touches one of the fields computeSignals() reads (title,
+    // description, price, city, categoryId) — guarded the same way as
+    // the price-change notification above, so a PATCH that only
+    // touches unrelated fields (condition, isNegotiable, lat/lng,
+    // status) doesn't pay for a rescan it can't affect. Fire-and-forget
+    // with the same recordFailedTask retry contract as createAd's own
+    // call — scoring must never fail or delay the ad update itself.
+    const fraudRelevantFieldsChanged =
+      input.title !== undefined ||
+      input.description !== undefined ||
+      input.price !== undefined ||
+      input.city !== undefined ||
+      input.categoryId !== undefined;
+
+    if (fraudRelevantFieldsChanged) {
+      fraudService
+        .scoreAd({
+          id: updated.id,
+          userId: ad.userId,
+          title: updated.title,
+          description: updated.description,
+          city: updated.city,
+          price: updated.price ? Number(updated.price) : null,
+          categoryId: updated.categoryId,
+        })
+        .catch((err) => {
+          logger.error('Fraud scoring failed to run for updated ad', { err, adId: updated.id });
+          recordFailedTask(
+            'FRAUD_SCORE_AD',
+            {
+              adId: updated.id,
+              userId: ad.userId,
+              title: updated.title,
+              description: updated.description,
+              city: updated.city,
+              price: updated.price ? Number(updated.price) : null,
+              categoryId: updated.categoryId,
+            },
+            err
+          ).catch(() => {});
+        });
+    }
+
     return updated;
   },
 

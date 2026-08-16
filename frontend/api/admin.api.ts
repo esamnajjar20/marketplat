@@ -38,6 +38,11 @@ import type {
   AuditLog,
   AdminGetAuditLogsParams,
   BulkActionMeta,
+  FlaggedAd,
+  FraudSignal,
+  AdminGetFlaggedAdsParams,
+  AdminGetFraudSignalsParams,
+  ManualFraudFlagPayload,
 } from '@/types/admin.types';
 import type { ApiResponse } from '@/types/api.types';
 
@@ -206,4 +211,30 @@ export const adminApi = {
     apiClient
       .get<ApiResponse<AuditLog[]>>('/admin/audit-logs', { params })
       .then((r) => unwrapPaginated<AuditLog>(r)),
+
+  // ── Fraud detection ──────────────────────────────────────────────
+  // Backend: /admin/fraud/* (fraud.routes.ts, MODERATOR tier+). The
+  // module (service/repository/controller/routes/tests) shipped fully
+  // wired server-side with no frontend caller at all — riskScore and
+  // flaggedForReview were computed and persisted on every ad with no
+  // reachable screen to review them from.
+
+  getFlaggedAds: (params?: AdminGetFlaggedAdsParams) =>
+    apiClient
+      .get<ApiResponse<FlaggedAd[]>>('/admin/fraud/ads', { params })
+      .then((r) => unwrapPaginated<FlaggedAd>(r)),
+
+  clearAdFraudFlag: (adId: string) =>
+    apiClient.patch<ApiResponse<null>>(`/admin/fraud/ads/${adId}/clear`),
+
+  manualFraudFlag: (adId: string, payload: ManualFraudFlagPayload) =>
+    apiClient.post<ApiResponse<null>>(`/admin/fraud/ads/${adId}/flag`, payload),
+
+  getFraudSignals: (params?: AdminGetFraudSignalsParams) =>
+    apiClient
+      .get<ApiResponse<FraudSignal[]>>('/admin/fraud/signals', { params })
+      .then((r) => unwrapPaginated<FraudSignal>(r)),
+
+  reviewFraudSignal: (signalId: string) =>
+    apiClient.patch<ApiResponse<FraudSignal>>(`/admin/fraud/signals/${signalId}/review`),
 };

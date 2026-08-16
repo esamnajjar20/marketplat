@@ -77,6 +77,8 @@ export const ROUTES = {
     auditLogs:         '/admin/audit-logs',
     // Gap #7 (product analytics): dashboard for GET /admin/analytics/summary.
     analytics:         '/admin/analytics',
+    // FRAUD-UI: /admin/fraud/* backend module had no reachable page.
+    fraud:             '/admin/fraud',
   },
 } as const;
 
@@ -137,6 +139,11 @@ export const AUDIT_EVENT_LABELS: Record<string, string> = {
   OAUTH_LOGIN:                  'تسجيل دخول عبر OAuth',
   OAUTH_ACCOUNT_LINKED:         'ربط حساب OAuth',
   OAUTH_SIGNUP:                 'تسجيل حساب عبر OAuth',
+  // FRAUD-UI: was missing — see admin.types.ts's AuditEventType note.
+  // Without an entry here, AdminAuditLogsTable's label lookup fell
+  // through to the raw enum string for every fraud-review audit row.
+  ADMIN_FRAUD_SIGNAL_REVIEWED:  'مراجعة إشارة احتيال (إدارة)',
+  ADMIN_FRAUD_MANUAL_FLAG:      'وضع علامة احتيال يدوية (إدارة)',
 };
 
 export const AD_SORT_OPTIONS: readonly { label: string; sortBy: AdSortField; sortOrder: AdSortOrder }[] = [

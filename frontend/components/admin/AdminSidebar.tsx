@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -26,6 +26,10 @@ const NAV_LINKS = [
   // transition server-side but zero discoverable path to it.
   { href: ROUTES.admin.stores,            label: 'المتاجر',        icon: Store,           tierRequired: 'ADMIN' as const },
   { href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag },
+  // FRAUD-UI: fraud.routes.ts gates /admin/fraud at MODERATOR+ (same
+  // tier as ads/reports above), same backend requireMinRole call —
+  // no tierRequired, so a MODERATOR sees this link too.
+  { href: ROUTES.admin.fraud,             label: 'مكافحة الاحتيال', icon: ShieldAlert },
   { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree,      tierRequired: 'ADMIN' as const },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
   { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench,          tierRequired: 'ADMIN' as const },
