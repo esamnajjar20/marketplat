@@ -5,6 +5,8 @@ import { formatDate }     from '@/lib/formatters';
 import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { EditProfileButtonGate } from '@/components/profile/EditProfileButtonGate';
+import { BlockUserButtonGate } from '@/components/profile/BlockUserButtonGate';
+import { ProfileBadges } from '@/components/profile/ProfileBadges';
 import type { PublicUser } from '@/types/user.types';
 
 interface Props { user: PublicUser; }
@@ -46,6 +48,8 @@ export function PublicProfileHeader({ user }: Props) {
 
       <h1 className="mt-4 text-xl font-bold text-foreground">{user.name}</h1>
 
+      <ProfileBadges sellerProfile={seller} className="mt-2" />
+
       {seller && seller.totalRatings > 0 && (
         <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
           <Star className="h-4 w-4 fill-rating text-rating" />
@@ -82,14 +86,15 @@ export function PublicProfileHeader({ user }: Props) {
         <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">{user.bio}</p>
       )}
 
-      {/* FEAT-REPORT-USER-STORE: PublicProfileHeader itself has no
-          'use client' — these are client components that hide/show
-          themselves based on the viewer (via useAuthStore): message +
-          report only show on someone else's profile, edit only shows
-          on your own. */}
+      {/* FEAT-REPORT-USER-STORE / FEAT-BLOCK-FROM-PROFILE: PublicProfileHeader
+          itself has no 'use client' — these are client components that
+          hide/show themselves based on the viewer (via useAuthStore):
+          message, block, and report only show on someone else's profile,
+          edit only shows on your own. */}
       <div className="mt-3 flex items-center gap-2">
         <MessageUserButtonGate targetUserId={user.id} />
         <EditProfileButtonGate targetUserId={user.id} />
+        <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />
         <ReportUserButtonGate targetUserId={user.id} />
       </div>
     </div>

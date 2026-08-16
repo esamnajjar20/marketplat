@@ -12,14 +12,23 @@ import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { useAuthStore } from '@/store/auth.store';
 import type { PublicUser } from '@/types/user.types';
 
-// PublicProfileHeader now renders MessageUserButtonGate alongside
-// ReportUserButtonGate — both are client components reading auth state
-// and (for the message button) a react-query mutation. Mocked here the
-// same way SellerCard.test.tsx / MessageUserButtonGate.test.tsx mock
+// PublicProfileHeader now renders MessageUserButtonGate and
+// BlockUserButtonGate alongside ReportUserButtonGate — all three are
+// client components reading auth state, and (for message/block) a
+// react-query hook. Mocked here the same way SellerCard.test.tsx /
+// MessageUserButtonGate.test.tsx / BlockUserButtonGate.test.tsx mock
 // them, so this file's existing assertions about name/city/bio/ad-count
 // keep working unaffected by that addition.
 vi.mock('@/hooks/mutations/useConversationMutations', () => ({
   useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
+vi.mock('@/hooks/queries/useBlockedUsers', () => ({
+  useIsUserBlocked: vi.fn(() => false),
+}));
+
+vi.mock('@/hooks/mutations/useBlockedUsersMutations', () => ({
+  useToggleUserBlock: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@/store/auth.store', () => ({
@@ -47,6 +56,7 @@ function makeUser(overrides: Partial<PublicUser>): PublicUser {
     avatarUrl: null,
     createdAt: '2024-01-15T00:00:00.000Z',
     _count: { ads: 7 },
+    sellerProfile: null,
     ...overrides,
   };
 }
@@ -106,6 +116,52 @@ describe('PublicProfileHeader', () => {
   it('shows the message button for a visitor viewing someone else’s profile', () => {
     renderWithClient(<PublicProfileHeader user={makeUser({ id: 'other-user' })} />);
     expect(screen.getByRole('button', { name: 'مراسلة' })).toBeInTheDocument();
+  });
+
+  it('shows the block button for a visitor viewing someone else’s profile', () => {
+    vi.mocked(useAuthStore).mockImplementation(
+      (selector: (s: { isAuthenticated: boolean; user: unknown }) => unknown) =>
+        selector({ isAuthenticated: true, user: { id: 'viewer-1' } }),
+    );
+    renderWithClient(<PublicProfileHeader user={makeUser({ id: 'other-user' })} />);
+    expect(screen.getByRole('button', { name: 'حظر' })).toBeInTheDocument();
+  });
+
+  it('hides the block button when signed out', () => {
+    renderWithClient(<PublicProfileHeader user={makeUser({ id: 'other-user' })} />);
+    expect(screen.queryByRole('button', { name: 'حظر' })).not.toBeInTheDocument();
+  });
+
+  it('shows no activity badges for a plain user with no sellerProfile', () => {
+    renderWithClient(<PublicProfileHeader user={makeUser({ sellerProfile: null })} />);
+    expect(screen.queryByText('بائع')).not.toBeInTheDocument();
+    expect(screen.queryByText('مقدم خدمة')).not.toBeInTheDocument();
+    expect(screen.queryByText('صاحب متجر')).not.toBeInTheDocument();
+  });
+
+  it('shows the seller badge when sellerProfile is present', () => {
+    renderWithClient(
+      <PublicProfileHeader
+        user={makeUser({
+          sellerProfile: {
+            id: 'sp1',
+            displayName: 'ليلى حسن',
+            bio: null,
+            avatarUrl: null,
+            verified: false,
+            trustScore: 0,
+            averageRating: '0',
+            totalRatings: 0,
+            activeAds: 3,
+            joinedSellingAt: '2024-01-01T00:00:00.000Z',
+            _count: { serviceReviews: 0 },
+            storeDetails: null,
+            serviceProviderDetails: null,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText('بائع')).toBeInTheDocument();
   });
 
   it('hides the message button when viewing your own profile', () => {
