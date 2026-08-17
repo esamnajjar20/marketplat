@@ -46,6 +46,10 @@ export const ROUTES = {
   myServiceAppointments:   '/my-services/appointments',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,
+  // Home §5/§10: public cross-store product browse. ProductCard still
+  // links to `/stores/:id?product=:id` (no standalone product detail
+  // page yet) — this route is the *listing* page only.
+  products:             '/products',
   myStore:              '/my-store',
   myStoreProducts:       '/my-store/products',
   myStoreProductCreate:  '/my-store/products/new',

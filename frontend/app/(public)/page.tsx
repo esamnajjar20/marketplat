@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import { HeroBanner }   from '@/components/home/HeroBanner';
 import { HomeAboveFold } from '@/components/home/HomeAboveFold';
+import { ProductsSection } from '@/components/home/ProductsSection';
+import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
+import { StoresSection } from '@/components/home/StoresSection';
 import { RecommendedAds } from '@/components/home/RecommendedAds';
 import { buildMetadata } from '@/lib/seo';
 
@@ -20,6 +23,18 @@ export default function HomePage() {
         (or the real sections) together — see its own comment for why.
       */}
       <HomeAboveFold />
+
+      {/*
+        Marketplace Discovery Home (plan §2/§4): Ads (above, inside
+        HomeAboveFold) → Products → nearby Providers → Stores. Each
+        section is independently queried and independently self-hiding
+        (plan §14/§15) — a failure or empty result in one never takes
+        down the others, and each disappears as a whole (heading
+        included) rather than showing an empty block.
+      */}
+      <ProductsSection />
+      <NearbyProvidersSection />
+      <StoresSection />
 
       {/*
         Gap #9: personalized for a returning visitor (favorites/views/
