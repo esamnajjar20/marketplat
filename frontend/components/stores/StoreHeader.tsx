@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Star, Phone, MapPin, Sparkles, UserPlus, UserMinus } from 'lucide-react';
+import { Star, Phone, MapPin, Sparkles, UserPlus, UserMinus, PlusCircle } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -11,6 +12,7 @@ import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.st
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
+import { ROUTES } from '@/lib/constants';
 import type { StoreWithSellerAndCounts } from '@/types/store.types';
 
 interface Props {
@@ -121,6 +123,31 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             </Button>
           )}
         </div>
+
+        {/*
+          FEAT-STORE-PUBLISH-AD: entry point only — the ad itself stays
+          Ad.sellerProfileId (SellerProfile), never Ad.storeId. There is
+          no such column; this button is a UX shortcut into the same
+          /ads/create route + CreateAdGate every seller already uses,
+          not a new ownership model. Gated on:
+            - isOwnStore: only the store's own seller sees this here
+            - store.status === 'ACTIVE': a PENDING/BLOCKED store hides
+              the button, but this is a UI convenience only — the real
+              gate remains CreateAdGate's SellerProfile check on the
+              /ads/create page itself, which is intentionally
+              independent of store status (closing/blocking a store
+              must not affect the seller's existing or future ads).
+        */}
+        {isOwnStore && store.status === 'ACTIVE' && (
+          <div className="mt-3 w-full max-w-sm">
+            <Button asChild variant="outline" className="w-full rounded-full py-3 h-auto gap-2">
+              <Link href={ROUTES.adCreate}>
+                <PlusCircle className="h-4 w-4" />
+                نشر إعلان
+              </Link>
+            </Button>
+          </div>
+        )}
 
         {store.description && (
           <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">

@@ -8,6 +8,7 @@ import { ProfileServiceProviderSummary } from '@/components/profile/ProfileServi
 import { SellerRatingsList } from '@/components/sellers/SellerRatingsList';
 import { ServiceReviewsList } from '@/components/services/ServiceReviewsList';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { PublicUser } from '@/types/user.types';
 
 interface Props { user: PublicUser; }
@@ -39,6 +40,8 @@ const TAB_LABEL: Record<ProfileTabValue, string> = {
 export function ProfileTabsSection({ user }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
+  const currentUser = useAuthStore(selectUser);
+  const isOwnProvider = currentUser?.id === user.id;
 
   const seller = user.sellerProfile;
   const hasStore = !!seller?.storeDetails;
@@ -87,7 +90,7 @@ export function ProfileTabsSection({ user }: Props) {
       )}
 
       {value === 'services' && seller?.serviceProviderDetails && (
-        <ProfileServiceProviderSummary provider={seller.serviceProviderDetails} />
+        <ProfileServiceProviderSummary provider={seller.serviceProviderDetails} isOwnProvider={isOwnProvider} />
       )}
 
       {value === 'ratings' && seller && (

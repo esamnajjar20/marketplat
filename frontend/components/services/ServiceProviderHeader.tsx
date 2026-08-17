@@ -1,8 +1,14 @@
+'use client';
+
+import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Star, Phone, MapPin } from 'lucide-react';
+import { Star, Phone, MapPin, PlusCircle } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
+import { Button } from '@/components/shared/ui/Button';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
+import { useAuthStore, selectUser } from '@/store/auth.store';
+import { ROUTES } from '@/lib/constants';
 import type { ServiceProviderPublic, ServiceAvailability } from '@/types/service.types';
 
 interface Props {
@@ -33,6 +39,8 @@ const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
  * city). Same data as before — only the layout changed.
  */
 export function ServiceProviderHeader({ provider }: Props) {
+  const currentUser = useAuthStore(selectUser);
+  const isOwnProvider = currentUser?.id === provider.sellerProfile.userId;
   const avatar = getAvatarUrl(provider.logoUrl ?? provider.sellerProfile.avatarUrl ?? '', 128);
   const rating = parseFloat(provider.sellerProfile.averageRating);
 
@@ -77,6 +85,34 @@ export function ServiceProviderHeader({ provider }: Props) {
           <Phone className="h-4 w-4" /> {formatPhone(provider.contactPhone)}
         </a>
       </div>
+
+      {/*
+        FEAT-PROVIDER-PUBLISH-AD: same entry-point-only pattern as
+        StoreHeader's "نشر إعلان" button — the ad stays
+        Ad.sellerProfileId (SellerProfile), never a
+        ServiceProviderDetails-owned column; there is no such column.
+        This is a UX shortcut into the existing /ads/create route +
+        CreateAdGate, not a new ownership model.
+
+        Deliberately gated on isOwnProvider only — no
+        availabilityStatus check. availabilityStatus (AVAILABLE/BUSY/
+        UNAVAILABLE) reflects booking availability for service
+        requests, not account standing or approval state; it has no
+        bearing on whether this seller may publish an ad. Unlike
+        StoreHeader's store.status === 'ACTIVE' check,
+        ServiceProviderDetails has no equivalent approval-status field
+        to gate on here.
+      */}
+      {isOwnProvider && (
+        <div className="mt-3 w-full max-w-sm">
+          <Button asChild variant="outline" className="w-full rounded-full py-3 h-auto gap-2">
+            <Link href={ROUTES.adCreate}>
+              <PlusCircle className="h-4 w-4" />
+              نشر إعلان
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">
         {provider.description}
