@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, ServiceProviderDetails } from '@prisma/client';
+import { GetServiceProvidersQuery } from './service-providers.validation';
 
 export type ServiceProviderWithSeller = Prisma.ServiceProviderDetailsGetPayload<{
   include: {
@@ -70,6 +71,39 @@ export const serviceProvidersRepository = {
     }>
   ): Promise<ServiceProviderDetails> =>
     prisma.serviceProviderDetails.update({ where: { id }, data }),
+
+  // Home discovery plan (Phase 1): public city/browse directory —
+  // mirrors storesRepository.findMany/productsRepository.findMany
+  // exactly (same where-building shape, same pagination helper usage
+  // at the service layer). `city` filters via `has` against the
+  // serviceAreaCities array (a provider can serve multiple cities);
+  // omitted city returns the general, unfiltered set — never an
+  // error, never an empty result forced by a missing city. Same
+  // availabilityStatus exclusion as findNearby so a provider who has
+  // marked themselves fully UNAVAILABLE doesn't surface in either
+  // discovery path.
+  findMany: async (
+    query: GetServiceProvidersQuery,
+    skip: number,
+    take: number
+  ): Promise<{ rows: ServiceProviderDetails[]; total: number }> => {
+    const where: Prisma.ServiceProviderDetailsWhereInput = {
+      availabilityStatus: { not: 'UNAVAILABLE' },
+      ...(query.city && { serviceAreaCities: { has: query.city } }),
+    };
+
+    const [rows, total] = await Promise.all([
+      prisma.serviceProviderDetails.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.serviceProviderDetails.count({ where }),
+    ]);
+
+    return { rows, total };
+  },
 
   // services-design.md §11: Haversine distance via $queryRaw — sufficient
   // for single-region data volume; see §15/§18 for the PostGIS upgrade

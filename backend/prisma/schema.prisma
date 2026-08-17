@@ -438,6 +438,12 @@ model ServiceProviderDetails {
 
   @@index([availabilityStatus])
   @@index([latitude, longitude])
+  // GIN index on serviceAreaCities (array containment for the `city`
+  // filter in GET /service-providers) is added via raw SQL migration
+  // 20260817000000_add_service_provider_city_index — not expressible
+  // here without the extendedIndexes preview feature. See that
+  // migration's comment and the Notification.data comment above for
+  // the same precedent.
   @@map("service_provider_details")
 }
 

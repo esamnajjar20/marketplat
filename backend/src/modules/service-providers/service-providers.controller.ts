@@ -5,6 +5,7 @@ import {
   updateServiceProviderSchema,
   serviceProviderIdSchema,
   nearbyServiceProvidersSchema,
+  getServiceProvidersSchema,
 } from './service-providers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -47,6 +48,20 @@ export const serviceProvidersController = {
       const { params } = serviceProviderIdSchema.parse({ params: req.params });
       const details = await serviceProvidersService.getPublicServiceProvider(params.id);
       res.status(200).json(successResponse('Service provider fetched', details));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Home discovery plan (Phase 1): public city/browse directory —
+  // mirrors storesController.getStores/productsController.getProducts.
+  getServiceProviders: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { query } = getServiceProvidersSchema.parse({ query: req.query });
+      const { providers, meta } = await serviceProvidersService.getServiceProviders(query);
+      res
+        .status(200)
+        .json(successResponse('Service providers fetched', providers, { pagination: meta }));
     } catch (error) {
       next(error);
     }

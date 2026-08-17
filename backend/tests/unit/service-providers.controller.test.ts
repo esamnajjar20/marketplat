@@ -195,6 +195,53 @@ describe('serviceProvidersController', () => {
     });
   });
 
+  describe('getServiceProviders', () => {
+    it('returns 200 with providers and pagination meta on success', async () => {
+      const req = mockRequest({ query: { city: 'Gaza' } });
+      const res = mockResponse();
+      const next = mockNext();
+      const providers = [{ id: 'p1', businessName: 'Gaza Fixer' }];
+      const meta = { total: 1, page: 1, limit: 20, totalPages: 1, hasNextPage: false, hasPrevPage: false };
+      (serviceProvidersService.getServiceProviders as jest.Mock).mockResolvedValue({ providers, meta });
+
+      await serviceProvidersController.getServiceProviders(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: providers,
+          meta: { pagination: meta },
+        })
+      );
+    });
+
+    it('succeeds with no city query param (general results), does not error', async () => {
+      const req = mockRequest({ query: {} });
+      const res = mockResponse();
+      const next = mockNext();
+      const meta = { total: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPrevPage: false };
+      (serviceProvidersService.getServiceProviders as jest.Mock).mockResolvedValue({ providers: [], meta });
+
+      await serviceProvidersController.getServiceProviders(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(serviceProvidersService.getServiceProviders).toHaveBeenCalledWith({});
+    });
+
+    it('calls next(error) for an invalid page value', async () => {
+      const req = mockRequest({ query: { page: '0' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await serviceProvidersController.getServiceProviders(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(serviceProvidersService.getServiceProviders).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getNearby', () => {
     it('returns 200 with providers and pagination meta on success', async () => {
       const req = mockRequest({ query: { lat: '31.5', lng: '34.45', radius: '10' } });

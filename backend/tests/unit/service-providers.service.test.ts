@@ -236,6 +236,45 @@ describe('serviceProvidersService', () => {
     });
   });
 
+  describe('getServiceProviders', () => {
+    it('derives pagination params and returns providers with meta', async () => {
+      const rows = [{ id: 'p1', businessName: 'Gaza Fixer' }];
+      (serviceProvidersRepository.findMany as jest.Mock).mockResolvedValue({ rows, total: 1 });
+
+      const result = await serviceProvidersService.getServiceProviders({
+        city: 'Gaza',
+        page: 1,
+        limit: 20,
+      } as any);
+
+      expect(serviceProvidersRepository.findMany).toHaveBeenCalledWith(
+        { city: 'Gaza', page: 1, limit: 20 },
+        0,
+        20
+      );
+      expect(result.providers).toEqual(rows);
+      expect(result.meta).toEqual(
+        expect.objectContaining({ total: 1, page: 1, limit: 20, totalPages: 1 })
+      );
+    });
+
+    it('passes an empty/no-city query straight through unchanged (general results)', async () => {
+      (serviceProvidersRepository.findMany as jest.Mock).mockResolvedValue({ rows: [], total: 0 });
+
+      await serviceProvidersService.getServiceProviders({} as any);
+
+      expect(serviceProvidersRepository.findMany).toHaveBeenCalledWith({}, 0, 20);
+    });
+
+    it('defaults page/limit when omitted from the query', async () => {
+      (serviceProvidersRepository.findMany as jest.Mock).mockResolvedValue({ rows: [], total: 0 });
+
+      const result = await serviceProvidersService.getServiceProviders({ city: 'Gaza' } as any);
+
+      expect(result.meta).toEqual(expect.objectContaining({ page: 1, limit: 20 }));
+    });
+  });
+
   describe('findNearby', () => {
     it('derives pagination params and returns providers with meta', async () => {
       const rows = [{ id: 'p1', distanceKm: 2 }];

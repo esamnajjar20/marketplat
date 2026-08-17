@@ -10,6 +10,7 @@ import {
   CreateServiceProviderInput,
   UpdateServiceProviderInput,
   NearbyServiceProvidersQuery,
+  GetServiceProvidersQuery,
 } from './service-providers.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -132,6 +133,16 @@ export const serviceProvidersService = {
       limit: 100,
     });
     return { ...details, listings };
+  },
+
+  // Home discovery plan (Phase 1): public city/browse list — thin
+  // wrapper mirroring storesService.getStores/productsService.getProducts.
+  getServiceProviders: async (
+    query: GetServiceProvidersQuery
+  ): Promise<{ providers: ServiceProviderDetails[]; meta: PaginationMeta }> => {
+    const { page, limit, skip, take } = getPaginationParams(query.page, query.limit);
+    const { rows, total } = await serviceProvidersRepository.findMany(query, skip, take);
+    return { providers: rows, meta: buildPaginationMeta(total, page, limit) };
   },
 
   findNearby: async (

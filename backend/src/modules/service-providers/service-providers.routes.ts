@@ -27,6 +27,12 @@ serviceProvidersRouter.patch(
   serviceProvidersController.updateMyServiceProvider
 );
 
+// Public — city/browse directory (Home discovery plan, Phase 1).
+// Mirrors GET /stores and GET /products: plain paginated list, city
+// optional. Registered here (bare path) so it can never collide with
+// /nearby or /:id regardless of ordering.
+serviceProvidersRouter.get('/', CACHE.SHORT, serviceProvidersController.getServiceProviders);
+
 // Public — nearby search must be registered before /:id so "nearby"
 // isn't swallowed as an :id param, same ordering concern as ads' /search.
 serviceProvidersRouter.get('/nearby', CACHE.SHORT, serviceProvidersController.getNearby);

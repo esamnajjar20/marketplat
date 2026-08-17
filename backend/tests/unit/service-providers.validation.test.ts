@@ -3,6 +3,7 @@ import {
   updateServiceProviderSchema,
   serviceProviderIdSchema,
   nearbyServiceProvidersSchema,
+  getServiceProvidersSchema,
   workingHoursSchema,
 } from '../../src/modules/service-providers/service-providers.validation';
 
@@ -192,6 +193,49 @@ describe('service-providers.validation', () => {
 
     it('rejects an empty id param', () => {
       expect(() => serviceProviderIdSchema.parse({ params: { id: '' } })).toThrow();
+    });
+  });
+
+  describe('getServiceProvidersSchema', () => {
+    it('accepts an empty query (no city, no pagination) — general results', () => {
+      expect(() => getServiceProvidersSchema.parse({ query: {} })).not.toThrow();
+    });
+
+    it('accepts city alone', () => {
+      const result = getServiceProvidersSchema.parse({ query: { city: 'Gaza' } });
+      expect(result.query.city).toBe('Gaza');
+    });
+
+    it('rejects lat/lng — this endpoint is city-only by design, not a geo search', () => {
+      // lat/lng aren't part of the schema at all, so they're simply
+      // stripped rather than rejected — confirms they have no effect,
+      // which is the point: this route must not silently become a
+      // second /nearby.
+      const result = getServiceProvidersSchema.parse({
+        query: { city: 'Gaza', lat: '31.5', lng: '34.45' },
+      });
+      expect(result.query).not.toHaveProperty('lat');
+      expect(result.query).not.toHaveProperty('lng');
+    });
+
+    it('coerces page/limit strings to numbers', () => {
+      const result = getServiceProvidersSchema.parse({ query: { page: '2', limit: '10' } });
+      expect(result.query.page).toBe(2);
+      expect(result.query.limit).toBe(10);
+    });
+
+    it('rejects page below 1', () => {
+      expect(() => getServiceProvidersSchema.parse({ query: { page: '0' } })).toThrow();
+    });
+
+    it('rejects limit above 100', () => {
+      expect(() => getServiceProvidersSchema.parse({ query: { limit: '101' } })).toThrow();
+    });
+
+    it('rejects a city longer than 100 characters', () => {
+      expect(() =>
+        getServiceProvidersSchema.parse({ query: { city: 'a'.repeat(101) } })
+      ).toThrow();
     });
   });
 

@@ -6,6 +6,7 @@ jest.mock('../../src/config/prisma', () => ({
     serviceProviderDetails: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
       update: jest.fn(),
     },
     $queryRaw: jest.fn(),
@@ -142,6 +143,68 @@ describe('serviceProvidersRepository', () => {
         where: { id: providerId },
         data: { availabilityStatus: 'BUSY' },
       });
+    });
+  });
+
+  describe('findMany', () => {
+    it('filters by city via `has` and excludes UNAVAILABLE providers when city is given', async () => {
+      (prisma.serviceProviderDetails.findMany as jest.Mock).mockResolvedValue([
+        { id: 'p1', businessName: 'Gaza Fixer' },
+      ]);
+      (prisma.serviceProviderDetails.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await serviceProvidersRepository.findMany({ city: 'Gaza' }, 0, 20);
+
+      expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith({
+        where: {
+          availabilityStatus: { not: 'UNAVAILABLE' },
+          serviceAreaCities: { has: 'Gaza' },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: 0,
+        take: 20,
+      });
+      expect(prisma.serviceProviderDetails.count).toHaveBeenCalledWith({
+        where: {
+          availabilityStatus: { not: 'UNAVAILABLE' },
+          serviceAreaCities: { has: 'Gaza' },
+        },
+      });
+      expect(result).toEqual({ rows: [{ id: 'p1', businessName: 'Gaza Fixer' }], total: 1 });
+    });
+
+    it('omits the serviceAreaCities filter entirely when no city is given (general results)', async () => {
+      (prisma.serviceProviderDetails.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.serviceProviderDetails.count as jest.Mock).mockResolvedValue(0);
+
+      await serviceProvidersRepository.findMany({}, 0, 20);
+
+      expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith({
+        where: { availabilityStatus: { not: 'UNAVAILABLE' } },
+        orderBy: { createdAt: 'desc' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('returns an empty array with total 0 for a city with no matches, not an error', async () => {
+      (prisma.serviceProviderDetails.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.serviceProviderDetails.count as jest.Mock).mockResolvedValue(0);
+
+      const result = await serviceProvidersRepository.findMany({ city: 'Nowhere' }, 0, 20);
+
+      expect(result).toEqual({ rows: [], total: 0 });
+    });
+
+    it('respects skip/take for pagination', async () => {
+      (prisma.serviceProviderDetails.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.serviceProviderDetails.count as jest.Mock).mockResolvedValue(0);
+
+      await serviceProvidersRepository.findMany({ page: 2, limit: 10 }, 10, 10);
+
+      expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 10, take: 10 })
+      );
     });
   });
 

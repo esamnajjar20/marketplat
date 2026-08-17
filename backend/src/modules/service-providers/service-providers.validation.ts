@@ -58,6 +58,24 @@ export const serviceProviderIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Service provider ID is required') }),
 });
 
+// Home discovery plan (Phase 1): public city/browse list — deliberately
+// separate from nearbyServiceProvidersSchema below. /nearby is a real
+// geographic radius search (lat/lng required); this is a plain
+// paginated directory, same shape as getStoresSchema/getProductsSchema
+// (city optional — omitted city just means "general/unfiltered"). No
+// lat/lng here on purpose: mixing the two concepts into one query
+// shape was the exact confusion the plan asked to avoid. GPS-based
+// sorting for this endpoint, if ever added, is a separate future change.
+export const getServiceProvidersSchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).max(1000).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    city: z.string().max(100).optional(),
+  }),
+});
+
+export type GetServiceProvidersQuery = z.infer<typeof getServiceProvidersSchema>['query'];
+
 // services-design.md §11: nearby search — lat/lng required, radius optional
 // (kilometers), defaulted and capped server-side to avoid pathological
 // full-table Haversine scans.
