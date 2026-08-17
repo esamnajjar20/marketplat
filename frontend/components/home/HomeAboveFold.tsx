@@ -4,12 +4,12 @@ import { Sparkles, Clock } from 'lucide-react';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { FeaturedAds }  from '@/components/home/FeaturedAds';
 import { RecentAds }    from '@/components/home/RecentAds';
+import { SectionHeader } from '@/components/home/SectionHeader';
 import { Skeleton }     from '@/components/shared/ui/Skeleton';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useAds }       from '@/hooks/queries/useAds';
 import { ROUTES }       from '@/lib/constants';
-import Link from 'next/link';
 
 /**
  * FIX UX-GAP-03: CategoryGrid, FeaturedAds, and RecentAds each ran
@@ -30,35 +30,18 @@ import Link from 'next/link';
  * already owns its own self-hiding behavior (renders nothing at all
  * when empty) and sits below the fold, so its independent timing
  * doesn't compound the above-the-fold jump this fix targets.
+ *
+ * FEAT-HOME-DISCOVERY: same reasoning kept RecentProductsSection,
+ * NearbyProvidersSection, and FeaturedStoresSection out of this
+ * coordination too — each is a self-contained, self-hiding section
+ * (own heading + own loading/empty state) mounted independently in
+ * page.tsx below HomeAboveFold, not folded into this wrapper's
+ * "wait for everything, then paint once" logic. Coordinating those in
+ * too would mean the whole homepage waits on the slowest of them —
+ * including NearbyProvidersSection's async permission check — before
+ * showing anything at all, which is the opposite of what a Discovery
+ * homepage should do.
  */
-function SectionHeader({
-  eyebrow,
-  title,
-  icon,
-  cta,
-}: {
-  eyebrow: string;
-  title: string;
-  icon?: React.ReactNode;
-  cta?: { href: string; label: string };
-}) {
-  return (
-    <div className="flex items-end justify-between gap-3 border-b pb-3">
-      <div className="space-y-0.5">
-        <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {icon}
-          {eyebrow}
-        </p>
-        <h2 className="text-lg font-bold sm:text-xl">{title}</h2>
-      </div>
-      {cta && (
-        <Link href={cta.href} className="shrink-0 text-sm font-medium text-primary hover:underline">
-          {cta.label}
-        </Link>
-      )}
-    </div>
-  );
-}
 
 export function HomeAboveFold() {
   const { isLoading: categoriesLoading } = useCategories();
@@ -109,7 +92,7 @@ export function HomeAboveFold() {
             eyebrow="الأحدث"
             title="أحدث الإعلانات"
             icon={<Clock className="h-3.5 w-3.5" />}
-            cta={{ href: ROUTES.search, label: 'عرض الكل ←' }}
+            cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
@@ -142,7 +125,7 @@ export function HomeAboveFold() {
           eyebrow="الأحدث"
           title="أحدث الإعلانات"
           icon={<Clock className="h-3.5 w-3.5" />}
-          cta={{ href: ROUTES.search, label: 'عرض الكل ←' }}
+          cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
         />
         <RecentAds />
       </section>

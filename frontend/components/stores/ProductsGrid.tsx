@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { ProductCard } from './ProductCard';
@@ -11,22 +12,29 @@ import { ROUTES } from '@/lib/constants';
 import type { ProductSortField } from '@/types/product.types';
 
 /**
- * GET /products public browse grid (Plan §10-11). Mirrors StoresGrid's
- * layout/behaviour exactly — same URL-param filters, same skeleton/
- * error/empty/pagination shape — so /products behaves consistently
- * with /stores rather than inventing a new convention.
+ * GET /products directory grid — mirrors StoresGrid's layout/behavior
+ * exactly (same URL param reading, same loading/error/empty states,
+ * same Pagination usage). useProducts() with no storeId returns
+ * ProductWithStore rows across every store (see products.api.ts's
+ * getAll — same unwrapPaginated shape StoresGrid already consumes via
+ * useStores), so no new API or hook was needed for this page.
+ *
+ * Each card shows its parent store's name/logo above the product
+ * (see the store-attribution row below) so a product never reads as
+ * ownerless in this cross-store view — StoreProducts.tsx doesn't need
+ * this same treatment since it's already scoped to one store's page.
  */
 export function ProductsGrid() {
   const sp = useSearchParams();
 
   const search = sp.get('search') ?? undefined;
   const page = Number(sp.get('page') ?? 1);
-  const categoryId = sp.get('categoryId') ?? undefined;
+  const city = sp.get('city') ?? undefined;
   const sortBy = (sp.get('sortBy') as ProductSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
 
   const { data, isLoading, isError, refetch } = useProducts({
-    search, page, categoryId, sortBy, sortOrder,
+    search, page, city, sortBy, sortOrder, limit: 12,
   });
 
   const items = data?.items ?? [];
@@ -39,11 +47,12 @@ export function ProductsGrid() {
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+          {Array.from({ length: 12 }).map((_, i) => <ProductCardSkeleton key={i} />)}
         </div>
       </div>
     );
   }
+
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -75,7 +84,19 @@ export function ProductsGrid() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {items.map((product) => (
-            <ProductCard key={product.id} product={product} storeId={product.storeId} />
+            <div key={product.id} className="space-y-1.5">
+              {/* Store attribution — the one thing StoreProducts.tsx
+                  doesn't need (it's already inside one store's page)
+                  but this cross-store view does, per the "make clear
+                  a product belongs to a store" requirement. */}
+              <Link
+                href={ROUTES.storeDetail(product.store.id)}
+                className="flex items-center gap-1.5 px-0.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <span className="truncate">{product.store.name}</span>
+              </Link>
+              <ProductCard product={product} storeId={product.store.id} />
+            </div>
           ))}
         </div>
       )}

@@ -1,53 +1,79 @@
 'use client';
 
-import Link from 'next/link';
+import { LocateFixed } from 'lucide-react';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
-import { useNearbyServiceProvidersIfGranted } from '@/hooks/queries/useNearbyServiceProvidersIfGranted';
+import { SectionHeader } from '@/components/home/SectionHeader';
+import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { useNearbyProvidersForHome } from '@/hooks/queries/useNearbyProvidersForHome';
 import { ROUTES } from '@/lib/constants';
 
 /**
- * Plan §6/§7: "مقدمو الخدمات القريبون" home rail. Deliberately renders
- * nothing — no heading either — unless geolocation permission is
- * already 'granted' from a prior visit AND a position + at least one
- * nearby provider actually resolves. That covers:
- *   - permission is 'prompt' or 'denied' or unsupported → section
- *     absent, no popup, no error, no CTA nagging for location
- *   - permission 'granted' but still resolving position/data →
- *     section absent (no visible skeleton) rather than a flash of
- *     empty space before the rest of Home settles
- *   - permission 'granted', request fails → section absent rather
- *     than surfacing an error for a section the visitor never asked
- *     to see (unlike RecommendedAds, which the visitor implicitly
- *     asked for just by being logged in)
- *   - permission 'granted', resolves, zero providers within range →
- *     section absent, same reasoning
- * This is the one section on Home that hides on error, not just on
- * empty — because unlike Ads/Products/Stores, nothing on Home invites
- * the visitor to expect this section exists in the first place.
+ * FEAT-HOME-NEARBY-PROVIDERS: "مقدمو خدمات قريبون منك" section for
+ * Home. Deliberately self-hiding, not a fixed slot in the page layout
+ * — see useNearbyProvidersForHome's own doc for why this never
+ * prompts for location on its own. Three states:
+ *   1. still checking existing browser permission → render nothing
+ *      (no layout jump once the check resolves either way — this is
+ *      a silent, near-instant check, not a network request)
+ *   2. not granted (denied, prompt, or unsupported) → render nothing;
+ *      the only place that ever asks for location explicitly is
+ *      /service-providers's own "استخدام موقعي الحالي" button
+ *   3. granted → fetch nearby providers and show up to 6, exactly
+ *      like NearbyServiceProviders.tsx's own card grid
+ *
+ * Loading/error/empty states are intentionally minimal (not the full
+ * EmptyState treatment /service-providers uses for its own denied/
+ * unsupported cases) — those cases can't happen here since this only
+ * ever queries once permission is already 'granted'.
  */
 export function NearbyProvidersSection() {
-  const { available, isChecking, data, isLoading, isError } = useNearbyServiceProvidersIfGranted();
+  const { show, isChecking, data, isLoading, isError } = useNearbyProvidersForHome();
 
-  if (!available || isChecking || isLoading || isError) return null;
+  if (isChecking || !show) return null;
 
   const items = data?.items ?? [];
-  if (items.length === 0) return null;
+
+  // Loading or a genuine fetch error with an already-granted
+  // permission — show the skeleton grid rather than nothing, so the
+  // section doesn't pop in abruptly once data resolves. A real error
+  // here (network failure, not a permission issue) just quietly
+  // renders nothing further below — no destructive error banner on
+  // the homepage for what's a secondary discovery section.
+  if (isLoading) {
+    return (
+      <section className="container mx-auto space-y-4 px-4 pt-10">
+        <SectionHeader
+          eyebrow="قريبون منك"
+          title="مقدمو خدمات قريبون منك"
+          icon={<LocateFixed className="h-3.5 w-3.5" />}
+          cta={{ href: ROUTES.serviceProviders, label: 'عرض الكل ←' }}
+        />
+        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="w-72 shrink-0 sm:w-auto">
+              <StoreCardSkeleton />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (isError || items.length === 0) return null;
 
   return (
     <section className="container mx-auto space-y-4 px-4 pt-10">
-      <div className="flex items-end justify-between gap-3 border-b pb-3">
-        <div className="space-y-0.5">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">قريبون منك</p>
-          <h2 className="text-lg font-bold sm:text-xl">مقدمو الخدمات القريبون</h2>
-        </div>
-        <Link href={ROUTES.serviceProviders} className="shrink-0 text-sm font-medium text-primary hover:underline">
-          عرض الكل ←
-        </Link>
-      </div>
-
-      <div className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+      <SectionHeader
+        eyebrow="قريبون منك"
+        title="مقدمو خدمات قريبون منك"
+        icon={<LocateFixed className="h-3.5 w-3.5" />}
+        cta={{ href: ROUTES.serviceProviders, label: 'عرض الكل ←' }}
+      />
+      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3">
         {items.map((provider) => (
-          <ServiceProviderCard key={provider.id} provider={provider} className="w-64 shrink-0 sm:w-auto" />
+          <div key={provider.id} className="w-72 shrink-0 sm:w-auto">
+            <ServiceProviderCard provider={provider} />
+          </div>
         ))}
       </div>
     </section>

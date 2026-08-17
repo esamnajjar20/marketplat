@@ -1,14 +1,26 @@
 import type { Metadata } from 'next';
 import { HeroBanner }   from '@/components/home/HeroBanner';
 import { HomeAboveFold } from '@/components/home/HomeAboveFold';
-import { ProductsSection } from '@/components/home/ProductsSection';
+import { RecentProductsSection } from '@/components/home/RecentProductsSection';
 import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
-import { StoresSection } from '@/components/home/StoresSection';
+import { FeaturedStoresSection } from '@/components/home/FeaturedStoresSection';
 import { RecommendedAds } from '@/components/home/RecommendedAds';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'الرئيسية', path: '/' });
 
+/**
+ * FEAT-HOME-DISCOVERY: Home = Discovery, not a single mixed feed.
+ * Order matches the agreed Home layout exactly:
+ *   Search (HeroBanner) → Categories → أحدث الإعلانات (both inside
+ *   HomeAboveFold) → أحدث المنتجات → مقدمو الخدمات القريبون منك →
+ *   متاجر مميزة.
+ * Each of the three new sections is self-contained (own heading, own
+ * loading/empty/self-hide behavior — see each file's own doc) and
+ * mounted independently here, same as RecommendedAds already was,
+ * rather than folded into HomeAboveFold's coordinated skeleton — see
+ * HomeAboveFold's comment for why.
+ */
 export default function HomePage() {
   return (
     <div className="pb-8">
@@ -24,17 +36,20 @@ export default function HomePage() {
       */}
       <HomeAboveFold />
 
+      {/* FEAT-HOME-DISCOVERY: أحدث المنتجات → /products */}
+      <RecentProductsSection />
+
       {/*
-        Marketplace Discovery Home (plan §2/§4): Ads (above, inside
-        HomeAboveFold) → Products → nearby Providers → Stores. Each
-        section is independently queried and independently self-hiding
-        (plan §14/§15) — a failure or empty result in one never takes
-        down the others, and each disappears as a whole (heading
-        included) rather than showing an empty block.
+        FEAT-HOME-NEARBY-PROVIDERS: مقدمو الخدمات القريبون منك.
+        Renders nothing at all unless the browser already has a
+        granted geolocation permission from an earlier visit — never
+        prompts on its own. See the component's own doc for the full
+        permission-state handling.
       */}
-      <ProductsSection />
       <NearbyProvidersSection />
-      <StoresSection />
+
+      {/* FEAT-HOME-DISCOVERY: متاجر مميزة → /stores */}
+      <FeaturedStoresSection />
 
       {/*
         Gap #9: personalized for a returning visitor (favorites/views/

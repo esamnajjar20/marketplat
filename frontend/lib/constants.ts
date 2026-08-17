@@ -46,9 +46,10 @@ export const ROUTES = {
   myServiceAppointments:   '/my-services/appointments',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,
-  // Home §5/§10: public cross-store product browse. ProductCard still
-  // links to `/stores/:id?product=:id` (no standalone product detail
-  // page yet) — this route is the *listing* page only.
+  // FEAT-HOME-DISCOVERY: public cross-store products browse page —
+  // distinct from myStoreProducts below (owner-only management list)
+  // and from ProductCard's own per-store deep link. Backed by the
+  // existing GET /products (useProducts with no storeId), no new API.
   products:             '/products',
   myStore:              '/my-store',
   myStoreProducts:       '/my-store/products',

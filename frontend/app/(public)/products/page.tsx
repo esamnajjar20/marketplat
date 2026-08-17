@@ -8,11 +8,19 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 export const metadata: Metadata = buildMetadata({ title: 'المنتجات', path: '/products' });
 
 /**
- * Plan §10: public cross-store product browse page. Header treatment
- * matches /stores (icon-badge + heading). Deliberately no filter
- * sidebar in this pass (plan §22 — smallest solution first); search/
- * category/sort are still reachable via ProductsGrid's URL params,
- * same as StoresGrid before StoresFilters existed.
+ * FEAT-HOME-DISCOVERY: public cross-store products browse page — the
+ * Home "منتجات مميزة" section's "عرض الكل" destination. Same
+ * icon-badge + heading header treatment as /stores/page.tsx and
+ * /services/page.tsx for visual consistency across the three
+ * "browse + " list pages.
+ *
+ * No filter sidebar (unlike /stores, /services): ProductsGrid already
+ * reads search/city/sortBy/sortOrder from the URL exactly like
+ * StoresGrid does, but this pass only needed a working browse page
+ * backed by the existing useProducts() hook — not a new
+ * ProductsFilters/ProductsFiltersSheet component pair. Can be added
+ * later the same way StoresFilters was, without touching this page's
+ * data layer.
  */
 export default function ProductsPage() {
   return (
@@ -24,7 +32,7 @@ export default function ProductsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold sm:text-2xl">المنتجات</h1>
-            <p className="text-sm text-muted-foreground">تصفح منتجات كل المتاجر في سوق غزة</p>
+            <p className="text-sm text-muted-foreground">تصفح منتجات المتاجر في سوق غزة</p>
           </div>
         </div>
       </div>
