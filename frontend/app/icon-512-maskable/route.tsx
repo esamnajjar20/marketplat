@@ -1,5 +1,9 @@
 import { ImageResponse } from 'next/og';
 
+// RENDER-FIX (dynamic-routes audit): no request-dependent input — see
+// app/icon-192/route.tsx for the full reasoning.
+export const dynamic = 'force-static';
+
 /**
  * أيقونة سaskable — نفس الرمز المستخدم في app/icon-512/route.tsx، لكن مع
  * حشوة كافية حول المحتوى بدل تعبئة الحافة بالكامل. Android/الأنظمة التي

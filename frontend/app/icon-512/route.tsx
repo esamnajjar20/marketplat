@@ -1,5 +1,9 @@
 import { ImageResponse } from 'next/og';
 
+// RENDER-FIX (dynamic-routes audit): no request-dependent input — see
+// app/icon-192/route.tsx for the full reasoning.
+export const dynamic = 'force-static';
+
 /**
  * FIX PROD-02: see app/icon-192/route.tsx for the full reasoning — same
  * mark, larger canvas (512x512 is the other size PWA install prompts

@@ -1,5 +1,12 @@
 import { ImageResponse } from 'next/og';
 
+// RENDER-FIX (dynamic-routes audit): this Route Handler has no request-
+// dependent input (no cookies/headers/searchParams, no `request` arg
+// even declared) — output is 100% deterministic. Route Handlers default
+// to dynamic rendering unless told otherwise, which is why this showed
+// up as "ƒ Dynamic" in `next build` despite never varying per request.
+export const dynamic = 'force-static';
+
 /**
  * FIX PROD-02: app/manifest.ts previously pointed only at the single
  * 32x32 app/icon.tsx (the browser-tab favicon), with an explicit note

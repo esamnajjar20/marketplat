@@ -8,6 +8,23 @@ import { buildAdMetadata }  from '@/lib/seo';
 
 interface Props { params: Promise<{ id: string }> }
 
+// RENDER-FIX (dynamic-routes audit, item A/C): ads are paginated and
+// effectively unbounded (ads.repository.ts findMany uses skip/take —
+// no listing endpoint returns "all" ads), so generateStaticParams
+// intentionally returns none here — prerendering every ad id at build
+// time would mean an unbounded, ever-growing build-time fetch. Returning
+// [] with dynamicParams left at its default (true) means: zero ads are
+// prerendered at build time, but the first visit to any /ads/:id
+// generates and caches that page on-demand, and subsequent visits reuse
+// the cached result for `revalidate` seconds — real ISR, not
+// per-request dynamic rendering. New ads are reachable immediately
+// (first hit just costs one on-demand render).
+export async function generateStaticParams() {
+  return [];
+}
+
+export const revalidate = 60;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const qc = getQueryClient();
