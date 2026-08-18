@@ -12,7 +12,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { recommendationsApi, GetRecommendationsParams } from '@/api/recommendations.api';
+import type { GetRecommendationsParams } from '@/api/recommendations.api';
+import { recommendationsApi } from '@/api/recommendations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 

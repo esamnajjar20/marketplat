@@ -156,6 +156,28 @@ describe('productsRepository', () => {
       expect(call.where.availability).toBe('LIMITED');
     });
 
+    // PROMO-1 (Phase 10): relation filter powering the Home "عروض
+    // مميزة" section and /products?hasPromotion=true — see this
+    // model's own doc comment in the repository for the status-based
+    // (not window-checked) staleness tradeoff.
+    it('applies the hasPromotion filter as a promotions relation "some" filter', async () => {
+      await productsRepository.findMany({ hasPromotion: true } as any);
+      const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where.promotions).toEqual({
+        some: { status: { in: ['SCHEDULED', 'ACTIVE'] } },
+      });
+    });
+
+    it('omits the promotions filter entirely when hasPromotion is false or undefined', async () => {
+      await productsRepository.findMany({ hasPromotion: false } as any);
+      let call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where.promotions).toBeUndefined();
+
+      await productsRepository.findMany({} as any);
+      call = (prisma.product.findMany as jest.Mock).mock.calls[1][0];
+      expect(call.where.promotions).toBeUndefined();
+    });
+
     it('applies city filter via the store relation (overriding the base store filter)', async () => {
       await productsRepository.findMany({ city: 'Gaza' } as any);
       const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];

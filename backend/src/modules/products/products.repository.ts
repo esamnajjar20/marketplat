@@ -140,6 +140,7 @@ export const productsRepository = {
       search,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      hasPromotion,
     } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
@@ -177,6 +178,16 @@ export const productsRepository = {
           { description: { contains: search, mode: 'insensitive' } },
         ],
       }),
+      // PROMO-1 (Phase 10): relation filter on the Promotion model
+      // added for the store-owner CRUD module — deliberately status-
+      // based (SCHEDULED or ACTIVE row exists), not a startsAt/endsAt
+      // window check, matching the same "status column, kept fresh by
+      // promotionsService.syncStatus on read/write, not swept on a
+      // cron" lazy-status design documented on that model. A promotion
+      // whose endsAt just passed can appear here for a short window
+      // until it's next read and re-synced — acceptable for a
+      // discovery section, not acceptable for anything charging money.
+      ...(hasPromotion && { promotions: { some: { status: { in: ['SCHEDULED', 'ACTIVE'] } } } }),
     };
 
     const [products, total] = await Promise.all([

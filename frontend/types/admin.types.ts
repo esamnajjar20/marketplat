@@ -329,7 +329,7 @@ export interface FraudSignal {
   ad:   { id: string; title: string; status: string } | null;
 }
 
-export interface AdminGetFlaggedAdsParams extends PaginationParams {}
+export type AdminGetFlaggedAdsParams = PaginationParams;
 
 export interface AdminGetFraudSignalsParams extends PaginationParams {
   type?:     FraudSignalType;

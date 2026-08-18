@@ -4,9 +4,14 @@
  * Coverage targets:
  *  - renders name and formatted price
  *  - links to /stores/:storeId?product=:productId
- *  - discount price logic: when discountPrice is set, shows it as the
- *    primary price and the original price struck through; when null,
- *    shows only the plain price with no strikethrough
+ *  - PROMO-1: pricing is read from product.effectivePrice, not the raw
+ *    discountPrice field — when effectivePrice.discountPrice is set,
+ *    shows it as the primary price and the original price struck
+ *    through; when null, shows only the plain price with no
+ *    strikethrough
+ *  - PROMO-1: the 🔥 discount-percentage badge shows only when
+ *    hasActivePromotion is true (a live Promotion), not merely because
+ *    a discountPrice happens to be set (the static fallback case)
  *  - availability badge: hidden for IN_STOCK, shown with the right
  *    label for LIMITED and OUT_OF_STOCK
  *  - wholesale pricing line shown only when BOTH wholesalePrice and
@@ -18,9 +23,18 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { formatPrice } from '@/lib/formatters';
-import type { Product } from '@/types/product.types';
+import type { ProductWithStore, EffectivePrice } from '@/types/product.types';
 
-const baseProduct: Product = {
+const noDiscount: EffectivePrice = {
+  price: 150,
+  originalPrice: 150,
+  discountPrice: null,
+  discountPercentage: null,
+  hasActivePromotion: false,
+  activePromotionId: null,
+};
+
+const baseProduct: ProductWithStore = {
   id: 'prod-1',
   storeId: 'store-1',
   categoryId: 'cat-1',
@@ -36,6 +50,8 @@ const baseProduct: Product = {
   views: 20,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
+  store: { id: 'store-1', name: 'متجر تجريبي', logoUrl: null, city: 'غزة', status: 'ACTIVE' },
+  effectivePrice: noDiscount,
 };
 
 describe('ProductCard', () => {
@@ -53,14 +69,43 @@ describe('ProductCard', () => {
     it('shows the plain price with no strikethrough when there is no discount', () => {
       render(<ProductCard product={baseProduct} storeId="store-1" />);
       expect(screen.getByText(formatPrice('150'))).toBeInTheDocument();
-      // Only one price shown — no original-price line rendered at all.
       expect(screen.getAllByText(formatPrice('150'))).toHaveLength(1);
     });
 
-    it('shows the discount price as primary and the original price struck through', () => {
-      render(<ProductCard product={{ ...baseProduct, discountPrice: '120' }} storeId="store-1" />);
-      expect(screen.getByText(formatPrice('120'))).toBeInTheDocument();
+    it('shows the static discountPrice fallback (no live promotion) as primary, original struck through', () => {
+      const product: ProductWithStore = {
+        ...baseProduct,
+        effectivePrice: {
+          price: 150,
+          originalPrice: 150,
+          discountPrice: 120,
+          discountPercentage: 20,
+          hasActivePromotion: false,
+          activePromotionId: null,
+        },
+      };
+      render(<ProductCard product={product} storeId="store-1" />);
+      expect(screen.getByText(formatPrice(120))).toBeInTheDocument();
       expect(screen.getByText(formatPrice('150'))).toBeInTheDocument();
+      expect(screen.queryByText(/🔥/)).not.toBeInTheDocument();
+    });
+
+    it('shows a live promotion price as primary, original struck through, with the 🔥 badge', () => {
+      const product: ProductWithStore = {
+        ...baseProduct,
+        effectivePrice: {
+          price: 150,
+          originalPrice: 150,
+          discountPrice: 127.5,
+          discountPercentage: 15,
+          hasActivePromotion: true,
+          activePromotionId: 'promo-1',
+        },
+      };
+      render(<ProductCard product={product} storeId="store-1" />);
+      expect(screen.getByText(formatPrice(127.5))).toBeInTheDocument();
+      expect(screen.getByText(formatPrice('150'))).toBeInTheDocument();
+      expect(screen.getByText('🔥 خصم 15%')).toBeInTheDocument();
     });
   });
 

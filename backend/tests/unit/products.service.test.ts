@@ -5,6 +5,7 @@ import { storesRepository } from '../../src/modules/stores/stores.repository';
 import { storeFollowersRepository } from '../../src/modules/stores/store-followers.repository';
 import { requireOwnStoreForProducts } from '../../src/modules/stores/stores.service';
 import { notificationEvents } from '../../src/modules/notifications/notifications.service';
+import { promotionsService } from '../../src/modules/promotions/promotions.service';
 import { prisma } from '../../src/config/prisma';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
 import { cleanupUploadedImages, extractCloudinaryPublicId } from '../../src/shared/utils/cloudinaryHelpers';
@@ -18,8 +19,24 @@ jest.mock('../../src/modules/stores/stores.repository');
 jest.mock('../../src/modules/stores/store-followers.repository');
 jest.mock('../../src/modules/stores/stores.service');
 jest.mock('../../src/modules/notifications/notifications.service');
+// PROMO-1: getProductById/getProducts now fold in promotionsService's
+// computed effectivePrice — mocked here the same way every other
+// cross-module service dependency in this file already is, so this
+// file's own tests stay focused on productsService's own logic rather
+// than re-testing promotion price computation (covered in
+// promotions.service.test.ts).
+jest.mock('../../src/modules/promotions/promotions.service');
 jest.mock('../../src/config/cloudinary');
 jest.mock('../../src/shared/utils/cloudinaryHelpers');
+
+const mockEffectivePrice = {
+  price: 100,
+  originalPrice: 100,
+  discountPrice: null,
+  discountPercentage: null,
+  hasActivePromotion: false,
+  activePromotionId: null,
+};
 
 const mockActiveStore = { id: 'store-1', status: 'ACTIVE', plan: 'FREE', name: 'My Store' };
 const mockCategory = { id: 'cat-1', isActive: true };
@@ -37,6 +54,8 @@ describe('productsService', () => {
     jest.clearAllMocks();
     (storeFollowersRepository.findUserIdsByStoreId as jest.Mock).mockResolvedValue([]);
     (notificationEvents.onStoreNewProduct as jest.Mock).mockResolvedValue({ count: 0 });
+    (promotionsService.getEffectivePrice as jest.Mock).mockResolvedValue(mockEffectivePrice);
+    (promotionsService.getEffectivePrices as jest.Mock).mockResolvedValue(new Map());
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -201,23 +220,27 @@ describe('productsService', () => {
   });
 
   describe('getProducts', () => {
-    it('returns paginated public products', async () => {
+    it('returns paginated public products with effectivePrice attached', async () => {
       (productsRepository.findMany as jest.Mock).mockResolvedValue({
         products: [{ id: 'product-1' }],
         total: 1,
       });
+      (promotionsService.getEffectivePrices as jest.Mock).mockResolvedValue(
+        new Map([['product-1', mockEffectivePrice]])
+      );
 
       const result = await productsService.getProducts({ page: 2, limit: 5 } as any);
 
       expect(productsRepository.findMany).toHaveBeenCalledWith({ page: 2, limit: 5 });
-      expect(result.items).toEqual([{ id: 'product-1' }]);
+      expect(promotionsService.getEffectivePrices).toHaveBeenCalledWith([{ id: 'product-1' }]);
+      expect(result.items).toEqual([{ id: 'product-1', effectivePrice: mockEffectivePrice }]);
       expect(result.meta.page).toBe(2);
       expect(result.meta.limit).toBe(5);
     });
   });
 
   describe('getProductById', () => {
-    it('returns the product and fires a view-count increment', async () => {
+    it('returns the product with effectivePrice and fires a view-count increment', async () => {
       (productsRepository.findPublicById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         status: 'ACTIVE',
@@ -231,6 +254,7 @@ describe('productsService', () => {
         id: 'product-1',
         status: 'ACTIVE',
         store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
+        effectivePrice: mockEffectivePrice,
       });
       expect(productsRepository.incrementViews).toHaveBeenCalledWith('product-1');
     });
@@ -264,6 +288,7 @@ describe('productsService', () => {
         id: 'product-1',
         status: 'ACTIVE',
         store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
+        effectivePrice: mockEffectivePrice,
       });
     });
   });

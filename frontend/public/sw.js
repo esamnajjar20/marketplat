@@ -69,29 +69,27 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(STATIC_CACHE);
-      // FIX SW-CRITICAL-01: cache.addAll() يفشل بالكامل (يرفض الـ Promise
-      // ويُفشل حدث install كله) إذا فشل جلب أي عنصر واحد من القائمة —
-      // ولو حدث هذا (شبكة بطيئة/متقطعة أثناء أول زيارة، بالضبط الجمهور
-      // المستهدف هنا)، فإن الـ Service Worker لن يُثبَّت إطلاقًا ولن
-      // تعمل أي استراتيجية كاش لاحقًا. نستبدلها بحلقة تخزين متسامحة:
-      // فشل عنصر واحد لا يمنع تثبيت البقية أو تثبيت الـ SW نفسه.
+
+      // FIX SW-CRITICAL-01: cache.addAll() fails completely if one
+      // resource cannot be fetched. Cache each resource independently
+      // so one network failure does not prevent SW installation.
       await Promise.all(
         PRECACHE_URLS.map(async (url) => {
           try {
             const response = await fetch(url);
+
             if (response && response.ok) {
               await cache.put(url, response);
             }
-          } catch (err) {
-            // سيُعاد جلبه لاحقًا عبر staleWhileRevalidate/networkFirst
-            // بمجرد أول طلب فعلي للمسار — ليس مفقودًا نهائيًا.
+          } catch {
+            // Resource will be fetched later by staleWhileRevalidate/networkFirst.
           }
         }),
       );
-      // FIX PWA-01: التخطي الفوري لمرحلة "waiting" يسمح بتفعيل النسخة
-      // الجديدة فور تثبيتها بدلاً من انتظار إغلاق كل التبويبات المفتوحة —
-      // نستخدمه بالتزامن مع رسالة SKIP_WAITING القادمة من الواجهة (انظر
-      // أسفل) بدلاً من التفعيل التلقائي، لإعطاء المستخدم فرصة لحفظ عمله.
+
+      // FIX PWA-01: activate the newly installed SW immediately.
+      // The frontend can still explicitly control this through SKIP_WAITING.
+      await self.skipWaiting();
     })(),
   );
 });
@@ -178,7 +176,7 @@ async function cacheFirst(request, cacheName, maxEntries) {
       trimCache(cacheName, maxEntries);
     }
     return response;
-  } catch (err) {
+  } catch {
     // لا صورة مخزّنة ولا اتصال — نترك المتصفح/المكوّن يتعامل مع الفشل
     // (المكونات تعرض placeholder عند فشل تحميل الصورة).
     throw err;
@@ -198,7 +196,7 @@ async function networkFirst(request, cacheName, maxEntries) {
       trimCache(cacheName, maxEntries);
     }
     return response;
-  } catch (err) {
+  } catch {
     const cached = await cache.match(request);
     if (cached) {
       return cached;
@@ -295,7 +293,7 @@ async function replayQueuedRequests() {
         const tx = db2.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).delete(entry.id);
       }
-    } catch (err) {
+    } catch {
       // ما زال بدون اتصال — نتوقف ونحاول لاحقًا بدل استهلاك الطابور بالكامل بأخطاء
       break;
     }
@@ -372,7 +370,7 @@ self.addEventListener('fetch', (event) => {
           const cache = await caches.open(STATIC_CACHE);
           cache.put(request, response.clone());
           return response;
-        } catch (err) {
+        } catch {
           const cache = await caches.open(STATIC_CACHE);
           const cached = await cache.match(request);
           return cached || (await cache.match(OFFLINE_URL));
@@ -413,12 +411,12 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         try {
           return await fetch(request);
-        } catch (err) {
+        } catch {
           await queueFailedRequest(request.clone());
           if ('sync' in self.registration) {
             try {
               await self.registration.sync.register('replay-queue');
-            } catch (_) {
+            } catch {
               /* Background Sync غير مدعوم — سيُعاد المحاولة عند رسالة REPLAY_QUEUE_NOW */
             }
           }
@@ -447,7 +445,7 @@ self.addEventListener('push', (event) => {
   let payload;
   try {
     payload = event.data.json();
-  } catch (err) {
+  } catch {
     payload = { title: 'سوق غزة', body: event.data.text() };
   }
 

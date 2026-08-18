@@ -74,6 +74,15 @@ export const getProductsSchema = z.object({
       search: z.string().min(1).max(200).optional(),
       sortBy: z.enum(PRODUCT_SORT_FIELDS).optional(),
       sortOrder: z.enum(['asc', 'desc']).optional(),
+      // PROMO-1 (Phase 10 scope only — minimal, not the full Phase 12
+      // filter design): true returns only products carrying a live
+      // (SCHEDULED or ACTIVE) Promotion row, so the Home "عروض مميزة"
+      // section can query directly instead of over-fetching and
+      // filtering client-side. Query-string booleans arrive as the
+      // string "true"/"false", same coercion products.controller.ts's
+      // callers already rely on elsewhere in this schema.
+      hasPromotion: z
+        .preprocess(value => (value === undefined ? undefined : value === 'true'), z.boolean().optional()),
     })
     // FIX M-024: see ads.validation.ts's getAdsSchema refine for the
     // same fix and rationale — same silent-empty-result bug here.

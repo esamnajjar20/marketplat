@@ -96,6 +96,13 @@ export const queryKeys = {
     mine:   (params?: object) => ['products', 'me', params ?? {}] as const,
   },
 
+  // ── Promotions ─────────────────────────────────────────────────
+  promotions: {
+    all:    ()           => ['promotions'] as const,
+    mine:   ()            => ['promotions', 'me'] as const,
+    detail: (id: string) => ['promotions', 'detail', id] as const,
+  },
+
   // ── Product categories ─────────────────────────────────────────
   productCategories: {
     all:      ()             => ['product-categories'] as const,

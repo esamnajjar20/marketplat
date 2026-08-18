@@ -570,6 +570,7 @@ model StoreDetails {
   updatedAt       DateTime        @updatedAt
   sellerProfile   SellerProfile   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
   products        Product[]
+  promotions      Promotion[]
   followers       StoreFollower[]
 
   @@index([status, city])
@@ -612,11 +613,44 @@ model Product {
   updatedAt       DateTime            @updatedAt
   store           StoreDetails        @relation(fields: [storeId], references: [id], onDelete: Cascade)
   category        ProductCategory     @relation(fields: [categoryId], references: [id])
+  promotions      Promotion[]
 
   @@index([storeId, status])
   @@index([categoryId, status])
   @@index([status, createdAt])
   @@map("products")
+}
+
+// PROMO-1: scheduled/time-boxed discount on a single Product, decoupled
+// from Product.discountPrice (the older, still-supported static
+// override — see products.service.ts's getEffectivePrice for how the
+// two are reconciled: an ACTIVE-and-in-window Promotion always wins;
+// discountPrice is the fallback for products that never adopt
+// Promotion). Deliberately NOT linked to Ad here — Phase 13 of the
+// original design doc wires Ad -> Promotion later via a separate
+// optional Ad.promotionId, keeping "what's for sale / what's discounted
+// / what's advertised" as three independent concerns.
+model Promotion {
+  id            String          @id @default(cuid())
+  storeId       String
+  productId     String
+  title         String
+  description   String?         @db.VarChar(500)
+  discountType  DiscountType
+  discountValue Decimal         @db.Decimal(10, 2)
+  startsAt      DateTime
+  endsAt        DateTime
+  status        PromotionStatus @default(SCHEDULED)
+  maxUses       Int?
+  usageCount    Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  store         StoreDetails    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  @@index([productId, startsAt, endsAt])
+  @@map("promotions")
 }
 
 model StoreFollower {
@@ -1098,6 +1132,24 @@ enum ProductAvailability {
   IN_STOCK
   LIMITED
   OUT_OF_STOCK
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// SCHEDULED and ACTIVE are the two "live" states a promotion can be in
+// before it resolves to EXPIRED (endsAt passed) or CANCELLED (seller
+// pulled it manually) — see the partial unique index in this model's
+// migration, which enforces at most one live row per product using
+// exactly this SCHEDULED/ACTIVE distinction.
+enum PromotionStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  EXPIRED
+  CANCELLED
 }
 
 enum ProductStatus {

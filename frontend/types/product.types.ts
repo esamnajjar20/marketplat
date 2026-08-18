@@ -50,13 +50,40 @@ export interface Product {
 /** Product card in browse/search results — includes store summary to avoid N+1 fetches. */
 export type ProductWithStore = Product & {
   store: Pick<StoreDetails, 'id' | 'name' | 'logoUrl' | 'city' | 'status'>;
+  /**
+   * PROMO-1: computed by backend's promotionsService.getEffectivePrice —
+   * an ACTIVE-and-in-window Promotion always wins here over the static
+   * discountPrice field above; discountPrice is only reflected in
+   * effectivePrice as a fallback when no live Promotion exists. UI
+   * components should read discountPrice/discountPercentage from here,
+   * not from the raw Product.discountPrice field, so they automatically
+   * pick up scheduled/expiring promotions without extra plumbing.
+   */
+  effectivePrice: EffectivePrice;
 };
 
 /** GET /products/:id — public detail, includes full store context. */
 export type ProductWithFullStore = Product & {
   store: StoreDetails;
   category: Pick<ProductCategory, 'id' | 'name' | 'nameAr' | 'slug'>;
+  effectivePrice: EffectivePrice;
 };
+
+/**
+ * PROMO-1: the resolved "what does this product cost right now" shape —
+ * see products.service.ts's getProductById/getProducts on the backend.
+ * price/originalPrice are always the same value (Product.price,
+ * unchanged); discountPrice/discountPercentage are null when nothing
+ * discounts this product at all.
+ */
+export interface EffectivePrice {
+  price: number;
+  originalPrice: number;
+  discountPrice: number | null;
+  discountPercentage: number | null;
+  hasActivePromotion: boolean;
+  activePromotionId: string | null;
+}
 
 // ── Payloads ─────────────────────────────────────────────────────
 
@@ -112,6 +139,13 @@ export interface ProductsQuery {
   sortOrder?: 'asc' | 'desc';
   /** Used by my-products (GET /products/me); ignored by the public browse endpoint. */
   status?: ProductStatus;
+  /**
+   * PROMO-1 (Phase 10): true restricts results to products carrying a
+   * live (SCHEDULED or ACTIVE) Promotion — see backend's
+   * products.validation.ts getProductsSchema for the exact semantics
+   * and its known lazy-status staleness window.
+   */
+  hasPromotion?: boolean;
 }
 
 // ── Product category payloads (admin) ───────────────────────────

@@ -186,6 +186,24 @@ describe('products.validation', () => {
       expect(result.query.maxPrice).toBe(200);
     });
 
+    // PROMO-1 (Phase 10): hasPromotion arrives as the query-string
+    // literal "true"/"false", same coercion approach as the other
+    // optionalQueryNumber fields in this schema.
+    it('coerces the string "true" into boolean true', () => {
+      const result = getProductsSchema.parse({ query: { hasPromotion: 'true' } });
+      expect(result.query.hasPromotion).toBe(true);
+    });
+
+    it('coerces the string "false" into boolean false', () => {
+      const result = getProductsSchema.parse({ query: { hasPromotion: 'false' } });
+      expect(result.query.hasPromotion).toBe(false);
+    });
+
+    it('leaves hasPromotion undefined when not provided', () => {
+      const result = getProductsSchema.parse({ query: {} });
+      expect(result.query.hasPromotion).toBeUndefined();
+    });
+
     it('rejects a page above 1000', () => {
       expect(() => getProductsSchema.parse({ query: { page: '1001' } })).toThrow();
     });

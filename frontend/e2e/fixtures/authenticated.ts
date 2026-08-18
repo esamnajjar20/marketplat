@@ -23,7 +23,7 @@ export interface AuthedFixtures {
 }
 
 export const test = base.extend<AuthedFixtures>({
-  // eslint-disable-next-line no-empty-pattern
+   
   authedUser: async ({}, use) => {
     await use(makeTestUser());
   },

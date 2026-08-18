@@ -4,10 +4,10 @@ import { PackageX, Clock3 } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
-import type { Product, ProductAvailability } from '@/types/product.types';
+import type { ProductAvailability, ProductWithStore } from '@/types/product.types';
 
 interface Props {
-  product: Product;
+  product: ProductWithStore;
   storeId: string;
   className?: string;
 }
@@ -30,7 +30,13 @@ export function ProductCard({ product, storeId, className }: Props) {
   const rawImage = product.images[0];
   const thumb = rawImage ? getThumbnailUrl(rawImage, 400, 400) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
-  const hasDiscount = product.discountPrice !== null;
+  // PROMO-1: reads the backend-resolved effectivePrice (an ACTIVE
+  // Promotion, or the static discountPrice fallback — see
+  // product.types.ts's EffectivePrice) instead of the raw
+  // product.discountPrice field directly, so a scheduled/expired
+  // promotion is reflected here with no extra client-side logic.
+  const { discountPrice, discountPercentage, hasActivePromotion } = product.effectivePrice;
+  const hasDiscount = discountPrice !== null;
 
   return (
     <Link
@@ -63,13 +69,21 @@ export function ProductCard({ product, storeId, className }: Props) {
             {AVAILABILITY_LABEL[product.availability]}
           </span>
         )}
+        {/* PROMO-1: badge only for a live Promotion (not the static
+            discountPrice fallback) — mirrors the "🔥 خصم %" treatment
+            from the original design doc's product-card mockup. */}
+        {hasActivePromotion && discountPercentage !== null && (
+          <span className="absolute top-2 start-2 rounded-full bg-destructive px-2.5 py-0.5 text-xs font-semibold text-destructive-foreground">
+            🔥 خصم {discountPercentage}%
+          </span>
+        )}
       </div>
 
       <div className="space-y-1 p-3">
         <h3 className="line-clamp-2 text-sm font-medium leading-snug">{product.name}</h3>
         <div className="flex items-center gap-2">
           <p className="font-mono text-base font-bold text-primary">
-            {formatPrice(hasDiscount ? product.discountPrice : product.price)}
+            {formatPrice(hasDiscount ? discountPrice : product.price)}
           </p>
           {hasDiscount && (
             <p className="font-mono text-xs text-muted-foreground line-through">

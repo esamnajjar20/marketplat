@@ -32,9 +32,14 @@ export function ProductsGrid() {
   const city = sp.get('city') ?? undefined;
   const sortBy = (sp.get('sortBy') as ProductSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
+  // PROMO-1 (Phase 10): reads the same ?hasPromotion=true query param
+  // PromotedProductsSection's "عرض الكل" CTA links to — no filter
+  // toggle UI here yet (that's the fuller Phase 12 scope), just making
+  // the URL param this page already receives actually take effect.
+  const hasPromotion = sp.get('hasPromotion') === 'true' ? true : undefined;
 
   const { data, isLoading, isError, refetch } = useProducts({
-    search, page, city, sortBy, sortOrder, limit: 12,
+    search, page, city, sortBy, sortOrder, hasPromotion, limit: 12,
   });
 
   const items = data?.items ?? [];

@@ -17,6 +17,7 @@ import { notificationEvents } from '../notifications/notifications.service';
 import { activityService, activityTemplates } from '../activity';
 import { withProductImagesLock, withStoreProductCreationLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
+import { promotionsService, EffectivePrice } from '../promotions/promotions.service';
 
 const MAX_PRODUCT_IMAGES = 10; // same cap as ads.images / service-listings.images
 
@@ -40,6 +41,13 @@ const productImageOperations = createEntityImageOperations({
 // service-listings' availabilityStatus gate — since it depends on
 // StoreDetails.plan, not a static schema rule.
 const FREE_PLAN_PRODUCT_LIMIT = 20;
+
+// PROMO-1: shape returned alongside every public-facing product,
+// folding in whatever promotions.service.ts's getEffectivePrice
+// resolved — an ACTIVE Promotion if one is live, else the older static
+// discountPrice fallback, never both. See that function's own doc
+// comment for the full reconciliation rule.
+export type ProductWithEffectivePrice<T> = T & { effectivePrice: EffectivePrice };
 
 export const productsService = {
   createProduct: async (
@@ -150,14 +158,21 @@ export const productsService = {
 
   getProducts: async (
     query: GetProductsQuery
-  ): Promise<PaginatedResult<ProductWithStore>> => {
+  ): Promise<PaginatedResult<ProductWithEffectivePrice<ProductWithStore>>> => {
     const { products, total } = await productsRepository.findMany(query);
+    // PROMO-1: one batched query for the whole page's live promotions
+    // rather than N+1 — see promotionsService.getEffectivePrices.
+    const effectivePrices = await promotionsService.getEffectivePrices(products);
+    const items = products.map(product => ({
+      ...product,
+      effectivePrice: effectivePrices.get(product.id)!,
+    }));
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    return { items: products, meta: buildPaginationMeta(total, page, limit) };
+    return { items, meta: buildPaginationMeta(total, page, limit) };
   },
 
-  getProductById: async (id: string): Promise<ProductWithStore> => {
+  getProductById: async (id: string): Promise<ProductWithEffectivePrice<ProductWithStore>> => {
     const product = await productsRepository.findPublicById(id);
     if (!product || product.status === 'DELETED') {
       throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
@@ -186,7 +201,8 @@ export const productsService = {
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
     productsRepository.incrementViews(id).catch(() => undefined);
-    return product;
+    const effectivePrice = await promotionsService.getEffectivePrice(product);
+    return { ...product, effectivePrice };
   },
 
   updateProduct: async (

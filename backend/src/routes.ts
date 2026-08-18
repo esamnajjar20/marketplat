@@ -20,6 +20,7 @@ import { savedSearchesRouter } from './modules/saved-searches';
 import { storesRouter } from './modules/stores';
 import { productsRouter } from './modules/products';
 import { productCategoriesRouter } from './modules/product-categories';
+import { promotionsRouter } from './modules/promotions';
 import { searchRouter } from './modules/search';
 import { auditLogsRouter } from './modules/audit-logs';
 import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
@@ -87,6 +88,11 @@ router.use('/saved-searches', savedSearchesRouter);
 router.use('/stores', storesRouter);
 router.use('/products', productsRouter);
 router.use('/product-categories', productCategoriesRouter);
+// PROMO-1: store-owner-only CRUD for scheduled product discounts — see
+// promotions.routes.ts's doc comment for why there's no public GET
+// here (public consumers see effects via products' effectivePrice
+// fields instead).
+router.use('/promotions', promotionsRouter);
 // Gap #10 ("نشاطي"): a user's own cross-module activity timeline — its
 // own repository-backed module (not folded into users.routes.ts),
 // same pattern as /saved-searches and /notifications sitting outside

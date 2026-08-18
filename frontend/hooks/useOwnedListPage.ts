@@ -120,7 +120,7 @@ export function useOutOfRangeRedirect({
       else params.delete('page');
       router.replace(`${baseUrl}?${params.toString()}`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [hasData, page, resolvedTotalPages, sp, router, baseUrl]);
 
   return isOutOfRange;

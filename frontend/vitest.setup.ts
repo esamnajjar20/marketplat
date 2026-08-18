@@ -22,7 +22,7 @@ vi.mock('next/image', () => ({
     // strip the Next-specific props so React doesn't warn about unknown
     // DOM attributes, while keeping everything else (src, alt, className...).
     // Uses createElement (not JSX) since this file has a .ts extension.
-    const { fill, priority, sizes, ...imgProps } = props;
+    const { fill: _fill, priority: _priority, sizes: _sizes, ...imgProps } = props;
     return React.createElement('img', imgProps);
   },
 }));
@@ -68,7 +68,9 @@ vi.stubGlobal('URL', class extends URL {
 // actually use it. Exported via getMswServer() so test files can do:
 //   import { getMswServer } from '../../vitest.setup';
 //   getMswServer()?.use(http.post(url, () => HttpResponse.json(...)));
-let server: import('msw/node').SetupServer | undefined;
+import type { SetupServer } from 'msw/node';
+
+let server: SetupServer | undefined;
 
 export function getMswServer() {
   return server;

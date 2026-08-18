@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { HeroBanner }   from '@/components/home/HeroBanner';
 import { HomeAboveFold } from '@/components/home/HomeAboveFold';
+import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
 import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
 import { FeaturedStoresSection } from '@/components/home/FeaturedStoresSection';
@@ -11,15 +12,15 @@ export const metadata: Metadata = buildMetadata({ title: 'الرئيسية', pat
 
 /**
  * FEAT-HOME-DISCOVERY: Home = Discovery, not a single mixed feed.
- * Order matches the agreed Home layout exactly:
+ * Order matches the agreed Home layout, with one later addition:
  *   Search (HeroBanner) → Categories → أحدث الإعلانات (both inside
- *   HomeAboveFold) → أحدث المنتجات → مقدمو الخدمات القريبون منك →
- *   متاجر مميزة.
- * Each of the three new sections is self-contained (own heading, own
- * loading/empty/self-hide behavior — see each file's own doc) and
- * mounted independently here, same as RecommendedAds already was,
- * rather than folded into HomeAboveFold's coordinated skeleton — see
- * HomeAboveFold's comment for why.
+ *   HomeAboveFold) → عروض مميزة (PROMO-1, Phase 10) → أحدث المنتجات →
+ *   مقدمو الخدمات القريبون منك → متاجر مميزة.
+ * Each of the sections below HomeAboveFold is self-contained (own
+ * heading, own loading/empty/self-hide behavior — see each file's own
+ * doc) and mounted independently here, same as RecommendedAds already
+ * was, rather than folded into HomeAboveFold's coordinated skeleton —
+ * see HomeAboveFold's comment for why.
  */
 export default function HomePage() {
   return (
@@ -35,6 +36,16 @@ export default function HomePage() {
         (or the real sections) together — see its own comment for why.
       */}
       <HomeAboveFold />
+
+      {/*
+        PROMO-1 (Phase 10): "عروض مميزة" — products with a live
+        Promotion. Placed right after HomeAboveFold and before أحدث
+        المنتجات so an active discount gets first billing below the
+        fold; entirely self-hiding when nothing is currently on offer
+        (see the component's own doc for why that differs from
+        RecentProductsSection's EmptyState treatment).
+      */}
+      <PromotedProductsSection />
 
       {/* FEAT-HOME-DISCOVERY: أحدث المنتجات → /products */}
       <RecentProductsSection />

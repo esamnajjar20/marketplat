@@ -126,9 +126,11 @@ describe('ProductsGrid', () => {
     expect(useProducts).toHaveBeenCalledWith({
       search: undefined,
       page: 2,
-      categoryId: 'cat-1',
+      city: undefined,
       sortBy: 'price',
       sortOrder: 'asc',
+      hasPromotion: undefined,
+      limit: 12,
     });
   });
 
@@ -137,6 +139,26 @@ describe('ProductsGrid', () => {
 
     expect(useProducts).toHaveBeenCalledWith(
       expect.objectContaining({ sortBy: 'createdAt', sortOrder: 'desc' }),
+    );
+  });
+
+  // PROMO-1 (Phase 10): reads ?hasPromotion=true from the URL — the
+  // destination PromotedProductsSection's "عرض الكل" CTA links to.
+  it('reads hasPromotion=true from the URL and passes it through as a boolean', () => {
+    mockSearchParams = new URLSearchParams('hasPromotion=true');
+    render(<ProductsGrid />);
+
+    expect(useProducts).toHaveBeenCalledWith(
+      expect.objectContaining({ hasPromotion: true }),
+    );
+  });
+
+  it('leaves hasPromotion undefined for any value other than the literal "true"', () => {
+    mockSearchParams = new URLSearchParams('hasPromotion=false');
+    render(<ProductsGrid />);
+
+    expect(useProducts).toHaveBeenCalledWith(
+      expect.objectContaining({ hasPromotion: undefined }),
     );
   });
 
