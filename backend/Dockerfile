@@ -3,12 +3,6 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# TERMUX-FIX-01: bcrypt (native) replaced with bcryptjs (pure JS) so the
-# backend also runs on Termux/Android — see hash.ts's own comment for
-# the full rationale. bcryptjs needs no native compilation, so the
-# python3/make/g++ toolchain this stage used to install just for
-# bcrypt's node-gyp postinstall step is no longer needed.
-
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY prisma ./prisma/
@@ -26,14 +20,19 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# ===========================================
+# إضافة سطر تثبيت openssl و wget (حل مشكلة Prisma + Alpine)
+RUN apk add --no-cache openssl wget
+# ===========================================
+
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 COPY package*.json ./
 COPY prisma ./prisma/
 
+# ملاحظة: تم حذف "npm install prisma@^5.0.0" الزائد، لأن npx prisma generate سيعمل بشكل كافٍ
 RUN npm ci --only=production && \
-    npm install --no-save prisma@^5.0.0 && \
     npx prisma generate && \
     npm cache clean --force
 
