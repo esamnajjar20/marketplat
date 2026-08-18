@@ -41,10 +41,13 @@ export default function HomePage() {
 
       {/*
         FEAT-HOME-NEARBY-PROVIDERS: مقدمو الخدمات القريبون منك.
-        Renders nothing at all unless the browser already has a
-        granted geolocation permission from an earlier visit — never
-        prompts on its own. See the component's own doc for the full
-        permission-state handling.
+        Phase 4: driven by useNearbyProvidersForHome's full location
+        priority chain (gps-current/gps-saved → nearby search; city →
+        city directory; fallback → general directory), with a cascade
+        to the general directory if the GPS/city query fails or comes
+        back empty — never permanently hidden for lack of location.
+        Only hides itself when even that general fallback is genuinely
+        empty. See the component's own doc for the full breakdown.
       */}
       <NearbyProvidersSection />
 

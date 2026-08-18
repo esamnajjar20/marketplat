@@ -206,6 +206,17 @@ export type UpdateServiceProviderPayload = Partial<CreateServiceProviderPayload>
   availabilityStatus?: ServiceAvailability;
 };
 
+/**
+ * Phase 3: GET /service-providers query params — public city/browse
+ * directory. Mirrors StoresQuery/AdSearchParams' city-optional shape;
+ * omitted city means general/unfiltered, never an error.
+ */
+export interface ServiceProvidersQuery {
+  page?: number;
+  limit?: number;
+  city?: string;
+}
+
 /** GET /service-providers/nearby query params — real endpoint, no plan equivalent. */
 export interface NearbyServiceProvidersParams {
   lat: number;

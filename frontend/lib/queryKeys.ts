@@ -60,6 +60,10 @@ export const queryKeys = {
 
   // ── Service providers ─────────────────────────────────────────
   serviceProviders: {
+    // Phase 3: public city/browse directory — GET /service-providers?city=.
+    // Same ['x','list',params] shape as ads.list/stores.list, so cache
+    // isolation between city/general params happens automatically.
+    list:   (params?: object) => ['service-providers', 'list', params ?? {}] as const,
     detail: (id: string) => ['service-providers', id] as const,
     me:     ()            => ['service-providers', 'me'] as const,
     nearby: (params?: object) => ['service-providers', 'nearby', params ?? {}] as const,

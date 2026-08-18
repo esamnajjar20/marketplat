@@ -3,16 +3,28 @@
 import Link from 'next/link';
 import { PackageSearch } from 'lucide-react';
 import { AdCard }         from '@/components/ads/AdCard';
+import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { Button }         from '@/components/shared/ui/Button';
-import { useAds }         from '@/hooks/queries/useAds';
+import { useAdsForHome }  from '@/hooks/queries/useAdsForHome';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES }         from '@/lib/constants';
 
+/**
+ * "أحدث الإعلانات" Home section body — heading itself stays owned by
+ * HomeAboveFold (the location-source badge lives there, next to
+ * SectionHeader, since this component only owns the grid/empty/loading
+ * states, matching the pre-existing split between HomeAboveFold's
+ * SectionHeader and RecentAds' body).
+ *
+ * Now location-aware via useAdsForHome (GPS → /search?type=ads&sort=
+ * distance, city → /ads?city=, fallback → /ads) instead of always
+ * calling the plain unfiltered /ads list. See that hook's own doc for
+ * the full priority chain + cascade-on-empty/failure behavior.
+ */
 export function RecentAds() {
-  const { data, isLoading } = useAds({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc' });
-  const items = data?.items ?? [];
+  const { isLoading, items } = useAdsForHome();
   // FIX P1-10: /ads/create is a protected route — an unauthenticated
   // visitor tapping this CTA was immediately bounced to /login with no
   // warning. Route them to registration/login instead of dangling a
@@ -33,7 +45,12 @@ export function RecentAds() {
   // freshly-seeded marketplace would show an empty grid with no
   // explanation and no next step. Mirrors the EmptyState pattern used
   // everywhere else in the app (SearchResults, StoresGrid, ...).
-  if (items.length === 0) {
+  //
+  // Note: useAdsForHome already cascades GPS/city → general on an
+  // empty result, so items being empty here means even the general
+  // query came back empty — a genuinely empty marketplace, not a
+  // location-specific gap.
+  if (items.data.length === 0) {
     return (
       <EmptyState
         icon={<PackageSearch className="h-8 w-8" />}
@@ -61,7 +78,9 @@ export function RecentAds() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
+        {items.kind === 'search'
+          ? items.data.map((result) => <UnifiedResultCard key={result.id} result={result} />)
+          : items.data.map((ad) => <AdCard key={ad.id} ad={ad} />)}
       </div>
       <div className="flex justify-center">
         <Link href={ROUTES.search}>

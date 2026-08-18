@@ -1,108 +1,91 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useNearbyServiceProviders } from '@/hooks/queries/useServiceProviders';
+import { useLocationResolver } from '@/hooks/useLocationResolver';
+import { useNearbyServiceProviders, useServiceProviders } from '@/hooks/queries/useServiceProviders';
 
 const RADIUS_KM = 10;
 const HOME_LIMIT = 6;
 
-type PermissionState = 'checking' | 'granted' | 'not-granted';
+export type NearbyProvidersForHomeSource = 'gps' | 'city' | 'general';
 
 /**
- * FEAT-HOME-NEARBY-PROVIDERS: silent-permission variant of
- * NearbyServiceProviders.tsx's own GPS flow, built specifically for
- * the homepage section. Deliberately never calls
- * navigator.geolocation.getCurrentPosition() on its own — that always
- * shows the browser's permission prompt on first call, and prompting
- * for location the instant someone lands on Home (before they've
- * chosen to browse anything, let alone services) is the exact
- * surprise-permission-request pattern this section is designed to
- * avoid.
+ * Phase 4: "مقدمو خدمات قريبون منك" data source for Home, now driven
+ * by useLocationResolver's full priority chain instead of a GPS-only
+ * permission check (see git history for the prior gps-current-only
+ * version of this hook, which this replaces).
  *
- * Instead this only ever reads the *existing* permission state via
- * navigator.permissions.query({ name: 'geolocation' }) — a check that
- * never triggers a prompt by itself:
- *   - 'granted'  → the user already said yes on some earlier visit
- *                  (e.g. via NearbyServiceProviders.tsx's own explicit
- *                  "استخدام موقعي الحالي" button). Safe to call
- *                  getCurrentPosition() here too: the browser will not
- *                  prompt again since permission is already granted,
- *                  it just returns the position.
- *   - 'prompt'   → no decision made yet (the common default on a
- *                  first visit). Treated as "no section" — Home must
- *                  never be the place that first asks.
- *   - 'denied'   → user said no previously. Same as 'prompt': no
- *                  section, no repeated ask.
+ *   - gps-current / gps-saved → GET /service-providers/nearby
+ *     (Haversine radius search), same RADIUS_KM/HOME_LIMIT as before.
+ *   - city                    → Phase 3's GET /service-providers?city=
+ *     (serviceAreaCities `has` filter), capped to HOME_LIMIT.
+ *   - fallback                → same endpoint with no city param —
+ *     general/unfiltered directory. The section never disappears for
+ *     lack of location; only a genuine empty result (no providers at
+ *     all) hides it.
  *
- * Not all browsers support the Permissions API for 'geolocation'
- * (notably older Safari) — if navigator.permissions is missing, or
- * the query rejects/throws, this fails safe to 'not-granted' (hide
- * the section) rather than guessing or falling back to a prompt.
+ * Fallback cascade: a failed or empty GPS/nearby query now falls
+ * through to the same general/unfiltered directory query the
+ * `fallback` source itself uses (audit §6) — a nearby search that
+ * errors or genuinely finds nobody within RADIUS_KM no longer leaves
+ * the section empty when a general directory listing could still show
+ * something. A failed/empty city query cascades the same way. Only
+ * ever one step down to a single fixed general query, so there's no
+ * possibility of a refetch loop.
  *
- * No caching/storage layer is introduced here: this reads the
- * browser's own permission state fresh on every mount, exactly once,
- * and holds nothing in localStorage — same "no new storage system"
- * constraint NearbyServiceProviders.tsx already operates under.
+ * All three underlying queries are called unconditionally (Rules of
+ * Hooks) and gated via their own `enabled`/null-params mechanism.
  */
 export function useNearbyProvidersForHome() {
-  const [permission, setPermission] = useState<PermissionState>('checking');
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const location = useLocationResolver();
 
-  useEffect(() => {
-    let cancelled = false;
+  const isGps = location.source === 'gps-current' || location.source === 'gps-saved';
+  const isCity = location.source === 'city';
 
-    async function checkAndMaybeLocate() {
-      if (!('geolocation' in navigator) || !('permissions' in navigator)) {
-        if (!cancelled) setPermission('not-granted');
-        return;
-      }
-
-      try {
-        const status = await navigator.permissions.query({ name: 'geolocation' });
-        if (cancelled) return;
-
-        if (status.state !== 'granted') {
-          setPermission('not-granted');
-          return;
-        }
-
-        // Permission is already granted — getCurrentPosition() will
-        // resolve directly with no prompt shown.
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            if (cancelled) return;
-            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            setPermission('granted');
-          },
-          () => {
-            if (!cancelled) setPermission('not-granted');
-          },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
-        );
-      } catch {
-        if (!cancelled) setPermission('not-granted');
-      }
-    }
-
-    checkAndMaybeLocate();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const params = permission === 'granted' && coords
-    ? { lat: coords.lat, lng: coords.lng, radius: RADIUS_KM, limit: HOME_LIMIT }
+  const nearbyParams = isGps
+    ? { lat: location.latitude!, lng: location.longitude!, radius: RADIUS_KM, limit: HOME_LIMIT }
     : null;
+  const nearbyQuery = useNearbyServiceProviders(nearbyParams);
 
-  const query = useNearbyServiceProviders(params);
+  const cityQuery = useServiceProviders(
+    isCity ? { city: location.city, limit: HOME_LIMIT } : undefined,
+    { enabled: isCity },
+  );
 
-  return {
-    /** True while the permission check itself (or the resulting
-     * getCurrentPosition call) is still pending. Distinct from the
-     * query's own isLoading, which only starts once params is set. */
-    isChecking: permission === 'checking',
-    /** Whole section should render nothing when this is false. */
-    show: permission === 'granted',
-    ...query,
+  // Always-available cascade target for both the GPS and city
+  // branches, and the query the `fallback` source itself shows
+  // directly — same general/unfiltered directory, no city param.
+  const generalQuery = useServiceProviders({ limit: HOME_LIMIT });
+
+  const isChecking = location.isLoading;
+  const generalResult = {
+    isChecking,
+    source: 'general' as NearbyProvidersForHomeSource,
+    data: generalQuery.data,
+    isLoading: generalQuery.isLoading,
+    isError: generalQuery.isError,
   };
+
+  if (isGps) {
+    if (nearbyQuery.isLoading) {
+      return { isChecking, source: 'gps' as NearbyProvidersForHomeSource, data: undefined, isLoading: true, isError: false };
+    }
+    const nearbyItems = nearbyQuery.data?.items ?? [];
+    if (!nearbyQuery.isError && nearbyItems.length > 0) {
+      return { isChecking, source: 'gps' as NearbyProvidersForHomeSource, data: nearbyQuery.data, isLoading: false, isError: false };
+    }
+    return generalResult;
+  }
+
+  if (isCity) {
+    if (cityQuery.isLoading) {
+      return { isChecking, source: 'city' as NearbyProvidersForHomeSource, data: undefined, isLoading: true, isError: false };
+    }
+    const cityItems = cityQuery.data?.items ?? [];
+    if (!cityQuery.isError && cityItems.length > 0) {
+      return { isChecking, source: 'city' as NearbyProvidersForHomeSource, data: cityQuery.data, isLoading: false, isError: false };
+    }
+    return generalResult;
+  }
+
+  return generalResult;
 }

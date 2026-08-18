@@ -26,7 +26,7 @@ const base: SearchResult = {
   rating: 0,
   views: 12,
   price: '450',
-  seller: { id: 's1', name: 'محل الإلكترونيات', verified: false },
+  seller: { id: 's1', name: 'محل الإلكترونيات', verified: false, type: 'seller_profile' },
   url: '/ads/r1',
   createdAt: '2024-01-01T00:00:00Z',
   distanceKm: null,

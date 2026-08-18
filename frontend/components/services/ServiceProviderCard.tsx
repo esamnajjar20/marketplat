@@ -5,10 +5,19 @@ import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import type { NearbyServiceProviderRow, ServiceAvailability } from '@/types/service.types';
+import { useAuthStore } from '@/store/auth.store';
+import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
 
+/**
+ * Phase 3 (audit §4): distanceKm only ever exists on nearby-search
+ * results (GET /service-providers/nearby). The Phase 3 city/browse
+ * directory (GET /service-providers?city=) returns bare
+ * ServiceProviderDetails rows with no distance at all — so this prop
+ * type widens to plain ServiceProviderDetails with distanceKm optional,
+ * rather than requiring NearbyServiceProviderRow unconditionally.
+ */
 interface Props {
-  provider: NearbyServiceProviderRow;
+  provider: ServiceProviderDetails & { distanceKm?: number };
   className?: string;
 }
 
@@ -27,19 +36,32 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
 };
 
 /**
- * Card for /service-providers (nearby results). Deliberately only reads
- * fields present on NearbyServiceProviderRow (businessName, logoUrl,
- * description, serviceAreaCities, contactPhone, availabilityStatus,
- * distanceKm) — unlike ServiceListingCard/ServiceProviderHeader, the
- * nearby endpoint's response has no nested sellerProfile, so there's no
- * verified badge or rating to show here.
+ * Card for /service-providers results — both the nearby search (has
+ * distanceKm) and the Phase 3 city/browse directory (no distanceKm).
+ * Deliberately only reads plain ServiceProviderDetails fields
+ * (businessName, logoUrl, description, serviceAreaCities, contactPhone,
+ * availabilityStatus) plus optional distanceKm — unlike
+ * ServiceListingCard/ServiceProviderHeader, neither response has a
+ * nested sellerProfile, so there's no verified badge or rating to show here.
  */
 export function ServiceProviderCard({ provider, className }: Props) {
   const avatar = getAvatarUrl(provider.logoUrl ?? '', 96);
+  const userCity = useAuthStore((s) => s.user?.city ?? null);
+
+  // Phase 3 (audit §4 decision): when distanceKm is absent (city-based
+  // results have none), show the city shared between the provider's
+  // serviceAreaCities and the viewer's own city instead of a distance —
+  // never render "undefined < 1" or an empty label.
   const distanceLabel =
-    provider.distanceKm < 1
-      ? `${Math.round(provider.distanceKm * 1000)} م`
-      : `${provider.distanceKm.toFixed(1)} كم`;
+    provider.distanceKm !== undefined
+      ? provider.distanceKm < 1
+        ? `${Math.round(provider.distanceKm * 1000)} م`
+        : `${provider.distanceKm.toFixed(1)} كم`
+      : null;
+  const sharedCity =
+    distanceLabel === null && userCity
+      ? provider.serviceAreaCities.find((city) => city === userCity)
+      : null;
 
   return (
     <Link
@@ -56,7 +78,11 @@ export function ServiceProviderCard({ provider, className }: Props) {
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center gap-2">
           <h3 className="truncate font-medium">{provider.businessName}</h3>
-          <span className="shrink-0 text-xs font-medium text-primary">{distanceLabel}</span>
+          {distanceLabel !== null ? (
+            <span className="shrink-0 text-xs font-medium text-primary">{distanceLabel}</span>
+          ) : sharedCity ? (
+            <span className="shrink-0 text-xs font-medium text-primary">{sharedCity}</span>
+          ) : null}
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
             <span className={cn('h-1.5 w-1.5 rounded-full', AVAILABILITY_DOT[provider.availabilityStatus])} />
             {AVAILABILITY_LABEL[provider.availabilityStatus]}

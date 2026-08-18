@@ -1,14 +1,18 @@
 'use client';
 
-import { Sparkles, Clock } from 'lucide-react';
+import { Sparkles, Clock, LocateFixed } from 'lucide-react';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { FeaturedAds }  from '@/components/home/FeaturedAds';
 import { RecentAds }    from '@/components/home/RecentAds';
 import { SectionHeader } from '@/components/home/SectionHeader';
+import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
+import { Button }       from '@/components/shared/ui/Button';
 import { Skeleton }     from '@/components/shared/ui/Skeleton';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useAds }       from '@/hooks/queries/useAds';
+import { useAdsForHome } from '@/hooks/queries/useAdsForHome';
+import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { ROUTES }       from '@/lib/constants';
 
 /**
@@ -41,6 +45,18 @@ import { ROUTES }       from '@/lib/constants';
  * including NearbyProvidersSection's async permission check — before
  * showing anything at all, which is the opposite of what a Discovery
  * homepage should do.
+ *
+ * Ads location-awareness: "الأحدث/أحدث الإعلانات" now reads
+ * useAdsForHome (GPS → /search?type=ads&sort=distance, city →
+ * /ads?city=, fallback → /ads) instead of a plain useAds call — this
+ * wrapper calls the *same* hook (not a re-derived query) so the
+ * coordinated skeleton's timing and the badge/CTA shown here track
+ * exactly what RecentAds itself ends up rendering, same "identical
+ * query, no duplicate request" principle as categoriesLoading/
+ * featuredLoading above. The CTA ("استخدام موقعي") and location badge
+ * live here, next to SectionHeader, rather than inside RecentAds,
+ * since SectionHeader (title/heading row) is this file's
+ * responsibility both in the loading and loaded branches.
  */
 
 export function HomeAboveFold() {
@@ -53,9 +69,44 @@ export function HomeAboveFold() {
   // React Query serves the same cache entry (no duplicate request) and
   // the coordinated skeleton's timing reflects what's actually shown.
   const { isLoading: featuredLoading } = useAds({ isFeatured: true, limit: 4 });
-  const { isLoading: recentLoading } = useAds({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc' });
+  const { isChecking: recentChecking, isLoading: recentLoading, source: recentSource } = useAdsForHome();
+  const location = useLocationResolver();
 
-  const stillLoading = categoriesLoading || featuredLoading || recentLoading;
+  const stillLoading = categoriesLoading || featuredLoading || recentChecking || recentLoading;
+
+  // Only rendered for city-source results — LocationSourceBadge itself
+  // no-ops gracefully to "نتائج مقترحة" when city is undefined, but
+  // resolving it once here keeps both the loading- and loaded-branch
+  // headings trivially in sync with what RecentAds ends up showing.
+  const badgeCity = location.source === 'city' ? location.city : undefined;
+
+  const latestAdsHeadingLoading = (
+    <SectionHeader
+      eyebrow="الأحدث"
+      title="أحدث الإعلانات"
+      icon={<Clock className="h-3.5 w-3.5" />}
+      cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
+    />
+  );
+
+  const latestAdsHeadingLoaded = (
+    <SectionHeader
+      eyebrow="الأحدث"
+      title="أحدث الإعلانات"
+      icon={<Clock className="h-3.5 w-3.5" />}
+      cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
+      badge={<LocationSourceBadge source={recentSource} city={badgeCity} />}
+    />
+  );
+
+  // GPS CTA: only shown when there's actually something for the user
+  // to gain by pressing it — permission not yet granted and no saved
+  // GPS already covering the request (matches the section-3/4 rule
+  // that gps-saved is used automatically, silently, without a popup;
+  // the CTA is specifically the "prompt an explicit browser permission
+  // request" escape hatch, never shown while already resolved to a
+  // GPS source and never auto-triggered on mount by this component).
+  const showLocateCta = location.source !== 'gps-current' && location.source !== 'gps-saved';
 
   if (stillLoading) {
     return (
@@ -88,12 +139,7 @@ export function HomeAboveFold() {
         </section>
 
         <section className="container mx-auto space-y-4 px-4 pt-10">
-          <SectionHeader
-            eyebrow="الأحدث"
-            title="أحدث الإعلانات"
-            icon={<Clock className="h-3.5 w-3.5" />}
-            cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
-          />
+          {latestAdsHeadingLoading}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
           </div>
@@ -121,12 +167,15 @@ export function HomeAboveFold() {
       </section>
 
       <section className="container mx-auto space-y-4 px-4 pt-10">
-        <SectionHeader
-          eyebrow="الأحدث"
-          title="أحدث الإعلانات"
-          icon={<Clock className="h-3.5 w-3.5" />}
-          cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
-        />
+        {latestAdsHeadingLoaded}
+        {showLocateCta && (
+          <div className="-mt-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={location.requestLocation}>
+              <LocateFixed className="h-3.5 w-3.5" />
+              استخدام موقعي
+            </Button>
+          </div>
+        )}
         <RecentAds />
       </section>
     </>

@@ -5,6 +5,7 @@ import { StoreCard } from '@/components/stores/StoreCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { useStores } from '@/hooks/queries/useStores';
+import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { ROUTES } from '@/lib/constants';
 
 /**
@@ -22,9 +23,16 @@ import { ROUTES } from '@/lib/constants';
  * own heading, self-hides entirely (heading included) when there's
  * genuinely nothing to show yet, rather than an empty section on a
  * brand-new marketplace.
+ *
+ * Phase 4: same city-only wiring as RecentProductsSection — GET
+ * /stores has no lat/lng param, only city, so only the resolver's
+ * 'city' source maps here; other sources fall through to the
+ * general FEATURED-first list unfiltered by location.
  */
 export function FeaturedStoresSection() {
-  const { data, isLoading } = useStores({ limit: 6 });
+  const location = useLocationResolver();
+  const city = location.source === 'city' ? location.city : undefined;
+  const { data, isLoading } = useStores({ limit: 6, city });
   const items = data?.items ?? [];
 
   const header = (

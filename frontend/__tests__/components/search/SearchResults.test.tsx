@@ -46,8 +46,7 @@ const baseResult = {
   rating: 0,
   views: 5,
   price: '100',
-  seller: { id: 's1', name: 'بائع', verified: false },
-  url: '/ads/r1',
+  seller: { id: 's1', name: 'بائع', verified: false, type: 'seller_profile' as const },
   createdAt: new Date().toISOString(),
   distanceKm: null,
 };

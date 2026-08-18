@@ -6,6 +6,16 @@ interface Props {
   title: string;
   icon?: ReactNode;
   cta?: { href: string; label: string };
+  /**
+   * Optional small pill under the title — used by location-aware Home
+   * sections (RecentAds, NearbyProvidersSection) to show which result
+   * source is actually driving the section (📍 قريب منك / 📍 نتائج في
+   * {city} / نتائج مقترحة), per the "مؤشر مصدر النتائج" requirement.
+   * Kept as a single optional slot (not a dedicated prop per source)
+   * so unrelated sections (Products/Stores/Categories/FeaturedAds)
+   * are entirely unaffected and never render one.
+   */
+  badge?: ReactNode;
 }
 
 /**
@@ -17,7 +27,7 @@ interface Props {
  * coordinated-skeleton logic for its own three sections; only the
  * heading markup moved here.
  */
-export function SectionHeader({ eyebrow, title, icon, cta }: Props) {
+export function SectionHeader({ eyebrow, title, icon, cta, badge }: Props) {
   return (
     <div className="flex items-end justify-between gap-3 border-b pb-3">
       <div className="space-y-0.5">
@@ -25,7 +35,10 @@ export function SectionHeader({ eyebrow, title, icon, cta }: Props) {
           {icon}
           {eyebrow}
         </p>
-        <h2 className="text-lg font-bold sm:text-xl">{title}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold sm:text-xl">{title}</h2>
+          {badge}
+        </div>
       </div>
       {cta && (
         <Link href={cta.href} className="shrink-0 text-sm font-medium text-primary hover:underline">

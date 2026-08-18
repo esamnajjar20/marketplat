@@ -16,11 +16,22 @@ import type {
   ServiceProviderPublic,
   CreateServiceProviderPayload,
   UpdateServiceProviderPayload,
+  ServiceProvidersQuery,
   NearbyServiceProvidersParams,
   NearbyServiceProviderRow,
 } from '@/types/service.types';
 
 export const serviceProvidersApi = {
+  /**
+   * Phase 3: GET /service-providers — public city/browse directory,
+   * paginated. Same unwrapPaginated convention as storesApi.getAll/
+   * productsApi.getAll. city optional — omitted means general/unfiltered.
+   */
+  getAll: (params?: ServiceProvidersQuery) =>
+    apiClient
+      .get<ApiResponse<ServiceProviderDetails[]>>('/service-providers', { params })
+      .then((r) => unwrapPaginated<ServiceProviderDetails>(r)),
+
   /** POST /service-providers/me — creates the caller's provider profile (once). */
   createMyProvider: (payload: CreateServiceProviderPayload) =>
     apiClient.post<ApiResponse<ServiceProviderDetails>>('/service-providers/me', payload),

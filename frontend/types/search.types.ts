@@ -26,6 +26,20 @@ export interface SearchResultSeller {
   id: string;
   name: string;
   verified: boolean;
+  /**
+   * COMPAT-AUDIT fix: backend's search.service.ts (FIX M-023) always
+   * sends this — `id` above resolves to a different kind of entity
+   * depending on the result's `type` (adBranch uses the ad's
+   * SellerProfile/User id, productBranch/storeBranch use the store's
+   * id, serviceBranch uses the provider's id), so this field makes the
+   * actual entity `id` refers to explicit per-row rather than leaving
+   * it as tribal knowledge. Not yet read anywhere in the frontend
+   * (UnifiedResultCard only uses seller.name/verified today) — added
+   * so the type reflects the real API contract before any future code
+   * builds a "view seller" link off seller.id without realizing it
+   * means something different per result type.
+   */
+  type: 'seller_profile' | 'user' | 'store' | 'service_provider';
 }
 
 export interface SearchResult {

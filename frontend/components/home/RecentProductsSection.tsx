@@ -9,6 +9,7 @@ import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { ROUTES } from '@/lib/constants';
 
 /**
@@ -25,9 +26,17 @@ import { ROUTES } from '@/lib/constants';
  * coordinated skeleton — see that file's doc for why. Horizontal-
  * scroll-on-mobile layout per the Home discovery spec, unlike
  * RecentAds' stacked grid-on-mobile.
+ *
+ * Phase 4: GET /products has no lat/lng param (audit §3) — only
+ * `city` — so only the resolver's 'city' source maps to anything here;
+ * gps-current/gps-saved/fallback all fall through to the general,
+ * unfiltered recent list rather than guessing a city from coordinates.
+ * This section never disappears or blocks on location either way.
  */
 export function RecentProductsSection() {
-  const { data, isLoading } = useProducts({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc' });
+  const location = useLocationResolver();
+  const city = location.source === 'city' ? location.city : undefined;
+  const { data, isLoading } = useProducts({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc', city });
   const items = data?.items ?? [];
   const isAuth = useAuthStore(selectIsAuthenticated);
 

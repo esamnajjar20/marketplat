@@ -2,23 +2,37 @@
  * __tests__/components/ServiceProviderCard.test.tsx
  *
  * Previously uncovered (0%), ~238 lines (mostly styling). Pure
- * presentational card for /service-providers nearby results —
- * deliberately reads only the fields NearbyServiceProviderRow actually
- * has (no sellerProfile join, so no verified badge/rating here, unlike
- * ServiceListingCard/ServiceProviderHeader).
+ * presentational card for /service-providers results — both nearby
+ * search (has distanceKm) and the Phase 3 city/browse directory (no
+ * distanceKm) — deliberately reads only plain ServiceProviderDetails
+ * fields plus optional distanceKm (no sellerProfile join, so no
+ * verified badge/rating here, unlike ServiceListingCard/ServiceProviderHeader).
  *
  * Coverage targets:
  *  - Links to /service-providers/:id
  *  - Renders businessName, description, contact phone (formatted),
  *    joined serviceAreaCities
  *  - Distance label: meters under 1km, one-decimal km at/above 1km
+ *  - Phase 3: distanceKm absent → shows shared city (serviceAreaCities ∩
+ *    user.city) instead of a distance; shows nothing if no overlap
  *  - Availability dot + label for all three ServiceAvailability states
  *  - Avatar falls back to the placeholder when logoUrl is null
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
-import type { NearbyServiceProviderRow, ServiceAvailability } from '@/types/service.types';
+import { useAuthStore } from '@/store/auth.store';
+import type { NearbyServiceProviderRow, ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
+
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+}));
+
+function mockUserCity(city: string | null) {
+  vi.mocked(useAuthStore).mockImplementation((selector: unknown) =>
+    (selector as (s: { user: { city: string | null } | null }) => unknown)({ user: { city } }),
+  );
+}
 
 function makeProvider(overrides: Partial<NearbyServiceProviderRow> = {}): NearbyServiceProviderRow {
   return {
@@ -42,6 +56,11 @@ function makeProvider(overrides: Partial<NearbyServiceProviderRow> = {}): Nearby
 }
 
 describe('ServiceProviderCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserCity(null);
+  });
+
   it('links to the provider profile page', () => {
     render(<ServiceProviderCard provider={makeProvider({ id: 'provider-42' })} />);
     expect(screen.getByRole('link')).toHaveAttribute('href', '/service-providers/provider-42');
@@ -73,6 +92,57 @@ describe('ServiceProviderCard', () => {
     it('shows km (not meters) exactly at the 1km boundary', () => {
       render(<ServiceProviderCard provider={makeProvider({ distanceKm: 1 })} />);
       expect(screen.getByText('1.0 كم')).toBeInTheDocument();
+    });
+  });
+
+  // Phase 3 (audit §4): city/browse directory rows have no distanceKm.
+  describe('fallback city label (no distanceKm)', () => {
+    function makeCityProvider(
+      overrides: Partial<ServiceProviderDetails> = {},
+    ): ServiceProviderDetails & { distanceKm?: number } {
+      const { distanceKm: _drop, ...base } = makeProvider(overrides);
+      return base;
+    }
+
+    it('shows the shared city when the provider serves the viewer\'s city', () => {
+      mockUserCity('خان يونس');
+      render(
+        <ServiceProviderCard
+          provider={makeCityProvider({ serviceAreaCities: ['غزة', 'خان يونس'] })}
+        />,
+      );
+      expect(screen.getByText('خان يونس')).toBeInTheDocument();
+    });
+
+    it('shows nothing in the label slot when there is no overlapping city', () => {
+      mockUserCity('رفح');
+      render(
+        <ServiceProviderCard
+          provider={makeCityProvider({ serviceAreaCities: ['غزة', 'خان يونس'] })}
+        />,
+      );
+      expect(screen.queryByText('رفح')).not.toBeInTheDocument();
+      expect(screen.queryByText(/كم|م$/)).not.toBeInTheDocument();
+    });
+
+    it('shows nothing in the label slot when the viewer has no city', () => {
+      mockUserCity(null);
+      render(
+        <ServiceProviderCard
+          provider={makeCityProvider({ serviceAreaCities: ['غزة', 'خان يونس'] })}
+        />,
+      );
+      expect(screen.queryByText('غزة')).not.toBeInTheDocument();
+    });
+
+    it('prefers distanceKm over the city fallback when both are present', () => {
+      mockUserCity('غزة');
+      render(
+        <ServiceProviderCard
+          provider={makeProvider({ serviceAreaCities: ['غزة'], distanceKm: 2 })}
+        />,
+      );
+      expect(screen.getByText('2.0 كم')).toBeInTheDocument();
     });
   });
 
