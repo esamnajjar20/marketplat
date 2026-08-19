@@ -27,7 +27,14 @@ module.exports = {
       // 'max' uses all available CPU cores. Override with a fixed number
       // (e.g. 2) via the instances field if you want to reserve cores
       // for other processes sharing the same host/container.
-      instances: process.env.PM2_INSTANCES || 'max',
+      // NOTE: 'max' reads the HOST's physical core count, not the
+      // container's CPU allocation/quota. On platforms like Railway
+      // where containers get a fractional/limited vCPU slice on a
+      // much larger host, 'max' over-spawns workers that starve each
+      // other and hit max_memory_restart, causing a restart loop.
+      // Set PM2_INSTANCES explicitly to your actual allocated vCPU
+      // count (e.g. 1 or 2) in the platform's env vars instead.
+      instances: process.env.PM2_INSTANCES || 2,
       exec_mode: 'cluster',
 
       // Restart policy — protects against a single worker getting stuck
