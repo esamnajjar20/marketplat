@@ -53,19 +53,6 @@ module.exports = {
       // chance to run — they shouldn't race each other.
       kill_timeout: 12_000,
 
-      // FIX DEPLOY-02: with all instances launched together, every
-      // worker's Redis client fires its first connect() attempt within
-      // the same handful of milliseconds — the exact burst that causes
-      // the ECONNRESET pile-up seen in deploy logs at startup. PM2 does
-      // not stagger cluster workers by default. A few hundred ms
-      // between each worker's launch is enough to turn a simultaneous
-      // burst into a short trickle Redis can actually absorb, without
-      // meaningfully slowing overall startup (all workers are still up
-      // within ~1-2s for a typical instance count).
-      wait_ready: false,
-      listen_timeout: 10_000,
-      restart_delay: 300,
-
       env: {
         NODE_ENV: 'production',
       },
