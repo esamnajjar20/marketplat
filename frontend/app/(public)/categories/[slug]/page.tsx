@@ -11,51 +11,8 @@ import { prefetchCategories } from '@/lib/prefetch';
 import { buildCategoryMetadata } from '@/lib/seo';
 import { LoadingSpinner }   from '@/components/shared/feedback/LoadingSpinner';
 import { categoriesApi }    from '@/api/categories.api';
-import { API_BASE_URL }     from '@/lib/constants';
-import type { Category }    from '@/types/category.types';
 
 interface Props { params: Promise<{ slug: string }> }
-
-// RENDER-FIX (dynamic-routes audit, item C): categories are an
-// admin-curated site taxonomy, not user-generated content — the
-// backend's own getCategories() has no pagination/limit at all
-// (categories.service.ts: plain findMany(), 1h Redis TTL, comment
-// "categories rarely change") and categories.routes.ts applies a
-// CACHE.LONG (1h) middleware to both GET / and GET /slug/:slug. That
-// combination is what makes full static generation safe here — it's
-// the opposite situation from /ads/[id] et al., where the backing
-// tables are paginated and effectively unbounded.
-//
-// Fetched directly with `next: { revalidate }` (not via prefetchCategories,
-// which is designed to run inside a request and warm the per-request
-// TanStack Query cache) — generateStaticParams runs at build time,
-// outside any request, and only needs the flat slug list.
-async function getAllCategorySlugs(): Promise<string[]> {
-  const flatten = (cats: Category[]): string[] =>
-    cats.flatMap((c) => [c.slug, ...(c.children?.length ? flatten(c.children) : [])]);
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/categories`, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { data?: Category[] };
-    return flatten(json.data ?? []);
-  } catch {
-    // Build-time fetch failure (e.g. API unreachable during CI/offline
-    // build) must not fail the whole production build — falling back to
-    // an empty list means zero categories are prerendered this build,
-    // and every category page is instead generated on first visit and
-    // cached per Next's on-demand ISR (dynamicParams defaults to true),
-    // exactly the same safety net /ads/[id] etc. rely on.
-    return [];
-  }
-}
-
-export async function generateStaticParams() {
-  const slugs = await getAllCategorySlugs();
-  return slugs.map((slug) => ({ slug }));
-}
-
-export const revalidate = 3600;
 
 // UX-FIX (audit P2-04): previously called buildCategoryMetadata({ slug,
 // name: slug }) — the raw URL slug stood in for the display name, so

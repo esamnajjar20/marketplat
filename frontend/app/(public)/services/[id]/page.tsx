@@ -13,16 +13,6 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-// RENDER-FIX (dynamic-routes audit, item A/C): service listings are
-// unbounded (same reasoning as /ads/[id] and /stores/[id]) — no ids
-// prerendered at build time, dynamicParams stays at its default (true),
-// on-demand render + cache for `revalidate` seconds thereafter.
-export async function generateStaticParams() {
-  return [];
-}
-
-export const revalidate = 300;
-
 // Same reasoning as sellers/[id]/page.tsx's getCachedSeller: memoizes
 // within a single render pass so generateMetadata and the page body
 // don't each fire their own network request for the same listing.

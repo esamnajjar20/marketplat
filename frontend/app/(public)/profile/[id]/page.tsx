@@ -12,20 +12,6 @@ import type { PublicUser }     from '@/types/user.types';
 
 interface Props { params: Promise<{ id: string }> }
 
-// RENDER-FIX (dynamic-routes audit, item A/C): user count is unbounded
-// (no "all users" listing endpoint), so no ids are prerendered at build
-// time — dynamicParams stays at its default (true), first visit to any
-// /profile/:id renders and caches on-demand, then serves from cache for
-// `revalidate` seconds. This is PUBLIC profile data only (usersApi.getById
-// — the same public-profile endpoint this page already called); no
-// session/auth data is fetched here, so nothing private enters this
-// shared route cache.
-export async function generateStaticParams() {
-  return [];
-}
-
-export const revalidate = 300;
-
 /**
  * FIX PERF-11: generateMetadata and the page component both called
  * usersApi.getById(id) independently — two real network requests per
