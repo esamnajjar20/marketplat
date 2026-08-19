@@ -12,10 +12,14 @@ const SETTINGS = [
   { key: 'adViews',        label: 'مشاهدات الإعلان',           desc: 'تقرير أسبوعي بمشاهدات إعلاناتك' },
   { key: 'favAdUpdated',   label: 'تحديثات المفضلة',           desc: 'عند تغيير سعر إعلان في المفضلة أو بيعه' },
   { key: 'promotions',     label: 'عروض وتخفيضات',             desc: 'نشرة أخبار سوق غزة' },
+  // PROMO-1 (Phase 14): distinct from `promotions` above (marketplace
+  // newsletter) — this is about the seller's OWN Promotion rows on
+  // their own products, driven by myPromotionsExpiring.ts.
+  { key: 'myPromotions',   label: 'عروضي',                     desc: 'عند بدء أو قرب انتهاء أو انتهاء عرض على أحد منتجاتك' },
 ] as const satisfies readonly { key: keyof NotificationPreferences; label: string; desc: string }[];
 
 const DEFAULT_PREFS: NotificationPreferences = {
-  newMessage: true, adViews: false, favAdUpdated: true, promotions: false,
+  newMessage: true, adViews: false, favAdUpdated: true, promotions: false, myPromotions: true,
 };
 
 /**

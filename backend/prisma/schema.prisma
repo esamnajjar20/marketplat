@@ -643,6 +643,16 @@ model Promotion {
   status        PromotionStatus @default(SCHEDULED)
   maxUses       Int?
   usageCount    Int             @default(0)
+  // PROMO-1 (Phase 14): set the moment myPromotionsExpiring.ts sends
+  // the "about to expire" notification for this row — the idempotency
+  // guard so a promotion still within the warning window on the next
+  // run isn't re-notified every single run. Mirrors Ad's
+  // viewsAtLastReport baseline-column pattern (see
+  // weeklyAdViewsReport.ts) rather than a boolean flag, so re-running
+  // the script never re-sends for a row already warned, but a
+  // DIFFERENT promotion on the same product later still gets its own
+  // warning independently.
+  expiryWarnedAt DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   store         StoreDetails    @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -921,6 +931,18 @@ enum NotificationType {
   WEEKLY_AD_VIEWS_REPORT
   SAVED_SEARCH_MATCH
   STORE_NEW_PRODUCT
+  // PROMO-1 (Phase 14): lifecycle notification for a store owner's own
+  // Promotion (backend/src/modules/promotions) — started, about to
+  // expire, or expired. Deliberately separate from PROMOTION above
+  // (that one is the admin-broadcast marketplace newsletter, see
+  // notifications.service.ts's broadcastPromotion) — different
+  // audience and trigger, see users.validation.ts's myPromotions
+  // preference key for the full reasoning. `data` on this row's
+  // Notification always includes { promotionId, productId, event }
+  // where event is one of "started" | "expiring" | "expired", so the
+  // frontend can render one shared component for all three instead of
+  // three near-identical ones.
+  PROMOTION_STATUS_CHANGE
 }
 
 // Gap #10 ("نشاطي"): every distinct event type the personal activity

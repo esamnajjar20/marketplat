@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search, ChevronDown } from 'lucide-react';
+import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search, ChevronDown, Flame } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,6 +29,10 @@ const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   PROMOTION: Megaphone,
   WEEKLY_AD_VIEWS_REPORT: BarChart3,
   SAVED_SEARCH_MATCH: Search,
+  // PROMO-1 (Phase 14): same fire icon as ProductCard's live-promotion
+  // badge (🔥) for visual consistency with how a promotion is already
+  // represented elsewhere in the app.
+  PROMOTION_STATUS_CHANGE: Flame,
 };
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -38,6 +42,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   PROMOTION: 'إعلانات ترويجية',
   WEEKLY_AD_VIEWS_REPORT: 'تقارير المشاهدات',
   SAVED_SEARCH_MATCH: 'نتائج بحث محفوظ',
+  PROMOTION_STATUS_CHANGE: 'عروضي',
 };
 
 /** Where clicking a notification row should navigate — null means the
@@ -54,6 +59,14 @@ function hrefFor(notification: Notification): string | null {
     notification.data?.adId
   ) {
     return ROUTES.adDetail(notification.data.adId);
+  }
+  // PROMO-1 (Phase 14): always the promotions dashboard, not the
+  // individual product — the owner's next action for any of the three
+  // lifecycle events (started/expiring/expired) is "go look at my
+  // promotions", same destination myPromotionsExpiring.ts's push
+  // payload already links to.
+  if (notification.type === 'PROMOTION_STATUS_CHANGE') {
+    return ROUTES.myStorePromotions;
   }
   return null;
 }

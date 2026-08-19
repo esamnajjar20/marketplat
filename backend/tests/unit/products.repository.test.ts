@@ -178,6 +178,35 @@ describe('productsRepository', () => {
       expect(call.where.promotions).toBeUndefined();
     });
 
+    // PROMO-1 (Phase 12, full scope): the `promotions` key is a
+    // separate top-level filter from `store`/`categoryId`/`OR`, so it
+    // must combine cleanly with them rather than one silently
+    // replacing another — this test closes the "combination with other
+    // filters untested" gap flagged for the minimal Phase 10 version.
+    it('combines hasPromotion with city, categoryId, and search without any filter overriding another', async () => {
+      await productsRepository.findMany({
+        hasPromotion: true,
+        city: 'Gaza',
+        categoryId: 'cat-1',
+        search: 'خلاط',
+      } as any);
+      const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
+
+      expect(call.where.promotions).toEqual({
+        some: { status: { in: ['SCHEDULED', 'ACTIVE'] } },
+      });
+      expect(call.where.categoryId).toBe('cat-1');
+      expect(call.where.store).toEqual({
+        status: 'ACTIVE',
+        sellerProfile: { suspended: false },
+        city: 'Gaza',
+      });
+      expect(call.where.OR).toEqual([
+        { name: { contains: 'خلاط', mode: 'insensitive' } },
+        { description: { contains: 'خلاط', mode: 'insensitive' } },
+      ]);
+    });
+
     it('applies city filter via the store relation (overriding the base store filter)', async () => {
       await productsRepository.findMany({ city: 'Gaza' } as any);
       const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];

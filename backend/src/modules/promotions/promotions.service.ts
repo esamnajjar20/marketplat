@@ -11,15 +11,15 @@ import { ConflictError } from '../../shared/errors/ConflictError';
 // trusted from whatever was last written — a promotion created with a
 // future startsAt is SCHEDULED at creation time and should read as
 // ACTIVE once that time passes, with no separate write required for
-// every promotion on every clock tick. There is deliberately no cron
-// job in this MVP (see the original design doc's Phase 1: "هذه ليست
-// ضرورية في MVP" said of notifications, and status transitions carry
-// the same reasoning) — resolveStatus is called on every read/write
-// path instead, so the stored `status` column is a cache of the last
-// computed value, not the source of truth. promotionsRepository's
-// findDueForActivation/findDueForExpiry exist for whenever a scheduled
-// sweep is added later (e.g. to drive the Phase 14 notifications), but
-// nothing calls them yet.
+// every promotion on every clock tick. resolveStatus is called on
+// every read/write path (so an individual product's price is always
+// correct even between sweeps), and — as of Phase 14 —
+// myPromotionsExpiring.ts also runs promotionsRepository's
+// findDueForActivation/findDueForExpiry as a scheduled sweep (same
+// invocation model as weeklyAdViewsReport.ts) so the stored `status`
+// column itself gets corrected on a schedule too, not just read
+// lazily; see that script for the full status-transition + lifecycle-
+// notification logic.
 const resolveStatus = (promotion: Promotion, now: Date): Promotion['status'] => {
   if (promotion.status === 'CANCELLED' || promotion.status === 'DRAFT') return promotion.status;
   if (promotion.maxUses !== null && promotion.usageCount >= promotion.maxUses) return 'EXPIRED';

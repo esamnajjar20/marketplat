@@ -24,6 +24,11 @@ export interface NotificationPreferences {
   adViews:      boolean;
   favAdUpdated: boolean;
   promotions:   boolean;
+  /** PROMO-1 (Phase 14): store owner's own Promotion lifecycle alerts
+   * (started/expiring/expired) — distinct from `promotions` above,
+   * which is the admin-broadcast marketplace newsletter. See
+   * myPromotionsExpiring.ts's doc comment on the backend. */
+  myPromotions: boolean;
 }
 
 export interface User {

@@ -12,6 +12,18 @@
  * exists in this codebase; the type exists so the four
  * notificationPreferences toggles map onto real enum values, not because
  * a row of this type will actually appear yet.
+ * PROMOTION_STATUS_CHANGE (PROMO-1, Phase 14) IS generated — see
+ * backend's myPromotionsExpiring.ts, a scheduled script in the same
+ * "no in-process cron, external scheduler required" category as
+ * WEEKLY_AD_VIEWS_REPORT above, just actually wired up.
+ *
+ * KNOWN GAP (pre-existing, not touched here): backend's NotificationType
+ * enum also has STORE_NEW_PRODUCT with a live producer
+ * (notificationEvents.onStoreNewProduct in notifications.service.ts),
+ * but it was never added to this union or to NotificationBell.tsx's
+ * TYPE_ICON/TYPE_LABEL maps — a STORE_NEW_PRODUCT row renders with
+ * undefined icon/label today. Flagged, not fixed, as out of this
+ * change's scope.
  */
 export type NotificationType =
   | 'NEW_MESSAGE'
@@ -19,18 +31,25 @@ export type NotificationType =
   | 'FAV_AD_SOLD'
   | 'PROMOTION'
   | 'WEEKLY_AD_VIEWS_REPORT'
-  | 'SAVED_SEARCH_MATCH';
+  | 'SAVED_SEARCH_MATCH'
+  | 'PROMOTION_STATUS_CHANGE';
 
 /** Per-type deep-link payload — only the keys relevant to `type` are
  * ever present. NEW_MESSAGE carries conversationId,
  * FAV_AD_PRICE_CHANGED, FAV_AD_SOLD, and SAVED_SEARCH_MATCH carry adId
  * (SAVED_SEARCH_MATCH also carries savedSearchId, unused for
  * navigation today but kept for a future "view this saved search"
- * link); PROMOTION and WEEKLY_AD_VIEWS_REPORT carry none right now. */
+ * link); PROMOTION and WEEKLY_AD_VIEWS_REPORT carry none right now.
+ * PROMOTION_STATUS_CHANGE carries promotionId, productId, and event
+ * (one of "started" | "expiring" | "expired") — see
+ * myPromotionsExpiring.ts's own doc comment on the backend. */
 export interface NotificationData {
   conversationId?: string;
   adId?: string;
   savedSearchId?: string;
+  promotionId?: string;
+  productId?: string;
+  event?: 'started' | 'expiring' | 'expired';
 }
 
 export interface Notification {

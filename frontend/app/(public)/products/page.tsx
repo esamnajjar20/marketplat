@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 import { ShoppingBag } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { ProductsGrid } from '@/components/stores/ProductsGrid';
+import { ProductsFilters } from '@/components/stores/ProductsFilters';
+import { ProductsFiltersSheet } from '@/components/stores/ProductsFiltersSheet';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 
 export const metadata: Metadata = buildMetadata({ title: 'المنتجات', path: '/products' });
@@ -14,13 +16,16 @@ export const metadata: Metadata = buildMetadata({ title: 'المنتجات', pat
  * /services/page.tsx for visual consistency across the three
  * "browse + " list pages.
  *
- * No filter sidebar (unlike /stores, /services): ProductsGrid already
- * reads search/city/sortBy/sortOrder from the URL exactly like
- * StoresGrid does, but this pass only needed a working browse page
- * backed by the existing useProducts() hook — not a new
- * ProductsFilters/ProductsFiltersSheet component pair. Can be added
- * later the same way StoresFilters was, without touching this page's
- * data layer.
+ * PROMO-1 (Phase 12, full scope): ProductsGrid already read
+ * search/city/sortBy/sortOrder/hasPromotion from the URL exactly like
+ * StoresGrid does — this page previously had no filter UI at all
+ * (unlike /stores, /services), which was a known gap called out in
+ * this doc comment before this pass. ProductsFilters/
+ * ProductsFiltersSheet now expose that (search/city/hasPromotion),
+ * added the same way StoresFilters was for /stores (FIX BUG-02 there).
+ * No sort UI added here — ProductsGrid reads sortBy/sortOrder from the
+ * URL but nothing currently sets them; that's a separate gap, not part
+ * of this filter pass.
  */
 export default function ProductsPage() {
   return (
@@ -37,10 +42,20 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 pt-6">
-        <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
-          <ProductsGrid />
+      <div className="container mx-auto px-4 pt-6 space-y-6">
+        <Suspense>
+          <ProductsFiltersSheet />
         </Suspense>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <aside className="hidden lg:col-span-1 lg:block">
+            <Suspense><ProductsFilters /></Suspense>
+          </aside>
+          <main className="lg:col-span-3">
+            <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+              <ProductsGrid />
+            </Suspense>
+          </main>
+        </div>
       </div>
     </div>
   );

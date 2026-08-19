@@ -75,8 +75,8 @@ export const promotionsRepository = {
       where: { productId: { in: productIds }, status: { in: ['SCHEDULED', 'ACTIVE'] } },
     }),
 
-  // Used by the (currently unscheduled — see promotions.service.ts's
-  // top comment on cron) status-transition sweep: promotions whose
+  // Used by the status-transition sweep (previously unscheduled — now
+  // run by myPromotionsExpiring.ts, PROMO-1 Phase 14): promotions whose
   // window start/end has passed but whose stored status hasn't caught
   // up yet.
   findDueForActivation: (now: Date): Promise<Promotion[]> =>
@@ -84,6 +84,29 @@ export const promotionsRepository = {
 
   findDueForExpiry: (now: Date): Promise<Promotion[]> =>
     prisma.promotion.findMany({ where: { status: 'ACTIVE', endsAt: { lte: now } } }),
+
+  // PROMO-1 (Phase 14): promotions whose window ends within the next
+  // `windowHours` and haven't already been warned about it
+  // (expiryWarnedAt IS NULL) — see that column's schema.prisma doc
+  // comment for the idempotency reasoning. Deliberately excludes rows
+  // already past endsAt (those belong to findDueForExpiry above, not
+  // this "about to expire" warning).
+  findExpiringSoon: (now: Date, windowHours: number): Promise<Promotion[]> => {
+    const threshold = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
+    return prisma.promotion.findMany({
+      where: {
+        status: 'ACTIVE',
+        endsAt: { gt: now, lte: threshold },
+        expiryWarnedAt: null,
+      },
+    });
+  },
+
+  markExpiryWarned: (id: string, at: Date): Promise<Promotion> =>
+    prisma.promotion.update({ where: { id }, data: { expiryWarnedAt: at } }),
+
+  updateStatus: (id: string, status: PromotionStatus): Promise<Promotion> =>
+    prisma.promotion.update({ where: { id }, data: { status } }),
 
   incrementUsage: (id: string): Promise<Promotion> =>
     prisma.promotion.update({ where: { id }, data: { usageCount: { increment: 1 } } }),

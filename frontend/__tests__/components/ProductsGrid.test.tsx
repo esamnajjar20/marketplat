@@ -162,6 +162,26 @@ describe('ProductsGrid', () => {
     );
   });
 
+  // PROMO-1 (Phase 12, full scope): closes the "combination with other
+  // filters untested" gap — hasPromotion must combine with city/search/
+  // sort rather than override or get dropped alongside them.
+  it('combines hasPromotion with city, search, and sort in the same query', () => {
+    mockSearchParams = new URLSearchParams(
+      'hasPromotion=true&city=غزة&search=خلاط&sortBy=price&sortOrder=asc'
+    );
+    render(<ProductsGrid />);
+
+    expect(useProducts).toHaveBeenCalledWith({
+      search: 'خلاط',
+      page: 1,
+      city: 'غزة',
+      sortBy: 'price',
+      sortOrder: 'asc',
+      hasPromotion: true,
+      limit: 12,
+    });
+  });
+
   it('does not render pagination for a single page', () => {
     render(<ProductsGrid />);
 

@@ -1,4 +1,4 @@
-import { updateProfileSchema } from '../../src/modules/users/users.validation';
+import { updateProfileSchema, updateNotificationPreferencesSchema } from '../../src/modules/users/users.validation';
 
 describe('users.validation', () => {
   describe('updateProfileSchema', () => {
@@ -31,6 +31,32 @@ describe('users.validation', () => {
       });
       expect(result.body.name).toBe('Updated Name');
       expect((result.body as Record<string, unknown>).avatarUrl).toBeUndefined();
+    });
+  });
+
+  // PROMO-1 (Phase 14): myPromotions is a new preference key, distinct
+  // from the existing `promotions` (admin-broadcast newsletter) — see
+  // schema.prisma's PROMOTION_STATUS_CHANGE doc comment for why.
+  describe('updateNotificationPreferencesSchema', () => {
+    it('accepts myPromotions alongside the existing keys', () => {
+      const result = updateNotificationPreferencesSchema.parse({
+        body: { myPromotions: true },
+      });
+      expect(result.body.myPromotions).toBe(true);
+    });
+
+    it('accepts myPromotions and promotions independently in the same request', () => {
+      const result = updateNotificationPreferencesSchema.parse({
+        body: { myPromotions: true, promotions: false },
+      });
+      expect(result.body.myPromotions).toBe(true);
+      expect(result.body.promotions).toBe(false);
+    });
+
+    it('still rejects an empty body', () => {
+      expect(() => updateNotificationPreferencesSchema.parse({ body: {} })).toThrow(
+        /At least one preference must be provided/
+      );
     });
   });
 });

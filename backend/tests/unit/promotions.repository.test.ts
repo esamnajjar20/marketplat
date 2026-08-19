@@ -76,6 +76,78 @@ describe('promotionsRepository', () => {
     });
   });
 
+  describe('findDueForActivation', () => {
+    it('queries SCHEDULED promotions whose startsAt has passed', async () => {
+      (prisma.promotion.findMany as jest.Mock).mockResolvedValue([]);
+      const now = new Date('2026-08-19T12:00:00.000Z');
+
+      await promotionsRepository.findDueForActivation(now);
+
+      expect(prisma.promotion.findMany).toHaveBeenCalledWith({
+        where: { status: 'SCHEDULED', startsAt: { lte: now } },
+      });
+    });
+  });
+
+  describe('findDueForExpiry', () => {
+    it('queries ACTIVE promotions whose endsAt has passed', async () => {
+      (prisma.promotion.findMany as jest.Mock).mockResolvedValue([]);
+      const now = new Date('2026-08-19T12:00:00.000Z');
+
+      await promotionsRepository.findDueForExpiry(now);
+
+      expect(prisma.promotion.findMany).toHaveBeenCalledWith({
+        where: { status: 'ACTIVE', endsAt: { lte: now } },
+      });
+    });
+  });
+
+  // PROMO-1 (Phase 14): backs myPromotionsExpiring.ts's "about to
+  // expire" warning.
+  describe('findExpiringSoon', () => {
+    it('queries ACTIVE, not-yet-warned promotions ending within the given window', async () => {
+      (prisma.promotion.findMany as jest.Mock).mockResolvedValue([]);
+      const now = new Date('2026-08-19T12:00:00.000Z');
+
+      await promotionsRepository.findExpiringSoon(now, 24);
+
+      expect(prisma.promotion.findMany).toHaveBeenCalledWith({
+        where: {
+          status: 'ACTIVE',
+          endsAt: { gt: now, lte: new Date('2026-08-20T12:00:00.000Z') },
+          expiryWarnedAt: null,
+        },
+      });
+    });
+  });
+
+  describe('markExpiryWarned', () => {
+    it('sets expiryWarnedAt to the given timestamp', async () => {
+      (prisma.promotion.update as jest.Mock).mockResolvedValue({ id: 'promo-1' });
+      const at = new Date('2026-08-19T12:00:00.000Z');
+
+      await promotionsRepository.markExpiryWarned('promo-1', at);
+
+      expect(prisma.promotion.update).toHaveBeenCalledWith({
+        where: { id: 'promo-1' },
+        data: { expiryWarnedAt: at },
+      });
+    });
+  });
+
+  describe('updateStatus', () => {
+    it('updates only the status field', async () => {
+      (prisma.promotion.update as jest.Mock).mockResolvedValue({ id: 'promo-1' });
+
+      await promotionsRepository.updateStatus('promo-1', 'ACTIVE');
+
+      expect(prisma.promotion.update).toHaveBeenCalledWith({
+        where: { id: 'promo-1' },
+        data: { status: 'ACTIVE' },
+      });
+    });
+  });
+
   describe('isUniqueConstraintError', () => {
     it('returns true for a P2002 PrismaClientKnownRequestError', () => {
       const error = new Prisma.PrismaClientKnownRequestError('unique constraint failed', {

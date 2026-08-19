@@ -70,6 +70,17 @@ export const updateNotificationPreferencesSchema = z.object({
     adViews: z.boolean().optional(),
     favAdUpdated: z.boolean().optional(),
     promotions: z.boolean().optional(),
+    // PROMO-1 (Phase 14): distinct from `promotions` above, which is
+    // the admin-broadcast "عروض وتخفيضات" marketplace newsletter
+    // (notifications.service.ts's broadcastPromotion, NotificationType
+    // PROMOTION) — this one gates whether a store owner gets notified
+    // about the lifecycle of their OWN Promotion rows (started, about
+    // to expire, expired). Different audience (sellers about their own
+    // listings vs. buyers about marketplace news), different trigger
+    // (scheduled job vs. admin-initiated), so deliberately not folded
+    // into the existing `promotions` key even though the names are
+    // easy to confuse — see myPromotionsExpiring.ts's own doc comment.
+    myPromotions: z.boolean().optional(),
   }).refine(obj => Object.keys(obj).length > 0, {
     message: 'At least one preference must be provided',
   }),

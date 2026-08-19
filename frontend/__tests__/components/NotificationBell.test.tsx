@@ -211,6 +211,46 @@ describe('NotificationBell', () => {
       const row = await screen.findByText('رسالة بلا رابط');
       expect(row.closest('a')).toBeNull();
     });
+
+    // PROMO-1 (Phase 14): always links to the promotions dashboard
+    // regardless of which of the three lifecycle events (started/
+    // expiring/expired) fired — see hrefFor's own comment on why no
+    // per-event distinction is needed here.
+    it('renders PROMOTION_STATUS_CHANGE as a link to the promotions dashboard', async () => {
+      (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: {
+          items: [
+            makeNotification({
+              type: 'PROMOTION_STATUS_CHANGE',
+              title: 'بدأ عرضك',
+              data: { promotionId: 'promo-1', productId: 'product-1', event: 'started' },
+            }),
+          ],
+        },
+        isLoading: false,
+      });
+      const user = setupUser();
+      render(<NotificationBell />);
+      await openMenu(user);
+
+      const link = (await screen.findByText('بدأ عرضك')).closest('a');
+      expect(link).toHaveAttribute('href', '/my-store/promotions');
+    });
+
+    it('renders PROMOTION_STATUS_CHANGE as a link even without data (still a known type, unlike PROMOTION)', async () => {
+      (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: {
+          items: [makeNotification({ type: 'PROMOTION_STATUS_CHANGE', title: 'انتهى عرضك', data: null })],
+        },
+        isLoading: false,
+      });
+      const user = setupUser();
+      render(<NotificationBell />);
+      await openMenu(user);
+
+      const link = (await screen.findByText('انتهى عرضك')).closest('a');
+      expect(link).toHaveAttribute('href', '/my-store/promotions');
+    });
   });
 
   describe('mark as read', () => {
