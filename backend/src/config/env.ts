@@ -48,6 +48,22 @@ const envSchema = z.object({
   // matching JWT_SECRET/DATABASE_URL's "required, fail fast at startup"
   // treatment rather than silently degrading security.
   REDIS_PASSWORD: z.string().optional(),
+  // FIX LOCAL-DEV-01: previously `tls: {}` was hardcoded unconditionally
+  // in config/redis.ts, correct only for managed providers that require
+  // TLS on every plan (Upstash, etc. — see that file's own comment on
+  // why TLS is needed there). A local/self-hosted Redis (docker-compose,
+  // or a native install under Termux/proot-distro per REDIS_HOST's own
+  // "TERMUX/PROOT SUPPORT" comment above) speaks plain TCP, not TLS —
+  // ioredis attempting a TLS handshake against a plaintext server hangs
+  // until connectTimeout fires, surfacing as an opaque `connect
+  // ETIMEDOUT` with nothing in the error pointing at TLS as the cause.
+  // Defaults to false (plain TCP) so local/self-hosted Redis works
+  // out of the box; set REDIS_TLS=true explicitly for deployments that
+  // actually require it.
+  REDIS_TLS: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
   // TRUST_PROXY must be a number (1 = trust one proxy hop, e.g. nginx/Cloudflare)
   // String "1" is NOT equivalent to number 1 in Express trust proxy logic
   TRUST_PROXY: z
@@ -249,6 +265,7 @@ export const env = {
     host: _env.REDIS_HOST,
     port: parseInt(_env.REDIS_PORT, 10),
     password: _env.REDIS_PASSWORD,
+    tls: _env.REDIS_TLS,
   },
   security: {
     // Parse to number — Express trust proxy requires a number, not a string

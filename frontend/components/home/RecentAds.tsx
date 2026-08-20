@@ -6,6 +6,7 @@ import { AdCard }         from '@/components/ads/AdCard';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
+import { ApiError }       from '@/components/shared/ApiError';
 import { Button }         from '@/components/shared/ui/Button';
 import { useAdsForHome }  from '@/hooks/queries/useAdsForHome';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
@@ -24,7 +25,7 @@ import { ROUTES }         from '@/lib/constants';
  * the full priority chain + cascade-on-empty/failure behavior.
  */
 export function RecentAds() {
-  const { isLoading, items } = useAdsForHome();
+  const { isLoading, isError, items, refetch } = useAdsForHome();
   // FIX P1-10: /ads/create is a protected route — an unauthenticated
   // visitor tapping this CTA was immediately bounced to /login with no
   // warning. Route them to registration/login instead of dangling a
@@ -40,6 +41,20 @@ export function RecentAds() {
     );
   }
 
+  // FIX UI-REVIEW-ERROR-STATE: reported bug — on a failed/dead
+  // connection this fell straight into the empty-items branch below
+  // and told the user "لا توجد إعلانات بعد" (no ads yet), which is
+  // actively wrong on an established marketplace and just tells a
+  // user with a real connectivity problem to go create the first ad
+  // themselves. useAdsForHome's own isError only ever reflects the
+  // *final* query in its GPS/city → general cascade (see that hook's
+  // doc) — i.e. this only fires once every fallback has also failed,
+  // never for a GPS-specific hiccup that a working general query
+  // already recovered from.
+  if (isError) {
+    return <ApiError error={{ message: 'تعذر تحميل الإعلانات.' }} onRetry={refetch} variant="inline" />;
+  }
+
   // FIX (audit note, home page §1): previously returned bare cards with
   // no fallback at all when the list came back empty — a brand-new or
   // freshly-seeded marketplace would show an empty grid with no
@@ -48,8 +63,9 @@ export function RecentAds() {
   //
   // Note: useAdsForHome already cascades GPS/city → general on an
   // empty result, so items being empty here means even the general
-  // query came back empty — a genuinely empty marketplace, not a
-  // location-specific gap.
+  // query came back empty *without erroring* — a genuinely empty
+  // marketplace, not a location-specific gap or a connectivity issue
+  // (that's the isError branch above).
   if (items.data.length === 0) {
     return (
       <EmptyState

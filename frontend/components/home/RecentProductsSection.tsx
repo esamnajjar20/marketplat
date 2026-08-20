@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingBag, Clock } from 'lucide-react';
+import { ShoppingBag, Clock, LocateFixed } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
+import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ApiError } from '@/components/shared/ApiError';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
@@ -36,9 +38,28 @@ import { ROUTES } from '@/lib/constants';
 export function RecentProductsSection() {
   const location = useLocationResolver();
   const city = location.source === 'city' ? location.city : undefined;
-  const { data, isLoading } = useProducts({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc', city });
+  const { data, isLoading, isError, error, refetch } = useProducts({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc', city });
   const items = data?.items ?? [];
   const isAuth = useAuthStore(selectIsAuthenticated);
+
+  // FIX UI-REVIEW-3: this section resolves the exact same city-vs-
+  // fallback location split as NearbyProvidersSection/HomeAboveFold's
+  // "أحدث الإعلانات" — city genuinely reorders these results (unlike
+  // FeaturedStoresSection, where plan-based ranking dominates and city
+  // only affects backfill) — but had no "استخدام موقعي" CTA or source
+  // badge, so a user who hadn't granted location here had no way to
+  // improve these particular results, unlike the two sibling sections
+  // that already offer it. Same pattern, same copy, same placement.
+  const isGps = location.source === 'gps-current' || location.source === 'gps-saved';
+  const showLocateCta = !isGps;
+  // Maps useLocationResolver's 4-way source to LocationSourceBadge's
+  // 3-way display union. No cascade-to-general case to account for
+  // here (unlike useAdsForHome/useNearbyProvidersForHome) — city is
+  // passed straight through to useProducts and always takes effect
+  // when present, so the resolver's own source is an accurate label
+  // for what's actually shown.
+  const badgeSource = isGps ? 'gps' as const : location.source === 'city' ? 'city' as const : 'general' as const;
+  const badgeCity = location.source === 'city' ? location.city : undefined;
 
   const header = (
     <SectionHeader
@@ -46,6 +67,7 @@ export function RecentProductsSection() {
       title="أحدث المنتجات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.products, label: 'عرض الكل ←' }}
+      badge={!isLoading ? <LocationSourceBadge source={badgeSource} city={badgeCity} /> : undefined}
     />
   );
 
@@ -60,6 +82,20 @@ export function RecentProductsSection() {
             </div>
           ))}
         </div>
+      </section>
+    );
+  }
+
+  // FIX UI-REVIEW-ERROR-STATE: same bug as RecentAds — a failed
+  // request used to fall straight into the empty-items branch below
+  // and show "لا توجد منتجات بعد" (no products yet), which is wrong
+  // on an established marketplace and misleads a user with a real
+  // connectivity problem into thinking there's simply nothing there.
+  if (isError) {
+    return (
+      <section className="container mx-auto space-y-4 px-4 pt-10">
+        {header}
+        <ApiError error={error} onRetry={refetch} variant="inline" />
       </section>
     );
   }
@@ -93,6 +129,12 @@ export function RecentProductsSection() {
   return (
     <section className="container mx-auto space-y-4 px-4 pt-10">
       {header}
+      {showLocateCta && (
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={location.requestLocation}>
+          <LocateFixed className="h-3.5 w-3.5" />
+          استخدام موقعي
+        </Button>
+      )}
       <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
         {items.map((product) => (
           <div key={product.id} className="w-40 shrink-0 sm:w-auto">

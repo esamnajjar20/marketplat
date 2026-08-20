@@ -2,6 +2,7 @@
 
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
+import { ApiError }       from '@/components/shared/ApiError';
 import { useAds }         from '@/hooks/queries/useAds';
 
 const DISPLAY_COUNT = 4;
@@ -18,7 +19,7 @@ const DISPLAY_COUNT = 4;
 // ads.repository.ts, indexed via the existing [isFeatured, isPinned]
 // index), so this always gets an accurate count regardless of scale.
 export function FeaturedAds() {
-  const { data, isLoading } = useAds({ isFeatured: true, limit: DISPLAY_COUNT });
+  const { data, isLoading, isError, error, refetch } = useAds({ isFeatured: true, limit: DISPLAY_COUNT });
   const items = data?.items ?? [];
 
   if (isLoading) {
@@ -27,6 +28,18 @@ export function FeaturedAds() {
         {Array.from({ length: DISPLAY_COUNT }).map((_, i) => <AdCardSkeleton key={i} />)}
       </div>
     );
+  }
+
+  // FIX UI-REVIEW-ERROR-STATE: previously `if (items.length === 0)
+  // return null` treated a failed request identically to "no featured
+  // ads right now" — this section (inside a visually distinct
+  // bg-accent band, per HomeAboveFold) just vanished on a network
+  // failure with nothing to explain why the band above it had a
+  // heading but no content. isError is checked first so a genuine
+  // empty state (items.length === 0 with no error) still self-hides
+  // exactly as before — only an actual fetch failure now surfaces.
+  if (isError) {
+    return <ApiError error={error} onRetry={refetch} variant="inline" />;
   }
 
   if (items.length === 0) return null;

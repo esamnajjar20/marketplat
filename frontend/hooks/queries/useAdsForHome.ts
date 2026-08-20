@@ -24,6 +24,18 @@ interface AdsForHomeResult {
    * See ads.api.ts / search.api.ts's own docs for why these differ.
    */
   items: { kind: 'search'; data: SearchResult[] } | { kind: 'ads'; data: AdListItem[] };
+  /**
+   * FIX UI-REVIEW-ERROR-STATE: re-runs whichever query is actually
+   * responsible for the current isError:true result — not just
+   * generalQuery.refetch unconditionally, since a GPS-branch failure
+   * that hasn't yet cascaded (searchQuery still loading/pending retry)
+   * has nothing to do with generalQuery. In every branch that reaches
+   * generalResult, though, generalQuery.refetch is correct — it's
+   * either the branch actually shown (fallback source === 'general')
+   * or the thing that needs to succeed for the cascade to stop
+   * failing.
+   */
+  refetch: () => void;
 }
 
 /**
@@ -85,15 +97,16 @@ export function useAdsForHome(): AdsForHomeResult {
     isError: generalQuery.isError,
     source: 'general' as const,
     items: { kind: 'ads' as const, data: generalItems },
+    refetch: () => { generalQuery.refetch(); },
   };
 
   if (isGps) {
     if (searchQuery.isLoading) {
-      return { isChecking, isLoading: true, isError: false, source: 'gps', items: { kind: 'search', data: [] } };
+      return { isChecking, isLoading: true, isError: false, source: 'gps', items: { kind: 'search', data: [] }, refetch: () => { searchQuery.refetch(); } };
     }
     const gpsItems = searchQuery.data?.items ?? [];
     if (!searchQuery.isError && gpsItems.length > 0) {
-      return { isChecking, isLoading: false, isError: false, source: 'gps', items: { kind: 'search', data: gpsItems } };
+      return { isChecking, isLoading: false, isError: false, source: 'gps', items: { kind: 'search', data: gpsItems }, refetch: () => { searchQuery.refetch(); } };
     }
     // GPS query failed or came back empty → cascade to general.
     return generalResult;
@@ -101,11 +114,11 @@ export function useAdsForHome(): AdsForHomeResult {
 
   if (isCity) {
     if (cityQuery.isLoading) {
-      return { isChecking, isLoading: true, isError: false, source: 'city', items: { kind: 'ads', data: [] } };
+      return { isChecking, isLoading: true, isError: false, source: 'city', items: { kind: 'ads', data: [] }, refetch: () => { cityQuery.refetch(); } };
     }
     const cityItems = cityQuery.data?.items ?? [];
     if (!cityQuery.isError && cityItems.length > 0) {
-      return { isChecking, isLoading: false, isError: false, source: 'city', items: { kind: 'ads', data: cityItems } };
+      return { isChecking, isLoading: false, isError: false, source: 'city', items: { kind: 'ads', data: cityItems }, refetch: () => { cityQuery.refetch(); } };
     }
     // City query failed or came back empty → cascade to general.
     return generalResult;

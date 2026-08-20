@@ -23,21 +23,32 @@ export const redis = new Redis({
   // single connection attempt so a real failure surfaces quickly and
   // predictably instead of hanging.
   connectTimeout: 10_000,
-  // FIX DEPLOY-03: Upstash (and most managed Redis providers) require
-  // TLS on every plan — the `rediss://` scheme / "TLS/SSL: Enabled" in
-  // Upstash's dashboard is not optional. ioredis does not infer TLS
-  // from a host/port pair; without an explicit `tls` option it opens a
-  // plain TCP socket and attempts a plaintext Redis handshake against a
-  // server expecting a TLS handshake. That mismatch is what produced
-  // the repeating "Redis connected" -> immediate "read ECONNRESET"
-  // cycle seen in production: some connection attempts partially
-  // complete before the server rejects the plaintext protocol, which
-  // looks like intermittent flakiness but is actually a deterministic
-  // protocol mismatch on every single connection attempt. An empty
-  // object is sufficient here — it enables TLS using Node's default
-  // secure context, which is correct for Upstash's publicly-trusted
-  // certificate; no custom CA or servername override is needed.
-  tls: {},
+  // FIX DEPLOY-03 + FIX LOCAL-DEV-01: TLS is now conditional on
+  // REDIS_TLS (env.ts, default false) instead of hardcoded on. Upstash
+  // (and most managed Redis providers) require TLS on every plan — the
+  // `rediss://` scheme / "TLS/SSL: Enabled" in Upstash's dashboard is
+  // not optional, and ioredis does not infer TLS from a host/port pair;
+  // without an explicit `tls` option against a provider like that it
+  // opens a plain TCP socket and attempts a plaintext Redis handshake
+  // against a server expecting a TLS handshake. That mismatch is what
+  // produced the repeating "Redis connected" -> immediate "read
+  // ECONNRESET" cycle seen in production: some connection attempts
+  // partially complete before the server rejects the plaintext
+  // protocol, which looks like intermittent flakiness but is actually a
+  // deterministic protocol mismatch on every single connection attempt.
+  //
+  // But the previous unconditional `tls: {}` broke the opposite case
+  // just as badly: a local/self-hosted Redis (docker-compose, or a
+  // native install under Termux/proot-distro — see REDIS_HOST's own
+  // "TERMUX/PROOT SUPPORT" comment in env.ts) speaks plain TCP, not
+  // TLS. An ioredis client forcing a TLS handshake against a plaintext
+  // server just hangs until connectTimeout fires, surfacing as an
+  // opaque `connect ETIMEDOUT` with nothing in the error pointing at
+  // TLS as the actual cause. env.redis.tls ? {} is the same "enable TLS
+  // using Node's default secure context" value as before (correct for
+  // Upstash's publicly-trusted certificate, no custom CA needed), now
+  // applied only when REDIS_TLS=true is actually set.
+  tls: env.redis.tls ? {} : undefined,
   retryStrategy: (times) => Math.min(times * 50, 2000),
   maxRetriesPerRequest: 3,
 });

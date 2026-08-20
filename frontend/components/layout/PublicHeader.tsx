@@ -7,6 +7,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
 import { UserMenu }       from './UserMenu';
@@ -19,6 +20,24 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 
 export function PublicHeader() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  // FIX UI-REVIEW-SEARCH-DUP: /search renders its own SearchBox in a
+  // dedicated brand band right below this header (see
+  // app/(public)/search/page.tsx) — a more capable control on that
+  // page specifically (query suggestions dropdown, preserves the
+  // page's existing city/type/sort/category filters on submit,
+  // matching SearchFilters' own update() convention) rather than a
+  // plain duplicate. With this header's own SearchBar still rendered
+  // unconditionally too, every visitor to /search saw two full-width
+  // search fields stacked directly on top of each other doing
+  // functionally the same thing — reported as a literal duplicate
+  // input, not just a visual near-miss. Hiding this header's copy
+  // specifically on /search (its result subpages like /search?q=...
+  // still match, since ROUTES.search has no trailing segment here)
+  // rather than touching SearchBox/SearchBar's own behavior, since
+  // both remain correct, distinct components used correctly in every
+  // other context (SearchBar also drives HeroBanner's desktop search).
+  const pathname = usePathname();
+  const onSearchPage = pathname === ROUTES.search;
 
   return (
     <header className="pwa-safe-top sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -68,7 +87,7 @@ export function PublicHeader() {
         </nav>
 
         <div className="hidden flex-1 md:block">
-          <SearchBar />
+          {!onSearchPage && <SearchBar />}
         </div>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -105,10 +124,14 @@ export function PublicHeader() {
       {/* Mobile search bar — kept as its own row (not merged into the
           title row above) since the title row's job is brand + quick
           actions (theme/bell/menu), while search needs its full
-          width to stay comfortably tappable. */}
-      <div className="border-t px-4 py-2 md:hidden">
-        <SearchBar />
-      </div>
+          width to stay comfortably tappable. Hidden on /search itself
+          for the same reason as the desktop copy above — see this
+          component's top-level comment. */}
+      {!onSearchPage && (
+        <div className="border-t px-4 py-2 md:hidden">
+          <SearchBar />
+        </div>
+      )}
     </header>
   );
 }

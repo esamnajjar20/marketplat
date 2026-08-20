@@ -6,6 +6,7 @@ import { useCategories } from '@/hooks/queries/useCategories';
 import { ROUTES }        from '@/lib/constants';
 import { Skeleton }      from '@/components/shared/ui/Skeleton';
 import { Button }        from '@/components/shared/ui/Button';
+import { ApiError }      from '@/components/shared/ApiError';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Car, Home, Smartphone, Sofa, Briefcase, Shirt,
@@ -50,22 +51,28 @@ function iconFor(slug: string, nameAr: string): LucideIcon {
  * VISUAL (mobile top-bar redesign): a fixed rotation of theme-token
  * background/text pairs (not raw Tailwind colors) for the mobile pill
  * row, matching the reference layout's colorful chip look. Every pair
- * is a semantic token (primary/accent/success/warning/destructive)
- * rather than e.g. bg-blue-500, so each pill's contrast is whatever
- * that token already resolves to in light vs. dark mode — no separate
- * dark-mode pill palette needed. Cycles by index so it stays stable
- * regardless of how many categories the backend returns.
+ * is a semantic token rather than e.g. bg-blue-500, so each pill's
+ * contrast is whatever that token already resolves to in light vs.
+ * dark mode — no separate dark-mode pill palette needed. Cycles by
+ * index so it stays stable regardless of how many categories the
+ * backend returns.
+ *
+ * FIX UI-REVIEW-1: success/destructive dropped from this rotation.
+ * Those two tokens carry a fixed meaning everywhere else in the app
+ * (ad-status badges, form validation, StatusBadge.tsx) — a category
+ * landing on "destructive" red purely by array-index luck (e.g.
+ * "خدمات" or "وظائف") reads as an error/warning state, not a neutral
+ * category chip. Kept to brand-neutral tokens only.
  */
 const PILL_COLOR_ROTATION = [
   'bg-primary/15 text-primary',
-  'bg-success/15 text-success',
-  'bg-warning/20 text-warning-foreground',
   'bg-accent/15 text-accent',
-  'bg-destructive/10 text-destructive',
+  'bg-warning/20 text-warning-foreground',
+  'bg-muted-foreground/15 text-muted-foreground',
 ] as const;
 
 export function CategoryGrid() {
-  const { data: categories, isLoading } = useCategories();
+  const { data: categories, isLoading, isError, error, refetch } = useCategories();
 
   if (isLoading) {
     return (
@@ -82,6 +89,17 @@ export function CategoryGrid() {
         </div>
       </>
     );
+  }
+
+  // FIX UI-REVIEW-ERROR-STATE: previously `(categories ?? []).filter(...)`
+  // swallowed a failed request the same way as a genuinely-empty
+  // category list — both rendered an empty grid with zero explanation.
+  // Reported symptom: on a flaky/dead connection, the whole home page
+  // silently went blank section by section (this one included) with
+  // no error shown anywhere and no way to retry short of a full reload.
+  // Distinguishing isError here means a network failure now says so.
+  if (isError) {
+    return <ApiError error={error} onRetry={refetch} variant="inline" />;
   }
 
   const all = (categories ?? []).filter((c) => !c.parentId);
