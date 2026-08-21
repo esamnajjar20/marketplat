@@ -81,7 +81,11 @@ export function useLogin() {
 
     onSuccess: async (data) => {
       // FIX T-01: data.user is AuthResultUser (id/name/email/role only).
-      setAuth(data.user, data.tokens);
+      // CROSS-ORIGIN-CSRF-FIX: also pass csrfToken from the response
+      // body — see auth.store.ts's csrfToken field / lib/csrf.ts for why
+      // this in-memory value, not the (cross-origin-unreadable) cookie,
+      // is what getCsrfToken() uses.
+      setAuth(data.user, data.tokens, data.csrfToken);
 
       // Set cookies for middleware route protection.
       setAuthCookies(data.user, data.tokens);
@@ -132,7 +136,8 @@ export function useRegister() {
       authApi.register(payload).then((r) => ({ ...unwrapData(r), redirectTo })),
 
     onSuccess: (data) => {
-      setAuth(data.user, data.tokens);
+      // CROSS-ORIGIN-CSRF-FIX: see the matching comment in useLogin above.
+      setAuth(data.user, data.tokens, data.csrfToken);
       setAuthCookies(data.user, data.tokens);
       // Gap #7 (product analytics): completes the signup funnel this
       // event pairs with (see RegisterForm.tsx's SIGNUP_STARTED on

@@ -76,7 +76,7 @@ interface AuthHydrationProviderProps {
 
 export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) {
   const isHydrated = useAuthStore(selectIsHydrated);
-  const { setAccessToken, setUser, logout, setAuthResolved } = useAuthStore.getState();
+  const { setAccessToken, setCsrfToken, setUser, logout, setAuthResolved } = useAuthStore.getState();
   const queryClient = useQueryClient();
 
   const hasRunRef = useRef(false);
@@ -115,6 +115,14 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         const { accessToken: newAccess } = refreshRes.data.data!.tokens;
 
         setAccessToken(newAccess);
+        // CROSS-ORIGIN-CSRF-FIX: this is the exact call that was
+        // failing with 403 on every page reload — frontend and backend
+        // are on different origins, so document.cookie can never see
+        // the backend-origin-only csrfToken cookie (see lib/csrf.ts's
+        // header comment for the full mechanism). Capture the value
+        // from this response body instead, into the in-memory store
+        // getCsrfToken() now reads from first.
+        setCsrfToken(refreshRes.data.data!.csrfToken);
 
         // 2. Set middleware cookies so route protection works.
         setCookie('app_access_token', newAccess, COOKIE_MAX_AGE);

@@ -68,10 +68,42 @@ function safeTokenEquals(a: string, b: string): boolean {
  * secret being checked is the password, not a pre-existing cookie.
  * (This mirrors how most real-world CSRF middleware — Django, Rails —
  * also exempts the login endpoint itself.)
+ *
+ * CROSS-ORIGIN-CSRF-FIX: /auth/refresh is exempted for the identical
+ * bootstrapping reason, made unavoidable (not just theoretical) by a
+ * split-origin deployment. Frontend and backend here run on two
+ * different *.up.railway.app hosts, so the csrfToken cookie (host-only,
+ * no explicit Domain — see authCookies.ts::setCsrfCookie) is never
+ * readable via frontend document.cookie; the ONLY way the frontend
+ * learns the current csrfToken value is from THIS endpoint's own JSON
+ * response body (see auth.controller.ts's respondWithSession / the
+ * bare-tokens branch, and frontend's store/auth.store.ts::setCsrfToken).
+ * On every fresh page load, the browser already holds a still-valid
+ * csrfToken cookie from a prior session and attaches it automatically
+ * — so cookieToken is always present here — while the frontend's
+ * in-memory copy was just wiped by the reload and cannot possibly
+ * supply a matching header yet. Enforcing the check on this endpoint
+ * therefore 403's the ONE request whose entire job is to (re-)issue
+ * that value in the first place — a deadlock identical in shape to the
+ * login/register case above, not a one-off edge case.
+ *
+ * Safe for the same reason login/register are safe: nothing sensitive
+ * about the account is exposed or changed in a way a blind cross-site
+ * attacker can exploit or observe. A forged /auth/refresh POST relies
+ * on the victim's own httpOnly refreshToken cookie (which the attacker
+ * cannot read or set), and the response — new accessToken/csrfToken —
+ * lands only in the JSON body and this app's own first-party cookies,
+ * both inaccessible to a cross-site attacker's origin (no permissive
+ * CORS credentials grant exists for arbitrary origins here). Worst
+ * case is an unwanted token rotation (a minor availability nuisance,
+ * already achievable other ways), not impersonation, data exposure, or
+ * an account-state change.
  */
 const CSRF_EXEMPT_PATHS = new Set([
   "/auth/login",
   "/auth/register",
+  // CROSS-ORIGIN-CSRF-FIX: see this const's own header comment above.
+  "/auth/refresh",
   // Public, unauthenticated-by-design product-analytics beacon (see
   // analytics.routes.ts). Not a sensitive state-changing action, so
   // there's nothing here for CSRF to protect — but the frontend

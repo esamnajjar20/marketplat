@@ -48,6 +48,44 @@ interface AuthStore {
   // ── State ────────────────────────────────────────────────────────
   user:             AuthUser | null;
   accessToken:      string | null;   // in-memory only — not persisted
+  /**
+   * CROSS-ORIGIN-CSRF-FIX: the double-submit CSRF cookie (see
+   * backend-v9's shared/utils/authCookies.ts::setCsrfCookie) is set
+   * with no explicit Domain attribute, so it is host-only bound to
+   * the BACKEND's origin. On this deployment the frontend and backend
+   * run on two different *.up.railway.app hosts (different origins,
+   * and — since up.railway.app is itself on the Public Suffix List —
+   * different "sites" entirely), so frontend JS calling
+   * document.cookie can NEVER see this cookie: cookie readability via
+   * JS is scoped strictly to the origin that set it, regardless of
+   * SameSite (SameSite only governs whether the browser *attaches*
+   * the cookie to an outgoing cross-site request, which is a
+   * completely separate mechanism from JS *reading* it). The browser
+   * still attaches the cookie to requests TO the backend (confirmed
+   * in prod: it shows up in the request's `cookie:` header), so the
+   * backend always sees cookieToken — but lib/csrf.ts's old
+   * document.cookie-based getCsrfToken() always returned null on this
+   * origin split, so X-CSRF-Token was never sent, and
+   * csrf.middleware.ts rejects that combination (cookie present,
+   * header missing) with 403 on every single state-changing request,
+   * including /auth/refresh itself right after a page reload.
+   *
+   * Fix: the backend already includes csrfToken directly in the JSON
+   * response body of login/register/refresh (LoginResponseData /
+   * RefreshResponseData — see types/auth.types.ts), specifically so a
+   * split-origin frontend has a same-origin-safe way to obtain the
+   * value (only code running on this exact page could have read this
+   * fetch response body — that's the same "attacker can't get it"
+   * property the cookie-read was meant to provide). This field is the
+   * in-memory home for that value; getCsrfToken() (lib/csrf.ts) now
+   * reads from here instead of (with a document.cookie fallback for
+   * any future same-origin deployment — see that file's own comment).
+   * Deliberately NOT persisted to localStorage (see partialize below)
+   * — same in-memory-only treatment as accessToken, since both are
+   * re-obtained fresh on every page load via AuthHydrationProvider's
+   * unconditional /auth/refresh call anyway.
+   */
+  csrfToken:        string | null;
   isAuthenticated:  boolean;
   isHydrated:       boolean;
   /**
@@ -71,8 +109,22 @@ interface AuthStore {
    * Called after login/register. Sets all auth state at once.
    * user is AuthResultUser from login (minimal) — avatarUrl/city
    * are filled in after a subsequent /users/me call (see AuthHydrationProvider).
+   * CROSS-ORIGIN-CSRF-FIX: now also takes the csrfToken from the same
+   * response body (see this store's csrfToken field doc comment).
+   * Optional (not required) specifically so the many existing
+   * setAuth(user, tokens) call sites in __tests__/ that predate this
+   * fix keep compiling unchanged — omitting it just leaves csrfToken
+   * at its previous value (null on a fresh store) instead of erroring.
    */
-  setAuth:        (user: AuthResultUser, tokens: AuthTokens) => void;
+  setAuth:        (user: AuthResultUser, tokens: AuthTokens, csrfToken?: string) => void;
+
+  /**
+   * CROSS-ORIGIN-CSRF-FIX: called by client.ts's silent-refresh
+   * interceptor and AuthHydrationProvider after a successful
+   * /auth/refresh — mirrors setAccessToken's existing call sites,
+   * since both values come from the same refresh response body.
+   */
+  setCsrfToken:   (token: string) => void;
 
   /** Update full user after /users/me resolves. */
   setUser:        (user: AuthUser) => void;
@@ -99,6 +151,7 @@ export const useAuthStore = create<AuthStore>()(
       // ── Initial state ─────────────────────────────────────────────
       user:            null,
       accessToken:     null,
+      csrfToken:       null,
       isAuthenticated: false,
       isHydrated:      false,
       // FIX AUTH-04 / PROD-FIX-15: starts false; flipped true by
@@ -108,7 +161,7 @@ export const useAuthStore = create<AuthStore>()(
       isAuthResolving: false,
 
       // ── Actions ───────────────────────────────────────────────────
-      setAuth: (authResultUser, tokens) =>
+      setAuth: (authResultUser, tokens, csrfToken) =>
         set({
           user: {
             id:        authResultUser.id,
@@ -120,8 +173,15 @@ export const useAuthStore = create<AuthStore>()(
             city:      null,
           },
           accessToken:     tokens.accessToken,
+          // CROSS-ORIGIN-CSRF-FIX: only overwrite if a value was passed —
+          // an omitted csrfToken (old test call sites) must not clobber
+          // a value already in the store with undefined.
+          ...(csrfToken !== undefined ? { csrfToken } : {}),
           isAuthenticated: true,
         }),
+
+      // CROSS-ORIGIN-CSRF-FIX: see this action's own doc comment on the interface above.
+      setCsrfToken: (token) => set({ csrfToken: token }),
 
       setUser: (user) => set({ user }),
 
@@ -147,6 +207,7 @@ export const useAuthStore = create<AuthStore>()(
         set({
           user:            null,
           accessToken:     null,
+          csrfToken:       null,
           isAuthenticated: false,
           isAuthResolving: false,
         }),
@@ -192,6 +253,9 @@ export const useAuthStore = create<AuthStore>()(
 export const selectUser            = (s: AuthStore) => s.user;
 export const selectIsAuthenticated = (s: AuthStore) => s.isAuthenticated;
 export const selectAccessToken     = (s: AuthStore) => s.accessToken;
+// CROSS-ORIGIN-CSRF-FIX: used by lib/csrf.ts's getCsrfToken() — see that
+// file and this store's csrfToken field for the full reasoning.
+export const selectCsrfToken       = (s: AuthStore) => s.csrfToken;
 // Gap #20 (admin permission tiers): "ADMIN-tier" now means ADMIN or
 // SUPER_ADMIN — SUPER_ADMIN must be able to do everything ADMIN can
 // (mirrors the backend's requireAdmin, which is rank-based: ADMIN or

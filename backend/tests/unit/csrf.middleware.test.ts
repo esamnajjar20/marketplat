@@ -72,7 +72,25 @@ describe('csrfProtection', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
-  it('does NOT exempt POST /auth/refresh — it is a state-changing, cookie-authenticated endpoint', () => {
+  it('exempts POST /auth/refresh even with a mismatched csrfToken cookie/header', () => {
+    // CROSS-ORIGIN-CSRF-FIX: was previously asserted as NOT exempt, on
+    // the assumption the frontend can always read the csrfToken cookie
+    // via document.cookie and attach a matching X-CSRF-Token header.
+    // That assumption only holds for a same-origin deployment. On a
+    // split-origin deployment (frontend/backend on different hosts —
+    // this app's actual Railway setup), the csrfToken cookie is
+    // host-only bound to the backend's origin and is structurally
+    // unreadable by frontend JS; the ONLY way the frontend ever learns
+    // the current csrfToken value is from THIS endpoint's own response
+    // body. Enforcing the check here creates a bootstrapping deadlock —
+    // identical in shape to why /auth/login and /auth/register are
+    // exempt above — that 403's the very first refresh call on every
+    // fresh page load, since the browser already carries a still-valid
+    // csrfToken cookie from a prior session while the frontend's
+    // in-memory copy was just wiped by the reload. See
+    // csrf.middleware.ts's own header comment on CSRF_EXEMPT_PATHS for
+    // the full reasoning, including why this remains safe against a
+    // blind cross-site forgery of this endpoint.
     const req = mockReq({
       method: 'POST',
       path: '/auth/refresh',
@@ -81,7 +99,7 @@ describe('csrfProtection', () => {
     });
     const next = mockNext();
     csrfProtection(req as Request, mockRes() as Response, next);
-    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('CRITICAL SCOPING: passes through untouched when no csrfToken cookie is present at all (pure Bearer-token client)', () => {

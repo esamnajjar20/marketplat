@@ -119,6 +119,20 @@ apiClient.interceptors.response.use(
         refreshQueue.push({
           resolve: (token) => {
             original.headers.Authorization = `Bearer ${token}`;
+            // BUG-FIX CSRF-01: `original` is the axios config object from
+            // BEFORE the 401 — its X-CSRF-Token header was set by the
+            // request interceptor using whatever `csrfToken` cookie
+            // existed at that time. setCsrfCookie() (authCookies.ts)
+            // issues a brand-new random token on every /auth/refresh
+            // success, so by the time this queued request replays, the
+            // browser's actual csrfToken cookie has already rotated out
+            // from under the header baked into `original`. Deleting it
+            // here forces the request interceptor to re-read
+            // document.cookie fresh (see getCsrfToken()) instead of
+            // resending the now-stale value — axios does not re-run
+            // interceptors on a manually re-invoked config object with
+            // headers already set, so this has to be done explicitly.
+            delete original.headers['X-CSRF-Token'];
             resolve(apiClient(original));
           },
           reject,
@@ -147,6 +161,11 @@ apiClient.interceptors.response.use(
       const { accessToken: newAccess } = res.data.data!.tokens;
 
       useAuthStore.getState().setAccessToken(newAccess);
+      // CROSS-ORIGIN-CSRF-FIX: capture the fresh csrfToken from the
+      // refresh response body — see lib/csrf.ts's header comment for
+      // why this in-memory value (not document.cookie) is now the
+      // primary source getCsrfToken() reads from.
+      useAuthStore.getState().setCsrfToken(res.data.data!.csrfToken);
       // FIX AUTH-03: previously only AuthHydrationProvider/useAuthMutations
       // wrote the app_access_token cookie (at login/initial hydration).
       // A silent refresh updated the in-memory token but left the cookie's
@@ -163,6 +182,12 @@ apiClient.interceptors.response.use(
       processQueue(null, newAccess);
 
       original.headers.Authorization = `Bearer ${newAccess}`;
+      // BUG-FIX CSRF-01: same stale-header problem as the queued-request
+      // path above — the refresh that just succeeded also rotated the
+      // csrfToken cookie via setCsrfCookie(), so the X-CSRF-Token this
+      // original request was built with is now the old value. Strip it
+      // so the request interceptor re-attaches the current cookie value.
+      delete original.headers['X-CSRF-Token'];
       return apiClient(original);
     } catch (refreshError) {
       processQueue(refreshError, null);
