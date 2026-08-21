@@ -1,16 +1,26 @@
 /**
- * PROD-FIX-15 coverage: authCookies.ts is what actually sets the
- * cookie attributes the entire security model depends on (httpOnly,
- * secure, sameSite, path scoping — see that file's own header comment
- * for the full reasoning behind each). Confirms the res.cookie()/
- * res.clearCookie() calls carry the right options, and that `secure`
- * correctly flips based on NODE_ENV.
+ * PROD-FIX-15 / DEPLOY-FIX-01 coverage: authCookies.ts is what
+ * actually sets the cookie attributes the entire security model
+ * depends on (httpOnly, secure, sameSite, path scoping — see that
+ * file's own header comment for the full reasoning behind each).
+ * Confirms the res.cookie()/res.clearCookie() calls carry the right
+ * options.
  *
- * jest.resetModules() + dynamic re-import per NODE_ENV test, since
- * authCookies.ts reads env.nodeEnv (itself read from process.env once
- * at config/env.ts's module-load time) into a module-level
- * `isProduction` constant — same pattern/reasoning as
- * capacityCheck.test.ts and metrics.test.ts's METRICS_TOKEN tests.
+ * DEPLOY-FIX-01: refreshToken/csrfToken/app_has_session now always
+ * set secure:true + sameSite:'none' (required to cross the
+ * *.up.railway.app subdomain boundary between frontend and backend —
+ * see authCookies.ts's own comment on setRefreshTokenCookie). This is
+ * no longer conditional on NODE_ENV, so the old "flips based on
+ * NODE_ENV" tests for those three cookies are gone; oauth_state is
+ * unaffected (still a same-origin round trip) and keeps its
+ * NODE_ENV-dependent secure flag/coverage.
+ *
+ * jest.resetModules() + dynamic re-import per NODE_ENV test is kept
+ * for the oauth_state cases below, since authCookies.ts still reads
+ * env.nodeEnv (itself read from process.env once at config/env.ts's
+ * module-load time) into a module-level `isProduction` constant for
+ * that cookie — same pattern/reasoning as capacityCheck.test.ts and
+ * metrics.test.ts's METRICS_TOKEN tests.
  */
 import { Request, Response } from 'express';
 
@@ -45,7 +55,7 @@ describe('authCookies', () => {
   });
 
   describe('setRefreshTokenCookie', () => {
-    it('sets an httpOnly, sameSite=lax cookie scoped to /api/v1/auth with a 7-day maxAge', async () => {
+    it('sets an httpOnly, sameSite=none, secure cookie scoped to /api/v1/auth with a 7-day maxAge', async () => {
       process.env.NODE_ENV = 'test';
       jest.resetModules();
       const { setRefreshTokenCookie } = await import('../../src/shared/utils/authCookies');
@@ -55,29 +65,14 @@ describe('authCookies', () => {
 
       expect(res.cookie).toHaveBeenCalledWith('refreshToken', 'a-real-refresh-token', {
         httpOnly: true,
-        secure: false, // NODE_ENV !== 'production'
-        sameSite: 'lax',
+        secure: true, // DEPLOY-FIX-01: always true, sameSite:'none' requires it
+        sameSite: 'none',
         path: '/api/v1/auth',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
     });
 
-    it('sets secure:true when NODE_ENV=production', async () => {
-      process.env.NODE_ENV = 'production';
-      jest.resetModules();
-      const { setRefreshTokenCookie } = await import('../../src/shared/utils/authCookies');
-
-      const res = mockRes();
-      setRefreshTokenCookie(res as Response, 'a-real-refresh-token');
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        'refreshToken',
-        'a-real-refresh-token',
-        expect.objectContaining({ secure: true }),
-      );
-    });
-
-    it('sets secure:false when NODE_ENV=development', async () => {
+    it('keeps secure:true regardless of NODE_ENV (DEPLOY-FIX-01 — no longer conditional)', async () => {
       process.env.NODE_ENV = 'development';
       jest.resetModules();
       const { setRefreshTokenCookie } = await import('../../src/shared/utils/authCookies');
@@ -88,7 +83,7 @@ describe('authCookies', () => {
       expect(res.cookie).toHaveBeenCalledWith(
         'refreshToken',
         'a-real-refresh-token',
-        expect.objectContaining({ secure: false }),
+        expect.objectContaining({ secure: true, sameSite: 'none' }),
       );
     });
   });
@@ -109,7 +104,7 @@ describe('authCookies', () => {
       expect(res.clearCookie).toHaveBeenCalledWith('refreshToken', {
         httpOnly: true,
         secure: true,
-        sameSite: 'lax',
+        sameSite: 'none',
         path: '/api/v1/auth',
       });
     });
@@ -188,7 +183,7 @@ describe('authCookies', () => {
       expect(res.clearCookie).toHaveBeenCalledWith('csrfToken', {
         httpOnly: false,
         secure: true,
-        sameSite: 'lax',
+        sameSite: 'none',
         path: '/',
       });
     });
@@ -203,7 +198,7 @@ describe('authCookies', () => {
 
   // AUDIT-FIX C-1 coverage
   describe('setSessionHintCookie', () => {
-    it('sets a NON-httpOnly, sameSite=lax cookie scoped to "/" with a 7-day maxAge matching refreshToken', async () => {
+    it('sets a NON-httpOnly, sameSite=none, secure cookie scoped to "/" with a 7-day maxAge matching refreshToken', async () => {
       process.env.NODE_ENV = 'test';
       jest.resetModules();
       const { setSessionHintCookie } = await import('../../src/shared/utils/authCookies');
@@ -213,15 +208,15 @@ describe('authCookies', () => {
 
       expect(res.cookie).toHaveBeenCalledWith('app_has_session', '1', {
         httpOnly: false,
-        secure: false, // NODE_ENV !== 'production'
-        sameSite: 'lax',
+        secure: true, // DEPLOY-FIX-01: always true, sameSite:'none' requires it
+        sameSite: 'none',
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
     });
 
-    it('sets secure:true when NODE_ENV=production', async () => {
-      process.env.NODE_ENV = 'production';
+    it('keeps secure:true regardless of NODE_ENV (DEPLOY-FIX-01 — no longer conditional)', async () => {
+      process.env.NODE_ENV = 'development';
       jest.resetModules();
       const { setSessionHintCookie } = await import('../../src/shared/utils/authCookies');
 
@@ -231,7 +226,7 @@ describe('authCookies', () => {
       expect(res.cookie).toHaveBeenCalledWith(
         'app_has_session',
         '1',
-        expect.objectContaining({ secure: true }),
+        expect.objectContaining({ secure: true, sameSite: 'none' }),
       );
     });
   });
@@ -248,7 +243,7 @@ describe('authCookies', () => {
       expect(res.clearCookie).toHaveBeenCalledWith('app_has_session', {
         httpOnly: false,
         secure: true,
-        sameSite: 'lax',
+        sameSite: 'none',
         path: '/',
       });
     });

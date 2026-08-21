@@ -24,40 +24,35 @@ import { env } from '../../config/env';
  *
  * Cookie attributes:
  *   - httpOnly: true — the entire point; inaccessible to JS.
- *   - secure: true in production (HTTPS-only transmission), false in
- *     dev/test so this still works over plain http://localhost.
- *   - sameSite: 'lax' — sent on top-level navigations and same-site
- *     requests, NOT on cross-site subrequests (img/script/fetch from
- *     another origin) or cross-site POSTs, which is most of what CSRF
- *     protection needs structurally; the CSRF token middleware handles
- *     the remaining gap (a same-site-but-still-forged request, or a
- *     browser that doesn't enforce SameSite).
+ *   - secure: true, always (required by sameSite:'none' below —
+ *     browsers reject that combination without Secure).
+ *   - sameSite: 'none' — DEPLOY-FIX-01: this app is deployed with the
+ *     frontend and backend on two different *.up.railway.app
+ *     subdomains. `up.railway.app` is itself on the Public Suffix
+ *     List, so those two hostnames are different *sites* to the
+ *     browser — not just different origins — and a 'lax' (or
+ *     'strict') cookie is NEVER sent across that boundary, full stop.
+ *     That was silently dropping this cookie on every /auth/refresh
+ *     call, indistinguishable from a logged-out visitor: login still
+ *     appeared to "succeed" (Set-Cookie was sent), but the very next
+ *     page refresh's refresh-token request arrived with no cookie at
+ *     all, so the user was logged out on every reload. 'none' is the
+ *     only sameSite value that crosses a site boundary at all — the
+ *     CSRF token middleware (see setCsrfCookie below) now carries
+ *     correspondingly more of the CSRF-protection burden alone, since
+ *     'lax' is no longer doing any of that work for these cookies.
  *
- *     ⚠️  CRITICAL DEPLOYMENT REQUIREMENT: "same-site" here is defined
- *     by eTLD+1 (the registrable domain), NOT by scheme+port. Per the
- *     Chrome/spec definition, `localhost:3000` and `localhost:5000`
- *     ARE same-site (same host, different port — port is irrelevant to
- *     the site boundary), and so are `app.example.com` and
- *     `api.example.com` (same registrable domain `example.com`). This
- *     is why local dev (both on `localhost`, different ports) works
- *     fine without any special config. BUT if the frontend and backend
- *     are ever deployed on genuinely different registrable domains
- *     (e.g. frontend on `my-marketplace.com`, backend on
- *     `my-marketplace-api.io` — different eTLD+1 entirely), the
- *     browser will NOT send this cookie at all on the frontend's calls
- *     to the backend. The practical symptom: every /auth/refresh call
- *     fails with 401 as if no session exists, indistinguishable from a
- *     genuinely logged-out user — login itself still appears to
- *     "succeed" (the Set-Cookie header is sent), but the cookie is
- *     silently dropped by the browser and every subsequent page
- *     load's refresh attempt fails. If this deployment topology is
- *     ever needed, either put both services under the same
- *     registrable domain (e.g. subdomains of one domain, or a reverse
- *     proxy unifying them under one origin) or revisit this to
- *     `sameSite: 'none'` + `secure: true` (which requires HTTPS
- *     everywhere and reopens more of the CSRF surface this cookie's
- *     `sameSite` attribute currently closes — the CSRF middleware
- *     would then be carrying more of the protection burden alone).
+ *     ⚠️  DEPLOYMENT NOTE: "same-site" is defined by eTLD+1 (the
+ *     registrable domain), NOT by scheme+port — `app.example.com` and
+ *     `api.example.com` ARE same-site (same registrable domain
+ *     `example.com`), and `sameSite: 'lax'` would work fine and be
+ *     the better, more restrictive choice if this app is ever moved
+ *     onto one real registrable domain (e.g. subdomains of one owned
+ *     domain, or a reverse proxy unifying both services under one
+ *     origin) instead of Railway's auto-generated *.up.railway.app
+ *     hostnames. That remains the more robust long-term fix; revert
+ *     to 'lax' (and secure: isProduction, if dev/test needs plain
+ *     http:// again) if that migration happens.
  *
  *   - path: '/api/v1/auth' — scopes the cookie so it's only ever sent
  *     to auth endpoints (register/login/refresh/logout), not on every
@@ -78,8 +73,25 @@ const isProduction = env.nodeEnv === 'production';
 export function setRefreshTokenCookie(res: Response, refreshToken: string): void {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    // DEPLOY-FIX-01: frontend and backend are deployed on two
+    // different *.up.railway.app subdomains — and up.railway.app
+    // itself is on the Public Suffix List, so those subdomains are
+    // different *sites* to the browser (not just different origins).
+    // 'lax' cookies are never sent across a site boundary regardless
+    // of this being a same-registrable-domain-looking hostname, so
+    // every /auth/refresh call was silently arriving with no cookie
+    // at all — indistinguishable from a logged-out visitor — which is
+    // what caused every page refresh to log users out. sameSite:
+    // 'none' is required to cross that boundary, which in turn
+    // requires secure: true unconditionally (browsers reject
+    // sameSite:'none' without Secure) — not gated behind
+    // isProduction, since dev/test no longer relies on this cookie
+    // crossing sites the same way. See this file's own top-of-file
+    // comment for the full reasoning and the alternative (unifying
+    // both services under one registrable domain), which remains the
+    // more robust long-term fix.
+    secure: true,
+    sameSite: 'none',
     path: REFRESH_TOKEN_COOKIE_PATH,
     maxAge: REFRESH_TOKEN_MAX_AGE_MS,
   });
@@ -93,8 +105,9 @@ export function clearRefreshTokenCookie(res: Response): void {
   // existing one).
   res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    // DEPLOY-FIX-01: must match setRefreshTokenCookie's attributes above.
+    secure: true,
+    sameSite: 'none',
     path: REFRESH_TOKEN_COOKIE_PATH,
   });
 }
@@ -118,8 +131,11 @@ export function setCsrfCookie(res: Response): string {
   const csrfToken = crypto.randomBytes(32).toString('hex');
   res.cookie(CSRF_COOKIE_NAME, csrfToken, {
     httpOnly: false,
-    secure: isProduction,
-    sameSite: 'lax',
+    // DEPLOY-FIX-01: must cross the same up.railway.app subdomain
+    // boundary as refreshToken above, for the same reason — see that
+    // cookie's comment.
+    secure: true,
+    sameSite: 'none',
     path: '/',
     maxAge: REFRESH_TOKEN_MAX_AGE_MS,
   });
@@ -129,8 +145,9 @@ export function setCsrfCookie(res: Response): string {
 export function clearCsrfCookie(res: Response): void {
   res.clearCookie(CSRF_COOKIE_NAME, {
     httpOnly: false,
-    secure: isProduction,
-    sameSite: 'lax',
+    // DEPLOY-FIX-01: must match setCsrfCookie's attributes above.
+    secure: true,
+    sameSite: 'none',
     path: '/',
   });
 }
@@ -174,8 +191,13 @@ const SESSION_HINT_COOKIE_NAME = 'app_has_session';
 export function setSessionHintCookie(res: Response): void {
   res.cookie(SESSION_HINT_COOKIE_NAME, '1', {
     httpOnly: false,
-    secure: isProduction,
-    sameSite: 'lax',
+    // DEPLOY-FIX-01: must cross the same up.railway.app subdomain
+    // boundary as refreshToken above, for the same reason — see that
+    // cookie's comment. This one matters doubly: middleware.ts's Edge
+    // Runtime check reads this cookie to avoid a false /login redirect
+    // on a fresh page load, so it needs to actually arrive too.
+    secure: true,
+    sameSite: 'none',
     path: '/',
     maxAge: REFRESH_TOKEN_MAX_AGE_MS, // same 7-day lifetime as refreshToken
   });
@@ -184,8 +206,9 @@ export function setSessionHintCookie(res: Response): void {
 export function clearSessionHintCookie(res: Response): void {
   res.clearCookie(SESSION_HINT_COOKIE_NAME, {
     httpOnly: false,
-    secure: isProduction,
-    sameSite: 'lax',
+    // DEPLOY-FIX-01: must match setSessionHintCookie's attributes above.
+    secure: true,
+    sameSite: 'none',
     path: '/',
   });
 }

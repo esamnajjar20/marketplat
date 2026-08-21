@@ -30,7 +30,15 @@ export function MessageInput({ conversationId, disabled }: Props) {
     e.preventDefault();
     const trimmed = body.trim();
     if (!trimmed || sendMessage.isPending || disabled) return;
-    sendMessage.mutate({ body: trimmed }, { onSuccess: () => setBody('') });
+    // UX-FIX (perceived-latency): clear the composer immediately instead
+    // of waiting for onSuccess — useSendMessage's onMutate already puts
+    // the bubble on screen synchronously (see that hook's own comment),
+    // so leaving the typed text sitting in the box until the network
+    // round-trip finished was the other half of the "nothing happens
+    // for a second" gap. On failure the text is restored below so a
+    // failed send doesn't silently lose what was typed.
+    setBody('');
+    sendMessage.mutate({ body: trimmed }, { onError: () => setBody(trimmed) });
   }
 
   if (disabled) {

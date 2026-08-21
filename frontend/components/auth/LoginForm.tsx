@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { Mail, Lock } from 'lucide-react';
 import { useLogin } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { PasswordInput } from '@/components/shared/ui/PasswordInput';
-import { FormField } from '@/components/shared/forms/FormField';
+import { AuthField } from '@/components/auth/AuthField';
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES } from '@/lib/constants';
@@ -90,7 +91,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {sessionExpired && (
           <p role="alert" className="text-sm text-warning-foreground bg-warning/10 border border-warning/30 rounded-md px-3 py-2 text-center">
             انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
@@ -102,7 +103,7 @@ export function LoginForm() {
         </p>
       )}
 
-      <FormField label="البريد الإلكتروني" htmlFor="email" required error={errors.email}>
+      <AuthField label="البريد الإلكتروني" htmlFor="email" icon={Mail} required error={errors.email}>
         <Input
           id="email"
           type="email"
@@ -112,9 +113,9 @@ export function LoginForm() {
           placeholder="example@email.com"
           dir="ltr"
         />
-      </FormField>
+      </AuthField>
 
-      <FormField label="كلمة المرور" htmlFor="password" required error={errors.password}>
+      <AuthField label="كلمة المرور" htmlFor="password" icon={Lock} iconOnLeft required error={errors.password}>
         <PasswordInput
           id="password"
           autoComplete="current-password"
@@ -123,7 +124,7 @@ export function LoginForm() {
           placeholder="••••••••"
           dir="ltr"
         />
-      </FormField>
+      </AuthField>
 
       <div className="flex justify-end">
         <Link href={ROUTES.forgotPassword} className="text-sm text-primary hover:underline">
@@ -138,7 +139,7 @@ export function LoginForm() {
           toast (not this block) is the pattern used by every other
           mutation in the app (see useAuthMutations.ts). */}
 
-      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
+      <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
       </Button>
 

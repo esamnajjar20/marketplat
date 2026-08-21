@@ -47,7 +47,7 @@ export function GoogleAuthButton({ label = 'المتابعة باستخدام Go
     <Button
       type="button"
       variant="outline"
-      className="w-full gap-2"
+      className="h-12 w-full gap-2 rounded-xl"
       onClick={() => {
         window.location.href = `${API_BASE_URL}/auth/google`;
       }}

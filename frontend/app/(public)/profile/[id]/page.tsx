@@ -1,7 +1,7 @@
 import type { Metadata }       from 'next';
 import { cache }               from 'react';
 import Link                    from 'next/link';
-import { UserX }               from 'lucide-react';
+import { UserX, ShieldCheck }  from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
 import { EmptyState }          from '@/components/shared/feedback/EmptyState';
@@ -67,6 +67,19 @@ export default async function PublicProfilePage({ params }: Props) {
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
       <PublicProfileHeader user={user} />
       <ProfileTabsSection user={user} />
+
+      {/* Trust indicator — same pattern as the ad detail page's safety
+          tips, echoed here since a profile visit is the other main
+          moment a buyer is deciding whether to trust a stranger. */}
+      <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-4 shadow-sm">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
+          <ShieldCheck className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h4 className="font-semibold text-sm">نصيحة أمان</h4>
+          <p className="text-sm text-muted-foreground">تأكد من فحص المنتج جيداً قبل إتمام عملية الشراء وجهاً لوجه.</p>
+        </div>
+      </div>
     </div>
   );
 }

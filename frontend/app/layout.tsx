@@ -42,6 +42,7 @@ import '@fontsource/ibm-plex-sans-arabic/500.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
+import { headers }                    from 'next/headers';
 import { AppProviders }               from '@/providers/AppProviders';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
 import '@/app/globals.css';
@@ -144,7 +145,30 @@ export const viewport: Viewport = {
 
 // ── Layout ────────────────────────────────────────────────────────
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// FIX CSP-01: RootLayout must read `headers()` so Next.js treats every
+// route under this layout as dynamically rendered — otherwise Next.js
+// may statically render/cache the page and its own RSC/hydration
+// `<script>` tags won't reliably carry the current request's nonce.
+//
+// FIX CSP-02: reading `headers()` alone was NOT enough. `next-themes`
+// (mounted via ThemeProvider inside AppProviders) injects its own
+// inline <script> before hydration to set the theme class on <html>
+// pre-paint (avoids flash-of-wrong-theme). That script is next-themes'
+// own code, not something Next.js auto-nonces — its content is fixed
+// per build (hence the CSP violation always reporting the SAME sha256
+// hash regardless of which nonce is currently active), and next-themes
+// only nonces it if explicitly given one via its own `nonce` prop.
+// Confirmed via providers/ThemeProvider.tsx: it forwards `...props` to
+// next-themes' <ThemeProvider>, so passing `nonce` through from here
+// down to AppProviders -> ThemeProvider is enough; no change needed
+// inside ThemeProvider.tsx itself. The actual nonce value must be the
+// SAME one middleware just minted (sent via the `x-nonce` request
+// header) — reading it back out here with headers().get('x-nonce') is
+// how a Server Component accesses a header middleware set on the
+// request.
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     // FIX UX-03: suppressHydrationWarning is required by next-themes —
     // it sets the `class`/`style` attributes on <html> from
@@ -154,7 +178,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // warning on every load even though nothing is actually broken.
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body>
-        <AppProviders>
+        <AppProviders nonce={nonce}>
           {children}
         </AppProviders>
       </body>

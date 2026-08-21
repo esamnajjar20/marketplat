@@ -28,7 +28,7 @@ export function ProfileTabs({ value, onChange, available, className }: Props) {
     <div
       role="tablist"
       aria-label="أقسام الملف الشخصي"
-      className={cn('flex gap-1 overflow-x-auto border-b', className)}
+      className={cn('flex gap-1 overflow-x-auto rounded-full bg-muted p-1 shadow-sm', className)}
     >
       {available.map((tab) => (
         <button
@@ -38,10 +38,10 @@ export function ProfileTabs({ value, onChange, available, className }: Props) {
           aria-selected={value === tab.value}
           onClick={() => onChange(tab.value)}
           className={cn(
-            'shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+            'shrink-0 flex-1 rounded-full px-4 py-2 text-sm font-medium transition-all',
             value === tab.value
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'bg-card text-primary shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           )}
         >
           {tab.label}

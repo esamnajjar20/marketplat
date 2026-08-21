@@ -21,6 +21,11 @@ import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 
 interface AppProvidersProps {
   children: React.ReactNode;
+  // FIX CSP-02: forwarded from the root layout (which reads it back out
+  // of the x-nonce request header middleware set) down to ThemeProvider,
+  // so next-themes can nonce its pre-hydration inline theme script. See
+  // app/layout.tsx's FIX CSP-02 comment for the full explanation.
+  nonce?: string;
 }
 
 /**
@@ -46,7 +51,7 @@ function ThemedToaster() {
   );
 }
 
-export function AppProviders({ children }: AppProvidersProps) {
+export function AppProviders({ children, nonce }: AppProvidersProps) {
   // useState ensures QueryClient is not recreated on every render.
   const [queryClient] = useState(() => makeQueryClient());
 
@@ -60,7 +65,9 @@ export function AppProviders({ children }: AppProvidersProps) {
     // defaultTheme="system" respects the OS/browser preference on
     // first visit rather than forcing light; enableSystem keeps that
     // preference live if the OS setting changes later.
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    // FIX CSP-02: nonce forwarded to next-themes' pre-hydration inline
+    // script (see AppProvidersProps.nonce doc comment above).
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem nonce={nonce}>
       <QueryClientProvider client={queryClient}>
         {/* FIX PERF-01: does not block children — runs auth restore in background */}
         <AuthHydrationProvider>

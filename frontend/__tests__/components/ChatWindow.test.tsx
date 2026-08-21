@@ -73,7 +73,11 @@ const conversation = {
   buyerId: me.id,
   buyer: me,
   seller,
-  ad: { title: 'دراجة للبيع' },
+  // DESIGN-PASS MSG-01: id/images/status added — ChatWindow's new
+  // ad-context strip (thumbnail + title, above the party-info row)
+  // reads all three; the previous mock only had `title`, which this
+  // test suite's own real ConversationAdSummary type never allows.
+  ad: { id: 'ad-1', title: 'دراجة للبيع', images: [], status: 'ACTIVE' as const },
 };
 
 const mockToggleBlockMutate = vi.fn();
@@ -117,7 +121,14 @@ describe('ChatWindow', () => {
   it("renders the other party's name (seller, since I am the buyer) and the ad subject", () => {
     render(<ChatWindow conversationId="conv-1" />);
     expect(screen.getByText('متجر سارة')).toBeInTheDocument();
-    expect(screen.getByText('بخصوص: دراجة للبيع')).toBeInTheDocument();
+    // DESIGN-PASS MSG-01: the ad title used to appear a second time as
+    // "بخصوص: {title}" under the party's name — dropped since the new
+    // ad-context strip above already shows the same title next to a
+    // thumbnail, so this checks the strip's copy of it instead (there
+    // are two occurrences pre-fix: this bare title also appears inside
+    // the strip, and getAllByText covers a thread where it might also
+    // repeat in a message body coincidentally, though not in this fixture).
+    expect(screen.getAllByText('دراجة للبيع').length).toBeGreaterThan(0);
   });
 
   it('resolves the other party as the buyer when I am the seller', () => {

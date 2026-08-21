@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { User, Mail, Lock, LockKeyhole, Phone } from 'lucide-react';
 import { useRegister } from '@/hooks/mutations/useAuthMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { getSafeRedirectPath } from '@/lib/cookies';
@@ -11,6 +12,7 @@ import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { PasswordInput } from '@/components/shared/ui/PasswordInput';
 import { FormField } from '@/components/shared/forms/FormField';
+import { AuthField } from '@/components/auth/AuthField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
@@ -150,32 +152,32 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      <FormField label="الاسم الكامل" htmlFor="name" required error={fieldError('name')}>
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      <AuthField label="الاسم الكامل" htmlFor="name" icon={User} required error={fieldError('name')}>
         <Input id="name" autoComplete="name" value={name}
           onChange={(e) => setName(e.target.value)} onBlur={() => handleBlur('name')} placeholder="أحمد محمد" />
-      </FormField>
+      </AuthField>
 
-      <FormField label="البريد الإلكتروني" htmlFor="email" required error={fieldError('email')}>
+      <AuthField label="البريد الإلكتروني" htmlFor="email" icon={Mail} required error={fieldError('email')}>
         <Input id="email" type="email" autoComplete="email" dir="ltr" value={email}
           onChange={(e) => setEmail(e.target.value)} onBlur={() => handleBlur('email')} placeholder="example@email.com" />
-      </FormField>
+      </AuthField>
 
-      <FormField label="كلمة المرور" htmlFor="password" required error={fieldError('password')}
+      <AuthField label="كلمة المرور" htmlFor="password" icon={Lock} iconOnLeft required error={fieldError('password')}
         hint="8 أحرف على الأقل">
         <PasswordInput id="password" autoComplete="new-password" dir="ltr" value={password}
           onChange={(e) => setPassword(e.target.value)} onBlur={() => handleBlur('password')} placeholder="••••••••" />
-      </FormField>
+      </AuthField>
 
-      <FormField label="تأكيد كلمة المرور" htmlFor="confirmPassword" required error={fieldError('confirmPassword')}>
+      <AuthField label="تأكيد كلمة المرور" htmlFor="confirmPassword" icon={LockKeyhole} iconOnLeft required error={fieldError('confirmPassword')}>
         <PasswordInput id="confirmPassword" autoComplete="new-password" dir="ltr" value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)} onBlur={() => handleBlur('confirmPassword')} placeholder="••••••••" />
-      </FormField>
+      </AuthField>
 
-      <FormField label="رقم الهاتف" htmlFor="phone" error={fieldError('phone')} hint="اختياري">
+      <AuthField label="رقم الهاتف" htmlFor="phone" icon={Phone} error={fieldError('phone')} hint="اختياري">
         <Input id="phone" type="tel" autoComplete="tel" dir="ltr" value={phone}
           onChange={(e) => setPhone(e.target.value)} onBlur={() => handleBlur('phone')} placeholder="+970591234567" />
-      </FormField>
+      </AuthField>
 
       {/*
         AUDIT-FIX auth#5: was a raw <select> with hand-rolled Tailwind
@@ -186,16 +188,24 @@ export function RegisterForm() {
         (ProductForm, ServiceListingForm, BecomeStoreOwnerCard, ...);
         this was the one native holdout.
       */}
+      {/* Kept on plain FormField (not AuthField): the reference design
+          has no city field to match, and a select's trigger isn't a
+          text input the icon-in-field treatment was designed around
+          (no separate leading-icon slot to align with a floating
+          label the same way). Height/radius still matched to the rest
+          of the form so it doesn't look out of place beside them. */}
       <FormField label="المدينة" htmlFor="city" hint="اختياري">
         <Select value={city} onValueChange={setCity}>
-          <SelectTrigger id="city"><SelectValue placeholder="اختر مدينتك" /></SelectTrigger>
+          <SelectTrigger id="city" className="h-12 rounded-xl">
+            <SelectValue placeholder="اختر مدينتك" />
+          </SelectTrigger>
           <SelectContent>
             {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
       </FormField>
 
-      <Button type="submit" className="w-full mt-2" disabled={isFormIncomplete || isPending}>
+      <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base mt-2" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ التسجيل…' : 'إنشاء الحساب'}
       </Button>
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Trash2, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -23,7 +23,7 @@ import { useIsUserOnline } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import { formatTime } from '@/lib/formatters';
-import { getAvatarUrl } from '@/lib/cloudinary';
+import { getAvatarUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type { Conversation, Message } from '@/types/conversation.types';
 
@@ -189,6 +189,41 @@ export function ChatWindow({ conversationId }: Props) {
 
   return (
     <div className="flex h-full flex-col bg-background">
+      {/* DESIGN-PASS MSG-01: ad-context strip — matches the reference
+          design's thumbnail+title bar above the party-info row, so a
+          reader can tell which listing this thread is about without
+          scrolling into the messages themselves. Only title/thumbnail
+          are shown, NOT price: ConversationAdSummary (conversation.types.ts)
+          carries id/title/images/status only — no price field exists on
+          this type or anywhere else this component has access to, so a
+          price here would have to be invented rather than real. Hidden
+          entirely for a general (non-ad) conversation, same condition
+          ConversationList already uses for its "محادثة عامة" fallback. */}
+      {conversation.ad && (
+        <Link
+          href={ROUTES.adDetail(conversation.ad.id)}
+          className="flex items-center gap-3 border-b bg-card px-3 py-2.5 shrink-0 hover:bg-muted/40 transition-colors"
+        >
+          <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+            <SafeImage
+              src={conversation.ad.images?.[0] ? getThumbnailUrl(conversation.ad.images[0], 88, 88) : PLACEHOLDER_SVG}
+              alt={conversation.ad.title}
+              fill
+              className="object-cover"
+              sizes="44px"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium line-clamp-1">{conversation.ad.title}</p>
+            {conversation.ad.status !== 'ACTIVE' && (
+              <p className="text-xs text-muted-foreground">
+                {conversation.ad.status === 'SOLD' ? 'تم البيع' : 'أُزيل الإعلان'}
+              </p>
+            )}
+          </div>
+        </Link>
+      )}
+
       <div className="flex items-center gap-3 bg-card/90 backdrop-blur-md shadow-sm px-3 py-3 sticky top-0 z-10">
         <Link
           href={ROUTES.messages}
@@ -212,11 +247,16 @@ export function ChatWindow({ conversationId }: Props) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
-            {conversation.ad ? (
-              <p className="text-xs text-muted-foreground line-clamp-1">بخصوص: {conversation.ad.title}</p>
-            ) : isPartyOnline ? (
+            {/* DESIGN-PASS MSG-01: "بخصوص: {title}" dropped here — the
+                ad-context strip above (when conversation.ad exists)
+                already shows that title next to a thumbnail, so this
+                second line would repeat it verbatim right below.
+                Online status now always gets this line when the ad
+                strip is showing, instead of losing it to the ad
+                condition it used to share an else-if with. */}
+            {isPartyOnline && (
               <p className="text-xs text-online line-clamp-1">متصل الآن</p>
-            ) : null}
+            )}
           </div>
         </Link>
 
@@ -267,13 +307,24 @@ export function ChatWindow({ conversationId }: Props) {
             {messages.map((message) => {
               const isMine = message.senderId === user?.id;
               const isDeleted = Boolean(message.deletedAt);
+              // UX-FIX (perceived-latency): useSendMessage's onMutate
+              // (useConversationMutations.ts) writes a temporary message
+              // with a client-generated `optimistic-...` id straight into
+              // this same cache so it appears the instant "إرسال" is
+              // pressed, before the server has responded. Flagged here
+              // purely by id shape (no new field on Message itself) so
+              // it renders as "sending" (faded, clock icon, no delete
+              // menu — there's no real id to delete yet) instead of a
+              // confirmed sent/read message until the real one replaces
+              // it on refetch.
+              const isOptimistic = message.id.startsWith('optimistic-');
               return (
                 <div
                   key={message.id}
                   className={cn('group flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
                 >
                   <div className="flex items-center gap-1">
-                    {isMine && !isDeleted && (
+                    {isMine && !isDeleted && !isOptimistic && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
@@ -297,7 +348,7 @@ export function ChatWindow({ conversationId }: Props) {
                     )}
                     <div
                       className={cn(
-                        'rounded-2xl px-4 py-2.5 text-sm shadow-sm',
+                        'rounded-2xl px-4 py-2.5 text-sm shadow-sm transition-opacity',
                         // FIX BUG-XX: rounded-br-sm/rounded-bl-sm are physical
                         // (bottom-right/bottom-left) in a dir="rtl" app
                         // (app/layout.tsx), so the "pointed" corner sat on the
@@ -308,7 +359,8 @@ export function ChatWindow({ conversationId }: Props) {
                           ? 'bg-muted text-muted-foreground italic'
                           : isMine
                             ? 'bg-primary text-primary-foreground rounded-ee-sm'
-                            : 'bg-card text-foreground rounded-es-sm'
+                            : 'bg-card text-foreground rounded-es-sm',
+                        isOptimistic && 'opacity-60'
                       )}
                     >
                       <p className="whitespace-pre-wrap break-words">
@@ -321,9 +373,11 @@ export function ChatWindow({ conversationId }: Props) {
                       {formatTime(message.createdAt)}
                     </span>
                     {isMine && !isDeleted && (
-                      message.readAt
-                        ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
-                        : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
+                      isOptimistic
+                        ? <Clock className="h-3 w-3 text-muted-foreground" aria-label="جارٍ الإرسال" />
+                        : message.readAt
+                          ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
+                          : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
                     )}
                   </div>
                 </div>

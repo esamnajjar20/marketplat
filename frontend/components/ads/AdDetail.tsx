@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart } from 'lucide-react';
+import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, ShieldCheck, Hash } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
@@ -11,7 +11,7 @@ import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
-import { formatPrice, formatDate } from '@/lib/formatters';
+import { formatPrice, formatDate, formatRelativeTime } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
@@ -95,14 +95,19 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
       {/* LEFT: images + details */}
-      <div className="lg:col-span-2 space-y-4">
+      <div className="flex-1 lg:w-2/3 min-w-0 space-y-6">
 
         {/* Gallery */}
-        <div className="space-y-2">
-          <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-muted">
+        <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
+          <div className="relative aspect-[4/3] sm:aspect-[16/9] bg-muted">
             <SafeImage src={currentImg} alt={ad.title} fill className="object-contain" sizes="(max-width:1024px) 100vw, 66vw" priority />
+            {ad.isFeatured && (
+              <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                مميز
+              </span>
+            )}
             {images.length > 1 && (
               <>
                 <button onClick={() => setImgIdx((i) => Math.max(0, i - 1))}
@@ -117,20 +122,20 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                   className="absolute end-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white disabled:opacity-30">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <span className="absolute bottom-2 end-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                <span className="absolute bottom-4 end-4 bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full">
                   {imgIdx + 1} / {images.length}
                 </span>
               </>
             )}
           </div>
           {images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-3 p-3 overflow-x-auto">
               {images.map((img, i) => (
                 <button key={i} onClick={() => setImgIdx(i)}
                   aria-label={`عرض الصورة ${i + 1} من ${images.length}`}
                   aria-current={i === imgIdx ? 'true' : undefined}
-                  className={cn('relative w-16 h-12 rounded shrink-0 overflow-hidden border-2 transition-colors',
-                    i === imgIdx ? 'border-primary' : 'border-transparent')}>
+                  className={cn('relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg shrink-0 overflow-hidden border-2 transition-colors',
+                    i === imgIdx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100')}>
                   {/* FIX PERF-07: was rendering the raw, full-resolution
                       Cloudinary URL at a 64x48 display size — every
                       thumbnail downloaded the same multi-MB original as
@@ -138,18 +143,29 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                       real Cloudinary-transformed thumbnail costs a
                       fraction of the bytes for a strip that never
                       displays larger than 64px wide. */}
-                  <SafeImage src={getThumbnailUrl(img, 128, 96)} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="64px" loading="lazy" />
+                  <SafeImage src={getThumbnailUrl(img, 128, 128)} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="80px" loading="lazy" />
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Title + price */}
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <h1 className="text-xl font-bold leading-snug">{ad.title}</h1>
-            <div className="flex gap-1 shrink-0">
+        {/* Title + meta + specs + description */}
+        <div className="rounded-2xl bg-card shadow-sm p-5 sm:p-7 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-2">
+              <h1 className="text-xl sm:text-2xl font-bold leading-snug">{ad.title}</h1>
+              <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ad.city}</span>
+                <span className="text-border">|</span>
+                <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{formatRelativeTime(ad.createdAt)}</span>
+                <span className="text-border">|</span>
+                <span className="flex items-center gap-1.5"><Eye className="h-4 w-4" />{ad.views} مشاهدة</span>
+                <span className="text-border">|</span>
+                <span className="flex items-center gap-1.5 font-mono text-xs"><Hash className="h-3.5 w-3.5" />{ad.id.slice(-8)}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
               {/* FIX BUG-XX: aria-label was static ("حفظ") regardless of
                   toggled state — AdCard's equivalent button already
                   does this correctly (isFavorited ? 'إزالة...' :
@@ -168,21 +184,12 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             </div>
           </div>
 
-          <p className="text-2xl font-bold text-primary">
-            {formatPrice(ad.price)}
-            {ad.isNegotiable && <span className="text-sm font-normal text-muted-foreground ms-2">قابل للتفاوض</span>}
-          </p>
-
-          {/* P1 FIX (layout audit §2): SellerCard — the page's most
-              important CTA (مراسلة البائع) — used to sit in the RIGHT
-              column, which stacks *below* gallery+price+description+
-              report on mobile (grid-cols-1). A buyer had to scroll past
-              all of that before reaching it. Rendered here, right after
-              price, and hidden on `lg:` where the RIGHT-column copy
-              below takes over — so desktop's two-column layout is
-              pixel-identical to before. */}
+          {/* Mobile-only price, mirrors the sticky desktop price panel */}
           <div className="lg:hidden">
-            <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
+            <p className="text-3xl font-bold text-primary">
+              {formatPrice(ad.price)}
+              {ad.isNegotiable && <span className="text-sm font-normal text-muted-foreground ms-2">قابل للتفاوض</span>}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -191,26 +198,56 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 {STATUS_LABELS[ad.status] ?? ad.status}
               </Badge>
             )}
-            {ad.isFeatured && <Badge variant="outline" className="border-warning text-warning">مميز</Badge>}
             {ad.condition && <Badge variant="outline">{CONDITION_LABELS[ad.condition] ?? ad.condition}</Badge>}
-          </div>
-
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ad.city}</span>
-            <span className="flex items-center gap-1.5"><Eye className="h-4 w-4" />{ad.views} مشاهدة</span>
-            <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{formatDate(ad.createdAt)}</span>
             {ad.category && categoryHref && (
-              <Link href={categoryHref} className="flex items-center gap-1.5 hover:text-primary">
-                <Tag className="h-4 w-4" />{ad.category.nameAr}
+              <Link href={categoryHref}>
+                <Badge variant="outline" className="gap-1 hover:border-primary hover:text-primary transition-colors">
+                  <Tag className="h-3 w-3" />{ad.category.nameAr}
+                </Badge>
               </Link>
             )}
           </div>
+
+          {/* Specs grid — only fields that actually exist on Ad; no
+              fabricated brand/model/storage attributes since this data
+              model has no per-category custom fields. */}
+          <div>
+            <h3 className="font-semibold mb-3">المواصفات</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {ad.condition && (
+                <div className="bg-muted/60 p-4 rounded-xl">
+                  <div className="text-xs text-muted-foreground mb-1">الحالة</div>
+                  <div className="font-semibold text-sm">{CONDITION_LABELS[ad.condition] ?? ad.condition}</div>
+                </div>
+              )}
+              <div className="bg-muted/60 p-4 rounded-xl">
+                <div className="text-xs text-muted-foreground mb-1">الموقع</div>
+                <div className="font-semibold text-sm">{ad.city}</div>
+              </div>
+              {ad.category && (
+                <div className="bg-muted/60 p-4 rounded-xl">
+                  <div className="text-xs text-muted-foreground mb-1">القسم</div>
+                  <div className="font-semibold text-sm">{ad.category.nameAr}</div>
+                </div>
+              )}
+              <div className="bg-muted/60 p-4 rounded-xl">
+                <div className="text-xs text-muted-foreground mb-1">تاريخ النشر</div>
+                <div className="font-semibold text-sm">{formatDate(ad.createdAt)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <h3 className="font-semibold mb-3">التفاصيل</h3>
+            <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{ad.description}</p>
+          </div>
         </div>
 
-        {/* Description */}
-        <div className="rounded-lg border bg-card p-4 space-y-2">
-          <h2 className="font-semibold">تفاصيل الإعلان</h2>
-          <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{ad.description}</p>
+        {/* Mobile-only seller card, right after the main details block —
+            desktop keeps it in the sticky right column below. */}
+        <div className="lg:hidden">
+          <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
         </div>
 
         {/* Report link */}
@@ -219,16 +256,35 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
         </div>
       </div>
 
-      {/* RIGHT: seller + action (desktop only — see the mobile copy
-          rendered inline above, right after price) */}
-      <div className="hidden lg:block space-y-4">
-        <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
-        <div className="rounded-lg border bg-card p-4 text-xs text-muted-foreground space-y-1">
-          <p>رقم الإعلان: <span className="font-mono text-foreground">{ad.id.slice(-8)}</span></p>
-          <p>تاريخ النشر: {formatDate(ad.createdAt)}</p>
-          <p>آخر تحديث: {formatDate(ad.updatedAt)}</p>
+      {/* RIGHT: price + seller + safety tips (desktop only — mobile
+          equivalents are rendered inline above, in reading order) */}
+      <aside className="hidden lg:flex lg:w-1/3 flex-col gap-6">
+        <div className="sticky top-24 space-y-6">
+          <div className="rounded-2xl bg-card shadow-md p-6 space-y-1">
+            <div className="text-sm text-muted-foreground">السعر المطلوب</div>
+            <div className="text-3xl font-bold text-primary">{formatPrice(ad.price)}</div>
+            {ad.isNegotiable && (
+              <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3 mt-3">
+                <span>قابل للتفاوض</span>
+              </div>
+            )}
+          </div>
+
+          <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
+
+          <div className="rounded-2xl bg-muted/60 p-5 space-y-3">
+            <h4 className="flex items-center gap-2 text-primary font-semibold text-sm">
+              <ShieldCheck className="h-4 w-4" />
+              نصائح للسلامة
+            </h4>
+            <ul className="text-xs text-muted-foreground space-y-1.5 list-disc list-inside leading-relaxed">
+              <li>قابل البائع في مكان عام وآمن.</li>
+              <li>تأكد من حالة السلعة قبل الشراء.</li>
+              <li>لا تقم بتحويل الأموال مسبقاً.</li>
+            </ul>
+          </div>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

@@ -8,21 +8,22 @@ export const metadata: Metadata = buildMetadata({ title: 'تسجيل الدخو�
 /*
  * AUDIT-FIX auth#2: previously wrapped its own content in another
  * min-h-screen + bg-muted/30 flex-center div, duplicating what
- * AuthLayout (app/(auth)/layout.tsx) already provides on its form
- * panel (min-h-screen grid + flex items-center justify-center) —
- * nested double-centering, plus a stray grey band that clashed with
- * the layout's own background at the panel edges on lg+ screens. This
- * now renders only the actual content; height/centering/background is
- * the layout's job.
+ * AuthLayout (app/(auth)/layout.tsx) already provides — now renders
+ * only the actual content; height/centering/background is the
+ * layout's job.
+ *
+ * DESIGN-PASS AUTH-01: title/card sizing matches the reference design
+ * (large centered heading + subtitle above a big soft rounded card)
+ * instead of the previous compact split-panel version.
  */
 export default function LoginPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">مرحباً بعودتك</h1>
-        <p className="text-sm text-muted-foreground mt-1">سجّل دخولك للمتابعة</p>
+        <h1 className="text-3xl font-bold text-primary sm:text-4xl">تسجيل الدخول</h1>
+        <p className="mt-3 text-muted-foreground">مرحباً بك مجدداً في سوق غزة</p>
       </div>
-      <div className="bg-card rounded-xl border p-6">
+      <div className="rounded-3xl border bg-card p-6 shadow-xl sm:p-8">
         <Suspense><LoginForm /></Suspense>
       </div>
     </div>

@@ -5,7 +5,6 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useRouter } from 'next/navigation';
 import { MessageSquare, BadgeCheck, Star } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
-import { Badge } from '@/components/shared/ui/Badge';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { useSellerProfile } from '@/hooks/queries/useSellers';
@@ -60,22 +59,22 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
-      <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">البائع</h3>
+    <div className="rounded-2xl bg-card shadow-md p-6 space-y-5">
+      <h3 className="font-semibold">معلومات البائع</h3>
 
-      <Link href={profileHref} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-        <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted shrink-0">
-          <SafeImage variant="avatar" src={avatar} alt={seller.name} fill className="object-cover" sizes="48px" />
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5">
-            <p className="font-medium">{seller.name}</p>
-            {sellerProfile?.verified && (
-              <Badge className="gap-1 text-xs">
-                <BadgeCheck className="h-3 w-3" /> موثّق
-              </Badge>
-            )}
+      <Link href={profileHref} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+        <div className="relative shrink-0">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-muted">
+            <SafeImage variant="avatar" src={avatar} alt={seller.name} fill className="object-cover" sizes="64px" />
           </div>
+          {sellerProfile?.verified && (
+            <div className="absolute -bottom-1 -end-1 bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center border-2 border-card" title="حساب موثق">
+              <BadgeCheck className="h-3.5 w-3.5" />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold truncate">{seller.name}</p>
           {seller.city && <p className="text-sm text-muted-foreground">{seller.city}</p>}
           {/* FIX UX-13: sellerProfile is already fetched above for the
               verified check — it also carries averageRating/totalRatings,
@@ -84,7 +83,7 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
               (right where a buyer decides whether to message the seller)
               without a rating. */}
           {sellerProfile && sellerProfile.totalRatings > 0 && (
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
               <Star className="h-3.5 w-3.5 fill-rating text-rating" />
               {parseFloat(sellerProfile.averageRating).toFixed(1)} ({sellerProfile.totalRatings} تقييم)
             </span>
@@ -93,17 +92,16 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
       </Link>
 
       {!isOwnAd && (
-        <div className="space-y-2">
-          <Button
-            variant="default"
-            className="w-full gap-2"
-            disabled={startConversation.isPending}
-            onClick={handleMessage}
-          >
-            <MessageSquare className="h-4 w-4" />
-            {startConversation.isPending ? 'جارٍ التحضير…' : 'مراسلة البائع'}
-          </Button>
-        </div>
+        <Button
+          variant="default"
+          size="lg"
+          className="w-full gap-2 rounded-xl"
+          disabled={startConversation.isPending}
+          onClick={handleMessage}
+        >
+          <MessageSquare className="h-4 w-4" />
+          {startConversation.isPending ? 'جارٍ التحضير…' : 'مراسلة البائع'}
+        </Button>
       )}
     </div>
   );
