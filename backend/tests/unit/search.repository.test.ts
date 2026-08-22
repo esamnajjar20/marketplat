@@ -115,6 +115,37 @@ describe('searchRepository', () => {
       // The shared search-term wrap from buildTsQuery.
       expect(capturedSql).toContain("plainto_tsquery('simple', arabic_normalize(");
     });
+
+    // AUDIT-FIX (ads-feature review): all four branches LEFT JOIN
+    // seller_profiles (for rating/verified display) but previously
+    // never filtered on it — a suspended seller's ads/products/store/
+    // services were all still fully returned by this unified search
+    // endpoint. adBranch needs an IN(subquery) since Ad.sellerProfileId
+    // is nullable; the other three join through a required (non-null)
+    // sellerProfileId column, so a direct `sp."suspended" = false` on
+    // the already-joined alias is enough.
+    it('excludes suspended sellers from every branch (ads/products/stores/services)', async () => {
+      let capturedSql = '';
+      (prisma.$queryRaw as jest.Mock).mockImplementationOnce((strings: TemplateStringsArray, ...values: unknown[]) => {
+        const unioned = values.find(
+          (v): v is { sql: string } =>
+            typeof v === 'object' && v !== null && 'sql' in v && (v as { sql: string }).sql.includes('UNION ALL')
+        );
+        capturedSql = unioned?.sql ?? '';
+        return Promise.resolve([]);
+      });
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ count: 0n }]);
+
+      await searchRepository.search({ ...baseQuery, type: 'all' });
+
+      expect(capturedSql).toContain(
+        'a."sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)'
+      );
+      // productBranch, storeBranch, serviceBranch each filter on the
+      // already-joined sp alias directly — 3 occurrences expected.
+      const directSuspendedChecks = (capturedSql.match(/sp\."suspended" = false/g) ?? []).length;
+      expect(directSuspendedChecks).toBe(3);
+    });
   });
 
   describe('buildUrl', () => {

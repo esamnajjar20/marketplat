@@ -130,13 +130,32 @@ describe('storesRepository', () => {
       await storesRepository.findMany({});
 
       expect(prisma.storeDetails.findMany).toHaveBeenCalledWith({
-        where: { status: 'ACTIVE' },
+        where: { status: 'ACTIVE', sellerProfile: { suspended: false } },
         include: { sellerProfile: true },
         orderBy: [{ plan: 'desc' }, { createdAt: 'desc' }],
         skip: 0,
         take: 20,
       });
-      expect(prisma.storeDetails.count).toHaveBeenCalledWith({ where: { status: 'ACTIVE' } });
+      expect(prisma.storeDetails.count).toHaveBeenCalledWith({
+        where: { status: 'ACTIVE', sellerProfile: { suspended: false } },
+      });
+    });
+
+    // AUDIT-FIX (ads-feature review, extended to stores): the public
+    // store directory previously had no suspended-seller filter at
+    // all — a suspended seller's store kept showing up here, the same
+    // gap already fixed in ads.repository.ts and search.repository.ts.
+    it('excludes stores belonging to suspended sellers', async () => {
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.storeDetails.count as jest.Mock).mockResolvedValue(0);
+
+      await storesRepository.findMany({});
+
+      expect(prisma.storeDetails.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ sellerProfile: { suspended: false } }),
+        })
+      );
     });
 
     it('adds a city filter when provided', async () => {
@@ -147,7 +166,7 @@ describe('storesRepository', () => {
 
       expect(prisma.storeDetails.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'ACTIVE', city: 'غزة' },
+          where: { status: 'ACTIVE', sellerProfile: { suspended: false }, city: 'غزة' },
         })
       );
     });
@@ -162,6 +181,7 @@ describe('storesRepository', () => {
         expect.objectContaining({
           where: {
             status: 'ACTIVE',
+            sellerProfile: { suspended: false },
             OR: [
               { name: { contains: 'phones', mode: 'insensitive' } },
               { description: { contains: 'phones', mode: 'insensitive' } },

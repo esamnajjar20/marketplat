@@ -264,6 +264,31 @@ describe('adsRepository', () => {
 
       expect(capturedSql).toContain("plainto_tsquery('simple', arabic_normalize(");
     });
+
+    // AUDIT-FIX (ads-feature review): the search branch previously had
+    // no suspended-seller filter at all, unlike the non-search (ORM)
+    // branch's documented SEC-FIX — a suspended seller's ads were still
+    // fully searchable via GET /ads?search= and GET /ads/search even
+    // after suspension. This asserts the raw-SQL WHERE clause now
+    // excludes them the same way.
+    it('excludes ads from suspended sellers (and legacy ads with no seller profile)', async () => {
+      let capturedSql = '';
+      (prisma.$queryRaw as jest.Mock).mockImplementationOnce((strings: TemplateStringsArray, ...values: unknown[]) => {
+        const whereSql = values.find(
+          (v): v is { sql: string } =>
+            typeof v === 'object' && v !== null && 'sql' in v && (v as { sql: string }).sql.includes('seller_profiles')
+        );
+        capturedSql = whereSql?.sql ?? '';
+        return Promise.resolve([]);
+      });
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ count: 0n }]);
+
+      await adsRepository.findMany({ search: 'bicycle' });
+
+      expect(capturedSql).toContain(
+        '"sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)'
+      );
+    });
   });
 
   describe('findById', () => {
@@ -396,12 +421,28 @@ describe('adsRepository', () => {
         where: {
           id: { not: adId },
           status: AdStatus.ACTIVE,
+          sellerProfile: { suspended: false },
           OR: [{ categoryId: 'cat-1' }, { city: 'Gaza' }],
         },
         select: expect.any(Object),
         orderBy: { createdAt: 'desc' },
         take: 6,
       });
+    });
+
+    // AUDIT-FIX (ads-feature review): findRelated previously had no
+    // suspended-seller filter at all — a suspended seller's ads could
+    // still be recommended in the "related ads" section of every other
+    // ad matching its category/city, even after the seller was
+    // suspended. Same filter as findMany's non-search branch.
+    it('excludes ads from suspended sellers', async () => {
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
+      await adsRepository.findRelated(adId, 'cat-1', 'Gaza');
+      expect(prisma.ad.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ sellerProfile: { suspended: false } }),
+        })
+      );
     });
 
     it('omits the categoryId OR-branch when categoryId is null', async () => {

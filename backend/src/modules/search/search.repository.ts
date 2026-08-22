@@ -220,7 +220,19 @@ type BranchBuilder = (
 // The GIN indexes still speed up matching because the expression is
 // byte-for-byte identical to what's indexed.
 const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
-  const conditions: Prisma.Sql[] = [Prisma.sql`a."status" = 'ACTIVE'`];
+  // AUDIT-FIX (ads-feature review): this branch already LEFT JOINs
+  // seller_profiles (for rating/name/verified display below) but never
+  // filtered on it — a suspended seller's ads were still fully
+  // returned by the unified smart-search endpoint, the same gap
+  // ads.repository.ts's own SEC-FIX addresses for the plain /ads
+  // listing. IN (SELECT id ... WHERE suspended = false), not a join
+  // condition, so a NULL sellerProfileId (legacy ads with no linked
+  // seller profile) is excluded too — same semantics as the ORM's
+  // `sellerProfile: { suspended: false }` filter elsewhere.
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`a."status" = 'ACTIVE'`,
+    Prisma.sql`a."sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)`,
+  ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
       setweight(to_tsvector('simple', arabic_normalize(coalesce(a."title", ''))), 'A') ||
@@ -290,7 +302,19 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
 };
 
 const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
-  const conditions: Prisma.Sql[] = [Prisma.sql`p."status" = 'ACTIVE'`, Prisma.sql`st."status" = 'ACTIVE'`];
+  // AUDIT-FIX (ads-feature review, extended to the other 3 branches):
+  // same gap as adBranch above — sp (seller_profiles) is already
+  // LEFT JOINed below for rating/verified display but was never
+  // filtered on. Unlike adBranch, store_details.sellerProfileId is a
+  // required (non-nullable, @unique) column — see schema.prisma — so
+  // sp always resolves here; a direct `sp."suspended" = false` is
+  // enough, no IN(subquery)/null-handling needed the way adBranch's
+  // nullable Ad.sellerProfileId required.
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`p."status" = 'ACTIVE'`,
+    Prisma.sql`st."status" = 'ACTIVE'`,
+    Prisma.sql`sp."suspended" = false`,
+  ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
       setweight(to_tsvector('simple', arabic_normalize(coalesce(p."name", ''))), 'A') ||
@@ -354,7 +378,13 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   // be true. Same short-circuit for city, applied below.
   if (categoryId) return null;
 
-  const conditions: Prisma.Sql[] = [Prisma.sql`st."status" = 'ACTIVE'`];
+  // AUDIT-FIX (ads-feature review): same gap/fix as productBranch above —
+  // store_details.sellerProfileId is required, so the already-LEFT-JOINed
+  // sp alias always resolves; a direct filter is enough.
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`st."status" = 'ACTIVE'`,
+    Prisma.sql`sp."suspended" = false`,
+  ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
       setweight(to_tsvector('simple', arabic_normalize(coalesce(st."name", ''))), 'A') ||
@@ -406,7 +436,13 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
 };
 
 const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
-  const conditions: Prisma.Sql[] = [Prisma.sql`sl."status" = 'ACTIVE'`];
+  // AUDIT-FIX (ads-feature review): same gap/fix as productBranch/
+  // storeBranch above — service_provider_details.sellerProfileId is
+  // required, so the already-LEFT-JOINed sp alias always resolves.
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`sl."status" = 'ACTIVE'`,
+    Prisma.sql`sp."suspended" = false`,
+  ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
       setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."title", ''))), 'A') ||

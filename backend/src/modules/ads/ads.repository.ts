@@ -129,6 +129,19 @@ export const adsRepository = {
     if (search) {
       const whereParts: Prisma.Sql[] = [
         Prisma.sql`"status" = ${AdStatus.ACTIVE}::"AdStatus"`,
+        // AUDIT-FIX (ads-feature review): the SEC-FIX below (see the
+        // plain where-clause branch further down) hides ads from
+        // suspended sellers via `sellerProfile: { suspended: false }` —
+        // but that's an ORM relation filter, which this branch (raw SQL,
+        // used by both GET /ads?search= and GET /ads/search) never went
+        // through, so a suspended seller's ads were still fully
+        // searchable even after suspension. Same fix, raw-SQL form:
+        // IN (SELECT id ...) excludes both suspended sellers' ads AND
+        // (matching the ORM's null-relation behavior) legacy ads with no
+        // linked seller profile at all, keeping this branch's semantics
+        // identical to the non-search branch rather than introducing a
+        // second, slightly different definition of "hidden".
+        Prisma.sql`"sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)`,
         // FIX SEARCH-AR-01: both sides of tsvector @@ tsquery now go
         // through arabic_normalize() — the column expression must match
         // ads_search_idx byte-for-byte (same reasoning as the coalesce()
@@ -339,6 +352,12 @@ export const adsRepository = {
     const where: Prisma.AdWhereInput = {
       id: { not: adId },
       status: AdStatus.ACTIVE,
+      // AUDIT-FIX (ads-feature review): same SEC-FIX as findMany's plain
+      // where-clause branch — a suspended seller's ads were still being
+      // recommended in every other ad's "related ads" section, one of
+      // the two gaps (alongside the search branch above) the SEC-FIX
+      // comment on the non-search branch never actually covered.
+      sellerProfile: { suspended: false },
       OR: [...(categoryId ? [{ categoryId }] : []), { city }],
     };
     return prisma.ad.findMany({

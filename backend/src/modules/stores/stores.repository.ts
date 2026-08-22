@@ -106,6 +106,12 @@ export const storesRepository = {
 
     const where: Prisma.StoreDetailsWhereInput = {
       status: 'ACTIVE',
+      // AUDIT-FIX (ads-feature review, extended to stores' own public
+      // listing): same gap already fixed in ads.repository.ts and
+      // search.repository.ts — this endpoint had no suspended-seller
+      // filter at all, so a suspended seller's store kept showing up
+      // in the public "browse stores" directory.
+      sellerProfile: { suspended: false },
       ...(city && { city }),
       ...(search && {
         OR: [
