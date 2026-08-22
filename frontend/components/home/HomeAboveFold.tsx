@@ -140,7 +140,7 @@ export function HomeAboveFold() {
 
         <section className="container mx-auto space-y-4 px-4 pt-10">
           {latestAdsHeadingLoading}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
             {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
           </div>
         </section>

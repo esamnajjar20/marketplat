@@ -187,3 +187,46 @@
 .pwa-safe-bottom {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
+
+/**
+ * FIX UX-22: project-level "stagger fade-in" for listing grids
+ * (ads/products/services/stores) — cards were appearing instantly,
+ * all at once, once data resolved. This gives the grid a light,
+ * deliberate entrance without a JS animation library: each direct
+ * child fades + slides up on mount, delay staggered by nth-child
+ * (capped at 8 — beyond that everything fires together, since a
+ * longer stagger just delays content the person is already
+ * scrolling toward). CSS-only, same minimal-animation posture as
+ * page-fade/heart-pop (tailwind.config.ts) and PageTransition.tsx.
+ * Deliberately applied only to the *loaded-data* grid at each call
+ * site, never the loading-skeleton grid (which already communicates
+ * "loading" via animate-pulse — stacking a second animation on top
+ * would be noise, not signal).
+ */
+@layer utilities {
+  .stagger-fade-in > * {
+    opacity: 0;
+    animation: fade-slide-up 0.35s ease-out forwards;
+  }
+  .stagger-fade-in > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-fade-in > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger-fade-in > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger-fade-in > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger-fade-in > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger-fade-in > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger-fade-in > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger-fade-in > *:nth-child(n+8) { animation-delay: 280ms; }
+}
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-fade-in > * {
+    animation: none;
+    opacity: 1;
+  }
+}
+

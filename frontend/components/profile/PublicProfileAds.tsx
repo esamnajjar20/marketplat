@@ -51,7 +51,7 @@ export function PublicProfileAds({ userId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 stagger-fade-in">
         {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
       </div>
       {totalPages > 1 && (

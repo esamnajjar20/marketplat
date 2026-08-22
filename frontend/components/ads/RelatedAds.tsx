@@ -32,7 +32,7 @@ export function RelatedAds({ adId }: Props) {
         <Layers className="h-4 w-4 text-muted-foreground" />
         إعلانات مشابهة
       </h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
         {data.map((ad) => <AdCard key={ad.id} ad={ad} />)}
       </div>
     </section>

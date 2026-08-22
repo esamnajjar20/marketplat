@@ -93,7 +93,7 @@ export function RecentAds() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
         {items.kind === 'search'
           ? items.data.map((result) => <UnifiedResultCard key={result.id} result={result} />)
           : items.data.map((ad) => <AdCard key={ad.id} ad={ad} />)}

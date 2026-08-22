@@ -19,7 +19,7 @@ export function SellerProfileAds({ ads }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 stagger-fade-in">
       {ads.map(ad => (
         <AdCard key={ad.id} ad={ad} />
       ))}

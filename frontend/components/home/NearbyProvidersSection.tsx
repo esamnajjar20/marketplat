@@ -86,7 +86,7 @@ export function NearbyProvidersSection() {
           استخدام موقعي
         </Button>
       )}
-      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3">
+      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3 stagger-fade-in">
         {items.map((provider) => (
           <div key={provider.id} className="w-72 shrink-0 sm:w-auto">
             <ServiceProviderCard provider={provider} />

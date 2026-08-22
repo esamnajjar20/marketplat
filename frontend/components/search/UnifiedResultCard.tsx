@@ -61,7 +61,7 @@ export function UnifiedResultCard({ result, className }: Props) {
     <Link
       href={result.url}
       className={cn(
-        'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+        'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
         className
       )}
     >

@@ -30,7 +30,7 @@ export function ServiceProviderListings({ provider, listings }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger-fade-in">
       {active.map((listing) => (
         <ServiceListingCard
           key={listing.id}

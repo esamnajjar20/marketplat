@@ -152,7 +152,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
           title="لا توجد إعلانات"
           description={q ? `لم نجد نتائج لـ "${q}"` : 'لا توجد إعلانات مطابقة لهذه الفلاتر'} />
       ) : view === 'grid' ? (
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 stagger-fade-in">
           {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
         </div>
       ) : (

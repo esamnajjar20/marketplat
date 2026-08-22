@@ -87,7 +87,7 @@ export function ProductsGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد منتجات مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((product) => (
             <div key={product.id} className="space-y-1.5">
               {/* Store attribution — the one thing StoreProducts.tsx

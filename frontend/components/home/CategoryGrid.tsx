@@ -145,7 +145,7 @@ function CategoryGridContent({ categories }: { categories: NonNullable<ReturnTyp
 
       {/* Desktop/tablet: icon-card grid, expandable past the initial 8. */}
       <div className="hidden sm:block">
-        <div className="grid grid-cols-3 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-4 stagger-fade-in">
           {visible.map((cat) => {
             const Icon = iconFor(cat.slug, cat.nameAr);
             return (

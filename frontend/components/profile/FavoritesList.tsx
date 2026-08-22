@@ -61,7 +61,7 @@ export function FavoritesList() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 stagger-fade-in">
         {items.map((fav) => (
           // EPIC 1.4: a favorited ad that was later deleted by its
           // owner (or an admin) still comes back from GET /favorites —

@@ -45,7 +45,7 @@ export function FeaturedAds() {
   if (items.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
       {/* FIX PERF-05: only the first two cards get priority — a
           reasonable upper bound for "likely above the fold" across the
           grid's responsive breakpoints (1/2/4 columns) without

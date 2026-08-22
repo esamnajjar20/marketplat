@@ -134,7 +134,7 @@ export function SearchResults() {
           }
         />
       ) : (
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 stagger-fade-in">
           {items.map((result) => (
             <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} />
           ))}
