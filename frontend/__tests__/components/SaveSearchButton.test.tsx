@@ -1,14 +1,17 @@
 /**
  * __tests__/components/SaveSearchButton.test.tsx
  *
- * PLATFORM-WIDE-01: previously uncovered. Covers the behavior that
- * changed when this button was generalized from ads-only to also
- * support products/services:
+ * PLATFORM-WIDE-01: covers the ads/products/services generalization —
  *  - filtersFromParams reads `q` vs `search` per queryParamKey
  *  - city/condition are only read (and only sent) for type='ads'
  *  - the built filters payload always carries the given `type`
  *  - guard rails: unauthenticated click, and a click with no filters
  *    applied at all, both toast an error and never open the dialog
+ *
+ * TYPE-PICK-STEP: covers the `type` prop being omitted (unified
+ * /search page's "الكل" tab) — opens on a type-picker step instead of
+ * defaulting to 'ads', with the no-filters guard now evaluated per
+ * chosen type rather than up front.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -59,7 +62,7 @@ describe('SaveSearchButton', () => {
     mockAuthed(false);
     mockSearchParams = new URLSearchParams('q=iphone');
     const user = setupUser();
-    render(<SaveSearchButton />);
+    render(<SaveSearchButton type="ads" />);
 
     await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
 
@@ -67,22 +70,22 @@ describe('SaveSearchButton', () => {
     expect(screen.queryByLabelText('اسم البحث')).not.toBeInTheDocument();
   });
 
-  it('errors when no filters are applied at all', async () => {
+  it('errors when no filters are applied at all (explicit type)', async () => {
     mockSearchParams = new URLSearchParams();
     const user = setupUser();
-    render(<SaveSearchButton />);
+    render(<SaveSearchButton type="ads" />);
 
     await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
 
     expect(toast.error).toHaveBeenCalledWith('أضف كلمة بحث أو فلتر واحد على الأقل');
   });
 
-  it('defaults to type "ads" and reads q/city/categoryId/condition/price from the URL', async () => {
+  it('reads q/city/categoryId/condition/price from the URL for an explicit type="ads"', async () => {
     mockSearchParams = new URLSearchParams(
       'q=iphone&city=غزة&categoryId=cat-1&condition=USED&minPrice=100&maxPrice=500'
     );
     const user = setupUser();
-    render(<SaveSearchButton />);
+    render(<SaveSearchButton type="ads" />);
 
     await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
     await user.click(screen.getByRole('button', { name: 'حفظ' }));
@@ -136,5 +139,86 @@ describe('SaveSearchButton', () => {
       },
       expect.anything()
     );
+  });
+
+  // TYPE-PICK-STEP: `type` omitted entirely — used on the unified
+  // /search page's "الكل" tab.
+  describe('type omitted (unified "الكل" tab)', () => {
+    it('opens on the type-picker step, not the label step, and does not toast immediately', async () => {
+      mockSearchParams = new URLSearchParams('q=iphone');
+      const user = setupUser();
+      render(<SaveSearchButton />);
+
+      await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
+
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(screen.getByText('حفظ البحث كـ...')).toBeInTheDocument();
+      expect(screen.queryByLabelText('اسم البحث')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'إعلان' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'منتج' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'خدمة' })).toBeInTheDocument();
+    });
+
+    it('errors and stays on the picker step when the chosen type has no applicable filters', async () => {
+      // condition/city only ever apply to 'ads' — picking 'services'
+      // here leaves zero filters for that type even though the URL
+      // isn't empty.
+      mockSearchParams = new URLSearchParams('city=غزة&condition=NEW');
+      const user = setupUser();
+      render(<SaveSearchButton />);
+
+      await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
+      await user.click(screen.getByRole('button', { name: 'خدمة' }));
+
+      expect(toast.error).toHaveBeenCalledWith('أضف كلمة بحث أو فلتر واحد على الأقل');
+      expect(screen.getByText('حفظ البحث كـ...')).toBeInTheDocument();
+    });
+
+    it('proceeds to the label step and submits with the chosen type after picking one', async () => {
+      mockSearchParams = new URLSearchParams('q=iphone&city=غزة');
+      const user = setupUser();
+      render(<SaveSearchButton />);
+
+      await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
+      await user.click(screen.getByRole('button', { name: 'إعلان' }));
+
+      expect(screen.getByLabelText('اسم البحث')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'حفظ' }));
+
+      expect(mockMutate).toHaveBeenCalledWith(
+        {
+          label: expect.any(String),
+          filters: { type: 'ads', q: 'iphone', city: 'غزة' },
+        },
+        expect.anything()
+      );
+    });
+
+    it('"رجوع" returns from the label step to the picker step', async () => {
+      mockSearchParams = new URLSearchParams('q=iphone');
+      const user = setupUser();
+      render(<SaveSearchButton />);
+
+      await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
+      await user.click(screen.getByRole('button', { name: 'منتج' }));
+      expect(screen.getByLabelText('اسم البحث')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'رجوع' }));
+
+      expect(screen.getByText('حفظ البحث كـ...')).toBeInTheDocument();
+      expect(screen.queryByLabelText('اسم البحث')).not.toBeInTheDocument();
+    });
+
+    it('does not show "رجوع" when type is given explicitly', async () => {
+      mockSearchParams = new URLSearchParams('q=iphone');
+      const user = setupUser();
+      render(<SaveSearchButton type="ads" />);
+
+      await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
+
+      expect(screen.getByLabelText('اسم البحث')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'رجوع' })).not.toBeInTheDocument();
+    });
   });
 });

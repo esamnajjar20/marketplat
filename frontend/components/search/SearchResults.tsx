@@ -115,14 +115,16 @@ export function SearchResults() {
           URL's own filter params independently, so it doesn't need any
           props threaded through from here. */}
       {/* Toolbar — save-search only makes sense once the visitor has
-          narrowed to one matchable entity kind. type='all' mixes
-          ads/products/stores/services in one grid with no single
-          filter shape to store (and 'stores' has no saved-search
-          matcher at all — stores.service.ts's createStore doesn't
-          call savedSearchEvents, unlike ads/products/services — a
-          store doesn't newly "appear" the way a listing does, it's a
-          seller's whole profile), so the button only renders for the
-          three types that do. */}
+          narrowed to one matchable entity kind, OR picks one inside
+          the button itself. type='all' mixes ads/products/stores/
+          services in one grid with no single filter shape to store
+          server-side, so SaveSearchButton now asks which kind to save
+          as when `type` is omitted (see its own TYPE-PICK-STEP doc)
+          rather than hiding entirely on "الكل". 'stores' still has no
+          entry point at all — stores.service.ts's createStore doesn't
+          call savedSearchEvents, unlike ads/products/services, so
+          there is no matcher a stores-typed SavedSearch could ever
+          fire against. */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}
@@ -133,8 +135,8 @@ export function SearchResults() {
             </>
           )}
         </p>
-        {(type === 'ads' || type === 'products' || type === 'services') && (
-          <SaveSearchButton type={type} queryParamKey="q" />
+        {type !== 'stores' && (
+          <SaveSearchButton type={type === 'all' ? undefined : type} queryParamKey="q" />
         )}
       </div>
 
