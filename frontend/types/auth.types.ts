@@ -42,9 +42,22 @@ export interface AuthUser {
  * httpOnly cookie the backend sets directly on the response, never in
  * JSON the frontend could parse and store. sessionId was already
  * excluded (backend's own Omit<TokenPair, 'sessionId'>) before this fix.
+ *
+ * FIX BUG-06: expiresIn added — seconds until accessToken expires,
+ * mirroring backend jwt.ts's TokenPair.expiresIn (env.jwt
+ * .expiresInSeconds at sign time). Lets the frontend derive its
+ * app_access_token cookie's maxAge from the backend's actual
+ * configured JWT TTL (see lib/cookies.ts's
+ * cookieMaxAgeFromExpiresIn) instead of a hardcoded constant that
+ * silently drifts out of sync if JWT_EXPIRES_IN is ever changed in
+ * production. Optional because it's a new field a slightly-stale
+ * cached response (or a mocked one in a test) may not carry —
+ * cookieMaxAgeFromExpiresIn falls back to the old fixed default
+ * whenever it's absent.
  */
 export interface AuthTokens {
   accessToken: string;
+  expiresIn?: number;
 }
 
 export interface SessionInfo {

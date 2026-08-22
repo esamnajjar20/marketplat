@@ -15,7 +15,7 @@ jest.mock('../../src/shared/utils/getClientIp', () => ({
 }));
 
 const authResult = {
-  tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
+  tokens: { accessToken: 'access-1', refreshToken: 'refresh-1', expiresIn: 900 },
   user: { id: 'user-1', name: 'Test', email: 'test@example.com', role: 'USER' },
 };
 
@@ -50,7 +50,9 @@ describe('authController', () => {
       expect(authCookies.setSessionHintCookie).toHaveBeenCalledWith(res);
 
       const jsonArg = (res.json as jest.Mock).mock.calls[0][0];
-      expect(jsonArg.data.tokens).toEqual({ accessToken: 'access-1' });
+      // FIX BUG-06: expiresIn is a new, deliberately-kept field — only
+      // refreshToken is stripped from the response body.
+      expect(jsonArg.data.tokens).toEqual({ accessToken: 'access-1', expiresIn: 900 });
       expect(jsonArg.data.tokens.refreshToken).toBeUndefined();
       expect(jsonArg.data.csrfToken).toBe('csrf-token-1');
     });

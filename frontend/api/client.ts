@@ -35,7 +35,7 @@ import axios, {
 import { useAuthStore }  from '@/store/auth.store';
 import { parseApiError } from '@/lib/errorParser';
 import { API_BASE_URL }  from '@/lib/constants';
-import { setCookie, deleteCookie, AUTH_COOKIE_MAX_AGE, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
+import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { getCsrfToken } from '@/lib/csrf';
 import { toast } from 'sonner';
 
@@ -158,7 +158,7 @@ apiClient.interceptors.response.use(
       const { authApi } = await import('@/api/auth.api');
       const res = await authApi.refresh();
 
-      const { accessToken: newAccess } = res.data.data!.tokens;
+      const { accessToken: newAccess, expiresIn } = res.data.data!.tokens;
 
       useAuthStore.getState().setAccessToken(newAccess);
       // CROSS-ORIGIN-CSRF-FIX: capture the fresh csrfToken from the
@@ -173,7 +173,9 @@ apiClient.interceptors.response.use(
       // could see an expired cookie and redirect a still-authenticated
       // user to /login even though their access token was valid and had
       // just been refreshed. Re-set the cookie on every silent refresh too.
-      setCookie('app_access_token', newAccess, AUTH_COOKIE_MAX_AGE);
+      // FIX BUG-06: derives from the backend's own tokens.expiresIn
+      // instead of the old fixed AUTH_COOKIE_MAX_AGE constant.
+      setCookie('app_access_token', newAccess, cookieMaxAgeFromExpiresIn(expiresIn));
       // AUDIT-FIX C-1: re-assert the session hint too, same reasoning as
       // AuthHydrationProvider's own refresh success path — the backend
       // already refreshed its own copy via Set-Cookie on this same

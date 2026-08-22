@@ -251,6 +251,37 @@ if (!parsed.success) {
 
 const _env = parsed.data;
 
+// FIX BUG-06: parses JWT_EXPIRES_IN ("15m", "1h", "3600", …) into a
+// plain integer of seconds. jsonwebtoken accepts this same string
+// format via the `ms` package internally, but `ms` is only a
+// transitive dependency here (pulled in by jsonwebtoken itself, not
+// listed in package.json) — importing it directly would be relying on
+// another package's implementation detail that could silently
+// disappear on a dependency bump. This covers the same suffixes `ms`
+// does for the units actually used in JWT expiry config (s/m/h/d) plus
+// a bare integer (already-seconds), which is all env.jwt.expiresIn is
+// ever set to in practice.
+function parseExpiresInToSeconds(value: string): number {
+  const bareNumber = Number(value);
+  if (!Number.isNaN(bareNumber) && /^\d+$/.test(value)) return bareNumber;
+
+  const match = /^(\d+)\s*(s|m|h|d)$/.exec(value.trim());
+  if (!match) {
+    // Falls back to the schema's own default rather than throwing —
+    // this only ever feeds a response body field used to size a
+    // client-side cookie's maxAge (see auth.service.ts's issueSession/
+    // refresh), never the actual token signing (jwt.sign gets the raw
+    // env.jwt.expiresIn string directly and does its own validation),
+    // so a malformed value here shouldn't be able to crash startup.
+    console.error(`⚠️  Could not parse JWT_EXPIRES_IN="${value}" — defaulting expiresInSeconds to 900 (15m)`);
+    return 900;
+  }
+  const [, amountStr, unit] = match;
+  const amount = Number(amountStr);
+  const multiplier = { s: 1, m: 60, h: 60 * 60, d: 60 * 60 * 24 }[unit as 's' | 'm' | 'h' | 'd'];
+  return amount * multiplier;
+}
+
 export const env = {
   port: parseInt(_env.PORT, 10),
   nodeEnv: _env.NODE_ENV,
@@ -260,6 +291,12 @@ export const env = {
     secret: _env.JWT_SECRET,
     refreshSecret: _env.JWT_REFRESH_SECRET,
     expiresIn: _env.JWT_EXPIRES_IN,
+    // FIX BUG-06: numeric seconds form of expiresIn, returned to the
+    // client in login/register/refresh responses so the frontend can
+    // derive its access-token cookie's maxAge from the backend's
+    // actual configured TTL instead of a hardcoded constant — see
+    // frontend/lib/cookies.ts's cookieMaxAgeFromExpiresIn.
+    expiresInSeconds: parseExpiresInToSeconds(_env.JWT_EXPIRES_IN),
   },
   redis: {
     host: _env.REDIS_HOST,

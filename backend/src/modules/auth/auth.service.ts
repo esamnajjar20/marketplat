@@ -61,7 +61,7 @@ async function issueSession(
   return {
     sessionId: tokens.sessionId,
     result: {
-      tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
+      tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn },
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     },
   };

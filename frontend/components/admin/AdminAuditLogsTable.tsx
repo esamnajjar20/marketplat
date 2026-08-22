@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AlertTriangle, Eye } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -87,6 +87,8 @@ export function AdminAuditLogsTable() {
   });
 
   const [detailsLog, setDetailsLog] = useState<AuditLog | null>(null);
+  // FIX A11Y-08: see the onOpenAutoFocus usage below.
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -239,9 +241,26 @@ export function AdminAuditLogsTable() {
       )}
 
       <Dialog open={detailsLog !== null} onOpenChange={(open) => { if (!open) setDetailsLog(null); }}>
-        <DialogContent>
+        {/* FIX A11Y-08: without an explicit onOpenAutoFocus, Radix's
+            default auto-focus target (the DialogContent wrapper) can
+            resolve one tick after the trigger <Button> (the Eye icon
+            button above) has already been marked aria-hidden by the
+            outside-content inert/aria-hiding Radix applies on open —
+            the browser then warns about a focused element living
+            inside an aria-hidden subtree. Focusing the title
+            explicitly and synchronously (via e.preventDefault() +
+            titleRef.focus()) sidesteps that race instead of relying
+            on Radix's own default target resolution. tabIndex={-1} so
+            the title is programmatically focusable without joining
+            the page's Tab order. */}
+        <DialogContent
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            titleRef.current?.focus();
+          }}
+        >
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle ref={titleRef} tabIndex={-1} className="outline-none">
               تفاصيل الحدث: {detailsLog ? (AUDIT_EVENT_LABELS[detailsLog.event] ?? detailsLog.event) : ''}
             </DialogTitle>
           </DialogHeader>

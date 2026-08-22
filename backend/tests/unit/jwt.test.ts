@@ -4,6 +4,7 @@ import {
   signTokenPair, rotateTokenPair,
   getTokenRemainingTTL,
 } from '../../src/shared/utils/jwt';
+import { env } from '../../src/config/env';
 
 const userId    = 'user-123';
 const sessionId = 'session-456';
@@ -35,10 +36,23 @@ describe('JWT Utils', () => {
     expect(pair.accessToken).not.toBe(pair.refreshToken);
   });
 
+  // FIX BUG-06
+  it('signTokenPair includes expiresIn matching env.jwt.expiresInSeconds', () => {
+    const pair = signTokenPair(userId);
+    expect(pair.expiresIn).toBe(env.jwt.expiresInSeconds);
+    expect(typeof pair.expiresIn).toBe('number');
+  });
+
   it('rotateTokenPair should keep same sessionId', () => {
     const rotated = rotateTokenPair(userId, sessionId);
     const decoded = verifyAccessToken(rotated.accessToken);
     expect(decoded.sessionId).toBe(sessionId);
+  });
+
+  // FIX BUG-06
+  it('rotateTokenPair also includes expiresIn', () => {
+    const rotated = rotateTokenPair(userId, sessionId);
+    expect(rotated.expiresIn).toBe(env.jwt.expiresInSeconds);
   });
 
   it('getTokenRemainingTTL returns positive value for valid token', () => {

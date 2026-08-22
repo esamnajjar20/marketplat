@@ -19,7 +19,7 @@ import { queryKeys }     from '@/lib/queryKeys';
 import { ROUTES }        from '@/lib/constants';
 import { track }         from '@/lib/analytics';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
-import { setCookie, deleteCookie, AUTH_COOKIE_MAX_AGE, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
+import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
 import { unwrapData }    from '@/lib/apiPagination';
 import { toast }         from 'sonner';
@@ -37,8 +37,11 @@ import type { AuthResultUser, AuthTokens, LoginPayload, RegisterPayload } from '
  * lifetime lives server-side regardless.
  */
 function setAuthCookies(user: AuthResultUser, tokens: AuthTokens) {
-  setCookie('app_access_token', tokens.accessToken, AUTH_COOKIE_MAX_AGE);
-  setCookie('app_user_role',    user.role,          AUTH_COOKIE_MAX_AGE);
+  // FIX BUG-06: derives maxAge from the backend's own tokens.expiresIn
+  // instead of the old fixed AUTH_COOKIE_MAX_AGE constant.
+  const maxAge = cookieMaxAgeFromExpiresIn(tokens.expiresIn);
+  setCookie('app_access_token', tokens.accessToken, maxAge);
+  setCookie('app_user_role',    user.role,          maxAge);
   setCookie('app_has_session',  '1',                SESSION_HINT_COOKIE_MAX_AGE);
 }
 

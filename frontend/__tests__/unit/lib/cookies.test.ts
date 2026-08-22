@@ -18,13 +18,31 @@
  *    * encoded malicious URLs rejected
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { setCookie, deleteCookie, getSafeRedirectPath, AUTH_COOKIE_MAX_AGE } from '@/lib/cookies';
+import { setCookie, deleteCookie, getSafeRedirectPath, AUTH_COOKIE_MAX_AGE, cookieMaxAgeFromExpiresIn } from '@/lib/cookies';
 
 // ── AUTH_COOKIE_MAX_AGE constant ──────────────────────────────────
 
 describe('AUTH_COOKIE_MAX_AGE', () => {
-  it('is 14 minutes in seconds (just under 15-min JWT TTL)', () => {
+  it('is 14 minutes in seconds (just under 15-min JWT TTL) — now only the fallback default', () => {
     expect(AUTH_COOKIE_MAX_AGE).toBe(14 * 60);
+  });
+});
+
+// ── cookieMaxAgeFromExpiresIn (FIX BUG-06) ────────────────────────
+
+describe('cookieMaxAgeFromExpiresIn', () => {
+  it('falls back to AUTH_COOKIE_MAX_AGE when expiresIn is undefined', () => {
+    expect(cookieMaxAgeFromExpiresIn(undefined)).toBe(AUTH_COOKIE_MAX_AGE);
+  });
+
+  it('subtracts a 60s safety buffer from a normal expiresIn', () => {
+    expect(cookieMaxAgeFromExpiresIn(900)).toBe(840); // 15m - 60s
+    expect(cookieMaxAgeFromExpiresIn(3600)).toBe(3540); // 1h - 60s
+  });
+
+  it('never returns less than 60s for a very short-lived token', () => {
+    expect(cookieMaxAgeFromExpiresIn(30)).toBe(60);
+    expect(cookieMaxAgeFromExpiresIn(0)).toBe(60);
   });
 });
 

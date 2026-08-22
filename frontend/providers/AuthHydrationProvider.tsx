@@ -66,9 +66,12 @@ import { authApi }    from '@/api/auth.api';
 import { usersApi }   from '@/api/users.api';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
-import { setCookie, deleteCookie, AUTH_COOKIE_MAX_AGE, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
+import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 
-const COOKIE_MAX_AGE = AUTH_COOKIE_MAX_AGE;
+// FIX BUG-06: was a fixed re-export of AUTH_COOKIE_MAX_AGE — the
+// refresh response's own tokens.expiresIn (captured below, right
+// before this constant would previously have been used) now drives
+// the actual maxAge via cookieMaxAgeFromExpiresIn instead.
 
 interface AuthHydrationProviderProps {
   children: React.ReactNode;
@@ -112,7 +115,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // argument anymore — the httpOnly cookie (if any) rides along
         // automatically via apiClient's withCredentials:true.
         const refreshRes = await authApi.refresh({ signal: controller.signal });
-        const { accessToken: newAccess } = refreshRes.data.data!.tokens;
+        const { accessToken: newAccess, expiresIn } = refreshRes.data.data!.tokens;
 
         setAccessToken(newAccess);
         // CROSS-ORIGIN-CSRF-FIX: this is the exact call that was
@@ -125,7 +128,13 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         setCsrfToken(refreshRes.data.data!.csrfToken);
 
         // 2. Set middleware cookies so route protection works.
-        setCookie('app_access_token', newAccess, COOKIE_MAX_AGE);
+        // FIX BUG-06: derives maxAge from this response's own
+        // tokens.expiresIn instead of the old fixed constant — reused
+        // below for app_user_role too, since both cookies represent
+        // the same access-token-backed session and should expire
+        // together.
+        const cookieMaxAge = cookieMaxAgeFromExpiresIn(expiresIn);
+        setCookie('app_access_token', newAccess, cookieMaxAge);
         // AUDIT-FIX C-1: re-assert the session hint too (the backend
         // already set/refreshed its own copy via Set-Cookie on this
         // same /auth/refresh response — this client-side mirror just
@@ -146,7 +155,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           city:      user.city,
         });
         // Set role cookie for middleware admin check.
-        setCookie('app_user_role', user.role, COOKIE_MAX_AGE);
+        setCookie('app_user_role', user.role, cookieMaxAge);
 
         // AUDIT-FIX M-1: prefetch page 1 of favorites so the ids Set is
         // populated app-wide before the user visits /dashboard or

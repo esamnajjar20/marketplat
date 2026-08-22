@@ -13,6 +13,14 @@ export interface TokenPair {
   accessToken: string;
   refreshToken: string;
   sessionId: string;
+  // FIX BUG-06: seconds until accessToken expires — lets the frontend
+  // derive its access-token cookie's maxAge from the backend's actual
+  // configured TTL (env.jwt.expiresInSeconds) instead of a hardcoded
+  // constant. Always equal to env.jwt.expiresInSeconds at the moment
+  // of signing; carried per-response (rather than a static import on
+  // the frontend) so a JWT_EXPIRES_IN change takes effect for clients
+  // on their very next login/refresh with no frontend deploy needed.
+  expiresIn: number;
 }
 
 const generateJti = (): string => crypto.randomBytes(16).toString('hex');
@@ -41,6 +49,7 @@ export const signTokenPair = (userId: string): TokenPair => {
     accessToken: signAccessToken(userId, sessionId),
     refreshToken: signRefreshToken(userId, sessionId),
     sessionId,
+    expiresIn: env.jwt.expiresInSeconds,
   };
 };
 
@@ -48,9 +57,10 @@ export const signTokenPair = (userId: string): TokenPair => {
 export const rotateTokenPair = (
   userId: string,
   sessionId: string
-): { accessToken: string; refreshToken: string } => ({
+): Omit<TokenPair, 'sessionId'> => ({
   accessToken: signAccessToken(userId, sessionId),
   refreshToken: signRefreshToken(userId, sessionId),
+  expiresIn: env.jwt.expiresInSeconds,
 });
 
 export const verifyAccessToken = (token: string): JwtPayload =>

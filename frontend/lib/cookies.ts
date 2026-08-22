@@ -12,7 +12,39 @@
  * never transmitted over plain HTTP.
  */
 
-export const AUTH_COOKIE_MAX_AGE = 14 * 60; // 14 min — just under the 15 min JWT TTL
+// FIX BUG-06: was the sole source of truth for the access-token
+// cookie's maxAge, hardcoded independently of the backend's actual
+// JWT_EXPIRES_IN — if that env var was ever changed in production,
+// this constant silently went stale and the cookie could expire
+// before (or long after) the token it's meant to shadow actually
+// does. Kept only as the fallback cookieMaxAgeFromExpiresIn below uses
+// when a response doesn't carry tokens.expiresIn (an older cached
+// response, or a test double) — every real call site now prefers the
+// backend-supplied value.
+export const AUTH_COOKIE_MAX_AGE = 14 * 60; // 14 min — just under the 15 min default JWT TTL
+
+/**
+ * FIX BUG-06: derives the app_access_token cookie's maxAge from the
+ * backend's own reported token lifetime (AuthTokens.expiresIn, in
+ * seconds — see auth.types.ts's doc comment) instead of the fixed
+ * AUTH_COOKIE_MAX_AGE constant, so a JWT_EXPIRES_IN change in
+ * production takes effect on the client's very next login/refresh
+ * with no frontend redeploy needed.
+ *
+ * Subtracts a fixed 60s safety buffer (mirroring the old constant's
+ * own "14 min — just under the 15 min TTL" margin) so the client-side
+ * cookie always expires strictly before the JWT it mirrors, never
+ * after — a cookie that outlives its token would let middleware.ts
+ * treat the visitor as still logged in for up to a minute after the
+ * access token backing that belief has already expired server-side.
+ * Never returns less than 60s, so a very short-lived token (a test
+ * environment configured with JWT_EXPIRES_IN=30s, say) still yields a
+ * usable positive maxAge rather than an immediately-expiring cookie.
+ */
+export function cookieMaxAgeFromExpiresIn(expiresIn: number | undefined): number {
+  if (expiresIn === undefined) return AUTH_COOKIE_MAX_AGE;
+  return Math.max(60, expiresIn - 60);
+}
 
 /**
  * AUDIT-FIX C-1: matches refreshToken's own ~7-day server-side lifetime
