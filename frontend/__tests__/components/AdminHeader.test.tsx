@@ -77,6 +77,14 @@ describe('AdminHeader', () => {
     expect(mockLogoutMutate).toHaveBeenCalledTimes(1);
   });
 
+  // UX-FIX: previously the only way out of (admin) was logging out
+  // entirely — this links back to the public site without ending the
+  // admin's session.
+  it('links back to the public site', () => {
+    render(<AdminHeader />);
+    expect(screen.getByRole('link', { name: /العودة للموقع/ })).toHaveAttribute('href', ROUTES.home);
+  });
+
   it('disables the logout button while the mutation is pending', () => {
     mockUseLogout.mockReturnValue({
       mutate: mockLogoutMutate,

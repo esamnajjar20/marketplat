@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, Bell, AlertTriangle } from 'lucide-react';
+import { LogOut, Bell, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button }      from '@/components/shared/ui/Button';
 import {
   DropdownMenu,
@@ -54,6 +54,21 @@ export function AdminHeader() {
         سوق غزة — إدارة
       </Link>
       <div className="flex items-center gap-2">
+        {/*
+         * UX-FIX: there was previously no way back to the public site
+         * from inside (admin) short of logging out entirely (which
+         * also tears down the session) or manually editing the URL.
+         * A plain link to the home route — admins are also regular
+         * authenticated users, so this doesn't need its own auth check
+         * or route, just a way back to the site they're already
+         * signed into.
+         */}
+        <Button asChild variant="ghost" size="sm" className="gap-1.5" title="العودة للموقع">
+          <Link href={ROUTES.home}>
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">العودة للموقع</span>
+          </Link>
+        </Button>
         {/*
          * FIX A11Y-01: icon-only buttons had no accessible name at
          * all — not even a title.

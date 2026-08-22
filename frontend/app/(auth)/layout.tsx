@@ -20,18 +20,23 @@ import { PageTransition } from '@/components/shared/PageTransition';
  * RegisterForm) since this app has no Facebook OAuth route to link it to.
  *
  * DESIGN-PASS AUTH-02: added PublicHeader (the same header every other
- * public page uses — logo, search, nav, auth buttons) above the card,
- * matching the reference design's full header — this group previously
- * ran with "Minimal chrome — logo only" deliberately, but the reference
- * design explicitly includes the full site header, so this now reuses
- * that same shared component (not a rebuilt copy) so header changes stay
+ * public page uses — logo, nav, auth buttons) above the card, matching
+ * the reference design's full header — this group previously ran with
+ * "Minimal chrome — logo only" deliberately, but the reference design
+ * explicitly includes the full site header, so this now reuses that
+ * same shared component (not a rebuilt copy) so header changes stay
  * in one place. The previous standalone logo Link above the card is
  * dropped, since the header already carries the logo.
+ *
+ * UX-FIX: showSearch={false} — reported that a full search bar on
+ * login/register/forgot-password/reset-password made no sense (a
+ * visitor here isn't browsing listings). Everything else about the
+ * shared header (logo, nav, auth buttons) stays.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <PublicHeader />
+      <PublicHeader showSearch={false} />
       <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-16">
         {/* Soft glow accents behind the card — same idea as the
             reference design's two blurred circles, recolored to this

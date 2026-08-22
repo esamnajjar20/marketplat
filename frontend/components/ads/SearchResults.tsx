@@ -92,7 +92,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         {view === 'grid' ? (
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
           </div>
         ) : (
@@ -152,7 +152,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
           title="لا توجد إعلانات"
           description={q ? `لم نجد نتائج لـ "${q}"` : 'لا توجد إعلانات مطابقة لهذه الفلاتر'} />
       ) : view === 'grid' ? (
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 stagger-fade-in">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
         </div>
       ) : (

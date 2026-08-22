@@ -18,7 +18,21 @@ import { Button }         from '@/components/shared/ui/Button';
 import { ROUTES }         from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 
-export function PublicHeader() {
+interface Props {
+  /**
+   * UX-FIX: reported that login/register/etc. show a full search bar
+   * they have no use for — a visitor mid-auth-flow isn't browsing
+   * listings. Defaults true (every existing call site keeps its
+   * current behavior); (auth)/layout.tsx is the only caller passing
+   * false. Kept as an explicit prop rather than a pathname check
+   * inside this component (the existing onSearchPage pattern below)
+   * since PublicHeader shouldn't need to know about (auth)'s specific
+   * routes — the call site that knows it's the auth layout says so.
+   */
+  showSearch?: boolean;
+}
+
+export function PublicHeader({ showSearch = true }: Props = {}) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   // FIX UI-REVIEW-SEARCH-DUP: /search renders its own SearchBox in a
   // dedicated brand band right below this header (see
@@ -87,7 +101,7 @@ export function PublicHeader() {
         </nav>
 
         <div className="hidden flex-1 md:block">
-          {!onSearchPage && <SearchBar />}
+          {!onSearchPage && showSearch && <SearchBar />}
         </div>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -127,7 +141,7 @@ export function PublicHeader() {
           width to stay comfortably tappable. Hidden on /search itself
           for the same reason as the desktop copy above — see this
           component's top-level comment. */}
-      {!onSearchPage && (
+      {!onSearchPage && showSearch && (
         <div className="border-t px-4 py-2 md:hidden">
           <SearchBar />
         </div>

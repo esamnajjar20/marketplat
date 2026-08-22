@@ -69,7 +69,18 @@ export function AdminAnalyticsDashboard() {
   // show all event types stacked as separate bars side by side —
   // simplest readable shape without a charting library.
   const bucketDates = Array.from(new Set(data.trend.map((t) => t.bucket))).sort();
-  const maxCount = Math.max(1, ...data.trend.map((t) => t.count));
+  // BUG-FIX (admin analytics): data.trend mixes every event type
+  // (PAGE_VIEW/AD_VIEW/SEARCH/CATEGORY_BROWSE/CONTACT_CLICK/SIGNUP_*)
+  // in one flat array, but the chart below only ever plots AD_VIEW
+  // bars. maxCount was previously taken across the WHOLE array, so
+  // PAGE_VIEW — always by far the highest-volume event — silently set
+  // the scale for a chart that never shows PAGE_VIEW at all. The
+  // AD_VIEW bars ended up compressed to a near-flat sliver regardless
+  // of how AD_VIEW activity actually moved, since they were being
+  // measured against a denominator several times their own real
+  // maximum. Scoped to the same AD_VIEW filter the bars themselves use.
+  const adViewCounts = data.trend.filter((t) => t.event === 'AD_VIEW').map((t) => t.count);
+  const maxCount = Math.max(1, ...adViewCounts);
 
   return (
     <div className="space-y-6">

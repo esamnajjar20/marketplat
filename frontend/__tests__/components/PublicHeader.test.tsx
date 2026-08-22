@@ -90,4 +90,14 @@ describe('PublicHeader', () => {
 
     expect(screen.getByTestId('mobile-nav')).toBeInTheDocument();
   });
+
+  // UX-FIX: showSearch={false} is (auth)/layout.tsx's own opt-out for
+  // login/register/forgot-password/reset-password — a search bar makes
+  // no sense mid-auth-flow.
+  it('hides both search bars when showSearch is false', () => {
+    mockAuthState(false);
+    render(<PublicHeader showSearch={false} />);
+
+    expect(screen.queryByTestId('search-bar')).not.toBeInTheDocument();
+  });
 });

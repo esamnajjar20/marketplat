@@ -79,7 +79,15 @@ export function SearchResults() {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+        {/* UX-FIX: this grid sits in a 3-of-4-column <main> next to the
+            filters <aside> (see (public)/search/page.tsx), so it had
+            real width to work with but was capped at xl:grid-cols-3 —
+            stuck at just 2 columns for the whole lg range (1024–1279px,
+            a very common desktop width) despite the space, while every
+            other ad grid in the app (RecentAds/FeaturedAds/etc.) reaches
+            4 columns. Same fix mirrored below and in ads/SearchResults.tsx
+            (categories/[slug] uses the identical 1-col-sidebar layout). */}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       </div>
@@ -134,7 +142,7 @@ export function SearchResults() {
           }
         />
       ) : (
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 stagger-fade-in">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((result) => (
             <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} />
           ))}

@@ -177,4 +177,36 @@ describe('AdminAnalyticsDashboard', () => {
     await userEvent.click(ninetyDaysBtn);
     expect(ninetyDaysBtn.className).toContain('bg-primary');
   });
+
+  // BUG-FIX (admin analytics): the trend chart only ever plots AD_VIEW
+  // bars, but its height scale (maxCount) used to be computed from
+  // data.trend's WHOLE mixed-event-type array — so a much bigger
+  // same-day PAGE_VIEW count (always the highest-volume event type in
+  // practice) silently set the scale for a chart that never displays
+  // PAGE_VIEW at all, squashing the real AD_VIEW bars down to a
+  // near-flat sliver regardless of actual AD_VIEW activity.
+  it('scales the AD_VIEW trend bars by AD_VIEW volume only, not other event types mixed into the same trend array', () => {
+    mockUseAdminAnalyticsSummary.mockReturnValue({
+      data: {
+        ...baseData,
+        trend: [
+          // A much larger same-day PAGE_VIEW count must not affect
+          // the AD_VIEW bar's height.
+          { bucket: '2026-08-01', event: 'PAGE_VIEW', count: 10_000 },
+          { bucket: '2026-08-01', event: 'AD_VIEW', count: 20 },
+          { bucket: '2026-08-02', event: 'AD_VIEW', count: 10 },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never);
+    render(<AdminAnalyticsDashboard />);
+
+    // maxCount should be 20 (the AD_VIEW max), so the 08-01 bar (count
+    // 20) renders at 100% height, not compressed by the 10,000 PAGE_VIEW
+    // count that used to set the scale.
+    const tallBar = screen.getByTitle(/20/);
+    expect(tallBar).toHaveStyle({ height: '100%' });
+  });
 });

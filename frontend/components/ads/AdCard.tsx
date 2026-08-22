@@ -156,10 +156,16 @@ export function AdCard({ ad, className, priority = false }: Props) {
           </div>
         </div>
 
-        {/* Info — price-first, matching the approved mock's stat order */}
-        <div className="flex flex-1 flex-col gap-1 p-3">
+        {/* Info — price-first, matching the approved mock's stat order.
+            UX-FIX: padding/type bumped up a notch (p-3→p-4,
+            text-lg→text-xl price, text-base→text-lg title) — reported
+            as looking too small/cramped. Same AdCard is shared by every
+            ad grid in the app (home sections, search, category,
+            profile, related-ads), so this one change reaches all of
+            them consistently rather than fixing it grid-by-grid. */}
+        <div className="flex flex-1 flex-col gap-1.5 p-4">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-lg font-bold text-primary">{formatPrice(ad.price)}</span>
+            <span className="font-mono text-xl font-bold text-primary">{formatPrice(ad.price)}</span>
             {/* FIX P1-8: isNegotiable was collected in the create form
                 (PriceInput's "السعر قابل للتفاوض" checkbox) and stored,
                 but never surfaced anywhere in the browsing UI — a buyer
@@ -171,7 +177,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
               </span>
             )}
           </div>
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-base text-foreground leading-snug">{ad.title}</h3>
+          <h3 className="line-clamp-2 min-h-0 flex-1 text-lg text-foreground leading-snug">{ad.title}</h3>
 
           <div className="mt-auto flex flex-col gap-1 pt-2">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">

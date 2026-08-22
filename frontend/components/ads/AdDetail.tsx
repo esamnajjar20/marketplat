@@ -165,20 +165,28 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 <span className="flex items-center gap-1.5 font-mono text-xs"><Hash className="h-3.5 w-3.5" />{ad.id.slice(-8)}</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {/* FIX BUG-XX: aria-label was static ("حفظ") regardless of
-                  toggled state — AdCard's equivalent button already
-                  does this correctly (isFavorited ? 'إزالة...' :
-                  'إضافة...' + aria-pressed); mirrored here. */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* UX-FIX: was icon-only (Heart in a ghost icon button) —
+                  reported as not a "clear" save action next to the
+                  share button. Added a visible label + outline/filled
+                  state so the save/unsave action reads on its own,
+                  matching ShareAdButton's own labeled-button pattern
+                  right next to it, not just an icon a buyer has to
+                  guess at.
+                  FIX BUG-XX (kept): aria-label/aria-pressed already
+                  toggled correctly — AdCard's equivalent button does
+                  the same. */}
               <Button
-                variant="ghost"
-                size="icon"
+                variant={favorited ? 'default' : 'outline'}
+                size="sm"
                 onClick={handleFavorite}
                 disabled={toggleFavorite.isPending}
                 aria-label={favorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
                 aria-pressed={favorited}
+                className="gap-1.5"
               >
-                <Heart className={cn('h-5 w-5', favorited && 'fill-destructive text-destructive')} />
+                <Heart className={cn('h-4 w-4', favorited && 'fill-current')} />
+                {favorited ? 'محفوظ' : 'حفظ الإعلان'}
               </Button>
               <ShareAdButton title={ad.title} />
             </div>
