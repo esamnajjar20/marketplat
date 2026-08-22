@@ -27,12 +27,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyServiceProviderCard } from '@/components/services/MyServiceProviderCard';
-import { useUpdateServiceProvider } from '@/hooks/mutations/useServiceProviderMutations';
+import { useUpdateServiceProvider, useUploadServiceProviderLogo } from '@/hooks/mutations/useServiceProviderMutations';
 import { useAuthStore } from '@/store/auth.store';
 import type { ServiceProviderDetails, WorkingHours } from '@/types/service.types';
 
 vi.mock('@/hooks/mutations/useServiceProviderMutations', () => ({
   useUpdateServiceProvider: vi.fn(),
+  useUploadServiceProviderLogo: vi.fn(),
 }));
 
 // UNIFIED-PROFILE: the "عرض صفحتي العامة" link now reads the current
@@ -94,9 +95,22 @@ function mockUpdateState(overrides: Partial<ReturnType<typeof useUpdateServicePr
   } as never);
 }
 
+// New in this pass — MyServiceProviderCard now also renders the logo
+// upload block, so this hook needs a default mocked return value the
+// same as useUpdateServiceProvider's, or the component throws on
+// `undefined()`.
+function mockUploadLogoState(overrides: Partial<ReturnType<typeof useUploadServiceProviderLogo>> = {}) {
+  vi.mocked(useUploadServiceProviderLogo).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+    ...overrides,
+  } as never);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockUpdateState();
+  mockUploadLogoState();
   vi.mocked(useAuthStore).mockImplementation(
     (selector: (s: { user: unknown }) => unknown) => selector({ user: { id: 'user-1' } }),
   );

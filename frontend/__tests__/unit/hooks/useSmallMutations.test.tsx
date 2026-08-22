@@ -18,6 +18,7 @@ import { useStartConversation, useSendMessage, useDeleteMessage } from '@/hooks/
 import {
   useCreateServiceProvider,
   useUpdateServiceProvider,
+  useUploadServiceProviderLogo,
 } from '@/hooks/mutations/useServiceProviderMutations';
 import { blockedUsersApi } from '@/api/blocked-users.api';
 import { notificationsApi } from '@/api/notifications.api';
@@ -36,10 +37,10 @@ vi.mock('@/api/conversations.api', () => ({
   conversationsApi: { start: vi.fn(), sendMessage: vi.fn(), deleteMessage: vi.fn() },
 }));
 vi.mock('@/api/service-providers.api', () => ({
-  serviceProvidersApi: { createMyProvider: vi.fn(), updateMyProvider: vi.fn() },
+  serviceProvidersApi: { createMyProvider: vi.fn(), updateMyProvider: vi.fn(), uploadLogo: vi.fn() },
 }));
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), promise: vi.fn() },
 }));
 
 function createWrapper() {
@@ -388,5 +389,66 @@ describe('useUpdateServiceProvider', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(toast.error).toHaveBeenCalled();
+  });
+});
+
+const mockFile = new File(['fake-image-content'], 'logo.png', { type: 'image/png' });
+
+describe('useUploadServiceProviderLogo', () => {
+  it('calls serviceProvidersApi.uploadLogo with the given File', async () => {
+    (serviceProvidersApi.uploadLogo as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'provider-1', logoUrl: 'https://cdn/logo.jpg' } },
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadServiceProviderLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(serviceProvidersApi.uploadLogo).toHaveBeenCalledWith(mockFile);
+  });
+
+  it('invalidates the "my provider" query on success', async () => {
+    (serviceProvidersApi.uploadLogo as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'provider-1' } },
+    });
+    const { wrapper, invalidateSpy } = createWrapper();
+
+    const { result } = renderHook(() => useUploadServiceProviderLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
+    expect(invalidatedKeys.some((k) => k.includes('"me"'))).toBe(true);
+  });
+
+  it('shows a loading toast via toast.promise while the upload is pending', async () => {
+    (serviceProvidersApi.uploadLogo as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'provider-1' } },
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadServiceProviderLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ loading: 'جارٍ رفع الشعار…', success: 'تم تحديث الشعار' }),
+    );
+  });
+
+  it('passes an error-message resolver to toast.promise for failures', async () => {
+    (serviceProvidersApi.uploadLogo as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('File too large'));
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadServiceProviderLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ error: expect.any(Function) }),
+    );
   });
 });

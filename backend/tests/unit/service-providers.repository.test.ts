@@ -147,7 +147,7 @@ describe('serviceProvidersRepository', () => {
   });
 
   describe('findMany', () => {
-    it('filters by city via `has` and excludes UNAVAILABLE providers when city is given', async () => {
+    it('filters by city via `has`, excludes UNAVAILABLE, and excludes suspended sellers when city is given', async () => {
       (prisma.serviceProviderDetails.findMany as jest.Mock).mockResolvedValue([
         { id: 'p1', businessName: 'Gaza Fixer' },
       ]);
@@ -158,6 +158,7 @@ describe('serviceProvidersRepository', () => {
       expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith({
         where: {
           availabilityStatus: { not: 'UNAVAILABLE' },
+          sellerProfile: { suspended: false },
           serviceAreaCities: { has: 'Gaza' },
         },
         orderBy: { createdAt: 'desc' },
@@ -167,6 +168,7 @@ describe('serviceProvidersRepository', () => {
       expect(prisma.serviceProviderDetails.count).toHaveBeenCalledWith({
         where: {
           availabilityStatus: { not: 'UNAVAILABLE' },
+          sellerProfile: { suspended: false },
           serviceAreaCities: { has: 'Gaza' },
         },
       });
@@ -180,7 +182,7 @@ describe('serviceProvidersRepository', () => {
       await serviceProvidersRepository.findMany({}, 0, 20);
 
       expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith({
-        where: { availabilityStatus: { not: 'UNAVAILABLE' } },
+        where: { availabilityStatus: { not: 'UNAVAILABLE' }, sellerProfile: { suspended: false } },
         orderBy: { createdAt: 'desc' },
         skip: 0,
         take: 20,

@@ -210,7 +210,7 @@ describe('serviceProvidersService', () => {
     // undefined (reading 'filter')"). getPublicServiceProvider now also
     // fetches the provider's ACTIVE listings and attaches them.
     it('returns the provider (with seller) plus its ACTIVE listings when found', async () => {
-      const withSeller = { ...mockProvider, sellerProfile: { id: 'seller-profile-1' } };
+      const withSeller = { ...mockProvider, sellerProfile: { id: 'seller-profile-1', suspended: false } };
       const activeListings = [{ id: 'listing-1', status: 'ACTIVE' }] as any;
       (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(withSeller);
       (serviceListingsRepository.findManyByProviderId as jest.Mock).mockResolvedValue({
@@ -225,6 +225,19 @@ describe('serviceProvidersService', () => {
         limit: 100,
       });
       expect(result).toEqual({ ...withSeller, listings: activeListings });
+    });
+
+    // SEC-FIX regression: see getPublicServiceProvider's comment — a
+    // suspended seller's provider must 404 here even though
+    // findPublicById itself has no way to filter for it.
+    it('throws NotFoundError when the seller is suspended', async () => {
+      const suspended = { ...mockProvider, sellerProfile: { id: 'seller-profile-1', suspended: true } };
+      (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(suspended);
+
+      await expect(serviceProvidersService.getPublicServiceProvider('provider-1')).rejects.toThrow(
+        NotFoundError
+      );
+      expect(serviceListingsRepository.findManyByProviderId).not.toHaveBeenCalled();
     });
 
     it('does not fetch listings when the provider is not found', async () => {

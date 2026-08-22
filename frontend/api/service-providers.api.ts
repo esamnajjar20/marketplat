@@ -44,6 +44,15 @@ export const serviceProvidersApi = {
   updateMyProvider: (payload: UpdateServiceProviderPayload) =>
     apiClient.patch<ApiResponse<ServiceProviderDetails>>('/service-providers/me', payload),
 
+  /** POST /service-providers/me/logo — multipart upload, same shape as storesApi.uploadLogo. */
+  uploadLogo: (file: File) => {
+    const form = new FormData();
+    form.append('image', file);
+    return apiClient.post<ApiResponse<ServiceProviderDetails>>('/service-providers/me/logo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
   /** GET /service-providers/:id — public provider page, no auth required. */
   getById: (id: string) =>
     apiClient.get<ApiResponse<ServiceProviderPublic>>(`/service-providers/${id}`),

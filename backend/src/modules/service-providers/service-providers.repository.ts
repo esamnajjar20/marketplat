@@ -72,16 +72,15 @@ export const serviceProvidersRepository = {
   ): Promise<ServiceProviderDetails> =>
     prisma.serviceProviderDetails.update({ where: { id }, data }),
 
-  // Home discovery plan (Phase 1): public city/browse directory —
-  // mirrors storesRepository.findMany/productsRepository.findMany
-  // exactly (same where-building shape, same pagination helper usage
-  // at the service layer). `city` filters via `has` against the
-  // serviceAreaCities array (a provider can serve multiple cities);
-  // omitted city returns the general, unfiltered set — never an
-  // error, never an empty result forced by a missing city. Same
-  // availabilityStatus exclusion as findNearby so a provider who has
-  // marked themselves fully UNAVAILABLE doesn't surface in either
-  // discovery path.
+  // SEC-FIX: same gap products.repository.ts's findMany already closed
+  // for suspended sellers (see its own SEC-FIX comment) — an admin
+  // suspending a seller (SellerProfile.suspended) is the only
+  // moderation lever this feature has (ServiceProviderDetails has no
+  // status field of its own), so every public read path here must
+  // honor it or suspension has zero effect on a provider's public
+  // reach. `sellerProfile: { suspended: false }` is a relational
+  // filter, so it doesn't require `include`-ing sellerProfile on the
+  // result rows — same technique products.repository.ts uses.
   findMany: async (
     query: GetServiceProvidersQuery,
     skip: number,
@@ -89,6 +88,7 @@ export const serviceProvidersRepository = {
   ): Promise<{ rows: ServiceProviderDetails[]; total: number }> => {
     const where: Prisma.ServiceProviderDetailsWhereInput = {
       availabilityStatus: { not: 'UNAVAILABLE' },
+      sellerProfile: { suspended: false },
       ...(query.city && { serviceAreaCities: { has: query.city } }),
     };
 
@@ -126,9 +126,9 @@ export const serviceProvidersRepository = {
     const distanceExpr = Prisma.sql`
       6371 * acos(
         LEAST(1, GREATEST(-1,
-          cos(radians(${lat})) * cos(radians("latitude")) *
-          cos(radians("longitude") - radians(${lng})) +
-          sin(radians(${lat})) * sin(radians("latitude"))
+          cos(radians(${lat})) * cos(radians(spd."latitude")) *
+          cos(radians(spd."longitude") - radians(${lng})) +
+          sin(radians(${lat})) * sin(radians(spd."latitude"))
         ))
       )
     `;
@@ -160,18 +160,26 @@ export const serviceProvidersRepository = {
     const minLng = lng - lngDelta;
     const maxLng = lng + lngDelta;
 
+    // SEC-FIX: same gap as findMany above — this raw query previously
+    // had no join to seller_profiles at all, so a suspended seller's
+    // provider stayed fully findable by nearby search. JOIN (not a
+    // WHERE-clause subquery) so the suspended check reuses the same
+    // scan Postgres already does for the FK, rather than running a
+    // correlated lookup per candidate row.
     const whereSql = Prisma.sql`
-      WHERE "latitude" IS NOT NULL AND "longitude" IS NOT NULL
-        AND "latitude" BETWEEN ${minLat} AND ${maxLat}
-        AND "longitude" BETWEEN ${minLng} AND ${maxLng}
-        AND "availabilityStatus" != 'UNAVAILABLE'
+      FROM "service_provider_details" spd
+      JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
+      WHERE spd."latitude" IS NOT NULL AND spd."longitude" IS NOT NULL
+        AND spd."latitude" BETWEEN ${minLat} AND ${maxLat}
+        AND spd."longitude" BETWEEN ${minLng} AND ${maxLng}
+        AND spd."availabilityStatus" != 'UNAVAILABLE'
+        AND sp."suspended" = false
         AND (${distanceExpr}) <= ${radiusKm}
     `;
 
     const [idRows, countRows] = await Promise.all([
       prisma.$queryRaw<{ id: string; distanceKm: number }[]>`
-        SELECT "id", (${distanceExpr}) AS "distanceKm"
-        FROM "service_provider_details"
+        SELECT spd."id", (${distanceExpr}) AS "distanceKm"
         ${whereSql}
         ORDER BY "distanceKm" ASC
         OFFSET ${skip}
@@ -179,7 +187,6 @@ export const serviceProvidersRepository = {
       `,
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint AS count
-        FROM "service_provider_details"
         ${whereSql}
       `,
     ]);

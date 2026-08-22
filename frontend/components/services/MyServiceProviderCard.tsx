@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { Briefcase, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
-import { useUpdateServiceProvider } from '@/hooks/mutations/useServiceProviderMutations';
+import { useUpdateServiceProvider, useUploadServiceProviderLogo } from '@/hooks/mutations/useServiceProviderMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/cloudinary';
+import { toast } from 'sonner';
 import type { ServiceAvailability, ServiceProviderDetails, WorkingHours } from '@/types/service.types';
 
 interface Props {
@@ -45,6 +48,8 @@ function validateWorkingHours(hours: WorkingHours): string | undefined {
 
 export function MyServiceProviderCard({ provider }: Props) {
   const updateProvider = useUpdateServiceProvider();
+  const uploadLogo = useUploadServiceProviderLogo();
+  const logoInputRef = useRef<HTMLInputElement>(null);
   // UNIFIED-PROFILE: /service-providers/[id] is now just a redirect
   // back to /profile/[userId] (see that page's own comment). This is
   // always the logged-in owner's own card, so the current user's own
@@ -90,6 +95,24 @@ export function MyServiceProviderCard({ provider }: Props) {
     );
   }
 
+  // Mirrors MyStoreCard's validateAndUpload: same client-side type/size
+  // check before the mutation fires, same "clear the input so
+  // re-selecting the same file works" reset.
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type as typeof ALLOWED_IMAGE_TYPES[number])) {
+      toast.error('نوع الصورة غير مدعوم (JPG، PNG، أو WEBP فقط)');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`حجم الصورة يجب ألا يتجاوز ${MAX_FILE_SIZE_MB} ميجابايت`);
+      return;
+    }
+    uploadLogo.mutate(file);
+  }
+
   return (
     <div className="space-y-4 max-w-lg">
       <div className="flex items-center gap-2">
@@ -98,6 +121,43 @@ export function MyServiceProviderCard({ provider }: Props) {
         <Badge variant="secondary">
           {provider.businessType === 'INDIVIDUAL' ? 'فرد' : 'عمل صغير'}
         </Badge>
+      </div>
+
+      {/* FIX: logoUrl was fully supported end-to-end (validated,
+          stored, rendered in ServiceProviderHeader/Card) but had no
+          upload UI — mirrors MyStoreCard's logo block. */}
+      <div className="flex items-center gap-4">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
+          <SafeImage
+            variant="avatar"
+            src={getAvatarUrl(provider.logoUrl ?? '', 64)}
+            alt={provider.businessName}
+            fill
+            className="object-cover"
+            sizes="64px"
+          />
+        </div>
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={uploadLogo.isPending}
+            onClick={() => logoInputRef.current?.click()}
+          >
+            {uploadLogo.isPending ? 'جارٍ الرفع…' : 'تغيير الشعار'}
+          </Button>
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept={ALLOWED_IMAGE_TYPES.join(',')}
+            className="hidden"
+            onChange={handleLogoChange}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            JPG، PNG، أو WEBP — بحد أقصى {MAX_FILE_SIZE_MB} MB
+          </p>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">{provider.description}</p>

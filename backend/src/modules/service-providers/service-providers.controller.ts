@@ -9,6 +9,7 @@ import {
 } from './service-providers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const serviceProvidersController = {
   createServiceProvider: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -38,6 +39,17 @@ export const serviceProvidersController = {
       const { body } = updateServiceProviderSchema.parse({ body: req.body });
       const details = await serviceProvidersService.updateMyServiceProvider(user.userId, body);
       res.status(200).json(successResponse('Service provider profile updated', details));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  uploadLogo: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      if (!req.file) throw new BadRequestError('No image file was attached', 'NO_FILE_ATTACHED');
+      const details = await serviceProvidersService.uploadLogo(user.userId, req.file);
+      res.status(200).json(successResponse('Service provider logo updated', details));
     } catch (error) {
       next(error);
     }

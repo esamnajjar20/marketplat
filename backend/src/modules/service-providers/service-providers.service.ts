@@ -1,5 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { ServiceProviderDetails, ServiceListing } from '@prisma/client';
+import { uploadServiceProviderLogo, deleteImage } from '../../config/cloudinary';
+import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import {
   serviceProvidersRepository,
   ServiceProviderWithSeller,
@@ -105,6 +107,34 @@ export const serviceProvidersService = {
     return serviceProvidersRepository.update(details.id, input);
   },
 
+  // Feature-completeness fix: logoUrl was fully supported end-to-end
+  // (validated, stored, rendered in ServiceProviderHeader/Card) but had
+  // no upload path — the only way to set it was a hand-crafted PATCH
+  // with an already-hosted URL. Mirrors storesService.uploadLogo and,
+  // one module further back, usersService.uploadAvatar exactly: upload
+  // first, persist the URL, clean up whichever side fails.
+  uploadLogo: async (userId: string, file: Express.Multer.File): Promise<ServiceProviderDetails> => {
+    const sellerProfile = await sellersRepository.findByUserId(userId);
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+
+    const details = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
+    if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+
+    const { url, publicId } = await uploadServiceProviderLogo(file.buffer);
+
+    try {
+      const updated = await serviceProvidersRepository.update(details.id, { logoUrl: url });
+      if (details.logoUrl) {
+        const oldPublicId = extractCloudinaryPublicId(details.logoUrl);
+        if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
+      }
+      return updated;
+    } catch (error) {
+      await cleanupUploadedImages([publicId]);
+      throw error;
+    }
+  },
+
   // BUG FIX: findPublicById only ever fetched the provider row +
   // sellerProfile — never `listings`, even though the frontend's
   // ServiceProviderPublic type (types/service.types.ts) and
@@ -128,6 +158,17 @@ export const serviceProvidersService = {
   ): Promise<ServiceProviderWithSeller & { listings: ServiceListing[] }> => {
     const details = await serviceProvidersRepository.findPublicById(id);
     if (!details) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    // SEC-FIX: same gap products.service.ts's getProductById already
+    // closed for suspended-seller products, now also closed on
+    // stores.service.ts's getPublicStore — findMany/findNearby above
+    // both exclude a suspended seller's provider from every discovery
+    // path, but this direct-by-id lookup didn't, so admin-suspending a
+    // seller (the only moderation lever this feature has) left their
+    // provider page fully live at its direct URL. Treated as 404, same
+    // as the other two fixes.
+    if (details.sellerProfile.suspended) {
+      throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    }
     const { listings } = await serviceListingsRepository.findManyByProviderId(id, {
       status: 'ACTIVE',
       limit: 100,

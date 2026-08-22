@@ -2,7 +2,11 @@ import { Router } from 'express';
 import { serviceProvidersController } from './service-providers.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
-import { createServiceProviderRateLimit } from '../../middlewares/rateLimit.middleware';
+import { uploadMiddleware } from '../../middlewares/upload.middleware';
+import {
+  createServiceProviderRateLimit,
+  serviceProviderImagesRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 
 export const serviceProvidersRouter = Router();
 
@@ -25,6 +29,17 @@ serviceProvidersRouter.patch(
   authenticate,
   CACHE.NONE,
   serviceProvidersController.updateMyServiceProvider
+);
+
+// Logo upload — same single-image pattern as POST /users/me/avatar
+// and /stores/me/logo. Registered alongside the other /me routes so
+// it's never swallowed as the public /:id route below.
+serviceProvidersRouter.post(
+  '/me/logo',
+  authenticate,
+  serviceProviderImagesRateLimit,
+  uploadMiddleware,
+  serviceProvidersController.uploadLogo
 );
 
 // Public — city/browse directory (Home discovery plan, Phase 1).

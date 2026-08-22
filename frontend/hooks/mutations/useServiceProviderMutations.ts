@@ -44,3 +44,26 @@ export function useUpdateServiceProvider() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+/**
+ * POST /service-providers/me/logo — uploads a new logo. Same
+ * toast.promise shape as useUploadStoreLogo.
+ */
+export function useUploadServiceProviderLogo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => {
+      const promise = serviceProvidersApi.uploadLogo(file).then((r) => r.data.data);
+      toast.promise(promise, {
+        loading: 'جارٍ رفع الشعار…',
+        success: 'تم تحديث الشعار',
+        error: (err) => parseApiError(err).message,
+      });
+      return promise;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.me() });
+    },
+  });
+}

@@ -28,7 +28,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useCreateStore, useUpdateStore, useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
+import { useCreateStore, useUpdateStore, useToggleStoreFollow, useUploadStoreLogo, useUploadStoreCover } from '@/hooks/mutations/useStoreMutations';
 import { storesApi } from '@/api/stores.api';
 import { toast } from 'sonner';
 
@@ -37,11 +37,13 @@ vi.mock('@/api/stores.api', () => ({
     create: vi.fn(),
     updateMyStore: vi.fn(),
     toggleFollow: vi.fn(),
+    uploadLogo: vi.fn(),
+    uploadCover: vi.fn(),
   },
 }));
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), promise: vi.fn() },
 }));
 
 function createWrapper() {
@@ -207,5 +209,111 @@ describe('useToggleStoreFollow', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(toast.error).toHaveBeenCalled();
+  });
+});
+
+const mockFile = new File(['fake-image-content'], 'logo.png', { type: 'image/png' });
+
+describe('useUploadStoreLogo', () => {
+  it('calls storesApi.uploadLogo with the given File', async () => {
+    (storesApi.uploadLogo as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'store-1', logoUrl: 'https://cdn/logo.jpg' } } });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(storesApi.uploadLogo).toHaveBeenCalledWith(mockFile);
+  });
+
+  it('invalidates the entire ["stores"] prefix on success', async () => {
+    (storesApi.uploadLogo as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'store-1' } } });
+    const { wrapper, invalidateSpy } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['stores'] });
+  });
+
+  it('shows a loading toast via toast.promise while the upload is pending', async () => {
+    (storesApi.uploadLogo as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'store-1' } } });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ loading: 'جارٍ رفع الشعار…', success: 'تم تحديث شعار المتجر' }),
+    );
+  });
+
+  it('passes an error-message resolver to toast.promise for failures', async () => {
+    (storesApi.uploadLogo as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('File too large'));
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreLogo(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ error: expect.any(Function) }),
+    );
+  });
+});
+
+describe('useUploadStoreCover', () => {
+  it('calls storesApi.uploadCover with the given File', async () => {
+    (storesApi.uploadCover as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'store-1', coverImageUrl: 'https://cdn/cover.jpg' } } });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreCover(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(storesApi.uploadCover).toHaveBeenCalledWith(mockFile);
+  });
+
+  it('invalidates the entire ["stores"] prefix on success', async () => {
+    (storesApi.uploadCover as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'store-1' } } });
+    const { wrapper, invalidateSpy } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreCover(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['stores'] });
+  });
+
+  it('shows a loading toast via toast.promise while the upload is pending', async () => {
+    (storesApi.uploadCover as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'store-1' } } });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreCover(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ loading: 'جارٍ رفع صورة الغلاف…', success: 'تم تحديث صورة الغلاف' }),
+    );
+  });
+
+  it('passes an error-message resolver to toast.promise for failures', async () => {
+    (storesApi.uploadCover as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('File too large'));
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useUploadStoreCover(), { wrapper });
+    act(() => { result.current.mutate(mockFile); });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(toast.promise).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ error: expect.any(Function) }),
+    );
   });
 });

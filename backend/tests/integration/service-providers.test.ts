@@ -133,5 +133,76 @@ describe('Service Providers API', () => {
       expect(res.body.data.map((p: any) => p.id)).toContain(provider.id);
       expect(res.body.data[0]).not.toHaveProperty('distanceKm');
     });
+
+    // SEC-FIX regression: findMany previously had no join/filter on
+    // sellerProfile.suspended, so a suspended seller's provider stayed
+    // listed in the general directory. See service-providers.repository.ts.
+    it('excludes providers whose seller is suspended', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id, { suspended: true });
+      const uniqueCity = `city-suspended-${Date.now()}`;
+      const provider = await createTestServiceProvider(sellerProfile.id, {
+        serviceAreaCities: [uniqueCity],
+      });
+
+      const res = await request(app).get('/api/v1/service-providers').query({ city: uniqueCity });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((p: any) => p.id)).not.toContain(provider.id);
+    });
+  });
+
+  describe('GET /api/v1/service-providers/:id', () => {
+    it('returns the provider with its ACTIVE listings for a normal (non-suspended) provider', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id);
+      const provider = await createTestServiceProvider(sellerProfile.id);
+
+      const res = await request(app).get(`/api/v1/service-providers/${provider.id}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.id).toBe(provider.id);
+      expect(Array.isArray(res.body.data.listings)).toBe(true);
+    });
+
+    it('returns 404 for a non-existent provider', async () => {
+      const res = await request(app).get('/api/v1/service-providers/non-existent-id');
+      expect(res.status).toBe(404);
+    });
+
+    // SEC-FIX regression: getPublicServiceProvider previously never
+    // checked sellerProfile.suspended, so a suspended seller's provider
+    // page stayed fully viewable at its direct URL. See
+    // service-providers.service.ts's getPublicServiceProvider.
+    it('returns 404 for a provider whose seller is suspended', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id, { suspended: true });
+      const provider = await createTestServiceProvider(sellerProfile.id);
+
+      const res = await request(app).get(`/api/v1/service-providers/${provider.id}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/v1/service-providers/nearby', () => {
+    // SEC-FIX regression: findNearby's raw query previously had no join
+    // to seller_profiles at all, so a suspended seller's provider stayed
+    // findable by nearby search. See service-providers.repository.ts.
+    it('excludes a provider whose seller is suspended', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id, { suspended: true });
+      const provider = await createTestServiceProvider(sellerProfile.id, {
+        latitude: 31.5,
+        longitude: 34.45,
+      });
+
+      const res = await request(app)
+        .get('/api/v1/service-providers/nearby')
+        .query({ lat: '31.5', lng: '34.45', radius: '10' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((p: any) => p.id)).not.toContain(provider.id);
+    });
   });
 });

@@ -210,6 +210,17 @@ export const createServiceProviderRateLimit = rateLimit({
   message: msg("Too many attempts, please try again later"),
 });
 
+// Service provider logo upload: mirrors storeImagesRateLimit — same
+// per-hour ceiling for the same reason.
+export const serviceProviderImagesRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("service_provider_images"),
+  message: msg("Too many image uploads, please try again later"),
+});
+
 // services-design.md §16: same rate-limit rationale as createAdRateLimit —
 // guards the upload + DB-write path from scripted retry storms.
 export const createServiceListingRateLimit = rateLimit({

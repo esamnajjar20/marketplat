@@ -15,12 +15,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyStoreCard } from '@/components/stores/MyStoreCard';
-import { useUpdateStore } from '@/hooks/mutations/useStoreMutations';
+import { useUpdateStore, useUploadStoreLogo, useUploadStoreCover } from '@/hooks/mutations/useStoreMutations';
 import { parseApiError } from '@/lib/errorParser';
 import type { StoreDetails } from '@/types/store.types';
 
 vi.mock('@/hooks/mutations/useStoreMutations', () => ({
   useUpdateStore: vi.fn(),
+  useUploadStoreLogo: vi.fn(),
+  useUploadStoreCover: vi.fn(),
 }));
 
 vi.mock('@/lib/errorParser', () => ({
@@ -48,10 +50,25 @@ function mockUpdate(overrides: Record<string, unknown> = {}) {
   });
 }
 
+// New in this pass — MyStoreCard now also renders the logo/cover
+// upload block, so these two hooks need a default mocked return value
+// the same as useUpdateStore's, or the component throws on `undefined()`.
+function mockUploads() {
+  (useUploadStoreLogo as ReturnType<typeof vi.fn>).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  });
+  (useUploadStoreCover as ReturnType<typeof vi.fn>).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  });
+}
+
 describe('MyStoreCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUpdate();
+    mockUploads();
   });
 
   it('renders the store name and ACTIVE status badge', () => {

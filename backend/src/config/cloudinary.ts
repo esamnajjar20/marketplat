@@ -346,6 +346,62 @@ export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> =>
     });
 };
 
+/**
+ * uploadServiceProviderLogo — same mechanism/crop as uploadStoreLogo,
+ * separate Cloudinary folder to keep the two entity types apart.
+ */
+export const uploadServiceProviderLogo = async (buffer: Buffer): Promise<UploadResult> => {
+  return uploadBreaker
+    .execute(async () => {
+      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: "classifieds/service-provider-logos",
+              timeout: UPLOAD_TIMEOUT_MS,
+              transformation: [
+                { width: 400, height: 400, crop: "fill" },
+                { quality: "auto:good" },
+                { format: "webp" },
+              ],
+            },
+            (error, result) => {
+              if (error || !result)
+                return reject(new Error("Service provider logo upload failed"));
+              resolve({ url: result.secure_url, publicId: result.public_id });
+            },
+          )
+          .end(buffer);
+      });
+
+      try {
+        return await withTimeout(
+          uploadPromise,
+          UPLOAD_TIMEOUT_MS,
+          "service provider logo upload",
+        );
+      } catch (err) {
+        if (err instanceof CloudinaryTimeoutError) {
+          logger.error("Cloudinary service provider logo upload timed out", {
+            timeoutMs: UPLOAD_TIMEOUT_MS,
+          });
+        }
+        throw err;
+      }
+    })
+    .catch((err) => {
+      if (err instanceof CircuitBreakerOpenError) {
+        logger.error(
+          "Cloudinary service provider logo upload rejected — circuit breaker is open",
+        );
+        throw new ServiceUnavailableError(
+          "Image upload is temporarily unavailable, please try again shortly",
+        );
+      }
+      throw err;
+    });
+};
+
 export const deleteImage = async (publicId: string): Promise<void> => {
   await deleteBreaker
     .execute(async () => {
