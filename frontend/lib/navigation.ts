@@ -24,7 +24,7 @@
  * duplication. Each stays local to its file.
  */
 import {
-  Home, Search, Store, Wrench, Users, Settings,
+  Home, Search, Megaphone, Store, Wrench, Users, Settings,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -34,9 +34,23 @@ import { ROUTES } from '@/lib/constants';
 // StoreIcon/WrenchIcon aliases ProtectedMobileNav had locally — same
 // underlying icons, alias was only a naming collision workaround for
 // components that also referenced HTML el names, not present here).
+//
+// NAV-GAP FIX: Stores/Services/Service-Providers each get a dedicated
+// browse page AND a standing nav link, but Ads — the platform's core
+// entity — previously had neither its own top-level link, only
+// reachable via Home's "أحدث الإعلانات" CTA or by manually picking the
+// "الإعلانات" tab on /search. There is no dedicated /ads index route
+// (only /ads/[id] for a single ad's detail page — see ROUTES in
+// constants.ts), so this points at the same `${ROUTES.search}?type=ads`
+// URL Home's own "عرض الكل" CTA already uses (HomeAboveFold.tsx) rather
+// than introducing a second route for the same listing type. Products
+// deliberately stays out of this list — a product's natural entry
+// point is through its parent store (already covered by "المتاجر"
+// below), unlike an ad, which has no parent entity in nav today.
 export const BROWSE_LINKS = [
   { label: 'الرئيسية', href: ROUTES.home, icon: Home },
   { label: 'البحث', href: ROUTES.search, icon: Search },
+  { label: 'الإعلانات', href: `${ROUTES.search}?type=ads`, icon: Megaphone },
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },

@@ -39,6 +39,12 @@ export function ProtectedHeader() {
           and account controls), same lg breakpoint — below lg they stay
           reachable via ProtectedMobileNav's "تصفح" section (REORG-07). */}
       <nav className="hidden items-center gap-1 lg:flex">
+        {/* NAV-GAP FIX: mirrors PublicHeader's own addition — see
+            lib/navigation.ts's BROWSE_LINKS comment for why ads gets a
+            standing link here (and products deliberately doesn't). */}
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
+        </Button>
         <Button asChild variant="ghost" size="sm">
           <Link href={ROUTES.stores}>المتاجر</Link>
         </Button>

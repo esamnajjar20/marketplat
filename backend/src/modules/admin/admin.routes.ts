@@ -26,30 +26,28 @@ adminRouter.get('/stats', requireMinRole(ROLES.ADMIN), adminController.getStats)
 // Ads management — MODERATOR+ (Gap #20: ads moderation is explicitly
 // in the MODERATOR tier, same as reports/fraud).
 adminRouter.get('/ads', requireMinRole(ROLES.MODERATOR), adminController.getAllAds);
-adminRouter.patch('/ads/:id/featured', requireMinRole(ROLES.MODERATOR), adminController.setAdFeatured);
-adminRouter.patch('/ads/:id/pinned', requireMinRole(ROLES.MODERATOR), adminController.setAdPinned);
-adminRouter.delete('/ads/:id', requireMinRole(ROLES.MODERATOR), adminController.deleteAd);
 
-// BULK-ADMIN (item 17): distinct sub-paths (/ads/bulk/...), not
-// /ads/:id/... with :id="bulk", so there is no Express route-ordering
-// hazard here the way reports.routes.ts's PATCH /bulk/status has
-// relative to PATCH /:id/status — these simply don't collide with the
-// :id-based routes above regardless of registration order. Kept below
-// the single-row routes anyway for readability (bulk variants grouped
-// after their single-row counterpart).
+// BULK-ADMIN (item 17): ROUTE-ORDER FIX — registered before the
+// /ads/:id/... routes below. The original comment here claimed
+// /ads/bulk/... "simply don't collide with the :id-based routes...
+// regardless of registration order" — that was wrong. Express matches
+// routes in registration order, not by specificity, and /ads/:id/featured
+// matches PATCH /ads/bulk/featured with :id="bulk" just as readily as
+// /sellers/:id/verify matched PATCH /sellers/bulk/verify (the bug that
+// actually surfaced as "البائع غير موجود" on the sellers bulk-action
+// bar). Same class of bug, same fix: bulk routes must be registered
+// first.
 adminRouter.patch('/ads/bulk/featured', requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdFeatured);
 adminRouter.patch('/ads/bulk/pinned', requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdPinned);
 adminRouter.delete('/ads/bulk', requireMinRole(ROLES.MODERATOR), adminController.bulkDeleteAds);
 
+adminRouter.patch('/ads/:id/featured', requireMinRole(ROLES.MODERATOR), adminController.setAdFeatured);
+adminRouter.patch('/ads/:id/pinned', requireMinRole(ROLES.MODERATOR), adminController.setAdPinned);
+adminRouter.delete('/ads/:id', requireMinRole(ROLES.MODERATOR), adminController.deleteAd);
+
 // Users management — ADMIN+ only (Gap #20: MODERATOR has no access to
 // user accounts or role changes at all).
 adminRouter.get('/users', requireMinRole(ROLES.ADMIN), adminController.getAllUsers);
-adminRouter.patch('/users/:id/active', requireMinRole(ROLES.ADMIN), adminController.toggleUserActive);
-// changeRole additionally self-checks the actor/target/newRole rank
-// relationship inside adminService.changeRole (see roleHierarchy.ts) —
-// requireMinRole(ADMIN) here is just the entry gate (MODERATOR can't
-// even attempt it), not the full authorization decision.
-adminRouter.patch('/users/:id/role', requireMinRole(ROLES.ADMIN), adminController.changeRole);
 
 // BULK-ADMIN (item 17): bulk active/inactive toggle only — role
 // changes are deliberately NOT batched (see AdminUsersTable.tsx's own
@@ -57,12 +55,40 @@ adminRouter.patch('/users/:id/role', requireMinRole(ROLES.ADMIN), adminControlle
 // a mixed-role selection, and batch-promoting/demoting is not a
 // realistic admin workflow the way clearing an active/inactive queue
 // is).
+//
+// ROUTE-ORDER FIX: registered before /users/:id/active for the same
+// reason as the /ads/bulk/... reorder above — /users/bulk/active and
+// /users/:id/active collide at 3 segments.
 adminRouter.patch('/users/bulk/active', requireMinRole(ROLES.ADMIN), adminController.bulkToggleUserActive);
+
+adminRouter.patch('/users/:id/active', requireMinRole(ROLES.ADMIN), adminController.toggleUserActive);
+// changeRole additionally self-checks the actor/target/newRole rank
+// relationship inside adminService.changeRole (see roleHierarchy.ts) —
+// requireMinRole(ADMIN) here is just the entry gate (MODERATOR can't
+// even attempt it), not the full authorization decision.
+adminRouter.patch('/users/:id/role', requireMinRole(ROLES.ADMIN), adminController.changeRole);
 
 // EPIC 1.1: GET /admin/sellers — was missing entirely, so there was no
 // way to discover a sellerProfileId to pass into verify/suspend below.
 // ADMIN+ (Gap #20: sellers are outside the MODERATOR tier).
 adminRouter.get('/sellers', requireMinRole(ROLES.ADMIN), sellersController.getAllSellers);
+
+// BULK-ADMIN (item 17): bulk verify/suspend, same shape as bulk ads
+// above.
+//
+// ROUTE-ORDER FIX: these MUST be registered before /sellers/:id/verify
+// and /sellers/:id/suspend below. Both pairs have 3 path segments
+// (sellers/bulk/verify vs sellers/:id/verify), so Express matches
+// whichever was registered first — with :id="bulk" if the parameterized
+// route comes first. That was the actual bug: PATCH /sellers/bulk/verify
+// was being swallowed by verifySeller with id="bulk", which looked up a
+// seller profile "bulk", found none, and threw SELLER_NOT_FOUND
+// ("البائع غير موجود") — exactly the error the bulk-action buttons were
+// surfacing, while the single-row buttons worked fine. The /ads/bulk/...
+// routes above already avoid this by registration order; this brings
+// /sellers/bulk/... in line with that same discipline.
+adminRouter.patch('/sellers/bulk/verify', requireMinRole(ROLES.ADMIN), sellersController.bulkVerifySellers);
+adminRouter.patch('/sellers/bulk/suspend', requireMinRole(ROLES.ADMIN), sellersController.bulkSuspendSellers);
 
 // Seller verification — separate from any public/self-service seller
 // route; only an admin can flip `verified`. See seller-profile-design.md
@@ -75,11 +101,6 @@ adminRouter.patch('/sellers/:id/verify', requireMinRole(ROLES.ADMIN), sellersCon
 // ServiceProviderDetails records that must not be cascade-deleted.
 adminRouter.patch('/sellers/:id/suspend', requireMinRole(ROLES.ADMIN), sellersController.suspendSeller);
 
-// BULK-ADMIN (item 17): bulk verify/suspend, same shape as bulk ads
-// above.
-adminRouter.patch('/sellers/bulk/verify', requireMinRole(ROLES.ADMIN), sellersController.bulkVerifySellers);
-adminRouter.patch('/sellers/bulk/suspend', requireMinRole(ROLES.ADMIN), sellersController.bulkSuspendSellers);
-
 // AUDIT-FIX (issue #1): GET /admin/stores — was missing entirely, so
 // stores created via POST /stores stayed PENDING forever with no way
 // for an admin to even discover them, let alone approve/block them.
@@ -90,13 +111,21 @@ adminRouter.patch('/sellers/bulk/suspend', requireMinRole(ROLES.ADMIN), sellersC
 // consistent with /admin/sellers/:id/verify's own router. ADMIN+
 // (Gap #20: stores are outside the MODERATOR tier).
 adminRouter.get('/stores', requireMinRole(ROLES.ADMIN), storesController.getAllStores);
+
+// BULK-ADMIN (item 17): bulk status update — same shape as the others.
+//
+// ROUTE-ORDER FIX: registered before /stores/:id/status for the same
+// reason as /sellers/bulk/verify above — /stores/bulk/status and
+// /stores/:id/status collide at 3 segments, and whichever registers
+// first wins the match (with :id="bulk" if the parameterized route
+// were first). Latent copy of the same bug the seller routes actually
+// hit; fixing it here pre-emptively before it surfaces the same way.
+adminRouter.patch('/stores/bulk/status', requireMinRole(ROLES.ADMIN), storesController.bulkUpdateStoreStatus);
+
 adminRouter.patch('/stores/:id/status', requireMinRole(ROLES.ADMIN), storesController.updateStoreStatus);
 // FIX BUG-02: StorePlan.FEATURED was rendered across the store UI but
 // unreachable — no code path ever set it. This closes that gap.
 adminRouter.patch('/stores/:id/plan', requireMinRole(ROLES.ADMIN), storesController.updateStorePlan);
-
-// BULK-ADMIN (item 17): bulk status update — same shape as the others.
-adminRouter.patch('/stores/bulk/status', requireMinRole(ROLES.ADMIN), storesController.bulkUpdateStoreStatus);
 
 // Epic 6: manual PROMOTION broadcast — see notifications.service.ts's
 // broadcastPromotion doc comment for why this has no automatic trigger.

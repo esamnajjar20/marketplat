@@ -89,6 +89,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
             MobileNav itself is md:hidden at that width. Matches the
             container's own md:flex so the whole row turns on together. */}
         <nav className="hidden items-center gap-1 md:flex">
+          {/* NAV-GAP FIX: ads previously had no standing nav link here
+              (only reachable via Home's CTA or the /search type tab) —
+              see lib/navigation.ts's BROWSE_LINKS comment for the full
+              reasoning. Hand-written here rather than mapped from
+              BROWSE_LINKS since this header's desktop nav has always
+              been its own literal list, not sourced from that shared
+              array (only the mobile drawers read BROWSE_LINKS). */}
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
+          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link href={ROUTES.stores}>المتاجر</Link>
           </Button>

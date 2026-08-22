@@ -143,8 +143,22 @@ export function SavedSearchesList() {
     return (
       <EmptyState icon={<Search className="h-10 w-10" />}
         title="لا توجد عمليات بحث محفوظة"
-        description="احفظ بحثاً من صفحة النتائج وسنُعلمك عند نشر إعلان مطابق"
-        action={<Link href={ROUTES.search}><Button variant="outline">تصفح الإعلانات</Button></Link>} />
+        description="احفظ بحثاً من صفحة النتائج وسنُعلمك عند نشر إعلان أو منتج أو خدمة مطابقة"
+        // FIX: was a single "تصفح الإعلانات" button pointing only at
+        // /search — "حفظ البحث" only renders on ad/product/service
+        // results (see SaveSearchButton.tsx), so a visitor landing here
+        // first with nothing saved yet had no obvious path to the other
+        // two entity types' results pages. Three links, one per type
+        // SaveSearchButton actually supports (stores excluded — same
+        // reason SearchResults.tsx's toolbar excludes it: no
+        // saved-search matcher exists for stores).
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link href={ROUTES.search}><Button variant="outline">تصفح الإعلانات</Button></Link>
+            <Link href={ROUTES.products}><Button variant="outline">تصفح المنتجات</Button></Link>
+            <Link href={ROUTES.services}><Button variant="outline">تصفح الخدمات</Button></Link>
+          </div>
+        } />
     );
   }
 
