@@ -119,11 +119,22 @@ const config: Config = {
           from: { opacity: '0' },
           to:   { opacity: '1' },
         },
+        // FIX UX-21: powers AdCard's favorite-heart "pop" on add —
+        // mirrors the pop the original static mock did with raw JS
+        // (icon.style.transform = 'scale(1.3)' + a timeout reset).
+        // Same CSS-only, no-library approach as page-fade above.
+        'heart-pop': {
+          '0%':   { transform: 'scale(1)' },
+          '40%':  { transform: 'scale(1.35)' },
+          '70%':  { transform: 'scale(0.92)' },
+          '100%': { transform: 'scale(1)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up':   'accordion-up 0.2s ease-out',
         'page-fade':      'page-fade 0.15s ease-out',
+        'heart-pop':      'heart-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
       },
     },
   },

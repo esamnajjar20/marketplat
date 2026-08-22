@@ -87,13 +87,12 @@ describe('AdCard', () => {
     mockFavoriteState();
   });
 
-  it('renders the title, price, city, and views', () => {
+  it('renders the title, price, and city', () => {
     render(<AdCard ad={baseAd} />);
 
     expect(screen.getByText('سيارة تويوتا كورولا 2020')).toBeInTheDocument();
     expect(screen.getByText(formatPrice(baseAd.price), { exact: false })).toBeInTheDocument();
     expect(screen.getByText('خان يونس')).toBeInTheDocument();
-    expect(screen.getByText('120')).toBeInTheDocument();
   });
 
   it('renders a relative time string for createdAt', () => {

@@ -24,7 +24,7 @@ export function FeaturedAds() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {Array.from({ length: DISPLAY_COUNT }).map((_, i) => <AdCardSkeleton key={i} />)}
       </div>
     );
@@ -45,7 +45,7 @@ export function FeaturedAds() {
   if (items.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {/* FIX PERF-05: only the first two cards get priority — a
           reasonable upper bound for "likely above the fold" across the
           grid's responsive breakpoints (1/2/4 columns) without

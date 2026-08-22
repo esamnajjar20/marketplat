@@ -20,7 +20,7 @@ export function PublicProfileAds({ userId }: Props) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
       </div>
     );
@@ -51,7 +51,7 @@ export function PublicProfileAds({ userId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
       </div>
       {totalPages > 1 && (

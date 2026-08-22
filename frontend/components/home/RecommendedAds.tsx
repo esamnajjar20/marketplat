@@ -48,7 +48,7 @@ export function RecommendedAds() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Array.from({ length: DISPLAY_COUNT }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       ) : isError ? (
@@ -60,7 +60,7 @@ export function RecommendedAds() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {data!.map((ad) => <AdCard key={ad.id} ad={ad} />)}
         </div>
       )}

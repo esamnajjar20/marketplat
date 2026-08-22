@@ -35,7 +35,7 @@ export function RecentAds() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
       </div>
     );
@@ -93,7 +93,7 @@ export function RecentAds() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {items.kind === 'search'
           ? items.data.map((result) => <UnifiedResultCard key={result.id} result={result} />)
           : items.data.map((ad) => <AdCard key={ad.id} ad={ad} />)}

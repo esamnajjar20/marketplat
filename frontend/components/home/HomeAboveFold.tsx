@@ -132,7 +132,7 @@ export function HomeAboveFold() {
               title="إعلانات مميزة"
               icon={<Sparkles className="h-3.5 w-3.5 text-accent" />}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={i} />)}
             </div>
           </div>
@@ -140,7 +140,7 @@ export function HomeAboveFold() {
 
         <section className="container mx-auto space-y-4 px-4 pt-10">
           {latestAdsHeadingLoading}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
           </div>
         </section>

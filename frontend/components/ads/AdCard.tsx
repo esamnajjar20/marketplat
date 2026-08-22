@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Eye, Heart } from 'lucide-react';
+import { MapPin, Heart } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
@@ -37,15 +38,23 @@ interface Props {
  * Border/shadow treatment also moved from the flat, generic
  * `border + hover:shadow-md` combination to a slightly warmer resting
  * state with a more deliberate lift on hover.
+ *
+ * FIX DESIGN-01: reshaped to match the approved mobile-grid mock
+ * (price-first stat row, condition pill top-start, single seller/time
+ * footer row) — same underlying data as before, real project tokens
+ * (--primary/--success/--muted etc., not the mock's raw hex palette),
+ * views count dropped from this compact card (still shown on
+ * AdDetail) to match the mock's leaner footer.
  */
 export function AdCard({ ad, className, priority = false }: Props) {
   const rawImage = ad.images[0];
   const thumb    = rawImage ? getThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
   const isSold   = ad.status === 'SOLD';
+  const isNew    = ad.condition === 'NEW';
 
   // FIX P2-7: formatRelativeTime always rendered in flat
   // text-muted-foreground regardless of how old the ad actually is —
-  // "منذ ساعة" and "منذ شهر" looked identical, so a buyer scanning a
+  // "منذ ساعة" و"منذ شهر" looked identical, so a buyer scanning a
   // grid had to read every timestamp individually to spot the fresh
   // listings. success = <24h (genuinely new), warning = <7d (still
   // recent), muted = everything older — same semantic tokens P2-3
@@ -64,10 +73,18 @@ export function AdCard({ ad, className, priority = false }: Props) {
   const isFavorited = useIsFavorited(ad.id);
   const toggleFavorite = useToggleFavorite();
 
+  // FIX UX-21: remounts the heart icon (via key) to replay the
+  // heart-pop keyframe (tailwind.config.ts) on every add-to-favorites
+  // tap — only on add, not remove, matching the "delight" moment the
+  // original static mock's vanilla-JS pop handled. motion-safe: below
+  // keeps this off for prefers-reduced-motion users.
+  const [popKey, setPopKey] = useState(0);
+
   function handleFavoriteClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    if (!isFavorited) setPopKey((k) => k + 1);
     toggleFavorite.mutate(ad.id);
   }
   // FIX PERF-06: lib/cloudinary.ts already ships a getPlaceholderUrl
@@ -91,7 +108,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
     <div className="relative">
       <Link href={ROUTES.adDetail(ad.id)}
         className={cn(
-          'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+          'group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
           className,
         )}>
 
@@ -112,23 +129,37 @@ export function AdCard({ ad, className, priority = false }: Props) {
               <span className="rounded-full bg-background px-4 py-1 text-sm font-bold text-foreground">تم البيع</span>
             </div>
           )}
-          {ad.isFeatured && !isSold && (
-            <span className="absolute top-2 start-2 rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-foreground shadow-sm">
-              مميز
-            </span>
-          )}
-          {ad.condition && (
-            <span className="absolute top-2 end-2 rounded-full bg-foreground/70 px-2.5 py-0.5 text-xs text-background backdrop-blur-sm">
-              {CONDITION_LABELS[ad.condition] ?? ad.condition}
-            </span>
-          )}
+
+          {/* Top-start badge stack: condition pill (styled after its
+              value — NEW gets the success tint, USED/REFURBISHED a
+              neutral one) plus a separate "مميز" pill when featured,
+              stacked rather than sharing one slot so neither flag gets
+              silently dropped. */}
+          <div className="absolute top-2 start-2 flex flex-col items-start gap-1">
+            {ad.condition && (
+              <span
+                className={cn(
+                  'rounded-full px-2 py-1 text-[10px] font-bold font-mono backdrop-blur-sm',
+                  isNew
+                    ? 'bg-success/10 text-success'
+                    : 'border border-border/60 bg-muted/80 text-muted-foreground',
+                )}
+              >
+                {CONDITION_LABELS[ad.condition] ?? ad.condition}
+              </span>
+            )}
+            {ad.isFeatured && !isSold && (
+              <span className="rounded-full bg-accent/90 px-2 py-1 text-[10px] font-bold text-accent-foreground shadow-sm backdrop-blur-sm">
+                مميز
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Info */}
-        <div className="space-y-1.5 p-3">
-          <h3 className="line-clamp-2 text-sm font-medium leading-snug">{ad.title}</h3>
+        {/* Info — price-first, matching the approved mock's stat order */}
+        <div className="flex flex-1 flex-col gap-1 p-3">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="font-mono text-base font-bold text-primary">{formatPrice(ad.price)}</p>
+            <span className="font-mono text-lg font-bold text-primary">{formatPrice(ad.price)}</span>
             {/* FIX P1-8: isNegotiable was collected in the create form
                 (PriceInput's "السعر قابل للتفاوض" checkbox) and stored,
                 but never surfaced anywhere in the browsing UI — a buyer
@@ -140,27 +171,31 @@ export function AdCard({ ad, className, priority = false }: Props) {
               </span>
             )}
           </div>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ad.city}</span>
-            <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>
-          </div>
-          <p className={cn('text-xs', timeColorClass)}>{formatRelativeTime(ad.createdAt)}</p>
+          <h3 className="line-clamp-2 min-h-0 flex-1 text-base text-foreground leading-snug">{ad.title}</h3>
 
-          {/* Seller identity — small footer row, per design brief item 3.4.
-              Deliberately name + tiny avatar only, no rating/verified/etc.
-              (that detail lives in SellerCard on the ad detail page). */}
-          <div className="flex items-center gap-1.5 pt-1 border-t">
-            <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full bg-muted">
-              <SafeImage
-                variant="avatar"
-                src={sellerAvatar}
-                alt={ad.user.name}
-                fill
-                className="object-cover"
-                sizes="24px"
-              />
+          <div className="mt-auto flex flex-col gap-1 pt-2">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5" />{ad.city}
+            </span>
+            <div className="mt-1 flex items-center justify-between">
+              {/* Seller identity — name + tiny avatar only, no
+                  rating/verified/etc. (that detail lives in SellerCard
+                  on the ad detail page, per design brief item 3.4). */}
+              <div className="flex min-w-0 items-center gap-1.5">
+                <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-muted">
+                  <SafeImage
+                    variant="avatar"
+                    src={sellerAvatar}
+                    alt={ad.user.name}
+                    fill
+                    className="object-cover"
+                    sizes="20px"
+                  />
+                </div>
+                <span className="w-16 truncate text-xs text-muted-foreground">{ad.user.name}</span>
+              </div>
+              <span className={cn('shrink-0 text-xs', timeColorClass)}>{formatRelativeTime(ad.createdAt)}</span>
             </div>
-            <span className="truncate text-xs text-muted-foreground">{ad.user.name}</span>
           </div>
         </div>
       </Link>
@@ -176,12 +211,9 @@ export function AdCard({ ad, className, priority = false }: Props) {
           disabled={toggleFavorite.isPending}
           aria-label={isFavorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
           aria-pressed={isFavorited}
-          className={cn(
-            'absolute end-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 shadow-sm backdrop-blur-sm transition-transform active:scale-90 disabled:opacity-60',
-            ad.condition ? 'top-11' : 'top-2',
-          )}
+          className="absolute top-2 end-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 shadow-sm backdrop-blur-sm transition-transform active:scale-90 disabled:opacity-60"
         >
-          <Heart className={cn('h-4 w-4', isFavorited ? 'fill-destructive text-destructive' : 'text-foreground')} />
+          <Heart key={popKey} className={cn('h-4 w-4', popKey > 0 && 'motion-safe:animate-heart-pop', isFavorited ? 'fill-destructive text-destructive' : 'text-foreground')} />
         </button>
       )}
     </div>

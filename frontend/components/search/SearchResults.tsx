@@ -79,7 +79,7 @@ export function SearchResults() {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
           {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       </div>
@@ -134,7 +134,7 @@ export function SearchResults() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
           {items.map((result) => (
             <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} />
           ))}
