@@ -7,6 +7,7 @@ import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
 import type { ProductSortField } from '@/types/product.types';
@@ -75,10 +76,18 @@ export function ProductsGrid() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
-        {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
-      </p>
+      {/* Toolbar — same "count on the left, save-search on the right"
+          pattern as ads/SearchResults.tsx. queryParamKey="search"
+          because this page's free-text param is `search`, not `q` (see
+          SaveSearchButton's own doc comment for why that differs by
+          page). */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
+          {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
+        </p>
+        <SaveSearchButton type="products" queryParamKey="search" />
+      </div>
 
       {items.length === 0 ? (
         <EmptyState

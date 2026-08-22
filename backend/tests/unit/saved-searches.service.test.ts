@@ -8,11 +8,16 @@ import { notificationEvents } from '../../src/modules/notifications';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import type { AdWithAuthor } from '../../src/modules/ads/ads.repository';
+import type { Product, ServiceListing } from '@prisma/client';
 
 jest.mock('../../src/modules/saved-searches/saved-searches.repository');
 jest.mock('../../src/modules/notifications');
 
-const { matchesFilters } = __testables__;
+const { matchesAdFilters, matchesProductFilters, matchesServiceFilters } = __testables__;
+// Back-compat alias so the existing ad-matching test block below (all
+// written against the old shared-name `matchesFilters`) didn't need
+// every call site individually renamed.
+const matchesFilters = matchesAdFilters;
 
 const baseAd = {
   id: 'ad-1',
@@ -202,8 +207,7 @@ describe('savedSearchesService', () => {
 
       expect(notificationEvents.onSavedSearchMatched).toHaveBeenCalledWith(
         [{ userId: 'buyer-1', savedSearchId: 'search-1', label: 'Cheap phones' }],
-        'ad-1',
-        'iPhone 13 for sale'
+        { type: 'ad', id: 'ad-1', title: 'iPhone 13 for sale' }
       );
       expect(savedSearchesRepository.markNotified).toHaveBeenCalledWith(['search-1']);
     });
@@ -224,6 +228,181 @@ describe('savedSearchesService', () => {
       await savedSearchEvents.onAdCreated(baseAd);
 
       expect(savedSearchesRepository.markNotified).not.toHaveBeenCalled();
+    });
+
+    // PLATFORM-WIDE-01: a saved search of type 'products'/'services'
+    // must never fire off an ad match, even if its stored filters
+    // (q/categoryId/etc.) would otherwise satisfy matchesAdFilters.
+    it('excludes saved searches of a different type (products/services)', async () => {
+      const productTypeSearch = { ...otherUserSearch, filters: { q: 'iPhone', type: 'products' } };
+      const serviceTypeSearch = {
+        ...otherUserSearch,
+        id: 'search-2',
+        filters: { q: 'iPhone', type: 'services' },
+      };
+      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([
+        productTypeSearch,
+        serviceTypeSearch,
+      ]);
+
+      await savedSearchEvents.onAdCreated(baseAd);
+
+      expect(notificationEvents.onSavedSearchMatched).not.toHaveBeenCalled();
+    });
+  });
+
+  // PLATFORM-WIDE-01
+  describe('matchesProductFilters (unit)', () => {
+    const baseProduct = {
+      id: 'product-1',
+      storeId: 'store-1',
+      name: 'iPhone 13 case',
+      description: 'Durable silicone case, barely used stock',
+      categoryId: 'pcat-1',
+      price: 25,
+    } as unknown as Product;
+
+    it('matches on q against name or description, case-insensitively', () => {
+      expect(matchesProductFilters(baseProduct, { q: 'iphone', type: 'products' })).toBe(true);
+      expect(matchesProductFilters(baseProduct, { q: 'BARELY USED', type: 'products' })).toBe(true);
+      expect(matchesProductFilters(baseProduct, { q: 'samsung', type: 'products' })).toBe(false);
+    });
+
+    it('matches on exact categoryId', () => {
+      expect(matchesProductFilters(baseProduct, { categoryId: 'pcat-1', type: 'products' })).toBe(true);
+      expect(matchesProductFilters(baseProduct, { categoryId: 'pcat-2', type: 'products' })).toBe(false);
+    });
+
+    it('matches when price is within minPrice/maxPrice range', () => {
+      expect(
+        matchesProductFilters(baseProduct, { minPrice: 10, maxPrice: 50, type: 'products' })
+      ).toBe(true);
+      expect(matchesProductFilters(baseProduct, { minPrice: 30, type: 'products' })).toBe(false);
+      expect(matchesProductFilters(baseProduct, { maxPrice: 10, type: 'products' })).toBe(false);
+    });
+  });
+
+  // PLATFORM-WIDE-01
+  describe('matchesServiceFilters (unit)', () => {
+    const baseListing = {
+      id: 'listing-1',
+      providerId: 'provider-1',
+      title: 'Home AC repair',
+      description: 'Same-day air conditioning repair and maintenance',
+      categoryId: 'scat-1',
+      price: 150,
+    } as unknown as ServiceListing;
+
+    it('matches on q against title or description, case-insensitively', () => {
+      expect(matchesServiceFilters(baseListing, { q: 'ac repair', type: 'services' })).toBe(true);
+      expect(matchesServiceFilters(baseListing, { q: 'plumbing', type: 'services' })).toBe(false);
+    });
+
+    it('matches on exact categoryId', () => {
+      expect(matchesServiceFilters(baseListing, { categoryId: 'scat-1', type: 'services' })).toBe(true);
+      expect(matchesServiceFilters(baseListing, { categoryId: 'scat-2', type: 'services' })).toBe(false);
+    });
+
+    it('does not match a priced filter when the listing has a null price (negotiable)', () => {
+      const noPriceListing = { ...baseListing, price: null } as unknown as ServiceListing;
+      expect(matchesServiceFilters(noPriceListing, { minPrice: 0, type: 'services' })).toBe(false);
+    });
+  });
+
+  // PLATFORM-WIDE-01
+  describe('savedSearchEvents.onProductCreated', () => {
+    const baseProduct = {
+      id: 'product-1',
+      storeId: 'store-1',
+      name: 'iPhone 13 case',
+      description: 'Durable silicone case',
+      categoryId: 'pcat-1',
+      price: 25,
+    } as unknown as Product;
+
+    const productTypeSearch = {
+      id: 'search-1',
+      userId: 'buyer-1',
+      label: 'Cheap phone cases',
+      filters: { q: 'iPhone', type: 'products' },
+    } as any;
+
+    it("excludes the store owner's own saved searches from matching", async () => {
+      const ownSearch = { ...productTypeSearch, userId: 'owner-1' };
+      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([ownSearch]);
+
+      await savedSearchEvents.onProductCreated(baseProduct, 'owner-1');
+
+      expect(notificationEvents.onSavedSearchMatched).not.toHaveBeenCalled();
+    });
+
+    it('excludes saved searches of a different type (ads/services)', async () => {
+      const adTypeSearch = { ...productTypeSearch, filters: { q: 'iPhone', type: 'ads' } };
+      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([adTypeSearch]);
+
+      await savedSearchEvents.onProductCreated(baseProduct, 'owner-1');
+
+      expect(notificationEvents.onSavedSearchMatched).not.toHaveBeenCalled();
+    });
+
+    it('notifies matched saved searches and marks them notified', async () => {
+      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([
+        productTypeSearch,
+      ]);
+      (notificationEvents.onSavedSearchMatched as jest.Mock).mockResolvedValue({ count: 1 });
+      (savedSearchesRepository.markNotified as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await savedSearchEvents.onProductCreated(baseProduct, 'owner-1');
+
+      expect(notificationEvents.onSavedSearchMatched).toHaveBeenCalledWith(
+        [{ userId: 'buyer-1', savedSearchId: 'search-1', label: 'Cheap phone cases' }],
+        { type: 'product', id: 'product-1', title: 'iPhone 13 case' }
+      );
+      expect(savedSearchesRepository.markNotified).toHaveBeenCalledWith(['search-1']);
+    });
+  });
+
+  // PLATFORM-WIDE-01
+  describe('savedSearchEvents.onServiceListingCreated', () => {
+    const baseListing = {
+      id: 'listing-1',
+      providerId: 'provider-1',
+      title: 'Home AC repair',
+      description: 'Same-day repair',
+      categoryId: 'scat-1',
+      price: 150,
+    } as unknown as ServiceListing;
+
+    const serviceTypeSearch = {
+      id: 'search-1',
+      userId: 'customer-1',
+      label: 'AC repair nearby',
+      filters: { q: 'ac repair', type: 'services' },
+    } as any;
+
+    it("excludes the provider's own saved searches from matching", async () => {
+      const ownSearch = { ...serviceTypeSearch, userId: 'owner-1' };
+      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([ownSearch]);
+
+      await savedSearchEvents.onServiceListingCreated(baseListing, 'owner-1');
+
+      expect(notificationEvents.onSavedSearchMatched).not.toHaveBeenCalled();
+    });
+
+    it('notifies matched saved searches and marks them notified', async () => {
+      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([
+        serviceTypeSearch,
+      ]);
+      (notificationEvents.onSavedSearchMatched as jest.Mock).mockResolvedValue({ count: 1 });
+      (savedSearchesRepository.markNotified as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await savedSearchEvents.onServiceListingCreated(baseListing, 'owner-1');
+
+      expect(notificationEvents.onSavedSearchMatched).toHaveBeenCalledWith(
+        [{ userId: 'customer-1', savedSearchId: 'search-1', label: 'AC repair nearby' }],
+        { type: 'service', id: 'listing-1', title: 'Home AC repair' }
+      );
+      expect(savedSearchesRepository.markNotified).toHaveBeenCalledWith(['search-1']);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { SavedSearch } from '@prisma/client';
+import { SavedSearch, Product, ServiceListing } from '@prisma/client';
 import { savedSearchesRepository } from './saved-searches.repository';
 import { notificationEvents } from '../notifications';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
@@ -31,7 +31,7 @@ const MAX_SAVED_SEARCHES_PER_USER = 20;
  * that matched a saved search's `q` only through its description (not
  * its title) previously never triggered the match notification at all.
  */
-function matchesFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolean {
+function matchesAdFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolean {
   if (filters.q) {
     const q = filters.q.toLowerCase();
     const titleMatches = ad.title.toLowerCase().includes(q);
@@ -43,6 +43,54 @@ function matchesFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolean 
   if (filters.condition && ad.condition !== filters.condition) return false;
 
   const price = ad.price !== null ? Number(ad.price) : null;
+  if (filters.minPrice !== undefined && (price === null || price < filters.minPrice)) return false;
+  if (filters.maxPrice !== undefined && (price === null || price > filters.maxPrice)) return false;
+
+  return true;
+}
+
+/**
+ * PLATFORM-WIDE-01: Product equivalent of matchesAdFilters. Product has
+ * no city or condition column (see saved-searches.validation.ts's own
+ * comment on why those stay ad-only), so a saved search of type
+ * 'products' that happens to carry city/condition (left over from a
+ * stale client, say) simply never checks them here — same "absent/
+ * inapplicable filter keys are unconstrained" semantics as the ad case.
+ * `q` matches against name + description, mirroring products.repository
+ * .ts's own ILIKE search branch.
+ */
+function matchesProductFilters(product: Product, filters: SavedSearchFilters): boolean {
+  if (filters.q) {
+    const q = filters.q.toLowerCase();
+    const nameMatches = product.name.toLowerCase().includes(q);
+    const descriptionMatches = product.description.toLowerCase().includes(q);
+    if (!nameMatches && !descriptionMatches) return false;
+  }
+  if (filters.categoryId && product.categoryId !== filters.categoryId) return false;
+
+  const price = Number(product.price);
+  if (filters.minPrice !== undefined && price < filters.minPrice) return false;
+  if (filters.maxPrice !== undefined && price > filters.maxPrice) return false;
+
+  return true;
+}
+
+/**
+ * PLATFORM-WIDE-01: ServiceListing equivalent. `price` is nullable
+ * (NEGOTIABLE pricing type has no fixed price) — a listing with no
+ * price never satisfies a minPrice/maxPrice filter, same null-handling
+ * as matchesAdFilters' own price check.
+ */
+function matchesServiceFilters(listing: ServiceListing, filters: SavedSearchFilters): boolean {
+  if (filters.q) {
+    const q = filters.q.toLowerCase();
+    const titleMatches = listing.title.toLowerCase().includes(q);
+    const descriptionMatches = listing.description.toLowerCase().includes(q);
+    if (!titleMatches && !descriptionMatches) return false;
+  }
+  if (filters.categoryId && listing.categoryId !== filters.categoryId) return false;
+
+  const price = listing.price !== null ? Number(listing.price) : null;
   if (filters.minPrice !== undefined && (price === null || price < filters.minPrice)) return false;
   if (filters.maxPrice !== undefined && (price === null || price > filters.maxPrice)) return false;
 
@@ -100,6 +148,17 @@ export const savedSearchesService = {
  * grows large enough for this to matter, the fix is a scheduled/batched
  * matcher (or a proper search index) — not a change to this function's
  * logic, just to when/how often it runs.
+ *
+ * PLATFORM-WIDE-01: onProductCreated/onServiceListingCreated below
+ * follow the exact same shape — load once, filter to this event's
+ * type (a saved search of type 'products' is structurally never a
+ * candidate for a new ad, and vice versa), exclude the actor's own
+ * listing, match, notify, mark notified. Kept as three near-identical
+ * functions rather than one generic entity-matcher: each already reads
+ * a differently-shaped row (AdWithAuthor / ProductWithStore /
+ * ServiceListingWithProvider) with its own matches*Filters function, so
+ * a shared abstraction would mostly be indirection without removing
+ * real duplication.
  */
 export const savedSearchEvents = {
   onAdCreated: async (ad: AdWithAuthor): Promise<void> => {
@@ -108,22 +167,83 @@ export const savedSearchEvents = {
     // confusing, useless notification ("your search matched the ad you
     // just posted") — exclude it the same way SellerCard/conversations
     // already treat "acting on your own ad" as a no-op case elsewhere.
-    const candidates = searches.filter((s) => s.userId !== ad.userId);
+    //
+    // PLATFORM-WIDE-01: also filters to type 'ads' (or no type at all —
+    // rows saved before this field existed) so a products/services
+    // saved search is never even passed to matchesAdFilters.
+    const candidates = searches.filter(
+      (s) => s.userId !== ad.userId && savedSearchType(s) === 'ads'
+    );
 
     const matched = candidates.filter((s) =>
-      matchesFilters(ad, s.filters as unknown as SavedSearchFilters)
+      matchesAdFilters(ad, s.filters as unknown as SavedSearchFilters)
     );
     if (matched.length === 0) return;
 
     await notificationEvents.onSavedSearchMatched(
       matched.map((s) => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
-      ad.id,
-      ad.title
+      { type: 'ad', id: ad.id, title: ad.title }
+    );
+    await savedSearchesRepository.markNotified(matched.map((s) => s.id));
+  },
+
+  /** PLATFORM-WIDE-01: products.service.ts's createProduct calls this
+   * after a new product is published. `ownerUserId` is passed in
+   * explicitly (the acting caller in createProduct, i.e. the store
+   * owner) rather than derived from a store/sellerProfile include on
+   * `product` — Product itself carries no userId (it's owned by a
+   * store, not directly by a user), and createProduct already has the
+   * owner's userId in scope, so no extra include/query is needed just
+   * to exclude their own saved searches. */
+  onProductCreated: async (product: Product, ownerUserId: string): Promise<void> => {
+    const searches = await savedSearchesRepository.findAllForMatching();
+    const candidates = searches.filter(
+      (s) => s.userId !== ownerUserId && savedSearchType(s) === 'products'
+    );
+
+    const matched = candidates.filter((s) =>
+      matchesProductFilters(product, s.filters as unknown as SavedSearchFilters)
+    );
+    if (matched.length === 0) return;
+
+    await notificationEvents.onSavedSearchMatched(
+      matched.map((s) => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
+      { type: 'product', id: product.id, title: product.name }
+    );
+    await savedSearchesRepository.markNotified(matched.map((s) => s.id));
+  },
+
+  /** PLATFORM-WIDE-01: service-listings.service.ts's createServiceListing
+   * calls this after a new listing is published. Same ownerUserId
+   * reasoning as onProductCreated above. */
+  onServiceListingCreated: async (listing: ServiceListing, ownerUserId: string): Promise<void> => {
+    const searches = await savedSearchesRepository.findAllForMatching();
+    const candidates = searches.filter(
+      (s) => s.userId !== ownerUserId && savedSearchType(s) === 'services'
+    );
+
+    const matched = candidates.filter((s) =>
+      matchesServiceFilters(listing, s.filters as unknown as SavedSearchFilters)
+    );
+    if (matched.length === 0) return;
+
+    await notificationEvents.onSavedSearchMatched(
+      matched.map((s) => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
+      { type: 'service', id: listing.id, title: listing.title }
     );
     await savedSearchesRepository.markNotified(matched.map((s) => s.id));
   },
 };
 
+/** Reads the `type` key back out of a SavedSearch row's filters JSON,
+ * defaulting to 'ads' for rows saved before this field existed — same
+ * default the validation schema applies on write, kept here too since
+ * pre-existing DB rows were never re-validated/migrated. */
+function savedSearchType(s: SavedSearch): 'ads' | 'products' | 'services' {
+  const filters = s.filters as unknown as SavedSearchFilters;
+  return filters.type ?? 'ads';
+}
+
 // Exported for unit tests only — not part of the module's public API
 // surface used by other modules.
-export const __testables__ = { matchesFilters };
+export const __testables__ = { matchesAdFilters, matchesProductFilters, matchesServiceFilters };

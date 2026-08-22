@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { AdCondition } from '@prisma/client';
 
+// PLATFORM-WIDE-01: which entity kind this saved search matches against.
+// Defaults to 'ads' so every saved search created before this field
+// existed (filters JSON with no `type` key at all) still deserializes
+// and matches exactly as before — see matchesFilters in
+// saved-searches.service.ts, which branches on this same default.
+export const savedSearchTypeSchema = z.enum(['ads', 'products', 'services']).default('ads');
+
 // Filters mirror ads.validation.ts's getAdsSchema query shape — kept as a
 // deliberately separate schema (not an import/reuse of getAdsSchema)
 // because this one is validating a *stored* filter payload, not live
@@ -8,8 +15,21 @@ import { AdCondition } from '@prisma/client';
 // search is a matching criteria set, not a paginated request), and
 // numeric fields arrive as real JSON numbers from the request body
 // rather than strings that need coercion from a query string.
+//
+// PLATFORM-WIDE-01: `city` and `condition` stay ad-only in practice —
+// neither Product nor ServiceListing carries a city or condition column
+// directly (city would need a join through StoreDetails/
+// ServiceProviderDetails, out of scope for the same reason
+// findAllForMatching's own doc comment gives for staying in-Node rather
+// than pushing matching into SQL), so matchesFilters below only reads
+// them when type === 'ads'. Left un-rejected here (rather than a
+// refine() forbidding them for other types) so the schema doesn't need
+// to change again if city/condition matching for products/services is
+// ever added later — an extra key present but unused by matchesFilters
+// is harmless.
 export const savedSearchFiltersSchema = z
   .object({
+    type: savedSearchTypeSchema,
     q: z.string().min(1).max(200).optional(),
     city: z.string().max(100).optional(),
     categoryId: z.string().optional(),
@@ -22,9 +42,11 @@ export const savedSearchFiltersSchema = z
     { message: 'minPrice must not exceed maxPrice', path: ['minPrice'] }
   )
   // At least one real criterion — an empty filter set would match every
-  // future ad and turn into a de facto "notify me about everything".
+  // future ad/product/service and turn into a de facto "notify me about
+  // everything". `type` itself doesn't count (it's metadata, not a
+  // criterion), so it's excluded from this check.
   .refine(
-    (f) => Object.values(f).some((v) => v !== undefined),
+    (f) => Object.entries(f).some(([k, v]) => k !== 'type' && v !== undefined),
     { message: 'At least one filter is required' }
   );
 

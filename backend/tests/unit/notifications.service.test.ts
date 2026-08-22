@@ -251,7 +251,11 @@ describe('notificationEvents', () => {
 
   describe('onSavedSearchMatched', () => {
     it('returns { count: 0 } without calling the repository or push when there are no matches', async () => {
-      const result = await notificationEvents.onSavedSearchMatched([], 'ad-1', 'Ad Title');
+      const result = await notificationEvents.onSavedSearchMatched([], {
+        type: 'ad',
+        id: 'ad-1',
+        title: 'Ad Title',
+      });
 
       expect(result).toEqual({ count: 0 });
       expect(notificationsRepository.createMany).not.toHaveBeenCalled();
@@ -266,8 +270,7 @@ describe('notificationEvents', () => {
           { userId: 'u1', savedSearchId: 'search-1', label: 'iPhone في دير البلح' },
           { userId: 'u2', savedSearchId: 'search-2', label: 'لابتوبات مستعملة' },
         ],
-        'ad-1',
-        'Ad Title'
+        { type: 'ad', id: 'ad-1', title: 'Ad Title' }
       );
 
       expect(pushService.notifyUser).toHaveBeenCalledWith('u1', {
@@ -282,6 +285,46 @@ describe('notificationEvents', () => {
         url: '/ads/ad-1',
         tag: 'saved-search-search-2',
       });
+    });
+
+    // PLATFORM-WIDE-01
+    it('builds the product link/wording for a matched product', async () => {
+      (notificationsRepository.createMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await notificationEvents.onSavedSearchMatched(
+        [{ userId: 'u1', savedSearchId: 'search-1', label: 'Phone cases' }],
+        { type: 'product', id: 'product-1', title: 'iPhone case' }
+      );
+
+      expect(pushService.notifyUser).toHaveBeenCalledWith('u1', {
+        title: 'منتج جديد يطابق بحثك المحفوظ',
+        body: '"iPhone case" يطابق بحثك المحفوظ "Phone cases"',
+        url: '/products/product-1',
+        tag: 'saved-search-search-1',
+      });
+      expect(notificationsRepository.createMany).toHaveBeenCalledWith([
+        expect.objectContaining({ data: { productId: 'product-1', savedSearchId: 'search-1' } }),
+      ]);
+    });
+
+    // PLATFORM-WIDE-01
+    it('builds the service link/wording for a matched service listing', async () => {
+      (notificationsRepository.createMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await notificationEvents.onSavedSearchMatched(
+        [{ userId: 'u1', savedSearchId: 'search-1', label: 'AC repair' }],
+        { type: 'service', id: 'listing-1', title: 'Home AC repair' }
+      );
+
+      expect(pushService.notifyUser).toHaveBeenCalledWith('u1', {
+        title: 'خدمة جديدة تطابق بحثك المحفوظ',
+        body: '"Home AC repair" يطابق بحثك المحفوظ "AC repair"',
+        url: '/service-listings/listing-1',
+        tag: 'saved-search-search-1',
+      });
+      expect(notificationsRepository.createMany).toHaveBeenCalledWith([
+        expect.objectContaining({ data: { listingId: 'listing-1', savedSearchId: 'search-1' } }),
+      ]);
     });
   });
 

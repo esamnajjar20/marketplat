@@ -173,10 +173,11 @@ export const notificationEvents = {
       `ad-${adId}`
     ),
 
-  /** saved-searches.service.ts's onAdCreated calls this after finding
-   * every SavedSearch a newly created ad matches — one notification per
-   * (user, savedSearch) match, fanned out via createMany. A user with
-   * two saved searches that both match the same ad gets two
+  /** saved-searches.service.ts's onAdCreated/onProductCreated/
+   * onServiceListingCreated call this after finding every SavedSearch a
+   * newly created ad/product/service listing matches — one notification
+   * per (user, savedSearch) match, fanned out via createMany. A user
+   * with two saved searches that both match the same entity gets two
    * notifications, one per search, since each carries a different
    * savedSearchId/label context ("your search 'iPhone in Deir al-Balah'
    * matched a new ad" reads differently from "your search 'used
@@ -186,13 +187,52 @@ export const notificationEvents = {
    * favorite, and NOT folded into fanOutSameContentNotification because
    * the push/notification content genuinely differs per recipient here
    * (each needs its own savedSearchId/label), unlike that helper's
-   * single-shared-content assumption. */
+   * single-shared-content assumption.
+   *
+   * PLATFORM-WIDE-01: `entity` replaces the old (adId, adTitle) pair so
+   * this one function serves all three saved-search types — the
+   * link/wording only depends on entity.type, everything else about the
+   * fan-out is identical regardless of what kind of listing matched.
+   * `data` keeps the old `adId` key for type 'ad' (existing clients/
+   * notification-history UI already read that key) and adds
+   * productId/listingId for the other two types rather than a generic
+   * `entityId`, so a notification's `data` shape stays self-describing
+   * without needing `type` cross-referenced to know which key to
+   * read. */
   onSavedSearchMatched: (
     matches: { userId: string; savedSearchId: string; label: string }[],
-    adId: string,
-    adTitle: string
+    entity: { type: 'ad' | 'product' | 'service'; id: string; title: string }
   ): Promise<{ count: number }> => {
     if (matches.length === 0) return Promise.resolve({ count: 0 });
+
+    const { url, entityData, title } = ((): {
+      url: string;
+      entityData: Record<string, string>;
+      title: string;
+    } => {
+      switch (entity.type) {
+        case 'product':
+          return {
+            url: `/products/${entity.id}`,
+            entityData: { productId: entity.id },
+            title: 'منتج جديد يطابق بحثك المحفوظ',
+          };
+        case 'service':
+          return {
+            url: `/service-listings/${entity.id}`,
+            entityData: { listingId: entity.id },
+            title: 'خدمة جديدة تطابق بحثك المحفوظ',
+          };
+        case 'ad':
+        default:
+          return {
+            url: `/ads/${entity.id}`,
+            entityData: { adId: entity.id },
+            title: 'إعلان جديد يطابق بحثك المحفوظ',
+          };
+      }
+    })();
+
     // FIX PWA-PUSH-01: one push per match, same one-row-per-recipient
     // reasoning as the in-app notification below — a user with two
     // matching saved searches gets two pushes, each naming its own
@@ -201,9 +241,9 @@ export const notificationEvents = {
     void Promise.all(
       matches.map(({ userId, savedSearchId, label }) =>
         pushService.notifyUser(userId, {
-          title: 'إعلان جديد يطابق بحثك المحفوظ',
-          body: `"${adTitle}" يطابق بحثك المحفوظ "${label}"`,
-          url: `/ads/${adId}`,
+          title,
+          body: `"${entity.title}" يطابق بحثك المحفوظ "${label}"`,
+          url,
           tag: `saved-search-${savedSearchId}`,
         })
       )
@@ -212,9 +252,9 @@ export const notificationEvents = {
       matches.map(({ userId, savedSearchId, label }) => ({
         userId,
         type: 'SAVED_SEARCH_MATCH' as const,
-        title: 'إعلان جديد يطابق بحثك المحفوظ',
-        body: `"${adTitle}" يطابق بحثك المحفوظ "${label}"`,
-        data: { adId, savedSearchId },
+        title,
+        body: `"${entity.title}" يطابق بحثك المحفوظ "${label}"`,
+        data: { ...entityData, savedSearchId },
       }))
     );
   },

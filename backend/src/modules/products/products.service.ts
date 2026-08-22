@@ -14,7 +14,9 @@ import { requireOwnStoreForProducts } from '../stores/stores.service';
 import { productCategoriesRepository } from '../product-categories/product-categories.repository';
 import { storeFollowersRepository } from '../stores/store-followers.repository';
 import { notificationEvents } from '../notifications/notifications.service';
+import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
+import { logger } from '../../shared/utils/logger';
 import { withProductImagesLock, withStoreProductCreationLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { promotionsService, EffectivePrice } from '../promotions/promotions.service';
@@ -136,6 +138,15 @@ export const productsService = {
       .findUserIdsByStoreId(store.id)
       .then(followerIds => notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name))
       .catch(() => undefined);
+
+    // PLATFORM-WIDE-01: notify saved-search owners (type 'products')
+    // whose criteria match this new product — same fire-and-forget
+    // contract as ads.service.ts's createAd -> savedSearchEvents
+    // .onAdCreated call, for the same reason: a matching failure must
+    // never fail product creation itself.
+    savedSearchEvents.onProductCreated(product, userId).catch((err) =>
+      logger.error('Failed to process saved-search matches for new product', { err, productId: product.id })
+    );
 
     // Gap #10: fire-and-forget, same contract as activityService
     // .record()'s own doc comment — never awaited, never fails product

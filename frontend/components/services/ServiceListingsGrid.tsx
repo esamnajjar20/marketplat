@@ -6,6 +6,7 @@ import { ServiceListingCard } from './ServiceListingCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { ROUTES } from '@/lib/constants';
 import type { ServiceListingSortField } from '@/types/service.types';
@@ -65,10 +66,15 @@ export function ServiceListingsGrid() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        {total > 0 ? `${total} خدمة` : 'لا توجد نتائج'}
-        {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
-      </p>
+      {/* Toolbar — queryParamKey="search" for the same reason as
+          ProductsGrid.tsx (see SaveSearchButton's own doc comment). */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {total > 0 ? `${total} خدمة` : 'لا توجد نتائج'}
+          {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
+        </p>
+        <SaveSearchButton type="services" queryParamKey="search" />
+      </div>
 
       {items.length === 0 ? (
         <EmptyState

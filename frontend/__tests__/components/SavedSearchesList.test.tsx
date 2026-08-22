@@ -38,6 +38,21 @@ const search2 = {
   createdAt: '2026-07-10T00:00:00.000Z',
   lastNotifiedAt: null,
 };
+// PLATFORM-WIDE-01
+const search3 = {
+  id: 'search-3',
+  label: 'أغطية آيفون',
+  filters: { type: 'products', q: 'case', categoryId: 'pcat-1' },
+  createdAt: '2026-07-15T00:00:00.000Z',
+  lastNotifiedAt: null,
+};
+const search4 = {
+  id: 'search-4',
+  label: 'صيانة تكييف',
+  filters: { type: 'services', q: 'تكييف' },
+  createdAt: '2026-07-20T00:00:00.000Z',
+  lastNotifiedAt: null,
+};
 
 function mockSearches(overrides: Record<string, unknown> = {}) {
   (useSavedSearches as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -132,5 +147,34 @@ describe('SavedSearchesList', () => {
     render(<SavedSearchesList />);
 
     expect(screen.getByRole('button', { name: 'حذف البحث المحفوظ شقق في غزة' })).toBeDisabled();
+  });
+
+  // PLATFORM-WIDE-01
+  it('shows an "إعلانات" type chip and defaults to it when filters.type is absent (pre-existing rows)', () => {
+    render(<SavedSearchesList />);
+
+    expect(screen.getByText('إعلانات')).toBeInTheDocument();
+  });
+
+  it('shows a "منتجات" type chip and builds a /products URL for a products-type saved search', () => {
+    mockSearches({ data: [search3] });
+    render(<SavedSearchesList />);
+
+    expect(screen.getByText('منتجات')).toBeInTheDocument();
+    const link = screen.getByText('عرض النتائج المطابقة').closest('a');
+    const href = link?.getAttribute('href') ?? '';
+    expect(href).toContain('/products?');
+    expect(href).toContain('search=case');
+    expect(href).toContain('categoryId=pcat-1');
+  });
+
+  it('shows a "خدمات" type chip and builds a /services URL for a services-type saved search', () => {
+    mockSearches({ data: [search4] });
+    render(<SavedSearchesList />);
+
+    expect(screen.getByText('خدمات')).toBeInTheDocument();
+    const link = screen.getByText('عرض النتائج المطابقة').closest('a');
+    const href = link?.getAttribute('href') ?? '';
+    expect(href).toContain('/services?');
   });
 });

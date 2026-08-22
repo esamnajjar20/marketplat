@@ -67,7 +67,7 @@ describe('useCreateSavedSearch', () => {
     expect(savedSearchesApi.create).toHaveBeenCalledWith(input);
   });
 
-  it('invalidates savedSearches.all() and shows a success toast on success', async () => {
+  it('invalidates savedSearches.all() and shows a success toast on success (defaults to ads wording when filters.type is absent)', async () => {
     (savedSearchesApi.create as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { id: 'ss-1' } },
     });
@@ -84,6 +84,44 @@ describe('useCreateSavedSearch', () => {
     );
     expect(invalidatedKeys.some((k) => k === JSON.stringify(['savedSearches', 'list']))).toBe(true);
     expect(toast.success).toHaveBeenCalledWith('تم حفظ البحث — سنُعلمك عند وجود إعلان مطابق');
+  });
+
+  // PLATFORM-WIDE-01
+  it('shows product-specific success wording when filters.type is products', async () => {
+    (savedSearchesApi.create as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'ss-1' } },
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useCreateSavedSearch(), { wrapper });
+    act(() => {
+      result.current.mutate({
+        label: 'Cases',
+        filters: { type: 'products', q: 'case' },
+      } as Parameters<typeof savedSearchesApi.create>[0]);
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(toast.success).toHaveBeenCalledWith('تم حفظ البحث — سنُعلمك عند وجود منتج مطابق');
+  });
+
+  // PLATFORM-WIDE-01
+  it('shows service-specific success wording when filters.type is services', async () => {
+    (savedSearchesApi.create as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'ss-1' } },
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useCreateSavedSearch(), { wrapper });
+    act(() => {
+      result.current.mutate({
+        label: 'AC repair',
+        filters: { type: 'services', q: 'ac' },
+      } as Parameters<typeof savedSearchesApi.create>[0]);
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(toast.success).toHaveBeenCalledWith('تم حفظ البحث — سنُعلمك عند وجود خدمة مطابقة');
   });
 
   it('shows an error toast on failure', async () => {

@@ -8,6 +8,7 @@ import { Pagination } from '@/components/shared/ui/Pagination';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
+import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useSearch } from '@/hooks/queries/useSearch';
 import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
@@ -107,15 +108,35 @@ export function SearchResults() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        {total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}
-        {q && (
-          <>
-            {' '}
-            بحثاً عن «<span className="font-medium text-foreground">{q}</span>»
-          </>
+      {/* Toolbar — same "count on the left, save-search on the right"
+          pattern as ads/SearchResults.tsx (categories/[slug] page), so
+          the action is available on the main /search page too and not
+          just when arriving via a category. SaveSearchButton reads the
+          URL's own filter params independently, so it doesn't need any
+          props threaded through from here. */}
+      {/* Toolbar — save-search only makes sense once the visitor has
+          narrowed to one matchable entity kind. type='all' mixes
+          ads/products/stores/services in one grid with no single
+          filter shape to store (and 'stores' has no saved-search
+          matcher at all — stores.service.ts's createStore doesn't
+          call savedSearchEvents, unlike ads/products/services — a
+          store doesn't newly "appear" the way a listing does, it's a
+          seller's whole profile), so the button only renders for the
+          three types that do. */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}
+          {q && (
+            <>
+              {' '}
+              بحثاً عن «<span className="font-medium text-foreground">{q}</span>»
+            </>
+          )}
+        </p>
+        {(type === 'ads' || type === 'products' || type === 'services') && (
+          <SaveSearchButton type={type} queryParamKey="q" />
         )}
-      </p>
+      </div>
 
       {items.length === 0 ? (
         // UX-FIX (audit P2-02): SearchFilters.tsx already has a working

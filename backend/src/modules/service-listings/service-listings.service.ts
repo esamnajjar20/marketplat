@@ -20,6 +20,7 @@ import { serviceProvidersRepository } from '../service-providers/service-provide
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
+import { savedSearchEvents } from '../saved-searches';
 import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { logger } from '../../shared/utils/logger';
@@ -124,6 +125,18 @@ export const serviceListingsService = {
     // comment. Logged for `userId` (the acting caller), not
     // provider.id — activity rows are always keyed by the real user.
     activityService.record({ userId, ...activityTemplates.serviceCreated(listing.id, listing.title) });
+
+    // PLATFORM-WIDE-01: notify saved-search owners (type 'services')
+    // whose criteria match this new listing — same fire-and-forget
+    // contract as ads.service.ts's createAd -> savedSearchEvents
+    // .onAdCreated / products.service.ts's createProduct ->
+    // .onProductCreated.
+    savedSearchEvents.onServiceListingCreated(listing, userId).catch((err) =>
+      logger.error('Failed to process saved-search matches for new service listing', {
+        err,
+        listingId: listing.id,
+      })
+    );
 
     return listing;
   },

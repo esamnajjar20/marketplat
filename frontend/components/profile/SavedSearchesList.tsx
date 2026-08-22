@@ -12,10 +12,38 @@ import { CONDITION_LABELS, ROUTES } from '@/lib/constants';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import type { SavedSearch, SavedSearchFilters } from '@/types/savedSearch.types';
 
-/** Builds the /search URL that reproduces this saved search's filters,
- * so "عرض النتائج" shows exactly what the saved search would match —
- * same param names SearchResults.tsx/SearchFilters.tsx already read. */
+/** Builds the URL that reproduces this saved search's filters on the
+ * right page, so "عرض النتائج" shows exactly what the saved search
+ * would match. PLATFORM-WIDE-01: branches on filters.type (defaulting
+ * to 'ads' for rows saved before that field existed, same default the
+ * backend applies) since each type's results live on a different page
+ * with a different free-text param name — /search + `q` for ads
+ * (SearchResults.tsx/SearchFilters.tsx), /products + `search` for
+ * products (ProductsGrid.tsx), /services + `search` for services
+ * (ServiceListingsGrid.tsx). city/condition are only ever meaningful
+ * for ads (see SaveSearchButton's own doc comment), so they're only
+ * appended in that branch. */
 function searchUrlFor(filters: SavedSearchFilters): string {
+  const type = filters.type ?? 'ads';
+
+  if (type === 'products') {
+    const params = new URLSearchParams();
+    if (filters.q) params.set('search', filters.q);
+    if (filters.categoryId) params.set('categoryId', filters.categoryId);
+    if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
+    if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
+    return `${ROUTES.products}?${params.toString()}`;
+  }
+
+  if (type === 'services') {
+    const params = new URLSearchParams();
+    if (filters.q) params.set('search', filters.q);
+    if (filters.categoryId) params.set('categoryId', filters.categoryId);
+    if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
+    if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
+    return `${ROUTES.services}?${params.toString()}`;
+  }
+
   const params = new URLSearchParams();
   if (filters.q) params.set('q', filters.q);
   if (filters.city) params.set('city', filters.city);
@@ -25,6 +53,12 @@ function searchUrlFor(filters: SavedSearchFilters): string {
   if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
   return `${ROUTES.search}?${params.toString()}`;
 }
+
+const TYPE_LABELS: Record<'ads' | 'products' | 'services', string> = {
+  ads: 'إعلانات',
+  products: 'منتجات',
+  services: 'خدمات',
+};
 
 function FilterChips({ filters }: { filters: SavedSearchFilters }) {
   const chips: string[] = [];
@@ -39,6 +73,12 @@ function FilterChips({ filters }: { filters: SavedSearchFilters }) {
 
   return (
     <div className="flex flex-wrap gap-1.5">
+      {/* PLATFORM-WIDE-01: type chip first so a mixed list (ads +
+          products + services saved searches, all sharing this same
+          row layout) reads unambiguously at a glance — defaults to
+          'ads' for rows saved before this field existed, same default
+          the backend/searchUrlFor apply. */}
+      <Badge variant="outline" className="font-normal">{TYPE_LABELS[filters.type ?? 'ads']}</Badge>
       {chips.map((chip, i) => (
         <Badge key={i} variant="secondary" className="font-normal">{chip}</Badge>
       ))}
