@@ -44,6 +44,24 @@ export const storesApi = {
   updateMyStore: (payload: UpdateStorePayload) =>
     apiClient.patch<ApiResponse<StoreDetails>>('/stores/me', payload),
 
+  /** POST /stores/me/logo — multipart upload, same shape as usersApi.uploadAvatar. */
+  uploadLogo: (file: File) => {
+    const form = new FormData();
+    form.append('image', file);
+    return apiClient.post<ApiResponse<StoreDetails>>('/stores/me/logo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  /** POST /stores/me/cover — multipart upload, same shape as usersApi.uploadAvatar. */
+  uploadCover: (file: File) => {
+    const form = new FormData();
+    form.append('image', file);
+    return apiClient.post<ApiResponse<StoreDetails>>('/stores/me/cover', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
   /** GET /stores/me/followed — the caller's followed stores, paginated. */
   getMyFollowedStores: (params?: { page?: number; limit?: number }) =>
     apiClient

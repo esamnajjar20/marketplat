@@ -46,6 +46,50 @@ export function useUpdateStore() {
 }
 
 /**
+ * POST /stores/me/logo — uploads a new logo. Mirrors useUploadAvatar's
+ * toast.promise shape (a single small file, not worth a dedicated
+ * progress bar).
+ */
+export function useUploadStoreLogo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => {
+      const promise = storesApi.uploadLogo(file).then((r) => r.data.data);
+      toast.promise(promise, {
+        loading: 'جارٍ رفع الشعار…',
+        success: 'تم تحديث شعار المتجر',
+        error: (err) => parseApiError(err).message,
+      });
+      return promise;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+    },
+  });
+}
+
+/** POST /stores/me/cover — uploads a new cover photo. Same shape as useUploadStoreLogo. */
+export function useUploadStoreCover() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => {
+      const promise = storesApi.uploadCover(file).then((r) => r.data.data);
+      toast.promise(promise, {
+        loading: 'جارٍ رفع صورة الغلاف…',
+        success: 'تم تحديث صورة الغلاف',
+        error: (err) => parseApiError(err).message,
+      });
+      return promise;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+    },
+  });
+}
+
+/**
  * POST /stores/:id/follow — toggles follow/unfollow. Optimistic update
  * on the store detail query's follower count would require guessing
  * the shape of `_count`, so this simply invalidates on settle — the

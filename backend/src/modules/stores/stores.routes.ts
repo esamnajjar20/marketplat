@@ -3,10 +3,12 @@ import { storesController } from './stores.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireAdmin } from '../../middlewares/admin.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
+import { uploadMiddleware } from '../../middlewares/upload.middleware';
 import {
   createStoreRateLimit,
   storeFollowRateLimit,
   storeReviewRateLimit,
+  storeImagesRateLimit,
 } from '../../middlewares/rateLimit.middleware';
 
 export const storesRouter = Router();
@@ -19,6 +21,24 @@ storesRouter.get('/', CACHE.SHORT, storesController.getStores);
 storesRouter.get('/me', authenticate, CACHE.NONE, storesController.getMyStore);
 storesRouter.patch('/me', authenticate, storesController.updateMyStore);
 storesRouter.get('/me/followed', authenticate, CACHE.NONE, storesController.getMyFollowedStores);
+
+// Logo/cover upload — same single-image pattern as POST /users/me/avatar.
+// Registered alongside the other /me routes for the same "never
+// swallowed as :id" reason.
+storesRouter.post(
+  '/me/logo',
+  authenticate,
+  storeImagesRateLimit,
+  uploadMiddleware,
+  storesController.uploadLogo
+);
+storesRouter.post(
+  '/me/cover',
+  authenticate,
+  storeImagesRateLimit,
+  uploadMiddleware,
+  storesController.uploadCover
+);
 
 storesRouter.post('/', authenticate, createStoreRateLimit, storesController.createStore);
 

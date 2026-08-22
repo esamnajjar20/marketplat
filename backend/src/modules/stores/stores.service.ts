@@ -1,5 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { StoreDetails, Prisma } from '@prisma/client';
+import { uploadStoreLogo, uploadStoreCover, deleteImage } from '../../config/cloudinary';
+import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
 import { storeReviewsRepository, StoreReviewWithRater } from './store-reviews.repository';
@@ -119,9 +121,61 @@ export const storesService = {
     return updated;
   },
 
+  // Feature-completeness fix: logoUrl/coverImageUrl were fully
+  // supported end-to-end by createStore/updateStore (validated, stored,
+  // rendered in StoreHeader/StoreCard/MyStoreCard) but had no upload
+  // path anywhere — the only way to set either was a hand-crafted PATCH
+  // with an already-hosted URL. Follows usersService.uploadAvatar's
+  // exact pattern: upload first, persist the URL, clean up whichever
+  // side fails.
+  uploadLogo: async (userId: string, file: Express.Multer.File): Promise<StoreDetails> => {
+    const store = await requireOwnStore(userId);
+    const { url, publicId } = await uploadStoreLogo(file.buffer);
+
+    try {
+      const updated = await storesRepository.update(store.id, { logoUrl: url });
+      if (store.logoUrl) {
+        const oldPublicId = extractCloudinaryPublicId(store.logoUrl);
+        if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
+      }
+      return updated;
+    } catch (error) {
+      await cleanupUploadedImages([publicId]);
+      throw error;
+    }
+  },
+
+  uploadCover: async (userId: string, file: Express.Multer.File): Promise<StoreDetails> => {
+    const store = await requireOwnStore(userId);
+    const { url, publicId } = await uploadStoreCover(file.buffer);
+
+    try {
+      const updated = await storesRepository.update(store.id, { coverImageUrl: url });
+      if (store.coverImageUrl) {
+        const oldPublicId = extractCloudinaryPublicId(store.coverImageUrl);
+        if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
+      }
+      return updated;
+    } catch (error) {
+      await cleanupUploadedImages([publicId]);
+      throw error;
+    }
+  },
+
   getPublicStore: async (id: string): Promise<StoreWithSellerAndCounts> => {
     const store = await storesRepository.findPublicById(id);
     if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    // SEC-FIX: same gap products.service.ts's getProductById already
+    // closed for suspended-seller/blocked-store products — findMany's
+    // directory query already hardcodes `status: 'ACTIVE'`, but this
+    // direct-by-id lookup ignored status entirely, so a PENDING store
+    // (not yet approved) or a BLOCKED one stayed fully viewable via its
+    // direct URL. Treated as 404, not a partial "hidden from the
+    // directory but still live" state — matches toggleFollow/createReview,
+    // which already gate on status === 'ACTIVE' for the same store.
+    if (store.status !== 'ACTIVE') {
+      throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    }
     return store;
   },
 

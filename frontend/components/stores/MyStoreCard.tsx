@@ -1,17 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { Store, ExternalLink, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { FormField } from '@/components/shared/forms/FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
-import { useUpdateStore } from '@/hooks/mutations/useStoreMutations';
+import {
+  useUpdateStore,
+  useUploadStoreLogo,
+  useUploadStoreCover,
+} from '@/hooks/mutations/useStoreMutations';
 import { parseApiError } from '@/lib/errorParser';
-import { ROUTES, CITIES } from '@/lib/constants';
+import { ROUTES, CITIES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
 import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
+import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
+import { toast } from 'sonner';
 import type { StoreDetails } from '@/types/store.types';
 
 interface Props {
@@ -27,6 +34,10 @@ interface Errors {
 
 export function MyStoreCard({ store }: Props) {
   const updateStore = useUpdateStore();
+  const uploadLogo = useUploadStoreLogo();
+  const uploadCover = useUploadStoreCover();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(store.name);
   const [description, setDescription] = useState(store.description);
@@ -59,6 +70,23 @@ export function MyStoreCard({ store }: Props) {
     !city ||
     phone.trim().length < 7;
 
+  // Mirrors ProfileSettingsForm's handleAvatarChange: same client-side
+  // type/size check before the mutation fires, same "clear the input
+  // so re-selecting the same file works" reset.
+  function validateAndUpload(file: File | undefined, upload: (file: File) => void, inputEl: HTMLInputElement | null) {
+    if (inputEl) inputEl.value = '';
+    if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type as typeof ALLOWED_IMAGE_TYPES[number])) {
+      toast.error('نوع الصورة غير مدعوم (JPG، PNG، أو WEBP فقط)');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`حجم الصورة يجب ألا يتجاوز ${MAX_FILE_SIZE_MB} ميجابايت`);
+      return;
+    }
+    upload(file);
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -88,6 +116,81 @@ export function MyStoreCard({ store }: Props) {
             <Sparkles className="h-3.5 w-3.5" /> مميز
           </Badge>
         )}
+      </div>
+
+      {/* FIX: logoUrl/coverImageUrl were fully supported end-to-end
+          (validated, stored, rendered on StoreHeader/StoreCard) but had
+          no upload UI anywhere — the only way to set either was a
+          hand-crafted API call. Mirrors ProfileSettingsForm's avatar
+          upload block one-for-one. */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-4">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
+            <SafeImage
+              variant="avatar"
+              src={getAvatarUrl(store.logoUrl ?? '', 64)}
+              alt={store.name}
+              fill
+              className="object-cover"
+              sizes="64px"
+            />
+          </div>
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploadLogo.isPending}
+              onClick={() => logoInputRef.current?.click()}
+            >
+              {uploadLogo.isPending ? 'جارٍ الرفع…' : 'تغيير الشعار'}
+            </Button>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept={ALLOWED_IMAGE_TYPES.join(',')}
+              className="hidden"
+              onChange={(e) => validateAndUpload(e.target.files?.[0], (f) => uploadLogo.mutate(f), logoInputRef.current)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              JPG، PNG، أو WEBP — بحد أقصى {MAX_FILE_SIZE_MB} MB
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="relative h-24 w-full overflow-hidden rounded-md bg-muted">
+            {store.coverImageUrl ? (
+              <SafeImage
+                src={getDetailImageUrl(store.coverImageUrl, 600)}
+                alt={`غلاف ${store.name}`}
+                fill
+                className="object-cover"
+                sizes="100vw"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                لا توجد صورة غلاف
+              </div>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={uploadCover.isPending}
+            onClick={() => coverInputRef.current?.click()}
+          >
+            {uploadCover.isPending ? 'جارٍ الرفع…' : 'تغيير صورة الغلاف'}
+          </Button>
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept={ALLOWED_IMAGE_TYPES.join(',')}
+            className="hidden"
+            onChange={(e) => validateAndUpload(e.target.files?.[0], (f) => uploadCover.mutate(f), coverInputRef.current)}
+          />
+        </div>
       </div>
 
       {store.status === 'PENDING' && (

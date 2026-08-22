@@ -230,6 +230,122 @@ export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
     });
 };
 
+/**
+ * uploadStoreLogo — same upload mechanism as uploadAvatar, square
+ * crop for consistent display in circular/square thumbnails
+ * (StoreHeader/StoreCard/MyStoreCard). Unlike uploadAvatar, no
+ * gravity: "face" — a store logo is a brand mark, not a person's
+ * photo, so a face-aware crop would misbehave on the common case of
+ * a logo with no face in it at all.
+ */
+export const uploadStoreLogo = async (buffer: Buffer): Promise<UploadResult> => {
+  return uploadBreaker
+    .execute(async () => {
+      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: "classifieds/store-logos",
+              timeout: UPLOAD_TIMEOUT_MS,
+              transformation: [
+                { width: 400, height: 400, crop: "fill" },
+                { quality: "auto:good" },
+                { format: "webp" },
+              ],
+            },
+            (error, result) => {
+              if (error || !result)
+                return reject(new Error("Store logo upload failed"));
+              resolve({ url: result.secure_url, publicId: result.public_id });
+            },
+          )
+          .end(buffer);
+      });
+
+      try {
+        return await withTimeout(
+          uploadPromise,
+          UPLOAD_TIMEOUT_MS,
+          "store logo upload",
+        );
+      } catch (err) {
+        if (err instanceof CloudinaryTimeoutError) {
+          logger.error("Cloudinary store logo upload timed out", {
+            timeoutMs: UPLOAD_TIMEOUT_MS,
+          });
+        }
+        throw err;
+      }
+    })
+    .catch((err) => {
+      if (err instanceof CircuitBreakerOpenError) {
+        logger.error(
+          "Cloudinary store logo upload rejected — circuit breaker is open",
+        );
+        throw new ServiceUnavailableError(
+          "Image upload is temporarily unavailable, please try again shortly",
+        );
+      }
+      throw err;
+    });
+};
+
+/**
+ * uploadStoreCover — wide banner crop for StoreHeader's cover photo,
+ * same mechanism as uploadStoreLogo/uploadAvatar otherwise.
+ */
+export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> => {
+  return uploadBreaker
+    .execute(async () => {
+      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: "classifieds/store-covers",
+              timeout: UPLOAD_TIMEOUT_MS,
+              transformation: [
+                { width: 1200, height: 400, crop: "fill" },
+                { quality: "auto:good" },
+                { format: "webp" },
+              ],
+            },
+            (error, result) => {
+              if (error || !result)
+                return reject(new Error("Store cover upload failed"));
+              resolve({ url: result.secure_url, publicId: result.public_id });
+            },
+          )
+          .end(buffer);
+      });
+
+      try {
+        return await withTimeout(
+          uploadPromise,
+          UPLOAD_TIMEOUT_MS,
+          "store cover upload",
+        );
+      } catch (err) {
+        if (err instanceof CloudinaryTimeoutError) {
+          logger.error("Cloudinary store cover upload timed out", {
+            timeoutMs: UPLOAD_TIMEOUT_MS,
+          });
+        }
+        throw err;
+      }
+    })
+    .catch((err) => {
+      if (err instanceof CircuitBreakerOpenError) {
+        logger.error(
+          "Cloudinary store cover upload rejected — circuit breaker is open",
+        );
+        throw new ServiceUnavailableError(
+          "Image upload is temporarily unavailable, please try again shortly",
+        );
+      }
+      throw err;
+    });
+};
+
 export const deleteImage = async (publicId: string): Promise<void> => {
   await deleteBreaker
     .execute(async () => {

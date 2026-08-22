@@ -318,6 +318,19 @@ export const addServiceListingImagesRateLimit = rateLimit({
   message: msg("Too many image uploads, please try again later"),
 });
 
+// Store logo/cover upload: mirrors addProductImagesRateLimit/
+// addServiceListingImagesRateLimit — same per-hour ceiling for the
+// same reason (a small number of legitimate re-uploads while a seller
+// dials in their branding, bounded against scripted abuse).
+export const storeImagesRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("store_images"),
+  message: msg("Too many image uploads, please try again later"),
+});
+
 // Stores module: mirrors favoritesRateLimit — following/unfollowing a
 // store is a cheap toggle, but still bounded against scripted abuse.
 export const storeFollowRateLimit = rateLimit({

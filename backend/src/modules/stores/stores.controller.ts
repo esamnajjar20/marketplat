@@ -15,6 +15,7 @@ import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { paginationQuerySchema } from '../../shared/utils/pagination';
 import { runBulk } from '../../shared/utils/bulkRunner';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const storesController = {
   createStore: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -44,6 +45,28 @@ export const storesController = {
       const { body } = updateStoreSchema.parse({ body: req.body });
       const store = await storesService.updateMyStore(user.userId, body);
       res.status(200).json(successResponse('Store updated', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  uploadLogo: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      if (!req.file) throw new BadRequestError('No image file was attached', 'NO_FILE_ATTACHED');
+      const store = await storesService.uploadLogo(user.userId, req.file);
+      res.status(200).json(successResponse('Store logo updated', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  uploadCover: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      if (!req.file) throw new BadRequestError('No image file was attached', 'NO_FILE_ATTACHED');
+      const store = await storesService.uploadCover(user.userId, req.file);
+      res.status(200).json(successResponse('Store cover updated', store));
     } catch (error) {
       next(error);
     }

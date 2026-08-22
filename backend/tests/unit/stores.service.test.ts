@@ -221,6 +221,24 @@ describe('storesService', () => {
 
       expect(result).toEqual(publicStore);
     });
+
+    // SEC-FIX regression: see stores.service.ts's getPublicStore comment
+    // — findPublicById has no status filter of its own, so the service
+    // must reject non-ACTIVE stores itself instead of trusting the
+    // repository query, same as findMany/toggleFollow/createReview do.
+    it('throws NotFoundError for a PENDING store', async () => {
+      const pendingStore = { ...mockStore, status: 'PENDING', _count: { followers: 0, products: 0 } };
+      (storesRepository.findPublicById as jest.Mock).mockResolvedValue(pendingStore);
+
+      await expect(storesService.getPublicStore(storeId)).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError for a BLOCKED store', async () => {
+      const blockedStore = { ...mockStore, status: 'BLOCKED', _count: { followers: 0, products: 0 } };
+      (storesRepository.findPublicById as jest.Mock).mockResolvedValue(blockedStore);
+
+      await expect(storesService.getPublicStore(storeId)).rejects.toThrow(NotFoundError);
+    });
   });
 
   describe('getStores', () => {

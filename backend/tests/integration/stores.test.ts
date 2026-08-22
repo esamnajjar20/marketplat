@@ -164,6 +164,31 @@ describe('Stores API', () => {
       const res = await request(app).get('/api/v1/stores/non-existent-id');
       expect(res.status).toBe(404);
     });
+
+    // SEC-FIX regression: findPublicById used to be a direct-by-id
+    // lookup with no status filter, so a PENDING (not yet approved) or
+    // BLOCKED store's public page stayed fully viewable via its direct
+    // URL even though it never appears in GET /stores. See
+    // stores.service.ts's getPublicStore.
+    it('returns 404 for a PENDING store (not yet approved)', async () => {
+      const user = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(user.id);
+      const store = await createTestStore(sellerProfile.id, { status: 'PENDING' });
+
+      const res = await request(app).get(`/api/v1/stores/${store.id}`);
+
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 404 for a BLOCKED store', async () => {
+      const user = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(user.id);
+      const store = await createTestStore(sellerProfile.id, { status: 'BLOCKED' });
+
+      const res = await request(app).get(`/api/v1/stores/${store.id}`);
+
+      expect(res.status).toBe(404);
+    });
   });
 
   describe('GET /api/v1/stores', () => {
