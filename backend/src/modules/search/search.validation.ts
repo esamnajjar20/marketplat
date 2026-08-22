@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { SEARCH_TYPES, SEARCH_SORT_OPTIONS } from './search.types';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Same "absent vs empty string" distinction as ads.validation.ts's
 // getAdsSchema.search field (FIX AUDIT-V3-08) — .min(1) rejects an

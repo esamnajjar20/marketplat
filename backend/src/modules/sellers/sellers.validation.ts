@@ -1,10 +1,8 @@
 import { z } from 'zod';
-
-// EPIC 1.1: mirrors admin.validation.ts's optionalQueryNumber helper
-// exactly, so GET /admin/sellers behaves identically to GET /admin/ads
-// and GET /admin/users for page/limit query parsing.
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+// FIX BUG-07: was a local mirror of admin.validation.ts's copy (EPIC
+// 1.1's comment said as much); now both import the same helper instead
+// of keeping two hand-synced copies.
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const adminGetSellersSchema = z.object({
   query: z.object({

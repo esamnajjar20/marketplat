@@ -88,6 +88,10 @@ export const storesRepository = {
   updateStatus: (id: string, status: 'PENDING' | 'ACTIVE' | 'BLOCKED'): Promise<StoreDetails> =>
     prisma.storeDetails.update({ where: { id }, data: { status } }),
 
+  // FIX BUG-02: the DB write half of the FEATURED-plan admin endpoint.
+  updatePlan: (id: string, plan: 'FREE' | 'FEATURED'): Promise<StoreDetails> =>
+    prisma.storeDetails.update({ where: { id }, data: { plan } }),
+
   // Public store directory — only ACTIVE stores. Featured-plan stores
   // sort first (stores proposal's "ظهور أعلى" perk), then the
   // requested sort within each tier.

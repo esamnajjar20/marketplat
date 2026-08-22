@@ -33,6 +33,7 @@ import type {
   AdminStore,
   AdminGetStoresParams,
   UpdateStoreStatusPayload,
+  UpdateStorePlanPayload,
   BroadcastNotificationPayload,
   BroadcastNotificationResult,
   AuditLog,
@@ -159,6 +160,13 @@ export const adminApi = {
   // BULK-ADMIN (item 17): backend PATCH /admin/stores/bulk/status.
   bulkUpdateStoreStatus: (storeIds: string[], status: UpdateStoreStatusPayload['status']) =>
     apiClient.patch<BulkApiResponse<AdminStore>>('/admin/stores/bulk/status', { storeIds, status }),
+
+  // FIX BUG-02: StorePlan.FEATURED was rendered across the store UI
+  // (StoreHeader/StoreCard/MyStoreCard/FeaturedStoresSection) but no
+  // endpoint ever set it — this wires the frontend to the new
+  // PATCH /admin/stores/:id/plan route.
+  updateStorePlan: (storeId: string, payload: UpdateStorePlanPayload) =>
+    apiClient.patch<ApiResponse<AdminStore>>(`/admin/stores/${storeId}/plan`, payload),
 
   // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
 

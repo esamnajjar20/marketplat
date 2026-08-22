@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { ServicePricingType, ServiceLocationType, ServiceListingStatus } from '@prisma/client';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const createServiceListingSchema = z.object({
   body: z.object({

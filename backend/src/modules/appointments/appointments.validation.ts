@@ -1,7 +1,5 @@
 import { z } from 'zod';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const createAppointmentSchema = z.object({
   body: z

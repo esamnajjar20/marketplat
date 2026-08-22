@@ -23,7 +23,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Ban, RotateCcw, Search } from 'lucide-react';
+import { CheckCircle2, Ban, RotateCcw, Search, Star } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
@@ -35,7 +35,7 @@ import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import { useAdminStores } from '@/hooks/queries/useAdmin';
-import { useAdminUpdateStoreStatus, useAdminBulkUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
+import { useAdminUpdateStoreStatus, useAdminUpdateStorePlan, useAdminBulkUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
@@ -84,9 +84,12 @@ export function AdminStoresTable() {
     status: status === 'ALL' ? undefined : status,
   });
   const updateStatus = useAdminUpdateStoreStatus();
+  const updatePlan = useAdminUpdateStorePlan();
   const bulkUpdateStatus = useAdminBulkUpdateStoreStatus();
 
-  const pendingId = updateStatus.isPending ? updateStatus.variables?.storeId : undefined;
+  const pendingId = updateStatus.isPending
+    ? updateStatus.variables?.storeId
+    : updatePlan.isPending ? updatePlan.variables?.storeId : undefined;
 
   // Blocking hides an already-live store from the public directory and
   // from its followers — consequential enough to confirm, same
@@ -267,6 +270,18 @@ export function AdminStoresTable() {
                             <Ban className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         )}
+                        {/* FIX BUG-02: StorePlan.FEATURED was unreachable
+                            — no admin control existed to ever set it. */}
+                        <Button variant="ghost" size="icon" className="h-9 w-9"
+                          title={store.plan === 'FEATURED' ? 'إلغاء تمييز المتجر' : 'تمييز المتجر'}
+                          aria-label={store.plan === 'FEATURED' ? `إلغاء تمييز متجر ${store.name}` : `تمييز متجر ${store.name}`}
+                          disabled={pendingId === store.id}
+                          onClick={() => updatePlan.mutate({
+                            storeId: store.id,
+                            plan: store.plan === 'FEATURED' ? 'FREE' : 'FEATURED',
+                          })}>
+                          <Star className={`h-3.5 w-3.5 ${store.plan === 'FEATURED' ? 'fill-warning text-warning' : 'text-muted-foreground'}`} />
+                        </Button>
                       </div>
                     </td>
                   </tr>

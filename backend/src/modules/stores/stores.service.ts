@@ -10,6 +10,7 @@ import {
   UpdateStoreInput,
   GetStoresQuery,
   UpdateStoreStatusInput,
+  UpdateStorePlanInput,
   CreateStoreReviewInput,
   GetStoreReviewsQuery,
   AdminGetStoresQuery,
@@ -247,6 +248,30 @@ export const storesService = {
       event: AuditEvent.ADMIN_STORE_STATUS_CHANGED,
       userId: adminUserId,
       details: { storeId: id, status: input.status },
+    });
+
+    return updated;
+  },
+
+  // FIX BUG-02: StorePlan.FEATURED had no code path that ever set it —
+  // no admin endpoint, no billing integration. This is the admin-only
+  // manual toggle (billing can call the same repository method later
+  // once it exists). Mirrors updateStoreStatus above: existence check,
+  // repository write, audit trail via the new ADMIN_STORE_PLAN_CHANGED
+  // event.
+  updateStorePlan: async (
+    id: string,
+    input: UpdateStorePlanInput,
+    adminUserId: string
+  ): Promise<StoreDetails> => {
+    const store = await storesRepository.findById(id);
+    if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    const updated = await storesRepository.updatePlan(id, input.plan);
+
+    void auditLog({
+      event: AuditEvent.ADMIN_STORE_PLAN_CHANGED,
+      userId: adminUserId,
+      details: { storeId: id, plan: input.plan },
     });
 
     return updated;

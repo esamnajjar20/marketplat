@@ -435,6 +435,42 @@ export function useAdminUpdateStoreStatus() {
   });
 }
 
+// FIX BUG-02: makes StorePlan.FEATURED reachable from the admin stores
+// table — same optimistic-update/rollback shape as
+// useAdminUpdateStoreStatus above.
+export function useAdminUpdateStorePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeId, plan }: { storeId: string; plan: 'FREE' | 'FEATURED' }) =>
+      adminApi.updateStorePlan(storeId, { plan }).then((r) => r.data.data),
+    onMutate: async ({ storeId, plan }) => {
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
+        queryKey: ['admin', 'stores'],
+      });
+      queryClient.setQueriesData<PaginatedResponse<AdminStore>>(
+        { queryKey: ['admin', 'stores'] },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((s) => (s.id === storeId ? { ...s, plan } : s)),
+          };
+        },
+      );
+      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
+      return { snapshots };
+    },
+    onSuccess: (_data, { plan }) => {
+      toast.success(plan === 'FEATURED' ? 'تم تمييز المتجر' : 'تم إلغاء تمييز المتجر');
+    },
+    onError: (err, _vars, context) => {
+      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast.error(parseApiError(err).message);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
+  });
+}
+
 /**
  * BULK-ADMIN (item 17): bulk status update for the admin stores table
  * — the realistic use case is clearing a queue of PENDING stores

@@ -166,6 +166,11 @@ export interface SetSellerSuspendedPayload { suspended: boolean; }
 
 export type AdminStoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
 
+// FIX BUG-02: was `string` — tightened now that a real endpoint
+// (PATCH /admin/stores/:id/plan) writes this field, matching the
+// Prisma StorePlan enum.
+export type AdminStorePlan = 'FREE' | 'FEATURED';
+
 export interface AdminStore {
   id:            string;
   name:          string;
@@ -176,7 +181,7 @@ export interface AdminStore {
   logoUrl:       string | null;
   coverImageUrl: string | null;
   status:        AdminStoreStatus;
-  plan:          string;
+  plan:          AdminStorePlan;
   sellerProfileId: string;
   createdAt:     string;
   sellerProfile: {
@@ -191,6 +196,9 @@ export interface AdminGetStoresParams extends PaginationParams {
 }
 
 export interface UpdateStoreStatusPayload { status: AdminStoreStatus; }
+
+// FIX BUG-02: payload for the new plan-change admin endpoint.
+export interface UpdateStorePlanPayload { plan: AdminStorePlan; }
 
 // ── Broadcast notifications ─────────────────────────────────────────
 // Backend: POST /admin/notifications/broadcast (broadcastNotificationSchema).

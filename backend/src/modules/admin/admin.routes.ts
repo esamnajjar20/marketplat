@@ -91,6 +91,9 @@ adminRouter.patch('/sellers/bulk/suspend', requireMinRole(ROLES.ADMIN), sellersC
 // (Gap #20: stores are outside the MODERATOR tier).
 adminRouter.get('/stores', requireMinRole(ROLES.ADMIN), storesController.getAllStores);
 adminRouter.patch('/stores/:id/status', requireMinRole(ROLES.ADMIN), storesController.updateStoreStatus);
+// FIX BUG-02: StorePlan.FEATURED was rendered across the store UI but
+// unreachable — no code path ever set it. This closes that gap.
+adminRouter.patch('/stores/:id/plan', requireMinRole(ROLES.ADMIN), storesController.updateStorePlan);
 
 // BULK-ADMIN (item 17): bulk status update — same shape as the others.
 adminRouter.patch('/stores/bulk/status', requireMinRole(ROLES.ADMIN), storesController.bulkUpdateStoreStatus);

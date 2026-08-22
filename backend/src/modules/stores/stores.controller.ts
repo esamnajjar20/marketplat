@@ -7,6 +7,7 @@ import {
   getStoresSchema,
   adminGetStoresSchema,
   updateStoreStatusSchema,
+  updateStorePlanSchema,
   createStoreReviewSchema,
   getStoreReviewsSchema,
   bulkUpdateStoreStatusSchema,
@@ -116,6 +117,22 @@ export const storesController = {
       });
       const store = await storesService.updateStoreStatus(params.id, body, admin.userId);
       res.status(200).json(successResponse('Store status updated', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // FIX BUG-02: admin-only endpoint that finally makes StorePlan.FEATURED
+  // reachable — see stores.service.ts's updateStorePlan doc comment.
+  updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const admin = requireUser(req);
+      const { params, body } = updateStorePlanSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const store = await storesService.updateStorePlan(params.id, body, admin.userId);
+      res.status(200).json(successResponse('Store plan updated', store));
     } catch (error) {
       next(error);
     }

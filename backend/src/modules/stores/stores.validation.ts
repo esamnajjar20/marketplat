@@ -1,8 +1,6 @@
 import { z } from 'zod';
-import { StoreStatus } from '@prisma/client';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { StoreStatus, StorePlan } from '@prisma/client';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const createStoreSchema = z.object({
   body: z.object({
@@ -86,6 +84,20 @@ export const updateStoreStatusSchema = z.object({
 });
 
 export type UpdateStoreStatusInput = z.infer<typeof updateStoreStatusSchema>['body'];
+
+// FIX BUG-02: StorePlan.FEATURED existed in the schema and was rendered
+// across StoreHeader/StoreCard/MyStoreCard/FeaturedStoresSection, but no
+// code path anywhere ever set a store's plan to FEATURED — no admin
+// endpoint, no billing. This closes that gap: same admin-transition
+// shape as updateStoreStatusSchema above.
+export const updateStorePlanSchema = z.object({
+  params: z.object({ id: z.string().min(1, 'Store ID is required') }),
+  body: z.object({
+    plan: z.nativeEnum(StorePlan),
+  }),
+});
+
+export type UpdateStorePlanInput = z.infer<typeof updateStorePlanSchema>['body'];
 
 // BULK-ADMIN (item 17): same 1-100 id-array cap as
 // admin.validation.ts's bulkIdsSchema / sellers.validation.ts's

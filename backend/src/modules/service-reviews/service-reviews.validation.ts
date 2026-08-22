@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const createServiceReviewSchema = z.object({
   body: z.object({
@@ -9,9 +10,6 @@ export const createServiceReviewSchema = z.object({
 });
 
 export type CreateServiceReviewInput = z.infer<typeof createServiceReviewSchema>['body'];
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
 
 export const getServiceReviewsSchema = z.object({
   params: z.object({ sellerProfileId: z.string().min(1) }),

@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { UserActivityType } from '@prisma/client';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess((value) => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Gap #10: the frontend's filter tabs (الكل/الإعلانات/المنتجات/الخدمات/
 // المتاجر/الرسائل/الطلبات/الحساب) are coarser than the 22 underlying

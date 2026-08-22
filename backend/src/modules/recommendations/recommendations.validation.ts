@@ -1,7 +1,5 @@
 import { z } from 'zod';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Gap #9 ("قد يعجبك أيضًا" / Recommendations): GET /recommendations is a
 // single flat "how many" request, not a paginated list — a recommendation

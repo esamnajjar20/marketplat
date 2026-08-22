@@ -1204,6 +1204,7 @@ enum AuditEventType {
   // same gap ADMIN_SELLER_VERIFIED/SUSPENDED closed for sellers,
   // applied here for the store status transition.
   ADMIN_STORE_STATUS_CHANGED
+  ADMIN_STORE_PLAN_CHANGED
   // FIX OAUTH-01
   OAUTH_LOGIN
   OAUTH_ACCOUNT_LINKED

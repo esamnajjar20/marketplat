@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { AdStatus, AdCondition } from '@prisma/client';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 /**
  * FIX INTEG-05: createAd sends multipart/form-data (required for image

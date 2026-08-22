@@ -1,7 +1,5 @@
 import { z } from 'zod';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // FEAT: PublicProfileHeader's "مراسلة" button starts a thread directly
 // with a user, with no ad in context — adId stays the primary path

@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { ProductAvailability, ProductStatus } from '@prisma/client';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const createProductSchema = z.object({
   body: z.object({
