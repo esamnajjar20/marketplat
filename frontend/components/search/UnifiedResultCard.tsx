@@ -22,7 +22,12 @@ const TYPE_BADGE: Record<SearchResultType, { label: string; className: string }>
   ad:      { label: 'إعلان', className: 'bg-foreground/70 text-background' },
   product: { label: 'منتج',  className: 'bg-primary/90 text-primary-foreground' },
   store:   { label: 'محل',   className: 'bg-accent text-accent-foreground' },
-  service: { label: 'خدمة',  className: 'bg-emerald-600/90 text-white' },
+  // DESIGN-FIX (audit): was raw bg-emerald-600/90 text-white — the
+  // other three badges above already use semantic tokens, and
+  // ServiceListingCard.tsx already maps this same green to --success
+  // for the identical concept, so this just adopts that existing token
+  // instead of a fourth ad-hoc green.
+  service: { label: 'خدمة',  className: 'bg-success text-success-foreground' },
 };
 
 /**

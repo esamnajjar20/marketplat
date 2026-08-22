@@ -71,7 +71,7 @@ const LINKS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard },
   { label: 'المفضلة', href: ROUTES.favorites },
   { label: 'الرسائل', href: ROUTES.messages },
-  { label: 'البحثات المحفوظة', href: ROUTES.savedSearches },
+  { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches },
   // REORG-08
   { label: 'نشاطي', href: ROUTES.activity },
 ] as const;
@@ -83,7 +83,7 @@ const LINKS = [
 
 const TRAILING_LINKS = [
   // FEAT-REPORT-USER-STORE: added for parity with ProtectedSidebar,
-  // same reasoning as this file's own doc comment on "البحثات المحفوظة".
+  // same reasoning as this file's own doc comment on "عمليات البحث المحفوظة".
   { label: 'بلاغاتي', href: ROUTES.myReports },
 ] as const;
 

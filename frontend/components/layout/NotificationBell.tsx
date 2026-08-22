@@ -71,14 +71,37 @@ function hrefFor(notification: Notification): string | null {
   return null;
 }
 
-function NotificationRow({ notification }: { notification: Notification }) {
-  const markRead = useMarkNotificationRead();
+/**
+ * CONV-READ FIX: clicking one NEW_MESSAGE notification used to mark
+ * only that single row read — a burst of "رسالة جديدة" notifications
+ * from the same conversation (someone sends 4 messages in a row) sat
+ * there as 4 separate unread rows even after the caller had already
+ * opened the thread and read all of it via the first click. This row
+ * no longer calls useMarkNotificationRead itself; it defers to
+ * onNotificationClick (see NotificationBell below), which marks every
+ * *other* unread NEW_MESSAGE row sharing the same conversationId read
+ * at the same time, not just this one.
+ *
+ * Scoped to conversationId, not sender identity — NotificationData
+ * (types/notification.types.ts) only carries conversationId today, no
+ * senderId/otherUserId. That's an accurate proxy for "same person" in
+ * the common case (one ad ⇒ one conversation ⇒ one counterpart), but
+ * two people who've messaged each other about *different* ads get two
+ * separate conversationIds and won't be grouped — a real backend field
+ * addition, not something fixable from here.
+ */
+function NotificationRow({
+  notification, onNotificationClick,
+}: {
+  notification: Notification;
+  onNotificationClick: (notification: Notification) => void;
+}) {
   const Icon = TYPE_ICON[notification.type];
   const href = hrefFor(notification);
   const isUnread = !notification.readAt;
 
   function handleClick() {
-    if (isUnread) markRead.mutate(notification.id);
+    if (isUnread) onNotificationClick(notification);
   }
 
   const content = (
@@ -152,7 +175,13 @@ function groupNotifications(items: Notification[]): NotificationGroupT[] {
   return result;
 }
 
-function NotificationGroupRow({ type, notifications }: { type: NotificationType; notifications: Notification[] }) {
+function NotificationGroupRow({
+  type, notifications, onNotificationClick,
+}: {
+  type: NotificationType;
+  notifications: Notification[];
+  onNotificationClick: (notification: Notification) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const Icon = TYPE_ICON[type];
   const unreadCount = notifications.filter((n) => !n.readAt).length;
@@ -170,7 +199,7 @@ function NotificationGroupRow({ type, notifications }: { type: NotificationType;
         </button>
         <div className="divide-y border-t">
           {notifications.map((n) => (
-            <NotificationRow key={n.id} notification={n} />
+            <NotificationRow key={n.id} notification={n} onNotificationClick={onNotificationClick} />
           ))}
         </div>
       </div>
@@ -220,10 +249,46 @@ function NotificationGroupRow({ type, notifications }: { type: NotificationType;
 export function NotificationBell() {
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: notificationsPage, isLoading } = useMyNotifications({ limit: 10 });
+  const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
   const items = notificationsPage?.items ?? [];
   const groups = groupNotifications(items);
+
+  /**
+   * CONV-READ FIX: see NotificationRow's own doc comment. Clicking any
+   * unread NEW_MESSAGE notification marks every other unread
+   * NEW_MESSAGE row in this same dropdown load that shares its
+   * conversationId — not just the one clicked. Other notification
+   * types are unaffected (single mark-read, same as before), since
+   * "several notifications about the same thing" only really applies
+   * to messages here — FAV_AD_PRICE_CHANGED/FAV_AD_SOLD/etc. are each
+   * about a specific event, not a running thread.
+   *
+   * Only reaches notifications already loaded in this dropdown (up to
+   * 10 — useMyNotifications's own limit above); the backend has no
+   * bulk or conversation-scoped mark-read route to reach further than
+   * that (notifications.api.ts: "only list + unread-count + the two
+   * mark-read actions"). One PATCH per sibling via the existing
+   * single-id endpoint — fine for the realistic case (a handful of
+   * messages from one person), not something to loop over hundreds of
+   * ids without a real bulk endpoint.
+   */
+  function handleNotificationClick(notification: Notification) {
+    const siblingIds =
+      notification.type === 'NEW_MESSAGE' && notification.data?.conversationId
+        ? items
+            .filter(
+              (n) =>
+                n.type === 'NEW_MESSAGE' &&
+                !n.readAt &&
+                n.data?.conversationId === notification.data?.conversationId,
+            )
+            .map((n) => n.id)
+        : [notification.id];
+
+    for (const id of siblingIds) markRead.mutate(id);
+  }
 
   return (
     <DropdownMenu>
@@ -267,9 +332,18 @@ export function NotificationBell() {
             <div className="divide-y">
               {groups.map((g) =>
                 g.kind === 'single' ? (
-                  <NotificationRow key={g.notification.id} notification={g.notification} />
+                  <NotificationRow
+                    key={g.notification.id}
+                    notification={g.notification}
+                    onNotificationClick={handleNotificationClick}
+                  />
                 ) : (
-                  <NotificationGroupRow key={`${g.type}-${g.notifications[0]!.id}`} type={g.type} notifications={g.notifications} />
+                  <NotificationGroupRow
+                    key={`${g.type}-${g.notifications[0]!.id}`}
+                    type={g.type}
+                    notifications={g.notifications}
+                    onNotificationClick={handleNotificationClick}
+                  />
                 ),
               )}
             </div>

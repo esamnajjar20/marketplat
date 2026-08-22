@@ -109,7 +109,13 @@ export function NotificationSettingsForm() {
                 onClick={() => toggle(key)}
                 className={`relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50
                   ${prefs[key] ? 'bg-primary' : 'bg-input'}`}>
-                <span className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform mt-0.5
+                {/* DESIGN-FIX (audit): knob was bg-white (hardcoded) —
+                    washes out against the dark bg-input track in dark
+                    mode, unlike bg-primary/bg-input above which both
+                    already invert correctly via theme tokens.
+                    bg-background matches the app shell behind the
+                    switch in both themes. */}
+                <span className={`inline-block h-5 w-5 rounded-full bg-background shadow-sm transition-transform mt-0.5
                   ${prefs[key] ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
               </button>
             </div>

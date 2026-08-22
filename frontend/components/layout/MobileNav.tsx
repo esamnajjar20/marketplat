@@ -67,7 +67,7 @@ const GUEST_ACCOUNT_LINKS = [
 const AUTH_ACCOUNT_LINKS = [
   { label: 'لوحة التحكم',   href: ROUTES.dashboard,       icon: LayoutDashboard },
   { label: 'المفضلة',       href: ROUTES.favorites,       icon: Heart },
-  { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
+  { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
   { label: 'نشاطي',         href: ROUTES.activity,        icon: History },
 ] as const;
 

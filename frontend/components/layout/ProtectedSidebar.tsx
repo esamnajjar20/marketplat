@@ -82,7 +82,7 @@ import { useMyStore } from '@/hooks/queries/useStores';
 const NAV_ITEMS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: LayoutDashboard },
   { label: 'المفضلة',     href: ROUTES.favorites,         icon: Heart },
-  { label: 'البحثات المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
+  { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
   { label: 'نشاطي',       href: ROUTES.activity,          icon: History },
   { label: 'الرسائل',     href: ROUTES.messages,          icon: MessageSquare },
 ] as const;

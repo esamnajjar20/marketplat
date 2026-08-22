@@ -60,7 +60,7 @@ describe('SavedSearchesList', () => {
     mockSearches({ data: undefined, isLoading: true });
     render(<SavedSearchesList />);
 
-    expect(screen.queryByText('لا توجد بحثات محفوظة')).not.toBeInTheDocument();
+    expect(screen.queryByText('لا توجد عمليات بحث محفوظة')).not.toBeInTheDocument();
   });
 
   it('shows an error message with retry on failure', async () => {
@@ -68,7 +68,7 @@ describe('SavedSearchesList', () => {
     const user = setupUser();
     render(<SavedSearchesList />);
 
-    expect(screen.getByText('حدث خطأ أثناء تحميل البحثات المحفوظة')).toBeInTheDocument();
+    expect(screen.getByText('حدث خطأ أثناء تحميل عمليات البحث المحفوظة')).toBeInTheDocument();
     await user.click(screen.getByText('إعادة المحاولة'));
     expect(mockRefetch).toHaveBeenCalled();
   });
@@ -77,7 +77,7 @@ describe('SavedSearchesList', () => {
     mockSearches({ data: [] });
     render(<SavedSearchesList />);
 
-    expect(screen.getByText('لا توجد بحثات محفوظة')).toBeInTheDocument();
+    expect(screen.getByText('لا توجد عمليات بحث محفوظة')).toBeInTheDocument();
     expect(screen.getByText('تصفح الإعلانات')).toBeInTheDocument();
   });
 

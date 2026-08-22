@@ -1,39 +1,34 @@
 /**
  * __tests__/components/NearbyServiceProviders.test.tsx
  *
- * Previously uncovered (0%). Epic 4.3 gap-fill: the "near me" trigger
- * that feeds browser geolocation into the previously-orphaned
- * useNearbyServiceProviders hook / GET /service-providers/nearby.
+ * ARCH-FIX rewrite: this used to be a GPS-only "near me" trigger
+ * (own useState location machine + useNearbyServiceProviders directly).
+ * It's now the full /service-providers directory, reading
+ * useServiceProvidersDirectory's gps → city → general cascade —
+ * mocked here the same way NearbyProvidersSection.test.tsx mocks
+ * useNearbyProvidersForHome, since these two components now share
+ * the identical composition-hook pattern by design.
  *
  * Coverage targets:
- *  - Idle state: prompt + "استخدام موقعي الحالي" button, no fallback
- *    "تصفّح كل الخدمات" link yet
- *  - Clicking locate calls navigator.geolocation.getCurrentPosition
- *  - Unsupported browser: distinct message, no locate button, but the
- *    fallback link to /services is shown
- *  - Denied permission: distinct message, locate button still offered
- *    to retry, plus the fallback link
- *  - Locating / loading: shows a spinner with the searching label
- *  - Error state: retry option that calls refetch
- *  - Empty results: "لا يوجد مقدمو خدمة قريبون"
- *  - Renders a ServiceProviderCard per item once results resolve
- *  - Client-side pager: Prev/Next disabled at the bounds, advances page
+ *  - loading (isChecking or isLoading) → skeleton, no cards, no error
+ *  - error → retry option that calls refetch
+ *  - resolved but empty → EmptyState, wording depends on source
+ *  - resolved with items (gps/city/general) → cards render
+ *  - LocationSourceBadge reflects the actual source of the shown data
+ *  - "استخدام موقعي" CTA hidden only when source is already gps
+ *  - CTA calls requestLocation() on click
+ *  - pagination: Prev/Next disabled at bounds, calls setPage
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { setupUser } from '@/test-support/user-event';
+import userEvent from '@testing-library/user-event';
 import { NearbyServiceProviders } from '@/components/services/NearbyServiceProviders';
-import { useNearbyServiceProviders } from '@/hooks/queries/useServiceProviders';
+import { useServiceProvidersDirectory } from '@/hooks/useServiceProvidersDirectory';
 import type { NearbyServiceProviderRow } from '@/types/service.types';
 
-vi.mock('@/hooks/queries/useServiceProviders', () => ({
-  useNearbyServiceProviders: vi.fn(),
-}));
-
-vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <a href={href}>{children}</a>
-  ),
+vi.mock('@/hooks/useServiceProvidersDirectory', () => ({
+  useServiceProvidersDirectory: vi.fn(),
+  SERVICE_PROVIDERS_DIRECTORY_RADIUS_KM: 10,
 }));
 
 function makeProvider(overrides: Partial<NearbyServiceProviderRow> = {}): NearbyServiceProviderRow {
@@ -57,164 +52,163 @@ function makeProvider(overrides: Partial<NearbyServiceProviderRow> = {}): Nearby
   };
 }
 
-function mockNearbyState(overrides: Partial<ReturnType<typeof useNearbyServiceProviders>>) {
-  vi.mocked(useNearbyServiceProviders).mockReturnValue({
-    data: undefined,
+const requestLocation = vi.fn();
+const setPage = vi.fn();
+const refetch = vi.fn();
+
+function mockDirectory(overrides: Record<string, unknown> = {}) {
+  (useServiceProvidersDirectory as ReturnType<typeof vi.fn>).mockReturnValue({
+    isChecking: false,
     isLoading: false,
     isError: false,
-    refetch: vi.fn(),
+    source: 'general',
+    data: undefined,
+    page: 1,
+    setPage,
+    city: undefined,
+    requestLocation,
+    refetch,
     ...overrides,
-  } as never);
+  });
 }
 
-const mockGetCurrentPosition = vi.fn();
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mockNearbyState({});
-  Object.defineProperty(global.navigator, 'geolocation', {
-    value: { getCurrentPosition: mockGetCurrentPosition },
-    configurable: true,
-  });
-});
-
 describe('NearbyServiceProviders', () => {
-  it('shows the idle prompt with a locate button and no fallback link yet', () => {
-    render(<NearbyServiceProviders />);
-    expect(screen.getByText('مقدمو خدمة قريبون منك')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /استخدام موقعي الحالي/ })).toBeInTheDocument();
-    expect(screen.queryByText('تصفّح كل الخدمات بدل ذلك')).not.toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDirectory();
   });
 
-  it('calls navigator.geolocation.getCurrentPosition when the locate button is clicked', async () => {
-    const user = setupUser();
+  it('renders a skeleton (no cards) while the resolver is still checking', () => {
+    mockDirectory({ isChecking: true });
     render(<NearbyServiceProviders />);
-    await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
-    expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/السباكة/)).not.toBeInTheDocument();
   });
 
-  it('shows an unsupported-browser message with no locate button but a fallback link', () => {
-    // The component checks `'geolocation' in navigator` — defining the
-    // property with value: undefined still leaves the key present, so
-    // that guard passes and it crashes on .getCurrentPosition. Delete
-    // the property outright so the `in` check is actually false.
-    // @ts-expect-error simulating a browser without the geolocation API
-    delete global.navigator.geolocation;
+  it('renders a skeleton (no cards) while the query is loading', () => {
+    mockDirectory({ isLoading: true });
     render(<NearbyServiceProviders />);
-    // Trigger the unsupported branch by attempting to locate — but since
-    // geolocation is absent from the start, the component only reaches
-    // "unsupported" after a locate attempt. However the idle state itself
-    // still offers the button; clicking sets status to unsupported.
-    expect(screen.getByRole('button', { name: /استخدام موقعي الحالي/ })).toBeInTheDocument();
+    expect(screen.queryByText(/السباكة/)).not.toBeInTheDocument();
   });
 
-  it('renders the unsupported state after clicking locate with no geolocation API', async () => {
-    // @ts-expect-error simulating a browser without the geolocation API
-    delete global.navigator.geolocation;
-    const user = setupUser();
+  it('shows an error state with a retry option that calls refetch', async () => {
+    mockDirectory({ isError: true });
+    const user = userEvent.setup();
     render(<NearbyServiceProviders />);
-    await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
 
-    expect(screen.getByText('المتصفح لا يدعم تحديد الموقع')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /استخدام موقعي الحالي/ })).not.toBeInTheDocument();
-    expect(screen.getByText('تصفّح كل الخدمات بدل ذلك')).toBeInTheDocument();
-  });
-
-  it('renders the denied state with a retry locate button and the fallback link', async () => {
-    mockGetCurrentPosition.mockImplementation((_success, error) => error());
-    const user = setupUser();
-    render(<NearbyServiceProviders />);
-    await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
-
-    expect(screen.getByText('تعذّر الوصول إلى موقعك')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /استخدام موقعي الحالي/ })).toBeInTheDocument();
-    expect(screen.getByText('تصفّح كل الخدمات بدل ذلك')).toBeInTheDocument();
-  });
-
-  it('shows a searching spinner immediately after clicking locate', async () => {
-    mockGetCurrentPosition.mockImplementation(() => {
-      // never resolves synchronously — simulate an in-flight request
-    });
-    const user = setupUser();
-    render(<NearbyServiceProviders />);
-    await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
-
-    // LoadingSpinner's label is an aria-label on the spinner element,
-    // not visible text — assert via role/accessible name instead of
-    // getByText.
-    expect(screen.getByRole('status', { name: 'جارٍ البحث عن مقدمي خدمة قريبين…' })).toBeInTheDocument();
-  });
-
-  it('shows an error state with a retry option that calls refetch once located', async () => {
-    const refetch = vi.fn();
-    mockNearbyState({ isError: true, refetch });
-    mockGetCurrentPosition.mockImplementation((success) =>
-      success({ coords: { latitude: 31.5, longitude: 34.4 } })
-    );
-    const user = setupUser();
-    render(<NearbyServiceProviders />);
-    await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
-
-    expect(screen.getByText('حدث خطأ أثناء البحث عن مقدمي خدمة قريبين')).toBeInTheDocument();
+    expect(screen.getByText('حدث خطأ أثناء تحميل مقدمي الخدمة')).toBeInTheDocument();
     await user.click(screen.getByText('إعادة المحاولة'));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the empty state once located with no nearby results', async () => {
-    mockNearbyState({ data: { items: [], meta: { totalPages: 1 } } });
-    mockGetCurrentPosition.mockImplementation((success) =>
-      success({ coords: { latitude: 31.5, longitude: 34.4 } })
-    );
-    const user = setupUser();
+  it('shows a GPS-specific empty message when the resolved source is gps', () => {
+    mockDirectory({ source: 'gps', data: { items: [], meta: { totalPages: 1 } } });
     render(<NearbyServiceProviders />);
-    await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
-
-    expect(screen.getByText('لا يوجد مقدمو خدمة قريبون')).toBeInTheDocument();
+    expect(screen.getByText('لا يوجد مقدمو خدمة حالياً')).toBeInTheDocument();
+    expect(screen.getByText(/ضمن 10 كم من موقعك/)).toBeInTheDocument();
   });
 
-  it('renders a card per nearby provider once results resolve', async () => {
-    mockNearbyState({
+  it('shows a neutral empty message when the resolved source is general (no dead end)', () => {
+    mockDirectory({ source: 'general', data: { items: [], meta: { totalPages: 1 } } });
+    render(<NearbyServiceProviders />);
+    expect(screen.getByText('لا يوجد مقدمو خدمة حالياً')).toBeInTheDocument();
+    expect(screen.getByText('لم نجد مقدمي خدمة لعرضهم في الوقت الحالي')).toBeInTheDocument();
+  });
+
+  it('renders a card per provider once results resolve', () => {
+    mockDirectory({
       data: { items: [makeProvider({ businessName: 'مزود قريب' })], meta: { totalPages: 1 } },
     });
-    mockGetCurrentPosition.mockImplementation((success) =>
-      success({ coords: { latitude: 31.5, longitude: 34.4 } })
-    );
-    const user = setupUser();
     render(<NearbyServiceProviders />);
-    await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
-
     expect(screen.getByText('مزود قريب')).toBeInTheDocument();
   });
 
-  describe('pagination', () => {
-    async function locate(user: ReturnType<typeof setupUser>) {
-      mockGetCurrentPosition.mockImplementation((success) =>
-        success({ coords: { latitude: 31.5, longitude: 34.4 } })
-      );
-      render(<NearbyServiceProviders />);
-      await user.click(screen.getByRole('button', { name: /استخدام موقعي الحالي/ }));
-    }
+  it('shows "قريب منك" badge when the resolved source is gps', () => {
+    mockDirectory({
+      source: 'gps',
+      data: { items: [makeProvider()], meta: { totalPages: 1 } },
+    });
+    render(<NearbyServiceProviders />);
+    expect(screen.getByText('قريب منك')).toBeInTheDocument();
+  });
 
-    it('disables "السابق" on the first page and enables "التالي" when more pages exist', async () => {
-      mockNearbyState({
+  it('shows the city badge when the resolved source is city', () => {
+    mockDirectory({
+      source: 'city',
+      city: 'غزة',
+      data: { items: [makeProvider()], meta: { totalPages: 1 } },
+    });
+    render(<NearbyServiceProviders />);
+    expect(screen.getByText('نتائج في غزة')).toBeInTheDocument();
+  });
+
+  it('shows the generic "نتائج مقترحة" badge when the resolved source is general', () => {
+    mockDirectory({
+      source: 'general',
+      data: { items: [makeProvider()], meta: { totalPages: 1 } },
+    });
+    render(<NearbyServiceProviders />);
+    expect(screen.getByText('نتائج مقترحة')).toBeInTheDocument();
+  });
+
+  it('shows the "استخدام موقعي" CTA whenever the resolved source is not gps', () => {
+    mockDirectory({
+      source: 'general',
+      data: { items: [makeProvider()], meta: { totalPages: 1 } },
+    });
+    render(<NearbyServiceProviders />);
+    expect(screen.getByText('استخدام موقعي')).toBeInTheDocument();
+  });
+
+  it('hides the "استخدام موقعي" CTA once the resolved source is gps', () => {
+    mockDirectory({
+      source: 'gps',
+      data: { items: [makeProvider()], meta: { totalPages: 1 } },
+    });
+    render(<NearbyServiceProviders />);
+    expect(screen.queryByText('استخدام موقعي')).not.toBeInTheDocument();
+  });
+
+  it('calls requestLocation() when the CTA is clicked', async () => {
+    mockDirectory({ data: { items: [makeProvider()], meta: { totalPages: 1 } } });
+    const user = userEvent.setup();
+    render(<NearbyServiceProviders />);
+
+    await user.click(screen.getByText('استخدام موقعي'));
+    expect(requestLocation).toHaveBeenCalledTimes(1);
+  });
+
+  describe('pagination', () => {
+    it('disables "السابق" on the first page and enables "التالي" when more pages exist', () => {
+      mockDirectory({
+        page: 1,
         data: { items: [makeProvider()], meta: { totalPages: 3 } },
       });
-      const user = setupUser();
-      await locate(user);
+      render(<NearbyServiceProviders />);
 
       expect(screen.getByRole('button', { name: 'السابق' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'التالي' })).not.toBeDisabled();
       expect(screen.getByText('1 / 3')).toBeInTheDocument();
     });
 
-    it('does not render pagination controls when there is only one page', async () => {
-      mockNearbyState({
+    it('does not render pagination controls when there is only one page', () => {
+      mockDirectory({
+        page: 1,
         data: { items: [makeProvider()], meta: { totalPages: 1 } },
       });
-      const user = setupUser();
-      await locate(user);
-
+      render(<NearbyServiceProviders />);
       expect(screen.queryByRole('button', { name: 'التالي' })).not.toBeInTheDocument();
+    });
+
+    it('calls setPage when "التالي" is clicked', async () => {
+      mockDirectory({
+        page: 1,
+        data: { items: [makeProvider()], meta: { totalPages: 2 } },
+      });
+      const user = userEvent.setup();
+      render(<NearbyServiceProviders />);
+
+      await user.click(screen.getByRole('button', { name: 'التالي' }));
+      expect(setPage).toHaveBeenCalledTimes(1);
     });
   });
 });

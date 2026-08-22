@@ -89,7 +89,7 @@ export function SavedSearchesList() {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل البحثات المحفوظة</p>
+        <p className="text-destructive">حدث خطأ أثناء تحميل عمليات البحث المحفوظة</p>
         <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
           إعادة المحاولة
         </button>
@@ -102,7 +102,7 @@ export function SavedSearchesList() {
   if (items.length === 0) {
     return (
       <EmptyState icon={<Search className="h-10 w-10" />}
-        title="لا توجد بحثات محفوظة"
+        title="لا توجد عمليات بحث محفوظة"
         description="احفظ بحثاً من صفحة النتائج وسنُعلمك عند نشر إعلان مطابق"
         action={<Link href={ROUTES.search}><Button variant="outline">تصفح الإعلانات</Button></Link>} />
     );

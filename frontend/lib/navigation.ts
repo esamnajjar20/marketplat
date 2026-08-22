@@ -68,8 +68,15 @@ export const STORE_GROUP = {
 } as const;
 
 // Used by ProtectedSidebar.tsx, ProtectedMobileNav.tsx, and
-// MobileNav.tsx's SettingsDisclosureRow. Same 8 destinations, same
+// MobileNav.tsx's SettingsDisclosureRow. Same 7 destinations, same
 // order, in all three before extraction.
+//
+// DEDUP-FIX (audit #3): dropped the "متجري" → ROUTES.myStore entry
+// that used to live here. It duplicated STORE_GROUP above (same
+// label, same href) — every user with a store saw "متجري" twice on
+// screen at once, once as the top-level disclosure group and once
+// again as a child of "الإعدادات". STORE_GROUP is the correct owner;
+// this was the redundant copy.
 export const SETTINGS_GROUP = {
   label: 'الإعدادات',
   href: ROUTES.settings.profile,
@@ -78,7 +85,6 @@ export const SETTINGS_GROUP = {
     { label: 'الملف الشخصي', href: ROUTES.settings.profile },
     { label: 'ملف البائع', href: ROUTES.settings.seller },
     { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
-    { label: 'متجري', href: ROUTES.myStore },
     { label: 'الأمان', href: ROUTES.settings.security },
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },

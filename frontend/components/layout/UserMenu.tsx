@@ -123,7 +123,7 @@ export function UserMenu() {
         <DropdownMenuItem asChild>
           <Link href={ROUTES.savedSearches} className="flex items-center gap-2 cursor-pointer">
             <BellPlus className="h-4 w-4" />
-            البحثات المحفوظة
+            عمليات البحث المحفوظة
           </Link>
         </DropdownMenuItem>
 

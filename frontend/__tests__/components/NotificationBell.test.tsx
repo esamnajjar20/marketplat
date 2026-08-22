@@ -15,6 +15,10 @@
  *    navigation side effect
  *  - clicking an unread row marks it read; clicking an already-read
  *    row does not call the mutation again
+ *  - clicking an unread NEW_MESSAGE row also marks every other unread
+ *    NEW_MESSAGE row sharing the same conversationId — not rows from a
+ *    different conversation, not already-read siblings, not other
+ *    notification types
  *  - groupNotifications(): runs of 3+ consecutive same-type items
  *    collapse into one expandable group row; runs of 1-2 stay
  *    individual rows, even if the same type reappears non-consecutively
@@ -291,6 +295,97 @@ describe('NotificationBell', () => {
       await user.click(await screen.findByText('مقروء بالفعل'));
 
       expect(mockMarkReadMutate).not.toHaveBeenCalled();
+    });
+
+    // CONV-READ FIX: clicking one NEW_MESSAGE notification also marks
+    // every other unread NEW_MESSAGE row sharing the same
+    // conversationId — see NotificationBell's handleNotificationClick.
+    describe('conversation-scoped mark-read for NEW_MESSAGE', () => {
+      function sameConversationBurst(): Notification[] {
+        return [
+          makeNotification({
+            id: 'm-1', type: 'NEW_MESSAGE', title: 'رسالة 1', data: { conversationId: 'conv-1' },
+          }),
+          makeNotification({
+            id: 'm-2', type: 'NEW_MESSAGE', title: 'رسالة 2', data: { conversationId: 'conv-1' },
+          }),
+          // Different conversation — must NOT be marked read by the click below.
+          makeNotification({
+            id: 'm-3', type: 'NEW_MESSAGE', title: 'رسالة أخرى', data: { conversationId: 'conv-2' },
+          }),
+          // Same conversationId but already read — must NOT be re-sent
+          // to the mutation (mirrors the "already-read" test above).
+          makeNotification({
+            id: 'm-4', type: 'NEW_MESSAGE', title: 'رسالة مقروءة سلفاً',
+            data: { conversationId: 'conv-1' }, readAt: new Date().toISOString(),
+          }),
+        ];
+      }
+
+      it('marks every other unread NEW_MESSAGE row in the same conversation as read', async () => {
+        (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
+          data: { items: sameConversationBurst() },
+          isLoading: false,
+        });
+        const user = setupUser();
+        render(<NotificationBell />);
+        await openMenu(user);
+
+        await user.click(await screen.findByText('رسالة 1'));
+
+        expect(mockMarkReadMutate).toHaveBeenCalledWith('m-1');
+        expect(mockMarkReadMutate).toHaveBeenCalledWith('m-2');
+        expect(mockMarkReadMutate).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not mark a NEW_MESSAGE row from a different conversation', async () => {
+        (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
+          data: { items: sameConversationBurst() },
+          isLoading: false,
+        });
+        const user = setupUser();
+        render(<NotificationBell />);
+        await openMenu(user);
+
+        await user.click(await screen.findByText('رسالة 1'));
+
+        expect(mockMarkReadMutate).not.toHaveBeenCalledWith('m-3');
+      });
+
+      it('does not re-send an already-read sibling in the same conversation', async () => {
+        (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
+          data: { items: sameConversationBurst() },
+          isLoading: false,
+        });
+        const user = setupUser();
+        render(<NotificationBell />);
+        await openMenu(user);
+
+        await user.click(await screen.findByText('رسالة 1'));
+
+        expect(mockMarkReadMutate).not.toHaveBeenCalledWith('m-4');
+      });
+
+      it('does not pull in other notification types even if unread', async () => {
+        (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
+          data: {
+            items: [
+              makeNotification({ id: 'm-1', type: 'NEW_MESSAGE', title: 'رسالة 1', data: { conversationId: 'conv-1' } }),
+              makeNotification({ id: 'p-1', type: 'PROMOTION', title: 'عرض غير مرتبط', data: null }),
+            ],
+          },
+          isLoading: false,
+        });
+        const user = setupUser();
+        render(<NotificationBell />);
+        await openMenu(user);
+
+        await user.click(await screen.findByText('رسالة 1'));
+
+        expect(mockMarkReadMutate).toHaveBeenCalledWith('m-1');
+        expect(mockMarkReadMutate).not.toHaveBeenCalledWith('p-1');
+        expect(mockMarkReadMutate).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

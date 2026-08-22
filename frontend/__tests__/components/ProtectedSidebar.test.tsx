@@ -6,7 +6,7 @@
  *
  * P1 FIX (layout audit §6, "sidebar داخل sidebar"): "الإعدادات" is now
  * also a disclosure group (SETTINGS_GROUP) instead of a flat link,
- * folding the 8 links that used to live in the separate SettingsSidebar
+ * folding the 7 links that used to live in the separate SettingsSidebar
  * component directly into this sidebar. Updated below to match: queried
  * as a button, its children only render once expanded, and its own
  * child labeled "متجري" is disambiguated from the top-level "متجري"
@@ -367,7 +367,7 @@ describe('ProtectedSidebar', () => {
   // ── P1 FIX (layout audit §6): "الإعدادات" disclosure group ──────
   // Replaces the old flat-link settings tests; SettingsSidebar (the
   // second nav column previously rendered by app/(protected)/settings/
-  // layout.tsx) is gone — these 8 destinations now live here instead.
+  // layout.tsx) is gone — these 7 destinations now live here instead.
 
   describe('"الإعدادات" disclosure group', () => {
     it('is collapsed by default when pathname is outside the group', () => {
@@ -389,12 +389,12 @@ describe('ProtectedSidebar', () => {
       expect(screen.getByText('الجلسات').closest('a')?.getAttribute('href')).toBe('/settings/sessions');
       expect(screen.getByText('الإشعارات').closest('a')?.getAttribute('href')).toBe('/settings/notifications');
       expect(screen.getByText('المستخدمون المحظورون').closest('a')?.getAttribute('href')).toBe('/settings/blocked-users');
-      // "متجري" appears twice once both this group and the top-level
-      // "متجري" group are expanded (own toggle + this child link) — use
-      // getAllByText and check at least one resolves to the settings href.
-      fireEvent.click(screen.getByRole('button', { name: /^متجري/ }));
-      const storeLinks = screen.getAllByText('متجري').map((el) => el.closest('a')).filter(Boolean);
-      expect(storeLinks.some((a) => a?.getAttribute('href') === '/my-store')).toBe(true);
+      // DEDUP-FIX (audit #3): "متجري" no longer appears inside
+      // "الإعدادات" — it's STORE_GROUP's own top-level entry now, not
+      // duplicated here. STORE_GROUP itself is still collapsed in this
+      // test (only "الإعدادات" was clicked), so no link named "متجري"
+      // should exist anywhere on screen at this point.
+      expect(screen.queryByRole('link', { name: 'متجري' })).not.toBeInTheDocument();
     });
 
     it('is expanded by default when pathname is inside the group (e.g. /settings/security)', () => {

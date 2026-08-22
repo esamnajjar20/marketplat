@@ -20,8 +20,11 @@ export default function ServicesPage() {
         didn't. Now uses the same icon-badge + bg-secondary/40 band
         treatment as /stores (and /categories/[slug]'s CategoryHero),
         so the two "browse + filter" list pages read as siblings. The
-        "مقدمو خدمة قريبون منك" link is service-specific and stays —
-        it has no equivalent on /stores.
+        "مقدمو الخدمة" link is service-specific and stays — it has no
+        equivalent on /stores. Label updated from the old "قريبون منك"
+        wording to match /service-providers' own heading now that that
+        page is a gps→city→general directory, not GPS-only (see
+        useServiceProvidersDirectory's doc).
       */}
       <div className="border-b bg-secondary/40">
         <div className="container mx-auto flex items-center justify-between gap-3 px-4 py-6 flex-wrap">
@@ -39,7 +42,7 @@ export default function ServicesPage() {
             className="flex items-center gap-1.5 text-sm text-primary hover:underline"
           >
             <LocateFixed className="h-4 w-4" />
-            مقدمو خدمة قريبون منك
+            مقدمو الخدمة
           </Link>
         </div>
       </div>

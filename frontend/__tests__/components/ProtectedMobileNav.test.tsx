@@ -193,7 +193,7 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('المفضلة').closest('a')?.getAttribute('aria-current')).toBeNull();
   });
 
-  it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 8-destination group)', () => {
+  it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 7-destination group)', () => {
     // FIX (test bug, not a component bug): getByRole excludes
     // aria-hidden elements from the accessibility tree by design (see
     // this file's own first test's comment) — the drawer's <nav> is
