@@ -590,6 +590,7 @@ model StoreDetails {
   products        Product[]
   promotions      Promotion[]
   followers       StoreFollower[]
+  collections     StoreCollection[]
 
   @@index([status, city])
   @@index([status, plan])
@@ -632,6 +633,7 @@ model Product {
   store           StoreDetails        @relation(fields: [storeId], references: [id], onDelete: Cascade)
   category        ProductCategory     @relation(fields: [categoryId], references: [id])
   promotions      Promotion[]
+  collections     StoreCollectionProduct[]
 
   @@index([storeId, status])
   @@index([categoryId, status])
@@ -679,6 +681,61 @@ model Promotion {
   @@index([storeId, status])
   @@index([productId, startsAt, endsAt])
   @@map("promotions")
+}
+
+// COLLECTIONS (P1): lets a store owner group products into named
+// shelves ("Phones", "Best Sellers") that a product can belong to
+// more than one of — many-to-many via StoreCollectionProduct below,
+// same reasoning the design doc gave for rejecting a single
+// collectionId column on Product. slug is scoped to the store
+// (@@unique([storeId, slug]), not global) since /stores/:store/
+// collections/:slug is always read within one store's URL, unlike
+// StoreDetails.slug which must be globally unique on its own.
+model StoreCollection {
+  id          String                   @id @default(cuid())
+  storeId     String
+  name        String
+  slug        String
+  description String?                  @db.VarChar(500)
+  imageUrl    String?
+  // Owner-controlled manual ordering for the storefront's collection
+  // list (not createdAt) — mirrors ProductCategory.sortOrder.
+  sortOrder   Int                      @default(0)
+  // Lets an owner hide a collection (e.g. a seasonal one) without
+  // losing its product memberships, same convention as
+  // StoreDetails.status for the whole store.
+  isActive    Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  store       StoreDetails             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products    StoreCollectionProduct[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, isActive, sortOrder])
+  @@map("store_collections")
+}
+
+// Join table for the Collection <-> Product many-to-many. A composite
+// PK (rather than a surrogate id + separate @@unique) since the row
+// has no identity of its own beyond "this product is in this
+// collection" — mirrors how StoreFollower keys off (storeId,
+// followerId) for the same reason.
+model StoreCollectionProduct {
+  collectionId String
+  productId    String
+  // Owner-controlled position within THIS collection specifically —
+  // deliberately separate from Product's own createdAt/global
+  // ordering, since the same product can sit at position 1 in
+  // "Best Sellers" and position 8 in "Phones" simultaneously.
+  sortOrder    Int             @default(0)
+  addedAt      DateTime        @default(now())
+  collection   StoreCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, productId])
+  @@index([productId])
+  @@index([collectionId, sortOrder])
+  @@map("store_collection_products")
 }
 
 model StoreFollower {

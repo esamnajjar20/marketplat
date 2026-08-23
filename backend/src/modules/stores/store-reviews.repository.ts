@@ -38,4 +38,35 @@ export const storeReviewsRepository = {
 
     return { reviews, total };
   },
+
+  // BADGES: single-store average score + count, used by
+  // badges.service.ts's HIGHLY_RATED criterion. avg is null (not 0)
+  // when there are zero reviews — the caller must treat null as "not
+  // enough data" rather than "rated zero".
+  getRatingSummary: async (
+    sellerProfileId: string
+  ): Promise<{ avg: number | null; count: number }> => {
+    const result = await prisma.storeReview.aggregate({
+      where: { sellerProfileId },
+      _avg: { score: true },
+      _count: true,
+    });
+    return { avg: result._avg.score, count: result._count };
+  },
+
+  // BADGES: batch variant for store-list/search cards — one grouped
+  // query instead of N single-store aggregates, same N+1-avoidance
+  // reasoning as promotionsRepository.findLiveByProductIds.
+  getRatingSummaries: async (
+    sellerProfileIds: string[]
+  ): Promise<Map<string, { avg: number | null; count: number }>> => {
+    if (sellerProfileIds.length === 0) return new Map();
+    const rows = await prisma.storeReview.groupBy({
+      by: ['sellerProfileId'],
+      where: { sellerProfileId: { in: sellerProfileIds } },
+      _avg: { score: true },
+      _count: true,
+    });
+    return new Map(rows.map(row => [row.sellerProfileId, { avg: row._avg.score, count: row._count }]));
+  },
 };

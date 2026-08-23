@@ -21,6 +21,8 @@ import { storesRouter } from './modules/stores';
 import { productsRouter } from './modules/products';
 import { productCategoriesRouter } from './modules/product-categories';
 import { promotionsRouter } from './modules/promotions';
+import { collectionsRouter } from './modules/collections';
+import { badgesRouter } from './modules/badges';
 import { searchRouter } from './modules/search';
 import { auditLogsRouter } from './modules/audit-logs';
 import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
@@ -93,6 +95,17 @@ router.use('/product-categories', productCategoriesRouter);
 // here (public consumers see effects via products' effectivePrice
 // fields instead).
 router.use('/promotions', promotionsRouter);
+// COLLECTIONS (P1): owner CRUD + membership under /collections, plus
+// two public storefront reads (/collections/store/:storeId and
+// /collections/:id/products) — see collections.routes.ts's doc
+// comment for why those two public GETs don't collide with the
+// single-segment owner routes despite living in the same router.
+router.use('/collections', collectionsRouter);
+// BADGES (P1): computed, not stored — see badges.types.ts's
+// computeBadges. Only VERIFIED/HIGHLY_RATED/POPULAR/NEW_STORE are
+// implemented; TOP_SELLER and FAST_RESPONSE were dropped from this
+// pass, no Order model or response-time tracking exists to back them.
+router.use('/badges', badgesRouter);
 // Gap #10 ("نشاطي"): a user's own cross-module activity timeline — its
 // own repository-backed module (not folded into users.routes.ts),
 // same pattern as /saved-searches and /notifications sitting outside
