@@ -168,10 +168,23 @@ describe('useAdmin* hooks — response unwrapping', () => {
 
   it('useAdminStats unwraps r.data.data', async () => {
     (adminApi.getStats as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { totalAds: 5, activeAds: 3, totalUsers: 10, activeUsers: 8, openReports: 1, viewsToday: 42 } },
+      data: {
+        data: {
+          totalAds: 5,
+          activeAds: 3,
+          totalUsers: 10,
+          activeUsers: 8,
+          openReports: 1,
+          viewsToday: 42,
+          newUsersToday: 1,
+          newUsersThisWeek: 4,
+          newUsersThisMonth: 9,
+        },
+      },
     });
     const { result } = renderHook(() => useAdminStats(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.viewsToday).toBe(42);
+    expect(result.current.data?.newUsersThisMonth).toBe(9);
   });
 });

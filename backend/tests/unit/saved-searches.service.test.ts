@@ -132,6 +132,40 @@ describe('savedSearchesService', () => {
       expect(matchesFilters(baseAd, { q: 'samsung galaxy' })).toBe(false);
     });
 
+    // AUDIT-FIX (saved-search q matching): q used to require the whole
+    // phrase as a literal, contiguous substring — so a saved search's
+    // words had to appear adjacent and in that exact order. Real
+    // full-text search (GET /ads?search=) has never worked that way.
+    it('matches regardless of word order (AND-of-words, not whole-phrase substring)', () => {
+      expect(matchesFilters(baseAd, { q: '13 iphone' })).toBe(true);
+    });
+
+    it('matches when the words are split across title and description', () => {
+      expect(matchesFilters(baseAd, { q: 'iphone original box' })).toBe(true);
+    });
+
+    it('still requires every word to be present (AND, not OR)', () => {
+      expect(matchesFilters(baseAd, { q: 'iphone samsung' })).toBe(false);
+    });
+
+    // AUDIT-FIX (saved-search q matching): q previously had no Arabic
+    // letter-shape normalization at all, unlike every other search path
+    // on the platform (arabic_normalize(), see searchTextMatch.ts).
+    it('matches across Arabic alef/yeh letter-shape variants', () => {
+      const arabicAd = {
+        ...baseAd,
+        title: 'سيارة اوتوماتيك للبيع',
+        description: 'بحالة ممتازة، صيانة دورية',
+      } as unknown as AdWithAuthor;
+
+      // Query typed with a hamza variant (أ) where the ad used bare
+      // alef (ا) — previously never matched.
+      expect(matchesFilters(arabicAd, { q: 'أوتوماتيك سيارة' })).toBe(true);
+      // ta marbuta / ha (ة vs ه) is deliberately NOT folded — same
+      // conservative choice as arabic_normalize() itself.
+      expect(matchesFilters(arabicAd, { q: 'سياره' })).toBe(false);
+    });
+
     it('matches on city case-insensitively', () => {
       expect(matchesFilters(baseAd, { city: 'gaza' })).toBe(true);
       expect(matchesFilters(baseAd, { city: 'GAZA' })).toBe(true);
@@ -268,6 +302,10 @@ describe('savedSearchesService', () => {
       expect(matchesProductFilters(baseProduct, { q: 'samsung', type: 'products' })).toBe(false);
     });
 
+    it('matches regardless of word order, split across name/description', () => {
+      expect(matchesProductFilters(baseProduct, { q: 'stock iphone' })).toBe(true);
+    });
+
     it('matches on exact categoryId', () => {
       expect(matchesProductFilters(baseProduct, { categoryId: 'pcat-1', type: 'products' })).toBe(true);
       expect(matchesProductFilters(baseProduct, { categoryId: 'pcat-2', type: 'products' })).toBe(false);
@@ -296,6 +334,10 @@ describe('savedSearchesService', () => {
     it('matches on q against title or description, case-insensitively', () => {
       expect(matchesServiceFilters(baseListing, { q: 'ac repair', type: 'services' })).toBe(true);
       expect(matchesServiceFilters(baseListing, { q: 'plumbing', type: 'services' })).toBe(false);
+    });
+
+    it('matches regardless of word order', () => {
+      expect(matchesServiceFilters(baseListing, { q: 'repair home' })).toBe(true);
     });
 
     it('matches on exact categoryId', () => {

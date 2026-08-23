@@ -30,12 +30,20 @@ describe('Admin API', () => {
         activeUsers: expect.any(Number),
         openReports: expect.any(Number),
         viewsToday: expect.any(Number),
+        newUsersToday: expect.any(Number),
+        newUsersThisWeek: expect.any(Number),
+        newUsersThisMonth: expect.any(Number),
       });
       // The ad just created above must be reflected in the totals —
       // a stale/wrong query shape (e.g. missing a WHERE clause) would
       // still return 200 with a shape-valid but numerically wrong count.
       expect(res.body.data.totalAds).toBeGreaterThanOrEqual(1);
       expect(res.body.data.activeAds).toBeGreaterThanOrEqual(1);
+      // The user just created above registered today, so must be
+      // reflected in every one of the three new-registration windows.
+      expect(res.body.data.newUsersToday).toBeGreaterThanOrEqual(1);
+      expect(res.body.data.newUsersThisWeek).toBeGreaterThanOrEqual(1);
+      expect(res.body.data.newUsersThisMonth).toBeGreaterThanOrEqual(1);
     });
 
     it('rejects unauthenticated requests with 401', async () => {

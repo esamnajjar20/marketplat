@@ -2,7 +2,7 @@
  * __tests__/components/AdminStatsGrid.test.tsx
  *
  * AdminStatsGrid's real logic: a loading state, and defaulting each of
- * the four stats to 0 when the corresponding field is missing from the
+ * the seven stats to 0 when the corresponding field is missing from the
  * API response (rather than crashing on undefined.toLocaleString()).
  * Digit assertions use (n).toLocaleString('ar') rather than hardcoded
  * glyphs since this environment's ICU build renders plain Western
@@ -27,9 +27,17 @@ describe('AdminStatsGrid', () => {
     expect(screen.queryByText('إجمالي الإعلانات')).not.toBeInTheDocument();
   });
 
-  it('renders all four stat values from the API response', () => {
+  it('renders every stat value from the API response, including the new-registration counts', () => {
     mockUseAdminStats.mockReturnValue({
-      data: { totalAds: 150, activeUsers: 42, openReports: 3, viewsToday: 980 },
+      data: {
+        totalAds: 150,
+        activeUsers: 42,
+        openReports: 3,
+        viewsToday: 980,
+        newUsersToday: 7,
+        newUsersThisWeek: 25,
+        newUsersThisMonth: 110,
+      },
       isLoading: false,
     } as never);
     render(<AdminStatsGrid />);
@@ -45,6 +53,15 @@ describe('AdminStatsGrid', () => {
 
     const viewsTodayCard = screen.getByText('مشاهدات اليوم').closest('div');
     expect(viewsTodayCard).toHaveTextContent((980).toLocaleString('ar'));
+
+    const newUsersTodayCard = screen.getByText('مستخدمون جدد اليوم').closest('div');
+    expect(newUsersTodayCard).toHaveTextContent((7).toLocaleString('ar'));
+
+    const newUsersThisWeekCard = screen.getByText('مستخدمون جدد هذا الأسبوع').closest('div');
+    expect(newUsersThisWeekCard).toHaveTextContent((25).toLocaleString('ar'));
+
+    const newUsersThisMonthCard = screen.getByText('مستخدمون جدد هذا الشهر').closest('div');
+    expect(newUsersThisMonthCard).toHaveTextContent((110).toLocaleString('ar'));
   });
 
   it('defaults every stat to 0 when the API returns no data at all', () => {
@@ -53,6 +70,9 @@ describe('AdminStatsGrid', () => {
 
     const totalAdsCard = screen.getByText('إجمالي الإعلانات').closest('div');
     expect(totalAdsCard).toHaveTextContent((0).toLocaleString('ar'));
+
+    const newUsersThisMonthCard = screen.getByText('مستخدمون جدد هذا الشهر').closest('div');
+    expect(newUsersThisMonthCard).toHaveTextContent((0).toLocaleString('ar'));
   });
 
   it('defaults viewsToday to 0 specifically (FIX FEAT-05: this field was previously always omitted)', () => {

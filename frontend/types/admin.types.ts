@@ -118,6 +118,9 @@ export interface AdminStats {
   activeUsers: number;
   openReports: number;
   viewsToday:  number;
+  newUsersToday:     number;
+  newUsersThisWeek:  number;
+  newUsersThisMonth: number;
 }
 
 // ── Sellers (Epic 1.1) ──────────────────────────────────────────────

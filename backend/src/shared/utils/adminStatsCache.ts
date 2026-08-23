@@ -11,6 +11,18 @@ export interface AdminStats {
   activeUsers: number;
   openReports: number;
   viewsToday: number;
+  // FEAT: new-registration counts for the admin dashboard — "كم مستخدم
+  // دخل الموقع اليوم/الأسبوع/الشهر". Each is its own independent
+  // calendar-period window (today / Sunday-start week / calendar
+  // month), not a strict month ⊇ week ⊇ today nesting — near the start
+  // of a month that doesn't begin on a Sunday, the week window can
+  // reach back into the previous month, so newUsersThisWeek can
+  // legitimately exceed newUsersThisMonth for those few days. See
+  // admin.service.ts's getStats for the exact boundary math and that
+  // edge case's full explanation.
+  newUsersToday: number;
+  newUsersThisWeek: number;
+  newUsersThisMonth: number;
 }
 
 /**

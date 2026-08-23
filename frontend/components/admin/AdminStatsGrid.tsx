@@ -3,7 +3,7 @@
 import { useAdminStats } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { formatNumber } from '@/lib/formatters';
-import { ShoppingBag, Users, Flag, Eye, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, Users, Flag, Eye, AlertTriangle, UserPlus, CalendarDays, CalendarRange } from 'lucide-react';
 
 export function AdminStatsGrid() {
   const { data, isLoading, isError, refetch } = useAdminStats();
@@ -39,6 +39,12 @@ export function AdminStatsGrid() {
     // (sum of views on ads created today + buffered increments) — was
     // previously omitted here since the backend had no value to give.
     { label: 'مشاهدات اليوم',      value: data?.viewsToday ?? 0,   icon: Eye,         color: 'text-accent' },
+    // FEAT: new-registration counts — same GET /admin/stats response,
+    // see admin.service.ts's getStats for the exact today/week/month
+    // boundary definitions.
+    { label: 'مستخدمون جدد اليوم',      value: data?.newUsersToday ?? 0,     icon: UserPlus,     color: 'text-primary' },
+    { label: 'مستخدمون جدد هذا الأسبوع', value: data?.newUsersThisWeek ?? 0,  icon: CalendarDays, color: 'text-success' },
+    { label: 'مستخدمون جدد هذا الشهر',   value: data?.newUsersThisMonth ?? 0, icon: CalendarRange, color: 'text-accent' },
   ];
 
   return (

@@ -18,6 +18,9 @@ describe('adminStatsCache', () => {
     activeUsers: 4,
     openReports: 1,
     viewsToday: 42,
+    newUsersToday: 2,
+    newUsersThisWeek: 3,
+    newUsersThisMonth: 5,
   };
 
   afterEach(() => {

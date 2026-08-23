@@ -41,6 +41,30 @@ export const adminService = {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
+    // FEAT: new-registration counts ("دخلوا الموقع اليوم/الأسبوع/الشهر").
+    // Week starts Sunday (getDay() 0), matching the only other
+    // day-of-week convention already in this codebase
+    // (stores.service.ts's WEEKDAY_KEYS). Month is the calendar month
+    // (1st at 00:00), not a rolling 30-day window — matches how
+    // "هذا الشهر" reads to an admin (resets on the 1st), and avoids a
+    // second, differently-shaped "last 30 days" number sitting next to
+    // viewsToday's own day-based one on the same dashboard.
+    //
+    // KNOWN EDGE CASE (calendar periods, not a bug to "fix"): for the
+    // first few days of any month that doesn't start on a Sunday, the
+    // Sunday-start week window reaches back into the *previous* month
+    // while the month window resets to the 1st — so newUsersThisWeek
+    // can briefly show a higher count than newUsersThisMonth. That's
+    // correct for what each label actually asks ("this calendar week"
+    // vs "this calendar month" are different, overlapping windows,
+    // not a strict month ⊇ week nesting) — flagged here so it isn't
+    // mistaken for a counting bug later.
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+    const startOfMonth = new Date(startOfToday);
+    startOfMonth.setDate(1);
+
     const [
       totalAds,
       activeAds,
@@ -48,6 +72,9 @@ export const adminService = {
       activeUsers,
       openReports,
       viewsToday,
+      newUsersToday,
+      newUsersThisWeek,
+      newUsersThisMonth,
     ] = await Promise.all([
       prisma.ad.count(),
       prisma.ad.count({ where: { status: AdStatus.ACTIVE } }),
@@ -73,6 +100,19 @@ export const adminService = {
         _sum: { views: true },
         where: { createdAt: { gte: startOfToday } },
       }).then(r => r._sum.views ?? 0),
+      // FEAT: all three read User.createdAt directly — registration
+      // time, not last-login (this schema has no lastLoginAt column at
+      // all, so "دخل الموقع" is read as "joined/registered", the same
+      // event totalUsers/activeUsers above are already counted from).
+      // Covered by the existing [isActive, createdAt] index only when
+      // Postgres chooses to use its leading column; at this table's
+      // current size a plain count() on createdAt alone is cheap either
+      // way — a dedicated createdAt-only index isn't worth adding for
+      // three cheap dashboard counts refreshed at most every 30s (see
+      // adminStatsCache's TTL).
+      prisma.user.count({ where: { createdAt: { gte: startOfToday } } }),
+      prisma.user.count({ where: { createdAt: { gte: startOfWeek } } }),
+      prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }),
     ]);
 
     const stats = {
@@ -82,6 +122,9 @@ export const adminService = {
       activeUsers,
       openReports,
       viewsToday,
+      newUsersToday,
+      newUsersThisWeek,
+      newUsersThisMonth,
     };
 
     await adminStatsCache.set(stats);

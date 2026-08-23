@@ -34,7 +34,10 @@ describe('AdminService', () => {
         .mockResolvedValueOnce(80); // activeAds
       jest.spyOn(prisma.user, 'count')
         .mockResolvedValueOnce(50) // totalUsers
-        .mockResolvedValueOnce(45); // activeUsers
+        .mockResolvedValueOnce(45) // activeUsers
+        .mockResolvedValueOnce(4)  // newUsersToday
+        .mockResolvedValueOnce(15) // newUsersThisWeek
+        .mockResolvedValueOnce(30); // newUsersThisMonth
       jest.spyOn(prisma.report, 'count').mockResolvedValue(3);
       jest.spyOn(prisma.ad, 'aggregate').mockResolvedValue({ _sum: { views: 120 } } as any);
 
@@ -47,6 +50,9 @@ describe('AdminService', () => {
         activeUsers: 45,
         openReports: 3,
         viewsToday: 120,
+        newUsersToday: 4,
+        newUsersThisWeek: 15,
+        newUsersThisMonth: 30,
       });
     });
 
@@ -54,7 +60,12 @@ describe('AdminService', () => {
       const countSpy = jest.spyOn(prisma.ad, 'count')
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(80);
-      jest.spyOn(prisma.user, 'count').mockResolvedValueOnce(50).mockResolvedValueOnce(45);
+      jest.spyOn(prisma.user, 'count')
+        .mockResolvedValueOnce(50)
+        .mockResolvedValueOnce(45)
+        .mockResolvedValueOnce(4)
+        .mockResolvedValueOnce(15)
+        .mockResolvedValueOnce(30);
       jest.spyOn(prisma.report, 'count').mockResolvedValue(3);
       jest.spyOn(prisma.ad, 'aggregate').mockResolvedValue({ _sum: { views: 120 } } as any);
 
@@ -69,13 +80,58 @@ describe('AdminService', () => {
 
     it('treats a null views aggregate as 0 rather than null/undefined', async () => {
       jest.spyOn(prisma.ad, 'count').mockResolvedValueOnce(0).mockResolvedValueOnce(0);
-      jest.spyOn(prisma.user, 'count').mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+      jest.spyOn(prisma.user, 'count')
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
       jest.spyOn(prisma.report, 'count').mockResolvedValue(0);
       jest.spyOn(prisma.ad, 'aggregate').mockResolvedValue({ _sum: { views: null } } as any);
 
       const stats = await adminService.getStats();
 
       expect(stats.viewsToday).toBe(0);
+    });
+
+    // FEAT: new-registration counts — each window queries User.createdAt
+    // with a different lower bound (today/week/month starts).
+    it('queries newUsersToday/ThisWeek/ThisMonth as three separate User.createdAt counts', async () => {
+      jest.spyOn(prisma.ad, 'count').mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+      const userCountSpy = jest.spyOn(prisma.user, 'count')
+        .mockResolvedValueOnce(0) // totalUsers
+        .mockResolvedValueOnce(0) // activeUsers
+        .mockResolvedValueOnce(2) // newUsersToday
+        .mockResolvedValueOnce(9) // newUsersThisWeek
+        .mockResolvedValueOnce(40); // newUsersThisMonth
+      jest.spyOn(prisma.report, 'count').mockResolvedValue(0);
+      jest.spyOn(prisma.ad, 'aggregate').mockResolvedValue({ _sum: { views: 0 } } as any);
+
+      const stats = await adminService.getStats();
+
+      expect(stats.newUsersToday).toBe(2);
+      expect(stats.newUsersThisWeek).toBe(9);
+      expect(stats.newUsersThisMonth).toBe(40);
+      // 3rd/4th/5th calls are the new-user counts, each filtered on
+      // User.createdAt with a different lower bound.
+      expect(userCountSpy.mock.calls[2][0]).toEqual({ where: { createdAt: { gte: expect.any(Date) } } });
+      expect(userCountSpy.mock.calls[3][0]).toEqual({ where: { createdAt: { gte: expect.any(Date) } } });
+      expect(userCountSpy.mock.calls[4][0]).toEqual({ where: { createdAt: { gte: expect.any(Date) } } });
+      // week start is always the most recent Sunday on/before today —
+      // never later than today's own start.
+      const [, , todayCall, weekCall, monthCall] = userCountSpy.mock.calls;
+      const todayStart = (todayCall[0] as any).where.createdAt.gte as Date;
+      const weekStart = (weekCall[0] as any).where.createdAt.gte as Date;
+      const monthStart = (monthCall[0] as any).where.createdAt.gte as Date;
+      expect(weekStart.getTime()).toBeLessThanOrEqual(todayStart.getTime());
+      // monthStart is always the 1st of the current calendar month.
+      // NOTE: monthStart is NOT guaranteed <= weekStart near a month
+      // boundary — e.g. if the 1st falls on a Saturday, "this week"
+      // (Sunday-start) reaches back into the previous month, so
+      // weekStart can be earlier than monthStart. Asserting a fixed
+      // ordering here would be wrong, not just untested.
+      expect(monthStart.getDate()).toBe(1);
+      expect(monthStart.getHours()).toBe(0);
     });
   });
 

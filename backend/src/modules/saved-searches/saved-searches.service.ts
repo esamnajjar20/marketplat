@@ -4,6 +4,7 @@ import { notificationEvents } from '../notifications';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { withSavedSearchCreationLock } from '../../shared/utils/adLock';
+import { matchesSearchQuery } from '../../shared/utils/searchTextMatch';
 import type { CreateSavedSearchInput, SavedSearchFilters } from './saved-searches.validation';
 import type { AdWithAuthor } from '../ads/ads.repository';
 
@@ -16,10 +17,13 @@ const MAX_SAVED_SEARCHES_PER_USER = 20;
 /**
  * True if `ad` satisfies every criterion present in `filters`. Absent
  * filter keys are unconstrained (match any value) — same semantics as
- * GET /ads's optional query params. `q` matches the same way the ILIKE
- * search does on title/description (ads.repository.ts's search branch):
- * case-insensitive substring, checked against both title and
- * description.
+ * GET /ads's optional query params. `q` matches via matchesSearchQuery
+ * (searchTextMatch.ts) — the JS-side counterpart to the arabic_normalize
+ * + to_tsvector/plainto_tsquery matching GET /ads?search= actually runs
+ * in Postgres, checked against both title and description. See that
+ * file's header for exactly which equivalence classes this folds
+ * (Arabic letter-shape variants, diacritics, tatweel) and why matching
+ * is AND-of-words rather than a literal whole-phrase substring.
  *
  * AUDIT-FIX (5.11/9.7): this previously checked `title` only, with a
  * comment claiming `description` "isn't loaded onto AdWithAuthor's
@@ -30,14 +34,19 @@ const MAX_SAVED_SEARCHES_PER_USER = 20;
  * ads.service.ts's `tx.ad.create({ include: {...} })` result. An ad
  * that matched a saved search's `q` only through its description (not
  * its title) previously never triggered the match notification at all.
+ *
+ * AUDIT-FIX (saved-search q matching): `q` matching was previously a
+ * literal, case-folded-only substring check — no Arabic letter-shape
+ * normalization (أ/إ/آ/ٱ/ى typed differently from how the ad was
+ * originally typed silently missed a real match) and whole-phrase-only
+ * (a 2-word saved search like "toyota camry" never matched an ad
+ * titled "camry toyota 2020", or one where the words landed one in the
+ * title and one in the description). Replaced with matchesSearchQuery
+ * so `q` behaves the same way GET /ads?search= already does, instead
+ * of a stricter, literal-only rule unique to saved searches.
  */
 function matchesAdFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolean {
-  if (filters.q) {
-    const q = filters.q.toLowerCase();
-    const titleMatches = ad.title.toLowerCase().includes(q);
-    const descriptionMatches = ad.description.toLowerCase().includes(q);
-    if (!titleMatches && !descriptionMatches) return false;
-  }
+  if (filters.q && !matchesSearchQuery([ad.title, ad.description], filters.q)) return false;
   if (filters.city && ad.city.toLowerCase() !== filters.city.toLowerCase()) return false;
   if (filters.categoryId && ad.categoryId !== filters.categoryId) return false;
   if (filters.condition && ad.condition !== filters.condition) return false;
@@ -56,16 +65,16 @@ function matchesAdFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolea
  * 'products' that happens to carry city/condition (left over from a
  * stale client, say) simply never checks them here — same "absent/
  * inapplicable filter keys are unconstrained" semantics as the ad case.
- * `q` matches against name + description, mirroring products.repository
- * .ts's own ILIKE search branch.
+ * `q` matches via matchesSearchQuery (searchTextMatch.ts) against
+ * name + description — see matchesAdFilters' doc comment above for why
+ * (Arabic letter-shape/diacritic normalization, AND-of-words instead
+ * of literal whole-phrase substring). Note this makes saved-search `q`
+ * matching for products *smarter* than products.repository.ts's own
+ * live `search` param, which still does plain `contains` — a separate,
+ * pre-existing gap in the main product search, not introduced here.
  */
 function matchesProductFilters(product: Product, filters: SavedSearchFilters): boolean {
-  if (filters.q) {
-    const q = filters.q.toLowerCase();
-    const nameMatches = product.name.toLowerCase().includes(q);
-    const descriptionMatches = product.description.toLowerCase().includes(q);
-    if (!nameMatches && !descriptionMatches) return false;
-  }
+  if (filters.q && !matchesSearchQuery([product.name, product.description], filters.q)) return false;
   if (filters.categoryId && product.categoryId !== filters.categoryId) return false;
 
   const price = Number(product.price);
@@ -79,15 +88,13 @@ function matchesProductFilters(product: Product, filters: SavedSearchFilters): b
  * PLATFORM-WIDE-01: ServiceListing equivalent. `price` is nullable
  * (NEGOTIABLE pricing type has no fixed price) — a listing with no
  * price never satisfies a minPrice/maxPrice filter, same null-handling
- * as matchesAdFilters' own price check.
+ * as matchesAdFilters' own price check. `q` matches via
+ * matchesSearchQuery (searchTextMatch.ts) — same note as
+ * matchesProductFilters above re: this being smarter than
+ * service-listings.repository.ts's own live `search` param.
  */
 function matchesServiceFilters(listing: ServiceListing, filters: SavedSearchFilters): boolean {
-  if (filters.q) {
-    const q = filters.q.toLowerCase();
-    const titleMatches = listing.title.toLowerCase().includes(q);
-    const descriptionMatches = listing.description.toLowerCase().includes(q);
-    if (!titleMatches && !descriptionMatches) return false;
-  }
+  if (filters.q && !matchesSearchQuery([listing.title, listing.description], filters.q)) return false;
   if (filters.categoryId && listing.categoryId !== filters.categoryId) return false;
 
   const price = listing.price !== null ? Number(listing.price) : null;
