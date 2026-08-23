@@ -213,4 +213,18 @@ export const storesController = {
       next(error);
     }
   },
+
+  // STORE-ANALYTICS (Foundation v1): owner-only summary, same
+  // requireOwnStore gate every other /me write in this module goes
+  // through — see stores.service.ts's getMyStoreAnalytics doc comment
+  // for why Orders/Revenue/Conversion aren't in this response.
+  getMyStoreAnalytics: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const analytics = await storesService.getMyStoreAnalytics(user.userId);
+      res.status(200).json(successResponse('Store analytics fetched', analytics));
+    } catch (error) {
+      next(error);
+    }
+  },
 };

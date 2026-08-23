@@ -22,6 +22,10 @@ storesRouter.get('/me', authenticate, CACHE.NONE, storesController.getMyStore);
 storesRouter.patch('/me', authenticate, storesController.updateMyStore);
 storesRouter.get('/me/followed', authenticate, CACHE.NONE, storesController.getMyFollowedStores);
 
+// STORE-ANALYTICS (Foundation v1): owner-only, same registration-order
+// reasoning as /me/followed above.
+storesRouter.get('/me/analytics', authenticate, CACHE.NONE, storesController.getMyStoreAnalytics);
+
 // Logo/cover upload — same single-image pattern as POST /users/me/avatar.
 // Registered alongside the other /me routes for the same "never
 // swallowed as :id" reason.

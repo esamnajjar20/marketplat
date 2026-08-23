@@ -3,6 +3,8 @@ import { storesRepository } from '../../src/modules/stores/stores.repository';
 import { storeFollowersRepository } from '../../src/modules/stores/store-followers.repository';
 import { storeReviewsRepository } from '../../src/modules/stores/store-reviews.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { promotionsRepository } from '../../src/modules/promotions/promotions.repository';
+import { productsRepository } from '../../src/modules/products/products.repository';
 import { prisma } from '../../src/config/prisma';
 import { Prisma } from '@prisma/client';
 import { withStoreCreationLock } from '../../src/shared/utils/storeLock';
@@ -27,6 +29,13 @@ jest.mock('../../src/modules/stores/store-followers.repository');
 jest.mock('../../src/modules/stores/store-reviews.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/shared/utils/storeLock');
+// STORE-ANALYTICS (Foundation v1): getMyStoreAnalytics pulls from these
+// two — mocked the same way every other cross-module repository
+// dependency in this file already is, so real Prisma calls (which
+// this file's manual prisma mock below doesn't define model methods
+// for) never execute.
+jest.mock('../../src/modules/promotions/promotions.repository');
+jest.mock('../../src/modules/products/products.repository');
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     $transaction: jest.fn(),
@@ -60,6 +69,15 @@ describe('storesService', () => {
     // By default, run the wrapped callback straight through — most tests
     // only care about what happens inside the lock, not the lock itself.
     (withStoreCreationLock as jest.Mock).mockImplementation((_id, fn) => fn());
+    // STORE-VIEWS: getPublicStore calls this fire-and-forget and chains
+    // .catch() directly onto the return value (not awaited) — the
+    // auto-mocked default (a jest.fn() returning undefined) isn't
+    // thenable, so calling .catch() on it would throw synchronously
+    // inside getPublicStore before it ever reaches its own return.
+    // Every test that exercises getPublicStore's success path needs
+    // this to actually return a promise, so it's set once here rather
+    // than repeated per test.
+    (storesRepository.incrementViews as jest.Mock).mockResolvedValue({} as any);
   });
 
   describe('createStore', () => {
@@ -219,7 +237,10 @@ describe('storesService', () => {
 
       const result = await storesService.getPublicStore(storeId);
 
-      expect(result).toEqual(publicStore);
+      // STORE-HOURS: isOpen is computed, not stored — null here because
+      // publicStore has no workingHours field, same "unknown, not
+      // closed" behavior computeIsOpen's own doc comment describes.
+      expect(result).toEqual({ ...publicStore, isOpen: null });
     });
 
     // SEC-FIX regression: see stores.service.ts's getPublicStore comment
@@ -569,6 +590,63 @@ describe('storesService', () => {
       const result = await requireOwnStoreForProducts(userId);
 
       expect(result).toEqual(mockStore);
+    });
+  });
+
+  // STORE-ANALYTICS (Foundation v1)
+  describe('getMyStoreAnalytics', () => {
+    beforeEach(() => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
+      (storesRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({
+        ...mockStore,
+        views: 150,
+      });
+    });
+
+    it('throws BadRequestError when the caller has no store', async () => {
+      (storesRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+
+      await expect(storesService.getMyStoreAnalytics(userId)).rejects.toThrow(
+        'You need to create your store first.'
+      );
+    });
+
+    it('aggregates views, followers, promotions, and top products with no revenue/orders fields', async () => {
+      (storeFollowersRepository.countByStoreId as jest.Mock).mockResolvedValue(42);
+      (storeFollowersRepository.countByStoreIdSince as jest.Mock)
+        .mockResolvedValueOnce(5) // 7d
+        .mockResolvedValueOnce(12); // 30d
+      (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(8);
+      (promotionsRepository.findByStoreId as jest.Mock).mockResolvedValue([
+        { status: 'ACTIVE', usageCount: 3 },
+        { status: 'EXPIRED', usageCount: 7 },
+      ]);
+      (productsRepository.findTopByStoreId as jest.Mock).mockResolvedValue([
+        { id: 'p1', name: 'Phone', views: 90, images: ['https://x/img1.jpg'] },
+        { id: 'p2', name: 'Case', views: 40, images: [] },
+      ]);
+
+      const result = await storesService.getMyStoreAnalytics(userId);
+
+      expect(result).toEqual({
+        views: 150,
+        followers: 42,
+        newFollowers7d: 5,
+        newFollowers30d: 12,
+        activeProducts: 8,
+        activePromotions: 1,
+        promotionUses: 10,
+        topProducts: [
+          { id: 'p1', name: 'Phone', views: 90, image: 'https://x/img1.jpg' },
+          { id: 'p2', name: 'Case', views: 40, image: null },
+        ],
+      });
+      // Explicit, not just an absent-key check — this is the whole
+      // point of the endpoint (see stores.service.ts's doc comment):
+      // no honest orders/revenue/conversion number exists yet.
+      expect(result).not.toHaveProperty('orders');
+      expect(result).not.toHaveProperty('revenue');
+      expect(result).not.toHaveProperty('conversionRate');
     });
   });
 });

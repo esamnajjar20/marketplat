@@ -298,6 +298,47 @@ describe('storesController', () => {
     });
   });
 
+  // STORE-ANALYTICS (Foundation v1)
+  describe('getMyStoreAnalytics', () => {
+    it('returns 200 with the analytics payload on success', async () => {
+      const req = mockRequest({ user: authUser } as any);
+      const res = mockResponse();
+      const next = mockNext();
+      const analytics = { views: 10, followers: 2, newFollowers7d: 0, newFollowers30d: 1, activeProducts: 3, activePromotions: 0, promotionUses: 0, topProducts: [] };
+      (storesService.getMyStoreAnalytics as jest.Mock).mockResolvedValue(analytics);
+
+      await storesController.getMyStoreAnalytics(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, data: analytics })
+      );
+    });
+
+    it('calls next(UnauthorizedError) when there is no authenticated user', async () => {
+      const req = mockRequest({});
+      const res = mockResponse();
+      const next = mockNext();
+
+      await storesController.getMyStoreAnalytics(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+    });
+
+    it('forwards a service error (e.g. no store yet) to next', async () => {
+      const req = mockRequest({ user: authUser } as any);
+      const res = mockResponse();
+      const next = mockNext();
+      (storesService.getMyStoreAnalytics as jest.Mock).mockRejectedValue(
+        new NotFoundError('Store not found', 'STORE_NOT_FOUND')
+      );
+
+      await storesController.getMyStoreAnalytics(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+    });
+  });
+
   describe('createReview', () => {
     const validReviewBody = { score: 5, comment: 'Great store' };
 

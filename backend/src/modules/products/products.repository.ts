@@ -55,6 +55,17 @@ export const productsRepository = {
   incrementViews: (id: string): Promise<Product> =>
     prisma.product.update({ where: { id }, data: { views: { increment: 1 } } }),
 
+  // STORE-ANALYTICS (Foundation v1): "top products" tile on the store
+  // owner's analytics endpoint — cheap, since Product.views is already
+  // a plain indexed-by-implication scalar column, no join needed.
+  findTopByStoreId: (storeId: string, limit: number): Promise<Pick<Product, 'id' | 'name' | 'views' | 'images'>[]> =>
+    prisma.product.findMany({
+      where: { storeId, status: 'ACTIVE' },
+      select: { id: true, name: true, views: true, images: true },
+      orderBy: { views: 'desc' },
+      take: limit,
+    }),
+
   update: (
     id: string,
     data: Partial<{

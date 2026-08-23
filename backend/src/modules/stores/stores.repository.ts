@@ -28,6 +28,12 @@ export const storesRepository = {
   findById: (id: string): Promise<StoreDetails | null> =>
     prisma.storeDetails.findUnique({ where: { id } }),
 
+  // STORE-SLUG: used by storesService.createStore's collision-retry
+  // loop (find-then-suffix, not a DB-level generated column) and by
+  // getPublicStore's id-then-slug fallback lookup.
+  findBySlug: (slug: string): Promise<StoreDetails | null> =>
+    prisma.storeDetails.findUnique({ where: { slug } }),
+
   // FEAT-REPORT-USER-STORE: same query as findPublicById minus the
   // follower/product counts — reportsService only needs
   // sellerProfile.userId, not the full public-profile payload.
@@ -40,11 +46,22 @@ export const storesRepository = {
       include: storeWithSellerAndCounts,
     }),
 
+  // STORE-SLUG: same shape as findPublicById — getPublicStore tries the
+  // id lookup first (cheap, indexed PK) and only falls back to this
+  // when nothing matched, since most direct traffic will still hit by
+  // id until slug links propagate.
+  findPublicBySlug: (slug: string): Promise<StoreWithSellerAndCounts | null> =>
+    prisma.storeDetails.findUnique({
+      where: { slug },
+      include: storeWithSellerAndCounts,
+    }),
+
   create: (
     tx: Prisma.TransactionClient,
     sellerProfileId: string,
     data: {
       name: string;
+      slug: string;
       description: string;
       city: string;
       address?: string;
@@ -53,12 +70,14 @@ export const storesRepository = {
       coverImageUrl?: string;
       latitude?: number;
       longitude?: number;
+      workingHours?: Prisma.InputJsonValue;
     }
   ): Promise<StoreDetails> =>
     tx.storeDetails.create({
       data: {
         sellerProfileId,
         name: data.name,
+        slug: data.slug,
         description: data.description,
         city: data.city,
         address: data.address,
@@ -67,6 +86,7 @@ export const storesRepository = {
         coverImageUrl: data.coverImageUrl,
         latitude: data.latitude,
         longitude: data.longitude,
+        workingHours: data.workingHours,
       },
     }),
 
@@ -82,8 +102,15 @@ export const storesRepository = {
       coverImageUrl: string | null;
       latitude: number | null;
       longitude: number | null;
+      workingHours: Prisma.InputJsonValue;
     }>
   ): Promise<StoreDetails> => prisma.storeDetails.update({ where: { id }, data }),
+
+  // STORE-VIEWS: fire-and-forget from the service layer, same
+  // "increment column, don't fail the read on error" convention as
+  // productsRepository.incrementViews.
+  incrementViews: (id: string): Promise<StoreDetails> =>
+    prisma.storeDetails.update({ where: { id }, data: { views: { increment: 1 } } }),
 
   updateStatus: (id: string, status: 'PENDING' | 'ACTIVE' | 'BLOCKED'): Promise<StoreDetails> =>
     prisma.storeDetails.update({ where: { id }, data: { status } }),

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search, ChevronDown, Flame } from 'lucide-react';
+import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search, ChevronDown, Flame, Package, Store } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,6 +33,12 @@ const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   // badge (🔥) for visual consistency with how a promotion is already
   // represented elsewhere in the app.
   PROMOTION_STATUS_CHANGE: Flame,
+  // FIX (Foundation v1): closes the pre-existing STORE_NEW_PRODUCT gap
+  // this map's own doc comment used to flag, and adds the two new
+  // store-follower types from the same pass.
+  STORE_NEW_PRODUCT: Store,
+  STORE_PROMOTION_STARTED: Flame,
+  STORE_PRODUCT_RESTOCKED: Package,
 };
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -43,6 +49,9 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   WEEKLY_AD_VIEWS_REPORT: 'تقارير المشاهدات',
   SAVED_SEARCH_MATCH: 'نتائج بحث محفوظ',
   PROMOTION_STATUS_CHANGE: 'عروضي',
+  STORE_NEW_PRODUCT: 'منتجات جديدة',
+  STORE_PROMOTION_STARTED: 'عروض المتاجر',
+  STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
 };
 
 /** Where clicking a notification row should navigate — null means the
@@ -67,6 +76,18 @@ function hrefFor(notification: Notification): string | null {
   // payload already links to.
   if (notification.type === 'PROMOTION_STATUS_CHANGE') {
     return ROUTES.myStorePromotions;
+  }
+  // FIX (Foundation v1): closes the pre-existing STORE_NEW_PRODUCT gap
+  // (see NotificationType's doc comment) and wires the two new
+  // store-follower types — all three link to the store page, since
+  // there is no public /products/:id route in this frontend.
+  if (
+    (notification.type === 'STORE_NEW_PRODUCT' ||
+      notification.type === 'STORE_PROMOTION_STARTED' ||
+      notification.type === 'STORE_PRODUCT_RESTOCKED') &&
+    notification.data?.storeId
+  ) {
+    return ROUTES.storeDetail(notification.data.storeId);
   }
   return null;
 }

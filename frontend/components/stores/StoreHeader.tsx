@@ -13,7 +13,21 @@ import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
 import { ROUTES } from '@/lib/constants';
-import type { StoreWithSellerAndCounts } from '@/types/store.types';
+import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
+
+// STORE-HOURS (Foundation v1): sat-first order, same as
+// WorkingHoursEditor.tsx's DAYS array — kept as a separate literal
+// here rather than importing that component's internal (unexported)
+// array, since this is a read-only display, not an editor.
+const STORE_HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
+  { key: 'sat', label: 'السبت' },
+  { key: 'sun', label: 'الأحد' },
+  { key: 'mon', label: 'الاثنين' },
+  { key: 'tue', label: 'الثلاثاء' },
+  { key: 'wed', label: 'الأربعاء' },
+  { key: 'thu', label: 'الخميس' },
+  { key: 'fri', label: 'الجمعة' },
+];
 
 interface Props {
   store: StoreWithSellerAndCounts;
@@ -80,6 +94,20 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
             <Star className="h-4 w-4 fill-rating text-rating" />
             {rating.toFixed(1)} ({store.sellerProfile.totalRatings} تقييم)
+          </span>
+        )}
+
+        {/* STORE-HOURS (Foundation v1): isOpen is computed server-side
+            from workingHours + the current time — null (nothing
+            rendered) means the owner hasn't set hours at all, same
+            "unknown, don't claim closed" reasoning as
+            stores.service.ts's computeIsOpen doc comment. Same
+            dot+label visual convention as ServiceProviderHeader's
+            AVAILABILITY_DOT, just derived instead of a stored enum. */}
+        {store.isOpen !== null && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+            <span className={`h-1.5 w-1.5 rounded-full ${store.isOpen ? 'bg-success' : 'bg-muted-foreground'}`} />
+            {store.isOpen ? 'مفتوح الآن' : 'مغلق الآن'}
           </span>
         )}
 
@@ -153,6 +181,31 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">
             {store.description}
           </p>
+        )}
+
+        {/* STORE-HOURS (Foundation v1): full weekly schedule, shown only
+            when the owner has set at least one day — same trigger as
+            the isOpen badge above. Collapsed under a <details> so it
+            doesn't compete with the description/follow row for space
+            on first paint; a buyer who wants the full week can expand
+            it. */}
+        {store.workingHours && (
+          <details className="mt-4 w-full max-w-sm text-sm">
+            <summary className="cursor-pointer text-center text-primary select-none">
+              ساعات العمل
+            </summary>
+            <ul className="mt-2 space-y-1 rounded-md border p-3">
+              {STORE_HOURS_DAYS.map(({ key, label }) => {
+                const schedule = store.workingHours![key];
+                return (
+                  <li key={key} className="flex items-center justify-between text-muted-foreground">
+                    <span>{label}</span>
+                    <span>{schedule ? `${schedule.open} - ${schedule.close}` : 'مغلق'}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
         )}
 
         {isAuthenticated && !isOwnStore && (

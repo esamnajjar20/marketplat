@@ -5,6 +5,9 @@ import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/u
 import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
 import { storeReviewsRepository, StoreReviewWithRater } from './store-reviews.repository';
+import { promotionsRepository } from '../promotions/promotions.repository';
+import { productsRepository } from '../products/products.repository';
+import { generateStoreSlug, withSlugSuffix } from '../../shared/utils/slugify';
 import {
   CreateStoreInput,
   UpdateStoreInput,
@@ -29,6 +32,60 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 
 const isPrismaError = (err: unknown, code: string): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+// STORE-HOURS: derives a live open/closed flag from workingHours + the
+// server's current local time. No per-store timezone column exists
+// anywhere in this schema (ServiceProviderDetails doesn't have one
+// either) — this assumes the server itself runs in the marketplace's
+// local timezone, same implicit assumption every other DateTime-based
+// feature here already makes. Returns null (render nothing) rather
+// than false when workingHours hasn't been set at all, so "unknown"
+// isn't shown to the user as "closed".
+const computeIsOpen = (workingHours: Prisma.JsonValue | null): boolean | null => {
+  if (!workingHours || typeof workingHours !== 'object') return null;
+  const now = new Date();
+  const todayKey = WEEKDAY_KEYS[now.getDay()];
+  const today = (workingHours as Record<string, { open: string; close: string } | null>)[todayKey];
+  if (!today) return false;
+  const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return hhmm >= today.open && hhmm < today.close;
+};
+
+// STORE-SLUG: bounded collision-retry — findBySlug then insert, not a
+// unique-constraint catch-and-retry, so the same helper can be reused
+// by both createStore (fresh insert) and any future rename flow
+// without needing to inspect a Prisma error's target field to tell a
+// slug collision apart from the sellerProfileId one-store-per-seller
+// constraint. 5 attempts is generous: collisions only happen when two
+// stores share an identical name, and each retry adds 4 random chars
+// (36^4 ≈ 1.7M combinations).
+const generateUniqueSlug = async (name: string): Promise<string> => {
+  const base = generateStoreSlug(name);
+  let candidate = base;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const existing = await storesRepository.findBySlug(candidate);
+    if (!existing) return candidate;
+    candidate = withSlugSuffix(base);
+  }
+  // Last resort: a slug is still required to proceed. Vanishingly
+  // unlikely to be reached (see combinations above).
+  return withSlugSuffix(base);
+};
+
+export type StorePublicView = StoreWithSellerAndCounts & { isOpen: boolean | null };
+
+export interface StoreAnalytics {
+  views: number;
+  followers: number;
+  newFollowers7d: number;
+  newFollowers30d: number;
+  activeProducts: number;
+  activePromotions: number;
+  promotionUses: number;
+  topProducts: { id: string; name: string; views: number; image: string | null }[];
+}
 
 // Same "extension on SellerProfile" entry point service-listings.service.ts's
 // requireOwnProvider plays for services — every write in this module goes
@@ -73,10 +130,13 @@ export const storesService = {
         throw new ConflictError('You already have a store.', 'STORE_ALREADY_EXISTS');
       }
 
+      const slug = await generateUniqueSlug(input.name);
+
       try {
         return await prisma.$transaction(async tx =>
           storesRepository.create(tx, sellerProfile.id, {
             name: input.name,
+            slug,
             description: input.description,
             city: input.city,
             address: input.address,
@@ -85,6 +145,7 @@ export const storesService = {
             coverImageUrl: input.coverImageUrl,
             latitude: input.latitude,
             longitude: input.longitude,
+            workingHours: input.workingHours as Prisma.InputJsonValue | undefined,
           })
         );
       } catch (error: any) {
@@ -163,8 +224,15 @@ export const storesService = {
     }
   },
 
-  getPublicStore: async (id: string): Promise<StoreWithSellerAndCounts> => {
-    const store = await storesRepository.findPublicById(id);
+  // STORE-SLUG: `idOrSlug` tries the cuid `id` lookup first (cheap PK
+  // hit), then falls back to `slug` — so existing bookmarked/shared
+  // /stores/:id links never break, while new shares can use the
+  // friendlier slug. Same NotFoundError/status gate as before either
+  // way.
+  getPublicStore: async (idOrSlug: string): Promise<StorePublicView> => {
+    const store =
+      (await storesRepository.findPublicById(idOrSlug)) ??
+      (await storesRepository.findPublicBySlug(idOrSlug));
     if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     // SEC-FIX: same gap products.service.ts's getProductById already
     // closed for suspended-seller/blocked-store products — findMany's
@@ -177,7 +245,11 @@ export const storesService = {
     if (store.status !== 'ACTIVE') {
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     }
-    return store;
+    // STORE-VIEWS: fire-and-forget, same "don't fail the read on a
+    // failed counter bump" convention as products.service.ts's
+    // getProductById.
+    storesRepository.incrementViews(store.id).catch(() => undefined);
+    return { ...store, isOpen: computeIsOpen(store.workingHours) };
   },
 
   getStores: async (
@@ -388,6 +460,46 @@ export const storesService = {
     return {
       items: reviews,
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
+    };
+  },
+
+  // --- Analytics -------------------------------------------------------
+  //
+  // STORE-ANALYTICS (Foundation v1): deliberately excludes
+  // orders/revenue/conversion — this schema has no Order model at all,
+  // so there is no honest number to show for any of the three. Every
+  // metric below reads from data that already exists (StoreDetails.views,
+  // StoreFollower, Promotion.usageCount, Product.views) — no new
+  // tracking pipeline required for this first cut.
+  getMyStoreAnalytics: async (userId: string): Promise<StoreAnalytics> => {
+    const store = await requireOwnStore(userId);
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [followers, newFollowers7d, newFollowers30d, activeProducts, promotions, topProducts] =
+      await Promise.all([
+        storeFollowersRepository.countByStoreId(store.id),
+        storeFollowersRepository.countByStoreIdSince(store.id, since7d),
+        storeFollowersRepository.countByStoreIdSince(store.id, since30d),
+        storesRepository.countActiveProducts(store.id),
+        promotionsRepository.findByStoreId(store.id),
+        productsRepository.findTopByStoreId(store.id, 5),
+      ]);
+
+    return {
+      views: store.views,
+      followers,
+      newFollowers7d,
+      newFollowers30d,
+      activeProducts,
+      activePromotions: promotions.filter(p => p.status === 'ACTIVE').length,
+      promotionUses: promotions.reduce((sum, p) => sum + p.usageCount, 0),
+      topProducts: topProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        views: p.views,
+        image: p.images[0] ?? null,
+      })),
     };
   },
 };

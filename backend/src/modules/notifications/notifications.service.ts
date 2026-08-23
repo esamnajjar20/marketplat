@@ -276,4 +276,56 @@ export const notificationEvents = {
       `/stores/${storeId}`,
       `store-${storeId}`
     ),
+
+  /** myPromotionsExpiring.ts's processStarted calls this alongside (not
+   * instead of) the existing owner-facing PROMOTION_STATUS_CHANGE
+   * notification, on the same SCHEDULED -> ACTIVE transition — one
+   * notification per store follower. See STORE_PROMOTION_STARTED's
+   * schema.prisma doc comment for why this is a separate type from
+   * that one. */
+  onStorePromotionStarted: (
+    followerUserIds: string[],
+    storeId: string,
+    productName: string,
+    promotionTitle: string,
+    promotionId: string,
+    productId: string
+  ): Promise<{ count: number }> =>
+    fanOutSameContentNotification(
+      followerUserIds,
+      'STORE_PROMOTION_STARTED',
+      {
+        title: 'عرض جديد',
+        body: `عرض جديد على "${productName}": ${promotionTitle}`,
+        data: { storeId, promotionId, productId },
+      },
+      `/stores/${storeId}`,
+      `store-promotion-${promotionId}`
+    ),
+
+  /** products.service.ts's updateProduct calls this after an
+   * OUT_OF_STOCK -> (IN_STOCK | LIMITED) transition — one notification
+   * per store follower. See STORE_PRODUCT_RESTOCKED's schema.prisma doc
+   * comment for why followers (not a per-product wishlist) are the
+   * audience for this first cut. Links to the store page, not a
+   * product detail page — there is no public /products/:id route in
+   * this frontend (only /my-store/products/:id/edit, owner-only), same
+   * constraint onStorePromotionStarted above is already working within. */
+  onStoreProductRestocked: (
+    followerUserIds: string[],
+    storeId: string,
+    productId: string,
+    productName: string
+  ): Promise<{ count: number }> =>
+    fanOutSameContentNotification(
+      followerUserIds,
+      'STORE_PRODUCT_RESTOCKED',
+      {
+        title: 'عودة للمخزون',
+        body: `عاد المنتج "${productName}" للمخزون`,
+        data: { storeId, productId },
+      },
+      `/stores/${storeId}`,
+      `store-restock-${productId}`
+    ),
 };

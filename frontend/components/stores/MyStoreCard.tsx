@@ -19,7 +19,13 @@ import { ROUTES, CITIES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/con
 import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { toast } from 'sonner';
+import { WorkingHoursEditor } from '@/components/services/WorkingHoursEditor';
+import type { WorkingHours } from '@/types/service.types';
 import type { StoreDetails } from '@/types/store.types';
+
+const ALL_CLOSED: WorkingHours = {
+  sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null,
+};
 
 interface Props {
   store: StoreDetails;
@@ -44,6 +50,11 @@ export function MyStoreCard({ store }: Props) {
   const [city, setCity] = useState(store.city);
   const [address, setAddress] = useState(store.address ?? '');
   const [phone, setPhone] = useState(store.phone);
+  // STORE-HOURS (Foundation v1): store.workingHours is optional (null
+  // until an owner sets it for the first time) — ALL_CLOSED is the
+  // WorkingHoursEditor's own starting shape, same default a brand-new
+  // ServiceProviderDetails row gets.
+  const [workingHours, setWorkingHours] = useState<WorkingHours>(store.workingHours ?? ALL_CLOSED);
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
 
@@ -98,6 +109,7 @@ export function MyStoreCard({ store }: Props) {
         city,
         address: address.trim() || null,
         phone: phone.trim(),
+        workingHours,
       },
       { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) }
     );
@@ -252,6 +264,14 @@ export function MyStoreCard({ store }: Props) {
           />
         </FormField>
 
+        {/* STORE-HOURS (Foundation v1): reuses the same editor
+            services/WorkingHoursEditor.tsx already provides for
+            ServiceProviderDetails — identical { sun: {open,close}|null,
+            ... } shape on both, no duplication needed. */}
+        <FormField label="ساعات العمل (اختياري)" htmlFor="my-store-hours">
+          <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
+        </FormField>
+
         <Button type="submit" disabled={isFormIncomplete || updateStore.isPending}>
           {updateStore.isPending ? 'جارٍ الحفظ…' : 'حفظ التعديلات'}
         </Button>
@@ -275,6 +295,10 @@ export function MyStoreCard({ store }: Props) {
             system", so the link lives here alongside product management. */}
         <Button variant="outline" size="sm" asChild>
           <Link href={ROUTES.myFollowedStores}>المتاجر المتابَعة</Link>
+        </Button>
+        {/* STORE-ANALYTICS (Foundation v1) */}
+        <Button variant="outline" size="sm" asChild>
+          <Link href={ROUTES.myStoreAnalytics}>الإحصائيات</Link>
         </Button>
       </div>
     </div>

@@ -88,6 +88,55 @@ async function resolveOwnerContext(promotion: Promotion): Promise<OwnerContext |
   return rows[0] ?? null;
 }
 
+// STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): deliberately independent
+// of resolveOwnerContext above — that one is filtered to only the
+// owner's own `myPromotions` opt-in, but a store follower's interest in
+// "this store started a new offer" has nothing to do with whether the
+// store *owner* has opted into their own lifecycle notifications, so
+// this can't reuse that query's product-name lookup.
+async function resolveProductName(productId: string): Promise<string | null> {
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { name: true } });
+  return product?.name ?? null;
+}
+
+async function notifyFollowers(
+  promotion: Promotion,
+  productName: string
+): Promise<void> {
+  const followers = await prisma.storeFollower.findMany({
+    where: { storeId: promotion.storeId },
+    select: { userId: true },
+  });
+  if (followers.length === 0) return;
+  const followerIds = followers.map(f => f.userId);
+  const title = 'عرض جديد';
+  const body = `عرض جديد على "${productName}": ${promotion.title}`;
+
+  // Same fire-and-forget-push-then-createMany shape as
+  // notifications.service.ts's fanOutSameContentNotification — kept
+  // inline (raw PrismaClient, no notificationsRepository import) for
+  // the same standalone-process reasoning as every other write in this
+  // script.
+  void pushService
+    .notifyUsers(followerIds, {
+      title,
+      body,
+      url: `/stores/${promotion.storeId}`,
+      tag: `store-promotion-${promotion.id}`,
+    })
+    .catch(() => {});
+
+  await prisma.notification.createMany({
+    data: followerIds.map(userId => ({
+      userId,
+      type: 'STORE_PROMOTION_STARTED',
+      title,
+      body,
+      data: { storeId: promotion.storeId, promotionId: promotion.id, productId: promotion.productId },
+    })),
+  });
+}
+
 async function notify(
   userId: string,
   title: string,
@@ -137,6 +186,15 @@ async function processStarted(now: Date): Promise<number> {
           'started'
         );
         sent += 1;
+      }
+      // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fan out to every
+      // follower of the store, independent of the owner block above —
+      // see resolveProductName's doc comment for why this can't reuse
+      // owner.productName (that lookup is gated on the owner's own
+      // opt-in, followers' interest isn't).
+      const productName = await resolveProductName(promotion.productId);
+      if (productName) {
+        await notifyFollowers(promotion, productName);
       }
     } catch (err) {
       logger.error('[promotionLifecycle] failed processing started promotion', { err, promotionId: promotion.id });

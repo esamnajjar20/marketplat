@@ -4,26 +4,28 @@
  * doc comment — that's a separate, still-unwired subsystem needing
  * VAPID keys + a service worker + its own endpoint).
  *
- * Of these types, NEW_MESSAGE, FAV_AD_PRICE_CHANGED, FAV_AD_SOLD, and
- * SAVED_SEARCH_MATCH are generated automatically (conversations.service.ts,
- * ads.service.ts, ads.service.ts, saved-searches.service.ts respectively).
- * PROMOTION only comes from the admin broadcast endpoint.
- * WEEKLY_AD_VIEWS_REPORT has no generator at all yet — no cron/scheduler
- * exists in this codebase; the type exists so the four
- * notificationPreferences toggles map onto real enum values, not because
- * a row of this type will actually appear yet.
+ * Of these types, NEW_MESSAGE, FAV_AD_PRICE_CHANGED, FAV_AD_SOLD,
+ * SAVED_SEARCH_MATCH, STORE_NEW_PRODUCT, STORE_PROMOTION_STARTED, and
+ * STORE_PRODUCT_RESTOCKED are generated automatically. PROMOTION only
+ * comes from the admin broadcast endpoint. WEEKLY_AD_VIEWS_REPORT has
+ * no generator at all yet — no cron/scheduler exists in this codebase;
+ * the type exists so the four notificationPreferences toggles map onto
+ * real enum values, not because a row of this type will actually
+ * appear yet.
  * PROMOTION_STATUS_CHANGE (PROMO-1, Phase 14) IS generated — see
  * backend's myPromotionsExpiring.ts, a scheduled script in the same
  * "no in-process cron, external scheduler required" category as
  * WEEKLY_AD_VIEWS_REPORT above, just actually wired up.
  *
- * KNOWN GAP (pre-existing, not touched here): backend's NotificationType
- * enum also has STORE_NEW_PRODUCT with a live producer
- * (notificationEvents.onStoreNewProduct in notifications.service.ts),
- * but it was never added to this union or to NotificationBell.tsx's
- * TYPE_ICON/TYPE_LABEL maps — a STORE_NEW_PRODUCT row renders with
- * undefined icon/label today. Flagged, not fixed, as out of this
- * change's scope.
+ * FIX (Foundation v1): STORE_NEW_PRODUCT previously had a live producer
+ * (notificationEvents.onStoreNewProduct) but was missing from this
+ * union and from NotificationBell.tsx's TYPE_ICON/TYPE_LABEL maps — a
+ * row of that type rendered with an undefined icon/label. Closed here
+ * alongside the two new store-follower types added in the same pass
+ * (STORE_PROMOTION_STARTED, STORE_PRODUCT_RESTOCKED — see
+ * myPromotionsExpiring.ts's processStarted and products.service.ts's
+ * updateProduct respectively for their triggers), since all three share
+ * one audience (store followers) and one fix.
  */
 export type NotificationType =
   | 'NEW_MESSAGE'
@@ -32,7 +34,10 @@ export type NotificationType =
   | 'PROMOTION'
   | 'WEEKLY_AD_VIEWS_REPORT'
   | 'SAVED_SEARCH_MATCH'
-  | 'PROMOTION_STATUS_CHANGE';
+  | 'PROMOTION_STATUS_CHANGE'
+  | 'STORE_NEW_PRODUCT'
+  | 'STORE_PROMOTION_STARTED'
+  | 'STORE_PRODUCT_RESTOCKED';
 
 /** Per-type deep-link payload — only the keys relevant to `type` are
  * ever present. NEW_MESSAGE carries conversationId,
@@ -42,13 +47,18 @@ export type NotificationType =
  * link); PROMOTION and WEEKLY_AD_VIEWS_REPORT carry none right now.
  * PROMOTION_STATUS_CHANGE carries promotionId, productId, and event
  * (one of "started" | "expiring" | "expired") — see
- * myPromotionsExpiring.ts's own doc comment on the backend. */
+ * myPromotionsExpiring.ts's own doc comment on the backend.
+ * STORE_NEW_PRODUCT carries storeId. STORE_PROMOTION_STARTED carries
+ * storeId, promotionId, productId. STORE_PRODUCT_RESTOCKED carries
+ * storeId, productId — both link to the store page (there is no public
+ * /products/:id route in this frontend). */
 export interface NotificationData {
   conversationId?: string;
   adId?: string;
   savedSearchId?: string;
   promotionId?: string;
   productId?: string;
+  storeId?: string;
   event?: 'started' | 'expiring' | 'expired';
 }
 

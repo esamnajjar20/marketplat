@@ -45,6 +45,23 @@ export function useMyStore() {
   });
 }
 
+/**
+ * GET /stores/me/analytics — owner-only. See StoreAnalytics's doc
+ * comment (types/store.types.ts) for why there's no orders/revenue/
+ * conversion field: this backend has no Order model yet.
+ */
+export function useMyStoreAnalytics() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+
+  return useQuery({
+    queryKey: queryKeys.stores.analytics(),
+    queryFn: () => storesApi.getMyStoreAnalytics().then((r) => r.data.data),
+    staleTime: CACHE_TTL.sellerProfile,
+    enabled: isAuthenticated,
+    retry: false,
+  });
+}
+
 /** GET /stores/me/followed — the caller's followed stores, paginated. */
 export function useMyFollowedStores(params?: { page?: number; limit?: number }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);

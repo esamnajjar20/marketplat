@@ -371,6 +371,73 @@ describe('productsService', () => {
       await productsService.updateProduct('user-1', 'product-1', { name: 'New name' });
       expect(productCategoriesRepository.findById).not.toHaveBeenCalled();
     });
+
+    // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1)
+    it('notifies store followers on an OUT_OF_STOCK -> IN_STOCK transition', async () => {
+      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (productsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        storeId: 'store-1',
+        availability: 'OUT_OF_STOCK',
+      });
+      (productsRepository.update as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        name: 'Phone',
+        availability: 'IN_STOCK',
+      });
+      (storeFollowersRepository.findUserIdsByStoreId as jest.Mock).mockResolvedValue(['user-2']);
+
+      await productsService.updateProduct('user-1', 'product-1', { availability: 'IN_STOCK' });
+      // Fire-and-forget — flush the microtask queue before asserting.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(storeFollowersRepository.findUserIdsByStoreId).toHaveBeenCalledWith('store-1');
+      expect(notificationEvents.onStoreProductRestocked).toHaveBeenCalledWith(
+        ['user-2'],
+        'store-1',
+        'product-1',
+        'Phone'
+      );
+    });
+
+    it('does not notify followers when the product was already in stock', async () => {
+      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (productsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        storeId: 'store-1',
+        availability: 'IN_STOCK',
+      });
+      (productsRepository.update as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        name: 'Phone',
+        availability: 'IN_STOCK',
+      });
+
+      await productsService.updateProduct('user-1', 'product-1', { name: 'New name' });
+      await Promise.resolve();
+
+      expect(notificationEvents.onStoreProductRestocked).not.toHaveBeenCalled();
+    });
+
+    it('does not notify followers on an IN_STOCK -> OUT_OF_STOCK transition', async () => {
+      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (productsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        storeId: 'store-1',
+        availability: 'IN_STOCK',
+      });
+      (productsRepository.update as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        name: 'Phone',
+        availability: 'OUT_OF_STOCK',
+      });
+
+      await productsService.updateProduct('user-1', 'product-1', { availability: 'OUT_OF_STOCK' });
+      await Promise.resolve();
+
+      expect(notificationEvents.onStoreProductRestocked).not.toHaveBeenCalled();
+    });
   });
 
   describe('deleteProduct — ownership / IDOR', () => {

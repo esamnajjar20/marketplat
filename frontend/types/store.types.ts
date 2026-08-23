@@ -21,10 +21,20 @@ import type { SellerProfile } from './seller.types';
 export type StoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
 export type StorePlan = 'FREE' | 'FEATURED';
 
+/** STORE-HOURS: same { sun: {open,close}|null, ... } shape as the
+ * backend's workingHoursSchema / ServiceProviderDetails.workingHours —
+ * one weekday key per entry, null meaning "closed all day". */
+export type StoreWeekday = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+export type StoreDaySchedule = { open: string; close: string } | null;
+export type StoreWorkingHours = Record<StoreWeekday, StoreDaySchedule>;
+
 export interface StoreDetails {
   id: string;
   sellerProfileId: string;
   name: string;
+  /** STORE-SLUG: URL-safe, shareable identifier. Immutable after
+   * creation — GET /stores/:idOrSlug accepts either this or `id`. */
+  slug: string;
   description: string;
   logoUrl: string | null;
   coverImageUrl: string | null;
@@ -36,6 +46,9 @@ export interface StoreDetails {
   /** Prisma Decimal(9,6) — string in JSON, or null if unset. */
   latitude: string | null;
   longitude: string | null;
+  workingHours: StoreWorkingHours | null;
+  /** Lifetime view counter — bumped on every GET /stores/:idOrSlug. */
+  views: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,10 +58,14 @@ export type StoreWithSeller = StoreDetails & {
   sellerProfile: SellerProfile;
 };
 
-/** GET /stores/:id — public store page, includes follower/product counts. */
+/** GET /stores/:idOrSlug — public store page, includes follower/product
+ * counts and a live open/closed flag computed server-side from
+ * `workingHours` (null when workingHours hasn't been set at all — treat
+ * as "unknown", not "closed"). */
 export type StoreWithSellerAndCounts = StoreDetails & {
   sellerProfile: SellerProfile;
   _count: { followers: number; products: number };
+  isOpen: boolean | null;
 };
 
 export interface StoreReview {
@@ -82,6 +99,7 @@ export interface CreateStorePayload {
   coverImageUrl?: string;
   latitude?: number;
   longitude?: number;
+  workingHours?: StoreWorkingHours;
 }
 
 /** PATCH /stores/me. */
@@ -95,7 +113,24 @@ export type UpdateStorePayload = Partial<{
   coverImageUrl: string | null;
   latitude: number | null;
   longitude: number | null;
+  workingHours: StoreWorkingHours;
 }>;
+
+/** GET /stores/me/analytics — owner-only. No orders/revenue/conversion:
+ * this backend has no Order model yet, so those numbers don't exist to
+ * report. Every field here reads from data that already existed before
+ * this endpoint (StoreDetails.views, StoreFollower, Promotion.usageCount,
+ * Product.views). */
+export interface StoreAnalytics {
+  views: number;
+  followers: number;
+  newFollowers7d: number;
+  newFollowers30d: number;
+  activeProducts: number;
+  activePromotions: number;
+  promotionUses: number;
+  topProducts: { id: string; name: string; views: number; image: string | null }[];
+}
 
 export type StoreSortField = 'createdAt' | 'name';
 

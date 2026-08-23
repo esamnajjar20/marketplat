@@ -28,6 +28,7 @@ import type {
   ToggleStoreFollowResult,
   CreateStoreReviewPayload,
   StoreReviewsQuery,
+  StoreAnalytics,
 } from '@/types/store.types';
 
 export const storesApi = {
@@ -67,6 +68,11 @@ export const storesApi = {
     apiClient
       .get<ApiResponse<StoreFollowerWithStore[]>>('/stores/me/followed', { params })
       .then((r) => unwrapPaginated<StoreFollowerWithStore>(r)),
+
+  /** GET /stores/me/analytics — owner-only. See StoreAnalytics's doc
+   * comment for why orders/revenue/conversion aren't in this response. */
+  getMyStoreAnalytics: () =>
+    apiClient.get<ApiResponse<StoreAnalytics>>('/stores/me/analytics'),
 
   /** POST /stores — one-time store creation (requires an existing SellerProfile). */
   create: (payload: CreateStorePayload) =>

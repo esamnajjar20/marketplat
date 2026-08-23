@@ -2,6 +2,30 @@ import { z } from 'zod';
 import { StoreStatus, StorePlan } from '@prisma/client';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
+// STORE-HOURS (Foundation v1): identical shape to
+// service-providers.validation.ts's workingHoursSchema — same
+// { sun: {open,close}|null, ... } convention deliberately reused so
+// storesService.computeIsOpen and any future shared frontend component
+// only need to handle one shape across both modules.
+const dayScheduleSchema = z
+  .object({
+    open: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'open must be HH:mm'),
+    close: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'close must be HH:mm'),
+  })
+  .nullable();
+
+export const workingHoursSchema = z.object({
+  sun: dayScheduleSchema,
+  mon: dayScheduleSchema,
+  tue: dayScheduleSchema,
+  wed: dayScheduleSchema,
+  thu: dayScheduleSchema,
+  fri: dayScheduleSchema,
+  sat: dayScheduleSchema,
+});
+
+export type WorkingHoursInput = z.infer<typeof workingHoursSchema>;
+
 export const createStoreSchema = z.object({
   body: z.object({
     name: z.string().min(2, 'Store name must be at least 2 characters').max(100),
@@ -16,6 +40,7 @@ export const createStoreSchema = z.object({
     coverImageUrl: z.string().url('coverImageUrl must be a valid URL').optional(),
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
+    workingHours: workingHoursSchema.optional(),
   }),
 });
 
@@ -32,6 +57,7 @@ export const updateStoreSchema = z.object({
     coverImageUrl: z.string().url().nullable().optional(),
     latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
     longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
+    workingHours: workingHoursSchema.optional(),
   }),
 });
 

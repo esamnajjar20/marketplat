@@ -80,6 +80,8 @@ export const queryKeys = {
     // Set<string> of followed store ids, populated by useMyFollowedStores
     // and read reactively by useIsFollowingStore(). See hooks/queries/useStores.ts.
     followedIds: ()              => ['stores', 'followed-ids'] as const,
+    // STORE-ANALYTICS (Foundation v1)
+    analytics: ()                => ['stores', 'me', 'analytics'] as const,
   },
 
   // ── Store reviews ──────────────────────────────────────────────

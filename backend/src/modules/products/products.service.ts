@@ -240,6 +240,21 @@ export const productsService = {
     // Gap #10: fire-and-forget, see createProduct's own comment above.
     activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });
 
+    // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fires once, on the
+    // OUT_OF_STOCK -> (IN_STOCK | LIMITED) edge only — checked against
+    // `product` (the pre-update row), not just "input.availability was
+    // provided", so a PATCH that touches other fields on an already
+    // in-stock product never re-fires this. Fire-and-forget, same
+    // convention as onStoreNewProduct above.
+    if (product.availability === 'OUT_OF_STOCK' && updated.availability !== 'OUT_OF_STOCK') {
+      storeFollowersRepository
+        .findUserIdsByStoreId(store.id)
+        .then(followerIds =>
+          notificationEvents.onStoreProductRestocked(followerIds, store.id, updated.id, updated.name)
+        )
+        .catch(() => undefined);
+    }
+
     return updated;
   },
 

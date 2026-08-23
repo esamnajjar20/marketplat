@@ -52,4 +52,10 @@ export const storeFollowersRepository = {
 
   countByStoreId: (storeId: string): Promise<number> =>
     prisma.storeFollower.count({ where: { storeId } }),
+
+  // STORE-ANALYTICS (Foundation v1): "new followers" tile — count of
+  // StoreFollower rows created on/after `since`. Reused for both the
+  // 7-day and 30-day windows by storesService.getMyStoreAnalytics.
+  countByStoreIdSince: (storeId: string, since: Date): Promise<number> =>
+    prisma.storeFollower.count({ where: { storeId, createdAt: { gte: since } } }),
 };

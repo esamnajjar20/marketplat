@@ -19,6 +19,7 @@ const sellerProfileId = 'seller-profile-1';
 
 const createData = {
   name: 'My Store',
+  slug: 'my-store-ab12',
   description: 'A store description with enough characters',
   city: 'غزة',
   address: 'Main street',
@@ -27,6 +28,7 @@ const createData = {
   coverImageUrl: 'https://example.com/cover.png',
   latitude: 31.5,
   longitude: 34.4,
+  workingHours: { sun: { open: '09:00', close: '18:00' }, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null },
 };
 
 describe('storesRepository', () => {
@@ -74,6 +76,7 @@ describe('storesRepository', () => {
         data: {
           sellerProfileId,
           name: createData.name,
+          slug: createData.slug,
           description: createData.description,
           city: createData.city,
           address: createData.address,
@@ -82,6 +85,7 @@ describe('storesRepository', () => {
           coverImageUrl: createData.coverImageUrl,
           latitude: createData.latitude,
           longitude: createData.longitude,
+          workingHours: createData.workingHours,
         },
       });
     });

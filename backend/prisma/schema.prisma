@@ -556,6 +556,13 @@ model StoreDetails {
   id              String          @id @default(cuid())
   sellerProfileId String          @unique
   name            String
+  // STORE-SLUG (Foundation v1): URL-safe, shareable identifier —
+  // /stores/:idOrSlug resolves this before falling back to the cuid
+  // `id`. Generated once at createStore time from `name` (see
+  // shared/utils/slugify.ts) and left immutable on rename, same
+  // reasoning as most marketplaces keep slugs stable so a shared link
+  // never 404s just because the owner edited their store name.
+  slug            String          @unique
   description     String          @db.VarChar(1000)
   logoUrl         String?
   coverImageUrl   String?
@@ -566,6 +573,17 @@ model StoreDetails {
   plan            StorePlan       @default(FREE)
   latitude        Decimal?        @db.Decimal(9, 6)
   longitude       Decimal?        @db.Decimal(9, 6)
+  // STORE-HOURS (Foundation v1): same { sun: {open,close}|null, ... }
+  // shape as ServiceProviderDetails.workingHours — copied deliberately
+  // so both modules share one mental model and (later) one frontend
+  // component. Optional: a store with no hours set just never renders
+  // an open/closed badge (storesService.computeIsOpen returns null).
+  workingHours    Json?
+  // STORE-VIEWS (Foundation v1): lifetime counter, same convention as
+  // Product.views — bumped fire-and-forget from getPublicStore, not
+  // from the AnalyticsEvent pipeline (that table has no storeId column
+  // today; adding one is a separate, bigger migration).
+  views           Int             @default(0)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   sellerProfile   SellerProfile   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
@@ -943,6 +961,23 @@ enum NotificationType {
   // frontend can render one shared component for all three instead of
   // three near-identical ones.
   PROMOTION_STATUS_CHANGE
+  // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): distinct from
+  // PROMOTION_STATUS_CHANGE above for the same reason that one is
+  // distinct from PROMOTION — different audience (every follower of
+  // the store, not the store owner) and a different trigger (fired
+  // once, on the SCHEDULED -> ACTIVE transition only, from the same
+  // myPromotionsExpiring.ts sweep that already detects that
+  // transition for the owner-facing notification — no second sweep
+  // needed). `data` always includes { promotionId, productId, storeId }.
+  STORE_PROMOTION_STARTED
+  // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fired from
+  // products.service.ts's updateProduct on an OUT_OF_STOCK -> (IN_STOCK
+  // | LIMITED) transition, to every follower of the product's store.
+  // Scoped to store followers rather than a per-product wishlist —
+  // there is no Wishlist model in this schema yet (see the stores
+  // gap-analysis roadmap's "Store Wishlist + Price Alerts", P2,
+  // deferred). `data` always includes { productId, storeId }.
+  STORE_PRODUCT_RESTOCKED
 }
 
 // Gap #10 ("نشاطي"): every distinct event type the personal activity
