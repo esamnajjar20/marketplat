@@ -24,7 +24,7 @@
  * duplication. Each stays local to its file.
  */
 import {
-  Home, Search, Megaphone, Store, Wrench, Users, Settings,
+  Home, Search, Store, Wrench, Users, Settings,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -34,23 +34,9 @@ import { ROUTES } from '@/lib/constants';
 // StoreIcon/WrenchIcon aliases ProtectedMobileNav had locally — same
 // underlying icons, alias was only a naming collision workaround for
 // components that also referenced HTML el names, not present here).
-//
-// NAV-GAP FIX: Stores/Services/Service-Providers each get a dedicated
-// browse page AND a standing nav link, but Ads — the platform's core
-// entity — previously had neither its own top-level link, only
-// reachable via Home's "أحدث الإعلانات" CTA or by manually picking the
-// "الإعلانات" tab on /search. There is no dedicated /ads index route
-// (only /ads/[id] for a single ad's detail page — see ROUTES in
-// constants.ts), so this points at the same `${ROUTES.search}?type=ads`
-// URL Home's own "عرض الكل" CTA already uses (HomeAboveFold.tsx) rather
-// than introducing a second route for the same listing type. Products
-// deliberately stays out of this list — a product's natural entry
-// point is through its parent store (already covered by "المتاجر"
-// below), unlike an ad, which has no parent entity in nav today.
 export const BROWSE_LINKS = [
   { label: 'الرئيسية', href: ROUTES.home, icon: Home },
   { label: 'البحث', href: ROUTES.search, icon: Search },
-  { label: 'الإعلانات', href: `${ROUTES.search}?type=ads`, icon: Megaphone },
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
@@ -82,15 +68,22 @@ export const STORE_GROUP = {
 } as const;
 
 // Used by ProtectedSidebar.tsx, ProtectedMobileNav.tsx, and
-// MobileNav.tsx's SettingsDisclosureRow. Same 7 destinations, same
+// MobileNav.tsx's SettingsDisclosureRow. Same 8 destinations, same
 // order, in all three before extraction.
 //
-// DEDUP-FIX (audit #3): dropped the "متجري" → ROUTES.myStore entry
-// that used to live here. It duplicated STORE_GROUP above (same
-// label, same href) — every user with a store saw "متجري" twice on
-// screen at once, once as the top-level disclosure group and once
-// again as a child of "الإعدادات". STORE_GROUP is the correct owner;
-// this was the redundant copy.
+// AUDIT-FIX (nav duplication): the "متجري" child here (→ ROUTES.myStore)
+// exists so a user with no store yet can reach the become-a-store-owner
+// CTA on /my-store (StoreSettingsSection) from Settings — the only
+// route in, since STORE_GROUP below is gated on isSeller and doesn't
+// render for them at all. Once a user *is* a seller, though, STORE_GROUP
+// renders as its own top-level disclosure with the exact same "متجري" →
+// /my-store link, so this same destination then shows up twice in two
+// unrelated sections of the same sidebar/drawer at once (confirmed
+// duplicate, not just a similar-looking link — see settingsGroupFor's
+// own doc for the fix). Kept in the base array (rather than deleted)
+// since it's still the correct, only path for non-sellers; callers use
+// settingsGroupFor(isSeller) below instead of this constant directly so
+// the one genuinely redundant case is filtered without losing that path.
 export const SETTINGS_GROUP = {
   label: 'الإعدادات',
   href: ROUTES.settings.profile,
@@ -99,9 +92,37 @@ export const SETTINGS_GROUP = {
     { label: 'الملف الشخصي', href: ROUTES.settings.profile },
     { label: 'ملف البائع', href: ROUTES.settings.seller },
     { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
+    { label: 'متجري', href: ROUTES.myStore },
     { label: 'الأمان', href: ROUTES.settings.security },
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
   ],
 } as const;
+
+export interface NavDisclosureGroup {
+  label: string;
+  href: string;
+  icon: typeof Settings;
+  children: readonly { label: string; href: string }[];
+}
+
+/**
+ * AUDIT-FIX (nav duplication): returns SETTINGS_GROUP unchanged for
+ * non-sellers (their only path to /my-store), or with the "متجري"
+ * child dropped once isSeller is true — at that point STORE_GROUP is
+ * already rendering the identical destination as its own top-level
+ * disclosure right next to this one, so keeping it in both places is
+ * pure duplication, not two meaningfully different entry points.
+ * Every SETTINGS_GROUP renderer (ProtectedSidebar, MobileNav,
+ * ProtectedMobileNav) already computes isSeller for STORE_GROUP's own
+ * gate, so this needs no new data — just routes that existing value
+ * through here too.
+ */
+export function settingsGroupFor(isSeller: boolean): NavDisclosureGroup {
+  if (!isSeller) return SETTINGS_GROUP;
+  return {
+    ...SETTINGS_GROUP,
+    children: SETTINGS_GROUP.children.filter((child) => child.href !== ROUTES.myStore),
+  };
+}

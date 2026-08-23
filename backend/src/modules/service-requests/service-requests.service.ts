@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { ServiceRequest, ServiceRequestStatus } from '@prisma/client';
+import { Prisma, ServiceRequest, ServiceRequestStatus } from '@prisma/client';
 import {
   serviceRequestsRepository,
   ServiceRequestWithListing,
@@ -43,6 +43,39 @@ const TRANSITION_ACTOR: Record<string, Actor> = {
   'ACCEPTED->CANCELLED': 'either',
   'IN_PROGRESS->CANCELLED': 'either',
   'IN_PROGRESS->COMPLETED': 'provider',
+};
+
+// Terminal statuses only — see recomputeProviderStats below. A request
+// can only ever reach one of these once (ALLOWED_TRANSITIONS has no
+// outgoing edges from any of the three), so this recompute fires at
+// most once per request.
+const TERMINAL_STATUSES: ServiceRequestStatus[] = ['COMPLETED', 'CANCELLED', 'REJECTED'];
+
+// FIX (dead-stats): completedRequestsCount/fulfillmentRate
+// (ServiceProviderDetails) were rendered on MyServiceProviderCard from
+// day one but nothing in this codebase ever wrote to them — every
+// provider showed "0 طلب مكتمل" / "—" forever regardless of real
+// activity. Recomputed from ServiceRequest itself (source of truth)
+// rather than incremented in place, so a rare double-fire or past gap
+// self-heals instead of drifting further out of sync over time.
+// fulfillmentRate definition (not a prior product decision — see
+// badges.constants.ts's own note on the same kind of judgment call):
+// completed / (completed + cancelled + rejected), i.e. of every
+// request that reached a final outcome, what share the provider
+// actually fulfilled. null (not 0) when there's no terminal history
+// yet, so the UI's `fulfillmentRate ? ... : '—'` check keeps showing
+// "—" for a brand-new provider instead of a misleading 0%.
+const recomputeProviderStats = async (
+  tx: Prisma.TransactionClient,
+  providerId: string
+): Promise<void> => {
+  const { completed, cancelledOrRejected } =
+    await serviceRequestsRepository.countTerminalStatsByProviderId(providerId);
+  const totalTerminal = completed + cancelledOrRejected;
+  await serviceProvidersRepository.updateStats(tx, providerId, {
+    completedRequestsCount: completed,
+    fulfillmentRate: totalTerminal > 0 ? Math.round((completed / totalTerminal) * 10000) / 100 : null,
+  });
 };
 
 export const serviceRequestsService = {
@@ -194,6 +227,15 @@ export const serviceRequestsService = {
         throw new ConflictError('Request status has changed — please refresh and try again', 'SERVICE_REQUEST_CHANGED');
       }
       const updated = await tx.serviceRequest.findUniqueOrThrow({ where: { id: requestId } });
+
+      // FIX (dead-stats): only fires on the three terminal statuses —
+      // see TERMINAL_STATUSES/recomputeProviderStats above. Runs in
+      // the same transaction as the status write itself so the two
+      // can never land inconsistently (request says COMPLETED but
+      // the provider's counters didn't move, or vice versa).
+      if (TERMINAL_STATUSES.includes(action)) {
+        await recomputeProviderStats(tx, request.listing.providerId);
+      }
 
       // Gap #10: fire-and-forget, see activityService.record()'s own
       // doc comment — safe to call from inside the transaction

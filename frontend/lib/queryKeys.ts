@@ -67,6 +67,8 @@ export const queryKeys = {
     detail: (id: string) => ['service-providers', id] as const,
     me:     ()            => ['service-providers', 'me'] as const,
     nearby: (params?: object) => ['service-providers', 'nearby', params ?? {}] as const,
+    // Mirrors stores.analytics() below.
+    analytics: ()          => ['service-providers', 'me', 'analytics'] as const,
   },
 
   // ── Stores ───────────────────────────────────────────────────────
@@ -102,9 +104,10 @@ export const queryKeys = {
     products: (id: string)      => ['collections', id, 'products'] as const,
   },
 
-  // ── Store badges (P1) ──────────────────────────────────────────
+  // ── Store / provider badges (P1) ────────────────────────────────
   badges: {
     forStore: (storeId: string) => ['badges', 'store', storeId] as const,
+    forProvider: (providerId: string) => ['badges', 'provider', providerId] as const,
   },
 
   // ── Products ───────────────────────────────────────────────────

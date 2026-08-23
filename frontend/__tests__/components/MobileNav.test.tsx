@@ -108,11 +108,34 @@ describe('MobileNav', () => {
       expect(screen.getByRole('link', { name: 'الملف الشخصي' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'ملف البائع' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'ملف مقدم الخدمة' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'متجري' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'الأمان' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'الجلسات' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'الإشعارات' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'المستخدمون المحظورون' })).toBeInTheDocument();
+    });
+
+    // AUDIT-FIX (nav duplication): this file's default mock is a seller
+    // (useMySellerProfile succeeds), so the "متجري" STORE_GROUP disclosure
+    // renders elsewhere in this same drawer. settingsGroupFor(isSeller)
+    // drops "الإعدادات"'s own "متجري" child in that case — it would
+    // otherwise be the exact same /my-store link showing up twice in one
+    // drawer.
+    it('excludes "متجري" from "الإعدادات" once the user is a seller (STORE_GROUP already covers it)', async () => {
+      const user = setupUser();
+      render(<MobileNav />);
+      await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
+      expect(screen.queryByRole('link', { name: 'متجري' })).not.toBeInTheDocument();
+    });
+
+    // A user with no SellerProfile yet has no STORE_GROUP at all, so
+    // "الإعدادات" → "متجري" is their only path to /my-store's
+    // become-a-store-owner CTA — must stay present for them.
+    it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', async () => {
+      vi.mocked(useMySellerProfile).mockReturnValue({ data: undefined, isSuccess: true } as never);
+      const user = setupUser();
+      render(<MobileNav />);
+      await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
+      expect(screen.getByRole('link', { name: 'متجري' }).getAttribute('href')).toBe('/my-store');
     });
 
     it('does not show the admin dashboard link for a regular user', () => {

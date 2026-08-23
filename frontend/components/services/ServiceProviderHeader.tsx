@@ -5,6 +5,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Star, Phone, MapPin, PlusCircle } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Button } from '@/components/shared/ui/Button';
+import { ProviderBadges } from '@/components/services/ProviderBadges';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -66,6 +67,12 @@ export function ServiceProviderHeader({ provider }: Props) {
           {rating.toFixed(1)} ({provider.sellerProfile.totalRatings} تقييم)
         </span>
       )}
+
+      {/* BADGES: same placement convention as StoreHeader's own
+          StoreBadges — right under the rating/availability line so
+          they read as part of the provider's identity summary, before
+          the stats card. */}
+      <ProviderBadges providerId={provider.id} className="mt-2" />
 
       {/* Stats card */}
       <div className="mt-4 w-full max-w-sm bg-card border rounded-xl p-4 shadow-sm">

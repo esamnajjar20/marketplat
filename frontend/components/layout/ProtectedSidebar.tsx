@@ -73,7 +73,7 @@ import {
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
-import { SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
+import { SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
@@ -129,7 +129,7 @@ function NavLink({
 function DisclosureGroup({
   group, pathname,
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP | typeof SETTINGS_GROUP;
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
 }) {
   const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
@@ -275,7 +275,11 @@ export function ProtectedSidebar() {
           );
         })}
 
-        <DisclosureGroup group={SETTINGS_GROUP} pathname={pathname} />
+        {/* AUDIT-FIX (nav duplication): settingsGroupFor(isSeller) drops
+            the "متجري" child once STORE_GROUP above is already showing
+            that same destination as its own disclosure — see that
+            function's doc in lib/navigation.ts. */}
+        <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />
       </nav>
     </aside>
   );

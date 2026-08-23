@@ -136,6 +136,7 @@ model User {
   savedSearches             SavedSearch[]
   serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
   serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
+  serviceBroadcastsAsCustomer ServiceRequestBroadcast[] @relation("ServiceBroadcastsAsCustomer")
   storeFollows              StoreFollower[]
   storeReviewsGiven         StoreReview[]        @relation("StoreReviewsGiven")
   blocksMade                UserBlock[]          @relation("BlocksMade")
@@ -434,6 +435,7 @@ model ServiceProviderDetails {
   updatedAt              DateTime            @updatedAt
   appointments           Appointment[]
   listings               ServiceListing[]
+  quotes                 ServiceQuote[]
   sellerProfile          SellerProfile       @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
 
   @@index([availabilityStatus])
@@ -459,6 +461,7 @@ model ServiceCategory {
   parent    ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id])
   children  ServiceCategory[] @relation("ServiceCategoryParent")
   listings  ServiceListing[]
+  broadcasts ServiceRequestBroadcast[]
 
   @@index([parentId])
   @@map("service_categories")
@@ -502,6 +505,7 @@ model ServiceRequest {
   updatedAt      DateTime             @updatedAt
   respondedAt    DateTime?
   appointment    Appointment?
+  conversation   Conversation?
   customer       User                 @relation("ServiceRequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
   listing        ServiceListing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
   review         ServiceReview?
@@ -543,6 +547,78 @@ model ServiceReview {
 
   @@index([sellerProfileId])
   @@map("service_reviews")
+}
+
+// ---------------------------------------------------------------------
+// Service Request Marketplace: the "🔥" feature from the services
+// feature audit — a customer describes a need once (not tied to any
+// single provider's listing, unlike ServiceRequest above) and any
+// number of providers competing in that category/city can each submit
+// a price quote. The customer compares and accepts exactly one.
+// Deliberately a separate model from ServiceRequest rather than
+// bolting a nullable listingId onto it: ServiceRequest's whole status
+// machine (PENDING->ACCEPTED->IN_PROGRESS->COMPLETED, reviews,
+// provider stats) assumes a single fixed provider from the start,
+// which is the opposite of this feature's "many providers compete"
+// premise. Once a quote is accepted, the two parties coordinate the
+// rest (scheduling, the actual job) via the Conversation this creates
+// — see service-broadcasts.service.ts's acceptQuote — rather than
+// this model growing its own duplicate booking/appointment machinery.
+// ---------------------------------------------------------------------
+enum ServiceBroadcastStatus {
+  OPEN
+  ACCEPTED
+  CANCELLED
+}
+
+enum ServiceQuoteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model ServiceRequestBroadcast {
+  id              String                 @id @default(cuid())
+  customerId      String
+  categoryId      String
+  title           String
+  description     String                 @db.VarChar(1000)
+  city            String?
+  attachedImages  String[]
+  status          ServiceBroadcastStatus @default(OPEN)
+  acceptedQuoteId String?                @unique
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  customer        User                   @relation("ServiceBroadcastsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  category        ServiceCategory        @relation(fields: [categoryId], references: [id])
+  quotes          ServiceQuote[]         @relation("BroadcastQuotes")
+  acceptedQuote   ServiceQuote?          @relation("AcceptedQuote", fields: [acceptedQuoteId], references: [id])
+
+  @@index([categoryId, status, createdAt])
+  @@index([customerId])
+  @@map("service_request_broadcasts")
+}
+
+model ServiceQuote {
+  id               String                  @id @default(cuid())
+  broadcastId      String
+  providerId       String
+  price            Decimal                 @db.Decimal(10, 2)
+  message          String?                 @db.VarChar(1000)
+  durationEstimate String?
+  status           ServiceQuoteStatus      @default(PENDING)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  broadcast        ServiceRequestBroadcast @relation("BroadcastQuotes", fields: [broadcastId], references: [id], onDelete: Cascade)
+  provider         ServiceProviderDetails  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  acceptedFor      ServiceRequestBroadcast? @relation("AcceptedQuote")
+
+  // One quote per provider per broadcast — a provider revises their
+  // own offer via PATCH, not by submitting a second competing row.
+  @@unique([broadcastId, providerId])
+  @@index([providerId, status])
+  @@map("service_quotes")
 }
 
 // ---------------------------------------------------------------------
@@ -773,11 +849,21 @@ model StoreReview {
 model Conversation {
   id        String    @id @default(cuid())
   adId      String?
+  // CHAT-LINK: lets a service request's own detail page offer a
+  // "تواصل" entry point into a real thread instead of only a phone
+  // number, same as an ad already does via adId. Unique (not part of
+  // a composite key like adId_buyerId_sellerId) because a
+  // ServiceRequest already has exactly one customer and one provider
+  // — there is only ever one legitimate conversation for a given
+  // request, unlike an ad, which many different buyers can each start
+  // their own thread about.
+  serviceRequestId String?        @unique
   buyerId   String
   sellerId  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   ad        Ad?       @relation(fields: [adId], references: [id])
+  serviceRequest ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
   buyer     User      @relation("ConversationsAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   seller    User      @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   messages  Message[]
@@ -1035,6 +1121,13 @@ enum NotificationType {
   // gap-analysis roadmap's "Store Wishlist + Price Alerts", P2,
   // deferred). `data` always includes { productId, storeId }.
   STORE_PRODUCT_RESTOCKED
+  // SERVICE REQUEST MARKETPLACE: fired to the customer when a provider
+  // submits a quote on their open broadcast, and to the provider whose
+  // quote gets accepted — see service-broadcasts.service.ts's
+  // submitQuote/acceptQuote. `data` always includes { broadcastId,
+  // quoteId }.
+  NEW_SERVICE_QUOTE
+  SERVICE_QUOTE_ACCEPTED
 }
 
 // Gap #10 ("نشاطي"): every distinct event type the personal activity

@@ -72,6 +72,20 @@ export const serviceProvidersRepository = {
   ): Promise<ServiceProviderDetails> =>
     prisma.serviceProviderDetails.update({ where: { id }, data }),
 
+  // FIX (dead-stats): the write half of completedRequestsCount/
+  // fulfillmentRate — see service-requests.service.ts's
+  // recomputeProviderStats, the only caller. Takes `tx` because it
+  // always runs inside the same transaction as the request-status
+  // transition it's reacting to, so a crash between the two can't
+  // leave the counters out of sync with the request that caused them
+  // to change.
+  updateStats: (
+    tx: Prisma.TransactionClient,
+    id: string,
+    data: { completedRequestsCount: number; fulfillmentRate: number | null }
+  ): Promise<ServiceProviderDetails> =>
+    tx.serviceProviderDetails.update({ where: { id }, data }),
+
   // SEC-FIX: same gap products.repository.ts's findMany already closed
   // for suspended sellers (see its own SEC-FIX comment) — an admin
   // suspending a seller (SellerProfile.suspended) is the only

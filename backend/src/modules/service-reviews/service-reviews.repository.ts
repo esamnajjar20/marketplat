@@ -21,6 +21,23 @@ export const serviceReviewsRepository = {
   findByRequestId: (requestId: string): Promise<ServiceReview | null> =>
     prisma.serviceReview.findUnique({ where: { requestId } }),
 
+  // ANALYTICS/BADGES: mirrors storeReviewsRepository.getRatingSummary
+  // exactly (same aggregate shape) — used by both
+  // service-providers.service.ts's getMyServiceProviderAnalytics and
+  // badges.service.ts's getProviderBadges, so a provider's rating is
+  // computed the same one way in both places rather than each rolling
+  // its own aggregate query.
+  getRatingSummary: async (
+    sellerProfileId: string
+  ): Promise<{ avg: number | null; count: number }> => {
+    const result = await prisma.serviceReview.aggregate({
+      where: { sellerProfileId },
+      _avg: { score: true },
+      _count: true,
+    });
+    return { avg: result._avg.score, count: result._count };
+  },
+
   findManyBySellerProfileId: async (
     sellerProfileId: string,
     query: { page?: number; limit?: number }

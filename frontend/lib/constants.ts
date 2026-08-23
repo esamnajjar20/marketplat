@@ -44,6 +44,8 @@ export const ROUTES = {
   serviceRequestDetail:  (id: string) => `/service-requests/${id}`,
   // Epic 4: provider-side appointments calendar.
   myServiceAppointments:   '/my-services/appointments',
+  // ANALYTICS: mirrors myStoreAnalytics below.
+  myServiceProviderAnalytics: '/my-services/analytics',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,
   // FEAT-HOME-DISCOVERY: public cross-store products browse page —

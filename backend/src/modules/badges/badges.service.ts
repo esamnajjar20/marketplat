@@ -1,7 +1,10 @@
 import { storesRepository, StoreWithSellerAndCounts } from '../stores/stores.repository';
 import { storeReviewsRepository } from '../stores/store-reviews.repository';
+import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
+import { serviceListingsRepository } from '../service-listings/service-listings.repository';
+import { serviceReviewsRepository } from '../service-reviews/service-reviews.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { Badge, computeBadges } from './badges.types';
+import { Badge, computeBadges, ProviderBadge, computeProviderBadges } from './badges.types';
 
 const toBadgeInput = (
   store: StoreWithSellerAndCounts,
@@ -49,5 +52,27 @@ export const badgesService = {
         computeBadges(toBadgeInput(store, ratings.get(store.sellerProfileId) ?? { avg: null, count: 0 })),
       ])
     );
+  },
+
+  // PROVIDER-BADGES: same public, no-auth, entirely-derived shape as
+  // getStoreBadges above — a provider's badges are part of its public
+  // page, same visibility as its rating.
+  getProviderBadges: async (providerId: string): Promise<ProviderBadge[]> => {
+    const provider = await serviceProvidersRepository.findPublicById(providerId);
+    if (!provider || provider.sellerProfile.suspended) {
+      throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    }
+    const [listingStats, rating] = await Promise.all([
+      serviceListingsRepository.getStatsByProviderId(provider.id),
+      serviceReviewsRepository.getRatingSummary(provider.sellerProfileId),
+    ]);
+    return computeProviderBadges({
+      createdAt: provider.createdAt,
+      totalViews: listingStats.totalViews,
+      completedRequestsCount: provider.completedRequestsCount,
+      sellerVerified: provider.sellerProfile.verified,
+      avgRating: rating.avg,
+      reviewCount: rating.count,
+    });
   },
 };

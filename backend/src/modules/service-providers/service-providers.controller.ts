@@ -55,6 +55,17 @@ export const serviceProvidersController = {
     }
   },
 
+  // ANALYTICS: owner-only, mirrors storesController.getMyStoreAnalytics.
+  getMyServiceProviderAnalytics: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const analytics = await serviceProvidersService.getMyServiceProviderAnalytics(user.userId);
+      res.status(200).json(successResponse('Service provider analytics fetched', analytics));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getPublicServiceProvider: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { params } = serviceProviderIdSchema.parse({ params: req.params });

@@ -2,6 +2,7 @@ import { Conversation, Message } from '@prisma/client';
 import { conversationsRepository, messagesRepository, ConversationWithRelations, ConversationListItem } from './conversations.repository';
 import { adsRepository } from '../ads/ads.repository';
 import { usersRepository } from '../users/users.repository';
+import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
 import { notificationEvents } from '../notifications';
 import { blockedUsersService } from '../blocked-users';
 import { activityService, activityTemplates } from '../activity';
@@ -59,7 +60,7 @@ export const conversationsService = {
     const existing = await conversationsRepository.findExisting(adId, buyerId, sellerId);
     if (existing) return existing;
 
-    return conversationsRepository.create(adId, buyerId, sellerId);
+    return conversationsRepository.create(buyerId, sellerId, { adId });
   },
 
   /**
@@ -89,7 +90,47 @@ export const conversationsService = {
     const existing = await conversationsRepository.findExistingWithoutAd(buyerId, sellerId);
     if (existing) return existing;
 
-    return conversationsRepository.create(null, buyerId, sellerId);
+    return conversationsRepository.create(buyerId, sellerId);
+  },
+
+  /**
+   * Starts (or reopens) a thread about a specific service request — the
+   * request detail page's "تواصل" entry point. Unlike startFromAd
+   * (always buyer-initiated toward the ad owner), either the customer
+   * or the provider on the request may call this first; whichever one
+   * isn't the caller becomes the other party. serviceRequestId is
+   * @unique on Conversation, so — unlike ad-based threads, where many
+   * different buyers can each have their own thread about the same ad
+   * — there is only ever one thread for a given request, and this is
+   * idempotent for either party calling it.
+   */
+  startFromServiceRequest: async (userId: string, serviceRequestId: string): Promise<Conversation> => {
+    const request = await serviceRequestsRepository.findById(serviceRequestId);
+    if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
+
+    const providerUserId = request.listing.provider.sellerProfile.userId;
+    const customerId = request.customerId;
+
+    if (userId !== customerId && userId !== providerUserId) {
+      throw new ForbiddenError('You are not a party to this service request.', 'NOT_YOUR_SERVICE_REQUEST');
+    }
+
+    // A provider can't message themselves about their own request (the
+    // self-request case service-requests.service.ts already blocks at
+    // creation — see its own "also blocks fake completedRequestsCount"
+    // comment) — this is defense in depth, not the primary guard.
+    if (customerId === providerUserId) {
+      throw new BadRequestError('You cannot message yourself.', 'CANNOT_MESSAGE_SELF');
+    }
+
+    if (await blockedUsersService.isBlockedEitherDirection(customerId, providerUserId)) {
+      throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
+    }
+
+    const existing = await conversationsRepository.findExistingByServiceRequestId(serviceRequestId);
+    if (existing) return existing;
+
+    return conversationsRepository.create(customerId, providerUserId, { serviceRequestId });
   },
 
   getConversationById: async (userId: string, id: string): Promise<ConversationWithRelations> => {

@@ -18,7 +18,9 @@ export const conversationsController = {
       const { body } = startConversationSchema.parse({ body: req.body });
       const conversation = body.adId
         ? await conversationsService.startFromAd(user.userId, body.adId)
-        : await conversationsService.startFromUser(user.userId, body.userId as string);
+        : body.serviceRequestId
+          ? await conversationsService.startFromServiceRequest(user.userId, body.serviceRequestId)
+          : await conversationsService.startFromUser(user.userId, body.userId as string);
       res.status(201).json(successResponse('Conversation ready', conversation));
     } catch (error) {
       next(error);

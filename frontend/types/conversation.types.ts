@@ -22,14 +22,25 @@ export interface ConversationAdSummary {
   status: 'ACTIVE' | 'SOLD' | 'DELETED';
 }
 
+/** CHAT-LINK: mirrors ConversationAdSummary's nullable-context shape,
+ * for a conversation started from a ServiceRequest instead of an ad. */
+export interface ConversationServiceRequestSummary {
+  id: string;
+  details: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  listing: { id: string; title: string; images: string[] };
+}
+
 export interface Conversation {
   id: string;
   adId: string | null;
+  serviceRequestId: string | null;
   buyerId: string;
   sellerId: string;
   createdAt: string;
   updatedAt: string;
   ad: ConversationAdSummary | null;
+  serviceRequest: ConversationServiceRequestSummary | null;
   buyer: ConversationParticipant;
   seller: ConversationParticipant;
 }
@@ -69,7 +80,10 @@ export interface Message {
 // Exactly one of adId or userId — mirrors the backend's refine() guard.
 // adId: SellerCard's "مراسلة البائع" (ad-scoped). userId: PublicProfileHeader's
 // "مراسلة" (direct, no ad in context).
-export type StartConversationPayload = { adId: string; userId?: never } | { userId: string; adId?: never };
+export type StartConversationPayload =
+  | { adId: string; userId?: never; serviceRequestId?: never }
+  | { userId: string; adId?: never; serviceRequestId?: never }
+  | { serviceRequestId: string; adId?: never; userId?: never };
 
 /** POST /conversations/:id/messages. */
 export interface SendMessagePayload {

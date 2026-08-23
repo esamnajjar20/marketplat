@@ -14,6 +14,7 @@ import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   ServiceProviderDetails,
   ServiceProviderPublic,
+  ServiceProviderAnalytics,
   CreateServiceProviderPayload,
   UpdateServiceProviderPayload,
   ServiceProvidersQuery,
@@ -43,6 +44,10 @@ export const serviceProvidersApi = {
   /** PATCH /service-providers/me — partial update, including availabilityStatus. */
   updateMyProvider: (payload: UpdateServiceProviderPayload) =>
     apiClient.patch<ApiResponse<ServiceProviderDetails>>('/service-providers/me', payload),
+
+  /** GET /service-providers/me/analytics — owner-only dashboard. */
+  getMyAnalytics: () =>
+    apiClient.get<ApiResponse<ServiceProviderAnalytics>>('/service-providers/me/analytics'),
 
   /** POST /service-providers/me/logo — multipart upload, same shape as storesApi.uploadLogo. */
   uploadLogo: (file: File) => {

@@ -50,7 +50,7 @@ import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
+import { BROWSE_LINKS, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useTheme } from 'next-themes';
@@ -186,7 +186,7 @@ function NavSection({
 function DisclosureGroup({
   group, pathname, onNavigate,
 }: {
-  group: typeof SETTINGS_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP;
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -502,7 +502,7 @@ export function MobileNav() {
                 <div className="border-t pt-3">
                   <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">النظام</p>
                   <ul className="flex flex-col gap-1">
-                    <DisclosureGroup group={SETTINGS_GROUP} pathname={pathname} onNavigate={closeMobileNav} />
+                    <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={closeMobileNav} />
                     {isAdmin && (
                       <li>
                         <Link

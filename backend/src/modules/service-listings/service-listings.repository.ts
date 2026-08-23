@@ -190,6 +190,34 @@ export const serviceListingsRepository = {
     return { listings, total };
   },
 
+  // ANALYTICS: mirrors productsRepository.findTopByStoreId — active
+  // listings only (a paused/deleted listing accrued its views while it
+  // was live, but isn't something the provider can currently act on
+  // promoting), ordered by views desc, capped at `limit`.
+  findTopByProviderId: (providerId: string, limit: number): Promise<ServiceListing[]> =>
+    prisma.serviceListing.findMany({
+      where: { providerId, status: 'ACTIVE' },
+      orderBy: { views: 'desc' },
+      take: limit,
+    }),
+
+  // ANALYTICS: one grouped query for "active listing count" + "total
+  // views across all listings" — the two provider-level rollups
+  // getMyServiceProviderAnalytics needs beyond the top-5 list above.
+  // Views intentionally sum across ALL statuses (not just ACTIVE) —
+  // views already happened and are a historical fact about the
+  // provider's total reach, same as StoreDetails.views not resetting
+  // when a product is paused.
+  getStatsByProviderId: async (
+    providerId: string
+  ): Promise<{ activeCount: number; totalViews: number }> => {
+    const [activeCount, viewsResult] = await Promise.all([
+      prisma.serviceListing.count({ where: { providerId, status: 'ACTIVE' } }),
+      prisma.serviceListing.aggregate({ where: { providerId }, _sum: { views: true } }),
+    ]);
+    return { activeCount, totalViews: viewsResult._sum.views ?? 0 };
+  },
+
   findManyByProviderId: async (
     providerId: string,
     query: { page?: number; limit?: number; status?: ServiceListingStatus }

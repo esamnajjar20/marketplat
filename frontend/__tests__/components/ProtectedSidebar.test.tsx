@@ -6,7 +6,7 @@
  *
  * P1 FIX (layout audit §6, "sidebar داخل sidebar"): "الإعدادات" is now
  * also a disclosure group (SETTINGS_GROUP) instead of a flat link,
- * folding the 7 links that used to live in the separate SettingsSidebar
+ * folding the 8 links that used to live in the separate SettingsSidebar
  * component directly into this sidebar. Updated below to match: queried
  * as a button, its children only render once expanded, and its own
  * child labeled "متجري" is disambiguated from the top-level "متجري"
@@ -117,7 +117,7 @@ describe('ProtectedSidebar', () => {
     expect(screen.getByText('لوحة التحكم')).toBeDefined();
     expect(screen.getByText('إعلاناتي')).toBeDefined();
     expect(screen.getByText('المفضلة')).toBeDefined();
-    expect(screen.getByText('البحثات المحفوظة')).toBeDefined();
+    expect(screen.getByText('عمليات البحث المحفوظة')).toBeDefined();
     expect(screen.getByText('نشاطي')).toBeDefined();
     expect(screen.getByText('الرسائل')).toBeDefined();
     expect(screen.getByText('بلاغاتي')).toBeDefined();
@@ -367,7 +367,7 @@ describe('ProtectedSidebar', () => {
   // ── P1 FIX (layout audit §6): "الإعدادات" disclosure group ──────
   // Replaces the old flat-link settings tests; SettingsSidebar (the
   // second nav column previously rendered by app/(protected)/settings/
-  // layout.tsx) is gone — these 7 destinations now live here instead.
+  // layout.tsx) is gone — these 8 destinations now live here instead.
 
   describe('"الإعدادات" disclosure group', () => {
     it('is collapsed by default when pathname is outside the group', () => {
@@ -378,7 +378,7 @@ describe('ProtectedSidebar', () => {
       expect(screen.queryByText('الأمان')).not.toBeInTheDocument();
     });
 
-    it('expands on click and reveals its children with correct hrefs', () => {
+    it('expands on click and reveals its children with correct hrefs (seller: "متجري" excluded here, see below)', () => {
       mockUsePathname.mockReturnValue('/dashboard');
       renderWithClient(<ProtectedSidebar />);
       fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
@@ -389,12 +389,39 @@ describe('ProtectedSidebar', () => {
       expect(screen.getByText('الجلسات').closest('a')?.getAttribute('href')).toBe('/settings/sessions');
       expect(screen.getByText('الإشعارات').closest('a')?.getAttribute('href')).toBe('/settings/notifications');
       expect(screen.getByText('المستخدمون المحظورون').closest('a')?.getAttribute('href')).toBe('/settings/blocked-users');
-      // DEDUP-FIX (audit #3): "متجري" no longer appears inside
-      // "الإعدادات" — it's STORE_GROUP's own top-level entry now, not
-      // duplicated here. STORE_GROUP itself is still collapsed in this
-      // test (only "الإعدادات" was clicked), so no link named "متجري"
-      // should exist anywhere on screen at this point.
-      expect(screen.queryByRole('link', { name: 'متجري' })).not.toBeInTheDocument();
+    });
+
+    // AUDIT-FIX (nav duplication): this file's default beforeEach mocks
+    // a seller (useMySellerProfile succeeds), so STORE_GROUP renders as
+    // its own "متجري" disclosure. settingsGroupFor(isSeller) must drop
+    // the redundant "متجري" child from "الإعدادات" in that case — only
+    // the STORE_GROUP toggle + its own child link should say "متجري".
+    it('excludes "متجري" from "الإعدادات" once the user is a seller (STORE_GROUP already covers it)', () => {
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+      fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
+      fireEvent.click(screen.getByRole('button', { name: /^متجري/ }));
+
+      // Exactly 2: STORE_GROUP's own toggle button + its first child
+      // link (both "متجري", by design — see STORE_GROUP's own children).
+      // Not 3: "الإعدادات" must not contribute a duplicate third one.
+      const storeLinks = screen.getAllByText('متجري');
+      expect(storeLinks).toHaveLength(2);
+    });
+
+    // A user with no SellerProfile yet has no STORE_GROUP at all (it's
+    // gated on isSeller), so "الإعدادات" → "متجري" is their only path
+    // to /my-store's become-a-store-owner CTA — must stay present.
+    it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', () => {
+      (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({ data: null, isSuccess: false });
+      mockUsePathname.mockReturnValue('/dashboard');
+      renderWithClient(<ProtectedSidebar />);
+
+      // No STORE_GROUP toggle for a non-seller.
+      expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
+      expect(screen.getByText('متجري').closest('a')?.getAttribute('href')).toBe('/my-store');
     });
 
     it('is expanded by default when pathname is inside the group (e.g. /settings/security)', () => {

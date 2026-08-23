@@ -16,3 +16,14 @@ export function useStoreBadges(storeId: string) {
     enabled: Boolean(storeId),
   });
 }
+
+/** GET /badges/provider/:providerId — public, no auth. Same
+ * rationale/TTL as useStoreBadges above. */
+export function useProviderBadges(providerId: string) {
+  return useQuery({
+    queryKey: queryKeys.badges.forProvider(providerId),
+    queryFn: () => badgesApi.getProviderBadges(providerId).then((r) => r.data.data ?? []),
+    staleTime: CACHE_TTL.sellerProfile,
+    enabled: Boolean(providerId),
+  });
+}

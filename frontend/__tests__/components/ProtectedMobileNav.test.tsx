@@ -180,7 +180,7 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('إعلاناتي')).toBeInTheDocument();
     expect(screen.getByText('المفضلة')).toBeInTheDocument();
     expect(screen.getByText('الرسائل')).toBeInTheDocument();
-    expect(screen.getByText('البحثات المحفوظة')).toBeInTheDocument();
+    expect(screen.getByText('عمليات البحث المحفوظة')).toBeInTheDocument();
     expect(screen.getByText('نشاطي')).toBeInTheDocument();
     expect(screen.getByText('بلاغاتي')).toBeInTheDocument();
     expect(screen.getByText('الإعدادات')).toBeInTheDocument();
@@ -193,7 +193,7 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('المفضلة').closest('a')?.getAttribute('aria-current')).toBeNull();
   });
 
-  it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 7-destination group)', () => {
+  it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 8-destination group)', () => {
     // FIX (test bug, not a component bug): getByRole excludes
     // aria-hidden elements from the accessibility tree by design (see
     // this file's own first test's comment) — the drawer's <nav> is
@@ -208,7 +208,7 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByRole('button', { name: /الإعدادات/ })).toBeInTheDocument();
   });
 
-  it('settings group opens automatically and shows all 8 sub-destinations when already on a /settings/* subpath', () => {
+  it('settings group opens automatically and shows its sub-destinations when already on a /settings/* subpath (seller: 7, "متجري" excluded — see below)', () => {
     // Same fix as the test above — must open the drawer before
     // getByRole can see anything inside it.
     isMobileNavOpen = true;
@@ -224,6 +224,35 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('الإشعارات').closest('a')?.getAttribute('href')).toBe('/settings/notifications');
     expect(screen.getByText('المستخدمون المحظورون').closest('a')?.getAttribute('href')).toBe('/settings/blocked-users');
     expect(screen.getByText('الأمان').closest('a')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  // AUDIT-FIX (nav duplication): default mock here is a seller, so the
+  // "متجري" STORE_GROUP disclosure also renders in this same drawer
+  // (further down, see the "متجري" describe block below). Settings'
+  // own "متجري" child must be dropped in that case — otherwise the
+  // exact same /my-store destination appears twice in one drawer.
+  it('excludes "متجري" from "الإعدادات" once the user is a seller (STORE_GROUP already covers it)', () => {
+    isMobileNavOpen = true;
+    mockUsePathname.mockReturnValue('/settings/security');
+    render(<ProtectedMobileNav />);
+    fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
+    const settingsLinks = ['الملف الشخصي', 'ملف البائع', 'ملف مقدم الخدمة', 'الأمان', 'الجلسات', 'الإشعارات', 'المستخدمون المحظورون'];
+    settingsLinks.forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
+    // Only STORE_GROUP's own toggle + child should say "متجري" — not a
+    // third one contributed by "الإعدادات".
+    expect(screen.getAllByText('متجري')).toHaveLength(2);
+  });
+
+  // A user with no SellerProfile yet has no STORE_GROUP at all, so
+  // "الإعدادات" → "متجري" is their only path to /my-store's
+  // become-a-store-owner CTA — must stay present for them.
+  it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', () => {
+    (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isSuccess: true });
+    isMobileNavOpen = true;
+    mockUsePathname.mockReturnValue('/dashboard');
+    render(<ProtectedMobileNav />);
+    fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
+    expect(screen.getByText('متجري').closest('a')?.getAttribute('href')).toBe('/my-store');
   });
 
   // AUDIT-FIX (dynamic sidebar): "خدماتي"/"متجري" are fully absent for

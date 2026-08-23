@@ -1,13 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, MessageCircle, Menu, Plus } from 'lucide-react';
+import { Home, Compass, MessageCircle, Menu, Plus } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { ExploreSheet } from '@/components/layout/ExploreSheet';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 
@@ -21,7 +23,7 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  * drawer" split the audit asked for.
  *
  * BUG FIX: removed "المفضلة" (favorites) from this bar per request —
- * bar is now 5 items total (home, search, +create, messages, menu).
+ * bar is now 5 items total (home, استكشاف, +create, messages, menu).
  * Favorites remains reachable via the drawer (MobileNav/
  * ProtectedMobileNav already list it) and via ProtectedSidebar on
  * desktop — this only removes its bottom-bar shortcut.
@@ -48,11 +50,21 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  * it. /ads/create lives under (protected), so ProtectedLayout's own
  * auth-redirect handles guests the same way it already does for other
  * protected destinations — no extra branching needed here either.
+ *
+ * AUDIT-FIX ("Bottom Nav بيدفن 3 من 4 أقسام رئيسية"): "البحث" replaced
+ * with "استكشاف", which opens ExploreSheet — a single entry point for
+ * الإعلانات/المنتجات/الخدمات/المتاجر/مقدمو الخدمة (plus a plain
+ * "بحث شامل" so the old direct-search shortcut isn't lost, just moved
+ * one tap deeper). Rejected alternative: adding "الخدمات"/"المتاجر"/
+ * "مقدمو الخدمة" as three more bottom-bar icons — a 5-slot mobile bar
+ * has no room for 3 more without crowding it past usability. See
+ * ExploreSheet's own doc for the full per-link routing rationale.
  */
 export function BottomNav() {
   const pathname = usePathname();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
+  const [exploreOpen, setExploreOpen] = useState(false);
   // SELLER-GATE: /ads/create requires a SellerProfile server-side
   // (ads.service.ts's createAd) — hook internally gates its query on
   // isAuthenticated, so this issues no request for guests. Mirrors
@@ -63,12 +75,20 @@ export function BottomNav() {
 
   const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
-    { label: 'البحث', href: ROUTES.search, icon: Search },
   ] as const;
 
   const trailingItems = [
     { label: 'الرسائل', href: ROUTES.messages, icon: MessageCircle },
   ] as const;
+
+  // "استكشاف" reads as active on any of the destinations its own sheet
+  // links to (see ExploreSheet), not just /search itself — otherwise
+  // landing on /stores or /service-providers via a direct link would
+  // leave the whole bottom bar showing no active tab at all.
+  const EXPLORE_ACTIVE_PREFIXES = [
+    ROUTES.search, ROUTES.products, ROUTES.services, ROUTES.stores, ROUTES.serviceProviders,
+  ] as const;
+  const isExploreActive = EXPLORE_ACTIVE_PREFIXES.some((href) => pathname.startsWith(href));
 
   function renderItem({ label, href, icon: Icon }: {
     label: string; href: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
@@ -97,6 +117,20 @@ export function BottomNav() {
     >
       {leadingItems.map(renderItem)}
 
+      <button
+        type="button"
+        onClick={() => setExploreOpen(true)}
+        aria-current={isExploreActive ? 'page' : undefined}
+        aria-haspopup="dialog"
+        className={cn(
+          'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+          isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        <Compass className="h-5 w-5" aria-hidden={true} />
+        استكشاف
+      </button>
+
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
         <Link
           href={isAuthenticated && !isSeller ? ROUTES.settings.seller : ROUTES.adCreate}
@@ -123,6 +157,8 @@ export function BottomNav() {
         <Menu className="h-5 w-5" aria-hidden={true} />
         {isAuthenticated ? 'حسابي' : 'القائمة'}
       </button>
+
+      <ExploreSheet open={exploreOpen} onOpenChange={setExploreOpen} />
     </nav>
   );
 }

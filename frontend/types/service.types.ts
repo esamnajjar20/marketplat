@@ -58,6 +58,31 @@ export type ServiceProviderPublic = ServiceProviderDetails & {
   listings: ServiceListing[];
 };
 
+/**
+ * GET /service-providers/me/analytics — owner-only dashboard. Mirrors
+ * StoreAnalytics's shape (types/store.types.ts) — same "views /
+ * pipeline counts / top items" structure adapted to what a provider
+ * has instead of a store's followers/promotions. Unlike
+ * StoreAnalytics, `revenue` is included here since ServiceRequest.
+ * agreedPrice is a real, existing field (no Order model needed).
+ */
+export interface ServiceProviderAnalytics {
+  totalViews: number;
+  activeListings: number;
+  pendingRequests: number;
+  completedRequests: number;
+  /** Plain number here (not the Decimal-as-string convention
+   * ServiceProviderDetails.fulfillmentRate uses) — this endpoint
+   * computes it fresh in JS rather than passing through a Prisma
+   * Decimal column. null when there's no terminal request history yet. */
+  fulfillmentRate: number | null;
+  upcomingAppointments: number;
+  averageRating: number | null;
+  reviewCount: number;
+  revenue: number;
+  topListings: { id: string; title: string; views: number; image: string | null }[];
+}
+
 export interface ServiceCategory {
   id: string;
   name: string;

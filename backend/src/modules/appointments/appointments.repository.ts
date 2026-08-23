@@ -47,6 +47,15 @@ export const appointmentsRepository = {
       orderBy: { scheduledStart: 'asc' },
     }),
 
+  // ANALYTICS: "what's still ahead of me" count for the provider
+  // dashboard — SCHEDULED only (a COMPLETED/CANCELLED/NO_SHOW
+  // appointment is no longer upcoming regardless of its date) and
+  // strictly in the future.
+  countUpcomingByProviderId: (providerId: string, now: Date = new Date()): Promise<number> =>
+    prisma.appointment.count({
+      where: { providerId, status: 'SCHEDULED', scheduledStart: { gte: now } },
+    }),
+
   findManyByProviderId: async (
     providerId: string,
     query: { page?: number; limit?: number; from?: Date; to?: Date }

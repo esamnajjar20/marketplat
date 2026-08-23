@@ -14,3 +14,18 @@ export interface StoreBadge {
   label: string;
   icon: string;
 }
+
+/**
+ * Provider badges — maps to backend's badges module's
+ * computeProviderBadges (badges.types.ts). Kept distinct from
+ * StoreBadge/StoreBadgeType (not a shared union) since "الأكثر طلبًا"/
+ * "مقدم خدمة جديد" read wrong on a store and vice versa — same
+ * reasoning the backend type gives for not unifying the two.
+ */
+export type ProviderBadgeType = 'VERIFIED' | 'HIGHLY_RATED' | 'POPULAR' | 'NEW_PROVIDER';
+
+export interface ProviderBadge {
+  type: ProviderBadgeType;
+  label: string;
+  icon: string;
+}

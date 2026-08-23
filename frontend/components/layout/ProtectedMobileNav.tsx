@@ -59,7 +59,7 @@ import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, SETTINGS_GROUP, SERVICES_GROUP, STORE_GROUP } from '@/lib/navigation';
+import { BROWSE_LINKS, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -93,7 +93,7 @@ const TOGGLE_ID = 'protected-mobile-nav-toggle';
 function DrawerDisclosureGroup({
   group, pathname, onNavigate,
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP | typeof SETTINGS_GROUP;
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -420,7 +420,7 @@ export function ProtectedMobileNav() {
             );
           })}
 
-          <DrawerDisclosureGroup group={SETTINGS_GROUP} pathname={pathname} onNavigate={close} />
+          <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />
 
           {isAdmin && (
             <li>

@@ -86,6 +86,48 @@ export const serviceRequestsRepository = {
     return { requests, total };
   },
 
+  // FIX (dead-stats): completedRequestsCount/fulfillmentRate
+  // (ServiceProviderDetails) are rendered on MyServiceProviderCard but
+  // were never written anywhere — see service-requests.service.ts's
+  // recomputeProviderStats, the one place that now calls this. Counts
+  // only the three terminal statuses (COMPLETED/CANCELLED/REJECTED);
+  // PENDING/ACCEPTED/IN_PROGRESS are still in flight and shouldn't
+  // count against or for the rate yet. Joined through `listing`
+  // (ServiceRequest has no direct providerId column), same relation
+  // findManyByProviderId below already uses.
+  countTerminalStatsByProviderId: async (
+    providerId: string
+  ): Promise<{ completed: number; cancelledOrRejected: number }> => {
+    const [completed, cancelledOrRejected] = await Promise.all([
+      prisma.serviceRequest.count({ where: { listing: { providerId }, status: 'COMPLETED' } }),
+      prisma.serviceRequest.count({
+        where: { listing: { providerId }, status: { in: ['CANCELLED', 'REJECTED'] } },
+      }),
+    ]);
+    return { completed, cancelledOrRejected };
+  },
+
+  // ANALYTICS: requests awaiting the provider's first response — the
+  // number a provider actually needs to act on today, distinct from
+  // "all open requests" (which would also include ACCEPTED/IN_PROGRESS
+  // work already underway).
+  countPendingByProviderId: (providerId: string): Promise<number> =>
+    prisma.serviceRequest.count({ where: { listing: { providerId }, status: 'PENDING' } }),
+
+  // ANALYTICS: revenue is only ever a fact once a request is COMPLETED
+  // and only ever what was actually agreed (agreedPrice), never the
+  // provider's opening quotedPrice — same "don't show a number that
+  // isn't real yet" reasoning as StoreAnalytics omitting revenue
+  // entirely where no Order model exists. This one does exist here
+  // (ServiceRequest.agreedPrice), so it's included.
+  sumRevenueByProviderId: async (providerId: string): Promise<number> => {
+    const result = await prisma.serviceRequest.aggregate({
+      where: { listing: { providerId }, status: 'COMPLETED' },
+      _sum: { agreedPrice: true },
+    });
+    return result._sum.agreedPrice ? Number(result._sum.agreedPrice) : 0;
+  },
+
   // Requests addressed to a given provider — joined through listing.
   findManyByProviderId: async (
     providerId: string,

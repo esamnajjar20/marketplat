@@ -5,6 +5,7 @@ import { getPaginationParams } from '../../shared/utils/pagination';
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {
     ad: { select: { id: true; title: true; images: true; status: true } };
+    serviceRequest: { select: { id: true; details: true; status: true; listing: { select: { id: true; title: true; images: true } } } };
     buyer: { select: { id: true; name: true; avatarUrl: true } };
     seller: { select: { id: true; name: true; avatarUrl: true } };
   };
@@ -28,6 +29,19 @@ const conversationWithRelations = {
   // linked Ad is deleted (onDelete: SetNull) or for a conversation that
   // was never ad-linked in the first place.
   ad: { select: { id: true, title: true, images: true, status: true } },
+  // CHAT-LINK: same nullable-context idea as `ad` above, for a
+  // conversation started from a ServiceRequest instead. Includes the
+  // listing's own title/images one level down so the thread UI can
+  // show "بخصوص: تصليح لابتوب" the same way it already shows an ad's
+  // thumbnail, without a second round trip.
+  serviceRequest: {
+    select: {
+      id: true,
+      details: true,
+      status: true,
+      listing: { select: { id: true, title: true, images: true } },
+    },
+  },
   buyer: { select: { id: true, name: true, avatarUrl: true } },
   seller: { select: { id: true, name: true, avatarUrl: true } },
 } as const;
@@ -58,8 +72,26 @@ export const conversationsRepository = {
       where: { adId: null, buyerId, sellerId },
     }),
 
-  create: (adId: string | null, buyerId: string, sellerId: string): Promise<Conversation> =>
-    prisma.conversation.create({ data: { adId, buyerId, sellerId } }),
+  // CHAT-LINK: mirrors findExisting's unique-lookup shape exactly —
+  // serviceRequestId is @unique on the row (a request has at most one
+  // thread), so this is a true findUnique, not a list/findFirst like
+  // findExistingWithoutAd above has to be for the null-adId case.
+  findExistingByServiceRequestId: (serviceRequestId: string): Promise<Conversation | null> =>
+    prisma.conversation.findUnique({ where: { serviceRequestId } }),
+
+  create: (
+    buyerId: string,
+    sellerId: string,
+    context: { adId?: string | null; serviceRequestId?: string | null } = {}
+  ): Promise<Conversation> =>
+    prisma.conversation.create({
+      data: {
+        buyerId,
+        sellerId,
+        adId: context.adId ?? null,
+        serviceRequestId: context.serviceRequestId ?? null,
+      },
+    }),
 
   findById: (id: string): Promise<ConversationWithRelations | null> =>
     prisma.conversation.findUnique({ where: { id }, include: conversationWithRelations }),

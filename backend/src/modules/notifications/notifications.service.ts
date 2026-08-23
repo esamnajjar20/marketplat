@@ -328,4 +328,56 @@ export const notificationEvents = {
       `/stores/${storeId}`,
       `store-restock-${productId}`
     ),
+
+  /** service-broadcasts.service.ts's submitQuote calls this after a
+   * quote is created — notifies the broadcast's customer that a new
+   * offer came in. */
+  onNewServiceQuote: (
+    customerId: string,
+    broadcastId: string,
+    quoteId: string,
+    providerName: string,
+    broadcastTitle: string
+  ) => {
+    const title = 'عرض سعر جديد';
+    const body = `${providerName} أرسل عرض سعر على طلبك "${broadcastTitle}"`;
+    void pushService.notifyUser(customerId, {
+      title,
+      body,
+      url: `/service-broadcasts/${broadcastId}`,
+      tag: `broadcast-${broadcastId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: customerId,
+      type: 'NEW_SERVICE_QUOTE',
+      title,
+      body,
+      data: { broadcastId, quoteId },
+    });
+  },
+
+  /** service-broadcasts.service.ts's acceptQuote calls this after a
+   * quote is accepted — notifies the winning provider. */
+  onServiceQuoteAccepted: (
+    providerUserId: string,
+    broadcastId: string,
+    quoteId: string,
+    broadcastTitle: string
+  ) => {
+    const title = 'تم قبول عرضك';
+    const body = `تم قبول عرض السعر الخاص بك على طلب "${broadcastTitle}"`;
+    void pushService.notifyUser(providerUserId, {
+      title,
+      body,
+      url: `/service-broadcasts/${broadcastId}`,
+      tag: `broadcast-${broadcastId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: providerUserId,
+      type: 'SERVICE_QUOTE_ACCEPTED',
+      title,
+      body,
+      data: { broadcastId, quoteId },
+    });
+  },
 };

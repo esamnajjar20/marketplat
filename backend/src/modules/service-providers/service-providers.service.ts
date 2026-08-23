@@ -8,6 +8,9 @@ import {
   NearbyServiceProviderRow,
 } from './service-providers.repository';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
+import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
+import { appointmentsRepository } from '../appointments/appointments.repository';
+import { serviceReviewsRepository } from '../service-reviews/service-reviews.repository';
 import {
   CreateServiceProviderInput,
   UpdateServiceProviderInput,
@@ -22,7 +25,74 @@ import { sellersRepository } from '../sellers/sellers.repository';
 import { withServiceProviderCreationLock } from '../../shared/utils/serviceProviderLock';
 import { getPaginationParams, PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 
+// ANALYTICS: mirrors stores.service.ts's StoreAnalytics shape (same
+// "views / pipeline counts / top items" structure) adapted to what a
+// provider actually has instead of a store's followers/promotions —
+// pendingRequests/upcomingAppointments are the provider's equivalent
+// of "things needing my attention", revenue is real here (unlike
+// StoreAnalytics, which omits it for lack of an Order model) since
+// ServiceRequest.agreedPrice already exists.
+export interface ServiceProviderAnalytics {
+  totalViews: number;
+  activeListings: number;
+  pendingRequests: number;
+  completedRequests: number;
+  fulfillmentRate: number | null;
+  upcomingAppointments: number;
+  averageRating: number | null;
+  reviewCount: number;
+  revenue: number;
+  topListings: { id: string; title: string; views: number; image: string | null }[];
+}
+
 export const serviceProvidersService = {
+  // ANALYTICS: same requireOwnStore-style ownership resolution as
+  // stores.service.ts's getMyStoreAnalytics — userId -> sellerProfile
+  // -> provider, 404 at either hop if either doesn't exist yet (a user
+  // with no provider profile has no analytics to show, same "go
+  // create one first" gap MyStoreAnalytics.tsx's own 404 branch
+  // already handles for stores).
+  getMyServiceProviderAnalytics: async (userId: string): Promise<ServiceProviderAnalytics> => {
+    const sellerProfile = await sellersRepository.findByUserId(userId);
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+
+    const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
+    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+
+    const [listingStats, topListings, pendingRequests, terminalStats, revenue, upcomingAppointments, rating] =
+      await Promise.all([
+        serviceListingsRepository.getStatsByProviderId(provider.id),
+        serviceListingsRepository.findTopByProviderId(provider.id, 5),
+        serviceRequestsRepository.countPendingByProviderId(provider.id),
+        serviceRequestsRepository.countTerminalStatsByProviderId(provider.id),
+        serviceRequestsRepository.sumRevenueByProviderId(provider.id),
+        appointmentsRepository.countUpcomingByProviderId(provider.id),
+        serviceReviewsRepository.getRatingSummary(sellerProfile.id),
+      ]);
+
+    const totalTerminal = terminalStats.completed + terminalStats.cancelledOrRejected;
+
+    return {
+      totalViews: listingStats.totalViews,
+      activeListings: listingStats.activeCount,
+      pendingRequests,
+      completedRequests: terminalStats.completed,
+      fulfillmentRate:
+        totalTerminal > 0 ? Math.round((terminalStats.completed / totalTerminal) * 10000) / 100 : null,
+      upcomingAppointments,
+      averageRating: rating.avg,
+      reviewCount: rating.count,
+      revenue,
+      topListings: topListings.map(listing => ({
+        id: listing.id,
+        title: listing.title,
+        views: listing.views,
+        image: listing.images[0] ?? null,
+      })),
+    };
+  },
+
+
   // services-design.md §1: ServiceProviderDetails is built on top of an
   // existing SellerProfile, never created independently of one — the
   // same "eligibility gate" SellerProfile itself already enforces

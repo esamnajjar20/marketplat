@@ -6,10 +6,14 @@
  */
 import { apiClient } from './client';
 import type { ApiResponse } from '@/types/api.types';
-import type { StoreBadge } from '@/types/badge.types';
+import type { StoreBadge, ProviderBadge } from '@/types/badge.types';
 
 export const badgesApi = {
   /** GET /badges/store/:storeId — public, no auth. */
   getStoreBadges: (storeId: string) =>
     apiClient.get<ApiResponse<StoreBadge[]>>(`/badges/store/${storeId}`),
+
+  /** GET /badges/provider/:providerId — public, no auth. */
+  getProviderBadges: (providerId: string) =>
+    apiClient.get<ApiResponse<ProviderBadge[]>>(`/badges/provider/${providerId}`),
 };

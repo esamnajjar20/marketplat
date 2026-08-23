@@ -9,3 +9,4 @@ export const badgesRouter = Router();
 // StoreReview, StoreDetails), so there is nothing here for an owner to
 // create/edit directly.
 badgesRouter.get('/store/:storeId', CACHE.SHORT, badgesController.getStoreBadges);
+badgesRouter.get('/provider/:providerId', CACHE.SHORT, badgesController.getProviderBadges);

@@ -79,3 +79,21 @@ export function useNearbyServiceProviders(params: NearbyServiceProvidersParams |
     enabled: params !== null,
   });
 }
+
+/**
+ * GET /service-providers/me/analytics — owner-only dashboard. Same
+ * shape/rationale as useMyStoreAnalytics (useStores.ts): a 404 here
+ * means "not a provider yet", not a real error — MyServiceProviderAnalytics
+ * treats that as its own empty state rather than retrying.
+ */
+export function useMyServiceProviderAnalytics() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+
+  return useQuery({
+    queryKey: queryKeys.serviceProviders.analytics(),
+    queryFn: () => serviceProvidersApi.getMyAnalytics().then((r) => r.data.data),
+    staleTime: CACHE_TTL.sellerProfile,
+    enabled: isAuthenticated,
+    retry: false,
+  });
+}

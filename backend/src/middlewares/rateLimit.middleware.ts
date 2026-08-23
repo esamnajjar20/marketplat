@@ -243,6 +243,29 @@ export const createServiceRequestRateLimit = rateLimit({
   message: msg("Too many requests submitted, please try again later"),
 });
 
+// SERVICE REQUEST MARKETPLACE: separate bucket from
+// createServiceRequestRateLimit above — a customer posting broadcasts
+// and a provider submitting quotes are different actions that
+// shouldn't share one quota just because the same user could
+// theoretically do both.
+export const createServiceBroadcastRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("create_service_broadcast"),
+  message: msg("Too many requests posted, please try again later"),
+});
+
+export const submitServiceQuoteRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("submit_service_quote"),
+  message: msg("Too many quotes submitted, please try again later"),
+});
+
 // services-design.md §17: same rationale as sellerRatingRateLimit —
 // prevents bulk fake reviews.
 export const serviceReviewRateLimit = rateLimit({

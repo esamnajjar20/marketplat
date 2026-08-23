@@ -226,6 +226,10 @@ export function MyServiceProviderCard({ provider }: Props) {
         <Button variant="outline" size="sm" asChild>
           <Link href={ROUTES.myServices}>إدارة خدماتي</Link>
         </Button>
+        {/* ANALYTICS: mirrors MyStoreCard's own "الإحصائيات" button. */}
+        <Button variant="outline" size="sm" asChild>
+          <Link href={ROUTES.myServiceProviderAnalytics}>الإحصائيات</Link>
+        </Button>
       </div>
     </div>
   );

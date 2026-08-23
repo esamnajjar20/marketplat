@@ -31,6 +31,16 @@ serviceProvidersRouter.patch(
   serviceProvidersController.updateMyServiceProvider
 );
 
+// ANALYTICS — owner-only. Registered alongside the other /me routes,
+// same reasoning as /me/logo below: must never be swallowed by the
+// public /:id route.
+serviceProvidersRouter.get(
+  '/me/analytics',
+  authenticate,
+  CACHE.NONE,
+  serviceProvidersController.getMyServiceProviderAnalytics
+);
+
 // Logo upload — same single-image pattern as POST /users/me/avatar
 // and /stores/me/logo. Registered alongside the other /me routes so
 // it's never swallowed as the public /:id route below.
