@@ -6,6 +6,7 @@ import { Star, Phone, MapPin, Sparkles, UserPlus, UserMinus, PlusCircle } from '
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
+import { StoreBadges } from '@/components/stores/StoreBadges';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
@@ -110,6 +111,12 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             {store.isOpen ? 'مفتوح الآن' : 'مغلق الآن'}
           </span>
         )}
+
+        {/* BADGES: computed trust signals (verified/highly-rated/
+            popular/new) — placed right under the open/closed line so
+            they read as part of the store's identity summary, before
+            the stats card. */}
+        <StoreBadges storeId={store.id} className="mt-2" />
 
         {/* Stats card */}
         <div className="mt-4 w-full max-w-sm bg-card border rounded-xl p-4 shadow-sm">

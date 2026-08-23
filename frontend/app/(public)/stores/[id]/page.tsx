@@ -6,6 +6,7 @@ import { buildMetadata } from '@/lib/seo';
 import { storesApi } from '@/api/stores.api';
 import { StoreHeader } from '@/components/stores/StoreHeader';
 import { StoreProducts } from '@/components/stores/StoreProducts';
+import { StoreCollections } from '@/components/stores/StoreCollections';
 import { StoreReviewsList } from '@/components/stores/StoreReviewsList';
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -81,6 +82,13 @@ export default async function StorePage({ params }: Props) {
           <StoreProducts storeId={store.id} />
         </Suspense>
       </section>
+
+      {/* COLLECTIONS (P1): no heading/border wrapper of its own —
+          StoreCollections renders nothing when the store has no
+          collections, and each rail already carries its own title, so
+          this sits as a natural continuation of the Products section
+          rather than a separate boxed block. */}
+      <StoreCollections storeId={store.id} />
 
       <section className="space-y-3 border-t pt-6">
         <div className="flex items-center justify-between gap-2">

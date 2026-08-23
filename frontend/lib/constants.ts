@@ -56,6 +56,9 @@ export const ROUTES = {
   myStoreProductCreate:  '/my-store/products/new',
   myStoreProductEdit:    (id: string) => `/my-store/products/${id}/edit`,
   myStorePromotions:     '/my-store/promotions',
+  // P1: owner-facing collections tab + per-collection product manager.
+  myStoreCollections:      '/my-store/collections',
+  myStoreCollectionManage: (id: string) => `/my-store/collections/${id}`,
   // STORE-ANALYTICS (Foundation v1)
   myStoreAnalytics:      '/my-store/analytics',
   myFollowedStores:     '/my-store/followed',

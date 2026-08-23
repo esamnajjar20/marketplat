@@ -90,6 +90,23 @@ export const queryKeys = {
       ['store-reviews', storeId, params ?? {}] as const,
   },
 
+  // ── Store collections (P1) ────────────────────────────────────
+  collections: {
+    all:      ()                => ['collections'] as const,
+    mine:     ()                => ['collections', 'me'] as const,
+    detail:   (id: string)      => ['collections', 'detail', id] as const,
+    // Public storefront reads — keyed separately from the owner-only
+    // mine()/detail() above since they hit different endpoints
+    // (/store/:storeId vs /me, /:id) and must not share a cache entry.
+    forStore: (storeId: string) => ['collections', 'store', storeId] as const,
+    products: (id: string)      => ['collections', id, 'products'] as const,
+  },
+
+  // ── Store badges (P1) ──────────────────────────────────────────
+  badges: {
+    forStore: (storeId: string) => ['badges', 'store', storeId] as const,
+  },
+
   // ── Products ───────────────────────────────────────────────────
   products: {
     all:    ()                => ['products'] as const,
