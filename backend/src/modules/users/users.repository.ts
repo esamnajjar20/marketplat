@@ -77,6 +77,18 @@ const publicUserSelect = {
       averageRating: true,
       totalRatings: true,
       activeAds: true,
+      // PLAN-P1-1: previously omitted from the public projection —
+      // only MySellerProfileCard (owner-only) could see it. Needed so
+      // ProfileBadges can show a "الأكثر مبيعاً" badge to visitors;
+      // was otherwise sitting on the model unused by anyone but the
+      // seller themselves.
+      totalSales: true,
+      // PLAN-P1-2: computed by scripts/updateSellerResponseMetrics.ts
+      // (was previously always null — nothing wrote to either
+      // column). Exposed here so ProfileBadges can show "سريع
+      // الاستجابة" for sellers the job has actually measured.
+      responseRate: true,
+      responseTimeMinutes: true,
       joinedSellingAt: true,
       suspended: true,
       // UNIFIED-PROFILE: totalRatings only counts ad-seller ratings

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ShoppingBag, Wrench, Store } from 'lucide-react';
+import { ShoppingBag, Wrench, Store, Award, Flame, Zap } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
@@ -9,6 +9,27 @@ interface Props {
   sellerProfile: PublicSellerProfile | null;
   className?: string;
 }
+
+// PLAN-P1-1: trustScore (0-1000, see schema.prisma) and totalSales
+// already existed on SellerProfile and were computed server-side, but
+// nothing ever turned them into a visible signal for a buyer — a
+// seller with a 950 trustScore and one with a 10 looked identical
+// here. Plain absolute thresholds for a first pass (not a percentile/
+// leaderboard rank, which needs a cross-seller query this component
+// doesn't have access to) — tune once real trustScore/totalSales
+// distributions exist in production.
+const FEATURED_TRUST_SCORE_THRESHOLD = 700;
+const TOP_SELLER_TOTAL_SALES_THRESHOLD = 50;
+
+// PLAN-P1-2: responseRate/responseTimeMinutes are now populated by
+// scripts/updateSellerResponseMetrics.ts (a daily job, see its doc
+// comment) — before that they were always null, so this badge would
+// never have shown for anyone. Both a rate and a speed bar, not just
+// one: a seller who replies to 100% of messages but takes 3 days
+// isn't "fast", and a seller who replies in 2 minutes but only to
+// 1-in-5 conversations isn't "responsive" either.
+const FAST_RESPONSE_RATE_THRESHOLD = 80; // percent
+const FAST_RESPONSE_TIME_MAX_MINUTES = 60;
 
 /**
  * ProfileBadges — pure display of "what kind of activity does this
@@ -52,6 +73,13 @@ export function ProfileBadges({ sellerProfile, className }: Props) {
 
   const store = sellerProfile.storeDetails;
   const isServiceProvider = Boolean(sellerProfile.serviceProviderDetails);
+  const isFeaturedTrust = sellerProfile.trustScore >= FEATURED_TRUST_SCORE_THRESHOLD;
+  const isTopSeller = sellerProfile.totalSales >= TOP_SELLER_TOTAL_SALES_THRESHOLD;
+  const isFastResponder =
+    sellerProfile.responseRate !== null &&
+    sellerProfile.responseTimeMinutes !== null &&
+    parseFloat(sellerProfile.responseRate) >= FAST_RESPONSE_RATE_THRESHOLD &&
+    sellerProfile.responseTimeMinutes <= FAST_RESPONSE_TIME_MAX_MINUTES;
 
   const pillBase = 'gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold shadow-sm';
 
@@ -82,6 +110,42 @@ export function ProfileBadges({ sellerProfile, className }: Props) {
             صاحب متجر
           </Badge>
         </Link>
+      )}
+      {/* FIX P2-3 precedent (StoreCard/ServiceListingCard/AdCard): this
+          app deliberately replaced raw Tailwind colors (amber/emerald)
+          with the design system's semantic tokens everywhere else, so
+          these two reuse `warning`/`secondary` rather than introducing
+          new one-off colors — default/accent/success are already
+          spoken for by the three role badges above. */}
+      {isFeaturedTrust && (
+        <Badge
+          variant="warning"
+          className={pillBase}
+          title={`Trust score ${sellerProfile.trustScore}/1000`}
+        >
+          <Award className="h-3.5 w-3.5" />
+          بائع مميز
+        </Badge>
+      )}
+      {isTopSeller && (
+        <Badge
+          variant="secondary"
+          className={pillBase}
+          title={`${sellerProfile.totalSales} عملية بيع`}
+        >
+          <Flame className="h-3.5 w-3.5" />
+          الأكثر مبيعاً
+        </Badge>
+      )}
+      {isFastResponder && (
+        <Badge
+          variant="outline"
+          className={pillBase}
+          title={`${sellerProfile.responseRate}% نسبة الرد، ~${sellerProfile.responseTimeMinutes} دقيقة`}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          سريع الاستجابة
+        </Badge>
       )}
     </div>
   );

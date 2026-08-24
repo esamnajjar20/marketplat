@@ -28,6 +28,25 @@ export function useCreateSellerProfile() {
 }
 
 /**
+ * PLAN-P1-4: POST /sellers/me/profile/verification-request. Same
+ * invalidate-my-profile shape as useCreateSellerProfile — the caller's
+ * verificationStatus flips to PENDING, and MySellerProfileCard needs
+ * to re-render showing that instead of the request button.
+ */
+export function useRequestSellerVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => sellersApi.requestVerification().then(r => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sellers.me() });
+      toast.success('تم إرسال طلب التوثيق، سيتم مراجعته قريباً');
+    },
+    onError: err => toast.error(parseApiError(err).message),
+  });
+}
+
+/**
  * POST /sellers/:id/ratings. Invalidates the target seller's public
  * profile so the new averageRating/totalRatings show up without a
  * manual refresh.

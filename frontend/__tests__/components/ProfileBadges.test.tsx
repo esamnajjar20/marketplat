@@ -59,6 +59,9 @@ function makeSellerProfile(
     averageRating: '0',
     totalRatings: 0,
     activeAds: 0,
+    totalSales: 0,
+    responseRate: null,
+    responseTimeMinutes: null,
     joinedSellingAt: '2024-01-01T00:00:00.000Z',
     _count: { serviceReviews: 0 },
     storeDetails: null,
@@ -133,5 +136,46 @@ describe('ProfileBadges', () => {
     expect(screen.getByText('بائع')).toBeInTheDocument();
     expect(screen.queryByText('مقدم خدمة')).not.toBeInTheDocument();
     expect(screen.queryByText('صاحب متجر')).not.toBeInTheDocument();
+  });
+
+  it('does not show trust/top-seller badges below their thresholds', () => {
+    render(<ProfileBadges sellerProfile={makeSellerProfile({ trustScore: 699, totalSales: 49 })} />);
+    expect(screen.queryByText('بائع مميز')).not.toBeInTheDocument();
+    expect(screen.queryByText('الأكثر مبيعاً')).not.toBeInTheDocument();
+  });
+
+  it('shows the featured-trust badge once trustScore crosses the threshold', () => {
+    render(<ProfileBadges sellerProfile={makeSellerProfile({ trustScore: 700 })} />);
+    expect(screen.getByText('بائع مميز')).toBeInTheDocument();
+    expect(screen.queryByText('الأكثر مبيعاً')).not.toBeInTheDocument();
+  });
+
+  it('shows the top-seller badge once totalSales crosses the threshold', () => {
+    render(<ProfileBadges sellerProfile={makeSellerProfile({ totalSales: 50 })} />);
+    expect(screen.getByText('الأكثر مبيعاً')).toBeInTheDocument();
+    expect(screen.queryByText('بائع مميز')).not.toBeInTheDocument();
+  });
+
+  it('does not show the fast-responder badge when responseRate/responseTimeMinutes are null (not yet measured)', () => {
+    render(<ProfileBadges sellerProfile={makeSellerProfile()} />);
+    expect(screen.queryByText('سريع الاستجابة')).not.toBeInTheDocument();
+  });
+
+  it('does not show the fast-responder badge when only one of the two thresholds is met', () => {
+    render(
+      <ProfileBadges
+        sellerProfile={makeSellerProfile({ responseRate: '95', responseTimeMinutes: 500 })}
+      />,
+    );
+    expect(screen.queryByText('سريع الاستجابة')).not.toBeInTheDocument();
+  });
+
+  it('shows the fast-responder badge once both responseRate and responseTimeMinutes clear their thresholds', () => {
+    render(
+      <ProfileBadges
+        sellerProfile={makeSellerProfile({ responseRate: '90', responseTimeMinutes: 15 })}
+      />,
+    );
+    expect(screen.getByText('سريع الاستجابة')).toBeInTheDocument();
   });
 });

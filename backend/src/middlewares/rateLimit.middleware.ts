@@ -198,6 +198,19 @@ export const sellerRatingRateLimit = rateLimit({
   message: msg("Too many ratings submitted, please try again later"),
 });
 
+// PLAN-P1-4: mirrors createSellerProfileRateLimit's rationale — a
+// low-frequency, self-service write (a seller has no reason to hit
+// this more than a handful of times), guarded against retry storms
+// the same way profile creation already is.
+export const requestVerificationRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("request_seller_verification"),
+  message: msg("Too many verification requests, please try again later"),
+});
+
 // services-design.md §16: same rationale as createSellerProfileRateLimit —
 // a one-time (per seller profile) write, still worth guarding against
 // scripted retry storms against the create-profile lock/transaction path.

@@ -37,6 +37,17 @@ export const sellersController = {
     }
   },
 
+  // PLAN-P1-4: seller-facing counterpart to admin's verifySeller below.
+  requestVerification: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const profile = await sellersService.requestSellerVerification(user.userId);
+      res.status(200).json(successResponse('Verification request submitted', profile));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getPublicSellerProfile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { params } = sellerIdSchema.parse({ params: req.params });

@@ -72,6 +72,26 @@ export const sellersService = {
     return profile;
   },
 
+  // PLAN-P1-4: verification was previously admin-initiated only —
+  // an admin had to already know/decide a seller deserved it, with
+  // no signal from the seller side that they wanted it. This is the
+  // missing self-service half: moves the seller's own profile to
+  // PENDING so it surfaces in the admin queue (AdminSellersTable).
+  requestSellerVerification: async (userId: string): Promise<SellerProfile> => {
+    const profile = await sellersRepository.findByUserId(userId);
+    if (!profile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+    if (profile.suspended) {
+      throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
+    }
+    if (profile.verified) {
+      throw new ConflictError('This seller is already verified.', 'SELLER_ALREADY_VERIFIED');
+    }
+    if (profile.verificationStatus === 'PENDING') {
+      throw new ConflictError('A verification request is already pending review.', 'VERIFICATION_ALREADY_PENDING');
+    }
+    return sellersRepository.requestVerification(profile.id);
+  },
+
   getPublicSellerProfile: async (sellerProfileId: string): Promise<SellerProfileWithAds> => {
     const profile = await sellersRepository.findPublicProfile(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
@@ -186,7 +206,11 @@ export const sellersService = {
   ): Promise<SellerProfile> => {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
-    const updated = await sellersRepository.setVerification(sellerProfileId, verified);
+    const updated = await sellersRepository.setVerification(
+      sellerProfileId,
+      verified,
+      profile.verificationStatus
+    );
 
     // EPIC 1.1: this admin action previously left no audit trail at
     // all — every other admin.service.ts mutation (feature/pin/delete

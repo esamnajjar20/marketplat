@@ -1,10 +1,11 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, SellerProfile } from '@prisma/client';
+import { Prisma, SellerProfile, SellerVerificationStatus } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type SellerProfileWithAds = Prisma.SellerProfileGetPayload<{
   include: {
     ads: true;
+    user: { select: { city: true } };
   };
 }>;
 
@@ -112,22 +113,51 @@ export const sellersRepository = {
       data: { activeAds: { decrement: 1 }, totalSales: { increment: 1 } },
     }),
 
+  // PLAN-P1-3: `city` isn't a SellerProfile column (unlike
+  // StoreDetails/ServiceProviderDetails, which each store their own —
+  // a seller has exactly one, so there's no reason to duplicate it).
+  // It lives on User and was never joined in here, so the public
+  // profile always showed None. Select-only (not full user include)
+  // to avoid leaking anything else about the account.
   findPublicProfile: (id: string): Promise<SellerProfileWithAds | null> =>
     prisma.sellerProfile.findUnique({
       where: { id },
       include: {
         ads: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'desc' } },
+        user: { select: { city: true } },
       },
     }),
 
-  setVerification: (id: string, verified: boolean): Promise<SellerProfile> =>
+  // PLAN-P1-4: SellerVerificationStatus had PENDING/REJECTED sitting
+  // unused in the enum — every write went straight verified boolean
+  // true→VERIFIED / false→UNVERIFIED, so a seller who asked to be
+  // verified and a seller who never asked looked identical (both
+  // UNVERIFIED) and admin had no queue to work from. Rejecting a
+  // PENDING request now lands on REJECTED instead of UNVERIFIED, so
+  // that distinction survives; un-verifying an already-VERIFIED
+  // seller still resets to UNVERIFIED (that's a status revocation,
+  // not a rejection of a request).
+  setVerification: (id: string, verified: boolean, currentStatus: SellerVerificationStatus): Promise<SellerProfile> =>
     prisma.sellerProfile.update({
       where: { id },
       data: {
         verified,
-        verificationStatus: verified ? 'VERIFIED' : 'UNVERIFIED',
+        verificationStatus: verified
+          ? 'VERIFIED'
+          : currentStatus === 'PENDING'
+            ? 'REJECTED'
+            : 'UNVERIFIED',
         verifiedAt: verified ? new Date() : null,
       },
+    }),
+
+  // PLAN-P1-4: the seller-facing counterpart — moves UNVERIFIED/REJECTED
+  // to PENDING so it shows up for admin review. Never touches `verified`
+  // itself (only an admin action does that, via setVerification above).
+  requestVerification: (id: string): Promise<SellerProfile> =>
+    prisma.sellerProfile.update({
+      where: { id },
+      data: { verificationStatus: 'PENDING' },
     }),
 
   // AUDIT-FIX: admin-only suspend/unsuspend, mirroring setVerification's

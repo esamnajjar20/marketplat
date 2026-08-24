@@ -39,8 +39,16 @@ export interface SellerProfile {
   updatedAt: string;
 }
 
-/** GET /sellers/:id — public seller page, includes their active ads. */
-export type SellerProfileWithAds = SellerProfile & { ads: AdListItem[] };
+/**
+ * GET /sellers/:id — public seller page, includes their active ads.
+ * `user.city` is the seller's location — lives on User, not
+ * SellerProfile (a seller has exactly one, unlike StoreDetails/
+ * ServiceProviderDetails which each carry their own).
+ */
+export type SellerProfileWithAds = SellerProfile & {
+  ads: AdListItem[];
+  user: { city: string | null };
+};
 
 /** Payload for POST /sellers/me/profile */
 export interface CreateSellerProfilePayload {

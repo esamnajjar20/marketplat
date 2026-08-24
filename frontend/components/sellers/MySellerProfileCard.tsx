@@ -1,9 +1,12 @@
+'use client';
+
 import Link from 'next/link';
-import { BadgeCheck, Star, ShoppingBag, TrendingUp, ExternalLink } from 'lucide-react';
+import { BadgeCheck, Star, ShoppingBag, TrendingUp, ExternalLink, Clock, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
 import { formatDate } from '@/lib/formatters';
+import { useRequestSellerVerification } from '@/hooks/mutations/useSellerMutations';
 import type { SellerProfile } from '@/types/seller.types';
 
 interface Props {
@@ -12,6 +15,7 @@ interface Props {
 
 export function MySellerProfileCard({ profile }: Props) {
   const rating = parseFloat(profile.averageRating);
+  const requestVerification = useRequestSellerVerification();
 
   return (
     <div className="space-y-4 max-w-lg">
@@ -80,6 +84,29 @@ export function MySellerProfileCard({ profile }: Props) {
           </Link>
         </Button>
       </div>
+
+      {/* PLAN-P1-4: verification was previously admin-initiated only,
+          with no way for a seller to signal they want it. Only shown
+          once verified is false — an already-verified seller has
+          nothing to request. */}
+      {!profile.verified &&
+        (profile.verificationStatus === 'PENDING' ? (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            طلب التوثيق قيد المراجعة
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={requestVerification.isPending}
+            onClick={() => requestVerification.mutate()}
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {requestVerification.isPending ? 'جارٍ الإرسال…' : 'طلب توثيق الحساب'}
+          </Button>
+        ))}
     </div>
   );
 }

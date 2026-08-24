@@ -86,6 +86,12 @@ export interface PublicSellerProfile {
   averageRating:   string;
   totalRatings:    number;
   activeAds:       number;
+  totalSales:      number;
+  /** Prisma Decimal(5,2), percentage — string in JSON, or null if the
+   *  seller-response-metrics job hasn't measured them yet (no
+   *  conversations in its lookback window). */
+  responseRate:        string | null;
+  responseTimeMinutes: number | null;
   joinedSellingAt: string;
   _count: { serviceReviews: number };
   storeDetails:            PublicProfileStore | null;

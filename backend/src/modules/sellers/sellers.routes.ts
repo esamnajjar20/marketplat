@@ -5,6 +5,7 @@ import { CACHE } from '../../middlewares/cacheControl.middleware';
 import {
   createSellerProfileRateLimit,
   sellerRatingRateLimit,
+  requestVerificationRateLimit,
 } from '../../middlewares/rateLimit.middleware';
 
 export const sellersRouter = Router();
@@ -17,6 +18,17 @@ sellersRouter.post(
   authenticate,
   createSellerProfileRateLimit,
   sellersController.createSellerProfile
+);
+
+// PLAN-P1-4: seller-facing verification request — sets
+// verificationStatus to PENDING for an admin to review via
+// PATCH /admin/sellers/:id/verify. Distinct from that admin route:
+// this one can never set `verified` itself.
+sellersRouter.post(
+  '/me/profile/verification-request',
+  authenticate,
+  requestVerificationRateLimit,
+  sellersController.requestVerification
 );
 
 // Public — anyone can view a seller's page, no authentication required.

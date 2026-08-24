@@ -27,6 +27,7 @@
     "smoke-test": "ts-node-dev --transpile-only --exit-child src/scripts/smokeTest.ts",
     "report:weekly-ad-views": "ts-node-dev --transpile-only --exit-child src/scripts/weeklyAdViewsReport.ts",
     "report:promotion-lifecycle": "ts-node-dev --transpile-only --exit-child src/scripts/myPromotionsExpiring.ts",
+    "report:seller-response-metrics": "ts-node-dev --transpile-only --exit-child src/scripts/updateSellerResponseMetrics.ts",
     "backup:verify-restore": "sh scripts/verify-backup-restore.sh",
     "backup:test": "sh scripts/__tests__/find-latest-backup.test.sh",
     "prisma:generate": "prisma generate",

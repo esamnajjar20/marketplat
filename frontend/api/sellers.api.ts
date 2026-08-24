@@ -23,6 +23,12 @@ export const sellersApi = {
   getMyProfile: () =>
     apiClient.get<ApiResponse<SellerProfile>>('/sellers/me/profile'),
 
+  /** POST /sellers/me/profile/verification-request — moves the
+   *  caller's own profile to verificationStatus PENDING for admin
+   *  review. Never sets `verified` itself. */
+  requestVerification: () =>
+    apiClient.post<ApiResponse<SellerProfile>>('/sellers/me/profile/verification-request'),
+
   /** GET /sellers/:id — public seller page, no authentication required. */
   getById: (id: string) =>
     apiClient.get<ApiResponse<SellerProfileWithAds>>(`/sellers/${id}`),
