@@ -57,12 +57,30 @@ export const recommendationsRepository = {
   // Mirrors favoritesRepository.findManyByUserId's live-ad filter — a
   // favorite pointing at a since-deleted ad carries no usable category
   // signal.
+  // FEAT-FAVORITE-POLYMORPHIC PR1: Favorite has no relation to Ad
+  // anymore (see favorites.repository.ts's header comment), so this
+  // can no longer filter/select through `ad:` in one Prisma call —
+  // resolved as a two-step fan-out (favorite entityIds → matching
+  // active ads), same "1 query for favorites + 1 for ads" shape
+  // favorites.repository.ts's own findManyByUserId now uses. Scoped
+  // to entityType: 'AD' — PR2 will need to also read PRODUCT/STORE/
+  // SERVICE_LISTING favorites' categories once those exist.
   favoritedCategoryIds: async (userId: string): Promise<string[]> => {
-    const rows = await prisma.favorite.findMany({
-      where: { userId, ad: { status: { not: AdStatus.DELETED }, categoryId: { not: null } } },
-      select: { ad: { select: { categoryId: true } } },
+    const favoriteRows = await prisma.favorite.findMany({
+      where: { userId, entityType: 'AD' },
+      select: { entityId: true },
     });
-    return rows.flatMap(r => (r.ad.categoryId ? [r.ad.categoryId] : []));
+    if (favoriteRows.length === 0) return [];
+
+    const ads = await prisma.ad.findMany({
+      where: {
+        id: { in: favoriteRows.map(r => r.entityId) },
+        status: { not: AdStatus.DELETED },
+        categoryId: { not: null },
+      },
+      select: { categoryId: true },
+    });
+    return ads.flatMap(a => (a.categoryId ? [a.categoryId] : []));
   },
 
   // Signal #2: categories the user has recently viewed or browsed, from
@@ -125,12 +143,16 @@ export const recommendationsRepository = {
   // Ads the user already has a relationship with — excluded from their
   // own recommendation rail the same way a "you might also like" shelf
   // on any marketplace never re-suggests what you already own or saved.
+  // FEAT-FAVORITE-POLYMORPHIC PR1: adId is gone from Favorite's active
+  // read path — use entityId, scoped to entityType: 'AD' (PR2 will
+  // need equivalent PRODUCT/STORE/SERVICE_LISTING exclusion once
+  // those favorite types exist and this rail recommends them too).
   excludedAdIds: async (userId: string): Promise<string[]> => {
     const [owned, favorited] = await Promise.all([
       prisma.ad.findMany({ where: { userId }, select: { id: true } }),
-      prisma.favorite.findMany({ where: { userId }, select: { adId: true } }),
+      prisma.favorite.findMany({ where: { userId, entityType: 'AD' }, select: { entityId: true } }),
     ]);
-    return [...owned.map(a => a.id), ...favorited.map(f => f.adId)];
+    return [...owned.map(a => a.id), ...favorited.map(f => f.entityId)];
   },
 
   // Core fetch: active ads in the given categories, ranked by the

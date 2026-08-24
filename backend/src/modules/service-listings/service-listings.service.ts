@@ -164,6 +164,19 @@ export const serviceListingsService = {
     return { items: listings, meta: buildPaginationMeta(total, page, limit) };
   },
 
+  // FEAT-FAVORITE-POLYMORPHIC PR2: facade for cross-module use
+  // (favoritesService), same pattern as ads.service.ts's
+  // findAdForReference / stores.service.ts's findStoreForReference /
+  // products.service.ts's findProductForReference — returns the
+  // listing without side effects so favoritesService can validate a
+  // SERVICE_LISTING favorite target exists without importing
+  // serviceListingsRepository directly.
+  findServiceListingForReference: async (id: string): Promise<ServiceListing | null> => {
+    const listing = await serviceListingsRepository.findById(id);
+    if (!listing || listing.status === 'DELETED') return null;
+    return listing;
+  },
+
   getServiceListingById: async (id: string): Promise<ServiceListingWithProvider> => {
     const listing = await serviceListingsRepository.findPublicById(id);
     if (!listing || listing.status === 'DELETED') {

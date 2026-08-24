@@ -1,6 +1,32 @@
 import { ActivityEntityType, Prisma, UserActivityType } from '@prisma/client';
 import { CreateActivityInput } from './activity.repository';
 
+// FEAT-FAVORITE-POLYMORPHIC PR2: per-entity-type Arabic phrasing for
+// favoriteAdded/favoriteRemoved, below. CONVERSATION/SERVICE_REQUEST/
+// APPOINTMENT are in ActivityEntityType but were never favoritable
+// (favorites.validation.ts's entityType schema only ever accepts AD/
+// PRODUCT/SERVICE_LISTING/STORE) — the exhaustive Record forces this
+// file to fail to compile if that ever changes without an update here.
+const FAVORITE_ADDED_TITLES: Record<ActivityEntityType, string> = {
+  [ActivityEntityType.AD]: 'أضفت إعلاناً للمفضلة',
+  [ActivityEntityType.PRODUCT]: 'أضفت منتجاً للمفضلة',
+  [ActivityEntityType.SERVICE_LISTING]: 'أضفت خدمة للمفضلة',
+  [ActivityEntityType.STORE]: 'أضفت متجراً للمفضلة',
+  [ActivityEntityType.CONVERSATION]: 'أضفت عنصراً للمفضلة',
+  [ActivityEntityType.SERVICE_REQUEST]: 'أضفت عنصراً للمفضلة',
+  [ActivityEntityType.APPOINTMENT]: 'أضفت عنصراً للمفضلة',
+};
+
+const FAVORITE_REMOVED_TITLES: Record<ActivityEntityType, string> = {
+  [ActivityEntityType.AD]: 'أزلت إعلاناً من المفضلة',
+  [ActivityEntityType.PRODUCT]: 'أزلت منتجاً من المفضلة',
+  [ActivityEntityType.SERVICE_LISTING]: 'أزلت خدمة من المفضلة',
+  [ActivityEntityType.STORE]: 'أزلت متجراً من المفضلة',
+  [ActivityEntityType.CONVERSATION]: 'أزلت عنصراً من المفضلة',
+  [ActivityEntityType.SERVICE_REQUEST]: 'أزلت عنصراً من المفضلة',
+  [ActivityEntityType.APPOINTMENT]: 'أزلت عنصراً من المفضلة',
+};
+
 /**
  * Gap #10: the ONE place that maps a domain event onto the Arabic
  * title/description/entity-link a timeline row shows — every module's
@@ -107,20 +133,33 @@ export const activityTemplates = {
     entityId: storeId,
   }),
 
-  favoriteAdded: (adId: string, title: string): Omit<CreateActivityInput, 'userId'> => ({
+  // FEAT-FAVORITE-POLYMORPHIC PR2: generalized from (adId, title) to
+  // (entityType, entityId, title) — UserActivityType.FAVORITE_ADDED/
+  // REMOVED were already entity-generic, only these two template
+  // functions were hardcoded to AD. Both call sites live in
+  // favorites.service.ts and are updated in the same change.
+  favoriteAdded: (
+    entityType: ActivityEntityType,
+    entityId: string,
+    title: string
+  ): Omit<CreateActivityInput, 'userId'> => ({
     type: UserActivityType.FAVORITE_ADDED,
-    title: 'أضفت إعلاناً للمفضلة',
+    title: FAVORITE_ADDED_TITLES[entityType],
     description: title,
-    entityType: ActivityEntityType.AD,
-    entityId: adId,
+    entityType,
+    entityId,
   }),
 
-  favoriteRemoved: (adId: string, title: string): Omit<CreateActivityInput, 'userId'> => ({
+  favoriteRemoved: (
+    entityType: ActivityEntityType,
+    entityId: string,
+    title: string
+  ): Omit<CreateActivityInput, 'userId'> => ({
     type: UserActivityType.FAVORITE_REMOVED,
-    title: 'أزلت إعلاناً من المفضلة',
+    title: FAVORITE_REMOVED_TITLES[entityType],
     description: title,
-    entityType: ActivityEntityType.AD,
-    entityId: adId,
+    entityType,
+    entityId,
   }),
 
   storeFollowed: (storeId: string, name: string): Omit<CreateActivityInput, 'userId'> => ({

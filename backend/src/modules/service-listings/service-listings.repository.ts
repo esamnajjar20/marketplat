@@ -10,7 +10,10 @@ export type ServiceListingWithProvider = Prisma.ServiceListingGetPayload<{
   };
 }>;
 
-const listingWithRelations = {
+// FEAT-FAVORITE-POLYMORPHIC PR2: exported so favorites.repository.ts
+// reuses the same ServiceListingWithProvider include shape rather
+// than a second definition.
+export const listingWithRelations = {
   provider: { include: { sellerProfile: true } },
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;

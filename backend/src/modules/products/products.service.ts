@@ -183,6 +183,19 @@ export const productsService = {
     return { items, meta: buildPaginationMeta(total, page, limit) };
   },
 
+  // FEAT-FAVORITE-POLYMORPHIC PR2: facade for cross-module use
+  // (favoritesService), same pattern as ads.service.ts's
+  // findAdForReference / stores.service.ts's findStoreForReference —
+  // returns the product without side effects (no view increment,
+  // unlike getProductById which is the public detail-page path) so
+  // favoritesService can validate a PRODUCT favorite target exists
+  // without importing productsRepository directly.
+  findProductForReference: async (id: string): Promise<Product | null> => {
+    const product = await productsRepository.findById(id);
+    if (!product || product.status === 'DELETED') return null;
+    return product;
+  },
+
   getProductById: async (id: string): Promise<ProductWithEffectivePrice<ProductWithStore>> => {
     const product = await productsRepository.findPublicById(id);
     if (!product || product.status === 'DELETED') {

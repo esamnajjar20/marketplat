@@ -219,7 +219,6 @@ model Ad {
   sellerProfile   SellerProfile? @relation(fields: [sellerProfileId], references: [id])
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversations   Conversation[]
-  favorites       Favorite[]
   reports         Report[]
   ratings         SellerRating[]
   fraudSignals      FraudSignal[]
@@ -241,16 +240,48 @@ model Ad {
   @@map("ads")
 }
 
-model Favorite {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  userId    String
-  adId      String
-  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+// FEAT-FAVORITE-POLYMORPHIC PR1: Favorite is being generalized from an
+// AD-only FK relation to the same entityType+entityId, no-FK shape
+// UserActivity/Report already established (see Report's own comment
+// above for the precedent and rationale — a favorited entity must keep
+// rendering in "My Favorites" logic even if it's later hard-deleted,
+// and Prisma has no cross-model polymorphic relation type).
+//
+// PR1 scope is AD only end-to-end (favorites.service.ts/.controller.ts
+// still only expose /favorites/:adId routes) — entityType/entityId
+// exist now so the schema and backfill are done once, but PRODUCT/
+// STORE/SERVICE_LISTING values are not yet written or read anywhere.
+// See PR2 for enabling those.
+//
+// adId is kept, nullable, as a legacy compatibility column — NOT the
+// source of truth after backfill (entityType/entityId is). It exists
+// solely so a fast rollback to the pre-PR1 schema/code is possible
+// without re-deriving data. A follow-up migration drops it once PR1
+// has been live and verified.
+enum FavoriteEntityType {
+  AD
+  PRODUCT
+  SERVICE_LISTING
+  STORE
+}
 
-  @@unique([userId, adId])
+model Favorite {
+  id         String              @id @default(cuid())
+  createdAt  DateTime            @default(now())
+  userId     String
+  entityType FavoriteEntityType
+  entityId   String
+  // Legacy compatibility column — see model doc comment above. No
+  // @relation: an FK here would defeat the point (can't point one
+  // column at 4 different tables), and the AD relation this used to
+  // carry is now resolved manually by favorites.repository.ts via
+  // entityType/entityId, same pattern as UserActivity's own entityId.
+  adId       String?
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, entityId])
   @@index([userId])
+  @@index([entityType, entityId])
   @@map("favorites")
 }
 

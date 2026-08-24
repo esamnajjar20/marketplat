@@ -13,25 +13,45 @@ jest.mock('../../src/config/prisma', () => ({
 describe('recommendationsRepository', () => {
   beforeEach(() => jest.clearAllMocks());
 
+  // FEAT-FAVORITE-POLYMORPHIC PR1: Favorite has no relation to Ad
+  // anymore, so this is now a two-step fan-out (favorite entityIds,
+  // then a follow-up ad lookup) instead of one Prisma call with
+  // include/where through `ad:` — see recommendations.repository.ts's
+  // own comment on favoritedCategoryIds.
   describe('favoritedCategoryIds', () => {
-    it('excludes deleted ads and null categories at the query level', async () => {
+    it('returns [] without a second query when the user has no AD favorites', async () => {
       (prisma.favorite.findMany as jest.Mock).mockResolvedValue([]);
 
-      await recommendationsRepository.favoritedCategoryIds('user-1');
+      const result = await recommendationsRepository.favoritedCategoryIds('user-1');
 
       expect(prisma.favorite.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', ad: { status: { not: 'DELETED' }, categoryId: { not: null } } },
-        select: { ad: { select: { categoryId: true } } },
+        where: { userId: 'user-1', entityType: 'AD' },
+        select: { entityId: true },
       });
+      expect(result).toEqual([]);
+      expect(prisma.ad.findMany).not.toHaveBeenCalled();
     });
 
-    it('flattens rows into a plain category id array', async () => {
+    it('excludes deleted ads and null categories on the follow-up ad lookup', async () => {
       (prisma.favorite.findMany as jest.Mock).mockResolvedValue([
-        { ad: { categoryId: 'cat-1' } },
-        { ad: { categoryId: 'cat-2' } },
+        { entityId: 'ad-1' },
+        { entityId: 'ad-2' },
+      ]);
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([
+        { categoryId: 'cat-1' },
+        { categoryId: 'cat-2' },
       ]);
 
       const result = await recommendationsRepository.favoritedCategoryIds('user-1');
+
+      expect(prisma.ad.findMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['ad-1', 'ad-2'] },
+          status: { not: 'DELETED' },
+          categoryId: { not: null },
+        },
+        select: { categoryId: true },
+      });
       expect(result).toEqual(['cat-1', 'cat-2']);
     });
   });
@@ -69,9 +89,16 @@ describe('recommendationsRepository', () => {
   describe('excludedAdIds', () => {
     it('combines owned and favorited ad ids', async () => {
       (prisma.ad.findMany as jest.Mock).mockResolvedValue([{ id: 'owned-1' }]);
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([{ adId: 'fav-1' }]);
+      // FEAT-FAVORITE-POLYMORPHIC PR1: reads entityId (scoped to
+      // entityType: 'AD'), not adId.
+      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([{ entityId: 'fav-1' }]);
 
       const result = await recommendationsRepository.excludedAdIds('user-1');
+
+      expect(prisma.favorite.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', entityType: 'AD' },
+        select: { entityId: true },
+      });
       expect(result).toEqual(['owned-1', 'fav-1']);
     });
   });

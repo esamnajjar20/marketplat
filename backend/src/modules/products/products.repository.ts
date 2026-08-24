@@ -10,7 +10,11 @@ export type ProductWithStore = Prisma.ProductGetPayload<{
   };
 }>;
 
-const productWithRelations = {
+// FEAT-FAVORITE-POLYMORPHIC PR2: exported so favorites.repository.ts
+// can build a PRODUCT favorite's card using the exact same include
+// shape as every other cross-module Product read, instead of a
+// second, potentially-drifting definition.
+export const productWithRelations = {
   store: { include: { sellerProfile: true } },
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;

@@ -1,8 +1,40 @@
 import { z } from 'zod';
+import { FavoriteEntityType } from '@prisma/client';
 
 export const favoriteAdSchema = z.object({
   params: z.object({ adId: z.string().min(1, 'Ad ID is required') }),
 });
+
+// FEAT-FAVORITE-POLYMORPHIC PR2: generic multi-entity routes, added
+// alongside (not replacing) the AD-only /favorites/:adId routes above
+// — those stay exactly as they are, per the PR1 compatibility-layer
+// commitment. URL segment is a REST-friendly plural ("products",
+// "stores", "services") rather than the raw Prisma enum name, mapped
+// here to the actual FavoriteEntityType the rest of the module uses.
+// "ads" is deliberately not included: the existing /favorites/:adId
+// routes already cover AD, and giving the same action two URLs would
+// just be duplicate surface area for no benefit.
+const ENTITY_TYPE_PARAM_MAP: Record<string, FavoriteEntityType> = {
+  products: FavoriteEntityType.PRODUCT,
+  stores: FavoriteEntityType.STORE,
+  services: FavoriteEntityType.SERVICE_LISTING,
+};
+
+const entityTypeParam = z
+  .string()
+  .refine((val) => val in ENTITY_TYPE_PARAM_MAP, {
+    message: 'Unsupported favorite entity type. Use: products, stores, or services.',
+  })
+  .transform((val) => ENTITY_TYPE_PARAM_MAP[val]);
+
+export const favoriteEntitySchema = z.object({
+  params: z.object({
+    entityType: entityTypeParam,
+    entityId: z.string().min(1, 'Entity ID is required'),
+  }),
+});
+
+export type FavoriteEntityParams = z.infer<typeof favoriteEntitySchema>['params'];
 
 export const getFavoritesSchema = z.object({
   query: z.object({
@@ -29,7 +61,34 @@ export const getFavoritesSchema = z.object({
       .transform(Number)
       .pipe(z.number().int().min(1).max(100))
       .optional(),
+    // FEAT-FAVORITE-POLYMORPHIC PR2: optional filter. Omitted entirely
+    // (the pre-PR2 default) keeps GET /favorites returning AD favorites
+    // only, in the exact legacy { adId, ad } wire shape — see
+    // favorites.service.ts's toWireRecord. Passing type=product/store/
+    // service switches to the new generic { entityType, entityId,
+    // entity } wire shape for that type. There's no "all types mixed
+    // together" option: the two wire shapes are different, and a
+    // frontend list rendering ads can't render stores without knowing
+    // to switch shape anyway — an explicit type param keeps that
+    // switch explicit instead of the response shape depending on
+    // what the data happens to contain.
+    type: z.enum(['ad', 'product', 'store', 'service']).optional(),
   }),
 });
 
 export type GetFavoritesQuery = z.infer<typeof getFavoritesSchema>['query'];
+
+// FEAT-FAVORITE-POLYMORPHIC PR2: maps the ?type= query value to the
+// Prisma enum, same mapping ENTITY_TYPE_PARAM_MAP does for the URL
+// param (kept separate since the query value is singular/lowercase —
+// "product" — while the URL segment is plural — "products" — to read
+// naturally in each position; both funnel into the same enum).
+export const FAVORITE_QUERY_TYPE_MAP: Record<
+  NonNullable<GetFavoritesQuery['type']>,
+  FavoriteEntityType
+> = {
+  ad: FavoriteEntityType.AD,
+  product: FavoriteEntityType.PRODUCT,
+  store: FavoriteEntityType.STORE,
+  service: FavoriteEntityType.SERVICE_LISTING,
+};

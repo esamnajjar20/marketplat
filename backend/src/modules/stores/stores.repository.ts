@@ -14,7 +14,10 @@ export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
   };
 }>;
 
-const storeWithSeller = { sellerProfile: true } as const;
+// FEAT-FAVORITE-POLYMORPHIC PR2: exported so favorites.repository.ts
+// reuses the same StoreWithSeller include shape rather than a second
+// definition.
+export const storeWithSeller = { sellerProfile: true } as const;
 
 const storeWithSellerAndCounts = {
   sellerProfile: true,
