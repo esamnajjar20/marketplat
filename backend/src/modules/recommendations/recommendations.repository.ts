@@ -1,6 +1,19 @@
 import { prisma } from '../../config/prisma';
-import { ActivityEntityType, AdStatus, AnalyticsEventType, UserActivityType, Prisma } from '@prisma/client';
+import {
+  ActivityEntityType,
+  AdStatus,
+  AnalyticsEventType,
+  UserActivityType,
+  Prisma,
+  ProductStatus,
+  ServiceListingStatus,
+} from '@prisma/client';
 import { AdListRow } from '../ads/ads.repository';
+import { ProductWithStore, productWithRelations } from '../products/products.repository';
+import {
+  ServiceListingWithProvider,
+  listingWithRelations,
+} from '../service-listings/service-listings.repository';
 
 // Same column allowlist ads.repository.ts's adListSelect uses (and for
 // the same reason — see that file's own PERF FIX comment): a
@@ -51,6 +64,269 @@ export interface CategoryWeight {
 // lookback keeps this a "what are you into lately" signal instead of
 // scanning a user's entire multi-year view history on every request.
 const VIEW_SIGNAL_LOOKBACK_DAYS = 30;
+
+// FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): PRODUCT and
+// SERVICE_LISTING both have a real categoryId (see Product/
+// ServiceListing's own schema models) and DELETED-based soft-delete,
+// same shape as Ad — so the AD weighted-category engine above
+// generalizes to them directly. STORE does NOT (StoreDetails has no
+// categoryId at all — confirmed against schema.prisma, not assumed),
+// so it isn't included in this pass; a store recommendation rail
+// needs its own signal design (most likely StoreFollower-based
+// similarity, or category overlap of the store's own products) rather
+// than a drop-in reuse of this category-weighting shape. That's step
+// 5's "followed" signal, not this step.
+//
+// KNOWN GAP, surfaced not hidden: the AD engine's "recently viewed"
+// signal (VIEW_SIGNAL_LOOKBACK_DAYS, above) reads AnalyticsEventType.
+// AD_VIEW — there is no PRODUCT_VIEW or SERVICE_VIEW in
+// AnalyticsEventType (checked the enum directly; only AD_VIEW,
+// PAGE_VIEW, SEARCH, CATEGORY_BROWSE, CONTACT_CLICK, SIGNUP_STARTED/
+// COMPLETED exist). So PRODUCT/SERVICE_LISTING recommendations below
+// run on favorited (weight 3) + created (weight 2) only — no viewed
+// signal, and no equivalent of WEIGHTS.viewed. Adding PRODUCT_VIEW/
+// SERVICE_VIEW events (schema change + emit-call instrumentation on
+// each detail-page load, mirroring how AD_VIEW is presumably emitted
+// today) is real, separate work — this is exactly the roadmap's own
+// step 5 ("Add signals"), not something to fake here by reusing
+// AD_VIEW's rows for a different entity type.
+
+// PRODUCT/SERVICE_LISTING reuse productWithRelations/listingWithRelations
+// (products.repository.ts / service-listings.repository.ts — already
+// exported for favorites.repository.ts's PR2 fan-out) rather than a
+// third local redeclaration, since those ARE exported (unlike
+// adListSelect, which recommendationAdSelect above deliberately
+// duplicates because it isn't).
+
+export const productRecommendationsRepository = {
+  // Signal #1: categories of products the user has favorited. Same
+  // two-step fan-out favoritedCategoryIds (AD) uses — Favorite has no
+  // Prisma relation to Product either.
+  favoritedCategoryIds: async (userId: string): Promise<string[]> => {
+    const favoriteRows = await prisma.favorite.findMany({
+      where: { userId, entityType: 'PRODUCT' },
+      select: { entityId: true },
+    });
+    if (favoriteRows.length === 0) return [];
+    const products = await prisma.product.findMany({
+      where: { id: { in: favoriteRows.map(r => r.entityId) }, status: { not: ProductStatus.DELETED } },
+      select: { categoryId: true },
+    });
+    return products.map(p => p.categoryId);
+  },
+
+  // Signal #2: categories of products the user has created (their own
+  // store's listings), from UserActivity's PRODUCT_CREATED rows — same
+  // pattern as AD's createdAdCategoryIds.
+  createdCategoryIds: async (userId: string): Promise<string[]> => {
+    const rows = await prisma.userActivity.findMany({
+      where: {
+        userId,
+        type: UserActivityType.PRODUCT_CREATED,
+        entityType: ActivityEntityType.PRODUCT,
+        entityId: { not: null },
+      },
+      select: { entityId: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    const productIds = rows.flatMap(r => (r.entityId ? [r.entityId] : []));
+    if (productIds.length === 0) return [];
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { categoryId: true },
+    });
+    return products.map(p => p.categoryId);
+  },
+
+  excludedIds: async (userId: string): Promise<string[]> => {
+    const [owned, favorited] = await Promise.all([
+      // A product's owner is the store's seller, not the product row
+      // itself — Product has no userId column (unlike Ad), so "owned"
+      // here means "belongs to a store I own".
+      prisma.product.findMany({
+        where: { store: { sellerProfile: { userId } } },
+        select: { id: true },
+      }),
+      prisma.favorite.findMany({ where: { userId, entityType: 'PRODUCT' }, select: { entityId: true } }),
+    ]);
+    return [...owned.map(p => p.id), ...favorited.map(f => f.entityId)];
+  },
+
+  // Same raw-SQL-for-a-shape-Prisma-can't-express reasoning as the AD
+  // version — join chain here is products.storeId → store_details.id
+  // → store_details.sellerProfileId → seller_profiles.id (confirmed
+  // against schema.prisma's @@map directives), not the direct
+  // one-hop Ad.sellerProfileId join AD's version uses.
+  findByWeightedCategories: async (
+    weights: CategoryWeight[],
+    excludeIds: string[],
+    limit: number
+  ): Promise<ProductWithStore[]> => {
+    if (weights.length === 0) return [];
+    const weightValues = Prisma.join(
+      weights.map(w => Prisma.sql`(${w.categoryId}, ${w.weight}::float)`)
+    );
+    const whereParts: Prisma.Sql[] = [
+      Prisma.sql`p."status" = ${ProductStatus.ACTIVE}::"ProductStatus"`,
+      Prisma.sql`sp."suspended" = false`,
+    ];
+    if (excludeIds.length > 0) {
+      whereParts.push(Prisma.sql`p."id" NOT IN (${Prisma.join(excludeIds)})`);
+    }
+    const whereSql = Prisma.join(whereParts, ' AND ');
+
+    const idRows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT p."id"
+      FROM "products" p
+      JOIN (VALUES ${weightValues}) AS w("categoryId", weight) ON w."categoryId" = p."categoryId"
+      JOIN "store_details" sd ON sd."id" = p."storeId"
+      JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
+      WHERE ${whereSql}
+      ORDER BY w.weight DESC, p."createdAt" DESC
+      LIMIT ${limit}
+    `;
+    const ids = idRows.map(r => r.id);
+    if (ids.length === 0) return [];
+    const products = await prisma.product.findMany({
+      where: { id: { in: ids } },
+      include: productWithRelations,
+    });
+    const byId = new Map(products.map(p => [p.id, p]));
+    return ids.flatMap(id => {
+      const p = byId.get(id);
+      return p ? [p] : [];
+    });
+  },
+
+  findTrending: async (excludeIds: string[], limit: number): Promise<ProductWithStore[]> => {
+    const where: Prisma.ProductWhereInput = {
+      status: ProductStatus.ACTIVE,
+      store: { sellerProfile: { suspended: false } },
+      ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
+    };
+    return prisma.product.findMany({
+      where,
+      include: productWithRelations,
+      orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
+      take: limit,
+    });
+  },
+};
+
+export const serviceListingRecommendationsRepository = {
+  favoritedCategoryIds: async (userId: string): Promise<string[]> => {
+    const favoriteRows = await prisma.favorite.findMany({
+      where: { userId, entityType: 'SERVICE_LISTING' },
+      select: { entityId: true },
+    });
+    if (favoriteRows.length === 0) return [];
+    const listings = await prisma.serviceListing.findMany({
+      where: {
+        id: { in: favoriteRows.map(r => r.entityId) },
+        status: { not: ServiceListingStatus.DELETED },
+      },
+      select: { categoryId: true },
+    });
+    return listings.map(l => l.categoryId);
+  },
+
+  createdCategoryIds: async (userId: string): Promise<string[]> => {
+    const rows = await prisma.userActivity.findMany({
+      where: {
+        userId,
+        type: UserActivityType.SERVICE_CREATED,
+        entityType: ActivityEntityType.SERVICE_LISTING,
+        entityId: { not: null },
+      },
+      select: { entityId: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    const listingIds = rows.flatMap(r => (r.entityId ? [r.entityId] : []));
+    if (listingIds.length === 0) return [];
+    const listings = await prisma.serviceListing.findMany({
+      where: { id: { in: listingIds } },
+      select: { categoryId: true },
+    });
+    return listings.map(l => l.categoryId);
+  },
+
+  excludedIds: async (userId: string): Promise<string[]> => {
+    const [owned, favorited] = await Promise.all([
+      // Same reasoning as productsRepository.excludedIds: a listing's
+      // owner is the provider's seller, not a userId column on
+      // ServiceListing itself.
+      prisma.serviceListing.findMany({
+        where: { provider: { sellerProfile: { userId } } },
+        select: { id: true },
+      }),
+      prisma.favorite.findMany({
+        where: { userId, entityType: 'SERVICE_LISTING' },
+        select: { entityId: true },
+      }),
+    ]);
+    return [...owned.map(l => l.id), ...favorited.map(f => f.entityId)];
+  },
+
+  // Join chain: service_listings.providerId → service_provider_details.id
+  // → service_provider_details.sellerProfileId → seller_profiles.id
+  // (confirmed against schema.prisma's @@map directives).
+  findByWeightedCategories: async (
+    weights: CategoryWeight[],
+    excludeIds: string[],
+    limit: number
+  ): Promise<ServiceListingWithProvider[]> => {
+    if (weights.length === 0) return [];
+    const weightValues = Prisma.join(
+      weights.map(w => Prisma.sql`(${w.categoryId}, ${w.weight}::float)`)
+    );
+    const whereParts: Prisma.Sql[] = [
+      Prisma.sql`sl."status" = ${ServiceListingStatus.ACTIVE}::"ServiceListingStatus"`,
+      Prisma.sql`sp."suspended" = false`,
+    ];
+    if (excludeIds.length > 0) {
+      whereParts.push(Prisma.sql`sl."id" NOT IN (${Prisma.join(excludeIds)})`);
+    }
+    const whereSql = Prisma.join(whereParts, ' AND ');
+
+    const idRows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT sl."id"
+      FROM "service_listings" sl
+      JOIN (VALUES ${weightValues}) AS w("categoryId", weight) ON w."categoryId" = sl."categoryId"
+      JOIN "service_provider_details" spd ON spd."id" = sl."providerId"
+      JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
+      WHERE ${whereSql}
+      ORDER BY w.weight DESC, sl."createdAt" DESC
+      LIMIT ${limit}
+    `;
+    const ids = idRows.map(r => r.id);
+    if (ids.length === 0) return [];
+    const listings = await prisma.serviceListing.findMany({
+      where: { id: { in: ids } },
+      include: listingWithRelations,
+    });
+    const byId = new Map(listings.map(l => [l.id, l]));
+    return ids.flatMap(id => {
+      const l = byId.get(id);
+      return l ? [l] : [];
+    });
+  },
+
+  findTrending: async (excludeIds: string[], limit: number): Promise<ServiceListingWithProvider[]> => {
+    const where: Prisma.ServiceListingWhereInput = {
+      status: ServiceListingStatus.ACTIVE,
+      provider: { sellerProfile: { suspended: false } },
+      ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
+    };
+    return prisma.serviceListing.findMany({
+      where,
+      include: listingWithRelations,
+      orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
+      take: limit,
+    });
+  },
+};
 
 export const recommendationsRepository = {
   // Signal #1 (strongest): categories of ads the user has favorited.

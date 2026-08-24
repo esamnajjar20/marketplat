@@ -1,12 +1,29 @@
 import { recommendationsService } from '../../src/modules/recommendations/recommendations.service';
-import { recommendationsRepository } from '../../src/modules/recommendations/recommendations.repository';
+import {
+  recommendationsRepository,
+  productRecommendationsRepository,
+  serviceListingRecommendationsRepository,
+} from '../../src/modules/recommendations/recommendations.repository';
 import { adsService } from '../../src/modules/ads/ads.service';
+import { productsService } from '../../src/modules/products/products.service';
+import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
 import * as jwtUtils from '../../src/shared/utils/jwt';
 
 jest.mock('../../src/modules/recommendations/recommendations.repository');
 jest.mock('../../src/modules/ads/ads.service');
+// FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): recommendations.
+// service.ts now imports these two for getProductRecommendations/
+// getServiceListingRecommendations' reference-lookup calls — without
+// mocking them here, loading recommendationsService would pull in the
+// real products/service-listings services (and transitively Prisma)
+// at test-load time, same reasoning as favorites.service.test.ts's
+// equivalent mocks added in PR2.
+jest.mock('../../src/modules/products/products.service');
+jest.mock('../../src/modules/service-listings/service-listings.service');
 
 const mockAd = (id: string) => ({ id, title: `Ad ${id}`, categoryId: 'cat-1' });
+const mockProduct = (id: string) => ({ id, name: `Product ${id}`, categoryId: 'cat-1' });
+const mockListing = (id: string) => ({ id, title: `Listing ${id}`, categoryId: 'cat-1' });
 
 describe('recommendationsService', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -151,6 +168,146 @@ describe('recommendationsService', () => {
 
       expect(recommendationsRepository.findByWeightedCategories).not.toHaveBeenCalled();
       expect(result.map(a => a.id)).toEqual(['t-1']);
+    });
+  });
+
+  // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3)
+  describe('getProductRecommendations', () => {
+    it('falls back to trending when anonymous and no excludeProductId', async () => {
+      (productRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([
+        mockProduct('t-1'),
+      ]);
+
+      const result = await recommendationsService.getProductRecommendations({}, undefined);
+
+      expect(productRecommendationsRepository.findByWeightedCategories).not.toHaveBeenCalled();
+      expect(productRecommendationsRepository.findTrending).toHaveBeenCalledWith([], 8);
+      expect(result).toHaveLength(1);
+    });
+
+    it('weights by the reference product\'s category when excludeProductId is given', async () => {
+      (productsService.findProductForReference as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        categoryId: 'cat-1',
+      });
+      (productRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
+        mockProduct('p-2'),
+      ]);
+
+      const result = await recommendationsService.getProductRecommendations(
+        { excludeProductId: 'product-1' },
+        undefined
+      );
+
+      expect(productsService.findProductForReference).toHaveBeenCalledWith('product-1');
+      expect(productRecommendationsRepository.findByWeightedCategories).toHaveBeenCalledWith(
+        [{ categoryId: 'cat-1', weight: 3 }],
+        ['product-1'],
+        8
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('gathers favorited + created signals for a logged-in user, with no recentlyViewed call (no PRODUCT_VIEW signal yet)', async () => {
+      jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({ userId: 'user-1' } as any);
+      (productRecommendationsRepository.favoritedCategoryIds as jest.Mock).mockResolvedValue([
+        'cat-1',
+      ]);
+      (productRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.excludedIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
+        mockProduct('p-1'),
+      ]);
+
+      await recommendationsService.getProductRecommendations({}, 'Bearer good-token');
+
+      expect(productRecommendationsRepository.favoritedCategoryIds).toHaveBeenCalledWith('user-1');
+      expect(productRecommendationsRepository.createdCategoryIds).toHaveBeenCalledWith('user-1');
+      // No equivalent of recentlyViewedCategoryIds exists for PRODUCT —
+      // this asserts the absence, not just that AD's version wasn't
+      // called (there is no product analog to call).
+      expect((productRecommendationsRepository as any).recentlyViewedCategoryIds).toBeUndefined();
+    });
+
+    it('backfills with trending when personalized results are short', async () => {
+      jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({ userId: 'user-1' } as any);
+      (productRecommendationsRepository.favoritedCategoryIds as jest.Mock).mockResolvedValue([
+        'cat-1',
+      ]);
+      (productRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.excludedIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
+        mockProduct('p-1'),
+      ]);
+      (productRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([
+        mockProduct('t-1'),
+      ]);
+
+      const result = await recommendationsService.getProductRecommendations(
+        { limit: 2 },
+        'Bearer good-token'
+      );
+
+      expect(productRecommendationsRepository.findTrending).toHaveBeenCalledWith(['p-1'], 1);
+      expect(result.map(p => p.id)).toEqual(['p-1', 't-1']);
+    });
+  });
+
+  // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3)
+  describe('getServiceListingRecommendations', () => {
+    it('falls back to trending when anonymous and no excludeServiceListingId', async () => {
+      (serviceListingRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([
+        mockListing('t-1'),
+      ]);
+
+      const result = await recommendationsService.getServiceListingRecommendations({}, undefined);
+
+      expect(serviceListingRecommendationsRepository.findByWeightedCategories).not.toHaveBeenCalled();
+      expect(serviceListingRecommendationsRepository.findTrending).toHaveBeenCalledWith([], 8);
+      expect(result).toHaveLength(1);
+    });
+
+    it('weights by the reference listing\'s category when excludeServiceListingId is given', async () => {
+      (serviceListingsService.findServiceListingForReference as jest.Mock).mockResolvedValue({
+        id: 'listing-1',
+        categoryId: 'cat-1',
+      });
+      (serviceListingRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
+        mockListing('l-2'),
+      ]);
+
+      const result = await recommendationsService.getServiceListingRecommendations(
+        { excludeServiceListingId: 'listing-1' },
+        undefined
+      );
+
+      expect(serviceListingsService.findServiceListingForReference).toHaveBeenCalledWith('listing-1');
+      expect(serviceListingRecommendationsRepository.findByWeightedCategories).toHaveBeenCalledWith(
+        [{ categoryId: 'cat-1', weight: 3 }],
+        ['listing-1'],
+        8
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('a personalization failure falls through to trending rather than throwing', async () => {
+      jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({ userId: 'user-1' } as any);
+      (serviceListingRecommendationsRepository.favoritedCategoryIds as jest.Mock).mockRejectedValue(
+        new Error('db down')
+      );
+      (serviceListingRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (serviceListingRecommendationsRepository.excludedIds as jest.Mock).mockResolvedValue([]);
+      (serviceListingRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([
+        mockListing('t-1'),
+      ]);
+
+      const result = await recommendationsService.getServiceListingRecommendations(
+        {},
+        'Bearer good-token'
+      );
+
+      expect(serviceListingRecommendationsRepository.findByWeightedCategories).not.toHaveBeenCalled();
+      expect(result.map(l => l.id)).toEqual(['t-1']);
     });
   });
 });

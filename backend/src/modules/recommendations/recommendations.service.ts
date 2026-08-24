@@ -1,6 +1,10 @@
-import { recommendationsRepository, CategoryWeight } from './recommendations.repository';
+import { recommendationsRepository, CategoryWeight, productRecommendationsRepository, serviceListingRecommendationsRepository } from './recommendations.repository';
 import { adsService } from '../ads/ads.service';
+import { productsService } from '../products/products.service';
+import { serviceListingsService } from '../service-listings/service-listings.service';
 import { AdListRow } from '../ads/ads.repository';
+import { ProductWithStore } from '../products/products.repository';
+import { ServiceListingWithProvider } from '../service-listings/service-listings.repository';
 import { verifyAccessToken } from '../../shared/utils/jwt';
 import { logger } from '../../shared/utils/logger';
 import { GetRecommendationsQuery } from './recommendations.validation';
@@ -134,6 +138,133 @@ export const recommendationsService = {
     const combinedExcludeIds = [...excludeIdList, ...personalized.map(ad => ad.id)];
     const remaining = limit - personalized.length;
     const trending = await recommendationsRepository.findTrending(combinedExcludeIds, remaining);
+
+    return [...personalized, ...trending];
+  },
+
+  // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): PRODUCT
+  // counterpart of getRecommendations above. Same three-mode shape
+  // (excludeProductId → detail-page mode, userId → personalized,
+  // neither → trending) and same weighted-category + trending-backfill
+  // core, but only WEIGHTS.favorited/created — see
+  // recommendations.repository.ts's own comment on why "viewed" isn't
+  // available for PRODUCT yet (no PRODUCT_VIEW analytics event exists
+  // in AnalyticsEventType today).
+  getProductRecommendations: async (
+    query: GetRecommendationsQuery,
+    authHeader: string | undefined
+  ): Promise<ProductWithStore[]> => {
+    const limit = query.limit ?? DEFAULT_LIMIT;
+    const userId = resolveOptionalUserId(authHeader);
+
+    const excludeIds = new Set<string>();
+    const weights = new Map<string, number>();
+
+    if (query.excludeProductId) {
+      excludeIds.add(query.excludeProductId);
+      const referenceProduct = await productsService.findProductForReference(query.excludeProductId);
+      if (referenceProduct?.categoryId) {
+        mergeWeights(weights, [referenceProduct.categoryId], WEIGHTS.favorited);
+      }
+    }
+
+    if (userId) {
+      try {
+        const [favorited, created, owned] = await Promise.all([
+          productRecommendationsRepository.favoritedCategoryIds(userId),
+          productRecommendationsRepository.createdCategoryIds(userId),
+          productRecommendationsRepository.excludedIds(userId),
+        ]);
+        mergeWeights(weights, favorited, WEIGHTS.favorited);
+        mergeWeights(weights, created, WEIGHTS.created);
+        owned.forEach(id => excludeIds.add(id));
+      } catch (err) {
+        logger.error('Failed to gather product recommendation signals', { err, userId });
+      }
+    }
+
+    const categoryWeights: CategoryWeight[] = Array.from(weights.entries()).map(
+      ([categoryId, weight]) => ({ categoryId, weight })
+    );
+    const excludeIdList = Array.from(excludeIds);
+    const personalized =
+      categoryWeights.length > 0
+        ? await productRecommendationsRepository.findByWeightedCategories(
+            categoryWeights,
+            excludeIdList,
+            limit
+          )
+        : [];
+
+    if (personalized.length >= limit) return personalized;
+
+    const combinedExcludeIds = [...excludeIdList, ...personalized.map(p => p.id)];
+    const remaining = limit - personalized.length;
+    const trending = await productRecommendationsRepository.findTrending(combinedExcludeIds, remaining);
+
+    return [...personalized, ...trending];
+  },
+
+  // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): SERVICE_LISTING
+  // counterpart — identical shape to getProductRecommendations above,
+  // same "no viewed signal yet" limitation (no SERVICE_VIEW analytics
+  // event exists).
+  getServiceListingRecommendations: async (
+    query: GetRecommendationsQuery,
+    authHeader: string | undefined
+  ): Promise<ServiceListingWithProvider[]> => {
+    const limit = query.limit ?? DEFAULT_LIMIT;
+    const userId = resolveOptionalUserId(authHeader);
+
+    const excludeIds = new Set<string>();
+    const weights = new Map<string, number>();
+
+    if (query.excludeServiceListingId) {
+      excludeIds.add(query.excludeServiceListingId);
+      const referenceListing = await serviceListingsService.findServiceListingForReference(
+        query.excludeServiceListingId
+      );
+      if (referenceListing?.categoryId) {
+        mergeWeights(weights, [referenceListing.categoryId], WEIGHTS.favorited);
+      }
+    }
+
+    if (userId) {
+      try {
+        const [favorited, created, owned] = await Promise.all([
+          serviceListingRecommendationsRepository.favoritedCategoryIds(userId),
+          serviceListingRecommendationsRepository.createdCategoryIds(userId),
+          serviceListingRecommendationsRepository.excludedIds(userId),
+        ]);
+        mergeWeights(weights, favorited, WEIGHTS.favorited);
+        mergeWeights(weights, created, WEIGHTS.created);
+        owned.forEach(id => excludeIds.add(id));
+      } catch (err) {
+        logger.error('Failed to gather service listing recommendation signals', { err, userId });
+      }
+    }
+
+    const categoryWeights: CategoryWeight[] = Array.from(weights.entries()).map(
+      ([categoryId, weight]) => ({ categoryId, weight })
+    );
+    const excludeIdList = Array.from(excludeIds);
+    const personalized =
+      categoryWeights.length > 0
+        ? await serviceListingRecommendationsRepository.findByWeightedCategories(
+            categoryWeights,
+            excludeIdList,
+            limit
+          )
+        : [];
+
+    if (personalized.length >= limit) return personalized;
+
+    const combinedExcludeIds = [...excludeIdList, ...personalized.map(l => l.id)];
+    const remaining = limit - personalized.length;
+    const trending = await serviceListingRecommendationsRepository.findTrending(
+      combinedExcludeIds,
+      remaining
+    );
 
     return [...personalized, ...trending];
   },

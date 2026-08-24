@@ -19,6 +19,23 @@ export const getRecommendationsSchema = z.object({
     // adsService.findAdForReference if the id doesn't resolve to a real
     // ad, so no extra format validation earns its keep here.
     excludeAdId: z.string().min(1).optional(),
+    // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): `type` decides
+    // which entity's recommendation rail to build — 'ad' when absent,
+    // preserving GET /recommendations' exact pre-existing default
+    // behavior/response shape for every caller that predates this
+    // (frontend's recommendations.api.ts never sends `type`). 'store'
+    // is deliberately not an option yet — see
+    // recommendations.repository.ts's own comment on why StoreDetails
+    // has no categoryId to weight by.
+    type: z.enum(['ad', 'product', 'service']).optional(),
+    // Type-specific "exclude + weight toward this one's category"
+    // params, parallel to excludeAdId above. Kept as separate named
+    // fields rather than one generic `excludeId` so each stays
+    // self-documenting about which type it applies to, and so a
+    // caller can't accidentally pass excludeAdId while type=product
+    // and have it silently do nothing.
+    excludeProductId: z.string().min(1).optional(),
+    excludeServiceListingId: z.string().min(1).optional(),
   }),
 });
 

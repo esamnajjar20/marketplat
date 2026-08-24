@@ -9,12 +9,17 @@ export const favoriteAdSchema = z.object({
 // alongside (not replacing) the AD-only /favorites/:adId routes above
 // — those stay exactly as they are, per the PR1 compatibility-layer
 // commitment. URL segment is a REST-friendly plural ("products",
-// "stores", "services") rather than the raw Prisma enum name, mapped
-// here to the actual FavoriteEntityType the rest of the module uses.
-// "ads" is deliberately not included: the existing /favorites/:adId
-// routes already cover AD, and giving the same action two URLs would
-// just be duplicate surface area for no benefit.
+// "stores", "services", "ads") rather than the raw Prisma enum name,
+// mapped here to the actual FavoriteEntityType the rest of the module
+// uses. "ads" is included for symmetry with the other three (so
+// POST /favorites/ads/:adId works the same way POST
+// /favorites/products/:productId does) even though it's redundant
+// with the existing /favorites/:adId route — both reach the same
+// favoritesService.toggleFavorite('AD', ...) path underneath, so
+// there's no divergent behavior to keep in sync, just two valid URLs
+// for the same action.
 const ENTITY_TYPE_PARAM_MAP: Record<string, FavoriteEntityType> = {
+  ads: FavoriteEntityType.AD,
   products: FavoriteEntityType.PRODUCT,
   stores: FavoriteEntityType.STORE,
   services: FavoriteEntityType.SERVICE_LISTING,
@@ -23,7 +28,7 @@ const ENTITY_TYPE_PARAM_MAP: Record<string, FavoriteEntityType> = {
 const entityTypeParam = z
   .string()
   .refine((val) => val in ENTITY_TYPE_PARAM_MAP, {
-    message: 'Unsupported favorite entity type. Use: products, stores, or services.',
+    message: 'Unsupported favorite entity type. Use: ads, products, stores, or services.',
   })
   .transform((val) => ENTITY_TYPE_PARAM_MAP[val]);
 
