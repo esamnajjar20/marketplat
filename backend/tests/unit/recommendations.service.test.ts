@@ -208,12 +208,15 @@ describe('recommendationsService', () => {
       expect(result).toHaveLength(1);
     });
 
-    it('gathers favorited + created signals for a logged-in user, with no recentlyViewed call (no PRODUCT_VIEW signal yet)', async () => {
+    it('gathers favorited + created + viewed signals for a logged-in user', async () => {
       jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({ userId: 'user-1' } as any);
       (productRecommendationsRepository.favoritedCategoryIds as jest.Mock).mockResolvedValue([
         'cat-1',
       ]);
       (productRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.recentlyViewedCategoryIds as jest.Mock).mockResolvedValue([
+        'cat-2',
+      ]);
       (productRecommendationsRepository.excludedIds as jest.Mock).mockResolvedValue([]);
       (productRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
         mockProduct('p-1'),
@@ -223,10 +226,40 @@ describe('recommendationsService', () => {
 
       expect(productRecommendationsRepository.favoritedCategoryIds).toHaveBeenCalledWith('user-1');
       expect(productRecommendationsRepository.createdCategoryIds).toHaveBeenCalledWith('user-1');
-      // No equivalent of recentlyViewedCategoryIds exists for PRODUCT —
-      // this asserts the absence, not just that AD's version wasn't
-      // called (there is no product analog to call).
-      expect((productRecommendationsRepository as any).recentlyViewedCategoryIds).toBeUndefined();
+      // PR4A: PRODUCT_VIEW now backs a real recentlyViewedCategoryIds
+      // signal, same as AD's own — this is now called, not absent.
+      expect(productRecommendationsRepository.recentlyViewedCategoryIds).toHaveBeenCalledWith(
+        'user-1'
+      );
+
+      const [weightsArg] = (
+        productRecommendationsRepository.findByWeightedCategories as jest.Mock
+      ).mock.calls[0];
+      const weightMap = Object.fromEntries(
+        weightsArg.map((w: { categoryId: string; weight: number }) => [w.categoryId, w.weight])
+      );
+      expect(weightMap['cat-1']).toBe(3); // favorited
+      expect(weightMap['cat-2']).toBe(1); // viewed only
+    });
+
+    it('does not fail the whole request when signal gathering throws (viewed signal included)', async () => {
+      jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({ userId: 'user-1' } as any);
+      (productRecommendationsRepository.favoritedCategoryIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.recentlyViewedCategoryIds as jest.Mock).mockRejectedValue(
+        new Error('db down')
+      );
+      (productRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([
+        mockProduct('t-1'),
+      ]);
+
+      const result = await recommendationsService.getProductRecommendations(
+        {},
+        'Bearer good-token'
+      );
+
+      expect(productRecommendationsRepository.findByWeightedCategories).not.toHaveBeenCalled();
+      expect(result.map(p => p.id)).toEqual(['t-1']);
     });
 
     it('backfills with trending when personalized results are short', async () => {
@@ -235,6 +268,9 @@ describe('recommendationsService', () => {
         'cat-1',
       ]);
       (productRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (productRecommendationsRepository.recentlyViewedCategoryIds as jest.Mock).mockResolvedValue(
+        []
+      );
       (productRecommendationsRepository.excludedIds as jest.Mock).mockResolvedValue([]);
       (productRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
         mockProduct('p-1'),
@@ -296,6 +332,9 @@ describe('recommendationsService', () => {
         new Error('db down')
       );
       (serviceListingRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (serviceListingRecommendationsRepository.recentlyViewedCategoryIds as jest.Mock).mockResolvedValue(
+        []
+      );
       (serviceListingRecommendationsRepository.excludedIds as jest.Mock).mockResolvedValue([]);
       (serviceListingRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([
         mockListing('t-1'),
@@ -308,6 +347,37 @@ describe('recommendationsService', () => {
 
       expect(serviceListingRecommendationsRepository.findByWeightedCategories).not.toHaveBeenCalled();
       expect(result.map(l => l.id)).toEqual(['t-1']);
+    });
+
+    // PR4A (recommendation view signals)
+    it('gathers favorited + created + viewed signals for a logged-in user', async () => {
+      jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({ userId: 'user-1' } as any);
+      (serviceListingRecommendationsRepository.favoritedCategoryIds as jest.Mock).mockResolvedValue(
+        ['cat-1']
+      );
+      (serviceListingRecommendationsRepository.createdCategoryIds as jest.Mock).mockResolvedValue([]);
+      (serviceListingRecommendationsRepository.recentlyViewedCategoryIds as jest.Mock).mockResolvedValue(
+        ['cat-2']
+      );
+      (serviceListingRecommendationsRepository.excludedIds as jest.Mock).mockResolvedValue([]);
+      (serviceListingRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue(
+        [mockListing('l-1')]
+      );
+
+      await recommendationsService.getServiceListingRecommendations({}, 'Bearer good-token');
+
+      expect(
+        serviceListingRecommendationsRepository.recentlyViewedCategoryIds
+      ).toHaveBeenCalledWith('user-1');
+
+      const [weightsArg] = (
+        serviceListingRecommendationsRepository.findByWeightedCategories as jest.Mock
+      ).mock.calls[0];
+      const weightMap = Object.fromEntries(
+        weightsArg.map((w: { categoryId: string; weight: number }) => [w.categoryId, w.weight])
+      );
+      expect(weightMap['cat-1']).toBe(3); // favorited
+      expect(weightMap['cat-2']).toBe(1); // viewed only
     });
   });
 });

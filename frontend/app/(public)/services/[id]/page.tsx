@@ -6,6 +6,7 @@ import { buildMetadata } from '@/lib/seo';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
+import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 
@@ -62,6 +63,10 @@ export default async function ServiceListingPage({ params }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
+      {/* PR4A: render-nothing tracker, see ServiceViewTracker.tsx's own
+          comment for why this can't just be a useEffect inline here —
+          this file is a Server Component. */}
+      <ServiceViewTracker serviceListingId={listing.id} categoryId={listing.categoryId} />
       <ServiceListingDetail listing={listing} />
       <ServiceRequestButton
         listingId={listing.id}

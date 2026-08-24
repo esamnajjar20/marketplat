@@ -77,19 +77,18 @@ const VIEW_SIGNAL_LOOKBACK_DAYS = 30;
 // than a drop-in reuse of this category-weighting shape. That's step
 // 5's "followed" signal, not this step.
 //
-// KNOWN GAP, surfaced not hidden: the AD engine's "recently viewed"
-// signal (VIEW_SIGNAL_LOOKBACK_DAYS, above) reads AnalyticsEventType.
-// AD_VIEW — there is no PRODUCT_VIEW or SERVICE_VIEW in
-// AnalyticsEventType (checked the enum directly; only AD_VIEW,
-// PAGE_VIEW, SEARCH, CATEGORY_BROWSE, CONTACT_CLICK, SIGNUP_STARTED/
-// COMPLETED exist). So PRODUCT/SERVICE_LISTING recommendations below
-// run on favorited (weight 3) + created (weight 2) only — no viewed
-// signal, and no equivalent of WEIGHTS.viewed. Adding PRODUCT_VIEW/
-// SERVICE_VIEW events (schema change + emit-call instrumentation on
-// each detail-page load, mirroring how AD_VIEW is presumably emitted
-// today) is real, separate work — this is exactly the roadmap's own
-// step 5 ("Add signals"), not something to fake here by reusing
-// AD_VIEW's rows for a different entity type.
+// PR4A (recommendation view signals): the gap this comment used to
+// document is closed — AnalyticsEventType.PRODUCT_VIEW/SERVICE_VIEW
+// now exist (see schema.prisma), emitted from StoreProducts.tsx's
+// `?product=` highlight effect and ServiceViewTracker.tsx respectively
+// (mirroring how AD_VIEW is emitted from AdDetailSection.tsx). So
+// PRODUCT/SERVICE_LISTING recommendations below now also read a
+// recentlyViewedCategoryIds signal at WEIGHTS.viewed, same three-
+// signal shape (favorited/created/viewed) the AD engine has always
+// had — see productRecommendationsRepository.recentlyViewedCategoryIds
+// and serviceListingRecommendationsRepository.recentlyViewedCategoryIds
+// below, and recommendations.service.ts's getProductRecommendations/
+// getServiceListingRecommendations for where they're wired in.
 
 // PRODUCT/SERVICE_LISTING reuse productWithRelations/listingWithRelations
 // (products.repository.ts / service-listings.repository.ts — already
@@ -137,6 +136,30 @@ export const productRecommendationsRepository = {
       select: { categoryId: true },
     });
     return products.map(p => p.categoryId);
+  },
+
+  // Signal #3 (PR4A): categories of products the user has recently
+  // viewed, from AnalyticsEvent's PRODUCT_VIEW rows (metadata.productId
+  // → resolved to a category below) — the PRODUCT counterpart of
+  // recommendationsRepository.recentlyViewedCategoryIds (AD), same
+  // VIEW_SIGNAL_LOOKBACK_DAYS window and same "raw SQL because Prisma
+  // can't join on a JSON field" reasoning. Emitted from
+  // StoreProducts.tsx's `?product=` highlight effect — see that
+  // component's own comment for why that's this app's PRODUCT_VIEW
+  // instrumentation point (no dedicated /products/[id] route exists).
+  recentlyViewedCategoryIds: async (userId: string): Promise<string[]> => {
+    const since = new Date(Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const rows = await prisma.$queryRaw<{ categoryId: string | null }[]>`
+      SELECT p."categoryId" AS "categoryId"
+      FROM "analytics_events" e
+      JOIN "products" p ON p."id" = e.metadata->>'productId'
+      WHERE e."userId" = ${userId}
+        AND e."event" = ${AnalyticsEventType.PRODUCT_VIEW}::"AnalyticsEventType"
+        AND e."createdAt" >= ${since}
+      ORDER BY e."createdAt" DESC
+      LIMIT 200
+    `;
+    return rows.flatMap(r => (r.categoryId ? [r.categoryId] : []));
   },
 
   excludedIds: async (userId: string): Promise<string[]> => {
@@ -250,6 +273,27 @@ export const serviceListingRecommendationsRepository = {
       select: { categoryId: true },
     });
     return listings.map(l => l.categoryId);
+  },
+
+  // Signal #3 (PR4A): SERVICE_LISTING counterpart of
+  // productRecommendationsRepository.recentlyViewedCategoryIds above —
+  // same PRODUCT_VIEW→SERVICE_VIEW swap, reading
+  // AnalyticsEventType.SERVICE_VIEW rows (metadata.serviceListingId).
+  // Emitted from ServiceViewTracker.tsx, mounted on the public
+  // /services/[id] detail page.
+  recentlyViewedCategoryIds: async (userId: string): Promise<string[]> => {
+    const since = new Date(Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const rows = await prisma.$queryRaw<{ categoryId: string | null }[]>`
+      SELECT sl."categoryId" AS "categoryId"
+      FROM "analytics_events" e
+      JOIN "service_listings" sl ON sl."id" = e.metadata->>'serviceListingId'
+      WHERE e."userId" = ${userId}
+        AND e."event" = ${AnalyticsEventType.SERVICE_VIEW}::"AnalyticsEventType"
+        AND e."createdAt" >= ${since}
+      ORDER BY e."createdAt" DESC
+      LIMIT 200
+    `;
+    return rows.flatMap(r => (r.categoryId ? [r.categoryId] : []));
   },
 
   excludedIds: async (userId: string): Promise<string[]> => {

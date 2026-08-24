@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
+import { track } from '@/lib/analytics';
 
 interface Props {
   storeId: string;
@@ -50,6 +51,35 @@ export function StoreProducts({ storeId }: Props) {
   // across renders as long as data.items itself hasn't changed.
   const items = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
+
+  // PR4A (recommendation view signals): the `?product=` deep link
+  // (see FIX BUG-08 above) is this app's only "product detail" moment
+  // — there is no dedicated /products/[id] route — so it doubles as
+  // the PRODUCT_VIEW tracking point, same "one detail view per load"
+  // signal AD_VIEW records on /ads/[id] (see AdDetailSection.tsx).
+  // Deliberately keyed off the matched *product's* id/categoryId
+  // (found in `items`, not just the raw highlightId param) so this
+  // only fires once the highlighted product has actually loaded and
+  // been confirmed to exist — a stale/invalid `?product=` id that
+  // matches nothing in `items` records no event, same "not found ⇒ no
+  // signal" posture ads/products use elsewhere in this module. Same
+  // dependency-array dedup AD_VIEW relies on: this effect only re-runs
+  // when the resolved id/categoryId pair actually changes, not on
+  // every unrelated re-render (pagination on the reviews section,
+  // favorites-toggle refetches, etc.).
+  const highlightedProduct = useMemo(
+    () => items.find((p) => p.id === highlightId) ?? null,
+    [items, highlightId]
+  );
+
+  useEffect(() => {
+    if (highlightedProduct) {
+      track('PRODUCT_VIEW', {
+        productId: highlightedProduct.id,
+        categoryId: highlightedProduct.categoryId,
+      });
+    }
+  }, [highlightedProduct?.id, highlightedProduct?.categoryId]);
 
   useEffect(() => {
     if (highlightId && highlightRef.current) {

@@ -108,28 +108,28 @@ describe('savedSearchesService', () => {
 
   describe('matchesFilters (unit)', () => {
     it('matches when filters is empty-equivalent (all keys undefined)', () => {
-      expect(matchesFilters(baseAd, {})).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads' })).toBe(true);
     });
 
     it('matches on q as a case-insensitive substring of the title', () => {
-      expect(matchesFilters(baseAd, { q: 'iphone' })).toBe(true);
-      expect(matchesFilters(baseAd, { q: 'IPHONE 13' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'iphone' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'IPHONE 13' })).toBe(true);
     });
 
     // AUDIT-FIX (5.11/9.7) regression: q previously matched title only,
     // so an ad matching solely through its description never surfaced
     // to a saved-search owner.
     it('matches on q as a case-insensitive substring of the description', () => {
-      expect(matchesFilters(baseAd, { q: 'original box' })).toBe(true);
-      expect(matchesFilters(baseAd, { q: 'BARELY USED' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'original box' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'BARELY USED' })).toBe(true);
     });
 
     it('does not match when q is not found in the title', () => {
-      expect(matchesFilters(baseAd, { q: 'samsung' })).toBe(false);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'samsung' })).toBe(false);
     });
 
     it('does not match when q is found in neither title nor description', () => {
-      expect(matchesFilters(baseAd, { q: 'samsung galaxy' })).toBe(false);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'samsung galaxy' })).toBe(false);
     });
 
     // AUDIT-FIX (saved-search q matching): q used to require the whole
@@ -137,15 +137,15 @@ describe('savedSearchesService', () => {
     // words had to appear adjacent and in that exact order. Real
     // full-text search (GET /ads?search=) has never worked that way.
     it('matches regardless of word order (AND-of-words, not whole-phrase substring)', () => {
-      expect(matchesFilters(baseAd, { q: '13 iphone' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', q: '13 iphone' })).toBe(true);
     });
 
     it('matches when the words are split across title and description', () => {
-      expect(matchesFilters(baseAd, { q: 'iphone original box' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'iphone original box' })).toBe(true);
     });
 
     it('still requires every word to be present (AND, not OR)', () => {
-      expect(matchesFilters(baseAd, { q: 'iphone samsung' })).toBe(false);
+      expect(matchesFilters(baseAd, { type: 'ads', q: 'iphone samsung' })).toBe(false);
     });
 
     // AUDIT-FIX (saved-search q matching): q previously had no Arabic
@@ -160,24 +160,24 @@ describe('savedSearchesService', () => {
 
       // Query typed with a hamza variant (أ) where the ad used bare
       // alef (ا) — previously never matched.
-      expect(matchesFilters(arabicAd, { q: 'أوتوماتيك سيارة' })).toBe(true);
+      expect(matchesFilters(arabicAd, { type: 'ads', q: 'أوتوماتيك سيارة' })).toBe(true);
       // ta marbuta / ha (ة vs ه) is deliberately NOT folded — same
       // conservative choice as arabic_normalize() itself.
-      expect(matchesFilters(arabicAd, { q: 'سياره' })).toBe(false);
+      expect(matchesFilters(arabicAd, { type: 'ads', q: 'سياره' })).toBe(false);
     });
 
     it('matches on city case-insensitively', () => {
-      expect(matchesFilters(baseAd, { city: 'gaza' })).toBe(true);
-      expect(matchesFilters(baseAd, { city: 'GAZA' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', city: 'gaza' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', city: 'GAZA' })).toBe(true);
     });
 
     it('does not match a different city', () => {
-      expect(matchesFilters(baseAd, { city: 'Ramallah' })).toBe(false);
+      expect(matchesFilters(baseAd, { type: 'ads', city: 'Ramallah' })).toBe(false);
     });
 
     it('matches on exact categoryId', () => {
-      expect(matchesFilters(baseAd, { categoryId: 'cat-1' })).toBe(true);
-      expect(matchesFilters(baseAd, { categoryId: 'cat-2' })).toBe(false);
+      expect(matchesFilters(baseAd, { type: 'ads', categoryId: 'cat-1' })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', categoryId: 'cat-2' })).toBe(false);
     });
 
     it('matches on exact condition', () => {
@@ -186,29 +186,29 @@ describe('savedSearchesService', () => {
     });
 
     it('matches when price is within minPrice/maxPrice range', () => {
-      expect(matchesFilters(baseAd, { minPrice: 100, maxPrice: 1000 })).toBe(true);
+      expect(matchesFilters(baseAd, { type: 'ads', minPrice: 100, maxPrice: 1000 })).toBe(true);
     });
 
     it('does not match when price is below minPrice', () => {
-      expect(matchesFilters(baseAd, { minPrice: 600 })).toBe(false);
+      expect(matchesFilters(baseAd, { type: 'ads', minPrice: 600 })).toBe(false);
     });
 
     it('does not match when price is above maxPrice', () => {
-      expect(matchesFilters(baseAd, { maxPrice: 100 })).toBe(false);
+      expect(matchesFilters(baseAd, { type: 'ads', maxPrice: 100 })).toBe(false);
     });
 
     it('does not match a priced filter when the ad has a null price', () => {
       const adNoPrice = { ...baseAd, price: null } as unknown as AdWithAuthor;
-      expect(matchesFilters(adNoPrice, { minPrice: 0 })).toBe(false);
-      expect(matchesFilters(adNoPrice, { maxPrice: 1000 })).toBe(false);
+      expect(matchesFilters(adNoPrice, { type: 'ads', minPrice: 0 })).toBe(false);
+      expect(matchesFilters(adNoPrice, { type: 'ads', maxPrice: 1000 })).toBe(false);
     });
 
     it('requires every provided filter to match simultaneously', () => {
       expect(
-        matchesFilters(baseAd, { city: 'Gaza', categoryId: 'cat-1', minPrice: 100 })
+        matchesFilters(baseAd, { type: 'ads', city: 'Gaza', categoryId: 'cat-1', minPrice: 100 })
       ).toBe(true);
       expect(
-        matchesFilters(baseAd, { city: 'Gaza', categoryId: 'cat-2', minPrice: 100 })
+        matchesFilters(baseAd, { type: 'ads', city: 'Gaza', categoryId: 'cat-2', minPrice: 100 })
       ).toBe(false);
     });
   });
@@ -303,7 +303,7 @@ describe('savedSearchesService', () => {
     });
 
     it('matches regardless of word order, split across name/description', () => {
-      expect(matchesProductFilters(baseProduct, { q: 'stock iphone' })).toBe(true);
+      expect(matchesProductFilters(baseProduct, { type: 'products', q: 'stock iphone' })).toBe(true);
     });
 
     it('matches on exact categoryId', () => {
@@ -337,7 +337,7 @@ describe('savedSearchesService', () => {
     });
 
     it('matches regardless of word order', () => {
-      expect(matchesServiceFilters(baseListing, { q: 'repair home' })).toBe(true);
+      expect(matchesServiceFilters(baseListing, { type: 'services', q: 'repair home' })).toBe(true);
     });
 
     it('matches on exact categoryId', () => {

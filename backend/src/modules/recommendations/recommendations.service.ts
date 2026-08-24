@@ -146,10 +146,10 @@ export const recommendationsService = {
   // counterpart of getRecommendations above. Same three-mode shape
   // (excludeProductId → detail-page mode, userId → personalized,
   // neither → trending) and same weighted-category + trending-backfill
-  // core, but only WEIGHTS.favorited/created — see
-  // recommendations.repository.ts's own comment on why "viewed" isn't
-  // available for PRODUCT yet (no PRODUCT_VIEW analytics event exists
-  // in AnalyticsEventType today).
+  // core. PR4A adds recentlyViewedCategoryIds at WEIGHTS.viewed, same
+  // three-signal shape (favorited/created/viewed) the AD engine has
+  // always had — see recommendations.repository.ts's own comment for
+  // where PRODUCT_VIEW is emitted from. WEIGHTS itself is unchanged.
   getProductRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined
@@ -170,13 +170,15 @@ export const recommendationsService = {
 
     if (userId) {
       try {
-        const [favorited, created, owned] = await Promise.all([
+        const [favorited, created, viewed, owned] = await Promise.all([
           productRecommendationsRepository.favoritedCategoryIds(userId),
           productRecommendationsRepository.createdCategoryIds(userId),
+          productRecommendationsRepository.recentlyViewedCategoryIds(userId),
           productRecommendationsRepository.excludedIds(userId),
         ]);
         mergeWeights(weights, favorited, WEIGHTS.favorited);
         mergeWeights(weights, created, WEIGHTS.created);
+        mergeWeights(weights, viewed, WEIGHTS.viewed);
         owned.forEach(id => excludeIds.add(id));
       } catch (err) {
         logger.error('Failed to gather product recommendation signals', { err, userId });
@@ -206,9 +208,10 @@ export const recommendationsService = {
   },
 
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): SERVICE_LISTING
-  // counterpart — identical shape to getProductRecommendations above,
-  // same "no viewed signal yet" limitation (no SERVICE_VIEW analytics
-  // event exists).
+  // counterpart — identical shape to getProductRecommendations above.
+  // PR4A adds recentlyViewedCategoryIds at WEIGHTS.viewed, reading
+  // SERVICE_VIEW events emitted from ServiceViewTracker.tsx. WEIGHTS
+  // itself is unchanged.
   getServiceListingRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined
@@ -231,13 +234,15 @@ export const recommendationsService = {
 
     if (userId) {
       try {
-        const [favorited, created, owned] = await Promise.all([
+        const [favorited, created, viewed, owned] = await Promise.all([
           serviceListingRecommendationsRepository.favoritedCategoryIds(userId),
           serviceListingRecommendationsRepository.createdCategoryIds(userId),
+          serviceListingRecommendationsRepository.recentlyViewedCategoryIds(userId),
           serviceListingRecommendationsRepository.excludedIds(userId),
         ]);
         mergeWeights(weights, favorited, WEIGHTS.favorited);
         mergeWeights(weights, created, WEIGHTS.created);
+        mergeWeights(weights, viewed, WEIGHTS.viewed);
         owned.forEach(id => excludeIds.add(id));
       } catch (err) {
         logger.error('Failed to gather service listing recommendation signals', { err, userId });

@@ -1,10 +1,16 @@
-import { recommendationsRepository } from '../../src/modules/recommendations/recommendations.repository';
+import {
+  recommendationsRepository,
+  productRecommendationsRepository,
+  serviceListingRecommendationsRepository,
+} from '../../src/modules/recommendations/recommendations.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     favorite: { findMany: jest.fn() },
     ad: { findMany: jest.fn() },
+    product: { findMany: jest.fn() },
+    serviceListing: { findMany: jest.fn() },
     userActivity: { findMany: jest.fn() },
     $queryRaw: jest.fn(),
   },
@@ -151,5 +157,88 @@ describe('recommendationsRepository', () => {
         id: { notIn: ['ad-1'] },
       });
     });
+  });
+});
+
+// PR4A (recommendation view signals): productRecommendationsRepository
+// and serviceListingRecommendationsRepository's own recentlyViewedCategoryIds —
+// the PRODUCT_VIEW/SERVICE_VIEW counterpart of
+// recommendationsRepository.recentlyViewedCategoryIds (AD) covered
+// implicitly above via findByWeightedCategories/findTrending. These
+// read AnalyticsEvent via $queryRaw, same as the AD version, so the
+// coverage here mirrors that file's own raw-query test shape.
+describe('productRecommendationsRepository.recentlyViewedCategoryIds', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('queries AnalyticsEvent joined on products, filtered to the PRODUCT_VIEW event and this user', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      { categoryId: 'cat-1' },
+      { categoryId: 'cat-2' },
+    ]);
+
+    const result = await productRecommendationsRepository.recentlyViewedCategoryIds('user-1');
+
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    // Tagged-template call: [stringsArray, ...interpolatedValues] — the
+    // interpolated values include userId and AnalyticsEventType.PRODUCT_VIEW,
+    // confirming this reads the new event type and not AD_VIEW's.
+    const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
+    expect(callArgs).toContain('user-1');
+    expect(callArgs).toContain('PRODUCT_VIEW');
+    expect(result).toEqual(['cat-1', 'cat-2']);
+  });
+
+  it('drops rows with a null categoryId (product deleted between event and query)', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      { categoryId: 'cat-1' },
+      { categoryId: null },
+    ]);
+
+    const result = await productRecommendationsRepository.recentlyViewedCategoryIds('user-1');
+
+    expect(result).toEqual(['cat-1']);
+  });
+
+  it('returns [] when the user has no PRODUCT_VIEW events', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+    const result = await productRecommendationsRepository.recentlyViewedCategoryIds('user-1');
+
+    expect(result).toEqual([]);
+  });
+});
+
+describe('serviceListingRecommendationsRepository.recentlyViewedCategoryIds', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('queries AnalyticsEvent joined on service_listings, filtered to the SERVICE_VIEW event and this user', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ categoryId: 'cat-3' }]);
+
+    const result = await serviceListingRecommendationsRepository.recentlyViewedCategoryIds('user-1');
+
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
+    expect(callArgs).toContain('user-1');
+    expect(callArgs).toContain('SERVICE_VIEW');
+    expect(result).toEqual(['cat-3']);
+  });
+
+  it('drops rows with a null categoryId', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      { categoryId: 'cat-1' },
+      { categoryId: null },
+    ]);
+
+    const result = await serviceListingRecommendationsRepository.recentlyViewedCategoryIds('user-1');
+
+    expect(result).toEqual(['cat-1']);
+  });
+
+  it('returns [] when the user has no SERVICE_VIEW events', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+    const result = await serviceListingRecommendationsRepository.recentlyViewedCategoryIds('user-1');
+
+    expect(result).toEqual([]);
   });
 });

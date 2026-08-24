@@ -27,7 +27,12 @@ export type AnalyticsEventType =
   | 'CATEGORY_BROWSE'
   | 'CONTACT_CLICK'
   | 'SIGNUP_STARTED'
-  | 'SIGNUP_COMPLETED';
+  | 'SIGNUP_COMPLETED'
+  // PR4A (recommendation view signals): mirrors AD_VIEW's own
+  // metadata convention (see AdDetailSection.tsx) — productId/
+  // categoryId and serviceListingId/categoryId respectively.
+  | 'PRODUCT_VIEW'
+  | 'SERVICE_VIEW';
 
 interface QueuedEvent {
   event: AnalyticsEventType;

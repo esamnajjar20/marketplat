@@ -13,9 +13,14 @@ import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { StoreProducts } from '@/components/stores/StoreProducts';
 import { useProducts } from '@/hooks/queries/useProducts';
+import { track } from '@/lib/analytics';
 
 vi.mock('@/hooks/queries/useProducts', () => ({
   useProducts: vi.fn(),
+}));
+
+vi.mock('@/lib/analytics', () => ({
+  track: vi.fn(),
 }));
 
 let mockSearchParams = new URLSearchParams();
@@ -36,8 +41,8 @@ vi.mock('@/components/shared/ui/Pagination', () => ({
 }));
 
 const mockRefetch = vi.fn();
-const product1 = { id: 'prod-1', name: 'كرسي مكتبي' };
-const product2 = { id: 'prod-2', name: 'طاولة اجتماعات' };
+const product1 = { id: 'prod-1', name: 'كرسي مكتبي', categoryId: 'cat-1' };
+const product2 = { id: 'prod-2', name: 'طاولة اجتماعات', categoryId: 'cat-2' };
 
 function mockProducts(overrides: Record<string, unknown> = {}) {
   (useProducts as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -116,5 +121,69 @@ describe('StoreProducts', () => {
     render(<StoreProducts storeId="store-1" />);
 
     expect(screen.getByTestId('pagination')).toHaveTextContent('productsPage:3');
+  });
+
+  // PR4A (recommendation view signals): the `?product=` deep link is
+  // this app's only product "detail view" moment (see StoreProducts.tsx's
+  // own comment — no dedicated /products/[id] route exists), so it
+  // doubles as the PRODUCT_VIEW instrumentation point.
+  describe('PRODUCT_VIEW tracking (PR4A)', () => {
+    it('fires PRODUCT_VIEW with the highlighted product\'s id/categoryId', () => {
+      mockSearchParams = new URLSearchParams('product=prod-2');
+      render(<StoreProducts storeId="store-1" />);
+
+      expect(track).toHaveBeenCalledWith('PRODUCT_VIEW', {
+        productId: 'prod-2',
+        categoryId: 'cat-2',
+      });
+      expect(track).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fire PRODUCT_VIEW when there is no ?product= param', () => {
+      render(<StoreProducts storeId="store-1" />);
+
+      expect(track).not.toHaveBeenCalled();
+    });
+
+    it('does not fire PRODUCT_VIEW when ?product= matches nothing in the loaded items', () => {
+      mockSearchParams = new URLSearchParams('product=does-not-exist');
+      render(<StoreProducts storeId="store-1" />);
+
+      expect(track).not.toHaveBeenCalled();
+    });
+
+    it('does not re-fire PRODUCT_VIEW on an unrelated re-render (duplicate-render protection)', () => {
+      mockSearchParams = new URLSearchParams('product=prod-2');
+      const { rerender } = render(<StoreProducts storeId="store-1" />);
+
+      expect(track).toHaveBeenCalledTimes(1);
+
+      // Simulate a benign re-render with the same resolved product (e.g.
+      // a refetch that returns an equivalent item list, or an unrelated
+      // parent state change) — same dependency-array dedup AD_VIEW's
+      // own effect relies on (see AdDetailSection.tsx).
+      rerender(<StoreProducts storeId="store-1" />);
+
+      expect(track).toHaveBeenCalledTimes(1);
+    });
+
+    it('fires again when the highlighted product changes to a different one', () => {
+      mockSearchParams = new URLSearchParams('product=prod-1');
+      const { rerender } = render(<StoreProducts storeId="store-1" />);
+      expect(track).toHaveBeenCalledTimes(1);
+      expect(track).toHaveBeenLastCalledWith('PRODUCT_VIEW', {
+        productId: 'prod-1',
+        categoryId: 'cat-1',
+      });
+
+      mockSearchParams = new URLSearchParams('product=prod-2');
+      rerender(<StoreProducts storeId="store-1" />);
+
+      expect(track).toHaveBeenCalledTimes(2);
+      expect(track).toHaveBeenLastCalledWith('PRODUCT_VIEW', {
+        productId: 'prod-2',
+        categoryId: 'cat-2',
+      });
+    });
   });
 });

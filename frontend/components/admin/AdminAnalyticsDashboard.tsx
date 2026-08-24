@@ -23,6 +23,8 @@ const EVENT_LABELS: Record<AnalyticsEventType, string> = {
   CONTACT_CLICK: 'نقرات التواصل',
   SIGNUP_STARTED: 'بدء التسجيل',
   SIGNUP_COMPLETED: 'إكمال التسجيل',
+  PRODUCT_VIEW: 'مشاهدات المنتجات',
+  SERVICE_VIEW: 'مشاهدات الخدمات',
 };
 
 const RANGE_OPTIONS = [

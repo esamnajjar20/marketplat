@@ -104,7 +104,7 @@ describe('sellersRepository', () => {
   describe('setVerification', () => {
     it('sets verified=true, status VERIFIED, and a verifiedAt timestamp', async () => {
       (prisma.sellerProfile.update as jest.Mock).mockResolvedValue({});
-      await sellersRepository.setVerification(sellerProfileId, true);
+      await sellersRepository.setVerification(sellerProfileId, true, 'UNVERIFIED');
       const call = (prisma.sellerProfile.update as jest.Mock).mock.calls[0][0];
       expect(call.where).toEqual({ id: sellerProfileId });
       expect(call.data.verified).toBe(true);
@@ -114,7 +114,7 @@ describe('sellersRepository', () => {
 
     it('sets verified=false, status UNVERIFIED, and verifiedAt=null', async () => {
       (prisma.sellerProfile.update as jest.Mock).mockResolvedValue({});
-      await sellersRepository.setVerification(sellerProfileId, false);
+      await sellersRepository.setVerification(sellerProfileId, false, 'UNVERIFIED');
       const call = (prisma.sellerProfile.update as jest.Mock).mock.calls[0][0];
       expect(call.data.verified).toBe(false);
       expect(call.data.verificationStatus).toBe('UNVERIFIED');

@@ -1435,6 +1435,15 @@ enum AuditEventType {
 // Gap #7 (product analytics): event vocabulary kept deliberately small
 // and funnel-shaped rather than exhaustive — each value maps to one
 // concrete question the admin summary answers (not "log everything").
+//
+// PR4A (recommendation view signals): PRODUCT_VIEW/SERVICE_VIEW added
+// alongside AD_VIEW rather than reusing it, matching AD_VIEW's own
+// metadata convention of one id-carrying key per event (adId for
+// AD_VIEW; productId for PRODUCT_VIEW; serviceListingId for
+// SERVICE_VIEW — see recommendations.repository.ts's
+// recentlyViewedProductCategoryIds/recentlyViewedServiceCategoryIds
+// for how each is resolved back to a category). AD_VIEW's own rows and
+// query shape are untouched by this addition.
 enum AnalyticsEventType {
   PAGE_VIEW
   AD_VIEW
@@ -1443,4 +1452,6 @@ enum AnalyticsEventType {
   CONTACT_CLICK
   SIGNUP_STARTED
   SIGNUP_COMPLETED
+  PRODUCT_VIEW
+  SERVICE_VIEW
 }

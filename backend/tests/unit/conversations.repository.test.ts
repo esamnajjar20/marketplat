@@ -69,20 +69,20 @@ describe('conversationsRepository', () => {
     it('creates a conversation with the given adId/buyerId/sellerId', async () => {
       (prisma.conversation.create as jest.Mock).mockResolvedValue({ id: 'conv-1' });
 
-      await conversationsRepository.create(adId, buyerId, sellerId);
+      await conversationsRepository.create(buyerId, sellerId, { adId });
 
       expect(prisma.conversation.create).toHaveBeenCalledWith({
-        data: { adId, buyerId, sellerId },
+        data: { buyerId, sellerId, adId, serviceRequestId: null },
       });
     });
 
     it('creates an ad-less conversation with a null adId', async () => {
       (prisma.conversation.create as jest.Mock).mockResolvedValue({ id: 'conv-1' });
 
-      await conversationsRepository.create(null, buyerId, sellerId);
+      await conversationsRepository.create(buyerId, sellerId);
 
       expect(prisma.conversation.create).toHaveBeenCalledWith({
-        data: { adId: null, buyerId, sellerId },
+        data: { buyerId, sellerId, adId: null, serviceRequestId: null },
       });
     });
   });
