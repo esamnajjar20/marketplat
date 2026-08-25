@@ -48,11 +48,13 @@ describe('PromotedProductsSection', () => {
     );
   });
 
-  it('shows a skeleton grid while loading, with no heading or cards', () => {
+  it('shows the heading and a skeleton grid while loading, with no product cards', () => {
     (useProducts as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: true });
     render(<PromotedProductsSection />);
 
-    expect(screen.queryByText('عروض مميزة')).not.toBeInTheDocument();
+    // Header is kept during loading (FIX UI-REVIEW-2) so the accent band
+    // does not flash from empty → headed once data arrives.
+    expect(screen.getByText('عروض مميزة')).toBeInTheDocument();
     expect(screen.queryByTestId('product-product-1')).not.toBeInTheDocument();
   });
 

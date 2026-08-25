@@ -107,7 +107,14 @@ describe('useAdsForHome', () => {
     // regardless of source — see useAdsForHome's own doc). No third,
     // unexpected call.
     expect(adsApi.getAll).toHaveBeenCalledTimes(2);
-    expect(searchApi.search).not.toHaveBeenCalled();
+    // useSearch is always mounted (Rules of Hooks) and may be invoked
+    // with undefined params outside the GPS branch — that is not a
+    // geo search. Assert no call carried real lat/lng/type=ads params.
+    const geoSearchCalls = (searchApi.search as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([params]: [{ lat?: number; lng?: number; type?: string } | undefined]) =>
+        params != null && (params.lat != null || params.lng != null || params.type === 'ads'),
+    );
+    expect(geoSearchCalls).toHaveLength(0);
     expect(result.current.items.kind).toBe('ads');
   });
 
@@ -120,7 +127,11 @@ describe('useAdsForHome', () => {
     const { result } = renderHook(() => useAdsForHome(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.source).toBe('general'));
-    expect(searchApi.search).not.toHaveBeenCalled();
+    const geoSearchCalls = (searchApi.search as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([params]: [{ lat?: number; lng?: number; type?: string } | undefined]) =>
+        params != null && (params.lat != null || params.lng != null || params.type === 'ads'),
+    );
+    expect(geoSearchCalls).toHaveLength(0);
     expect(adsApi.getAll).toHaveBeenCalledWith(
       expect.objectContaining({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc' }),
     );

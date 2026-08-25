@@ -246,6 +246,24 @@ const parsed = envSchemaWithRedisCheck.safeParse(process.env);
 if (!parsed.success) {
   console.error("❌ Invalid environment variables:");
   console.error(parsed.error.flatten().fieldErrors);
+  // Under Jest (and any other test runner that sets JEST_WORKER_ID /
+  // VITEST), throw instead of process.exit(1). process.exit kills the
+  // entire test process — including every suite that hasn't run yet —
+  // which is what used to abort the backend suite mid-run when a unit
+  // test temporarily set NODE_ENV=production (authCookies, etc.) and
+  // re-imported this module without REDIS_PASSWORD. Throwing still
+  // fails the offending test, but leaves the rest of the run intact.
+  // Real server startups (no JEST_WORKER_ID / VITEST) keep the hard
+  // exit so a misconfigured deploy never boots with invalid env.
+  const runningUnderTest =
+    process.env.JEST_WORKER_ID !== undefined ||
+    process.env.VITEST !== undefined ||
+    process.env.NODE_ENV === "test";
+  if (runningUnderTest) {
+    throw new Error(
+      `Invalid environment variables: ${JSON.stringify(parsed.error.flatten().fieldErrors)}`,
+    );
+  }
   process.exit(1);
 }
 

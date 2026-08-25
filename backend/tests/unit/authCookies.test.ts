@@ -33,6 +33,22 @@ const mockRes = (): Partial<Response> => {
 
 describe('authCookies', () => {
   const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+  const ORIGINAL_REDIS_PASSWORD = process.env.REDIS_PASSWORD;
+
+  /**
+   * env.ts requires REDIS_PASSWORD when NODE_ENV=production. Several
+   * cases below temporarily flip NODE_ENV to 'production' and call
+   * jest.resetModules() so authCookies re-reads env.nodeEnv — that
+   * re-import re-runs env.ts's schema parse. Without a password set,
+   * the parse fails. We plant a dummy password only for those cases
+   * and always restore it in afterEach so other suites are not affected.
+   */
+  function withProductionEnv() {
+    process.env.NODE_ENV = 'production';
+    if (!process.env.REDIS_PASSWORD) {
+      process.env.REDIS_PASSWORD = 'test-only-redis-password-not-for-real-use';
+    }
+  }
 
   afterEach(() => {
     // BUGFIX (found during a post-implementation code audit):
@@ -50,6 +66,11 @@ describe('authCookies', () => {
       delete process.env.NODE_ENV;
     } else {
       process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+    }
+    if (ORIGINAL_REDIS_PASSWORD === undefined) {
+      delete process.env.REDIS_PASSWORD;
+    } else {
+      process.env.REDIS_PASSWORD = ORIGINAL_REDIS_PASSWORD;
     }
     jest.resetModules();
   });
@@ -90,7 +111,7 @@ describe('authCookies', () => {
 
   describe('clearRefreshTokenCookie', () => {
     it('clears the cookie with the EXACT same attributes used to set it', async () => {
-      process.env.NODE_ENV = 'production';
+      withProductionEnv();
       jest.resetModules();
       const { clearRefreshTokenCookie } = await import('../../src/shared/utils/authCookies');
 
@@ -173,7 +194,7 @@ describe('authCookies', () => {
 
   describe('clearCsrfCookie', () => {
     it('clears the csrfToken cookie with matching non-httpOnly attributes', async () => {
-      process.env.NODE_ENV = 'production';
+      withProductionEnv();
       jest.resetModules();
       const { clearCsrfCookie } = await import('../../src/shared/utils/authCookies');
 
@@ -233,7 +254,7 @@ describe('authCookies', () => {
 
   describe('clearSessionHintCookie', () => {
     it('clears the app_has_session cookie with the EXACT same attributes used to set it', async () => {
-      process.env.NODE_ENV = 'production';
+      withProductionEnv();
       jest.resetModules();
       const { clearSessionHintCookie } = await import('../../src/shared/utils/authCookies');
 

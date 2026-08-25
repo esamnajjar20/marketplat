@@ -117,10 +117,12 @@ describe('AdDetail', () => {
       renderWithClient(<AdDetail ad={baseAd} />);
 
       expect(screen.getByText('آيفون 14 برو للبيع')).toBeInTheDocument();
-      expect(screen.getByText(formatPrice(baseAd.price), { exact: false })).toBeInTheDocument();
-      expect(screen.getByText('غزة')).toBeInTheDocument();
-      expect(screen.getByText(/42/)).toBeInTheDocument();
-      expect(screen.getByText('إلكترونيات')).toBeInTheDocument();
+      // Price and city render twice on purpose (mobile block + desktop
+      // sticky panel) — use getAllByText so either layout counts.
+      expect(screen.getAllByText(formatPrice(baseAd.price), { exact: false }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('غزة').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/42/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('إلكترونيات').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows "قابل للتفاوض" only when isNegotiable is true', () => {
@@ -128,12 +130,12 @@ describe('AdDetail', () => {
       expect(screen.queryByText('قابل للتفاوض')).not.toBeInTheDocument();
 
       rerender(<AdDetail ad={{ ...baseAd, isNegotiable: true }} />);
-      expect(screen.getByText('قابل للتفاوض')).toBeInTheDocument();
+      expect(screen.getAllByText('قابل للتفاوض')[0]).toBeInTheDocument();
     });
 
     it('shows the condition label', () => {
       renderWithClient(<AdDetail ad={baseAd} />);
-      expect(screen.getByText('مستعمل')).toBeInTheDocument();
+      expect(screen.getAllByText('مستعمل')[0]).toBeInTheDocument();
     });
 
     it('shows a status badge only when the ad is not ACTIVE', () => {
@@ -265,11 +267,11 @@ describe('AdDetail', () => {
 
       const heartButton = screen.getByLabelText('إضافة إلى المفضلة');
       const heartIcon = heartButton.querySelector('svg');
-      expect(heartIcon).not.toHaveClass('fill-destructive');
+      expect(heartIcon).not.toHaveClass('fill-current');
 
       await user.click(heartButton);
 
-      expect(heartIcon).toHaveClass('fill-destructive');
+      expect(heartIcon).toHaveClass('fill-current');
     });
 
     it('rolls back the optimistic update when the mutation fails', async () => {
@@ -296,7 +298,7 @@ describe('AdDetail', () => {
 
       await user.click(heartButton);
 
-      expect(heartIcon).not.toHaveClass('fill-destructive');
+      expect(heartIcon).not.toHaveClass('fill-current');
     });
 
     it('starts filled when isFavorited is initially true', () => {
@@ -304,7 +306,7 @@ describe('AdDetail', () => {
 
       // Already favorited on mount, so the label reads "إزالة من المفضلة".
       const heartIcon = screen.getByLabelText('إزالة من المفضلة').querySelector('svg');
-      expect(heartIcon).toHaveClass('fill-destructive');
+      expect(heartIcon).toHaveClass('fill-current');
     });
   });
 

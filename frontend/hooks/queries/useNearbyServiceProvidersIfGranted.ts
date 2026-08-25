@@ -35,7 +35,12 @@ export function useNearbyServiceProvidersIfGranted() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!('geolocation' in navigator) || !('permissions' in navigator)) {
+    // jsdom (and some older browsers) report `'permissions' in navigator`
+    // as true while `navigator.permissions` itself is undefined — the
+    // `'permissions' in navigator` check alone is not enough, and
+    // calling `.query` on undefined used to throw and break the
+    // "Permissions API unsupported" unit test.
+    if (!navigator.geolocation || typeof navigator.permissions?.query !== 'function') {
       setPermission('not-granted');
       return;
     }

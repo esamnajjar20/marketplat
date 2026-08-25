@@ -191,13 +191,36 @@ export const adminController = {
     try {
       const admin = requireUser(req);
       const { body } = bulkToggleUserActiveSchema.parse({ body: req.body });
-      const result = await runBulk(body.userIds, (id) =>
-        adminService.toggleUserActive(id, body.isActive, admin.userId, admin.role as Role)
-      );
+      // Sequential (not Promise.allSettled / runBulk): toggleUserActive
+      // wraps its read+guard+write in a Serializable transaction. Running
+      // those concurrently for a multi-id batch races Postgres's SSI and
+      // surfaces as P2034 on all-but-one of the ids — which is exactly
+      // what made the bulk-deactivate integration test see updatedCount=1
+      // for a two-user batch. Sequential keeps the same per-id auth
+      // guards/audit path while avoiding the conflict.
+      const updated: Awaited<ReturnType<typeof adminService.toggleUserActive>>[] = [];
+      const failed: { id: string; reason: string }[] = [];
+      for (const id of body.userIds) {
+        try {
+          updated.push(
+            await adminService.toggleUserActive(
+              id,
+              body.isActive,
+              admin.userId,
+              admin.role as Role,
+            ),
+          );
+        } catch (err) {
+          failed.push({
+            id,
+            reason: err instanceof Error ? err.message : 'Update failed',
+          });
+        }
+      }
       res.status(200).json(
-        successResponse('Bulk user status update processed', result.updated, {
-          updatedCount: result.updated.length,
-          failed: result.failed,
+        successResponse('Bulk user status update processed', updated, {
+          updatedCount: updated.length,
+          failed,
         })
       );
     } catch (error) {

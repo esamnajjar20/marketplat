@@ -206,7 +206,12 @@ describe('AdminAnalyticsDashboard', () => {
     // maxCount should be 20 (the AD_VIEW max), so the 08-01 bar (count
     // 20) renders at 100% height, not compressed by the 10,000 PAGE_VIEW
     // count that used to set the scale.
-    const tallBar = screen.getByTitle(/20/);
+    // title is `${toLocaleDateString('ar')}: ${formatNumber(count)}` —
+    // formatNumber uses Arabic-Indic digits, and the date string itself
+    // contains "20" from the year 2026, so a bare /20/ matches every bar.
+    const tallBar = screen.getByTitle((content) =>
+      /:\s*(20|٢٠)\s*$/.test(content),
+    );
     expect(tallBar).toHaveStyle({ height: '100%' });
   });
 });

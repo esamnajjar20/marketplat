@@ -45,9 +45,22 @@ async function selectProduct(user: ReturnType<typeof setupUser>) {
 }
 
 function submitForm(container: HTMLElement) {
-  const form = container.querySelector('form');
-  if (!form) throw new Error('submitForm: no <form> found in container');
+  // DialogContent portals into document.body — prefer the live form in
+  // the document when the container-scoped query misses it.
+  const form =
+    container.querySelector('form') ??
+    document.querySelector('form');
+  if (!form) throw new Error('submitForm: no <form> found');
   fireEvent.submit(form);
+}
+
+/** datetime-local inputs live inside a portaled Dialog — query document. */
+function dateField(id: string): HTMLInputElement {
+  const el =
+    document.getElementById(id) ??
+    document.querySelector<HTMLInputElement>(`#${id}`);
+  if (!el) throw new Error(`dateField: #${id} not found in document`);
+  return el as HTMLInputElement;
 }
 
 describe('PromotionForm', () => {
@@ -71,8 +84,8 @@ describe('PromotionForm', () => {
 
       await user.type(getField('اسم العرض'), 'خصم الصيف');
       await user.type(getField('قيمة الخصم'), '15');
-      fireEvent.change(container.querySelector('#promo-startsAt')!, { target: { value: '2026-08-19T00:00' } });
-      fireEvent.change(container.querySelector('#promo-endsAt')!, { target: { value: '2026-08-25T00:00' } });
+      fireEvent.change(dateField('promo-startsAt'), { target: { value: '2026-08-19T00:00' } });
+      fireEvent.change(dateField('promo-endsAt'), { target: { value: '2026-08-25T00:00' } });
       submitForm(container);
 
       expect(await screen.findByRole('alert')).toHaveTextContent('اختر المنتج');
@@ -86,8 +99,8 @@ describe('PromotionForm', () => {
       await selectProduct(user);
       await user.type(getField('اسم العرض'), 'خصم الصيف');
       await user.type(getField('قيمة الخصم'), '150');
-      fireEvent.change(container.querySelector('#promo-startsAt')!, { target: { value: '2026-08-19T00:00' } });
-      fireEvent.change(container.querySelector('#promo-endsAt')!, { target: { value: '2026-08-25T00:00' } });
+      fireEvent.change(dateField('promo-startsAt'), { target: { value: '2026-08-19T00:00' } });
+      fireEvent.change(dateField('promo-endsAt'), { target: { value: '2026-08-25T00:00' } });
       submitForm(container);
 
       expect(await screen.findByRole('alert')).toHaveTextContent('لا يمكن أن تتجاوز 100');
@@ -101,8 +114,8 @@ describe('PromotionForm', () => {
       await selectProduct(user);
       await user.type(getField('اسم العرض'), 'خصم الصيف');
       await user.type(getField('قيمة الخصم'), '15');
-      fireEvent.change(container.querySelector('#promo-startsAt')!, { target: { value: '2026-08-25T00:00' } });
-      fireEvent.change(container.querySelector('#promo-endsAt')!, { target: { value: '2026-08-19T00:00' } });
+      fireEvent.change(dateField('promo-startsAt'), { target: { value: '2026-08-25T00:00' } });
+      fireEvent.change(dateField('promo-endsAt'), { target: { value: '2026-08-19T00:00' } });
       submitForm(container);
 
       expect(await screen.findByRole('alert')).toHaveTextContent('بعد تاريخ البداية');
@@ -132,8 +145,8 @@ describe('PromotionForm', () => {
       await selectProduct(user);
       await user.type(getField('اسم العرض'), 'خصم الصيف');
       await user.type(getField('قيمة الخصم'), '15');
-      fireEvent.change(container.querySelector('#promo-startsAt')!, { target: { value: '2026-08-19T00:00' } });
-      fireEvent.change(container.querySelector('#promo-endsAt')!, { target: { value: '2026-08-25T00:00' } });
+      fireEvent.change(dateField('promo-startsAt'), { target: { value: '2026-08-19T00:00' } });
+      fireEvent.change(dateField('promo-endsAt'), { target: { value: '2026-08-25T00:00' } });
       submitForm(container);
 
       expect(mockCreateMutate).toHaveBeenCalledTimes(1);
@@ -157,8 +170,8 @@ describe('PromotionForm', () => {
       await selectProduct(user);
       await user.type(getField('اسم العرض'), 'خصم الصيف');
       await user.type(getField('قيمة الخصم'), '15');
-      fireEvent.change(container.querySelector('#promo-startsAt')!, { target: { value: '2026-08-19T00:00' } });
-      fireEvent.change(container.querySelector('#promo-endsAt')!, { target: { value: '2026-08-25T00:00' } });
+      fireEvent.change(dateField('promo-startsAt'), { target: { value: '2026-08-19T00:00' } });
+      fireEvent.change(dateField('promo-endsAt'), { target: { value: '2026-08-25T00:00' } });
       await user.type(getField('الحد الأقصى للاستخدام'), '100');
       submitForm(container);
 

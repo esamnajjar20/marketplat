@@ -104,7 +104,7 @@ export function NotificationSettingsForm() {
                 </span>
               )}
               <button
-                role="switch" aria-checked={prefs[key]} aria-label={label}
+                role="switch" aria-checked={prefs[key] ? 'true' : 'false'} aria-label={label}
                 disabled={pendingKey === key}
                 onClick={() => toggle(key)}
                 className={`relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50

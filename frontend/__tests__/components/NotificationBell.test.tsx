@@ -302,12 +302,24 @@ describe('NotificationBell', () => {
     // conversationId — see NotificationBell's handleNotificationClick.
     describe('conversation-scoped mark-read for NEW_MESSAGE', () => {
       function sameConversationBurst(): Notification[] {
+        // groupNotifications collapses runs of 3+ consecutive same-type
+        // items into one expandable row — individual titles like
+        // "رسالة 1" would not be in the DOM until expanded. Interleave
+        // a different type so each NEW_MESSAGE renders as its own row
+        // (the conversation-scoped mark-read logic under test does not
+        // depend on consecutive ordering).
         return [
           makeNotification({
             id: 'm-1', type: 'NEW_MESSAGE', title: 'رسالة 1', data: { conversationId: 'conv-1' },
           }),
           makeNotification({
+            id: 'filler-1', type: 'PROMOTION', title: 'فاصل', data: null,
+          }),
+          makeNotification({
             id: 'm-2', type: 'NEW_MESSAGE', title: 'رسالة 2', data: { conversationId: 'conv-1' },
+          }),
+          makeNotification({
+            id: 'filler-2', type: 'PROMOTION', title: 'فاصل 2', data: null,
           }),
           // Different conversation — must NOT be marked read by the click below.
           makeNotification({

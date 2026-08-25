@@ -171,7 +171,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(11); // one per nav link
+    expect(hiddenIcons?.length).toBe(12); // one per nav link
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────
@@ -260,11 +260,11 @@ describe('AdminSidebar', () => {
       expect(within(desktopNav).queryByText('التحليلات')).not.toBeInTheDocument();
     });
 
-    it('renders only 2 icons for a MODERATOR (one per visible link)', () => {
+    it('renders only 3 icons for a MODERATOR (one per visible link)', () => {
       const { container } = render(<AdminSidebar />);
       const desktopAside = container.querySelector('aside');
       const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-      expect(hiddenIcons?.length).toBe(2);
+      expect(hiddenIcons?.length).toBe(3);
     });
   });
 

@@ -85,18 +85,26 @@ describe('BottomNav', () => {
   });
 
   describe('center create button', () => {
+    // Label text sits in a sibling <span>, not inside the <Link> (the
+    // link only wraps the Plus icon). Walk up to the shared parent and
+    // read the href from the <a> there.
+    function centerCreateHref() {
+      const label = screen.getByText(/نشر إعلان|أنشئ حساب بائع/);
+      return label.parentElement?.querySelector('a')?.getAttribute('href');
+    }
+
     it('links to /ads/create for a seller', () => {
       vi.mocked(useIsSeller).mockReturnValue({ isSeller: true, isLoaded: true });
       useAuthStore.getState().setAuth({ id: 'u1', name: 'أحمد', email: 'a@a.com', role: 'USER' }, { accessToken: 't' });
       render(<BottomNav />);
-      expect(screen.getByText('نشر إعلان').closest('a')?.getAttribute('href')).toBe('/ads/create');
+      expect(centerCreateHref()).toBe('/ads/create');
     });
 
     it('links to seller signup for an authenticated non-seller', () => {
       vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: true });
       useAuthStore.getState().setAuth({ id: 'u1', name: 'أحمد', email: 'a@a.com', role: 'USER' }, { accessToken: 't' });
       render(<BottomNav />);
-      expect(screen.getByText('أنشئ حساب بائع').closest('a')?.getAttribute('href')).toBe('/settings/seller');
+      expect(centerCreateHref()).toBe('/settings/seller');
     });
   });
 });

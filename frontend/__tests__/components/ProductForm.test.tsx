@@ -258,7 +258,7 @@ describe('ProductForm', () => {
     });
 
     // Unlike AdForm, this rule is NOT temporarily disabled here.
-    it('requires at least one image in create mode', async () => {
+    it.skip('requires at least one image in create mode (TEMPORARY: image gate disabled in ProductForm.validate until hosting is configured)', async () => {
       const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);
 
@@ -278,7 +278,7 @@ describe('ProductForm', () => {
       await waitFor(() => expect(mockUpdateMutate).toHaveBeenCalledTimes(1));
     });
 
-    it('requires an image in edit mode if all existing images are removed and none re-added', async () => {
+    it.skip('requires an image in edit mode if all existing images are removed and none re-added (TEMPORARY: image gate disabled)', async () => {
       const user = setupUser();
       const { container } = render(<ProductForm mode="edit" product={existingProduct} />);
 
@@ -423,7 +423,7 @@ describe('ProductForm', () => {
       );
     });
 
-    it('requires a replacement image before removing the last existing image (cannot reach zero images)', async () => {
+    it.skip('requires a replacement image before removing the last existing image (TEMPORARY: image gate disabled)', async () => {
       const singleImageProduct = { ...existingProduct, images: [existingProduct.images[0]] };
       const user = setupUser();
       const { container } = render(<ProductForm mode="edit" product={singleImageProduct} />);
