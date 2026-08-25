@@ -358,9 +358,11 @@ describe('storeRecommendationsRepository', () => {
         limit: 8,
       });
 
+      // $queryRaw tagged-template nests values inside Prisma.Sql fragments
       const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
-      expect(callArgs).toContain(31.5);
-      expect(callArgs).toContain(34.4);
+      const serialized = JSON.stringify(callArgs);
+      expect(serialized).toContain('31.5');
+      expect(serialized).toContain('34.4');
     });
 
     it('omits geo values from the raw query when lat/lng are absent', async () => {
@@ -384,8 +386,9 @@ describe('storeRecommendationsRepository', () => {
       });
 
       const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
-      expect(callArgs).toContain('store-owned');
-      expect(callArgs).toContain('store-followed');
+      const serialized = JSON.stringify(callArgs);
+      expect(serialized).toContain('store-owned');
+      expect(serialized).toContain('store-followed');
     });
 
     it('passes the limit through to the raw query', async () => {

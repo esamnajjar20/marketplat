@@ -83,7 +83,7 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.startFromAd(buyerId, adId);
 
-      expect(conversationsRepository.create).toHaveBeenCalledWith(adId, buyerId, sellerId);
+      expect(conversationsRepository.create).toHaveBeenCalledWith(buyerId, sellerId, { adId });
       expect(result).toEqual(mockConversation);
     });
 
@@ -163,7 +163,7 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.startFromUser(buyerId, sellerId);
 
-      expect(conversationsRepository.create).toHaveBeenCalledWith(null, buyerId, sellerId);
+      expect(conversationsRepository.create).toHaveBeenCalledWith(buyerId, sellerId);
       expect(result).toEqual(mockConversationNoAd);
     });
   });

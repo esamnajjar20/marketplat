@@ -12,7 +12,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ProtectedHeader } from '@/components/layout/ProtectedHeader';
 import { ROUTES } from '@/lib/constants';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useIsSeller } from '@/hooks/queries/useSellers';
 
 vi.mock('@/components/layout/UserMenu', () => ({
   UserMenu: () => <div data-testid="user-menu" />,
@@ -38,6 +38,7 @@ vi.mock('@/components/layout/ProtectedMobileNav', () => ({
 // has a profile, matching this file's existing "نشر إعلان" assertion.
 vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(() => ({ data: { id: 'seller-1' }, isSuccess: true })),
+  useIsSeller: vi.fn(() => ({ isSeller: true, isLoaded: true })),
 }));
 
 describe('ProtectedHeader', () => {
@@ -56,7 +57,7 @@ describe('ProtectedHeader', () => {
   });
 
   it('renders an "أنشئ حساب بائع" CTA instead when the user has no SellerProfile', () => {
-    vi.mocked(useMySellerProfile).mockReturnValueOnce({ data: undefined, isSuccess: true } as never);
+    vi.mocked(useIsSeller).mockReturnValueOnce({ isSeller: false, isLoaded: true });
     render(<ProtectedHeader />);
 
     expect(screen.queryByText('+ نشر إعلان')).not.toBeInTheDocument();

@@ -26,8 +26,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
-import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useMySellerProfile, useIsSeller } from '@/hooks/queries/useSellers';
+import { useMyServiceProvider, useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
 
 // usePathname is already mocked in vitest.setup.ts to return '/dashboard'
@@ -64,17 +64,20 @@ vi.mock('next/link', () => ({
 // All three are mocked directly rather than left to run for real —
 // same pattern AdDetail.test.tsx uses for useCategories/auth.store.
 vi.mock('@/store/auth.store', () => ({
-  useAuthStore: (selector: (s: { isAuthenticated: boolean }) => unknown) =>
-    selector({ isAuthenticated: true }),
+  useAuthStore: (selector: (s: { isAuthenticated: boolean; user: { id: string; name: string; role: string } | null }) => unknown) =>
+    selector({ isAuthenticated: true, user: { id: 'user-1', name: 'مستخدم', role: 'USER' } }),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
+  selectUser: (s: { user: unknown }) => s.user,
 }));
 
 vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(),
+  useIsSeller: vi.fn(() => ({ isSeller: true, isLoaded: true })),
 }));
 
 vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useMyServiceProvider: vi.fn(),
+  useIsProvider: vi.fn(() => ({ isProvider: true, isLoaded: true })),
 }));
 
 vi.mock('@/hooks/queries/useStores', () => ({
@@ -98,10 +101,12 @@ beforeEach(() => {
     data: { id: 'seller-1' },
     isSuccess: true,
   });
+  (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: true, isLoaded: true });
   (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
     data: { id: 'provider-1' },
     isSuccess: true,
   });
+  (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: true, isLoaded: true });
   (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
     data: { id: 'store-1', status: 'ACTIVE' },
     isSuccess: true,
@@ -288,6 +293,7 @@ describe('ProtectedSidebar', () => {
         isSuccess: true,
       });
       mockUsePathname.mockReturnValue('/dashboard');
+      (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: true });
       renderWithClient(<ProtectedSidebar />);
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'أصبح مقدّم خدمة' })).not.toBeInTheDocument();
@@ -303,6 +309,7 @@ describe('ProtectedSidebar', () => {
         isSuccess: false,
       });
       mockUsePathname.mockReturnValue('/dashboard');
+      (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
       renderWithClient(<ProtectedSidebar />);
       // Scope to the top-level "متجري" button specifically — "متجري"
       // as text also appears as a child link inside the "الإعدادات"
@@ -333,6 +340,8 @@ describe('ProtectedSidebar', () => {
         isSuccess: false,
       });
       mockUsePathname.mockReturnValue('/dashboard');
+      (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
+      (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: true });
       renderWithClient(<ProtectedSidebar />);
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
@@ -415,6 +424,7 @@ describe('ProtectedSidebar', () => {
     it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', () => {
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({ data: null, isSuccess: false });
       mockUsePathname.mockReturnValue('/dashboard');
+      (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
       renderWithClient(<ProtectedSidebar />);
 
       // No STORE_GROUP toggle for a non-seller.

@@ -20,7 +20,13 @@ let mockSearchParams = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  usePathname: () => '/search',
 }));
+vi.mock('@/components/ads/SaveSearchButton', () => ({
+  SaveSearchButton: () => null,
+}));
+
 
 vi.mock('@/hooks/queries/useSearch', () => ({
   useSearch: vi.fn(),
@@ -93,7 +99,7 @@ describe('SearchResults', () => {
   it('shows a loading spinner while isLoading is true', () => {
     mockSearchState({ isLoading: true });
     render(<SearchResults />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeTruthy();
   });
 
   it('shows an error message with a retry action on isError', async () => {

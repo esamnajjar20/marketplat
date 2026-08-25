@@ -29,6 +29,9 @@ vi.mock('@/hooks/mutations/useAdminMutations', () => ({
   useAdminSetFeatured: vi.fn(),
   useAdminSetPinned: vi.fn(),
   useAdminForceDeleteAd: vi.fn(),
+  useAdminBulkSetFeatured: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useAdminBulkSetPinned: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useAdminBulkDeleteAds: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 let mockSearchParams = new URLSearchParams();

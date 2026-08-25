@@ -83,6 +83,10 @@ function mockListingsState(overrides: Partial<ReturnType<typeof useServiceListin
   } as never);
 }
 
+vi.mock('@/components/ads/SaveSearchButton', () => ({
+  SaveSearchButton: () => null,
+}));
+
 describe('ServiceListingsGrid', () => {
   beforeEach(() => {
     vi.clearAllMocks();

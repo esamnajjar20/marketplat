@@ -37,6 +37,7 @@ vi.mock('@/hooks/queries/useAdmin', () => ({
 vi.mock('@/hooks/mutations/useAdminMutations', () => ({
   useAdminToggleUserActive: vi.fn(),
   useAdminChangeRole: vi.fn(),
+  useAdminBulkToggleUserActive: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@/store/auth.store', () => ({
@@ -153,7 +154,7 @@ describe('AdminUsersTable', () => {
       });
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('حدث خطأ أثناء تحميل المستخدمين')).toBeInTheDocument();
+      expect(screen.getByText('حدث خطأ ما')).toBeInTheDocument();
       expect(screen.queryByText('لا يوجد مستخدمون')).not.toBeInTheDocument();
     });
   });

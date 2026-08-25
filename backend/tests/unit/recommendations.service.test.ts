@@ -195,6 +195,8 @@ describe('recommendationsService', () => {
       (productRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
         mockProduct('p-2'),
       ]);
+      // Prevent trending backfill from padding the result past the personalized hit.
+      (productRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([]);
 
       const result = await recommendationsService.getProductRecommendations(
         { excludeProductId: 'product-1' },
@@ -313,6 +315,7 @@ describe('recommendationsService', () => {
       (serviceListingRecommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
         mockListing('l-2'),
       ]);
+      (serviceListingRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([]);
 
       const result = await recommendationsService.getServiceListingRecommendations(
         { excludeServiceListingId: 'listing-1' },

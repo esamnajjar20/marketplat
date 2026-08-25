@@ -4,6 +4,18 @@ import { app } from '../../src/app';
 // T-04: No shared mutable state between describes.
 // Each describe creates its own user via HTTP registration.
 // Using a factory to guarantee a unique email per test run AND per worker.
+
+/** Superagent's cookie jar drops Secure cookies on http:// test servers.
+ *  Pull name=value pairs out of Set-Cookie so tests can re-attach them. */
+function cookiePairsFrom(res: { headers: { [key: string]: unknown } }, names?: string[]): string {
+  const raw = res.headers['set-cookie'] as string[] | undefined;
+  if (!raw?.length) return '';
+  return raw
+    .map((c) => c.split(';')[0])
+    .filter((pair) => !names || names.some((n) => pair.startsWith(`${n}=`)))
+    .join('; ');
+}
+
 const makeUser = () => ({
   name: 'Integration Test User',
   email: `auth-test-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`,
@@ -32,7 +44,7 @@ describe('POST /api/v1/auth/register', () => {
     const refreshCookie = setCookieHeader.find((c) => c.startsWith('refreshToken='));
     expect(refreshCookie).toBeDefined();
     expect(refreshCookie).toContain('HttpOnly');
-    expect(refreshCookie).toContain('SameSite=Lax');
+    expect(refreshCookie).toContain('SameSite=None');
     expect(refreshCookie).toContain('Path=/api/v1/auth');
 
     const csrfCookie = setCookieHeader.find((c) => c.startsWith('csrfToken='));
@@ -197,9 +209,11 @@ describe('POST /api/v1/auth/refresh (httpOnly cookie flow)', () => {
     const user = makeUser();
     const registerRes = await agent.post('/api/v1/auth/register').send(user).expect(201);
     const csrfToken = registerRes.body.data.csrfToken as string;
+    const cookies = cookiePairsFrom(registerRes, ['refreshToken', 'csrfToken']);
 
     const res = await agent
       .post('/api/v1/auth/refresh')
+      .set('Cookie', cookies)
       .set('X-CSRF-Token', csrfToken)
       .send()
       .expect(200);
@@ -216,9 +230,11 @@ describe('POST /api/v1/auth/refresh (httpOnly cookie flow)', () => {
     const registerCookies = registerRes.headers['set-cookie'] as unknown as string[];
     const originalRefreshCookie = registerCookies.find((c) => c.startsWith('refreshToken='));
     const csrfToken = registerRes.body.data.csrfToken as string;
+    const cookies = cookiePairsFrom(registerRes, ['refreshToken', 'csrfToken']);
 
     const refreshRes = await agent
       .post('/api/v1/auth/refresh')
+      .set('Cookie', cookies)
       .set('X-CSRF-Token', csrfToken)
       .send()
       .expect(200);

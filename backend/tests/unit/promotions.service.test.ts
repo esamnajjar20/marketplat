@@ -27,8 +27,9 @@ const createInput = {
   title: 'Summer Sale',
   discountType: 'PERCENTAGE' as const,
   discountValue: 15,
-  startsAt: new Date('2026-08-19T00:00:00.000Z'),
-  endsAt: new Date('2026-08-25T00:00:00.000Z'),
+  // Relative dates so status stays SCHEDULED (startsAt > now) regardless of when the suite runs.
+  startsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 };
 
 describe('promotionsService', () => {

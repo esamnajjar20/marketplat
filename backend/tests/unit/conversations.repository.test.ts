@@ -24,6 +24,14 @@ const conversationWithRelationsInclude = {
   ad: { select: { id: true, title: true, images: true, status: true } },
   buyer: { select: { id: true, name: true, avatarUrl: true } },
   seller: { select: { id: true, name: true, avatarUrl: true } },
+  serviceRequest: {
+    select: {
+      id: true,
+      details: true,
+      status: true,
+      listing: { select: { id: true, title: true, images: true } },
+    },
+  },
 };
 
 const buyerId = 'buyer-1';

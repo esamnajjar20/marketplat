@@ -63,6 +63,10 @@ function mockAuth(state: { user: Record<string, unknown> | null; isAuthenticated
   );
 }
 
+vi.mock('@/components/stores/StoreBadges', () => ({
+  StoreBadges: () => null,
+}));
+
 describe('StoreHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -14,7 +14,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyPromotionsList } from '@/components/stores/MyPromotionsList';
 import { useMyPromotions } from '@/hooks/queries/usePromotions';
-import { useCancelPromotion } from '@/hooks/mutations/usePromotionMutations';
+import { useCancelPromotion, useCreatePromotion } from '@/hooks/mutations/usePromotionMutations';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import type { Promotion } from '@/types/promotion.types';
 
@@ -24,6 +24,8 @@ vi.mock('@/hooks/queries/usePromotions', () => ({
 
 vi.mock('@/hooks/mutations/usePromotionMutations', () => ({
   useCancelPromotion: vi.fn(),
+  useCreatePromotion: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useUpdatePromotion: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@/hooks/queries/useProducts', () => ({
@@ -60,6 +62,10 @@ describe('MyPromotionsList', () => {
     });
     (useCancelPromotion as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockCancelMutate,
+      isPending: false,
+    });
+    (useCreatePromotion as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: vi.fn(),
       isPending: false,
     });
   });

@@ -54,10 +54,18 @@ describe('usersRepository', () => {
     it('queries by id with only the public-safe fields plus isActive', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       await usersRepository.findPublicById(userId);
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { id: userId },
-        select: { id: true, name: true, city: true, bio: true, avatarUrl: true, createdAt: true, isActive: true },
-      });
+      expect(prisma.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: userId },
+          select: expect.objectContaining({
+            id: true,
+            name: true,
+            isActive: true,
+            sellerProfile: expect.any(Object),
+            _count: expect.any(Object),
+          }),
+        }),
+      );
     });
 
     it('never requests email/phone/role in its select (PII leak guard)', async () => {

@@ -35,6 +35,8 @@ vi.mock('@/hooks/queries/useAdmin', () => ({
 vi.mock('@/hooks/mutations/useAdminMutations', () => ({
   useAdminSetSellerVerified: vi.fn(),
   useAdminSetSellerSuspended: vi.fn(),
+  useAdminBulkSetSellerVerified: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useAdminBulkSetSellerSuspended: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 let mockSearchParams = new URLSearchParams();
@@ -93,7 +95,7 @@ describe('AdminSellersTable', () => {
     it('shows a loading spinner while fetching', () => {
       mockSellersData([], { isLoading: true });
       render(<AdminSellersTable />);
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(document.querySelector('.animate-pulse')).toBeTruthy();
     });
 
     it('shows an error state with a retry option that calls refetch', async () => {
@@ -102,7 +104,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      expect(screen.getByText('حدث خطأ أثناء تحميل البائعين')).toBeInTheDocument();
+      expect(screen.getByText('حدث خطأ ما')).toBeInTheDocument();
       await user.click(screen.getByText('إعادة المحاولة'));
       expect(refetch).toHaveBeenCalledTimes(1);
     });

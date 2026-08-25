@@ -2,6 +2,18 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { createTestUser, createTestAdmin } from '../helpers/auth.helper';
 
+
+/** Superagent drops Secure cookies on http:// — re-attach from Set-Cookie. */
+function cookiePairsFrom(res: { headers: { [key: string]: unknown } }, names?: string[]): string {
+  const raw = res.headers['set-cookie'] as string[] | undefined;
+  if (!raw?.length) return '';
+  return raw
+    .map((c) => c.split(';')[0])
+    .filter((pair) => !names || names.some((n) => pair.startsWith(`${n}=`)))
+    .join('; ');
+}
+
+
 describe('Auth Security', () => {
 
   /**
@@ -27,9 +39,11 @@ describe('Auth Security', () => {
       const originalRefreshCookie = registerCookies.find((c) => c.startsWith('refreshToken='));
       expect(originalRefreshCookie).toBeDefined();
       const csrfToken = registerRes.body.data.csrfToken as string;
+      const cookies = cookiePairsFrom(registerRes, ['refreshToken', 'csrfToken']);
 
       const refreshRes = await agent
         .post('/api/v1/auth/refresh')
+        .set('Cookie', cookies)
         .set('X-CSRF-Token', csrfToken)
         .send();
 
@@ -211,15 +225,14 @@ describe('CSRF protection on a real, non-exempt route (regression guard)', () =>
     };
     const registerRes = await agent.post('/api/v1/auth/register').send(user).expect(201);
     const accessToken = registerRes.body.data.tokens.accessToken as string;
-    // agent's cookie jar now holds a real csrfToken cookie from registration.
+    // Secure cookies are dropped by superagent on http:// — re-attach
+    // the csrfToken cookie so CSRF middleware sees it and rejects the
+    // missing X-CSRF-Token header (rather than skipping when absent).
+    const cookies = cookiePairsFrom(registerRes, ['csrfToken']);
 
-    // Deliberately using `agent` (carries the csrfToken cookie
-    // forward) with NO X-CSRF-Token header set — this is exactly the
-    // gap CSRF protection exists to close: a cookie the browser would
-    // send automatically, with no matching header a cross-site
-    // attacker could not have set.
     const res = await agent
       .post('/api/v1/ads')
+      .set('Cookie', cookies)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ title: 'Should be rejected before validation', description: 'x', categoryId: 'x', city: 'غزة', price: 1 });
 
@@ -238,9 +251,11 @@ describe('CSRF protection on a real, non-exempt route (regression guard)', () =>
     const accessToken = registerRes.body.data.tokens.accessToken as string;
     const csrfToken = registerRes.body.data.csrfToken as string;
     expect(csrfToken).toBeDefined();
+    const cookies = cookiePairsFrom(registerRes, ['csrfToken']);
 
     const res = await agent
       .post('/api/v1/ads')
+      .set('Cookie', cookies)
       .set('Authorization', `Bearer ${accessToken}`)
       .set('X-CSRF-Token', csrfToken)
       // Deliberately minimal/incomplete body — this request should

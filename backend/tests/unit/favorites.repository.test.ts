@@ -98,11 +98,9 @@ describe('favoritesRepository', () => {
       // Main fan-out select returns the ad with status DELETED; the
       // active-check branch (no `title` in its select) correctly
       // finds nothing active.
-      (prisma.ad.findMany as jest.Mock).mockImplementation(({ select }) =>
-        select?.title
-          ? Promise.resolve([{ id: 'ad-1', status: 'DELETED' }])
-          : Promise.resolve([])
-      );
+      // fetchActive filters with status: { not: 'DELETED' } — a deleted
+      // ad is never returned from that query. Simulate that here.
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
 
       const result = await favoritesRepository.findManyByUserId(userId, {});
 

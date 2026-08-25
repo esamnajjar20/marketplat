@@ -96,7 +96,10 @@ describe('sellersRepository', () => {
       await sellersRepository.findPublicProfile(sellerProfileId);
       expect(prisma.sellerProfile.findUnique).toHaveBeenCalledWith({
         where: { id: sellerProfileId },
-        include: { ads: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'desc' } } },
+        include: {
+          ads: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'desc' } },
+          user: { select: { city: true } },
+        },
       });
     });
   });

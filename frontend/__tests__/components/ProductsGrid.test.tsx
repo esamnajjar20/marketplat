@@ -38,7 +38,7 @@ vi.mock('@/components/shared/ui/Pagination', () => ({
 }));
 
 const mockRefetch = vi.fn();
-const product = { id: 'product-1', name: 'غطاء آيفون', storeId: 'store-1' };
+const product = { id: 'product-1', name: 'غطاء آيفون', storeId: 'store-1', store: { id: 'store-1', name: 'متجر الاختبار' } };
 
 function mockProducts(overrides: Record<string, unknown> = {}) {
   (useProducts as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -49,6 +49,10 @@ function mockProducts(overrides: Record<string, unknown> = {}) {
     ...overrides,
   });
 }
+
+vi.mock('@/components/ads/SaveSearchButton', () => ({
+  SaveSearchButton: () => null,
+}));
 
 describe('ProductsGrid', () => {
   beforeEach(() => {
@@ -61,7 +65,7 @@ describe('ProductsGrid', () => {
     mockProducts({ data: undefined, isLoading: true });
     render(<ProductsGrid />);
 
-    expect(screen.getAllByTestId('skeleton')).toHaveLength(8);
+    expect(screen.getAllByTestId('skeleton')).toHaveLength(12);
   });
 
   it('shows an error message with retry on failure', async () => {

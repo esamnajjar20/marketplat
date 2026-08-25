@@ -24,8 +24,8 @@ import { ProtectedMobileNav } from '@/components/layout/ProtectedMobileNav';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
-import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useMySellerProfile, useIsSeller } from '@/hooks/queries/useSellers';
+import { useMyServiceProvider, useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
 
 const mockUsePathname = vi.fn(() => '/dashboard');
@@ -70,8 +70,10 @@ vi.mock('@/store/ui.store', () => ({
 let isAdmin = false;
 
 vi.mock('@/store/auth.store', () => ({
-  useAuthStore: (selector: (s: { isAdmin: boolean }) => unknown) => selector({ isAdmin }),
+  useAuthStore: (selector: (s: { isAdmin: boolean; user: { id: string; name: string; role: string } | null }) => unknown) =>
+    selector({ isAdmin, user: { id: 'user-1', name: 'مستخدم', role: isAdmin ? 'ADMIN' : 'USER' } }),
   selectIsAdmin: (s: { isAdmin: boolean }) => s.isAdmin,
+  selectUser: (s: { user: unknown }) => s.user,
 }));
 
 vi.mock('@/hooks/mutations/useAuthMutations', () => ({
@@ -80,10 +82,12 @@ vi.mock('@/hooks/mutations/useAuthMutations', () => ({
 
 vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(),
+  useIsSeller: vi.fn(() => ({ isSeller: true, isLoaded: true })),
 }));
 
 vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useMyServiceProvider: vi.fn(),
+  useIsProvider: vi.fn(() => ({ isProvider: true, isLoaded: true })),
 }));
 
 vi.mock('@/hooks/queries/useStores', () => ({
@@ -101,10 +105,12 @@ describe('ProtectedMobileNav', () => {
       data: { id: 'seller-1' },
       isSuccess: true,
     });
+    (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: true, isLoaded: true });
     (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { id: 'provider-1' },
       isSuccess: true,
     });
+    (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: true, isLoaded: true });
     (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { id: 'store-1', status: 'ACTIVE' },
       isSuccess: true,
@@ -233,13 +239,18 @@ describe('ProtectedMobileNav', () => {
   // exact same /my-store destination appears twice in one drawer.
   it('excludes "متجري" from "الإعدادات" once the user is a seller (STORE_GROUP already covers it)', () => {
     isMobileNavOpen = true;
+    // On a /settings/* path the group auto-expands — do NOT click the
+    // toggle (that would collapse it and hide the sub-links).
     mockUsePathname.mockReturnValue('/settings/security');
+    (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: true, isLoaded: true });
     render(<ProtectedMobileNav />);
-    fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
     const settingsLinks = ['الملف الشخصي', 'ملف البائع', 'ملف مقدم الخدمة', 'الأمان', 'الجلسات', 'الإشعارات', 'المستخدمون المحظورون'];
     settingsLinks.forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
-    // Only STORE_GROUP's own toggle + child should say "متجري" — not a
-    // third one contributed by "الإعدادات".
+    // STORE_GROUP is collapsed on /settings/* so only its toggle label
+    // says "متجري" (1). Expanding it reveals the child link (also
+    // "متجري") → 2 total. Settings must NOT contribute a third.
+    expect(screen.getAllByText('متجري')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: /^متجري/ }));
     expect(screen.getAllByText('متجري')).toHaveLength(2);
   });
 
@@ -250,6 +261,7 @@ describe('ProtectedMobileNav', () => {
     (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isSuccess: true });
     isMobileNavOpen = true;
     mockUsePathname.mockReturnValue('/dashboard');
+    (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
     render(<ProtectedMobileNav />);
     fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
     expect(screen.getByText('متجري').closest('a')?.getAttribute('href')).toBe('/my-store');
@@ -275,6 +287,7 @@ describe('ProtectedMobileNav', () => {
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
       });
+      (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: true });
       render(<ProtectedMobileNav />);
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByText('أصبح مقدّم خدمة')).not.toBeInTheDocument();
@@ -285,6 +298,7 @@ describe('ProtectedMobileNav', () => {
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: false,
       });
+      (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: false });
       render(<ProtectedMobileNav />);
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
     });
@@ -303,6 +317,7 @@ describe('ProtectedMobileNav', () => {
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
       });
+      (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
       (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: false,
       });
@@ -326,6 +341,8 @@ describe('ProtectedMobileNav', () => {
       (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: false,
       });
+      (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
+      (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: true });
       render(<ProtectedMobileNav />);
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();

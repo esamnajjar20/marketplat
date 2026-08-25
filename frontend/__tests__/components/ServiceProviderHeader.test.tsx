@@ -51,6 +51,10 @@ function makeProvider(overrides: Partial<ServiceProviderPublic> = {}): ServicePr
   } as ServiceProviderPublic;
 }
 
+vi.mock('@/components/services/ProviderBadges', () => ({
+  ProviderBadges: () => null,
+}));
+
 describe('ServiceProviderHeader', () => {
   it('renders the business name and description', () => {
     render(<ServiceProviderHeader provider={makeProvider()} />);
@@ -90,12 +94,12 @@ describe('ServiceProviderHeader', () => {
           })}
         />
       );
-      expect(container.querySelector('.absolute.bottom-0.right-0')).toBeInTheDocument();
+      expect(container.querySelector('.absolute.bottom-0.end-0')).toBeInTheDocument();
     });
 
     it('does not render the badge overlay when sellerProfile.verified is false', () => {
       const { container } = render(<ServiceProviderHeader provider={makeProvider()} />);
-      expect(container.querySelector('.absolute.bottom-0.right-0')).not.toBeInTheDocument();
+      expect(container.querySelector('.absolute.bottom-0.end-0')).not.toBeInTheDocument();
     });
   });
 

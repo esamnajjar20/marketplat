@@ -271,20 +271,34 @@ describe('Fraud Detection API', () => {
         description: 'A perfectly ordinary listing with no red flags at all here',
       });
 
+      // Keyword weight is 35; auto-flag threshold is 60 (see env.fraud).
+      // Pair the scam phrase with an off-platform URL so CONTACT (+15)
+      // + KEYWORDS (+35) + NEW_ACCOUNT (+15 for a freshly created test
+      // user) cross the threshold. Keywords alone are intentionally
+      // below the bar so ordinary "too good to be true" phrasing does
+      // not auto-flag without a second signal.
       const res = await request(app)
         .patch(`/api/v1/ads/${ad.id}`)
         .set('Authorization', `Bearer ${seller.accessToken}`)
-        .send({ description: 'Great deal, wire transfer only, send deposit first please' });
+        .send({
+          description:
+            'Great deal, wire transfer only, send deposit first please — contact me at www.scam-example.com',
+        });
       expect(res.status).toBe(200);
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Fire-and-forget scoring — poll briefly rather than a single fixed sleep.
+      let signals: { id: string }[] = [];
+      let scored = await prisma.ad.findUniqueOrThrow({ where: { id: ad.id } });
+      for (let i = 0; i < 20; i++) {
+        signals = await prisma.fraudSignal.findMany({
+          where: { adId: ad.id, type: 'SUSPICIOUS_KEYWORDS' },
+        });
+        scored = await prisma.ad.findUniqueOrThrow({ where: { id: ad.id } });
+        if (signals.length > 0 && scored.flaggedForReview) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
-      const signals = await prisma.fraudSignal.findMany({
-        where: { adId: ad.id, type: 'SUSPICIOUS_KEYWORDS' },
-      });
       expect(signals.length).toBeGreaterThan(0);
-
-      const scored = await prisma.ad.findUniqueOrThrow({ where: { id: ad.id } });
       expect(scored.flaggedForReview).toBe(true);
     });
 

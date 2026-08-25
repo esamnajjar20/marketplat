@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { app } from '../../src/app';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../src/config/prisma';
 import { createTestUser } from '../helpers/auth.helper';
 import { createTestAd } from '../helpers/ad.helper';
@@ -142,15 +143,40 @@ describe('Recommendations API', () => {
     // update payload, overriding its own @updatedAt auto-management
     // for that one call.
     const FIXED_TIME = new Date('2024-01-01T00:00:00Z');
+    // Prisma's @updatedAt always overwrites data.updatedAt on update —
+    // use raw SQL so ranking tests can actually pin the freshness signal.
     const freezeUpdatedAt = (storeId: string) =>
-      prisma.storeDetails.update({ where: { id: storeId }, data: { updatedAt: FIXED_TIME } });
+      prisma.$executeRaw`UPDATE "store_details" SET "updatedAt" = ${FIXED_TIME} WHERE "id" = ${storeId}`;
+
+    /** Push every ACTIVE store EXCEPT the given ids to FIXED_TIME so the
+     *  pair under test isn't crowded out of the max-24 result window by
+     *  stores created earlier in this suite (which still carry "now"
+     *  timestamps and would otherwise monopolize ORDER BY freshness). */
+    const demoteOtherStores = async (keepIds: string[]) => {
+      if (keepIds.length === 0) {
+        await prisma.$executeRaw`
+          UPDATE "store_details"
+          SET "updatedAt" = ${FIXED_TIME}
+          WHERE "status" = ${'ACTIVE'}::"StoreStatus"
+        `;
+        return;
+      }
+      // NOT IN with joined placeholders — Prisma does not bind JS arrays
+      // as Postgres arrays inside $executeRaw tagged templates.
+      await prisma.$executeRaw`
+        UPDATE "store_details"
+        SET "updatedAt" = ${FIXED_TIME}
+        WHERE "status" = ${'ACTIVE'}::"StoreStatus"
+          AND "id" NOT IN (${Prisma.join(keepIds)})
+      `;
+    };
 
     it('returns a ranked list of stores for an anonymous caller', async () => {
       const owner = await createTestUser();
       const sellerProfile = await createTestSellerProfile(owner.id);
       await createTestStore(sellerProfile.id, { name: 'Anon Trending Store' });
 
-      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store' });
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 24 });
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);
@@ -219,7 +245,7 @@ describe('Recommendations API', () => {
         name: 'Suspended Seller Store',
       });
 
-      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store' });
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 24 });
 
       expect(res.status).toBe(200);
       const ids = res.body.data.map((s: { id: string }) => s.id);
@@ -239,14 +265,15 @@ describe('Recommendations API', () => {
       const staleSellerProfile = await createTestSellerProfile(staleOwner.id);
       const staleStore = await createTestStore(staleSellerProfile.id, { name: 'Stale Store' });
 
-      // Neutralize both stores' baseline freshness, then give only
-      // freshStore a newer signal (its active product's createdAt,
-      // which lands after FIXED_TIME).
+      // Keep only this pair competitive inside the max-24 window: demote
+      // every other ACTIVE store, freeze the pair, then give freshStore a
+      // newer product so GREATEST(updatedAt, max(product.createdAt)) wins.
+      await demoteOtherStores([freshStore.id, staleStore.id]);
       await freezeUpdatedAt(freshStore.id);
       await freezeUpdatedAt(staleStore.id);
       await createTestProduct(freshStore.id, category.id);
 
-      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store' });
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 24 });
 
       expect(res.status).toBe(200);
       const ids = res.body.data.map((s: { id: string }) => s.id);
@@ -269,16 +296,21 @@ describe('Recommendations API', () => {
       // Gaza City coordinates for "near"; a point ~9000km away for "far".
       await prisma.storeDetails.update({
         where: { id: nearStore.id },
-        data: { latitude: 31.5, longitude: 34.45, updatedAt: FIXED_TIME },
+        data: { latitude: 31.5, longitude: 34.45 },
       });
       await prisma.storeDetails.update({
         where: { id: farStore.id },
-        data: { latitude: -33.87, longitude: 151.21, updatedAt: FIXED_TIME },
+        data: { latitude: -33.87, longitude: 151.21 },
       });
+      // Equal freshness so distance is the deciding ORDER BY key, and
+      // demote every other ACTIVE store so this pair is inside limit 24.
+      await demoteOtherStores([nearStore.id, farStore.id]);
+      await freezeUpdatedAt(nearStore.id);
+      await freezeUpdatedAt(farStore.id);
 
       const res = await request(app)
         .get('/api/v1/recommendations')
-        .query({ type: 'store', lat: 31.5, lng: 34.46 });
+        .query({ type: 'store', limit: 24, lat: 31.5, lng: 34.46 });
 
       expect(res.status).toBe(200);
       const ids = res.body.data.map((s: { id: string }) => s.id);
@@ -302,11 +334,15 @@ describe('Recommendations API', () => {
 
       await prisma.storeDetails.update({
         where: { id: featuredStore.id },
-        data: { plan: 'FEATURED', updatedAt: FIXED_TIME },
+        data: { plan: 'FEATURED' },
       });
+      // Equalize freshness so the plan boost is the only ranking delta,
+      // and demote peers so both stay inside the max-24 window.
+      await demoteOtherStores([featuredStore.id, freeStore.id]);
+      await freezeUpdatedAt(featuredStore.id);
       await freezeUpdatedAt(freeStore.id);
 
-      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store' });
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 24 });
 
       expect(res.status).toBe(200);
       const ids = res.body.data.map((s: { id: string }) => s.id);
@@ -327,7 +363,7 @@ describe('Recommendations API', () => {
       await createTestProduct(store.id, category.id);
       await createTestProduct(store.id, category.id);
 
-      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store' });
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 24 });
 
       expect(res.status).toBe(200);
       const ids = res.body.data.map((s: { id: string }) => s.id);

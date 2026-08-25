@@ -12,6 +12,10 @@ jest.mock('../../src/config/prisma', () => ({
 }));
 
 describe('activityBuffer', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
   });

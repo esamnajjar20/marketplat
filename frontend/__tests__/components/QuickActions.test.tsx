@@ -10,18 +10,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QuickActions } from '@/components/profile/QuickActions';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useIsSeller } from '@/hooks/queries/useSellers';
 
 vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(),
+  useIsSeller: vi.fn(() => ({ isSeller: true, isLoaded: true })),
 }));
 
 describe('QuickActions', () => {
   describe('seller (has a SellerProfile)', () => {
     beforeEach(() => {
-      vi.mocked(useMySellerProfile).mockReturnValue({
-        data: { id: 'seller-1' }, isSuccess: true,
-      } as never);
+      vi.mocked(useIsSeller).mockReturnValue({ isSeller: true, isLoaded: true });
     });
 
     it('renders all five quick action links', () => {
@@ -59,9 +58,7 @@ describe('QuickActions', () => {
 
   describe('non-seller (no SellerProfile)', () => {
     beforeEach(() => {
-      vi.mocked(useMySellerProfile).mockReturnValue({
-        data: undefined, isSuccess: true,
-      } as never);
+      vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: true });
     });
 
     it('hides نشر إعلان جديد/إعلاناتي and shows the seller-signup CTA instead', () => {
@@ -91,9 +88,7 @@ describe('QuickActions', () => {
 
   describe('loading (query not yet resolved)', () => {
     it('renders nothing until sellerLoaded resolves, avoiding a flash of the wrong action set', () => {
-      vi.mocked(useMySellerProfile).mockReturnValue({
-        data: undefined, isSuccess: false,
-      } as never);
+      vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: false });
       const { container } = render(<QuickActions />);
 
       expect(container).toBeEmptyDOMElement();

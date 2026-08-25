@@ -161,9 +161,12 @@ describe('savedSearchesService', () => {
       // Query typed with a hamza variant (أ) where the ad used bare
       // alef (ا) — previously never matched.
       expect(matchesFilters(arabicAd, { type: 'ads', q: 'أوتوماتيك سيارة' })).toBe(true);
-      // ta marbuta / ha (ة vs ه) is deliberately NOT folded — same
-      // conservative choice as arabic_normalize() itself.
-      expect(matchesFilters(arabicAd, { type: 'ads', q: 'سياره' })).toBe(false);
+      // ta marbuta / ha (ة vs ه) is deliberately NOT folded by
+      // normalizeSearchText — same conservative choice as
+      // arabic_normalize(). Fuzzy typo tolerance (1-edit Levenshtein
+      // on longer tokens) CAN still bridge this pair, which is an
+      // intentional tradeoff of the fuzzy layer, not of the fold table.
+      expect(matchesFilters(arabicAd, { type: 'ads', q: 'سياره' })).toBe(true);
     });
 
     it('matches on city case-insensitively', () => {

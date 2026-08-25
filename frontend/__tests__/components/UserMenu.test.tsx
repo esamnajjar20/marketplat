@@ -33,10 +33,12 @@ vi.mock('@/hooks/mutations/useAuthMutations', () => ({
 // both hooks directly so UserMenu can render without either dependency.
 vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(() => ({ data: undefined, isSuccess: false })),
+  useIsSeller: vi.fn(() => ({ isSeller: false, isLoaded: true })),
 }));
 
 vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useMyServiceProvider: vi.fn(() => ({ data: undefined, isSuccess: false })),
+  useIsProvider: vi.fn(() => ({ isProvider: false, isLoaded: true })),
 }));
 
 const mockUseAuthStore = vi.mocked(useAuthStore);
@@ -92,10 +94,10 @@ describe('UserMenu', () => {
   });
 
   it('shows إعلاناتي (not the CTA) for a user with a SellerProfile', async () => {
-    const { useMySellerProfile } = await import('@/hooks/queries/useSellers');
-    (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { id: 'seller-1' },
-      isSuccess: true,
+    const { useIsSeller } = await import('@/hooks/queries/useSellers');
+    (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({
+      isSeller: true,
+      isLoaded: true,
     });
     mockState(regularUser);
     render(<UserMenu />);

@@ -16,7 +16,7 @@ jest.mock('../../src/modules/users/users.repository');
 
 const userId = 'user-1';
 const user = { id: userId, email: 'seller@example.com', name: 'Sam Seller', avatarUrl: null };
-const mockProfile = { id: 'seller-profile-1', userId, suspended: false } as any;
+const mockProfile = { id: 'seller-profile-1', userId, suspended: false, verificationStatus: 'UNVERIFIED' } as any;
 
 describe('sellersService — additional coverage', () => {
   beforeEach(() => {
@@ -211,7 +211,7 @@ describe('sellersService — additional coverage', () => {
 
       const result = await sellersService.setVerification('seller-profile-1', true);
       expect(result.verified).toBe(true);
-      expect(sellersRepository.setVerification).toHaveBeenCalledWith('seller-profile-1', true);
+      expect(sellersRepository.setVerification).toHaveBeenCalledWith('seller-profile-1', true, 'UNVERIFIED');
     });
 
     it('unverifies an existing seller profile', async () => {

@@ -6,8 +6,7 @@
  *  - Enter sends, Shift+Enter inserts a newline instead (standard chat
  *    UX, easy to silently break with any onKeyDown refactor)
  *  - Empty/whitespace-only body never sends, on Enter OR button click
- *  - A successful send clears the composer (onSuccess), a pending or
- *    failed one does not
+ *  - A send clears the composer optimistically; onError restores the body
  *  - disabled (blocked-user) renders a static notice instead of the
  *    form at all — sendMessage must never fire in that state
  *  - MAX_LENGTH is enforced by textarea maxLength (browser/jsdom-level,
@@ -73,7 +72,7 @@ describe('MessageInput', () => {
 
     expect(mockMutate).toHaveBeenCalledWith(
       { body: 'مرحباً' },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
+      expect.objectContaining({ onError: expect.any(Function) }),
     );
   });
 
@@ -85,7 +84,7 @@ describe('MessageInput', () => {
 
     expect(mockMutate).toHaveBeenCalledWith(
       { body: 'رسالة سريعة' },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
+      expect.objectContaining({ onError: expect.any(Function) }),
     );
   });
 
@@ -108,19 +107,30 @@ describe('MessageInput', () => {
     expect(mockMutate).not.toHaveBeenCalled();
   });
 
-  it('onSuccess clears the composer', async () => {
+  it('clears the composer immediately on send (optimistic)', async () => {
     const user = setupUser();
     render(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة');
     await user.click(screen.getByLabelText('إرسال'));
 
-    const { onSuccess } = mockMutate.mock.calls[0][1];
+    // Component clears before the network returns; onError restores on failure.
+    expect(getTextarea().value).toBe('');
+  });
+
+  it('restores the body when send fails', async () => {
+    const user = setupUser();
+    render(<MessageInput conversationId="conv-1" />);
+
+    await user.type(getTextarea(), 'رسالة');
+    await user.click(screen.getByLabelText('إرسال'));
+
+    const { onError } = mockMutate.mock.calls[0][1];
     act(() => {
-      onSuccess();
+      onError(new Error('network'));
     });
 
-    expect(getTextarea().value).toBe('');
+    expect(getTextarea().value).toBe('رسالة');
   });
 
   it('does not submit while a send is already pending', async () => {

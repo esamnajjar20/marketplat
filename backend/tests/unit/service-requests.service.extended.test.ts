@@ -33,6 +33,11 @@ describe('serviceRequestsService — additional coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb({}));
+    (serviceRequestsRepository.countTerminalStatsByProviderId as jest.Mock).mockResolvedValue({
+      completed: 0,
+      cancelledOrRejected: 0,
+    });
+    (serviceProvidersRepository.updateStats as jest.Mock).mockResolvedValue({});
   });
 
   describe('getMyRequestsAsCustomer', () => {

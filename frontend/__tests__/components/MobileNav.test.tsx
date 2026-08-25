@@ -14,7 +14,7 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
-import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useMySellerProfile, useIsSeller } from '@/hooks/queries/useSellers';
 
 vi.mock('@/hooks/mutations/useAuthMutations', () => ({
   useLogout: vi.fn(),
@@ -28,6 +28,12 @@ vi.mock('@/hooks/mutations/useAuthMutations', () => ({
 // individual tests override for the no-profile case.
 vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(() => ({ data: { id: 'seller-1' }, isSuccess: true })),
+  useIsSeller: vi.fn(() => ({ isSeller: true, isLoaded: true })),
+}));
+
+vi.mock('@/hooks/queries/useServiceProviders', () => ({
+  useMyServiceProvider: vi.fn(() => ({ data: undefined, isSuccess: false })),
+  useIsProvider: vi.fn(() => ({ isProvider: false, isLoaded: true })),
 }));
 
 const mockLogout = vi.fn();
@@ -39,6 +45,7 @@ describe('MobileNav', () => {
     useAuthStore.getState().logout();
     vi.mocked(useLogout).mockReturnValue({ mutate: mockLogout, isPending: false } as never);
     vi.mocked(useMySellerProfile).mockReturnValue({ data: { id: 'seller-1' }, isSuccess: true } as never);
+    vi.mocked(useIsSeller).mockReturnValue({ isSeller: true, isLoaded: true } as never);
   });
 
   describe('guest (not authenticated)', () => {
@@ -79,6 +86,7 @@ describe('MobileNav', () => {
 
     it('hides إعلاناتي/أضف إعلانك and shows the seller-signup CTA when the user has no SellerProfile', () => {
       vi.mocked(useMySellerProfile).mockReturnValue({ data: undefined, isSuccess: true } as never);
+      vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: true } as never);
       render(<MobileNav />);
       expect(screen.queryByRole('link', { name: 'إعلاناتي' })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'أضف إعلانك' })).not.toBeInTheDocument();
@@ -132,6 +140,7 @@ describe('MobileNav', () => {
     // become-a-store-owner CTA — must stay present for them.
     it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', async () => {
       vi.mocked(useMySellerProfile).mockReturnValue({ data: undefined, isSuccess: true } as never);
+      vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: true } as never);
       const user = setupUser();
       render(<MobileNav />);
       await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
