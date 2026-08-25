@@ -310,9 +310,26 @@ export const env = {
     blacklistStrict: _env.BLACKLIST_STRICT,
   },
   cloudinary: {
-    cloudName: _env.CLOUDINARY_CLOUD_NAME || "",
-    apiKey: _env.CLOUDINARY_API_KEY || "",
-    apiSecret: _env.CLOUDINARY_API_SECRET || "",
+    // .trim() defends against the single most common cause of Cloudinary
+    // "Invalid Signature" 401s: a trailing newline/space picked up when
+    // copy-pasting the secret from the Cloudinary dashboard into Railway's
+    // Variables UI. The value still "looks" set (isConfigured stays true),
+    // but the signature Cloudinary computes server-side won't match ours.
+    cloudName: (_env.CLOUDINARY_CLOUD_NAME || "").trim(),
+    apiKey: (_env.CLOUDINARY_API_KEY || "").trim(),
+    apiSecret: (_env.CLOUDINARY_API_SECRET || "").trim(),
+    // PROD-FIX: all three vars are `.optional()` in the schema above
+    // (so a deploy with none set boots fine), but every upload/avatar/
+    // logo/cover call unconditionally calls cloudinary.config() with
+    // whatever is here. Missing/blank creds don't fail at boot — they
+    // fail on the *first* upload request, with Cloudinary's own error
+    // swallowed into a generic "Image upload failed" (see cloudinary.ts).
+    // This flag lets index.ts fail loudly at startup instead.
+    isConfigured: Boolean(
+      _env.CLOUDINARY_CLOUD_NAME &&
+        _env.CLOUDINARY_API_KEY &&
+        _env.CLOUDINARY_API_SECRET,
+    ),
   },
   // FIX OAUTH-01: same isConfigured pattern as email.isConfigured
   // above — true only once all three vars are present. Consumed by

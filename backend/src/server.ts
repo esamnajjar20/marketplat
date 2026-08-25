@@ -75,6 +75,22 @@ const bootstrap = async (): Promise<void> => {
       );
     }
 
+    // PROD-FIX: CLOUDINARY_* are `.optional()` in env.ts (same class of
+    // gap as SENTRY_DSN above), but unlike Sentry, image upload is core
+    // functionality (ad photos, avatars, store logos/covers) that every
+    // user hits immediately. Missing/blank creds don't fail here — they
+    // fail per-request the first time someone uploads an image, as an
+    // opaque 500. Surface it loudly at boot instead of discovering it
+    // from a pile of "Image upload failed" errors in production.
+    if (!env.cloudinary.isConfigured) {
+      logger.warn(
+        '⚠️  CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET ' +
+        'are not fully set — every image upload (ad photos, avatars, store logos/covers) ' +
+        'will fail at request time. Set all three (see .env.example) before relying on ' +
+        'this deployment for uploads.',
+      );
+    }
+
     checkConnectionCapacity(env.database.url);
     await withRetry('Database (Postgres)', () => prisma.$connect());
     logger.info('✅ Database connected');
