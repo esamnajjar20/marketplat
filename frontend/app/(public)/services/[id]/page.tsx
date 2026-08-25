@@ -7,6 +7,7 @@ import { serviceListingsApi } from '@/api/service-listings.api';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
+import { ServiceRecommendations } from '@/components/recommendations/ServiceRecommendations';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 
@@ -72,6 +73,7 @@ export default async function ServiceListingPage({ params }: Props) {
         listingId={listing.id}
         providerUserId={listing.provider.sellerProfile.userId}
       />
+      <ServiceRecommendations excludeServiceListingId={listing.id} />
     </div>
   );
 }

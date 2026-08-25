@@ -32,14 +32,25 @@ export const queryKeys = {
     myStats: ()                    => ['ads', 'me', 'stats']       as const,
   },
 
-  // ── Recommendations (Gap #9) ──────────────────────────────────
+  // ── Recommendations (Gap #9, generalized PR4B/PR4C) ─────────────
   // Personalized per caller (varies with the Bearer token), so params
   // alone don't fully identify a cache entry the way ads.list's do —
   // that's fine here since the cache is per-browser-session anyway
   // (no shared HTTP cache; see recommendations.routes.ts's CACHE.NONE).
+  // list() keeps its exact original key shape (ads mode, no `type`
+  // segment) so this is not a breaking change for existing callers;
+  // products/services/stores get their own sibling keys with a `type`
+  // segment so an ad rail and a product rail can never collide on the
+  // same cache entry even if both happened to be called with `{}`.
   recommendations: {
     list: (params?: { limit?: number; excludeAdId?: string }) =>
       ['recommendations', params ?? {}] as const,
+    products: (params?: { limit?: number; excludeProductId?: string }) =>
+      ['recommendations', 'product', params ?? {}] as const,
+    services: (params?: { limit?: number; excludeServiceListingId?: string }) =>
+      ['recommendations', 'service', params ?? {}] as const,
+    stores: (params?: { limit?: number; excludeStoreId?: string; lat?: number; lng?: number }) =>
+      ['recommendations', 'store', params ?? {}] as const,
   },
 
   // ── Users ──────────────────────────────────────────────────────

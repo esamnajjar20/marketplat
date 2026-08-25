@@ -40,6 +40,17 @@ vi.mock('@/components/shared/ui/Pagination', () => ({
   ),
 }));
 
+// PR4C: ProductRecommendations has its own full test coverage
+// (__tests__/components/recommendations/ProductRecommendations.test.tsx)
+// — mocked here so this file stays a unit test of StoreProducts's own
+// logic, and so it doesn't need a QueryClientProvider wrapper just to
+// satisfy the real hook underneath the real component.
+vi.mock('@/components/recommendations/ProductRecommendations', () => ({
+  ProductRecommendations: ({ excludeProductId }: { excludeProductId?: string }) => (
+    <div data-testid="product-recommendations">{excludeProductId ?? 'none'}</div>
+  ),
+}));
+
 const mockRefetch = vi.fn();
 const product1 = { id: 'prod-1', name: 'كرسي مكتبي', categoryId: 'cat-1' };
 const product2 = { id: 'prod-2', name: 'طاولة اجتماعات', categoryId: 'cat-2' };
@@ -184,6 +195,31 @@ describe('StoreProducts', () => {
         productId: 'prod-2',
         categoryId: 'cat-2',
       });
+    });
+  });
+
+  // PR4C: the ?product= highlight (same moment PRODUCT_VIEW fires
+  // from, above) is this app's only product-recommendation attachment
+  // point — see ProductRecommendations.tsx's own comment.
+  describe('product recommendations (PR4C)', () => {
+    it('passes no excludeProductId through when no product is highlighted', () => {
+      render(<StoreProducts storeId="store-1" />);
+
+      expect(screen.getByTestId('product-recommendations')).toHaveTextContent('none');
+    });
+
+    it('excludes the highlighted product once it resolves from ?product=', () => {
+      mockSearchParams = new URLSearchParams('product=prod-2');
+      render(<StoreProducts storeId="store-1" />);
+
+      expect(screen.getByTestId('product-recommendations')).toHaveTextContent('prod-2');
+    });
+
+    it('passes no excludeProductId when ?product= matches nothing in the loaded items', () => {
+      mockSearchParams = new URLSearchParams('product=does-not-exist');
+      render(<StoreProducts storeId="store-1" />);
+
+      expect(screen.getByTestId('product-recommendations')).toHaveTextContent('none');
     });
   });
 });

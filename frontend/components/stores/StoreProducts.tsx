@@ -7,6 +7,7 @@ import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
@@ -139,6 +140,14 @@ export function StoreProducts({ storeId }: Props) {
           pageParam="productsPage"
         />
       )}
+
+      {/* PR4C: same "?product=" moment that doubles as the PRODUCT_VIEW
+          tracking point above — the only place a product-recommendation
+          rail can attach given there's no dedicated /products/:id route.
+          ProductRecommendations itself renders nothing when no product
+          is highlighted, so this is a harmless no-op on the plain
+          (unhighlighted) store page view. */}
+      <ProductRecommendations excludeProductId={highlightedProduct?.id} />
     </div>
   );
 }

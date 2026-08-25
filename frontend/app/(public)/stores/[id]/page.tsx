@@ -9,6 +9,7 @@ import { StoreProducts } from '@/components/stores/StoreProducts';
 import { StoreCollections } from '@/components/stores/StoreCollections';
 import { StoreReviewsList } from '@/components/stores/StoreReviewsList';
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
+import { StoreRecommendations } from '@/components/recommendations/StoreRecommendations';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
@@ -106,6 +107,8 @@ export default async function StorePage({ params }: Props) {
           <StoreReviewsList storeId={store.id} />
         </Suspense>
       </section>
+
+      <StoreRecommendations excludeStoreId={store.id} />
     </div>
   );
 }

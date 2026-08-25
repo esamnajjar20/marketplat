@@ -229,6 +229,10 @@ describe('all queryKey factories return arrays', () => {
     queryKeys.admin.users(),
     queryKeys.admin.reports(),
     queryKeys.admin.reportDetail('x'),
+    queryKeys.recommendations.list(),
+    queryKeys.recommendations.products(),
+    queryKeys.recommendations.services(),
+    queryKeys.recommendations.stores(),
   ];
 
   allKeys.forEach((key, i) => {
@@ -239,5 +243,43 @@ describe('all queryKey factories return arrays', () => {
     it(`key[${i}] has length >= 1`, () => {
       expect(key.length).toBeGreaterThanOrEqual(1);
     });
+  });
+});
+
+// ── Recommendations (PR4C — product/service/store keys) ────────────
+
+describe('queryKeys.recommendations', () => {
+  it('list() (ads) keeps its original two-segment shape — no type segment', () => {
+    expect(queryKeys.recommendations.list()).toEqual(['recommendations', {}]);
+    expect(queryKeys.recommendations.list({ excludeAdId: 'ad-1' })).toEqual([
+      'recommendations',
+      { excludeAdId: 'ad-1' },
+    ]);
+  });
+
+  it('products()/services()/stores() each get their own type segment', () => {
+    expect(queryKeys.recommendations.products()).toEqual(['recommendations', 'product', {}]);
+    expect(queryKeys.recommendations.services()).toEqual(['recommendations', 'service', {}]);
+    expect(queryKeys.recommendations.stores()).toEqual(['recommendations', 'store', {}]);
+  });
+
+  it('an ad key and a product key with the same params never collide', () => {
+    const adKey = JSON.stringify(queryKeys.recommendations.list({ limit: 8 }));
+    const productKey = JSON.stringify(
+      queryKeys.recommendations.products({ limit: 8 } as never)
+    );
+    expect(adKey).not.toBe(productKey);
+  });
+
+  it('stores() includes lat/lng/excludeStoreId when provided', () => {
+    expect(
+      queryKeys.recommendations.stores({ limit: 6, excludeStoreId: 'store-1', lat: 31.5, lng: 34.4 })
+    ).toEqual(['recommendations', 'store', { limit: 6, excludeStoreId: 'store-1', lat: 31.5, lng: 34.4 }]);
+  });
+
+  it('different excludeProductId values produce different product keys', () => {
+    const a = JSON.stringify(queryKeys.recommendations.products({ excludeProductId: 'p1' }));
+    const b = JSON.stringify(queryKeys.recommendations.products({ excludeProductId: 'p2' }));
+    expect(a).not.toBe(b);
   });
 });
