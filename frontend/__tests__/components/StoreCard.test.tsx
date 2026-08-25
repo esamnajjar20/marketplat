@@ -10,12 +10,22 @@
  *  - shows the rating only when totalRatings > 0 (a store with zero
  *    ratings must not show "0.0 (0)")
  *  - falls back to a placeholder image when logoUrl is null (no crash)
+ *
+ *  FEAT-FAVORITE-POLYMORPHIC PR3: StoreCard now also renders a
+ *  FavoriteButton (STORE entity — separate from StoreFollower). Mocked
+ *  out (own behavior covered by FavoriteButton.test.tsx/
+ *  useFavorites.test.tsx) so these tests don't need a
+ *  QueryClientProvider wrapper.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { StoreCard } from '@/components/stores/StoreCard';
 import { ROUTES } from '@/lib/constants';
 import type { StoreWithSeller } from '@/types/store.types';
+
+vi.mock('@/components/shared/FavoriteButton', () => ({
+  FavoriteButton: () => <div data-testid="favorite-button" />,
+}));
 
 const baseStore: StoreWithSeller = {
   id: 'store-1',

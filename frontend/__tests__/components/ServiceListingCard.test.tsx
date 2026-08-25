@@ -13,11 +13,20 @@
  *  - Verified badge shown only when sellerProfile.verified is true
  *  - Falls back to placeholder image when no images present
  *  - Applies additional className when provided
+ *
+ *  FEAT-FAVORITE-POLYMORPHIC PR3: ServiceListingCard now also renders
+ *  a FavoriteButton. Mocked out (own behavior covered by
+ *  FavoriteButton.test.tsx/useFavorites.test.tsx) so these tests
+ *  don't need a QueryClientProvider wrapper.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import type { ServiceListingWithProvider, ServiceAvailability, ServicePricingType } from '@/types/service.types';
+
+vi.mock('@/components/shared/FavoriteButton', () => ({
+  FavoriteButton: () => <div data-testid="favorite-button" />,
+}));
 
 function makeListing(overrides: Partial<ServiceListingWithProvider> = {}): ServiceListingWithProvider {
   return {

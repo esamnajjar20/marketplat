@@ -28,6 +28,7 @@ import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
 import { CACHE_TTL }    from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import type { FavoriteEntityKind } from '@/types/favorite.types';
 
 /** GET /favorites — paginated list of the user's favorited ads */
 export function useFavorites(params?: { page?: number; limit?: number }) {
@@ -174,6 +175,135 @@ export function useIsFavorited(adId: string): boolean {
 
     return unsubscribe;
   }, [adId, isAuthenticated, queryClient]);
+
+  return isFavorited;
+}
+
+/**
+ * FEAT-FAVORITE-POLYMORPHIC PR3: generic counterpart of useFavorites()
+ * above, for GET /favorites?type=product|store|service. Same
+ * page-1-only-fetch / merge-into-a-shared-Set shape as useFavorites,
+ * but keyed per entity type (queryKeys.favorites.entityIds(type))
+ * instead of the single AD-only ids() Set, so a product id and a
+ * store id can never collide.
+ */
+export function useFavoritesByType<T>(
+  type: FavoriteEntityKind,
+  params?: { page?: number; limit?: number },
+) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const queryClient     = useQueryClient();
+
+  const query = useQuery({
+    queryKey: queryKeys.favorites.entityList(type, params),
+    queryFn:  () => favoritesApi.getAllByType<T>(type, params).then((r) => r.data.data),
+    staleTime: CACHE_TTL.favorites,
+    enabled:   isAuthenticated,
+  });
+
+  useEffect(() => {
+    const data = query.data;
+    if (!data) return;
+
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds(type), (prev) => {
+      const idSet = new Set(prev ?? []);
+      data.items.forEach((fav) => idSet.add(fav.entityId));
+      return idSet;
+    });
+  }, [query.data, queryClient, type]);
+
+  return query;
+}
+
+/**
+ * Seeds the shared entityIds(type) Set with a single entity's status
+ * via GET /favorites/:segment/:entityId/check — generic counterpart of
+ * useFavoriteCheck() above, used by single-entity views (e.g.
+ * StoreHeader, ServiceListingDetail) instead of paging through the
+ * whole per-type favorites list just to check one entity.
+ *
+ * `enabled` lets a caller that only wants the reactive Set-based
+ * useIsEntityFavorited() below (card grids — one request per visible
+ * card would be a real regression) skip the network call entirely by
+ * passing false, while still calling this hook unconditionally
+ * (rules-of-hooks — see FavoriteButton.tsx).
+ */
+export function useFavoriteEntityCheck(
+  type: FavoriteEntityKind,
+  entityId: string,
+  enabled: boolean = true,
+) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const queryClient     = useQueryClient();
+
+  const query = useQuery({
+    queryKey: queryKeys.favorites.entityCheck(type, entityId),
+    queryFn:  () => favoritesApi.checkEntity(type, entityId),
+    staleTime: CACHE_TTL.favorites,
+    enabled:   isAuthenticated && Boolean(entityId) && enabled,
+  });
+
+  useEffect(() => {
+    if (query.data === undefined) return;
+    if (!query.data) return; // false: nothing to add, don't clobber a concurrent optimistic add.
+
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds(type), (prev) => {
+      const idSet = new Set(prev ?? []);
+      idSet.add(entityId);
+      return idSet;
+    });
+  }, [query.data, type, entityId, queryClient]);
+
+  return query;
+}
+
+/**
+ * Direct accessor for a type's favorited-entity IDs Set from cache.
+ * Non-reactive — use useIsEntityFavorited() for reactive per-entity checks.
+ */
+export function getFavoriteEntityIdsSnapshot(
+  queryClient: ReturnType<typeof useQueryClient>,
+  type: FavoriteEntityKind,
+): Set<string> {
+  return queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds(type)) ?? new Set();
+}
+
+/**
+ * Generic counterpart of useIsFavorited() above, for
+ * products/stores/service listings. Subscribes to
+ * entityIds(type)'s cache entry the same way useIsFavorited
+ * subscribes to ids() — does NOT create a second query with the same
+ * key. Returns `false` for a logged-out user or before the Set has
+ * been populated, same "no special-cased loading state for a heart
+ * icon" contract as useIsFavorited.
+ */
+export function useIsEntityFavorited(type: FavoriteEntityKind, entityId: string): boolean {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const queryClient = useQueryClient();
+
+  const [isFavorited, setIsFavorited] = useState<boolean>(() =>
+    getFavoriteEntityIdsSnapshot(queryClient, type).has(entityId),
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsFavorited(false);
+      return;
+    }
+
+    setIsFavorited(getFavoriteEntityIdsSnapshot(queryClient, type).has(entityId));
+
+    const cache = queryClient.getQueryCache();
+    const unsubscribe = cache.subscribe((event) => {
+      const key = event.query.queryKey;
+      const idsKey = queryKeys.favorites.entityIds(type);
+      if (key.length !== idsKey.length || key.some((k: unknown, i: number) => k !== idsKey[i])) return;
+
+      setIsFavorited(getFavoriteEntityIdsSnapshot(queryClient, type).has(entityId));
+    });
+
+    return unsubscribe;
+  }, [type, entityId, isAuthenticated, queryClient]);
 
   return isFavorited;
 }

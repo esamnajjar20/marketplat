@@ -16,6 +16,7 @@
  */
 
 import type { AdSearchParams, AdSearchQuery } from '@/types/ad.types';
+import type { FavoriteEntityKind } from '@/types/favorite.types';
 import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, AdminGetFlaggedAdsParams, AdminGetFraudSignalsParams } from '@/types/admin.types';
 
 export const queryKeys = {
@@ -237,6 +238,19 @@ export const queryKeys = {
      * whole favorites list just to check one ad.
      */
     check: (adId: string)    => ['favorites', 'check', adId]        as const,
+
+    // FEAT-FAVORITE-POLYMORPHIC PR3: generic counterparts of
+    // all()/ids()/check() above, for products/stores/service
+    // listings. Kept as separate keys (not folded into the AD ones)
+    // since they're backed by a different wire shape and — for
+    // ids()/check() — a different cache Set per entity type, so a
+    // product and a store can never collide on the same id.
+    entityList:  (type: FavoriteEntityKind, params?: object) =>
+      ['favorites', 'entity-list', type, params ?? {}] as const,
+    entityIds:   (type: FavoriteEntityKind) =>
+      ['favorites', 'entity-ids', type]               as const,
+    entityCheck: (type: FavoriteEntityKind, entityId: string) =>
+      ['favorites', 'entity-check', type, entityId]   as const,
   },
 
   // ── Saved Searches ─────────────────────────────────────────────

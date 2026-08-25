@@ -152,6 +152,31 @@ describe('favoritesApi', () => {
     await favoritesApi.check('ad-1');
     expect(apiClient.get).toHaveBeenCalledWith('/favorites/ad-1/check', undefined);
   });
+
+  // FEAT-FAVORITE-POLYMORPHIC PR3: the generic entity routes actually
+  // implemented by PR2 — plural lowercase URL segment
+  // (products/stores/services), singular lowercase `type` query value
+  // (product/store/service). Guards against the segment/query-value
+  // casing being swapped or a route being typo'd for one entity type
+  // but not the others.
+  it.each([
+    ['PRODUCT', 'products', 'product'],
+    ['STORE', 'stores', 'store'],
+    ['SERVICE_LISTING', 'services', 'service'],
+  ] as const)('%s → segment /favorites/%s, query type=%s', async (kind, segment, queryType) => {
+    vi.clearAllMocks();
+    (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true, data: null } });
+    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true, data: null } });
+
+    await favoritesApi.toggleEntity(kind, 'entity-1');
+    expect(apiClient.post).toHaveBeenCalledWith(`/favorites/${segment}/entity-1`);
+
+    await favoritesApi.checkEntity(kind, 'entity-1');
+    expect(apiClient.get).toHaveBeenCalledWith(`/favorites/${segment}/entity-1/check`, undefined);
+
+    await favoritesApi.getAllByType(kind, { page: 1 });
+    expect(apiClient.get).toHaveBeenCalledWith('/favorites', { params: { page: 1, type: queryType } });
+  });
 });
 
 describe('reportsApi', () => {

@@ -18,12 +18,22 @@
  *    wholesaleMinQty are present (a partial pair must not render half
  *    a sentence)
  *  - falls back to a placeholder image when the product has no images
+ *
+ *  FEAT-FAVORITE-POLYMORPHIC PR3: ProductCard now also renders a
+ *  FavoriteButton. Mocked out (own behavior covered by
+ *  FavoriteButton.test.tsx/useFavorites.test.tsx) so these tests stay
+ *  focused on ProductCard's own rendering logic and don't need a
+ *  QueryClientProvider wrapper.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { formatPrice } from '@/lib/formatters';
 import type { ProductWithStore, EffectivePrice } from '@/types/product.types';
+
+vi.mock('@/components/shared/FavoriteButton', () => ({
+  FavoriteButton: () => <div data-testid="favorite-button" />,
+}));
 
 const noDiscount: EffectivePrice = {
   price: 150,

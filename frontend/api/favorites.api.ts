@@ -26,12 +26,22 @@
  * FIX API-SHAPE-01: getAll now also unwraps the backend's real response
  *   shape (data: FavoriteRecord[] directly, meta.pagination for paging)
  *   via unwrapPaginated — see lib/apiPagination.ts.
+ *
+ * FEAT-FAVORITE-POLYMORPHIC PR3: getAllByType/toggleEntity/checkEntity
+ *   below are the generic counterparts of getAll/toggle/check, backed
+ *   by PR2's /favorites/:entityType/:entityId routes. They're
+ *   additions, not replacements — getAll/toggle/check keep calling the
+ *   legacy AD-only routes exactly as before, so every existing AD
+ *   consumer (FavoritesList.tsx, AdCard.tsx, useFavorites.ts) is
+ *   untouched.
  */
 import type { AxiosRequestConfig } from 'axios';
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { AdListItem } from '@/types/ad.types';
 import type { ApiResponse } from '@/types/api.types';
+import type { FavoriteEntityKind, FavoriteEntityRecord } from '@/types/favorite.types';
+import { FAVORITE_ROUTE_SEGMENT, FAVORITE_QUERY_TYPE } from '@/types/favorite.types';
 
 /**
  * FIX T-06: Backend favorites.service.ts returns { action: 'added' | 'removed' }.
@@ -84,5 +94,48 @@ export const favoritesApi = {
   check: (adId: string, config?: AxiosRequestConfig) =>
     apiClient
       .get<ApiResponse<{ isFavorited: boolean }>>(`/favorites/${adId}/check`, config)
+      .then((r) => r.data.data?.isFavorited ?? false),
+
+  /**
+   * GET /favorites?type=product|store|service — paginated list of
+   * favorited entities of one type. See favorites.validation.ts's
+   * getFavoritesSchema comment: there is no "all types mixed
+   * together" option, so a caller wanting more than one type makes
+   * one call per type.
+   */
+  getAllByType: <T>(
+    type: FavoriteEntityKind,
+    params?: { page?: number; limit?: number },
+    config?: AxiosRequestConfig
+  ) =>
+    apiClient
+      .get<ApiResponse<FavoriteEntityRecord<T>[]>>('/favorites', {
+        ...config,
+        params: { ...params, type: FAVORITE_QUERY_TYPE[type] },
+      })
+      .then((r) => unwrapPaginated<FavoriteEntityRecord<T>>(r)),
+
+  /**
+   * POST /favorites/:segment/:entityId — toggle favorite state for a
+   * product/store/service listing. Same { action } response shape as
+   * the legacy toggle() above (favorites.service.ts's performToggle
+   * is shared for both).
+   */
+  toggleEntity: (type: FavoriteEntityKind, entityId: string) =>
+    apiClient.post<ApiResponse<FavoriteToggleResponse>>(
+      `/favorites/${FAVORITE_ROUTE_SEGMENT[type]}/${entityId}`
+    ),
+
+  /**
+   * GET /favorites/:segment/:entityId/check — is this one
+   * product/store/service listing favorited by the current user?
+   * Generic counterpart of check() above.
+   */
+  checkEntity: (type: FavoriteEntityKind, entityId: string, config?: AxiosRequestConfig) =>
+    apiClient
+      .get<ApiResponse<{ isFavorited: boolean }>>(
+        `/favorites/${FAVORITE_ROUTE_SEGMENT[type]}/${entityId}/check`,
+        config
+      )
       .then((r) => r.data.data?.isFavorited ?? false),
 };

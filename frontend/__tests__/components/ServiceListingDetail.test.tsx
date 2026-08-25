@@ -14,12 +14,21 @@
  *  - Image gallery caps at 4 images, falls back to placeholder when empty
  *  - Provider link: href, businessName, verified badge gated on
  *    sellerProfile.verified
+ *
+ *  FEAT-FAVORITE-POLYMORPHIC PR3: ServiceListingDetail now also
+ *  renders a FavoriteButton (warm=true). Mocked out (own behavior
+ *  covered by FavoriteButton.test.tsx/useFavorites.test.tsx) so these
+ *  tests don't need a QueryClientProvider wrapper.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { formatRelativeTime } from '@/lib/formatters';
 import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';
+
+vi.mock('@/components/shared/FavoriteButton', () => ({
+  FavoriteButton: () => <div data-testid="favorite-button" />,
+}));
 
 function makeListing(overrides: Partial<ServiceListingWithProvider> = {}): ServiceListingWithProvider {
   return {

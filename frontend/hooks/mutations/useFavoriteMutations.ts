@@ -15,6 +15,7 @@ import { favoritesApi }  from '@/api/favorites.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
+import type { FavoriteEntityKind } from '@/types/favorite.types';
 
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
@@ -55,6 +56,58 @@ export function useToggleFavorite() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
+    },
+  });
+}
+
+/**
+ * FEAT-FAVORITE-POLYMORPHIC PR3: generic counterpart of
+ * useToggleFavorite() above, for products/stores/service listings.
+ * Returns a factory-built mutation scoped to one entity type — same
+ * optimistic Set toggle/rollback shape as useToggleFavorite, but
+ * reading/writing entityIds(type) instead of the AD-only ids() Set,
+ * and invalidating only that type's own queries on settle (this
+ * type's entity list + entity check) rather than the whole
+ * ['favorites'] prefix — toggling a favorited product has no reason
+ * to refetch the user's favorited ads or stores.
+ */
+export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (entityId: string) =>
+      favoritesApi.toggleEntity(type, entityId).then((r) => r.data.data),
+
+    onMutate: async (entityId: string) => {
+      const previousIds = queryClient.getQueryData<Set<string>>(
+        queryKeys.favorites.entityIds(type),
+      );
+
+      queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds(type), (old) => {
+        const next = new Set(old ?? []);
+        if (next.has(entityId)) {
+          next.delete(entityId);
+        } else {
+          next.add(entityId);
+        }
+        return next;
+      });
+
+      await queryClient.cancelQueries({ queryKey: ['favorites', 'entity-list', type] });
+
+      return { previousIds };
+    },
+
+    onError: (err, _entityId, context) => {
+      if (context?.previousIds !== undefined) {
+        queryClient.setQueryData(queryKeys.favorites.entityIds(type), context.previousIds);
+      }
+      toast.error(parseApiError(err).message);
+    },
+
+    onSettled: (_data, _err, entityId) => {
+      queryClient.invalidateQueries({ queryKey: ['favorites', 'entity-list', type] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityCheck(type, entityId) });
     },
   });
 }

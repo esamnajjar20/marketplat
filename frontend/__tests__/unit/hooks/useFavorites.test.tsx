@@ -38,8 +38,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useFavorites, useIsFavorited, getFavoriteIdsSnapshot } from '@/hooks/queries/useFavorites';
-import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
+import {
+  useFavorites, useIsFavorited, getFavoriteIdsSnapshot,
+  useFavoritesByType, useFavoriteEntityCheck, useIsEntityFavorited, getFavoriteEntityIdsSnapshot,
+} from '@/hooks/queries/useFavorites';
+import { useToggleFavorite, useToggleFavoriteEntity } from '@/hooks/mutations/useFavoriteMutations';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth.store';
@@ -49,6 +52,10 @@ vi.mock('@/api/favorites.api', () => ({
   favoritesApi: {
     getAll: vi.fn(),
     toggle: vi.fn(),
+    check: vi.fn(),
+    getAllByType: vi.fn(),
+    toggleEntity: vi.fn(),
+    checkEntity: vi.fn(),
   },
 }));
 
@@ -321,5 +328,248 @@ describe('getFavoriteIdsSnapshot', () => {
     const queryClient = makeSharedClient();
     queryClient.setQueryData(queryKeys.favorites.ids(), new Set(['ad-7']));
     expect(getFavoriteIdsSnapshot(queryClient)).toEqual(new Set(['ad-7']));
+  });
+});
+
+/**
+ * FEAT-FAVORITE-POLYMORPHIC PR3: generic counterparts of the AD-only
+ * hooks above, for PRODUCT/STORE/SERVICE_LISTING. Same shared-Set /
+ * optimistic-toggle / cache-subscription contract, but keyed per
+ * entity type (queryKeys.favorites.entityIds(type)) — every test here
+ * also asserts a second, differently-typed Set is left untouched, to
+ * guard the one thing that's actually new versus the AD hooks: a
+ * product id and a store id must never collide or cross-pollinate.
+ */
+function makeFavoriteEntityRecord(entityType: 'PRODUCT' | 'STORE' | 'SERVICE_LISTING', entityId: string) {
+  return {
+    id: `fav-entity-${entityId}`,
+    userId: 'user-1',
+    entityType,
+    entityId,
+    createdAt: new Date().toISOString(),
+    entity: { id: entityId, name: `Entity ${entityId}` },
+  };
+}
+
+describe('useFavoritesByType', () => {
+  it('populates entityIds(type) with a Set<string> built from each record\'s entityId', async () => {
+    (favoritesApi.getAllByType as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { items: [makeFavoriteEntityRecord('PRODUCT', 'prod-1'), makeFavoriteEntityRecord('PRODUCT', 'prod-2')], meta: {} } },
+    });
+    const queryClient = makeSharedClient();
+
+    renderHook(() => useFavoritesByType('PRODUCT'), { wrapper: wrapperFor(queryClient) });
+
+    await waitFor(() => {
+      const ids = queryClient.getQueryData(queryKeys.favorites.entityIds('PRODUCT'));
+      expect(ids).toBeInstanceOf(Set);
+    });
+
+    const ids = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('PRODUCT'));
+    expect(ids!.has('prod-1')).toBe(true);
+    expect(ids!.has('prod-2')).toBe(true);
+  });
+
+  it('keeps PRODUCT and STORE entityIds Sets fully separate, even with the same id value', async () => {
+    (favoritesApi.getAllByType as ReturnType<typeof vi.fn>).mockImplementation((type: string) =>
+      Promise.resolve({
+        data: { data: { items: [makeFavoriteEntityRecord(type as 'PRODUCT' | 'STORE', 'shared-id')], meta: {} } },
+      }),
+    );
+    const queryClient = makeSharedClient();
+
+    renderHook(() => useFavoritesByType('PRODUCT'), { wrapper: wrapperFor(queryClient) });
+    await waitFor(() => {
+      expect(queryClient.getQueryData(queryKeys.favorites.entityIds('PRODUCT'))).toBeInstanceOf(Set);
+    });
+
+    // STORE's Set must not exist yet — only PRODUCT was fetched.
+    expect(queryClient.getQueryData(queryKeys.favorites.entityIds('STORE'))).toBeUndefined();
+  });
+
+  it('does not fetch when the user is not authenticated', () => {
+    useAuthStore.getState().logout();
+    const queryClient = makeSharedClient();
+
+    renderHook(() => useFavoritesByType('STORE'), { wrapper: wrapperFor(queryClient) });
+
+    expect(favoritesApi.getAllByType).not.toHaveBeenCalled();
+  });
+});
+
+describe('useFavoriteEntityCheck', () => {
+  it('adds the entityId to entityIds(type) when the check returns true', async () => {
+    (favoritesApi.checkEntity as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+    const queryClient = makeSharedClient();
+
+    renderHook(() => useFavoriteEntityCheck('SERVICE_LISTING', 'svc-1'), { wrapper: wrapperFor(queryClient) });
+
+    await waitFor(() => {
+      const ids = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('SERVICE_LISTING'));
+      expect(ids?.has('svc-1')).toBe(true);
+    });
+  });
+
+  it('does not touch the Set when the check returns false', async () => {
+    (favoritesApi.checkEntity as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('SERVICE_LISTING'), new Set(['other-svc']));
+
+    const { result } = renderHook(() => useFavoriteEntityCheck('SERVICE_LISTING', 'svc-1'), { wrapper: wrapperFor(queryClient) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const ids = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('SERVICE_LISTING'));
+    expect(ids!.has('svc-1')).toBe(false);
+    expect(ids!.has('other-svc')).toBe(true); // untouched
+  });
+
+  it('skips the network call when enabled=false, but the hook can still be called unconditionally (rules of hooks)', () => {
+    const queryClient = makeSharedClient();
+    renderHook(() => useFavoriteEntityCheck('PRODUCT', 'prod-1', false), { wrapper: wrapperFor(queryClient) });
+    expect(favoritesApi.checkEntity).not.toHaveBeenCalled();
+  });
+});
+
+describe('useIsEntityFavorited', () => {
+  it('returns false before any data has loaded', () => {
+    const queryClient = makeSharedClient();
+    const { result } = renderHook(() => useIsEntityFavorited('STORE', 'store-1'), { wrapper: wrapperFor(queryClient) });
+    expect(result.current).toBe(false);
+  });
+
+  it('returns true once entityIds(type) contains the given id', () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('STORE'), new Set(['store-1']));
+
+    const { result } = renderHook(() => useIsEntityFavorited('STORE', 'store-1'), { wrapper: wrapperFor(queryClient) });
+    expect(result.current).toBe(true);
+  });
+
+  it('does not cross-read a different entity type\'s Set with the same id', () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('PRODUCT'), new Set(['shared-id']));
+
+    const { result } = renderHook(() => useIsEntityFavorited('STORE', 'shared-id'), { wrapper: wrapperFor(queryClient) });
+    expect(result.current).toBe(false);
+  });
+
+  it('reacts when a toggle elsewhere updates the shared cache', async () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('SERVICE_LISTING'), new Set<string>());
+
+    const { result } = renderHook(() => useIsEntityFavorited('SERVICE_LISTING', 'svc-5'), { wrapper: wrapperFor(queryClient) });
+    expect(result.current).toBe(false);
+
+    act(() => {
+      queryClient.setQueryData<Set<string>>(
+        queryKeys.favorites.entityIds('SERVICE_LISTING'),
+        (old) => new Set([...(old ?? []), 'svc-5']),
+      );
+    });
+
+    await waitFor(() => expect(result.current).toBe(true));
+  });
+
+  it('returns false for a logged-out user even if a populated Set exists', () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('PRODUCT'), new Set(['prod-1']));
+    useAuthStore.getState().logout();
+
+    const { result } = renderHook(() => useIsEntityFavorited('PRODUCT', 'prod-1'), { wrapper: wrapperFor(queryClient) });
+    expect(result.current).toBe(false);
+  });
+});
+
+describe('getFavoriteEntityIdsSnapshot', () => {
+  it('returns an empty Set when nothing has been cached yet', () => {
+    const queryClient = makeSharedClient();
+    expect(getFavoriteEntityIdsSnapshot(queryClient, 'STORE')).toEqual(new Set());
+  });
+
+  it('returns the cached Set for that type only', () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('STORE'), new Set(['store-7']));
+    queryClient.setQueryData(queryKeys.favorites.entityIds('PRODUCT'), new Set(['store-7'])); // same id, different type
+    expect(getFavoriteEntityIdsSnapshot(queryClient, 'STORE')).toEqual(new Set(['store-7']));
+  });
+});
+
+describe('useToggleFavoriteEntity', () => {
+  it('adds the entityId to entityIds(type) when toggling a not-yet-favorited entity', async () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('PRODUCT'), new Set(['prod-1']));
+    (favoritesApi.toggleEntity as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { action: 'added' } },
+    });
+
+    const { result } = renderHook(() => useToggleFavoriteEntity('PRODUCT'), { wrapper: wrapperFor(queryClient) });
+    act(() => { result.current.mutate('prod-2'); });
+
+    const idsDuringFlight = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('PRODUCT'));
+    expect(idsDuringFlight!.has('prod-2')).toBe(true);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(favoritesApi.toggleEntity).toHaveBeenCalledWith('PRODUCT', 'prod-2');
+  });
+
+  it('removes the entityId from entityIds(type) when toggling an already-favorited entity', async () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('STORE'), new Set(['store-1', 'store-2']));
+    (favoritesApi.toggleEntity as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { action: 'removed' } },
+    });
+
+    const { result } = renderHook(() => useToggleFavoriteEntity('STORE'), { wrapper: wrapperFor(queryClient) });
+    act(() => { result.current.mutate('store-1'); });
+
+    const idsDuringFlight = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('STORE'));
+    expect(idsDuringFlight!.has('store-1')).toBe(false);
+    expect(idsDuringFlight!.has('store-2')).toBe(true); // untouched
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  it('rolls back to the previous Set when the request fails', async () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('SERVICE_LISTING'), new Set(['svc-1']));
+    (favoritesApi.toggleEntity as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+
+    const { result } = renderHook(() => useToggleFavoriteEntity('SERVICE_LISTING'), { wrapper: wrapperFor(queryClient) });
+    act(() => { result.current.mutate('svc-2'); });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    const idsAfterRollback = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('SERVICE_LISTING'));
+    expect(idsAfterRollback!.has('svc-2')).toBe(false);
+    expect(idsAfterRollback!.has('svc-1')).toBe(true);
+    expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('does not throw when toggling with no prior data in the cache at all', async () => {
+    const queryClient = makeSharedClient();
+    (favoritesApi.toggleEntity as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { action: 'added' } },
+    });
+
+    const { result } = renderHook(() => useToggleFavoriteEntity('PRODUCT'), { wrapper: wrapperFor(queryClient) });
+    expect(() => act(() => { result.current.mutate('prod-1'); })).not.toThrow();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  it('toggling one entity type does not invalidate or touch another type\'s Set', async () => {
+    const queryClient = makeSharedClient();
+    queryClient.setQueryData(queryKeys.favorites.entityIds('PRODUCT'), new Set(['prod-1']));
+    queryClient.setQueryData(queryKeys.favorites.entityIds('STORE'), new Set(['store-1']));
+    (favoritesApi.toggleEntity as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { action: 'added' } },
+    });
+
+    const { result } = renderHook(() => useToggleFavoriteEntity('PRODUCT'), { wrapper: wrapperFor(queryClient) });
+    act(() => { result.current.mutate('prod-2'); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const storeIds = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('STORE'));
+    expect(storeIds).toEqual(new Set(['store-1'])); // untouched by a PRODUCT toggle
   });
 });

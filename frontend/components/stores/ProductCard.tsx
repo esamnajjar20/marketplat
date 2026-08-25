@@ -4,6 +4,7 @@ import { PackageX, Clock3 } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { ProductAvailability, ProductWithStore } from '@/types/product.types';
 
 interface Props {
@@ -39,13 +40,14 @@ export function ProductCard({ product, storeId, className }: Props) {
   const hasDiscount = discountPrice !== null;
 
   return (
-    <Link
-      href={`/stores/${storeId}?product=${product.id}`}
-      className={cn(
-        'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
-        className
-      )}
-    >
+    <div className="relative">
+      <Link
+        href={`/stores/${storeId}?product=${product.id}`}
+        className={cn(
+          'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+          className
+        )}
+      >
       <div className="relative aspect-square overflow-hidden bg-muted">
         <SafeImage
           src={thumb}
@@ -97,6 +99,19 @@ export function ProductCard({ product, storeId, className }: Props) {
           </p>
         )}
       </div>
-    </Link>
+      </Link>
+
+      {/* Sibling of <Link>, not nested inside it — same reasoning as
+          AdCard.tsx's FIX P1-1 (a <button> inside an <a> is invalid
+          HTML / a hydration & a11y risk). Offset down from the
+          image's top-end corner (top-2 end-2 is already the
+          availability badge's slot when out-of-stock/limited). */}
+      <FavoriteButton
+        entityType="PRODUCT"
+        entityId={product.id}
+        size="sm"
+        className="absolute top-11 end-2"
+      />
+    </div>
   );
 }

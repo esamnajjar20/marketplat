@@ -13,6 +13,7 @@ import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.st
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
+import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ROUTES } from '@/lib/constants';
 import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 
@@ -70,6 +71,16 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
       {/* Cover + overlapping avatar */}
       <div className="relative w-full h-48 bg-muted flex items-end justify-center sm:rounded-b-xl overflow-hidden shadow-sm">
         {cover && <SafeImage src={cover} alt="" fill className="object-cover opacity-90" sizes="100vw" priority />}
+        {/* STORE Favorite — distinct entity from StoreFollower (the
+            "متابعة" button below); both stay independently available.
+            warm=true: this is the single-store detail view, same
+            reasoning as AdDetailSection's useFavoriteCheck(id). */}
+        <FavoriteButton
+          entityType="STORE"
+          entityId={store.id}
+          warm
+          className="absolute top-3 end-3 z-10"
+        />
         <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex justify-center w-full">
           <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
             <div className="relative w-full h-full rounded-full overflow-hidden">

@@ -35,6 +35,13 @@ vi.mock('@/components/stores/ReportStoreButton', () => ({
   ReportStoreButton: () => <div data-testid="report-store-button" />,
 }));
 
+// FEAT-FAVORITE-POLYMORPHIC PR3: StoreHeader now also renders a
+// FavoriteButton (STORE entity, warm=true — distinct from the follow
+// button above). Own behavior covered by FavoriteButton.test.tsx.
+vi.mock('@/components/shared/FavoriteButton', () => ({
+  FavoriteButton: () => <div data-testid="favorite-button" />,
+}));
+
 const mockToggleMutate = vi.fn();
 
 const store: StoreWithSellerAndCounts = {

@@ -5,6 +5,7 @@ import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { ServiceListingWithProvider, ServiceAvailability, ServicePricingType } from '@/types/service.types';
 
 interface Props {
@@ -44,6 +45,7 @@ export function ServiceListingCard({ listing, className }: Props) {
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
 
   return (
+    <div className="relative">
     <Link
       href={ROUTES.serviceDetail(listing.id)}
       className={cn(
@@ -78,5 +80,16 @@ export function ServiceListingCard({ listing, className }: Props) {
         </div>
       </div>
     </Link>
+
+      {/* Sibling of <Link>, not nested inside it — same reasoning as
+          AdCard.tsx's FIX P1-1. Offset down from top-end since that
+          slot is already the availability pill above. */}
+      <FavoriteButton
+        entityType="SERVICE_LISTING"
+        entityId={listing.id}
+        size="sm"
+        className="absolute top-11 end-2"
+      />
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { BadgeCheck, Star, MapPin, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { StoreWithSeller } from '@/types/store.types';
 
 interface Props {
@@ -17,10 +18,11 @@ export function StoreCard({ store, className }: Props) {
   const rating = parseFloat(store.sellerProfile.averageRating);
 
   return (
+    <div className="relative">
     <Link
       href={ROUTES.storeDetail(store.id)}
       className={cn(
-        'group flex gap-3 rounded-xl border bg-card p-3 transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+        'group flex gap-3 rounded-xl border bg-card p-3 pe-11 transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
         className
       )}
     >
@@ -57,5 +59,17 @@ export function StoreCard({ store, className }: Props) {
         </div>
       </div>
     </Link>
+
+      {/* Sibling of <Link>, not nested inside it — same reasoning as
+          AdCard.tsx's FIX P1-1. STORE here is the Favorite entity —
+          distinct from StoreFollower (the "متابعة" button on
+          StoreHeader); both stay independently available. */}
+      <FavoriteButton
+        entityType="STORE"
+        entityId={store.id}
+        size="sm"
+        className="absolute top-2 end-2"
+      />
+    </div>
   );
 }

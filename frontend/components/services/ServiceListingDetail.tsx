@@ -5,6 +5,7 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { ServiceListingWithProvider, ServicePricingType, ServiceLocationType } from '@/types/service.types';
 
 interface Props {
@@ -43,7 +44,12 @@ export function ServiceListingDetail({ listing }: Props) {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-xl font-bold">{listing.title}</h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="text-xl font-bold">{listing.title}</h1>
+          {/* warm=true: single-listing detail view, same reasoning as
+              AdDetailSection's useFavoriteCheck(id). */}
+          <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
+        </div>
         <p className="text-lg font-bold text-primary">
           {formatServicePrice(listing.pricingType, listing.price)}
         </p>
