@@ -7,6 +7,8 @@ import {
   Prisma,
   ProductStatus,
   ServiceListingStatus,
+  StoreStatus,
+  StorePlan,
 } from '@prisma/client';
 import { AdListRow } from '../ads/ads.repository';
 import { ProductWithStore, productWithRelations } from '../products/products.repository';
@@ -14,6 +16,7 @@ import {
   ServiceListingWithProvider,
   listingWithRelations,
 } from '../service-listings/service-listings.repository';
+import { StoreWithSeller, storeWithSeller } from '../stores/stores.repository';
 
 // Same column allowlist ads.repository.ts's adListSelect uses (and for
 // the same reason — see that file's own PERF FIX comment): a
@@ -76,6 +79,20 @@ const VIEW_SIGNAL_LOOKBACK_DAYS = 30;
 // similarity, or category overlap of the store's own products) rather
 // than a drop-in reuse of this category-weighting shape. That's step
 // 5's "followed" signal, not this step.
+//
+// PR4B (store recommendations): that step 5 signal design now exists —
+// see storeRecommendationsRepository at the bottom of this file. It is
+// deliberately NOT built on the CategoryWeight/findByWeightedCategories
+// engine above (StoreDetails still has no categoryId to weight by, and
+// won't gain one — a store sells across many product categories, so a
+// single categoryId would misrepresent it). Instead it ranks by signals
+// StoreDetails and its neighbors actually carry: recent activity
+// (store profile edits + its own active products' recency), geo
+// distance when the caller supplies lat/lng, and a limited plan boost
+// — see that block's own comment for the full design and why
+// followed/favorited stores are read as an EXCLUSION signal rather
+// than a similarity one (there is no store-level "taste" dimension to
+// generalize from without inventing one).
 //
 // PR4A (recommendation view signals): the gap this comment used to
 // document is closed — AnalyticsEventType.PRODUCT_VIEW/SERVICE_VIEW
@@ -561,6 +578,208 @@ export const recommendationsRepository = {
       select: recommendationAdSelect,
       orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
       take: limit,
+    });
+  },
+};
+
+// PR4B (Store Recommendations) — audited against schema.prisma before
+// writing any of this:
+//   - StoreDetails: no categoryId (confirmed above and in
+//     recommendations.repository.ts's header comment) — has status,
+//     plan, latitude/longitude, views (lifetime counter, not an
+//     AnalyticsEvent-backed signal), createdAt/updatedAt.
+//   - StoreFollower: userId/storeId, no status column of its own.
+//   - Favorite: entityType STORE already exists (FEAT-FAVORITE-
+//     POLYMORPHIC PR1/PR2), same two-step fan-out shape used
+//     everywhere else in this file (Favorite has no relation to any
+//     entity table — resolved by entityId).
+//   - AnalyticsEventType has PRODUCT_VIEW/SERVICE_VIEW (PR4A) but NO
+//     STORE_VIEW — confirmed against schema.prisma's enum, not
+//     assumed. A "recently viewed stores" signal is therefore NOT
+//     implemented here: there is no event to read. Adding STORE_VIEW
+//     (schema + migration + an emit point on the public store page)
+//     is real, uncontroversial follow-up work, but it's a schema
+//     change and an instrumentation decision this task explicitly
+//     scoped out ("افصل إضافة STORE_VIEW كقرار/PR مستقل") — left as a
+//     documented gap, not silently skipped and not guessed at.
+//
+// SIGNAL DESIGN — why this doesn't reuse CategoryWeight:
+// Every other entity here ranks candidates by "which categories has
+// this user shown interest in", because Ad/Product/ServiceListing
+// each belong to exactly one category. A store doesn't belong to a
+// category at all — it typically sells across several — so there is
+// no honest single dimension to compute a per-user "store affinity
+// weight" from without inventing one (e.g. "average category of a
+// store's products" would silently misrepresent a general store).
+// Rather than fake that similarity, followed/favorited stores are
+// read as an EXCLUSION signal only — the same "don't re-recommend
+// what the user already has a relationship with" role
+// excludedAdIds/excludedIds play for the other three entities — and
+// the RANKING itself is one honest, deterministic formula used for
+// every caller alike (see findRanked below), not a personalized query
+// backed by a trending fallback. That formula IS the fallback the
+// task asked for ("activity/freshness + location + plan boost"); a
+// logged-in user simply has more stores excluded from it (their own
+// store, and ones they already follow/favorited) than an anonymous
+// caller does. No random weights: every ORDER BY key below is either
+// a real timestamp, a real distance in km, or a plain boolean
+// tie-break — same "lexicographic multi-column ORDER BY" shape
+// recommendationAdSelect's own findTrending already uses
+// ([isPinned, isFeatured, views, createdAt]), just with different
+// columns.
+export interface StoreRankingParams {
+  excludeIds: string[];
+  lat?: number;
+  lng?: number;
+  limit: number;
+}
+
+export const storeRecommendationsRepository = {
+  // Signal: stores this user already follows — StoreFollower is the
+  // live relationship, read directly rather than via UserActivity's
+  // STORE_FOLLOWED/STORE_UNFOLLOWED log (which would require replaying
+  // follow/unfollow pairs to reconstruct current state; the join table
+  // already IS current state).
+  followedStoreIds: async (userId: string): Promise<string[]> => {
+    const rows = await prisma.storeFollower.findMany({
+      where: { userId },
+      select: { storeId: true },
+    });
+    return rows.map(r => r.storeId);
+  },
+
+  // Signal: stores this user has favorited (Favorite.entityType STORE
+  // — same read shape every other favoritedXCategoryIds/favoritedIds
+  // method in this file already uses for its own entity type).
+  favoritedStoreIds: async (userId: string): Promise<string[]> => {
+    const rows = await prisma.favorite.findMany({
+      where: { userId, entityType: 'STORE' },
+      select: { entityId: true },
+    });
+    return rows.map(r => r.entityId);
+  },
+
+  // A user's own store should never appear in their own "stores you
+  // might like" rail. StoreDetails has no direct userId column — same
+  // one-hop-further relation productRecommendationsRepository.excludedIds
+  // already joins through (store: { sellerProfile: { userId } }) — this
+  // is that same join from the other side.
+  ownStoreId: async (userId: string): Promise<string | null> => {
+    const store = await prisma.storeDetails.findFirst({
+      where: { sellerProfile: { userId } },
+      select: { id: true },
+    });
+    return store?.id ?? null;
+  },
+
+  // Core ranked fetch — the one query both the personalized path (userId
+  // resolved, some stores excluded) and the anonymous/no-signal fallback
+  // path share; see this block's own header comment for why there's no
+  // separate "trending" query to backfill from the way Ad/Product/
+  // ServiceListing need.
+  //
+  // ACTIVE stores with a non-suspended seller only — same exclusion
+  // shape as storesRepository.findMany's public directory (status:
+  // 'ACTIVE', sellerProfile.suspended: false) — a BLOCKED/PENDING store
+  // or one whose seller was suspended after the store went ACTIVE must
+  // never surface in a recommendation rail any more than it surfaces
+  // in the public directory.
+  //
+  // Ranking (deterministic, no invented weights):
+  //   1. Freshness/activity — GREATEST(store.updatedAt, most recent
+  //      ACTIVE product's createdAt). A store that keeps listing new
+  //      products, or was recently edited, is "active" in the sense a
+  //      recommendation rail should prefer over one that has sat
+  //      untouched — same intuition as ads/products/services' own
+  //      findTrending ordering by recency, just measured off the
+  //      store's actual activity instead of the store row's own
+  //      createdAt (which never changes and would rank every store by
+  //      "how old is it", the opposite of what freshness should mean).
+  //      LEFT JOIN + GROUP BY sd."id" (Postgres allows referencing the
+  //      rest of a table's columns once GROUP BY covers its primary
+  //      key — no need to also list updatedAt/plan/createdAt/lat/lng)
+  //      rather than a correlated subquery, and GROUP BY is what makes
+  //      this safe against a store with several active products
+  //      collapsing to one row instead of duplicating per product.
+  //   2. Distance in km — same Haversine formula
+  //      search.repository.ts's own haversineExprSql uses (duplicated,
+  //      not imported — that function is a private, unexported const
+  //      there, same "duplicate rather than reach into another
+  //      module's private helper" convention recommendationAdSelect
+  //      above already follows). NULL when the caller didn't supply
+  //      lat/lng, or when the store itself has no pin — sorts last via
+  //      NULLS LAST either way, never excluding a store for lacking
+  //      coordinates (this is a ranking signal, not a radius filter —
+  //      unlike search's sort=distance, there is no requirement here
+  //      that geo be present at all).
+  //   3. Plan boost, LIMITED: FEATURED sorts above FREE only as a
+  //      third-tier tie-break — after freshness and distance, not
+  //      instead of them — so a stale, far-away FEATURED store still
+  //      loses to an active, nearby FREE one. That's the "محدود"
+  //      (limited) the task asked for: a nudge, not an override.
+  //   4. store.createdAt DESC — final deterministic tie-break so two
+  //      stores identical on every signal above still return in a
+  //      stable order.
+  findRanked: async (params: StoreRankingParams): Promise<StoreWithSeller[]> => {
+    const { excludeIds, lat, lng, limit } = params;
+
+    const whereParts: Prisma.Sql[] = [
+      Prisma.sql`sd."status" = ${StoreStatus.ACTIVE}::"StoreStatus"`,
+      Prisma.sql`sp."suspended" = false`,
+    ];
+    if (excludeIds.length > 0) {
+      whereParts.push(Prisma.sql`sd."id" NOT IN (${Prisma.join(excludeIds)})`);
+    }
+    const whereSql = Prisma.join(whereParts, ' AND ');
+
+    const hasGeo = lat !== undefined && lng !== undefined;
+    // Same Haversine expression as search.repository.ts's
+    // haversineExprSql — see this method's own doc comment above for
+    // why it's duplicated rather than imported. NULL::float (not the
+    // expression) when the caller supplied no lat/lng, so the ORDER BY
+    // column is a harmless constant instead of computing geometry
+    // against undefined values.
+    const distanceExprSql = hasGeo
+      ? Prisma.sql`
+          6371 * acos(
+            LEAST(1, GREATEST(-1,
+              cos(radians(${lat})) * cos(radians(sd."latitude")) *
+              cos(radians(sd."longitude") - radians(${lng})) +
+              sin(radians(${lat})) * sin(radians(sd."latitude"))
+            ))
+          )
+        `
+      : Prisma.sql`NULL::float`;
+
+    const idRows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT sd."id"
+      FROM "store_details" sd
+      JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
+      LEFT JOIN "products" p ON p."storeId" = sd."id" AND p."status" = ${ProductStatus.ACTIVE}::"ProductStatus"
+      WHERE ${whereSql}
+      GROUP BY sd."id"
+      ORDER BY
+        GREATEST(sd."updatedAt", COALESCE(MAX(p."createdAt"), sd."updatedAt")) DESC,
+        (${distanceExprSql}) ASC NULLS LAST,
+        CASE WHEN sd."plan" = ${StorePlan.FEATURED}::"StorePlan" THEN 1 ELSE 0 END DESC,
+        sd."createdAt" DESC
+      LIMIT ${limit}
+    `;
+
+    const ids = idRows.map(r => r.id);
+    if (ids.length === 0) return [];
+
+    const stores = await prisma.storeDetails.findMany({
+      where: { id: { in: ids } },
+      include: storeWithSeller,
+    });
+    const byId = new Map(stores.map(s => [s.id, s]));
+    // Preserve the ranked order from idRows — findMany's `in` filter
+    // gives no ordering guarantee, same reasoning as every other
+    // findByWeightedCategories/findRanked in this file.
+    return ids.flatMap(id => {
+      const store = byId.get(id);
+      return store ? [store] : [];
     });
   },
 };

@@ -1,10 +1,11 @@
-import { recommendationsRepository, CategoryWeight, productRecommendationsRepository, serviceListingRecommendationsRepository } from './recommendations.repository';
+import { recommendationsRepository, CategoryWeight, productRecommendationsRepository, serviceListingRecommendationsRepository, storeRecommendationsRepository } from './recommendations.repository';
 import { adsService } from '../ads/ads.service';
 import { productsService } from '../products/products.service';
 import { serviceListingsService } from '../service-listings/service-listings.service';
 import { AdListRow } from '../ads/ads.repository';
 import { ProductWithStore } from '../products/products.repository';
 import { ServiceListingWithProvider } from '../service-listings/service-listings.repository';
+import { StoreWithSeller } from '../stores/stores.repository';
 import { verifyAccessToken } from '../../shared/utils/jwt';
 import { logger } from '../../shared/utils/logger';
 import { GetRecommendationsQuery } from './recommendations.validation';
@@ -272,5 +273,53 @@ export const recommendationsService = {
     );
 
     return [...personalized, ...trending];
+  },
+
+  // PR4B (Store Recommendations). Unlike the three entities above, this
+  // is NOT a "personalized query with a trending backfill" shape —
+  // there's only one query (storeRecommendationsRepository.findRanked),
+  // used for every caller alike, because the ranking formula itself
+  // (freshness/activity → distance → limited plan boost → createdAt)
+  // IS the honest fallback the task asked for, not a weaker substitute
+  // for a personalized one. See recommendations.repository.ts's own
+  // header comment on storeRecommendationsRepository for the full
+  // design and why followed/favorited stores are read as an exclusion
+  // signal rather than a similarity one.
+  //
+  // A signal-gathering failure (same posture as the other three
+  // getX Recommendations above) must never break the rail — on error,
+  // this falls through with only excludeStoreId (if any) excluded,
+  // landing on the exact same ranked query an anonymous caller gets.
+  getStoreRecommendations: async (
+    query: GetRecommendationsQuery,
+    authHeader: string | undefined
+  ): Promise<StoreWithSeller[]> => {
+    const limit = query.limit ?? DEFAULT_LIMIT;
+    const userId = resolveOptionalUserId(authHeader);
+
+    const excludeIds = new Set<string>();
+    if (query.excludeStoreId) excludeIds.add(query.excludeStoreId);
+
+    if (userId) {
+      try {
+        const [followed, favorited, owned] = await Promise.all([
+          storeRecommendationsRepository.followedStoreIds(userId),
+          storeRecommendationsRepository.favoritedStoreIds(userId),
+          storeRecommendationsRepository.ownStoreId(userId),
+        ]);
+        followed.forEach(id => excludeIds.add(id));
+        favorited.forEach(id => excludeIds.add(id));
+        if (owned) excludeIds.add(owned);
+      } catch (err) {
+        logger.error('Failed to gather store recommendation signals', { err, userId });
+      }
+    }
+
+    return storeRecommendationsRepository.findRanked({
+      excludeIds: Array.from(excludeIds),
+      lat: query.lat,
+      lng: query.lng,
+      limit,
+    });
   },
 };

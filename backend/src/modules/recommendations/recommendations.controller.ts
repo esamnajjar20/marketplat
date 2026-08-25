@@ -11,12 +11,12 @@ export const recommendationsController = {
   // history yet. Never paginated — see recommendations.validation.ts's
   // own comment on why this is a fixed-size shelf, not a list endpoint.
   //
-  // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): `type` dispatches
-  // to one of three entity-specific service functions. No `type` at
-  // all (the pre-existing default) → getRecommendations, byte-identical
-  // to this endpoint's behavior before this change — existing callers
-  // (frontend's recommendations.api.ts) never send `type` and are
-  // unaffected.
+  // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3, extended by PR4B):
+  // `type` dispatches to one of four entity-specific service functions.
+  // No `type` at all (the pre-existing default) → getRecommendations,
+  // byte-identical to this endpoint's behavior before this change —
+  // existing callers (frontend's recommendations.api.ts) never send
+  // `type` and are unaffected.
   getRecommendations: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { query } = getRecommendationsSchema.parse({ query: req.query });
@@ -27,7 +27,9 @@ export const recommendationsController = {
           ? await recommendationsService.getProductRecommendations(query, authHeader)
           : query.type === 'service'
             ? await recommendationsService.getServiceListingRecommendations(query, authHeader)
-            : await recommendationsService.getRecommendations(query, authHeader);
+            : query.type === 'store'
+              ? await recommendationsService.getStoreRecommendations(query, authHeader)
+              : await recommendationsService.getRecommendations(query, authHeader);
 
       res.status(200).json(successResponse('Recommendations fetched', items));
     } catch (error) {

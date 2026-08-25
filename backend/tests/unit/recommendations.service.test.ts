@@ -3,6 +3,7 @@ import {
   recommendationsRepository,
   productRecommendationsRepository,
   serviceListingRecommendationsRepository,
+  storeRecommendationsRepository,
 } from '../../src/modules/recommendations/recommendations.repository';
 import { adsService } from '../../src/modules/ads/ads.service';
 import { productsService } from '../../src/modules/products/products.service';
@@ -24,6 +25,7 @@ jest.mock('../../src/modules/service-listings/service-listings.service');
 const mockAd = (id: string) => ({ id, title: `Ad ${id}`, categoryId: 'cat-1' });
 const mockProduct = (id: string) => ({ id, name: `Product ${id}`, categoryId: 'cat-1' });
 const mockListing = (id: string) => ({ id, title: `Listing ${id}`, categoryId: 'cat-1' });
+const mockStore = (id: string) => ({ id, name: `Store ${id}` });
 
 describe('recommendationsService', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -378,6 +380,130 @@ describe('recommendationsService', () => {
       );
       expect(weightMap['cat-1']).toBe(3); // favorited
       expect(weightMap['cat-2']).toBe(1); // viewed only
+    });
+  });
+
+  // PR4B (Store Recommendations)
+  describe('getStoreRecommendations', () => {
+    it('anonymous caller: gathers no signals, excludes nothing but passes lat/lng/limit through', async () => {
+      (storeRecommendationsRepository.findRanked as jest.Mock).mockResolvedValue([mockStore('s-1')]);
+
+      const result = await recommendationsService.getStoreRecommendations(
+        { lat: 31.5, lng: 34.4 },
+        undefined
+      );
+
+      expect(storeRecommendationsRepository.followedStoreIds).not.toHaveBeenCalled();
+      expect(storeRecommendationsRepository.favoritedStoreIds).not.toHaveBeenCalled();
+      expect(storeRecommendationsRepository.ownStoreId).not.toHaveBeenCalled();
+      expect(storeRecommendationsRepository.findRanked).toHaveBeenCalledWith({
+        excludeIds: [],
+        lat: 31.5,
+        lng: 34.4,
+        limit: 8,
+      });
+      expect(result.map(s => s.id)).toEqual(['s-1']);
+    });
+
+    it('treats an invalid/expired Bearer token the same as anonymous', async () => {
+      jest.spyOn(jwtUtils, 'verifyAccessToken').mockImplementation(() => {
+        throw new Error('invalid token');
+      });
+      (storeRecommendationsRepository.findRanked as jest.Mock).mockResolvedValue([]);
+
+      await recommendationsService.getStoreRecommendations({}, 'Bearer bad-token');
+
+      expect(storeRecommendationsRepository.followedStoreIds).not.toHaveBeenCalled();
+      expect(storeRecommendationsRepository.findRanked).toHaveBeenCalledWith({
+        excludeIds: [],
+        lat: undefined,
+        lng: undefined,
+        limit: 8,
+      });
+    });
+
+    it('excludeStoreId is excluded even for an anonymous caller', async () => {
+      (storeRecommendationsRepository.findRanked as jest.Mock).mockResolvedValue([]);
+
+      await recommendationsService.getStoreRecommendations({ excludeStoreId: 'ref-store' }, undefined);
+
+      expect(storeRecommendationsRepository.findRanked).toHaveBeenCalledWith({
+        excludeIds: ['ref-store'],
+        lat: undefined,
+        lng: undefined,
+        limit: 8,
+      });
+    });
+
+    describe('logged-in personalization', () => {
+      beforeEach(() => {
+        jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({
+          userId: 'user-1',
+          sessionId: 's-1',
+          jti: 'jti-1',
+        } as any);
+      });
+
+      it('excludes followed + favorited + owned stores (deduped) from the ranked query', async () => {
+        (storeRecommendationsRepository.followedStoreIds as jest.Mock).mockResolvedValue([
+          'store-followed',
+          'store-both',
+        ]);
+        (storeRecommendationsRepository.favoritedStoreIds as jest.Mock).mockResolvedValue([
+          'store-favorited',
+          'store-both',
+        ]);
+        (storeRecommendationsRepository.ownStoreId as jest.Mock).mockResolvedValue('store-own');
+        (storeRecommendationsRepository.findRanked as jest.Mock).mockResolvedValue([mockStore('p-1')]);
+
+        await recommendationsService.getStoreRecommendations({}, 'Bearer good-token');
+
+        const [callArg] = (storeRecommendationsRepository.findRanked as jest.Mock).mock.calls[0];
+        expect(new Set(callArg.excludeIds)).toEqual(
+          new Set(['store-followed', 'store-both', 'store-favorited', 'store-own'])
+        );
+        // No duplicate entries despite 'store-both' appearing in two signals.
+        expect(callArg.excludeIds).toHaveLength(4);
+      });
+
+      it('does not add an exclusion when the user owns no store', async () => {
+        (storeRecommendationsRepository.followedStoreIds as jest.Mock).mockResolvedValue([]);
+        (storeRecommendationsRepository.favoritedStoreIds as jest.Mock).mockResolvedValue([]);
+        (storeRecommendationsRepository.ownStoreId as jest.Mock).mockResolvedValue(null);
+        (storeRecommendationsRepository.findRanked as jest.Mock).mockResolvedValue([]);
+
+        await recommendationsService.getStoreRecommendations({}, 'Bearer good-token');
+
+        const [callArg] = (storeRecommendationsRepository.findRanked as jest.Mock).mock.calls[0];
+        expect(callArg.excludeIds).toEqual([]);
+      });
+
+      it('does not fail the whole request when signal gathering throws', async () => {
+        (storeRecommendationsRepository.followedStoreIds as jest.Mock).mockRejectedValue(
+          new Error('db down')
+        );
+        (storeRecommendationsRepository.favoritedStoreIds as jest.Mock).mockResolvedValue([]);
+        (storeRecommendationsRepository.ownStoreId as jest.Mock).mockResolvedValue(null);
+        (storeRecommendationsRepository.findRanked as jest.Mock).mockResolvedValue([mockStore('t-1')]);
+
+        const result = await recommendationsService.getStoreRecommendations({}, 'Bearer good-token');
+
+        const [callArg] = (storeRecommendationsRepository.findRanked as jest.Mock).mock.calls[0];
+        expect(callArg.excludeIds).toEqual([]);
+        expect(result.map(s => s.id)).toEqual(['t-1']);
+      });
+
+      it('respects a caller-supplied limit', async () => {
+        (storeRecommendationsRepository.followedStoreIds as jest.Mock).mockResolvedValue([]);
+        (storeRecommendationsRepository.favoritedStoreIds as jest.Mock).mockResolvedValue([]);
+        (storeRecommendationsRepository.ownStoreId as jest.Mock).mockResolvedValue(null);
+        (storeRecommendationsRepository.findRanked as jest.Mock).mockResolvedValue([]);
+
+        await recommendationsService.getStoreRecommendations({ limit: 3 }, 'Bearer good-token');
+
+        const [callArg] = (storeRecommendationsRepository.findRanked as jest.Mock).mock.calls[0];
+        expect(callArg.limit).toBe(3);
+      });
     });
   });
 });

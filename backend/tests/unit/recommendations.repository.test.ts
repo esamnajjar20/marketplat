@@ -2,6 +2,7 @@ import {
   recommendationsRepository,
   productRecommendationsRepository,
   serviceListingRecommendationsRepository,
+  storeRecommendationsRepository,
 } from '../../src/modules/recommendations/recommendations.repository';
 import { prisma } from '../../src/config/prisma';
 
@@ -12,6 +13,8 @@ jest.mock('../../src/config/prisma', () => ({
     product: { findMany: jest.fn() },
     serviceListing: { findMany: jest.fn() },
     userActivity: { findMany: jest.fn() },
+    storeFollower: { findMany: jest.fn() },
+    storeDetails: { findFirst: jest.fn(), findMany: jest.fn() },
     $queryRaw: jest.fn(),
   },
 }));
@@ -240,5 +243,158 @@ describe('serviceListingRecommendationsRepository.recentlyViewedCategoryIds', ()
     const result = await serviceListingRecommendationsRepository.recentlyViewedCategoryIds('user-1');
 
     expect(result).toEqual([]);
+  });
+});
+
+// PR4B (Store Recommendations)
+describe('storeRecommendationsRepository', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  describe('followedStoreIds', () => {
+    it('reads StoreFollower rows for the user', async () => {
+      (prisma.storeFollower.findMany as jest.Mock).mockResolvedValue([
+        { storeId: 'store-1' },
+        { storeId: 'store-2' },
+      ]);
+
+      const result = await storeRecommendationsRepository.followedStoreIds('user-1');
+
+      expect(prisma.storeFollower.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        select: { storeId: true },
+      });
+      expect(result).toEqual(['store-1', 'store-2']);
+    });
+
+    it('returns [] when the user follows no stores', async () => {
+      (prisma.storeFollower.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await storeRecommendationsRepository.followedStoreIds('user-1');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('favoritedStoreIds', () => {
+    it('reads Favorite rows scoped to entityType STORE', async () => {
+      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([{ entityId: 'store-3' }]);
+
+      const result = await storeRecommendationsRepository.favoritedStoreIds('user-1');
+
+      expect(prisma.favorite.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', entityType: 'STORE' },
+        select: { entityId: true },
+      });
+      expect(result).toEqual(['store-3']);
+    });
+
+    it('returns [] when the user has no STORE favorites', async () => {
+      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await storeRecommendationsRepository.favoritedStoreIds('user-1');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('ownStoreId', () => {
+    it('resolves the store owned by this user via sellerProfile.userId', async () => {
+      (prisma.storeDetails.findFirst as jest.Mock).mockResolvedValue({ id: 'own-store-1' });
+
+      const result = await storeRecommendationsRepository.ownStoreId('user-1');
+
+      expect(prisma.storeDetails.findFirst).toHaveBeenCalledWith({
+        where: { sellerProfile: { userId: 'user-1' } },
+        select: { id: true },
+      });
+      expect(result).toBe('own-store-1');
+    });
+
+    it('returns null when the user has no store', async () => {
+      (prisma.storeDetails.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const result = await storeRecommendationsRepository.ownStoreId('user-1');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findRanked', () => {
+    it('returns [] without a follow-up findMany when the raw query returns no ids', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      const result = await storeRecommendationsRepository.findRanked({
+        excludeIds: [],
+        limit: 8,
+      });
+
+      expect(result).toEqual([]);
+      expect(prisma.storeDetails.findMany).not.toHaveBeenCalled();
+    });
+
+    it('preserves the ranked order from the raw query, dropping rows since deleted', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'store-2' }, { id: 'store-1' }]);
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([
+        { id: 'store-1', name: 'A' },
+        // store-2 intentionally absent — simulates a row deleted
+        // between the raw id query and the follow-up findMany.
+      ]);
+
+      const result = await storeRecommendationsRepository.findRanked({
+        excludeIds: [],
+        limit: 8,
+      });
+
+      expect(result).toEqual([{ id: 'store-1', name: 'A' }]);
+    });
+
+    it('passes lat/lng into the raw query only when both are supplied', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      await storeRecommendationsRepository.findRanked({
+        excludeIds: [],
+        lat: 31.5,
+        lng: 34.4,
+        limit: 8,
+      });
+
+      const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
+      expect(callArgs).toContain(31.5);
+      expect(callArgs).toContain(34.4);
+    });
+
+    it('omits geo values from the raw query when lat/lng are absent', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      await storeRecommendationsRepository.findRanked({
+        excludeIds: [],
+        limit: 8,
+      });
+
+      const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
+      expect(callArgs).not.toContain(undefined);
+    });
+
+    it('includes an exclusion clause only when excludeIds is non-empty', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      await storeRecommendationsRepository.findRanked({
+        excludeIds: ['store-owned', 'store-followed'],
+        limit: 8,
+      });
+
+      const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
+      expect(callArgs).toContain('store-owned');
+      expect(callArgs).toContain('store-followed');
+    });
+
+    it('passes the limit through to the raw query', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      await storeRecommendationsRepository.findRanked({ excludeIds: [], limit: 3 });
+
+      const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
+      expect(callArgs).toContain(3);
+    });
   });
 });
