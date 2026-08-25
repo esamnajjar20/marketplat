@@ -21,6 +21,13 @@ interface Props {
   type: FavoriteEntityKind;
 }
 
+/** Union of every entity shape PR3 favorites; the hook's generic is
+ * instantiated with this explicitly below — TS cannot infer T from
+ * `type: FavoriteEntityKind` alone (it's a runtime value, not a type
+ * discriminant), so left unannotated T silently defaults to `unknown`.
+ */
+type FavoriteEntity = ProductWithStore | StoreWithSeller | ServiceListingWithProvider;
+
 const EMPTY_COPY: Record<FavoriteEntityKind, { title: string; description: string; cta: string; href: string }> = {
   PRODUCT: {
     title: 'لا توجد منتجات محفوظة',
@@ -53,7 +60,7 @@ const EMPTY_COPY: Record<FavoriteEntityKind, { title: string; description: strin
 export function EntityFavoritesList({ type }: Props) {
   const sp = useSearchParams();
   const page = Number(sp.get('page') ?? 1);
-  const { data, isLoading, isError, refetch } = useFavoritesByType(type, { page });
+  const { data, isLoading, isError, refetch } = useFavoritesByType<FavoriteEntity>(type, { page });
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
   const copy = EMPTY_COPY[type];
@@ -125,7 +132,7 @@ function EntityCard({
   entity,
 }: {
   type: FavoriteEntityKind;
-  entity: ProductWithStore | StoreWithSeller | ServiceListingWithProvider;
+  entity: FavoriteEntity;
 }) {
   switch (type) {
     case 'PRODUCT': {
