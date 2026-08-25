@@ -6,7 +6,7 @@ import { useLocationResolver } from '@/hooks/useLocationResolver';
 import type { AdListItem } from '@/types/ad.types';
 import type { SearchResult } from '@/types/search.types';
 
-const HOME_LIMIT = 8;
+const HOME_LIMIT = 6;
 
 export type AdsForHomeSource = 'gps' | 'city' | 'general';
 

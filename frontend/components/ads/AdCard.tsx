@@ -165,7 +165,19 @@ export function AdCard({ ad, className, priority = false }: Props) {
             them consistently rather than fixing it grid-by-grid. */}
         <div className="flex flex-1 flex-col gap-1.5 p-4">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-xl font-bold text-primary">{formatPrice(ad.price)}</span>
+            <span
+              className={cn(
+                'font-mono text-xl font-bold',
+                isSold ? 'text-muted-foreground line-through' : 'text-primary',
+              )}
+            >
+              {formatPrice(ad.price)}
+            </span>
+            {isSold && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+                تم البيع
+              </span>
+            )}
             {/* FIX P1-8: isNegotiable was collected in the create form
                 (PriceInput's "السعر قابل للتفاوض" checkbox) and stored,
                 but never surfaced anywhere in the browsing UI — a buyer

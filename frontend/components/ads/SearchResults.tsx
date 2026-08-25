@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
 import { AdCardSkeleton, AdListItemSkeleton } from '@/components/shared/skeletons';
@@ -35,6 +35,7 @@ interface Props {
 
 export function SearchResults({ categorySlug }: Props = {}) {
   const sp   = useSearchParams();
+  const router = useRouter();
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
@@ -60,6 +61,11 @@ export function SearchResults({ categorySlug }: Props = {}) {
   // can't drift from those again.
   const sortBy     = (sp.get('sortBy') as AdSortField) ?? 'createdAt';
   const sortOrder  = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
+
+  const hasActiveFilters = Boolean(
+    categoryId || city || condition || minPrice != null || maxPrice != null ||
+    (sortBy && sortBy !== 'createdAt') || (sortOrder && sortOrder !== 'desc')
+  );
 
   // NOTE: kept at >= 2 to match useSearchAds' own `enabled` guard (see
   // useAds.ts) and the pinned test contract — a query shorter than 2
@@ -148,9 +154,30 @@ export function SearchResults({ categorySlug }: Props = {}) {
 
       {/* Results */}
       {items.length === 0 ? (
-        <EmptyState icon={<Search className="h-10 w-10" />}
+        <EmptyState
+          icon={<Search className="h-10 w-10" />}
           title="لا توجد إعلانات"
-          description={q ? `لم نجد نتائج لـ "${q}"` : 'لا توجد إعلانات مطابقة لهذه الفلاتر'} />
+          description={q ? `لم نجد نتائج لـ "${q}"` : 'لا توجد إعلانات مطابقة لهذه الفلاتر'}
+          action={
+            hasActiveFilters || q ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Keep the search query when only filters were applied;
+                  // clear everything when the empty state is from the query itself.
+                  if (hasActiveFilters && q) {
+                    router.push(`${ROUTES.search}?q=${encodeURIComponent(q)}`);
+                  } else {
+                    router.push(ROUTES.search);
+                  }
+                }}
+              >
+                {hasActiveFilters ? 'مسح الفلاتر' : 'عرض كل الإعلانات'}
+              </Button>
+            ) : undefined
+          }
+        />
       ) : view === 'grid' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
@@ -158,6 +185,24 @@ export function SearchResults({ categorySlug }: Props = {}) {
       ) : (
         <div className="space-y-3">
           {items.map((ad) => <AdListItem key={ad.id} ad={ad} />)}
+        </div>
+      )}
+
+      {totalPages > 1 && page < totalPages && (
+        <div className="flex flex-col items-center gap-2 pt-2 sm:hidden">
+          <button
+            type="button"
+            className="min-h-[48px] w-full max-w-sm rounded-full border bg-card px-6 py-3 text-sm font-medium shadow-sm hover:bg-muted"
+            onClick={() => {
+              const params = new URLSearchParams(sp.toString());
+              params.set('page', String(page + 1));
+              const base = categorySlug ? ROUTES.category(categorySlug) : ROUTES.search;
+              router.push(`${base}?${params.toString()}`);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          >
+            عرض المزيد — الصفحة {page + 1} من {totalPages}
+          </button>
         </div>
       )}
 

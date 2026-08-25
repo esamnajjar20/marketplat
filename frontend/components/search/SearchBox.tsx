@@ -1,14 +1,19 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search } from 'lucide-react';
+import { Search, Clock } from 'lucide-react';
 
 import { Input } from '@/components/shared/ui/Input';
 import { Button } from '@/components/shared/ui/Button';
 import { SearchSuggestions } from '@/components/search/SearchSuggestions';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import {
+  addRecentSearch,
+  getRecentSearches,
+  clearRecentSearches,
+} from '@/lib/recentSearches';
 
 interface Props {
   defaultValue?: string;
@@ -17,24 +22,30 @@ interface Props {
 }
 
 /**
- * Unified search box — same submit-navigates-to-/search behavior as
- * ads/SearchInput.tsx, plus a suggestions dropdown. Existing filters
- * already in the URL (city/type/sort/categoryId) are preserved on
- * submit rather than reset — only `q` and `page` change, matching how
- * SearchFilters.tsx's own `update()` already treats every other filter
- * (it always keeps the rest of the URL's params intact).
+ * Unified search box — suggestions + recent local history when the
+ * field is focused with an empty / short query.
  */
 export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const [value, setValue] = useState(defaultValue);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [recent, setRecent] = useState<string[]>([]);
+
+  useEffect(() => {
+    setRecent(getRecentSearches());
+  }, []);
 
   function navigate(q: string) {
     const params = new URLSearchParams(sp.toString());
     const trimmed = q.trim();
-    if (trimmed) params.set('q', trimmed);
-    else params.delete('q');
+    if (trimmed) {
+      params.set('q', trimmed);
+      addRecentSearch(trimmed);
+      setRecent(getRecentSearches());
+    } else {
+      params.delete('q');
+    }
     params.delete('page');
     router.push(`${ROUTES.search}?${params.toString()}`);
   }
@@ -51,6 +62,9 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
     navigate(suggestion);
   }
 
+  const trimmed = value.trim();
+  const showRecent = showSuggestions && trimmed.length < 2 && recent.length > 0;
+
   return (
     <div className="relative w-full">
       <form onSubmit={handleSubmit} role="search" className="flex w-full gap-2">
@@ -63,10 +77,10 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
               setValue(e.target.value);
               setShowSuggestions(true);
             }}
-            onFocus={() => setShowSuggestions(true)}
-            // Delay so a suggestion button's onClick still registers
-            // before the dropdown unmounts — a plain onBlur would hide
-            // it first and swallow the click.
+            onFocus={() => {
+              setRecent(getRecentSearches());
+              setShowSuggestions(true);
+            }}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             placeholder="ابحث عن منتجات، محلات، إعلانات، خدمات..."
             className={cn('ps-9', inputClassName)}
@@ -77,7 +91,45 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
         <Button type="submit">بحث</Button>
       </form>
 
-      {showSuggestions && (
+      {showRecent && (
+        <div
+          role="listbox"
+          aria-label="عمليات البحث الأخيرة"
+          className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-lg border bg-popover shadow-lg"
+        >
+          <div className="flex items-center justify-between border-b px-3 py-1.5">
+            <span className="text-xs font-medium text-muted-foreground">عمليات البحث الأخيرة</span>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                clearRecentSearches();
+                setRecent([]);
+              }}
+            >
+              مسح
+            </button>
+          </div>
+          <ul>
+            {recent.map((item) => (
+              <li key={item}>
+                <button
+                  type="button"
+                  role="option"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm hover:bg-muted min-h-[44px]"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelectSuggestion(item)}
+                >
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="truncate">{item}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {showSuggestions && trimmed.length >= 2 && (
         <SearchSuggestions query={value} onSelect={handleSelectSuggestion} />
       )}
     </div>

@@ -36,7 +36,7 @@ export function RecentAds() {
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
       </div>
     );
   }

@@ -84,7 +84,7 @@ export function OnboardingChecklist() {
               <Link
                 href={step.href}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  'flex min-h-[44px] items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
                   'hover:bg-muted',
                 )}
               >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, ShieldCheck, Hash } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -51,6 +51,30 @@ interface Props { ad: Ad; isFavorited?: boolean; }
 
 export function AdDetail({ ad, isFavorited = false }: Props) {
   const [imgIdx, setImgIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  const imageCount = ad.images.length > 0 ? ad.images.length : 1;
+
+  const goPrev = useCallback(() => {
+    setImgIdx((i) => Math.max(0, i - 1));
+  }, []);
+  const goNext = useCallback(() => {
+    setImgIdx((i) => Math.min(imageCount - 1, i + 1));
+  }, [imageCount]);
+
+  // Keyboard arrows (RTL: Left = next image, Right = previous)
+  useEffect(() => {
+    if (imageCount <= 1) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key === 'ArrowLeft') goNext();
+      if (e.key === 'ArrowRight') goPrev();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [imageCount, goPrev, goNext]);
+
   const isAuth = useAuthStore(selectIsAuthenticated);
   const toggleFavorite = useToggleFavorite();
   const queryClient = useQueryClient();
@@ -102,8 +126,29 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
         {/* Gallery */}
         <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
-          <div className="relative aspect-[4/3] sm:aspect-[16/9] bg-muted">
-            <SafeImage src={currentImg} alt={ad.title} fill className="object-contain" sizes="(max-width:1024px) 100vw, 66vw" priority />
+          <div
+            className="relative aspect-[4/3] sm:aspect-[16/9] bg-muted touch-pan-y"
+            onTouchStart={(e) => {
+              touchStartX.current = e.changedTouches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current == null || images.length <= 1) return;
+              const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+              touchStartX.current = null;
+              if (Math.abs(dx) < 40) return;
+              // RTL: swipe right (positive dx) → previous; swipe left → next
+              if (dx > 0) goPrev();
+              else goNext();
+            }}
+          >
+            <button
+              type="button"
+              className="absolute inset-0 cursor-zoom-in"
+              onClick={() => setLightboxOpen(true)}
+              aria-label="تكبير الصورة"
+            >
+              <SafeImage src={currentImg} alt={ad.title} fill className="object-contain select-none pointer-events-none" sizes="(max-width:1024px) 100vw, 66vw" priority draggable={false} />
+            </button>
             {ad.isFeatured && (
               <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                 مميز
@@ -111,16 +156,16 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             )}
             {images.length > 1 && (
               <>
-                <button onClick={() => setImgIdx((i) => Math.max(0, i - 1))}
+                <button onClick={goPrev}
                   disabled={imgIdx === 0}
                   aria-label="الصورة السابقة"
-                  className="absolute start-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white disabled:opacity-30">
+                  className="absolute start-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
                   <ChevronRight className="h-5 w-5" />
                 </button>
-                <button onClick={() => setImgIdx((i) => Math.min(images.length - 1, i + 1))}
+                <button onClick={goNext}
                   disabled={imgIdx === images.length - 1}
                   aria-label="الصورة التالية"
-                  className="absolute end-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white disabled:opacity-30">
+                  className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <span className="absolute bottom-4 end-4 bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full">
@@ -135,7 +180,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 <button key={i} onClick={() => setImgIdx(i)}
                   aria-label={`عرض الصورة ${i + 1} من ${images.length}`}
                   aria-current={i === imgIdx ? 'true' : undefined}
-                  className={cn('relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg shrink-0 overflow-hidden border-2 transition-colors',
+                  className={cn('relative w-16 h-16 sm:w-20 sm:h-20 min-h-[44px] min-w-[44px] rounded-lg shrink-0 overflow-hidden border-2 transition-colors',
                     i === imgIdx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100')}>
                   {/* FIX PERF-07: was rendering the raw, full-resolution
                       Cloudinary URL at a 64x48 display size — every
@@ -296,6 +341,76 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
       </aside>
 
       {/* UX: sticky contact CTA on mobile — price + message always reachable */}
+
+      {/* Fullscreen lightbox */}
+      {lightboxOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="معرض الصور"
+          className="fixed inset-0 z-[100] flex flex-col bg-black/95"
+        >
+          <div className="flex items-center justify-between p-3 text-white">
+            <span className="text-sm tabular-nums">
+              {imgIdx + 1} / {images.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+              aria-label="إغلاق"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div
+            className="relative flex flex-1 items-center justify-center px-4"
+            onTouchStart={(e) => {
+              touchStartX.current = e.changedTouches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current == null || images.length <= 1) return;
+              const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+              touchStartX.current = null;
+              if (Math.abs(dx) < 40) return;
+              if (dx > 0) goPrev();
+              else goNext();
+            }}
+          >
+            <SafeImage
+              src={currentImg}
+              alt={ad.title}
+              fill
+              className="object-contain"
+              sizes="100vw"
+              priority
+            />
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={goPrev}
+                  disabled={imgIdx === 0}
+                  aria-label="الصورة السابقة"
+                  className="absolute start-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={imgIdx === images.length - 1}
+                  aria-label="الصورة التالية"
+                  className="absolute end-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <StickyContactBar
         adId={ad.id}
         price={ad.price}

@@ -137,6 +137,11 @@ export function AdForm({ mode, ad }: Props) {
   // never focused at all (e.g. tabbing straight to submit).
   const [touched, setTouched] = useState<Partial<Record<keyof Errors, boolean>>>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  // UX phase-3: multi-step wizard for create mode only (edit stays one page).
+  const [step, setStep] = useState(1);
+  const isWizard = mode === 'create';
+  const totalSteps = 3;
+
   // FIX M-1: field-level errors from the backend's Zod validation (400
   // responses), separate from `errors` (client-side pre-submit checks).
   // Kept apart so a fresh submit attempt clears stale server errors via
@@ -354,10 +359,73 @@ export function AdForm({ mode, ad }: Props) {
     isSubmittingRef.current = false;
   }
 
+
+  function canProceedFromStep(s: number): boolean {
+    if (s === 1) {
+      return values.title.trim().length >= 3 && values.description.trim().length >= 10;
+    }
+    if (s === 2) {
+      return Boolean(values.city.trim());
+    }
+    return true;
+  }
+
+  function goNextStep() {
+    setHasSubmitted(true);
+    if (step === 1) {
+      handleBlur('title');
+      handleBlur('description');
+    }
+    if (step === 2) {
+      handleBlur('city');
+    }
+    if (!canProceedFromStep(step)) return;
+    setHasSubmitted(false);
+    setStep((s) => Math.min(totalSteps, s + 1));
+  }
+
+  function goPrevStep() {
+    setHasSubmitted(false);
+    setStep((s) => Math.max(1, s - 1));
+  }
+
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      {/* Basic info */}
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      {isWizard && (
+        <nav aria-label="خطوات نشر الإعلان" className="rounded-lg border bg-card p-4">
+          <ol className="flex items-center justify-between gap-2">
+            {[
+              { n: 1, label: 'الأساسيات' },
+              { n: 2, label: 'التصنيف والسعر' },
+              { n: 3, label: 'الصور والنشر' },
+            ].map((item) => (
+              <li key={item.n} className="flex flex-1 flex-col items-center gap-1.5">
+                <span
+                  className={
+                    item.n === step
+                      ? 'flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground'
+                      : item.n < step
+                        ? 'flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary'
+                        : 'flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground'
+                  }
+                  aria-current={item.n === step ? 'step' : undefined}
+                >
+                  {item.n}
+                </span>
+                <span className={`text-[11px] sm:text-xs ${item.n === step ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                  {item.label}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            الخطوة {step} من {totalSteps}
+          </p>
+        </nav>
+      )}
+
+      {/* Basic info — wizard step 1 */}
+      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 1 ? "hidden" : ""}`}>
         <h2 className="font-semibold">معلومات الإعلان</h2>
 
         <FormField label="عنوان الإعلان" htmlFor="title" required error={fieldError('title')}>
@@ -381,8 +449,8 @@ export function AdForm({ mode, ad }: Props) {
         </FormField>
       </div>
 
-      {/* Classification */}
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      {/* Classification — wizard step 2 */}
+      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">التصنيف والموقع</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -440,8 +508,8 @@ export function AdForm({ mode, ad }: Props) {
         </div>
       </div>
 
-      {/* Pricing */}
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      {/* Pricing — wizard step 2 */}
+      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">السعر</h2>
         <PriceInput
           value={values.price}
@@ -451,8 +519,8 @@ export function AdForm({ mode, ad }: Props) {
         />
       </div>
 
-      {/* Images */}
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      {/* Images — wizard step 3 */}
+      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 3 ? "hidden" : ""}`}>
         <h2 className="font-semibold">الصور</h2>
         {/* TEMPORARY: remove this note once image hosting is configured
             and the required-image check above is restored. */}
@@ -469,12 +537,26 @@ export function AdForm({ mode, ad }: Props) {
         />
       </div>
 
-      {/* Submit */}
-      <div className="flex justify-end gap-3">
+      {/* Submit / wizard navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button type="button" variant="outline" onClick={handleCancel}>إلغاء</Button>
-        <Button type="submit" disabled={isFormIncomplete || isPending}>
-          {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {isWizard && step > 1 && (
+            <Button type="button" variant="outline" onClick={goPrevStep}>
+              السابق
+            </Button>
+          )}
+          {isWizard && step < totalSteps && (
+            <Button type="button" onClick={goNextStep}>
+              التالي
+            </Button>
+          )}
+          {(!isWizard || step === totalSteps) && (
+            <Button type="submit" disabled={isFormIncomplete || isPending}>
+              {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* FIX P0-2: confirm before discarding unsaved changes — this is a

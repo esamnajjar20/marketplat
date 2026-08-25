@@ -16,6 +16,7 @@ import { Search } from 'lucide-react';
 import { Input }  from '@/components/shared/ui/Input';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
+import { addRecentSearch } from '@/lib/recentSearches';
 
 interface SearchInputProps {
   defaultValue?: string;
@@ -29,6 +30,7 @@ export function SearchInput({ defaultValue = '' }: SearchInputProps) {
     e.preventDefault();
 
     const trimmed = value.trim();
+    if (trimmed) addRecentSearch(trimmed);
     const query = trimmed ? `q=${encodeURIComponent(trimmed)}` : '';
 
     router.push(`${ROUTES.search}${query ? `?${query}` : ''}`);
