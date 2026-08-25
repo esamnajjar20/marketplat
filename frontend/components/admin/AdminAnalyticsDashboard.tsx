@@ -2,13 +2,13 @@
 
 /**
  * Gap #7 (product analytics): admin dashboard for GET
- * /admin/analytics/summary. No charting library exists in this project
+ * /admin/analytics/summary No charting library exists in this project
  * (package.json has no recharts/chart.js — see AdminStatsGrid.tsx and
  * every other admin view, all plain cards/tables), so the trend line
  * is a lightweight CSS/SVG bar chart rather than pulling in a new
  * dependency for one view.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAdminAnalyticsSummary } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { AlertTriangle, Eye, Search, Tag, MessageSquare, UserPlus, FileText } from 'lucide-react';
@@ -40,7 +40,23 @@ function formatPercent(rate: number): string {
 export function AdminAnalyticsDashboard() {
   const [rangeDays, setRangeDays] = useState<number>(30);
 
-  const from = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString();
+  // BUG-FIX (admin analytics infinite spinner): `from` was previously
+  // computed inline as `new Date(Date.now() - rangeDays * 86400000).toISOString()`
+  // on every render. It feeds directly into useAdminAnalyticsSummary's
+  // queryKey (see queryKeys.admin.analyticsSummary), so a fresh
+  // millisecond-precision timestamp on every render meant every render
+  // produced a brand-new queryKey. A successful fetch triggers a
+  // re-render (new data), which recomputed `from` with a new
+  // Date.now(), which produced a new queryKey, which started a new
+  // fetch (isLoading true again) with no cached data under that key —
+  // ad infinitum. The page never actually hung; it was refetching in
+  // an unbroken loop, which is indistinguishable from a stuck spinner.
+  // Memoizing on rangeDays means `from` — and the queryKey — only
+  // change when the user actually picks a different range.
+  const from = useMemo(
+    () => new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString(),
+    [rangeDays]
+  );
   const bucket = rangeDays > 30 ? 'week' : 'day';
 
   const { data, isLoading, isError, refetch } = useAdminAnalyticsSummary({ from, bucket });
