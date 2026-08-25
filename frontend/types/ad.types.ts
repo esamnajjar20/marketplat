@@ -57,6 +57,8 @@ export interface Ad {
    * system existed may have this as null.
    */
   sellerProfileId: string | null;
+  /** Present on list/detail when the ad is linked to a seller profile */
+  sellerProfile?: SellerTrustSummary | null;
   categoryId:   string | null;
   createdAt:    string;
   updatedAt:    string;
@@ -69,6 +71,14 @@ export interface AdAuthor {
   name:      string;
   avatarUrl: string | null;
   city:      string | null;
+}
+
+/** Minimal seller trust fields returned on list/search payloads. */
+export interface SellerTrustSummary {
+  verified: boolean;
+  /** Prisma Decimal serialises to string in JSON */
+  averageRating: string;
+  totalRatings: number;
 }
 
 export interface AdCategory {

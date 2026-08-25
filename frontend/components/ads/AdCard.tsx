@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Heart } from 'lucide-react';
+import { MapPin, Heart, Star, BadgeCheck } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
@@ -210,7 +210,19 @@ export function AdCard({ ad, className, priority = false }: Props) {
                     sizes="20px"
                   />
                 </div>
-                <span className="w-16 truncate text-xs text-muted-foreground">{ad.user.name}</span>
+                <span className="max-w-[4.5rem] truncate text-xs text-muted-foreground">{ad.user.name}</span>
+                {ad.sellerProfile?.verified && (
+                  <BadgeCheck
+                    className="h-3.5 w-3.5 shrink-0 text-primary"
+                    aria-label="بائع موثّق"
+                  />
+                )}
+                {ad.sellerProfile && ad.sellerProfile.totalRatings > 0 && (
+                  <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
+                    {parseFloat(ad.sellerProfile.averageRating).toFixed(1)}
+                  </span>
+                )}
               </div>
               <span className={cn('shrink-0 text-xs', timeColorClass)}>{formatRelativeTime(ad.createdAt)}</span>
             </div>

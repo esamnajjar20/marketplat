@@ -1,11 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
 import { AdCardSkeleton, AdListItemSkeleton } from '@/components/shared/skeletons';
 import { Pagination }     from '@/components/shared/ui/Pagination';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
+import { Button }        from '@/components/shared/ui/Button';
 import { useAds, useSearchAds } from '@/hooks/queries/useAds';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { ROUTES } from '@/lib/constants';
@@ -157,25 +159,28 @@ export function SearchResults({ categorySlug }: Props = {}) {
         <EmptyState
           icon={<Search className="h-10 w-10" />}
           title="لا توجد إعلانات"
-          description={q ? `لم نجد نتائج لـ "${q}"` : 'لا توجد إعلانات مطابقة لهذه الفلاتر'}
+          description={q ? `لم نجد نتائج لـ «${q}». جرّب كلمة أقصر أو غيّر المدينة أو امسح الفلاتر.` : 'لا توجد إعلانات مطابقة. جرّب توسيع البحث أو تصفّح التصنيفات.'}
           action={
-            hasActiveFilters || q ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Keep the search query when only filters were applied;
-                  // clear everything when the empty state is from the query itself.
-                  if (hasActiveFilters && q) {
-                    router.push(`${ROUTES.search}?q=${encodeURIComponent(q)}`);
-                  } else {
-                    router.push(ROUTES.search);
-                  }
-                }}
-              >
-                {hasActiveFilters ? 'مسح الفلاتر' : 'عرض كل الإعلانات'}
+            <div className="flex flex-col items-center gap-2 sm:flex-row">
+              {(hasActiveFilters || q) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (hasActiveFilters && q) {
+                      router.push(`${ROUTES.search}?q=${encodeURIComponent(q)}`);
+                    } else {
+                      router.push(ROUTES.search);
+                    }
+                  }}
+                >
+                  {hasActiveFilters ? 'مسح الفلاتر' : 'عرض كل الإعلانات'}
+                </Button>
+              )}
+              <Button variant="default" size="sm" asChild>
+                <Link href={ROUTES.home}>العودة للرئيسية</Link>
               </Button>
-            ) : undefined
+            </div>
           }
         />
       ) : view === 'grid' ? (

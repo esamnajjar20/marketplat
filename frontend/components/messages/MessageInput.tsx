@@ -15,6 +15,13 @@ interface Props {
 }
 
 const MAX_LENGTH = 2000;
+
+const QUICK_TEMPLATES = [
+  'هل ما زال متوفراً؟',
+  'ما آخر سعر؟',
+  'أين مكان الاستلام؟',
+] as const;
+
 // FIX UX-GAP-05: the counter only needs to earn its place once getting
 // cut off is a real possibility — showing "12/2000" on every short
 // message is noise. 90% mirrors the threshold this codebase already
@@ -52,7 +59,26 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const nearLimit = body.length >= WARN_THRESHOLD;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-card/90 backdrop-blur-md px-3 py-3">
+    <div className="bg-card/90 backdrop-blur-md">
+      {!body.trim() && (
+        <div
+          className="flex gap-2 overflow-x-auto px-3 pt-2 pb-1 [&::-webkit-scrollbar]:hidden"
+          role="group"
+          aria-label="رسائل سريعة"
+        >
+          {QUICK_TEMPLATES.map((label) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setBody(label)}
+              className="shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-foreground min-h-[36px] hover:bg-muted"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    <form onSubmit={handleSubmit} className="px-3 py-3">
       <div className="flex items-end gap-2 bg-muted rounded-3xl p-1.5 shadow-inner focus-within:ring-2 focus-within:ring-primary/20 transition-all">
         <div className="flex-1 min-w-0">
           <textarea
@@ -100,5 +126,6 @@ export function MessageInput({ conversationId, disabled }: Props) {
         </button>
       </div>
     </form>
+    </div>
   );
 }

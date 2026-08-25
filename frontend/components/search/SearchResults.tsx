@@ -1,3 +1,4 @@
+import Link from 'next/link';
 'use client';
 
 import { useEffect } from 'react';
@@ -151,17 +152,32 @@ export function SearchResults() {
         <EmptyState
           icon={<Search className="h-10 w-10" />}
           title="لا توجد نتائج"
-          description={q ? `لم نجد نتائج لـ "${q}"` : 'لا توجد نتائج مطابقة لهذه الفلاتر'}
+          description={
+            q
+              ? `لم نجد نتائج لـ «${q}». جرّب كلمة أقصر، أو أزل بعض الفلاتر، أو تصفّح التصنيفات.`
+              : 'لا توجد نتائج مطابقة لهذه الفلاتر. جرّب توسيع نطاق البحث.'
+          }
           action={
-            hasActiveFilters ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(q ? `${ROUTES.search}?q=${encodeURIComponent(q)}` : ROUTES.search)}
-              >
-                مسح الفلاتر
+            <div className="flex flex-col items-center gap-2 sm:flex-row">
+              {(hasActiveFilters || q) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    router.push(
+                      hasActiveFilters && q
+                        ? `${ROUTES.search}?q=${encodeURIComponent(q)}`
+                        : ROUTES.search,
+                    )
+                  }
+                >
+                  {hasActiveFilters ? 'مسح الفلاتر' : 'عرض كل النتائج'}
+                </Button>
+              )}
+              <Button variant="default" size="sm" asChild>
+                <Link href={ROUTES.home}>العودة للرئيسية</Link>
               </Button>
-            ) : undefined
+            </div>
           }
         />
       ) : (

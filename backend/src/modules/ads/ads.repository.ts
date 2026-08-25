@@ -13,6 +13,14 @@ export type AdWithAuthor = Prisma.AdGetPayload<{
 const adWithRelations = {
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
+  // UX trust-on-card: lightweight seller signals for AdCard (not full profile).
+  sellerProfile: {
+    select: {
+      verified: true,
+      averageRating: true,
+      totalRatings: true,
+    },
+  },
 } as const;
 
 // PERF FIX (audit finding #3): list endpoints (findMany, findManyByUserId,
@@ -66,6 +74,14 @@ const adListSelect = {
   sellerProfileId: true,
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
+  // UX trust-on-card: lightweight seller signals for AdCard (not full profile).
+  sellerProfile: {
+    select: {
+      verified: true,
+      averageRating: true,
+      totalRatings: true,
+    },
+  },
 } as const;
 
 // L-3 (audit fix): built from Record<AdSortField, ...> instead of the
