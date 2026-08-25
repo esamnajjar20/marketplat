@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
 import { SellerCard } from '@/components/ads/SellerCard';
+import { StickyContactBar } from '@/components/ads/StickyContactBar';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
@@ -95,7 +96,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 pb-32 lg:pb-0">
       {/* LEFT: images + details */}
       <div className="flex-1 lg:w-2/3 min-w-0 space-y-6">
 
@@ -293,6 +294,14 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </div>
         </div>
       </aside>
+
+      {/* UX: sticky contact CTA on mobile — price + message always reachable */}
+      <StickyContactBar
+        adId={ad.id}
+        price={ad.price}
+        isNegotiable={ad.isNegotiable}
+        seller={ad.user}
+      />
     </div>
   );
 }

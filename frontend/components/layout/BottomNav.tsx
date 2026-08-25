@@ -100,7 +100,7 @@ export function BottomNav() {
         href={href}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+          'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -123,7 +123,7 @@ export function BottomNav() {
         aria-current={isExploreActive ? 'page' : undefined}
         aria-haspopup="dialog"
         className={cn(
-          'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+          'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
           isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -134,7 +134,7 @@ export function BottomNav() {
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
         <Link
           href={isAuthenticated && !isSeller ? ROUTES.settings.seller : ROUTES.adCreate}
-          className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+          className="-mt-5 flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
         >
           <Plus className="h-5 w-5" aria-hidden={true} />
         </Link>
@@ -152,7 +152,7 @@ export function BottomNav() {
       <button
         type="button"
         onClick={toggleMobileNav}
-        className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <Menu className="h-5 w-5" aria-hidden={true} />
         {isAuthenticated ? 'حسابي' : 'القائمة'}

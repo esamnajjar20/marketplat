@@ -217,7 +217,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
           disabled={toggleFavorite.isPending}
           aria-label={isFavorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
           aria-pressed={isFavorited}
-          className="absolute top-2 end-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 shadow-sm backdrop-blur-sm transition-transform active:scale-90 disabled:opacity-60"
+          className="absolute top-2 end-2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-background/90 shadow-sm backdrop-blur-sm transition-transform active:scale-90 disabled:opacity-60"
         >
           <Heart key={popKey} className={cn('h-4 w-4', popKey > 0 && 'motion-safe:animate-heart-pop', isFavorited ? 'fill-destructive text-destructive' : 'text-foreground')} />
         </button>
