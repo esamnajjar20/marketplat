@@ -282,6 +282,76 @@ describe('recommendationsRepository', () => {
 
         expect(result.map(a => a.id)).toEqual(['ad-a', 'ad-b']);
       });
+
+      // PR5D: explicit AD coverage for the remaining checklist items —
+      // recent-low-view, cold-start, limit=1/limit=24, and exclusions
+      // reaching BOTH pool queries (not just the first). These were
+      // previously covered only implicitly through the more general
+      // tests above; PR5D asked for them named and direct instead of
+      // assumed.
+      it('includes a recent item with a low, non-zero view count as a real candidate', async () => {
+        const recentLowView = fakeAd({ id: 'recent-low-view', views: 2, createdAt: daysAgo(1) });
+        (prisma.ad.findMany as jest.Mock)
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([recentLowView]);
+
+        const result = await recommendationsRepository.findTrending([], 8);
+
+        expect(result.map(a => a.id)).toContain('recent-low-view');
+      });
+
+      it('returns an empty array when both candidate pools are empty (cold start)', async () => {
+        (prisma.ad.findMany as jest.Mock)
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([]);
+
+        const result = await recommendationsRepository.findTrending([], 8);
+
+        expect(result).toEqual([]);
+      });
+
+      it('respects limit=1, returning exactly the single top-ranked candidate', async () => {
+        const ads = [1, 2, 3].map(n => fakeAd({ id: `ad-${n}`, views: n * 10, createdAt: daysAgo(n) }));
+        (prisma.ad.findMany as jest.Mock)
+          .mockResolvedValueOnce(ads)
+          .mockResolvedValueOnce([]);
+
+        const result = await recommendationsRepository.findTrending([], 1);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('ad-3');
+      });
+
+      it('respects limit=24 (the maximum allowed) when more than 24 candidates exist across both pools', async () => {
+        const topByViews = Array.from({ length: 20 }, (_, i) =>
+          fakeAd({ id: `views-${i}`, views: 100 - i, createdAt: daysAgo(50) }));
+        const mostRecent = Array.from({ length: 20 }, (_, i) =>
+          fakeAd({ id: `recent-${i}`, views: 0, createdAt: daysAgo(i) }));
+        (prisma.ad.findMany as jest.Mock)
+          .mockResolvedValueOnce(topByViews)
+          .mockResolvedValueOnce(mostRecent);
+
+        const result = await recommendationsRepository.findTrending([], 24);
+
+        expect(result).toHaveLength(24);
+        // No duplicate ids in the final merged/ranked result.
+        expect(new Set(result.map(a => a.id)).size).toBe(24);
+      });
+
+      it('passes the same exclusion where-clause to both the topByViews and mostRecent calls', async () => {
+        (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
+
+        await recommendationsRepository.findTrending(['ad-owned', 'ad-favorited'], 8);
+
+        const firstCallWhere = (prisma.ad.findMany as jest.Mock).mock.calls[0][0].where;
+        const secondCallWhere = (prisma.ad.findMany as jest.Mock).mock.calls[1][0].where;
+        expect(firstCallWhere).toEqual({
+          status: 'ACTIVE',
+          sellerProfile: { suspended: false },
+          id: { notIn: ['ad-owned', 'ad-favorited'] },
+        });
+        expect(secondCallWhere).toEqual(firstCallWhere);
+      });
     });
   });
 });
@@ -434,6 +504,110 @@ describe('productRecommendationsRepository.findTrending', () => {
 
     expect(result).toHaveLength(2);
   });
+
+  // PR5D: same checklist coverage AD's PR5B block now has, mirrored
+  // here instead of relying on rankTrendingCandidates being shared —
+  // per this task's own instruction not to leave PRODUCT's coverage
+  // implicit-only.
+  it('omits the id filter when there is nothing to exclude', async () => {
+    (prisma.product.findMany as jest.Mock).mockResolvedValue([]);
+
+    await productRecommendationsRepository.findTrending([], 8);
+
+    const callArg = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
+    expect(callArg.where).toEqual({ status: 'ACTIVE', store: { sellerProfile: { suspended: false } } });
+  });
+
+  it('applies a notIn filter to both pool queries when exclusions are given', async () => {
+    (prisma.product.findMany as jest.Mock).mockResolvedValue([]);
+
+    await productRecommendationsRepository.findTrending(['product-owned'], 8);
+
+    const firstCallWhere = (prisma.product.findMany as jest.Mock).mock.calls[0][0].where;
+    const secondCallWhere = (prisma.product.findMany as jest.Mock).mock.calls[1][0].where;
+    expect(firstCallWhere).toEqual({
+      status: 'ACTIVE',
+      store: { sellerProfile: { suspended: false } },
+      id: { notIn: ['product-owned'] },
+    });
+    expect(secondCallWhere).toEqual(firstCallWhere);
+  });
+
+  it('includes a recent item with a low, non-zero view count as a real candidate', async () => {
+    const recentLowView = fakeProduct({ id: 'recent-low-view', views: 2, createdAt: daysAgo(1) });
+    (prisma.product.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([recentLowView]);
+
+    const result = await productRecommendationsRepository.findTrending([], 8);
+
+    expect(result.map(p => p.id)).toContain('recent-low-view');
+  });
+
+  it('returns an empty array when both candidate pools are empty (cold start)', async () => {
+    (prisma.product.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await productRecommendationsRepository.findTrending([], 8);
+
+    expect(result).toEqual([]);
+  });
+
+  it('produces the same order on repeated calls with the same input (deterministic)', async () => {
+    const products = [1, 2, 3].map(n => fakeProduct({ id: `p-${n}`, views: n, createdAt: daysAgo(n * 10) }));
+    (prisma.product.findMany as jest.Mock)
+      .mockResolvedValueOnce(products.slice())
+      .mockResolvedValueOnce([]);
+    const first = await productRecommendationsRepository.findTrending([], 8);
+
+    (prisma.product.findMany as jest.Mock)
+      .mockResolvedValueOnce(products.slice())
+      .mockResolvedValueOnce([]);
+    const second = await productRecommendationsRepository.findTrending([], 8);
+
+    expect(second.map(p => p.id)).toEqual(first.map(p => p.id));
+  });
+
+  it('breaks a full tie (equal score, equal createdAt) deterministically by id ASC', async () => {
+    const sameTimestamp = daysAgo(5);
+    const tiedB = fakeProduct({ id: 'p-b', views: 5, createdAt: sameTimestamp });
+    const tiedA = fakeProduct({ id: 'p-a', views: 5, createdAt: sameTimestamp });
+    (prisma.product.findMany as jest.Mock)
+      .mockResolvedValueOnce([tiedB, tiedA])
+      .mockResolvedValueOnce([]);
+
+    const result = await productRecommendationsRepository.findTrending([], 2);
+
+    expect(result.map(p => p.id)).toEqual(['p-a', 'p-b']);
+  });
+
+  it('respects limit=1, returning exactly the single top-ranked candidate', async () => {
+    const products = [1, 2, 3].map(n => fakeProduct({ id: `p-${n}`, views: n * 10, createdAt: daysAgo(n) }));
+    (prisma.product.findMany as jest.Mock)
+      .mockResolvedValueOnce(products)
+      .mockResolvedValueOnce([]);
+
+    const result = await productRecommendationsRepository.findTrending([], 1);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('p-3');
+  });
+
+  it('respects limit=24 (the maximum allowed) when more than 24 candidates exist across both pools', async () => {
+    const topByViews = Array.from({ length: 20 }, (_, i) =>
+      fakeProduct({ id: `views-${i}`, views: 100 - i, createdAt: daysAgo(50) }));
+    const mostRecent = Array.from({ length: 20 }, (_, i) =>
+      fakeProduct({ id: `recent-${i}`, views: 0, createdAt: daysAgo(i) }));
+    (prisma.product.findMany as jest.Mock)
+      .mockResolvedValueOnce(topByViews)
+      .mockResolvedValueOnce(mostRecent);
+
+    const result = await productRecommendationsRepository.findTrending([], 24);
+
+    expect(result).toHaveLength(24);
+    expect(new Set(result.map(p => p.id)).size).toBe(24);
+  });
 });
 
 describe('serviceListingRecommendationsRepository.findTrending', () => {
@@ -483,6 +657,120 @@ describe('serviceListingRecommendationsRepository.findTrending', () => {
     const result = await serviceListingRecommendationsRepository.findTrending([], 2);
 
     expect(result).toHaveLength(2);
+  });
+
+  // PR5D: same checklist coverage as AD/PRODUCT above, including the
+  // popular-old-item case this entity was missing entirely.
+  it('omits the id filter when there is nothing to exclude', async () => {
+    (prisma.serviceListing.findMany as jest.Mock).mockResolvedValue([]);
+
+    await serviceListingRecommendationsRepository.findTrending([], 8);
+
+    const callArg = (prisma.serviceListing.findMany as jest.Mock).mock.calls[0][0];
+    expect(callArg.where).toEqual({ status: 'ACTIVE', provider: { sellerProfile: { suspended: false } } });
+  });
+
+  it('applies a notIn filter to both pool queries when exclusions are given', async () => {
+    (prisma.serviceListing.findMany as jest.Mock).mockResolvedValue([]);
+
+    await serviceListingRecommendationsRepository.findTrending(['listing-owned'], 8);
+
+    const firstCallWhere = (prisma.serviceListing.findMany as jest.Mock).mock.calls[0][0].where;
+    const secondCallWhere = (prisma.serviceListing.findMany as jest.Mock).mock.calls[1][0].where;
+    expect(firstCallWhere).toEqual({
+      status: 'ACTIVE',
+      provider: { sellerProfile: { suspended: false } },
+      id: { notIn: ['listing-owned'] },
+    });
+    expect(secondCallWhere).toEqual(firstCallWhere);
+  });
+
+  it('does not let a zero-view brand-new listing automatically outrank a very popular one', async () => {
+    const veryPopular = fakeListing({ id: 'very-popular', views: 500, createdAt: daysAgo(10) });
+    const brandNew = fakeListing({ id: 'brand-new', views: 0, createdAt: daysAgo(0) });
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce([veryPopular])
+      .mockResolvedValueOnce([brandNew]);
+
+    const result = await serviceListingRecommendationsRepository.findTrending([], 1);
+
+    expect(result.map(l => l.id)).toEqual(['very-popular']);
+  });
+
+  it('includes a recent item with a low, non-zero view count as a real candidate', async () => {
+    const recentLowView = fakeListing({ id: 'recent-low-view', views: 2, createdAt: daysAgo(1) });
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([recentLowView]);
+
+    const result = await serviceListingRecommendationsRepository.findTrending([], 8);
+
+    expect(result.map(l => l.id)).toContain('recent-low-view');
+  });
+
+  it('returns an empty array when both candidate pools are empty (cold start)', async () => {
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await serviceListingRecommendationsRepository.findTrending([], 8);
+
+    expect(result).toEqual([]);
+  });
+
+  it('produces the same order on repeated calls with the same input (deterministic)', async () => {
+    const listings = [1, 2, 3].map(n => fakeListing({ id: `l-${n}`, views: n, createdAt: daysAgo(n * 10) }));
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce(listings.slice())
+      .mockResolvedValueOnce([]);
+    const first = await serviceListingRecommendationsRepository.findTrending([], 8);
+
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce(listings.slice())
+      .mockResolvedValueOnce([]);
+    const second = await serviceListingRecommendationsRepository.findTrending([], 8);
+
+    expect(second.map(l => l.id)).toEqual(first.map(l => l.id));
+  });
+
+  it('breaks a full tie (equal score, equal createdAt) deterministically by id ASC', async () => {
+    const sameTimestamp = daysAgo(5);
+    const tiedB = fakeListing({ id: 'l-b', views: 5, createdAt: sameTimestamp });
+    const tiedA = fakeListing({ id: 'l-a', views: 5, createdAt: sameTimestamp });
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce([tiedB, tiedA])
+      .mockResolvedValueOnce([]);
+
+    const result = await serviceListingRecommendationsRepository.findTrending([], 2);
+
+    expect(result.map(l => l.id)).toEqual(['l-a', 'l-b']);
+  });
+
+  it('respects limit=1, returning exactly the single top-ranked candidate', async () => {
+    const listings = [1, 2, 3].map(n => fakeListing({ id: `l-${n}`, views: n * 10, createdAt: daysAgo(n) }));
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce(listings)
+      .mockResolvedValueOnce([]);
+
+    const result = await serviceListingRecommendationsRepository.findTrending([], 1);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('l-3');
+  });
+
+  it('respects limit=24 (the maximum allowed) when more than 24 candidates exist across both pools', async () => {
+    const topByViews = Array.from({ length: 20 }, (_, i) =>
+      fakeListing({ id: `views-${i}`, views: 100 - i, createdAt: daysAgo(50) }));
+    const mostRecent = Array.from({ length: 20 }, (_, i) =>
+      fakeListing({ id: `recent-${i}`, views: 0, createdAt: daysAgo(i) }));
+    (prisma.serviceListing.findMany as jest.Mock)
+      .mockResolvedValueOnce(topByViews)
+      .mockResolvedValueOnce(mostRecent);
+
+    const result = await serviceListingRecommendationsRepository.findTrending([], 24);
+
+    expect(result).toHaveLength(24);
+    expect(new Set(result.map(l => l.id)).size).toBe(24);
   });
 });
 
@@ -570,6 +858,26 @@ describe('storeRecommendationsRepository', () => {
 
       expect(result).toEqual([]);
       expect(prisma.storeDetails.findMany).not.toHaveBeenCalled();
+    });
+
+    // PR5D: query-count verification — findRanked must issue exactly
+    // one $queryRaw call (the ranked-id scan) plus, only when that
+    // scan actually returns ids, exactly one follow-up
+    // storeDetails.findMany (hydrating the ranked ids into full
+    // records). Never more than that per call — there is no N+1 here
+    // since the hydration is a single `id: { in: ids } }` batch, not
+    // one findMany per id.
+    it('issues exactly one $queryRaw and one follow-up findMany when ids are found (no N+1)', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'store-1' }, { id: 'store-2' }]);
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([
+        { id: 'store-1' },
+        { id: 'store-2' },
+      ]);
+
+      await storeRecommendationsRepository.findRanked({ excludeIds: [], limit: 8 });
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.storeDetails.findMany).toHaveBeenCalledTimes(1);
     });
 
     it('preserves the ranked order from the raw query, dropping rows since deleted', async () => {

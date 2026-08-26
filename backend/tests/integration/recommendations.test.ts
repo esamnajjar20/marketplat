@@ -7,6 +7,7 @@ import { createTestAd } from '../helpers/ad.helper';
 import { createTestCategory } from '../helpers/category.helper';
 import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 import { createTestStore } from '../helpers/store.helper';
+import { createTestServiceProvider } from '../helpers/serviceProvider.helper';
 
 describe('Recommendations API', () => {
   describe('GET /api/v1/recommendations', () => {
@@ -108,6 +109,164 @@ describe('Recommendations API', () => {
     it('sets Cache-Control: no-store (response varies per caller)', async () => {
       const res = await request(app).get('/api/v1/recommendations');
       expect(res.headers['cache-control']).toBe('no-store');
+    });
+  });
+
+  // PR5D: endpoint-contract regression for type=product and
+  // type=service — both have existed since FEAT-RECOMMENDATIONS-
+  // GENERALIZE (product) and PR4A (service), and are covered at the
+  // repository/service unit-test layers, but neither previously had
+  // an integration test hitting the real HTTP endpoint — so the
+  // actual validation → controller → service → repository wiring for
+  // these two types was unverified end-to-end. Local inline helpers,
+  // matching this suite's own "prisma directly where no shared helper
+  // exists" posture (see the type=store block's own comment on why).
+  describe('GET /api/v1/recommendations?type=product', () => {
+    const createTestProductCategory = async () => {
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      return prisma.productCategory.create({
+        data: { name: `PCat ${unique}`, nameAr: `فئة منتج ${unique}`, slug: `pcat-${unique}` },
+      });
+    };
+
+    const createTestProduct = async (
+      storeId: string,
+      categoryId: string,
+      overrides?: Partial<{ name: string }>
+    ) =>
+      prisma.product.create({
+        data: {
+          storeId,
+          categoryId,
+          name: overrides?.name ?? 'Test Product',
+          description: 'A perfectly fine product description here',
+          images: [],
+          price: 10,
+          status: 'ACTIVE',
+        },
+      });
+
+    it('returns trending products for an anonymous caller', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id);
+      const store = await createTestStore(sellerProfile.id);
+      const category = await createTestProductCategory();
+      await createTestProduct(store.id, category.id);
+
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'product' });
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+    });
+
+    it("excludeProductId mode ranks by that product's own category and excludes it", async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id);
+      const store = await createTestStore(sellerProfile.id);
+      const category = await createTestProductCategory();
+      const referenceProduct = await createTestProduct(store.id, category.id, { name: 'Reference Product' });
+      const sibling = await createTestProduct(store.id, category.id, { name: 'Sibling Product' });
+
+      const res = await request(app)
+        .get('/api/v1/recommendations')
+        .query({ type: 'product', excludeProductId: referenceProduct.id });
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((p: { id: string }) => p.id);
+      expect(ids).not.toContain(referenceProduct.id);
+      expect(ids).toContain(sibling.id);
+    });
+
+    it('respects the limit query param', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id);
+      const store = await createTestStore(sellerProfile.id);
+      const category = await createTestProductCategory();
+      await Promise.all(
+        Array.from({ length: 5 }).map((_, i) =>
+          createTestProduct(store.id, category.id, { name: `Product ${i}` }))
+      );
+
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'product', limit: 2 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe('GET /api/v1/recommendations?type=service', () => {
+    const createTestServiceCategory = async () => {
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      return prisma.serviceCategory.create({
+        data: { name: `SCat ${unique}`, nameAr: `فئة خدمة ${unique}`, slug: `scat-${unique}` },
+      });
+    };
+
+    const createTestServiceListing = async (
+      providerId: string,
+      categoryId: string,
+      overrides?: Partial<{ title: string }>
+    ) =>
+      prisma.serviceListing.create({
+        data: {
+          providerId,
+          categoryId,
+          title: overrides?.title ?? 'Test Service Listing',
+          description: 'A perfectly fine service listing description here',
+          images: [],
+          status: 'ACTIVE',
+        },
+      });
+
+    it('returns trending service listings for an anonymous caller', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id);
+      const provider = await createTestServiceProvider(sellerProfile.id);
+      const category = await createTestServiceCategory();
+      await createTestServiceListing(provider.id, category.id);
+
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'service' });
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+    });
+
+    it("excludeServiceListingId mode ranks by that listing's own category and excludes it", async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id);
+      const provider = await createTestServiceProvider(sellerProfile.id);
+      const category = await createTestServiceCategory();
+      const referenceListing = await createTestServiceListing(provider.id, category.id, {
+        title: 'Reference Listing',
+      });
+      const sibling = await createTestServiceListing(provider.id, category.id, { title: 'Sibling Listing' });
+
+      const res = await request(app)
+        .get('/api/v1/recommendations')
+        .query({ type: 'service', excludeServiceListingId: referenceListing.id });
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((l: { id: string }) => l.id);
+      expect(ids).not.toContain(referenceListing.id);
+      expect(ids).toContain(sibling.id);
+    });
+
+    it('respects the limit query param', async () => {
+      const owner = await createTestUser();
+      const sellerProfile = await createTestSellerProfile(owner.id);
+      const provider = await createTestServiceProvider(sellerProfile.id);
+      const category = await createTestServiceCategory();
+      await Promise.all(
+        Array.from({ length: 5 }).map((_, i) =>
+          createTestServiceListing(provider.id, category.id, { title: `Listing ${i}` }))
+      );
+
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'service', limit: 2 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(2);
     });
   });
 
