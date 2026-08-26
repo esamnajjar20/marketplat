@@ -59,7 +59,7 @@ import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
+import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -67,24 +67,11 @@ import { useMyStore } from '@/hooks/queries/useStores';
 const selectCloseMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 
+// Primary account destinations. Secondary activity items are under
+// ACTIVITY_GROUP (same grouping as ProtectedSidebar).
 const LINKS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard },
-  { label: 'المفضلة', href: ROUTES.favorites },
   { label: 'الرسائل', href: ROUTES.messages },
-  { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches },
-  // REORG-08
-  { label: 'نشاطي', href: ROUTES.activity },
-] as const;
-
-// NAV-DEDUP: BROWSE_LINKS / SERVICES_GROUP / STORE_GROUP / SETTINGS_GROUP
-// moved to lib/navigation.ts — all four were byte-identical to
-// ProtectedSidebar's (and MobileNav's, for BROWSE_LINKS/SETTINGS_GROUP)
-// copies. See that file's doc comment for the full reasoning.
-
-const TRAILING_LINKS = [
-  // FEAT-REPORT-USER-STORE: added for parity with ProtectedSidebar,
-  // same reasoning as this file's own doc comment on "عمليات البحث المحفوظة".
-  { label: 'بلاغاتي', href: ROUTES.myReports },
 ] as const;
 
 const NAV_ID = 'protected-mobile-nav-drawer';
@@ -300,6 +287,9 @@ export function ProtectedMobileNav() {
             );
           })}
 
+          <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />
+
+
           {/* عرض الملف الشخصي — standalone entry, kept out of LINKS
               (which has no user.id to build the href with) and out of
               SETTINGS_GROUP below (whose children are all edit/manage
@@ -400,25 +390,6 @@ export function ProtectedMobileNav() {
               </Link>
             </li>
           )}
-
-          {TRAILING_LINKS.map((link) => {
-            const isActive = pathname.startsWith((link as { activeMatch?: string }).activeMatch ?? link.href);
-            return (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={close}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={cn(
-                    'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-                    isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-                  )}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            );
-          })}
 
           <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />
 

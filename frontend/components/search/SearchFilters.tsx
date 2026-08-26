@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
@@ -11,37 +12,21 @@ import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
+import { cn } from '@/lib/utils';
 import type { SearchType } from '@/types/search.types';
 
 /**
- * City / category / sort filters for the unified search page. Follows
- * ads/SearchFilters.tsx's same "read from URL, push a new URL on
- * change" pattern (update()), but categoryId's option list depends on
- * `type` — each entity has its own category taxonomy (see
- * search.repository.ts's header: Ad/Product/ServiceListing categories
- * are three separate tables, StoreDetails has none at all) so there is
- * no single combined tree to show. When type is "all" or "stores",
- * the category filter is hidden entirely rather than showing a
- * misleading/partial list.
- *
- * Ad categories (useCategories) are a parent/children TREE
- * (types/category.types.ts's Category.children); product and service
- * categories (useProductCategories/useServiceCategories) are FLAT
- * lists (ProductCategory/ServiceCategory have no children field) — two
- * genuinely different shapes, rendered with two different option-list
- * branches below rather than forced into one shared loop.
- *
- * FIX P2-08 (audit item #8): sort used to have its own Select right
- * here. It's now SearchSortBar, rendered independently above the
- * results (see app/(public)/search/page.tsx) instead of nested inside
- * this filters panel/sheet — so changing sort on mobile no longer
- * requires opening "تصفية" for something that isn't really a filter.
+ * Basic filters first (location + city) — the two users change most.
+ * Category sits behind "خيارات أكثر" so the default sheet/panel stays
+ * short on mobile; opens automatically when a category is already active.
  */
 export function SearchFilters() {
   const router = useRouter();
   const sp = useSearchParams();
 
   const type = (sp.get('type') as SearchType) ?? 'all';
+  const hasCategory = Boolean(sp.get('categoryId'));
+  const [advancedOpen, setAdvancedOpen] = useState(hasCategory);
 
   const { data: adCategories } = useCategories();
   const { data: productCategories } = useProductCategories();
@@ -58,57 +43,109 @@ export function SearchFilters() {
   const showCategoryFilter = type === 'ads' || type === 'products' || type === 'services';
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
-      <div className="flex items-center gap-2 font-semibold text-sm">
-        <SlidersHorizontal className="h-4 w-4" />
+    <div className="space-y-4 rounded-lg border bg-card p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <SlidersHorizontal className="h-4 w-4" aria-hidden />
         تصفية النتائج
       </div>
 
+      {/* —— Basic —— */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الموقع</label>
+        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          الموقع
+        </label>
         <SearchNearbyToggle />
       </div>
 
-      {showCategoryFilter && (
-        <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الفئة</label>
-          <Select value={sp.get('categoryId') || 'ALL'} onValueChange={(v) => update('categoryId', v === 'ALL' ? '' : v)}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">كل الفئات</SelectItem>
-              {type === 'ads' &&
-                adCategories?.map((cat) => (
-                  <SelectGroup key={cat.id}>
-                    <SelectLabel>{cat.nameAr}</SelectLabel>
-                    <SelectItem value={cat.id}>{cat.nameAr}</SelectItem>
-                    {cat.children?.map((child) => (
-                      <SelectItem key={child.id} value={child.id}>— {child.nameAr}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              {type === 'products' &&
-                productCategories?.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
-                ))}
-              {type === 'services' &&
-                serviceCategories?.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
-        <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          المدينة
+        </label>
+        <Select
+          value={sp.get('city') || 'ALL'}
+          onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="كل المدن" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل المدن</SelectItem>
-            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {CITIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
+
+      {/* —— Advanced (category) —— */}
+      {showCategoryFilter && (
+        <div className="border-t pt-3">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 text-sm font-medium text-foreground"
+            onClick={() => setAdvancedOpen((o) => !o)}
+            aria-expanded={advancedOpen}
+          >
+            <span className="flex items-center gap-2">
+              خيارات أكثر
+              {hasCategory && (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  مفعّل
+                </span>
+              )}
+            </span>
+            <ChevronDown
+              className={cn('h-4 w-4 text-muted-foreground transition-transform', advancedOpen && 'rotate-180')}
+              aria-hidden
+            />
+          </button>
+
+          {advancedOpen && (
+            <div className="mt-3 space-y-1.5">
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                الفئة
+              </label>
+              <Select
+                value={sp.get('categoryId') || 'ALL'}
+                onValueChange={(v) => update('categoryId', v === 'ALL' ? '' : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="كل الفئات" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">كل الفئات</SelectItem>
+                  {type === 'ads' &&
+                    adCategories?.map((cat) => (
+                      <SelectGroup key={cat.id}>
+                        <SelectLabel>{cat.nameAr}</SelectLabel>
+                        <SelectItem value={cat.id}>{cat.nameAr}</SelectItem>
+                        {cat.children?.map((child) => (
+                          <SelectItem key={child.id} value={child.id}>
+                            — {child.nameAr}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  {type === 'products' &&
+                    productCategories?.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.nameAr}
+                      </SelectItem>
+                    ))}
+                  {type === 'services' &&
+                    serviceCategories?.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.nameAr}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
 
       <Button
         variant="outline"

@@ -52,10 +52,21 @@ export function FavoritesList() {
 
   if (items.length === 0) {
     return (
-      <EmptyState icon={<Heart className="h-10 w-10" />}
+      <EmptyState
+        icon={<Heart className="h-10 w-10" />}
         title="لا توجد إعلانات محفوظة"
-        description="احفظ الإعلانات التي تعجبك لتجدها هنا لاحقاً"
-        action={<Link href={ROUTES.home}><Button variant="outline">تصفح الإعلانات</Button></Link>} />
+        description="اضغط ♡ على أي إعلان أثناء التصفح ليظهر هنا لاحقاً — مفيد لمقارنة الخيارات قبل التواصل."
+        action={
+          <div className="flex flex-col items-center gap-2 sm:flex-row">
+            <Button asChild size="sm">
+              <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={ROUTES.home}>العودة للرئيسية</Link>
+            </Button>
+          </div>
+        }
+      />
     );
   }
 

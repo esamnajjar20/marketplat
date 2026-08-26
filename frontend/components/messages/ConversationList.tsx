@@ -107,8 +107,18 @@ export function ConversationList({ selectedId }: Props = {}) {
     return (
       <EmptyState
         icon={<MessageSquare className="h-10 w-10" />}
-        title="لا توجد محادثات"
-        description="ستظهر هنا محادثاتك مع البائعين والمشترين"
+        title="لا توجد محادثات بعد"
+        description="ابدأ محادثة من صفحة أي إعلان عبر «راسل البائع» — ستظهر هنا محادثاتك مع البائعين والمشترين."
+        action={
+          <div className="flex flex-col items-center gap-2 sm:flex-row">
+            <Button asChild size="sm">
+              <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={ROUTES.home}>العودة للرئيسية</Link>
+            </Button>
+          </div>
+        }
       />
     );
   }

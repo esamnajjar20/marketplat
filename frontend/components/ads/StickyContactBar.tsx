@@ -1,11 +1,5 @@
 'use client';
 
-/**
- * UX: sticky mobile contact bar on ad detail.
- * Primary conversion surface — one dominant "راسل البائع" action,
- * price always visible, sits above BottomNav without fighting it.
- */
-
 import { MessageSquare, LogIn, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
@@ -26,20 +20,12 @@ interface Props {
   className?: string;
 }
 
-export function StickyContactBar({
-  adId,
-  price,
-  isNegotiable,
-  seller,
-  className,
-}: Props) {
+export function StickyContactBar({ adId, price, isNegotiable, seller, className }: Props) {
   const router = useRouter();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
   const startConversation = useStartConversation();
-
-  const isOwnAd = currentUser?.id === seller.id;
-  if (isOwnAd) return null;
+  if (currentUser?.id === seller.id) return null;
 
   function handleMessage() {
     if (!isAuth) {
@@ -55,9 +41,7 @@ export function StickyContactBar({
           toast.success('تم فتح المحادثة');
           router.push(ROUTES.conversationDetail(conversation!.id));
         },
-        onError: () => {
-          toast.error('تعذّر بدء المحادثة، حاول مرة أخرى');
-        },
+        onError: () => toast.error('تعذّر بدء المحادثة، حاول مرة أخرى'),
       },
     );
   }
@@ -69,7 +53,6 @@ export function StickyContactBar({
       role="region"
       aria-label="تواصل سريع مع البائع"
       className={cn(
-        // Above BottomNav (z-50); keep this at z-40 so tabs stay tappable.
         'fixed inset-x-0 z-40 border-t border-border/80 bg-background/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur',
         'bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))]',
         'supports-[backdrop-filter]:bg-background/90 lg:hidden',
@@ -85,33 +68,19 @@ export function StickyContactBar({
             {isNegotiable ? (
               <p className="text-[11px] font-medium text-primary/80">قابل للتفاوض</p>
             ) : (
-              <p className="truncate text-[11px] text-muted-foreground">
-                مع {seller.name}
-              </p>
+              <p className="truncate text-[11px] text-muted-foreground">مع {seller.name}</p>
             )}
           </div>
-
           <Button
             type="button"
             size="lg"
-            className={cn(
-              // Single dominant CTA — full brand primary, roomy hit target
-              'h-12 min-w-[9.5rem] shrink-0 gap-2 rounded-xl px-5 text-sm font-semibold shadow-md',
-              'sm:min-w-[11rem] sm:text-base',
-              'active:scale-[0.98]',
-            )}
+            className="h-12 min-w-[9.5rem] shrink-0 gap-2 rounded-xl px-5 text-sm font-semibold shadow-md sm:min-w-[11rem] sm:text-base active:scale-[0.98]"
             disabled={pending}
             onClick={handleMessage}
             aria-label={isAuth ? `مراسلة ${seller.name}` : 'سجّل الدخول لمراسلة البائع'}
             aria-busy={pending}
           >
-            {pending ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : isAuth ? (
-              <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
-            ) : (
-              <LogIn className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
-            )}
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : isAuth ? <MessageSquare className="h-4 w-4" aria-hidden /> : <LogIn className="h-4 w-4" aria-hidden />}
             {pending ? 'جاري الفتح…' : isAuth ? 'راسل البائع' : 'سجّل للتواصل'}
           </Button>
         </div>

@@ -67,32 +67,29 @@ import { useState } from 'react';
 import Link           from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, ListOrdered, Heart, BellPlus,
-  MessageSquare, Flag, History,
-  ChevronDown, ChevronRight, User, ExternalLink, Store,
+  LayoutDashboard,
+  ListOrdered,
+  MessageSquare,
+  ChevronDown,
+  ChevronRight,
+  User,
+  ExternalLink,
+  Store,
+  ,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
-import { SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
+import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
 
+// Primary destinations stay one-tap. Secondary activity items live in
+// ACTIVITY_GROUP (المفضلة / بحث محفوظ / سجل / بلاغات).
 const NAV_ITEMS = [
-  { label: 'لوحة التحكم', href: ROUTES.dashboard,        icon: LayoutDashboard },
-  { label: 'المفضلة',     href: ROUTES.favorites,         icon: Heart },
-  { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches, icon: BellPlus },
-  { label: 'نشاطي',       href: ROUTES.activity,          icon: History },
-  { label: 'الرسائل',     href: ROUTES.messages,          icon: MessageSquare },
-] as const;
-
-const TRAILING_NAV_ITEMS = [
-  // FEAT-REPORT-USER-STORE: without a link here, /my-reports would be
-  // reachable only by direct URL — same discoverability gap as the
-  // "AUDIT-FIX (protected #2, #4)" note above already fixed once for
-  // /my-services and /saved-searches.
-  { label: 'بلاغاتي',     href: ROUTES.myReports,         icon: Flag },
+  { label: 'لوحة التحكم', href: ROUTES.dashboard, icon: LayoutDashboard },
+  { label: 'الرسائل',     href: ROUTES.messages,  icon: MessageSquare },
 ] as const;
 
 // NAV-DEDUP: SETTINGS_GROUP / SERVICES_GROUP / STORE_GROUP moved to
@@ -129,7 +126,7 @@ function NavLink({
 function DisclosureGroup({
   group, pathname,
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
+  group: typeof ACTIVITY_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
 }) {
   const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
@@ -195,6 +192,9 @@ export function ProtectedSidebar() {
             <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
           );
         })}
+
+        <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />
+
 
         {/* عرض الملف الشخصي — standalone entry, distinct from the
             "الإعدادات" disclosure group below whose children are all
@@ -267,13 +267,6 @@ export function ProtectedSidebar() {
             isActive={pathname.startsWith(ROUTES.storeDetail(myStore.id))}
           />
         )}
-
-        {TRAILING_NAV_ITEMS.map((item) => {
-          const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);
-          return (
-            <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
-          );
-        })}
 
         {/* AUDIT-FIX (nav duplication): settingsGroupFor(isSeller) drops
             the "متجري" child once STORE_GROUP above is already showing

@@ -85,18 +85,13 @@ export function UnifiedResultCard({ result, className }: Props) {
         </span>
       </div>
 
-      {/* Price-first body — mirrors AdCard so mixed search grids feel
-          like one product, not four different card designs. */}
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         {result.price !== null && (
           <p className="font-mono text-base font-bold tabular-nums text-primary leading-none">
             {formatPrice(result.price)}
           </p>
         )}
-        <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
-          {result.title}
-        </h3>
-
+        <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{result.title}</h3>
         <div className="mt-auto flex flex-col gap-1 pt-1">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             {(result.city || distanceLabel) && (
@@ -105,22 +100,18 @@ export function UnifiedResultCard({ result, className }: Props) {
                 <span className="truncate">
                   {result.city}
                   {result.city && distanceLabel ? ' · ' : ''}
-                  {distanceLabel && (
+                  {distanceLabel ? (
                     <span className="font-medium text-primary">{distanceLabel}</span>
-                  )}
+                  ) : null}
                 </span>
               </span>
             )}
           </div>
-
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <span className="flex min-w-0 items-center gap-1">
               <span className="truncate">{result.seller.name}</span>
               {result.seller.verified && (
-                <BadgeCheck
-                  className="h-3.5 w-3.5 shrink-0 text-primary"
-                  aria-label="بائع موثّق"
-                />
+                <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="بائع موثّق" />
               )}
             </span>
             <span className="flex shrink-0 items-center gap-2">

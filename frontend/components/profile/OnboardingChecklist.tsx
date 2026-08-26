@@ -1,26 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, Circle, User, Store, PlusCircle } from 'lucide-react';
+import { Check, Circle, User, Store, PlusCircle, ArrowLeft } from 'lucide-react';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyAds } from '@/hooks/queries/useAds';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/shared/ui/Button';
 
 /**
- * FIX P2-8: the dashboard had no onboarding guidance for a brand-new
- * user — just stats (all zero) + quick actions, with nothing tying
- * them together into "here's what to do first". Every step below
- * reads from data the dashboard is already fetching elsewhere
- * (useMySellerProfile is CreateAdGate's own check; useMyAds({limit:1})
- * is a cheap existence probe with its own query key — unrelated to
- * DashboardStats, which now reads from the separate useMyAdStats
- * aggregate endpoint, not from a list of ads) rather than inventing
- * new client-side "completeness" state.
- *
- * Collapses to nothing (returns null) once all steps are done, so it
- * doesn't linger as dead chrome for an established seller.
+ * Dashboard onboarding for new users — collapses once all steps are done.
  */
 export function OnboardingChecklist() {
   const user = useAuthStore(selectUser);
@@ -30,8 +20,6 @@ export function OnboardingChecklist() {
   if (sellerLoading || adsLoading) return null;
 
   const hasAvatar = Boolean(user?.avatarUrl);
-  // Mirrors CreateAdGate's own check: a 404 here means "not a seller
-  // yet", not a failed fetch — treat isError the same way it does.
   const hasSellerProfile = !sellerError && Boolean(sellerProfile);
   const hasAd = Boolean(myAds?.items?.length);
 
@@ -50,9 +38,6 @@ export function OnboardingChecklist() {
     },
     {
       done: hasAd,
-      // FIX P0-1's ?from= round trip already handles the case where
-      // the user isn't a seller yet — this link works whether or not
-      // hasSellerProfile is true.
       href: hasSellerProfile
         ? ROUTES.adCreate
         : `${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.adCreate)}`,
@@ -61,41 +46,81 @@ export function OnboardingChecklist() {
     },
   ];
 
+  const doneCount = steps.filter((s) => s.done).length;
   const remaining = steps.filter((s) => !s.done);
   if (remaining.length === 0) return null;
 
+  const next = remaining[0]!;
+  const progress = (doneCount / steps.length) * 100;
+
   return (
-    <section className="rounded-lg border bg-card p-4 space-y-3" aria-labelledby="onboarding-heading">
-      <div className="space-y-0.5">
-        <h2 id="onboarding-heading" className="font-semibold text-sm">أكمل ملفك</h2>
-        <p className="text-xs text-muted-foreground">
-          {remaining.length} {remaining.length === 1 ? 'خطوة متبقية' : 'خطوات متبقية'}
-        </p>
+    <section
+      className="space-y-4 rounded-xl border border-primary/20 bg-card p-4 shadow-sm"
+      aria-labelledby="onboarding-heading"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-0.5">
+          <h2 id="onboarding-heading" className="text-sm font-semibold">
+            ابدأ بيعك على سوق غزة
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {doneCount} من {steps.length} خطوات مكتملة
+            {remaining.length === 1 ? ' — خطوة أخيرة!' : ''}
+          </p>
+        </div>
+        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+          {Math.round(progress)}%
+        </span>
       </div>
-      <ul className="space-y-1.5">
+
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuenow={doneCount}
+        aria-valuemin={0}
+        aria-valuemax={steps.length}
+        aria-label="تقدم إكمال الملف"
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <ul className="space-y-1">
         {steps.map((step) => (
           <li key={step.label}>
             {step.done ? (
-              <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-                <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+              <div className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
+                <Check className="h-4 w-4 shrink-0 text-success" aria-hidden />
                 <span className="line-through">{step.label}</span>
               </div>
             ) : (
               <Link
                 href={step.href}
                 className={cn(
-                  'flex min-h-[44px] items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                  'hover:bg-muted',
+                  'flex min-h-[44px] items-center gap-2 rounded-md px-2 py-2.5 text-sm font-medium transition-colors',
+                  step === next ? 'bg-primary/5 text-foreground' : 'hover:bg-muted',
                 )}
               >
-                <Circle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <step.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                {step.label}
+                <Circle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <step.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                <span className="flex-1 text-start">{step.label}</span>
+                {step === next && (
+                  <ArrowLeft className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                )}
               </Link>
             )}
           </li>
         ))}
       </ul>
+
+      <Button asChild className="w-full font-semibold" size="sm">
+        <Link href={next.href}>
+          {next.label}
+          <ArrowLeft className="ms-1 h-4 w-4" aria-hidden />
+        </Link>
+      </Button>
     </section>
   );
 }

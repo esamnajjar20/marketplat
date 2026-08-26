@@ -25,6 +25,7 @@
  */
 import {
   Home, Search, Store, Wrench, Users, Settings,
+  Heart, History, BookmarkPlus, Flag,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -41,6 +42,22 @@ export const BROWSE_LINKS = [
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
 ] as const;
+
+// "نشاطي" group — secondary account destinations that were flat top-level
+// links and lengthened the sidebar without matching the frequency of
+// dashboard / messages / my-ads. Grouped so the primary three stay
+// one-tap while these remain one disclosure away.
+export const ACTIVITY_GROUP = {
+  label: 'نشاطي',
+  href: ROUTES.activity,
+  icon: History,
+  children: [
+    { label: 'المفضلة', href: ROUTES.favorites },
+    { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches },
+    { label: 'سجل النشاط', href: ROUTES.activity },
+    { label: 'بلاغاتي', href: ROUTES.myReports },
+  ],
+} as const;
 
 // Used by ProtectedSidebar.tsx and ProtectedMobileNav.tsx.
 export const SERVICES_GROUP = {

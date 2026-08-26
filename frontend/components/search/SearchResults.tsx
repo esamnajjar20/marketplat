@@ -147,11 +147,11 @@ export function SearchResults() {
         {/* Empty state + category escape hatches */}
         <EmptyState
           icon={<Search className="h-10 w-10" />}
-          title="لا توجد نتائج"
+          title={q ? `لا نتائج لـ «${q}»` : 'لا توجد نتائج'}
           description={
             q
-              ? `لم نجد نتائج لـ «${q}». جرّب كلمة أقصر، أو أزل بعض الفلاتر، أو تصفّح التصنيفات.`
-              : 'لا توجد نتائج مطابقة لهذه الفلاتر. جرّب توسيع نطاق البحث.'
+              ? 'جرّب كلمة أقصر، أو امسح الفلاتر، أو اختر تصنيفاً من الاقتراحات بالأسفل.'
+              : 'لا توجد نتائج مطابقة لهذه الفلاتر. وسّع النطاق أو اختر نوعاً آخر.'
           }
           action={
             <div className="flex flex-col items-center gap-2 sm:flex-row">
@@ -171,7 +171,7 @@ export function SearchResults() {
                 </Button>
               )}
               <Button variant="default" size="sm" asChild>
-                <Link href={ROUTES.home}>العودة للرئيسية</Link>
+                <Link href={ROUTES.adCreate}>انشر إعلاناً بدلاً من ذلك</Link>
               </Button>
             </div>
           }

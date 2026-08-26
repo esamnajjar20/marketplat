@@ -46,12 +46,7 @@ export function HeroBanner() {
             <Button asChild size="default" variant="secondary" className="font-semibold">
               <Link href={ROUTES.adCreate}>نشر إعلان مجاناً</Link>
             </Button>
-            <Button
-              asChild
-              size="default"
-              variant="ghost"
-              className="font-semibold text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-            >
+            <Button asChild size="default" variant="ghost" className="font-semibold text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
               <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
             </Button>
           </div>
@@ -78,12 +73,7 @@ export function HeroBanner() {
           <Button asChild size="lg" variant="secondary" className="font-semibold">
             <Link href={ROUTES.adCreate}>نشر إعلان مجاناً</Link>
           </Button>
-          <Button
-            asChild
-            size="lg"
-            variant="ghost"
-            className="font-semibold text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-          >
+          <Button asChild size="lg" variant="ghost" className="font-semibold text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
             <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
           </Button>
         </div>

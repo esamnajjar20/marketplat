@@ -16,6 +16,7 @@ import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderA
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { parseApiError } from '@/lib/errorParser';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
+import { toast } from 'sonner';
 
 interface Props {
   mode: AdFormMode;
@@ -379,9 +380,20 @@ export function AdForm({ mode, ad }: Props) {
     if (step === 2) {
       handleBlur('city');
     }
-    if (!canProceedFromStep(step)) return;
+    if (!canProceedFromStep(step)) {
+      if (step === 1) {
+        toast.error('أكمل العنوان (3 أحرف على الأقل) والوصف (10 أحرف على الأقل)');
+      } else if (step === 2) {
+        toast.error('اختر المدينة للمتابعة');
+      }
+      return;
+    }
     setHasSubmitted(false);
     setStep((s) => Math.min(totalSteps, s + 1));
+    // Bring the new step into view on mobile after advancing
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   function goPrevStep() {
@@ -392,7 +404,10 @@ export function AdForm({ mode, ad }: Props) {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {isWizard && (
-        <nav aria-label="خطوات نشر الإعلان" className="rounded-lg border bg-card p-4">
+        <nav
+          aria-label="خطوات نشر الإعلان"
+          className="sticky top-0 z-20 -mx-1 rounded-lg border bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-none"
+        >
           <ol className="flex items-center justify-between gap-2">
             {[
               { n: 1, label: 'الأساسيات' },
@@ -403,14 +418,14 @@ export function AdForm({ mode, ad }: Props) {
                 <span
                   className={
                     item.n === step
-                      ? 'flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground'
+                      ? 'flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground ring-2 ring-primary/30'
                       : item.n < step
                         ? 'flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary'
                         : 'flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground'
                   }
                   aria-current={item.n === step ? 'step' : undefined}
                 >
-                  {item.n}
+                  {item.n < step ? '✓' : item.n}
                 </span>
                 <span className={`text-[11px] sm:text-xs ${item.n === step ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                   {item.label}
@@ -418,7 +433,13 @@ export function AdForm({ mode, ad }: Props) {
               </li>
             ))}
           </ol>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={totalSteps} aria-label="تقدم خطوات النشر">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${(step / totalSteps) * 100}%` }}
+            />
+          </div>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
             الخطوة {step} من {totalSteps}
           </p>
         </nav>
@@ -537,25 +558,27 @@ export function AdForm({ mode, ad }: Props) {
         />
       </div>
 
-      {/* Submit / wizard navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button type="button" variant="outline" onClick={handleCancel}>إلغاء</Button>
-        <div className="flex flex-wrap gap-2">
-          {isWizard && step > 1 && (
-            <Button type="button" variant="outline" onClick={goPrevStep}>
-              السابق
-            </Button>
-          )}
-          {isWizard && step < totalSteps && (
-            <Button type="button" onClick={goNextStep}>
-              التالي
-            </Button>
-          )}
-          {(!isWizard || step === totalSteps) && (
-            <Button type="submit" disabled={isFormIncomplete || isPending}>
-              {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
-            </Button>
-          )}
+      {/* Submit / wizard navigation — sticky on mobile for thumb reach */}
+      <div className="sticky bottom-0 z-20 -mx-1 border-t bg-background/95 p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button type="button" variant="outline" onClick={handleCancel}>إلغاء</Button>
+          <div className="flex flex-wrap gap-2">
+            {isWizard && step > 1 && (
+              <Button type="button" variant="outline" onClick={goPrevStep}>
+                السابق
+              </Button>
+            )}
+            {isWizard && step < totalSteps && (
+              <Button type="button" className="min-w-[7rem] font-semibold" onClick={goNextStep}>
+                التالي
+              </Button>
+            )}
+            {(!isWizard || step === totalSteps) && (
+              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete || isPending}>
+                {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -4,41 +4,37 @@ import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/shared/ui/Sheet';
 import { SearchFilters } from './SearchFilters';
 
-// Keys SearchFilters itself writes via update() — city/categoryId/sort
-// (excluding sort's own default 'relevance', which isn't really an
-// "active" filter) plus the nearby-search lat/lng pair it sets via
-// SearchNearbyToggle. q/type/page are the page's own params, not
-// filters, so they're deliberately excluded from the count.
 const FILTER_KEYS = ['city', 'categoryId', 'lat', 'lng'] as const;
 
 /**
- * FIX P1-2: on mobile, SearchFilters previously rendered inline above
- * the results (DOM order: <aside> before <main> in a grid-cols-1
- * layout) — a full filter panel (location, category, city, sort) stood
- * between the user and any actual result. This wraps the exact same
- * SearchFilters component (unmodified — it's already URL-driven via
- * useSearchParams/router.push, so it works identically inside a sheet)
- * behind a "تصفية" trigger button, shown only below `lg` where the
- * always-visible <aside> is hidden. The active-filter count on the
- * button mirrors what a "N filters active" chip does on most search
- * UIs, so the user isn't guessing whether anything is set before opening it.
+ * Mobile filter entry — short trigger + sheet. Closing the sheet is the
+ * "apply" gesture (URL already updated live); count badge shows active set.
  */
 export function SearchFiltersSheet() {
   const [open, setOpen] = useState(false);
   const sp = useSearchParams();
 
-  const activeCount = FILTER_KEYS.filter((key) => sp.get(key)).length
-    // lat/lng are a pair for one concept (nearby search) — count them
-    // as at most one active filter, not two.
-    - (sp.get('lat') && sp.get('lng') ? 1 : 0);
+  const activeCount =
+    FILTER_KEYS.filter((key) => sp.get(key)).length -
+    (sp.get('lat') && sp.get('lng') ? 1 : 0);
 
   return (
     <div className="lg:hidden">
-      <Button variant="outline" className="w-full justify-center gap-2" onClick={() => setOpen(true)}>
-        <SlidersHorizontal className="h-4 w-4" />
+      <Button
+        variant="outline"
+        className="w-full justify-center gap-2"
+        onClick={() => setOpen(true)}
+        aria-expanded={open}
+      >
+        <SlidersHorizontal className="h-4 w-4" aria-hidden />
         تصفية
         {activeCount > 0 && (
           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
@@ -48,15 +44,21 @@ export function SearchFiltersSheet() {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="p-0">
+        <SheetContent className="flex flex-col p-0">
           <SheetHeader>
             <SheetTitle>تصفية النتائج</SheetTitle>
-            <p className="text-sm text-muted-foreground px-1">
-              طبّق الفلاتر ثم أغلق اللوحة لرؤية النتائج المحدّثة فوراً.
+            <p className="px-1 text-sm text-muted-foreground">
+              الموقع والمدينة أولًا — الفئة تحت «خيارات أكثر». التغييرات تُطبَّق فورًا.
             </p>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-2">
             <SearchFilters />
+          </div>
+          <div className="border-t bg-background p-4">
+            <Button type="button" className="w-full font-semibold" onClick={() => setOpen(false)}>
+              عرض النتائج
+              {activeCount > 0 ? ` (${activeCount})` : ''}
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
