@@ -6,7 +6,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Heart, Star, BadgeCheck } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
-import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
+import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
@@ -48,7 +48,7 @@ interface Props {
  */
 export function AdCard({ ad, className, priority = false }: Props) {
   const rawImage = ad.images[0];
-  const thumb    = rawImage ? getThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
+  const thumb    = rawImage ? getListThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
   const isSold   = ad.status === 'SOLD';
   const isNew    = ad.condition === 'NEW';
 

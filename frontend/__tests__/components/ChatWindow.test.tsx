@@ -51,6 +51,10 @@ vi.mock('@/store/auth.store', () => ({
   selectUser: (s: { user: unknown }) => s.user,
 }));
 
+vi.mock('@/components/ads/ReportAdButton', () => ({
+  ReportAdButton: () => <button type="button">الإبلاغ عن هذا الإعلان</button>,
+}));
+
 vi.mock('@/components/messages/MessageInput', () => ({
   MessageInput: ({ disabled }: { disabled?: boolean }) => (
     <div data-testid="message-input" data-disabled={String(!!disabled)} />

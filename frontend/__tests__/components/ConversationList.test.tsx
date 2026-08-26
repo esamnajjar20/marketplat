@@ -86,7 +86,7 @@ describe('ConversationList', () => {
   it('shows the empty state when there are no conversations', () => {
     mockUseMyConversations.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false, refetch: vi.fn() } as never);
     render(<ConversationList />);
-    expect(screen.getByText('لا توجد محادثات')).toBeInTheDocument();
+    expect(screen.getByText('لا توجد محادثات بعد')).toBeInTheDocument();
   });
 
   it("renders the other party's name (seller, since I am the buyer) and links to the conversation", () => {

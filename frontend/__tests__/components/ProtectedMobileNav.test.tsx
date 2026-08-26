@@ -181,21 +181,25 @@ describe('ProtectedMobileNav', () => {
   });
 
   it('renders the core account links', () => {
+    isMobileNavOpen = true;
     render(<ProtectedMobileNav />);
     expect(screen.getByText('لوحة التحكم')).toBeInTheDocument();
     expect(screen.getByText('إعلاناتي')).toBeInTheDocument();
-    expect(screen.getByText('المفضلة')).toBeInTheDocument();
     expect(screen.getByText('الرسائل')).toBeInTheDocument();
+    // Secondary destinations live under ACTIVITY_GROUP disclosure
+    fireEvent.click(screen.getByRole('button', { name: /نشاطي/ }));
+    expect(screen.getByText('المفضلة')).toBeInTheDocument();
     expect(screen.getByText('عمليات البحث المحفوظة')).toBeInTheDocument();
-    expect(screen.getByText('نشاطي')).toBeInTheDocument();
     expect(screen.getByText('بلاغاتي')).toBeInTheDocument();
     expect(screen.getByText('الإعدادات')).toBeInTheDocument();
   });
 
   it('sets aria-current="page" on the active link', () => {
+    isMobileNavOpen = true;
     mockUsePathname.mockReturnValue('/my-ads');
     render(<ProtectedMobileNav />);
     expect(screen.getByText('إعلاناتي').closest('a')?.getAttribute('aria-current')).toBe('page');
+    fireEvent.click(screen.getByRole('button', { name: /نشاطي/ }));
     expect(screen.getByText('المفضلة').closest('a')?.getAttribute('aria-current')).toBeNull();
   });
 
@@ -251,20 +255,22 @@ describe('ProtectedMobileNav', () => {
     // "متجري") → 2 total. Settings must NOT contribute a third.
     expect(screen.getAllByText('متجري')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: /^متجري/ }));
-    expect(screen.getAllByText('متجري')).toHaveLength(2);
+    // Child was renamed to "إدارة المتجر" — STORE_GROUP toggle still "متجري"
+    expect(screen.getAllByText('متجري')).toHaveLength(1);
+    expect(screen.getByText('إدارة المتجر')).toBeInTheDocument();
   });
 
   // A user with no SellerProfile yet has no STORE_GROUP at all, so
   // "الإعدادات" → "متجري" is their only path to /my-store's
   // become-a-store-owner CTA — must stay present for them.
-  it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', () => {
+  it('keeps "إدارة المتجر" inside "الإعدادات" for a non-seller (their only path to /my-store)', () => {
     (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isSuccess: true });
     isMobileNavOpen = true;
     mockUsePathname.mockReturnValue('/dashboard');
     (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
     render(<ProtectedMobileNav />);
     fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
-    expect(screen.getByText('متجري').closest('a')?.getAttribute('href')).toBe('/my-store');
+    expect(screen.getByText('إدارة المتجر').closest('a')?.getAttribute('href')).toBe('/my-store');
   });
 
   // AUDIT-FIX (dynamic sidebar): "خدماتي"/"متجري" are fully absent for

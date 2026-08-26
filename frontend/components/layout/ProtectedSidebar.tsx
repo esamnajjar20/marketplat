@@ -75,7 +75,6 @@ import {
   User,
   ExternalLink,
   Store,
-  ,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';

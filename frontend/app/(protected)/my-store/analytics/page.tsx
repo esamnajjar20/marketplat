@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Package } from 'lucide-react';
+import { Package, PackagePlus } from 'lucide-react';
 import { MyStoreAnalytics } from '@/components/stores/MyStoreAnalytics';
 import { Button } from '@/components/shared/ui/Button';
 import { buildMetadata } from '@/lib/seo';
@@ -15,11 +15,18 @@ export default function MyStoreAnalyticsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-xl font-bold">إحصائيات المتجر</h1>
-        <Link href={ROUTES.myStoreProducts}>
-          <Button size="sm" variant="outline" className="gap-1.5">
-            <Package className="h-4 w-4" />منتجاتي
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" asChild className="gap-1.5 font-semibold">
+            <Link href={ROUTES.myStoreProductCreate}>
+              <PackagePlus className="h-4 w-4" />إضافة منتج
+            </Link>
           </Button>
-        </Link>
+          <Button size="sm" variant="outline" asChild className="gap-1.5">
+            <Link href={ROUTES.myStoreProducts}>
+              <Package className="h-4 w-4" />إدارة منتجاتي
+            </Link>
+          </Button>
+        </div>
       </div>
       <MyStoreAnalytics />
     </div>

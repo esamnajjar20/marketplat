@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Star, Phone, MapPin, Sparkles, UserPlus, UserMinus, PlusCircle } from 'lucide-react';
+import { Star, Phone, MapPin, Sparkles, UserPlus, UserMinus, PackagePlus, Package, Settings2, BarChart3 } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -170,28 +170,40 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
         </div>
 
-        {/*
-          FEAT-STORE-PUBLISH-AD: entry point only — the ad itself stays
-          Ad.sellerProfileId (SellerProfile), never Ad.storeId. There is
-          no such column; this button is a UX shortcut into the same
-          /ads/create route + CreateAdGate every seller already uses,
-          not a new ownership model. Gated on:
-            - isOwnStore: only the store's own seller sees this here
-            - store.status === 'ACTIVE': a PENDING/BLOCKED store hides
-              the button, but this is a UI convenience only — the real
-              gate remains CreateAdGate's SellerProfile check on the
-              /ads/create page itself, which is intentionally
-              independent of store status (closing/blocking a store
-              must not affect the seller's existing or future ads).
-        */}
-        {isOwnStore && store.status === 'ACTIVE' && (
-          <div className="mt-3 w-full max-w-sm">
-            <Button asChild variant="outline" className="w-full rounded-full py-3 h-auto gap-2">
-              <Link href={ROUTES.adCreate}>
-                <PlusCircle className="h-4 w-4" />
-                نشر إعلان
-              </Link>
-            </Button>
+        {/* Owner tools — products + store management (NOT classified ads).
+            Ads stay on /ads/create from dashboard/nav; the store surface
+            is for catalog products. Shown for the owner regardless of
+            ACTIVE so PENDING stores can still prepare products/settings. */}
+        {isOwnStore && (
+          <div className="mt-4 w-full max-w-sm space-y-2">
+            {store.status === 'ACTIVE' && (
+              <Button asChild className="w-full rounded-full py-3 h-auto gap-2 font-semibold">
+                <Link href={ROUTES.myStoreProductCreate}>
+                  <PackagePlus className="h-4 w-4" aria-hidden />
+                  إضافة منتج
+                </Link>
+              </Button>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-xl py-2.5 text-[11px]">
+                <Link href={ROUTES.myStoreProducts}>
+                  <Package className="h-4 w-4" aria-hidden />
+                  منتجاتي
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-xl py-2.5 text-[11px]">
+                <Link href={ROUTES.myStoreAnalytics}>
+                  <BarChart3 className="h-4 w-4" aria-hidden />
+                  الإحصائيات
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-xl py-2.5 text-[11px]">
+                <Link href={ROUTES.myStore}>
+                  <Settings2 className="h-4 w-4" aria-hidden />
+                  تعديل المتجر
+                </Link>
+              </Button>
+            </div>
           </div>
         )}
 

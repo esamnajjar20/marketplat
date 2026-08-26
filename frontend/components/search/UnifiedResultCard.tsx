@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Star, BadgeCheck } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
-import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type { SearchResult, SearchResultType } from '@/types/search.types';
 
@@ -40,7 +40,7 @@ const TYPE_BADGE: Record<SearchResultType, { label: string; className: string }>
  * only a small badge to label which type each result is.
  */
 export function UnifiedResultCard({ result, className }: Props) {
-  const thumb = result.image ? getThumbnailUrl(result.image, 400, 280) : PLACEHOLDER_SVG;
+  const thumb = result.image ? getListThumbnailUrl(result.image, 400, 280) : PLACEHOLDER_SVG;
   const blurDataURL =
     result.image && isCloudinaryUrl(result.image) ? getPlaceholderUrl(result.image) : undefined;
   const badge = TYPE_BADGE[result.type];

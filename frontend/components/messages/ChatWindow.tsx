@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
 } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
+import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
@@ -223,6 +224,22 @@ export function ChatWindow({ conversationId }: Props) {
           </div>
         </Link>
       )}
+      {conversation.ad && conversation.ad.status === 'ACTIVE' && (
+        <div className="flex justify-end border-b bg-card/50 px-3 py-1.5">
+          <ReportAdButton adId={conversation.ad.id} />
+        </div>
+      )}
+
+      {/* Trust tip — once per thread, above the sticky party header */}
+      <div
+        role="note"
+        className="flex items-start gap-2 border-b border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
+      >
+        <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+        <p>
+          نصيحة أمان: تفاوض داخل المنصة، ولا تدفع مقدّماً خارجها. إن شعرت بشيء مريب استخدم «خيارات المحادثة».
+        </p>
+      </div>
 
       <div className="flex items-center gap-3 bg-card/90 backdrop-blur-md shadow-sm px-3 py-3 sticky top-0 z-10">
         <Link

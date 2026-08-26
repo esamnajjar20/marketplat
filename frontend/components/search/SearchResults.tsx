@@ -8,6 +8,7 @@ import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptySearchSuggestions } from '@/components/search/EmptySearchSuggestions';
+import { EmptySearchAlternatives } from '@/components/search/EmptySearchAlternatives';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
@@ -128,7 +129,7 @@ export function SearchResults() {
           there is no matcher a stores-typed SavedSearch could ever
           fire against. */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">
           {total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}
           {q && (
             <>
@@ -177,6 +178,7 @@ export function SearchResults() {
           }
         />
         <EmptySearchSuggestions />
+        <EmptySearchAlternatives />
         </>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 stagger-fade-in">

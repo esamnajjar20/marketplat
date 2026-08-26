@@ -47,7 +47,7 @@ export function SearchSuggestions({ query, onSelect, className }: Props) {
       role="listbox"
       aria-label="اقتراحات البحث"
       className={cn(
-        'absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-lg border bg-popover shadow-lg',
+        'absolute inset-x-0 top-full z-[100] mt-1 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg',
         className
       )}
     >

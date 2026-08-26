@@ -86,10 +86,10 @@ describe('OnboardingChecklist', () => {
   it('shows all three incomplete steps for a brand-new user', () => {
     render(<OnboardingChecklist />);
 
-    expect(screen.getByText('أضف صورة شخصية')).toBeInTheDocument();
+    expect(screen.getAllByText('أضف صورة شخصية').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('أنشئ ملف البائع')).toBeInTheDocument();
     expect(screen.getByText('انشر إعلانك الأول')).toBeInTheDocument();
-    expect(screen.getByText('3 خطوات متبقية')).toBeInTheDocument();
+    expect(screen.getByText(/0 من 3 خطوات مكتملة/)).toBeInTheDocument();
   });
 
   it('marks the avatar step done (struck through) when the user has an avatar', () => {
@@ -105,7 +105,8 @@ describe('OnboardingChecklist', () => {
     mockSeller({ data: { id: 'seller-1' }, isError: false });
     render(<OnboardingChecklist />);
 
-    expect(screen.getByText('1 خطوة متبقية')).toBeInTheDocument();
+    expect(screen.getByText(/2 من 3 خطوات مكتملة/)).toBeInTheDocument();
+    expect(screen.getByText(/خطوة أخيرة/)).toBeInTheDocument();
   });
 
   it('treats a seller-profile fetch error as "not yet a seller" (mirrors CreateAdGate)', () => {

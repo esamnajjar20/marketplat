@@ -243,3 +243,20 @@ export function getImageProps(
     ...(blurDataURL && { blurDataURL }),
   };
 }
+
+
+/**
+ * List/card thumbnail — halves dimensions when data-saver is on.
+ * Call from client components only (reads localStorage).
+ */
+export function getListThumbnailUrl(url: string, width = 400, height = 300): string {
+  let w = width;
+  let h = height;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage.getItem('marketplat:data-saver') === '1') {
+      w = Math.round(width * 0.55);
+      h = Math.round(height * 0.55);
+    }
+  } catch { /* ignore */ }
+  return getThumbnailUrl(url, w, h);
+}

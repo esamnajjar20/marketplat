@@ -121,10 +121,12 @@ describe('ProtectedSidebar', () => {
     renderWithClient(<ProtectedSidebar />);
     expect(screen.getByText('لوحة التحكم')).toBeDefined();
     expect(screen.getByText('إعلاناتي')).toBeDefined();
+    expect(screen.getByText('الرسائل')).toBeDefined();
+    // ACTIVITY_GROUP disclosure holds favorites / saved / activity / reports
+    expect(screen.getByRole('button', { name: /نشاطي/ })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /نشاطي/ }));
     expect(screen.getByText('المفضلة')).toBeDefined();
     expect(screen.getByText('عمليات البحث المحفوظة')).toBeDefined();
-    expect(screen.getByText('نشاطي')).toBeDefined();
-    expect(screen.getByText('الرسائل')).toBeDefined();
     expect(screen.getByText('بلاغاتي')).toBeDefined();
     // REORG-04 / P1 FIX: disclosure group roots — rendered as buttons, not links.
     expect(screen.getByRole('button', { name: /خدماتي/ })).toBeDefined();
@@ -150,7 +152,7 @@ describe('ProtectedSidebar', () => {
   it('does NOT set aria-current on inactive links when on /dashboard', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     renderWithClient(<ProtectedSidebar />);
-    const inactiveLinks = ['إعلاناتي', 'المفضلة', 'الرسائل'].map(
+    const inactiveLinks = ['إعلاناتي', 'الرسائل'].map(
       (label) => screen.getByText(label).closest('a'),
     );
     inactiveLinks.forEach((link) => {
@@ -174,7 +176,8 @@ describe('ProtectedSidebar', () => {
   it('sets aria-current on /activity when pathname is /activity', () => {
     mockUsePathname.mockReturnValue('/activity');
     renderWithClient(<ProtectedSidebar />);
-    expect(screen.getByText('نشاطي').closest('a')?.getAttribute('aria-current')).toBe('page');
+    // Child label is "سجل النشاط" under ACTIVITY_GROUP
+    expect(screen.getByText('سجل النشاط').closest('a')?.getAttribute('aria-current')).toBe('page');
   });
 
   it('only one top-level link is active at a time', () => {
@@ -198,8 +201,8 @@ describe('ProtectedSidebar', () => {
     // out) + 1 "إعلاناتي" (isSeller) + 1 "عرض ملفي" + 1
     // TRAILING_NAV_ITEMS ("بلاغاتي") = 8 flat-link icons; 3 disclosure
     // groups (خدماتي/متجري/الإعدادات) × (1 group icon + 1 chevron) = 6;
-    // + 1 "عرض متجري" icon (AUDIT-FIX dynamic sidebar) = 15 total.
-    expect(iconSpans.length).toBe(15);
+    // + 1 "عرض متجري" icon (AUDIT-FIX dynamic sidebar) = 13 total (ACTIVITY_GROUP replaced four flat items).
+    expect(iconSpans.length).toBe(13);
   });
 
   // ── Correct hrefs ──────────────────────────────────────────────
@@ -411,11 +414,10 @@ describe('ProtectedSidebar', () => {
       fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
       fireEvent.click(screen.getByRole('button', { name: /^متجري/ }));
 
-      // Exactly 2: STORE_GROUP's own toggle button + its first child
-      // link (both "متجري", by design — see STORE_GROUP's own children).
-      // Not 3: "الإعدادات" must not contribute a duplicate third one.
-      const storeLinks = screen.getAllByText('متجري');
-      expect(storeLinks).toHaveLength(2);
+      // STORE_GROUP toggle still labeled "متجري"; first child renamed
+      // to "إدارة المتجر". Settings must not add another store link.
+      expect(screen.getAllByText('متجري')).toHaveLength(1);
+      expect(screen.getByText('إدارة المتجر')).toBeInTheDocument();
     });
 
     // A user with no SellerProfile yet has no STORE_GROUP at all (it's
@@ -431,7 +433,7 @@ describe('ProtectedSidebar', () => {
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
-      expect(screen.getByText('متجري').closest('a')?.getAttribute('href')).toBe('/my-store');
+      expect(screen.getByText('إدارة المتجر').closest('a')?.getAttribute('href')).toBe('/my-store');
     });
 
     it('is expanded by default when pathname is inside the group (e.g. /settings/security)', () => {

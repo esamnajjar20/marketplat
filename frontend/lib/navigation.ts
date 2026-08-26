@@ -25,7 +25,7 @@
  */
 import {
   Home, Search, Store, Wrench, Users, Settings,
-  Heart, History, BookmarkPlus, Flag,
+  History,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -78,7 +78,7 @@ export const STORE_GROUP = {
   href: ROUTES.myStore,
   icon: Store,
   children: [
-    { label: 'متجري', href: ROUTES.myStore },
+    { label: 'إدارة المتجر', href: ROUTES.myStore },
     { label: 'منتجاتي', href: ROUTES.myStoreProducts },
     { label: 'المتاجر المتابَعة', href: ROUTES.myFollowedStores },
   ],
@@ -109,7 +109,7 @@ export const SETTINGS_GROUP = {
     { label: 'الملف الشخصي', href: ROUTES.settings.profile },
     { label: 'ملف البائع', href: ROUTES.settings.seller },
     { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
-    { label: 'متجري', href: ROUTES.myStore },
+    { label: 'إدارة المتجر', href: ROUTES.myStore },
     { label: 'الأمان', href: ROUTES.settings.security },
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },

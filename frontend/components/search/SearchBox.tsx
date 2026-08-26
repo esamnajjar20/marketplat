@@ -95,7 +95,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
         <div
           role="listbox"
           aria-label="عمليات البحث الأخيرة"
-          className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-lg border bg-popover shadow-lg"
+          className="absolute inset-x-0 top-full z-[100] mt-1 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
         >
           <div className="flex items-center justify-between border-b px-3 py-1.5">
             <span className="text-xs font-medium text-muted-foreground">عمليات البحث الأخيرة</span>

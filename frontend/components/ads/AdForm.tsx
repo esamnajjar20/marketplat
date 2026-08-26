@@ -14,6 +14,7 @@ import { CITIES, CONDITION_LABELS, MAX_IMAGES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { AdFormPreview } from '@/components/ads/AdFormPreview';
 import { parseApiError } from '@/lib/errorParser';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
 import { toast } from 'sonner';
@@ -109,7 +110,7 @@ export function AdForm({ mode, ad }: Props) {
   // there's already a real saved ad to fall back to, and restoring a
   // stale draft over freshly-fetched server data would be confusing
   // rather than helpful.
-  const { clearDraft } = useFormDraft<DraftValues>(
+  const { clearDraft, lastSavedAt } = useFormDraft<DraftValues>(
     'ad:create',
     {
       title: values.title, description: values.description, price: values.price,
@@ -403,6 +404,17 @@ export function AdForm({ mode, ad }: Props) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {mode === 'create' && lastSavedAt && (
+        <p
+          className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+          مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
+        </p>
+      )}
+
       {isWizard && (
         <nav
           aria-label="خطوات نشر الإعلان"
@@ -556,6 +568,9 @@ export function AdForm({ mode, ad }: Props) {
           onReorderExisting={(reordered) => set('existingImages', reordered)}
           uploadProgress={uploadProgress}
         />
+
+        {/* Live card preview — last chance to catch weak title/price/photo */}
+        <AdFormPreview values={values} className="pt-2" />
       </div>
 
       {/* Submit / wizard navigation — sticky on mobile for thumb reach */}

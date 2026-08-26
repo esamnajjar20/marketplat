@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { PackageX, Clock3 } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
+import { ROUTES } from '@/lib/constants';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
@@ -9,7 +10,8 @@ import type { ProductAvailability, ProductWithStore } from '@/types/product.type
 
 interface Props {
   product: ProductWithStore;
-  storeId: string;
+  /** @deprecated Detail links use product.id; kept optional for existing callers. */
+  storeId?: string;
   className?: string;
 }
 
@@ -22,12 +24,11 @@ const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
 /**
  * Product card used both on the public store page (its own product
  * grid) and on the owner's my-store products list. There is no public
- * /products/:id detail *page* route yet in this pass — the card links
- * straight to the parent store, same shape as ServiceListingCard does
- * for /services/:id, but scoped here to the store since that's where
- * a shopper actually adds-to-cart-equivalent (contacts the seller).
+ * Links to the dedicated /products/:id detail page (gallery, price,
+ * description, store panel). storeId is still accepted for callers that
+ * already have it; the route uses product.id only.
  */
-export function ProductCard({ product, storeId, className }: Props) {
+export function ProductCard({ product, className }: Props) {
   const rawImage = product.images[0];
   const thumb = rawImage ? getThumbnailUrl(rawImage, 400, 400) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
@@ -42,7 +43,7 @@ export function ProductCard({ product, storeId, className }: Props) {
   return (
     <div className="relative">
       <Link
-        href={`/stores/${storeId}?product=${product.id}`}
+        href={ROUTES.productDetail(product.id)}
         className={cn(
           'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
           className

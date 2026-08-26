@@ -1,5 +1,6 @@
 import type { Metadata }        from 'next';
 import { ProfileSettingsForm }  from '@/components/profile/ProfileSettingsForm';
+import { DataSaverToggle } from '@/components/shared/DataSaverToggle';
 import { ViewMyProfileLink }    from '@/components/profile/ViewMyProfileLink';
 import { buildMetadata }        from '@/lib/seo';
 
@@ -19,6 +20,10 @@ export default function ProfileSettingsPage() {
         <ViewMyProfileLink />
       </div>
       <ProfileSettingsForm />
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold">تفضيلات الجهاز</h2>
+        <DataSaverToggle />
+      </section>
     </div>
   );
 }

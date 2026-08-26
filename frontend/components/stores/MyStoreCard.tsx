@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Store, ExternalLink, Sparkles } from 'lucide-react';
+import { Store, ExternalLink, Sparkles, PackagePlus, Package, BarChart3, Heart } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -277,29 +277,41 @@ export function MyStoreCard({ store }: Props) {
         </Button>
       </form>
 
-      <div className="flex flex-wrap gap-2 pt-2 border-t">
+      <div className="space-y-3 border-t pt-4">
+        <p className="text-xs font-medium text-muted-foreground">إدارة سريعة</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Button asChild className="h-auto flex-col gap-1 py-3 font-semibold">
+            <Link href={ROUTES.myStoreProductCreate}>
+              <PackagePlus className="h-4 w-4" aria-hidden />
+              إضافة منتج
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+            <Link href={ROUTES.myStoreProducts}>
+              <Package className="h-4 w-4" aria-hidden />
+              منتجاتي
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+            <Link href={ROUTES.myStoreAnalytics}>
+              <BarChart3 className="h-4 w-4" aria-hidden />
+              الإحصائيات
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+            <Link href={ROUTES.myFollowedStores}>
+              <Heart className="h-4 w-4" aria-hidden />
+              المتابَعة
+            </Link>
+          </Button>
+        </div>
         {store.status === 'ACTIVE' && (
-          <Button variant="outline" size="sm" asChild className="gap-1.5">
+          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-muted-foreground">
             <Link href={ROUTES.storeDetail(store.id)}>
               عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           </Button>
         )}
-        <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myStoreProducts}>إدارة منتجاتي</Link>
-        </Button>
-        {/* AUDIT-FIX (protected #3): /my-store/followed had no link
-            anywhere in the app — grep across app/ and components/ found
-            only its own internal pagination baseUrl. This card is the
-            most logical entry point for "my relationship to the store
-            system", so the link lives here alongside product management. */}
-        <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myFollowedStores}>المتاجر المتابَعة</Link>
-        </Button>
-        {/* STORE-ANALYTICS (Foundation v1) */}
-        <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myStoreAnalytics}>الإحصائيات</Link>
-        </Button>
       </div>
     </div>
   );

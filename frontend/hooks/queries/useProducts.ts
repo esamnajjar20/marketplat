@@ -7,11 +7,12 @@ import { CACHE_TTL } from '@/lib/constants';
 import type { ProductsQuery } from '@/types/product.types';
 
 /** GET /products — public browse/search. */
-export function useProducts(params?: ProductsQuery) {
+export function useProducts(params?: ProductsQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.products.list(params),
     queryFn: () => productsApi.getAll(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.adsList,
+    enabled: options?.enabled ?? true,
   });
 }
 

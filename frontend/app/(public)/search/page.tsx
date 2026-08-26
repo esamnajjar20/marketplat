@@ -35,8 +35,10 @@ export default async function SearchPage({ searchParams }: Props) {
         to signal "you're still in سوق غزة", not enough to compete with
         the results below, which are the actual job of this page.
       */}
-      <div className="relative overflow-hidden bg-primary px-4 py-6 text-primary-foreground">
-        <WovenTexture opacity={0.06} />
+      <div className="relative bg-primary px-4 py-6 text-primary-foreground">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <WovenTexture opacity={0.06} />
+        </div>
         <div className="relative container mx-auto space-y-4">
           <Suspense>
             <SearchBox

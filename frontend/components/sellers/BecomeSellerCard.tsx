@@ -66,7 +66,14 @@ export function BecomeSellerCard() {
 
   return (
     <div className="space-y-4 max-w-lg">
-      <div className="space-y-1">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+          <span className="rounded-full bg-primary px-2 py-0.5 text-primary-foreground">1</span>
+          <span>الموافقة والملف</span>
+          <span className="text-muted-foreground/50">→</span>
+          <span className="rounded-full bg-muted px-2 py-0.5">2</span>
+          <span>نشر أول إعلان</span>
+        </div>
         <h2 className="text-lg font-semibold">أصبح بائعاً</h2>
         <p className="text-sm text-muted-foreground">
           أنشئ ملفك كبائع لتتمكن من نشر الإعلانات. لا حاجة لأي موافقة إدارية — فقط أكمل النموذج

@@ -187,7 +187,8 @@ describe('MyStoreCard', () => {
   it('always shows the "manage products" and "followed stores" links (AUDIT-FIX #3)', () => {
     render(<MyStoreCard store={{ ...activeStore, status: 'PENDING' }} />);
 
-    expect(screen.getByText('إدارة منتجاتي')).toBeInTheDocument();
-    expect(screen.getByText('المتاجر المتابَعة')).toBeInTheDocument();
+    expect(screen.getByText('منتجاتي')).toBeInTheDocument();
+    expect(screen.getByText('المتابَعة')).toBeInTheDocument();
+    expect(screen.getByText('إضافة منتج')).toBeInTheDocument();
   });
 });

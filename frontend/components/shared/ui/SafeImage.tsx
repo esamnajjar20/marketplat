@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { PLACEHOLDER_SVG, PLACEHOLDER_AVATAR_SVG } from '@/lib/cloudinary';
+import { isDataSaverEnabled } from '@/lib/dataSaver';
 
 /**
  * SafeImage — next/image with a real runtime error fallback.
@@ -32,17 +33,18 @@ export function SafeImage({
   const fallback = variant === 'avatar' ? PLACEHOLDER_AVATAR_SVG : PLACEHOLDER_SVG;
   const [errored, setErrored] = useState(false);
 
-  // Once we've swapped to the fallback data-URI, drop any blur-up props
-  // from the original call — applying a Cloudinary blurDataURL to an
-  // unrelated inline SVG placeholder has no meaning and next/image will
-  // just warn about it.
+  // Data-saver: skip blur-up placeholders (extra network request for
+  // a tiny LQIP) — the final image alone is enough on slow links.
+  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
+  const blurProps = errored || saver ? {} : { placeholder, blurDataURL };
+
   return (
     <Image
       {...props}
       alt={alt}
       src={errored ? fallback : src}
       unoptimized={errored ? true : props.unoptimized}
-      {...(errored ? {} : { placeholder, blurDataURL })}
+      {...blurProps}
       onError={(e) => {
         setErrored(true);
         onError?.(e);

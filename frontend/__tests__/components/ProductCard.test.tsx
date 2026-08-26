@@ -70,9 +70,9 @@ describe('ProductCard', () => {
     expect(screen.getByText('خلاط كهربائي 500 واط')).toBeInTheDocument();
   });
 
-  it('links to the parent store page with the product id as a query param', () => {
+  it('links to the product detail page', () => {
     render(<ProductCard product={baseProduct} storeId="store-1" />);
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/stores/store-1?product=prod-1');
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/products/prod-1');
   });
 
   describe('pricing', () => {
