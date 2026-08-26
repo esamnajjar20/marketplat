@@ -27,11 +27,13 @@ describe('createEntityImageOperations', () => {
     reorderImages: jest.fn(),
   };
 
-  const withLock = jest.fn(async (_id: string, fn: () => Promise<unknown>) => fn());
+  const withLock = jest.fn(
+    async <T>(_id: string, fn: () => Promise<T>): Promise<T> => fn(),
+  );
 
   const ops = createEntityImageOperations({
     repository,
-    withLock,
+    withLock: withLock as <T>(entityId: string, fn: () => Promise<T>) => Promise<T>,
     uploadFolder: 'products',
     maxImages: 10,
     entityLabel: 'product',
@@ -42,7 +44,7 @@ describe('createEntityImageOperations', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     repository.findById.mockResolvedValue({ ...entity });
-    withLock.mockImplementation(async (_id, fn) => fn());
+    withLock.mockImplementation(async <T>(_id: string, fn: () => Promise<T>) => fn());
   });
 
   it('addImages throws when entity is missing', async () => {

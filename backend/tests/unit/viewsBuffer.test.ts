@@ -13,11 +13,11 @@ describe('viewsBuffer', () => {
   it('increments buffer for new viewer', async () => {
     jest.spyOn(redis, 'exists').mockResolvedValue(0);
     jest.spyOn(redis, 'setex').mockResolvedValue('OK');
-    jest.spyOn(redis, 'incr').mockResolvedValue(1);
-
+    const prisma = await import('../../src/config/prisma');
+    jest.spyOn(prisma.prisma.ad, 'updateMany').mockResolvedValue({ count: 1 });
     const result = await viewsBuffer.increment('ad-1', '127.0.0.1');
     expect(result).toBe(true);
-    expect(redis.incr).toHaveBeenCalled();
+    expect(redis.pipeline).toHaveBeenCalled();
   });
 
   it('returns false when redis fails', async () => {

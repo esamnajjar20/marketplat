@@ -5,6 +5,8 @@ jest.mock('../../src/config/redis', () => ({
   redis: {
     get: jest.fn(),
     setex: jest.fn(),
+    del: jest.fn(),
+    __clear: jest.fn(),
   },
 }));
 

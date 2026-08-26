@@ -258,11 +258,13 @@ jest.mock('../src/config/redis', () => {
   return { redis };
 });
 
-beforeAll(async () => { await prisma.$connect(); });
-afterAll(async () => { await prisma.$disconnect(); });
+const skipDb = process.env.SKIP_DB === '1';
+beforeAll(async () => { if (!skipDb) await prisma.$connect(); });
+afterAll(async () => { if (!skipDb) await prisma.$disconnect(); });
 afterEach(async () => {
   const { redis } = await import('../src/config/redis');
-  (redis as any).__clear();
+  (redis as any).__clear?.();
+  if (skipDb) return;
 
   // audit_logs is intentionally append-only at the DB level (see
   // migration 20260807130000_audit_logs_append_only's own header): a
