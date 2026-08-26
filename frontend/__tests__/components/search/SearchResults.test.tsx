@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { setupUser } from '@/test-support/user-event';
 import { SearchResults } from '@/components/search/SearchResults';
 import { useSearch } from '@/hooks/queries/useSearch';
@@ -27,6 +28,11 @@ vi.mock('@/components/ads/SaveSearchButton', () => ({
   SaveSearchButton: () => null,
 }));
 
+// EmptySearchSuggestions pulls useCategories (React Query). Stub it so
+// empty-state tests don't require a live QueryClient for that subtree.
+vi.mock('@/components/search/EmptySearchSuggestions', () => ({
+  EmptySearchSuggestions: () => null,
+}));
 
 vi.mock('@/hooks/queries/useSearch', () => ({
   useSearch: vi.fn(),
@@ -67,6 +73,11 @@ function mockSearchState(overrides: Partial<ReturnType<typeof useSearch>>) {
   } as never);
 }
 
+function renderResults(ui: React.ReactElement = <SearchResults />) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
+
 describe('SearchResults', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -79,7 +90,7 @@ describe('SearchResults', () => {
       sort: 'newest', page: '2', lat: '31.9', lng: '35.2', radius: '15',
     });
     mockSearchState({ data: { items: [], meta: { total: 0, totalPages: 1 } } });
-    render(<SearchResults />);
+    renderResults();
 
     expect(useSearch).toHaveBeenCalledWith({
       q: 'هاتف', city: 'غزة', type: 'products', categoryId: 'cat-1',
@@ -89,7 +100,7 @@ describe('SearchResults', () => {
 
   it('defaults type to "all", sort to "relevance", and page to 1 when absent', () => {
     mockSearchState({ data: { items: [], meta: { total: 0, totalPages: 1 } } });
-    render(<SearchResults />);
+    renderResults();
 
     expect(useSearch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'all', sort: 'relevance', page: 1, lat: undefined, lng: undefined }),
@@ -98,7 +109,7 @@ describe('SearchResults', () => {
 
   it('shows a loading spinner while isLoading is true', () => {
     mockSearchState({ isLoading: true });
-    render(<SearchResults />);
+    renderResults();
     expect(document.querySelector('.animate-pulse')).toBeTruthy();
   });
 
@@ -106,7 +117,7 @@ describe('SearchResults', () => {
     const refetch = vi.fn();
     mockSearchState({ isError: true, refetch });
     const user = setupUser();
-    render(<SearchResults />);
+    renderResults();
 
     expect(screen.getByText('حدث خطأ أثناء تحميل النتائج')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'إعادة المحاولة' }));
@@ -116,7 +127,7 @@ describe('SearchResults', () => {
   it('shows the empty state when there are no items', () => {
     mockSearchParams = new URLSearchParams({ q: 'شيء غريب' });
     mockSearchState({ data: { items: [], meta: { total: 0, totalPages: 1 } } });
-    render(<SearchResults />);
+    renderResults();
 
     expect(screen.getByText('لا توجد نتائج')).toBeInTheDocument();
     expect(screen.getByText(/لم نجد نتائج لـ/)).toBeInTheDocument();
@@ -124,15 +135,15 @@ describe('SearchResults', () => {
 
   it('shows a generic empty description when there is no query (filter-only search)', () => {
     mockSearchState({ data: { items: [], meta: { total: 0, totalPages: 1 } } });
-    render(<SearchResults />);
-    expect(screen.getByText('لا توجد نتائج مطابقة لهذه الفلاتر')).toBeInTheDocument();
+    renderResults();
+    expect(screen.getByText(/لا توجد نتائج مطابقة لهذه الفلاتر/)).toBeInTheDocument();
   });
 
   it('renders a card per result and the result count', () => {
     mockSearchState({
       data: { items: [baseResult, { ...baseResult, id: 'r2', title: 'هاتف' }], meta: { total: 2, totalPages: 1 } },
     });
-    render(<SearchResults />);
+    renderResults();
 
     expect(screen.getByText('2 نتيجة')).toBeInTheDocument();
     expect(screen.getAllByTestId('result-card')).toHaveLength(2);
@@ -141,34 +152,34 @@ describe('SearchResults', () => {
   it('renders the search-term suffix in the count line when q is present', () => {
     mockSearchParams = new URLSearchParams({ q: 'لابتوب' });
     mockSearchState({ data: { items: [baseResult], meta: { total: 1, totalPages: 1 } } });
-    render(<SearchResults />);
+    renderResults();
     expect(screen.getByText(/بحثاً عن/)).toBeInTheDocument();
     expect(screen.getByText('لابتوب')).toBeInTheDocument();
   });
 
   it('does not render pagination when totalPages is 1', () => {
     mockSearchState({ data: { items: [baseResult], meta: { total: 1, totalPages: 1 } } });
-    render(<SearchResults />);
+    renderResults();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
   it('renders pagination when totalPages > 1', () => {
     mockSearchState({ data: { items: [baseResult], meta: { total: 30, totalPages: 3 } } });
-    render(<SearchResults />);
+    renderResults();
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
   describe('analytics', () => {
     it('does not track when there is no q', () => {
       mockSearchState({ data: { items: [], meta: { total: 0, totalPages: 1 } } });
-      render(<SearchResults />);
+      renderResults();
       expect(track).not.toHaveBeenCalled();
     });
 
     it('tracks a SEARCH event with the resolved result count when q is present', () => {
       mockSearchParams = new URLSearchParams({ q: 'لابتوب', city: 'غزة', type: 'products', categoryId: 'cat-1' });
       mockSearchState({ data: { items: [baseResult], meta: { total: 7, totalPages: 1 } } });
-      render(<SearchResults />);
+      renderResults();
 
       expect(track).toHaveBeenCalledWith('SEARCH', {
         q: 'لابتوب', city: 'غزة', type: 'products', categoryId: 'cat-1', resultCount: 7,

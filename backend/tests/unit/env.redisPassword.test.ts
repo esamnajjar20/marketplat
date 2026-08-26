@@ -47,8 +47,12 @@ describe('config/env — REDIS_PASSWORD production requirement', () => {
     delete process.env.REDIS_PASSWORD;
     jest.resetModules();
 
-    await expect(import('../../src/config/env')).rejects.toThrow('process.exit called');
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    // Under Jest, env.ts throws (instead of process.exit) so a single
+    // misconfigured re-import does not kill the rest of the suite.
+    // Outside test runners it still process.exit(1).
+    await expect(import('../../src/config/env')).rejects.toThrow(
+      /Invalid environment variables.*REDIS_PASSWORD/,
+    );
   });
 
   it('starts normally when NODE_ENV=production and REDIS_PASSWORD is set', async () => {

@@ -22,9 +22,24 @@ vi.mock('@/api/ads.api', () => ({
   },
 }));
 
+vi.mock('@/components/search/EmptySearchSuggestions', () => ({
+  EmptySearchSuggestions: () => null,
+}));
+
+vi.mock('@/hooks/queries/useCategories', () => ({
+  useCategoryBySlug: vi.fn(() => ({ data: undefined, isLoading: false })),
+  useCategories: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
+vi.mock('@/components/ads/SaveSearchButton', () => ({
+  SaveSearchButton: () => null,
+}));
+
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  usePathname: () => '/search',
 }));
 
 function renderWithClient(ui: React.ReactElement) {

@@ -39,9 +39,12 @@ describe('CreateAdForm', () => {
     (useReorderAdImages as ReturnType<typeof vi.fn>).mockReturnValue({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false });
   });
 
-  it('renders AdForm in create mode with the "نشر الإعلان" submit label', () => {
+  it('renders AdForm in create mode as a multi-step publish wizard', () => {
     render(<CreateAdForm />);
-    expect(screen.getByRole('button', { name: 'نشر الإعلان' })).toBeInTheDocument();
+    // Create mode is a wizard — the final "نشر الإعلان" submit only appears
+    // on the last step. Pin create-mode via the wizard chrome instead.
+    expect(screen.getByLabelText('خطوات نشر الإعلان')).toBeInTheDocument();
+    expect(screen.getByText(/الخطوة 1 من/)).toBeInTheDocument();
   });
 
   it('renders empty title/description fields (no ad to pre-fill from)', () => {

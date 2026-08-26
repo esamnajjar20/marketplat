@@ -41,6 +41,10 @@ describe('SearchBox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
+    // SearchBox shows recent-search history when the field is focused with
+    // a short/empty query. Clear localStorage so those rows never mask
+    // the SearchSuggestions stub under test.
+    window.localStorage.clear();
   });
 
   it('navigates to /search with the trimmed query on submit', async () => {
@@ -88,11 +92,16 @@ describe('SearchBox', () => {
     expect(screen.queryByTestId('suggestions')).not.toBeInTheDocument();
   });
 
-  it('shows suggestions on focus', async () => {
+  // SearchSuggestions only mounts once the typed query is ≥2 chars;
+  // empty/short focus shows recent searches instead (when any exist).
+  it('shows suggestions after typing at least 2 characters', async () => {
     const user = setupUser();
     render(<SearchBox />);
 
     await user.click(screen.getByRole('searchbox', { name: 'بحث' }));
+    expect(screen.queryByTestId('suggestions')).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole('searchbox', { name: 'بحث' }), 'لا');
     expect(screen.getByTestId('suggestions')).toBeInTheDocument();
   });
 
@@ -100,7 +109,8 @@ describe('SearchBox', () => {
     const user = setupUser();
     render(<SearchBox />);
 
-    await user.click(screen.getByRole('searchbox', { name: 'بحث' }));
+    await user.type(screen.getByRole('searchbox', { name: 'بحث' }), 'لا');
+    expect(screen.getByTestId('suggestions')).toBeInTheDocument();
     await user.click(screen.getByText('pick-suggestion'));
 
     expect(mockPush).toHaveBeenCalledWith(`${ROUTES.search}?q=%D9%84%D8%A7%D8%A8%D8%AA%D9%88%D8%A8+%D9%85%D8%B3%D8%AA%D8%B9%D9%85%D9%84`);

@@ -37,6 +37,10 @@ const FULL_PREFS = {
 describe('NotificationSettingsForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks does not clear mockImplementation — the failure-path
+    // test below installs an onError-invoking implementation that would
+    // otherwise leak and immediately revert later toggle tests.
+    mockMutate.mockReset();
     (useUpdateNotificationPreferences as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockMutate,
       isPending: false,

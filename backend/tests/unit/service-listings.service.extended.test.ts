@@ -21,11 +21,15 @@ const mockProvider = {
   availabilityStatus: 'AVAILABLE',
 };
 const mockCategory = { id: 'cat-1', isActive: true };
+// extractCloudinaryPublicId rejects URLs whose path cloud-name does not
+// match CLOUDINARY_CLOUD_NAME when that env var is set. Use the configured
+// name (or "demo") so cleanup assertions stay valid across environments.
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'demo';
 const mockListing = {
   id: 'listing-1',
   providerId: 'provider-1',
   status: 'ACTIVE',
-  images: ['https://res.cloudinary.com/demo/image/upload/v1/service-listings/abc.webp'],
+  images: [`https://res.cloudinary.com/${cloudName}/image/upload/v1/service-listings/abc.webp`],
   provider: { sellerProfile: { suspended: false } },
 };
 

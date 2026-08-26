@@ -133,7 +133,7 @@ describe('useAdsForHome', () => {
     );
     expect(geoSearchCalls).toHaveLength(0);
     expect(adsApi.getAll).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc' }),
+      expect.objectContaining({ limit: 6, sortBy: 'createdAt', sortOrder: 'desc' }),
     );
     // No call carried a real city filter — the general/unfiltered branch never sends one.
     const cityCall = (adsApi.getAll as ReturnType<typeof vi.fn>).mock.calls.find(

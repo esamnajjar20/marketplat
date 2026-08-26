@@ -120,7 +120,8 @@ describe('AdCard', () => {
   describe('sold / featured badge logic', () => {
     it('shows a "تم البيع" overlay when the ad is sold', () => {
       render(<AdCard ad={{ ...baseAd, status: 'SOLD' }} />);
-      expect(screen.getByText('تم البيع')).toBeInTheDocument();
+      // Overlay on the image + price-row badge both render the same label.
+      expect(screen.getAllByText('تم البيع').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows a "مميز" badge when featured and not sold', () => {
@@ -132,8 +133,8 @@ describe('AdCard', () => {
     it('does NOT show the "مميز" badge when the ad is both featured and sold', () => {
       render(<AdCard ad={{ ...baseAd, isFeatured: true, status: 'SOLD' }} />);
       expect(screen.queryByText('مميز')).not.toBeInTheDocument();
-      // The sold overlay still takes precedence.
-      expect(screen.getByText('تم البيع')).toBeInTheDocument();
+      // The sold overlay still takes precedence (image overlay + price badge).
+      expect(screen.getAllByText('تم البيع').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows neither badge for a plain active, non-featured ad', () => {
