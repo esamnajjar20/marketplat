@@ -51,6 +51,9 @@ export function SearchFiltersSheet() {
         <SheetContent className="p-0">
           <SheetHeader>
             <SheetTitle>تصفية النتائج</SheetTitle>
+            <p className="text-sm text-muted-foreground px-1">
+              طبّق الفلاتر ثم أغلق اللوحة لرؤية النتائج المحدّثة فوراً.
+            </p>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <SearchFilters />

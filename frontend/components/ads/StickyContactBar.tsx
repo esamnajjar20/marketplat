@@ -70,26 +70,31 @@ export function StickyContactBar({
         className,
       )}
     >
-      <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-bold text-primary tabular-nums">
-            {formatPrice(price)}
-          </p>
-          {isNegotiable && (
-            <p className="text-xs text-muted-foreground">قابل للتفاوض</p>
-          )}
+      <div className="mx-auto max-w-lg px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-bold text-primary tabular-nums">
+              {formatPrice(price)}
+            </p>
+            {isNegotiable && (
+              <p className="text-xs text-muted-foreground">قابل للتفاوض</p>
+            )}
+          </div>
+          <Button
+            type="button"
+            size="lg"
+            className="h-12 min-w-[9.5rem] shrink-0 gap-2 rounded-xl px-5 text-base"
+            disabled={startConversation.isPending}
+            onClick={handleMessage}
+            aria-label={`مراسلة ${seller.name}`}
+          >
+            <MessageSquare className="h-5 w-5" aria-hidden />
+            {startConversation.isPending ? 'جاري...' : 'راسل البائع'}
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="lg"
-          className="h-12 min-w-[9.5rem] shrink-0 gap-2 rounded-xl px-5 text-base"
-          disabled={startConversation.isPending}
-          onClick={handleMessage}
-          aria-label={`مراسلة ${seller.name}`}
-        >
-          <MessageSquare className="h-5 w-5" aria-hidden />
-          {startConversation.isPending ? 'جاري...' : 'راسل البائع'}
-        </Button>
+        <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+          نصيحة: قابل البائع في مكان عام ولا تحوّل مالاً مسبقاً.
+        </p>
       </div>
     </div>
   );

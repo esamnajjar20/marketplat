@@ -1,12 +1,13 @@
-import Link from 'next/link';
 'use client';
 
+import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
+import { EmptySearchSuggestions } from '@/components/search/EmptySearchSuggestions';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
@@ -142,13 +143,8 @@ export function SearchResults() {
       </div>
 
       {items.length === 0 ? (
-        // UX-FIX (audit P2-02): SearchFilters.tsx already has a working
-        // reset button (clears city/categoryId/sort/geo, keeps q), but
-        // it wasn't surfaced here where a filtered-to-zero result
-        // actually lands — a user had to scroll to the filter panel/
-        // sheet themselves. hasActiveFilters mirrors exactly what that
-        // reset button clears, so the action only appears when there's
-        // something for it to actually do.
+        <>
+        {/* Empty state + category escape hatches */}
         <EmptyState
           icon={<Search className="h-10 w-10" />}
           title="لا توجد نتائج"
@@ -180,6 +176,8 @@ export function SearchResults() {
             </div>
           }
         />
+        <EmptySearchSuggestions />
+        </>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((result) => (

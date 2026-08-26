@@ -40,8 +40,11 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       adsApi.create(payload, onUploadProgress).then((r) => r.data.data),
     onSuccess: (ad) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      toast.success('تم نشر الإعلان بنجاح');
-      if (ad) router.push(ROUTES.adDetail(ad.id));
+      toast.success('تم نشر الإعلان بنجاح', {
+        description: 'شاركه مع معارفك لزيادة المشاهدات. يمكنك تعديله لاحقاً من «إعلاناتي».',
+        duration: 5000,
+      });
+      if (ad) router.push(`${ROUTES.adDetail(ad.id)}?published=1`);
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });

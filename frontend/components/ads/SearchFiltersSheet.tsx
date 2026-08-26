@@ -6,37 +6,47 @@ import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { SearchFilters } from './SearchFilters';
+import { useAds, useSearchAds } from '@/hooks/queries/useAds';
+import { useCategoryBySlug } from '@/hooks/queries/useCategories';
+import type { AdSortField } from '@/types/ad.types';
 
-// Keys SearchFilters itself writes via update() — category/city/condition/
-// price/sort. categoryId is only counted when it isn't already implied by
-// categorySlug (the category page's own route param), since that one is
-// the page context, not a filter the user actively set.
 const FILTER_KEYS = ['city', 'condition', 'minPrice', 'maxPrice'] as const;
 
 interface Props {
-  /** Present when rendered from the category page — forwarded to SearchFilters. */
   categorySlug?: string;
 }
 
 /**
- * P0 FIX (layout audit §1): on mobile, /categories/[slug] rendered the
- * full ads/SearchFilters panel inline above the results (grid-cols-1,
- * <aside> before <main>, no `hidden lg:block`) — a user had to scroll
- * past category/city/condition/price/sort controls before seeing a
- * single ad. This mirrors the same fix already shipped for /search
- * (components/search/SearchFiltersSheet.tsx, FIX P1-2): the identical
- * filters panel now sits behind a "تصفية" trigger in a bottom sheet
- * below `lg`, while the always-visible <aside> (now `hidden lg:block`)
- * takes over above it — unchanged from before.
+ * Mobile filter sheet for ads lists.
+ * UX phase-7: shows live result count (from the same React Query cache
+ * as SearchResults) so users see impact while adjusting filters.
  */
 export function SearchFiltersSheet({ categorySlug }: Props = {}) {
   const [open, setOpen] = useState(false);
   const sp = useSearchParams();
+  const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
-  const activeCount = FILTER_KEYS.filter((key) => sp.get(key)).length
-    // A categoryId param only counts as an active *filter* when it isn't
-    // just the category page's own context repeated back as a param.
-    + (sp.get('categoryId') && !categorySlug ? 1 : 0);
+  const q = sp.get('q') ?? '';
+  const page = Number(sp.get('page') ?? 1);
+  const categoryId = sp.get('categoryId') ?? slugCategory?.id ?? undefined;
+  const city = sp.get('city') ?? undefined;
+  const condition = sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | undefined;
+  const minPrice = sp.get('minPrice') ? Number(sp.get('minPrice')) : undefined;
+  const maxPrice = sp.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined;
+  const sortBy = (sp.get('sortBy') as AdSortField) ?? 'createdAt';
+  const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
+
+  const isSearch = q.trim().length >= 2;
+  const searchQ = useSearchAds({ q, page, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder });
+  const browseQ = useAds(
+    { page, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder },
+    { enabled: !isSearch },
+  );
+  const total = (isSearch ? searchQ : browseQ).data?.meta?.total;
+
+  const activeCount =
+    FILTER_KEYS.filter((key) => sp.get(key)).length +
+    (sp.get('categoryId') && !categorySlug ? 1 : 0);
 
   return (
     <div className="lg:hidden">
@@ -48,12 +58,20 @@ export function SearchFiltersSheet({ categorySlug }: Props = {}) {
             {activeCount}
           </span>
         )}
+        {typeof total === 'number' && (
+          <span className="text-xs text-muted-foreground">({total} إعلان)</span>
+        )}
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="p-0">
           <SheetHeader>
             <SheetTitle>تصفية النتائج</SheetTitle>
+            {typeof total === 'number' && (
+              <p className="text-sm text-muted-foreground px-1">
+                {total === 0 ? 'لا نتائج بهذه الفلاتر' : `${total} إعلان مطابق`}
+              </p>
+            )}
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <SearchFilters categorySlug={categorySlug} />

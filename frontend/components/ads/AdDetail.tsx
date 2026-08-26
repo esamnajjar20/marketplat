@@ -21,6 +21,7 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +51,8 @@ export function useCategoryHref(categoryId: string | undefined) {
 interface Props { ad: Ad; isFavorited?: boolean; }
 
 export function AdDetail({ ad, isFavorited = false }: Props) {
+  const searchParams = useSearchParams();
+  const justPublished = searchParams.get('published') === '1';
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -120,6 +123,19 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   }
 
   return (
+    <>
+      {justPublished && (
+        <div role="status" className="mb-4 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
+          <p className="font-semibold text-foreground">تم نشر إعلانك بنجاح</p>
+          <p className="mt-1 text-muted-foreground">
+            شاركه الآن لزيادة المشاهدات، أو راجع{' '}
+            <Link href={ROUTES.myAds} className="font-medium text-primary underline-offset-2 hover:underline">
+              إعلاناتي
+            </Link>
+            {' '}للتعديل لاحقاً.
+          </p>
+        </div>
+      )}
     <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 pb-32 lg:pb-0">
       {/* LEFT: images + details */}
       <div className="flex-1 lg:w-2/3 min-w-0 space-y-6">
@@ -418,5 +434,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
         seller={ad.user}
       />
     </div>
+    </>
   );
 }

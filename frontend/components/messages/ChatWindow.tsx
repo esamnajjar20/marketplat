@@ -264,10 +264,10 @@ export function ChatWindow({ conversationId }: Props) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
-              aria-label="خيارات المحادثة"
+              className="shrink-0 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
+              aria-label="خيارات المحادثة — حظر أو إدارة"
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-5 w-5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

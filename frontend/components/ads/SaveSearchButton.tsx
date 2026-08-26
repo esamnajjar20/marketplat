@@ -101,9 +101,9 @@ function defaultLabel(filters: SavedSearchFilters): string {
 }
 
 const NOTICE_TEXT: Record<SavedSearchType, string> = {
-  ads: 'سنُعلمك عند نشر إعلان جديد يطابق هذا البحث.',
-  products: 'سنُعلمك عند نشر منتج جديد يطابق هذا البحث.',
-  services: 'سنُعلمك عند نشر خدمة جديدة تطابق هذا البحث.',
+  ads: 'نحفظ هذا البحث ونرسل لك إشعاراً عند ظهور إعلان جديد مطابق — حتى لا تفوّت الفرصة.',
+  products: 'نحفظ هذا البحث ونرسل لك إشعاراً عند ظهور منتج جديد مطابق.',
+  services: 'نحفظ هذا البحث ونرسل لك إشعاراً عند ظهور خدمة جديدة مطابقة.',
 };
 
 // TYPE-PICK-STEP: order matches SearchTabs.tsx's own tab order for the

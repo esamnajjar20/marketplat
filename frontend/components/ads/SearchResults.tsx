@@ -6,6 +6,7 @@ import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
 import { AdCardSkeleton, AdListItemSkeleton } from '@/components/shared/skeletons';
 import { Pagination }     from '@/components/shared/ui/Pagination';
+import { EmptySearchSuggestions } from '@/components/search/EmptySearchSuggestions';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { Button }        from '@/components/shared/ui/Button';
 import { useAds, useSearchAds } from '@/hooks/queries/useAds';
@@ -156,6 +157,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
 
       {/* Results */}
       {items.length === 0 ? (
+        <>
         <EmptyState
           icon={<Search className="h-10 w-10" />}
           title="لا توجد إعلانات"
@@ -183,6 +185,8 @@ export function SearchResults({ categorySlug }: Props = {}) {
             </div>
           }
         />
+        <EmptySearchSuggestions />
+        </>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}

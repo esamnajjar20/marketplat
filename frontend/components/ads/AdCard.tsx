@@ -223,6 +223,11 @@ export function AdCard({ ad, className, priority = false }: Props) {
                     {parseFloat(ad.sellerProfile.averageRating).toFixed(1)}
                   </span>
                 )}
+                {ad.sellerProfile && ad.sellerProfile.totalRatings === 0 && (
+                  <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    بائع جديد
+                  </span>
+                )}
               </div>
               <span className={cn('shrink-0 text-xs', timeColorClass)}>{formatRelativeTime(ad.createdAt)}</span>
             </div>
