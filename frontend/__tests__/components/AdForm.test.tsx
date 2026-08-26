@@ -128,9 +128,9 @@ describe('AdForm', () => {
       screen.getByLabelText(/الوصف/),
       'هذا وصف تجريبي طويل بما فيه الكفاية لاجتياز التحقق من طول العشرين حرفاً',
     );
-    // The city field is a Radix Select (role="combobox"); its options
-    // only mount in the DOM once the trigger is opened, so
-    // selectOptions can't act on it directly — open it, then click.
+    // Create wizard: city lives on step 2 — advance first, then pick city.
+    const next1 = screen.queryByRole('button', { name: 'التالي' });
+    if (next1) await user.click(next1);
     await user.click(screen.getByLabelText(/المدينة/));
     await user.click(await screen.findByRole('option', { name: 'غزة' }));
   }
@@ -147,6 +147,27 @@ describe('AdForm', () => {
     if (!form) throw new Error('submitForm: no <form> found in container');
     fireEvent.submit(form);
   }
+
+
+  /** Create-mode wizard: step1 basics → step2 classification/price → step3 publish. */
+  async function goToCreatePublishStep(user: Awaited<ReturnType<typeof setupUser>>) {
+    // Step 1 → 2
+    const next1 = screen.queryByRole('button', { name: 'التالي' });
+    if (next1) await user.click(next1);
+    // If city is empty on step 2, pick غزة so canProceedFromStep(2) passes
+    if (screen.queryByRole('button', { name: 'التالي' }) && screen.queryByLabelText(/المدينة/)) {
+      try {
+        await user.click(screen.getByLabelText(/المدينة/));
+        const opt = await screen.findByRole('option', { name: 'غزة' });
+        await user.click(opt);
+      } catch {
+        // already has a city from ad defaults
+      }
+    }
+    const next2 = screen.queryByRole('button', { name: 'التالي' });
+    if (next2) await user.click(next2);
+  }
+
 
   // AdForm's isFormIncomplete guard (title≥5, description≥20, city set)
   // keeps the submit button disabled for every one of these scenarios
@@ -203,6 +224,7 @@ describe('AdForm', () => {
       render(<AdForm mode="create" />);
 
       await fillRequiredFields(user);
+      await goToCreatePublishStep(user);
       await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
 
       expect(screen.queryByText('أضف صورة واحدة على الأقل')).not.toBeInTheDocument();
@@ -235,6 +257,7 @@ describe('AdForm', () => {
       await user.clear(titleInput);
       await user.type(titleInput, '  عنوان بمسافات زائدة  ');
 
+      await goToCreatePublishStep(user);
       await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
 
       expect(mockCreateMutate).toHaveBeenCalledWith(
@@ -256,6 +279,7 @@ describe('AdForm', () => {
       const user = setupUser();
       render(<AdForm mode="create" ad={{ ...existingAd, condition: null, categoryId: null }} />);
 
+      await goToCreatePublishStep(user);
       await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
 
       const [payload] = mockCreateMutate.mock.calls[0];
@@ -402,8 +426,23 @@ describe('AdForm', () => {
       expect(screen.getByRole('button', { name: 'جارٍ الحفظ…' })).toBeDisabled();
     });
 
-    it('shows "نشر الإعلان" in create mode and "حفظ التعديلات" in edit mode when idle', () => {
+    it('shows "نشر الإعلان" in create mode and "حفظ التعديلات" in edit mode when idle', async () => {
+      const user = setupUser();
       const { rerender } = render(<AdForm mode="create" />);
+      // Wizard: publish button only appears on the last step
+      await user.type(screen.getByLabelText(/عنوان الإعلان/), 'عنوان كافٍ للاختبار');
+      await user.type(screen.getByLabelText(/الوصف/), 'وصف طويل بما يكفي للانتقال للخطوة التالية');
+      await goToCreatePublishStep(user);
+      // city required on step 2 — select if still blocked
+      if (!screen.queryByRole('button', { name: 'نشر الإعلان' })) {
+        const city = screen.queryByRole('combobox');
+        if (city) {
+          await user.click(city);
+          const option = await screen.findByRole('option', { name: /غزة|نصيرات|رفح/ });
+          await user.click(option);
+          await goToCreatePublishStep(user);
+        }
+      }
       expect(screen.getByRole('button', { name: 'نشر الإعلان' })).toBeInTheDocument();
 
       rerender(<AdForm mode="edit" ad={existingAd} />);

@@ -1,12 +1,9 @@
 /**
  * __tests__/components/SearchFiltersSheet.test.tsx
  *
- * Real logic under test: the active-filter count badge (counts city,
- * condition, minPrice, maxPrice — plus categoryId, but ONLY when there
- * is no categorySlug, since on a category page ?categoryId= would just
- * be the page's own context echoed back, not a filter the user set),
- * and the sheet's open/close state via the trigger button. SearchFilters
- * itself has its own dedicated test suite and is stubbed here.
+ * Active-filter count badge + sheet open/close. SearchFilters is stubbed.
+ * useAds / useSearchAds / useCategoryBySlug are mocked so the live result
+ * count (UX phase-7) does not require a real QueryClient or network.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -20,6 +17,15 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/components/ads/SearchFilters', () => ({
   SearchFilters: () => <div data-testid="search-filters" />,
+}));
+
+vi.mock('@/hooks/queries/useCategories', () => ({
+  useCategoryBySlug: () => ({ data: undefined, isLoading: false }),
+}));
+
+vi.mock('@/hooks/queries/useAds', () => ({
+  useAds: () => ({ data: { meta: { total: 0 } }, isLoading: false }),
+  useSearchAds: () => ({ data: { meta: { total: 0 } }, isLoading: false }),
 }));
 
 const mockUseSearchParams = vi.mocked(useSearchParams);

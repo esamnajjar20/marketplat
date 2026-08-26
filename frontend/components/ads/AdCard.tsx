@@ -191,32 +191,37 @@ export function AdCard({ ad, className, priority = false }: Props) {
           </div>
           <h3 className="line-clamp-2 min-h-0 flex-1 text-lg text-foreground leading-snug">{ad.title}</h3>
 
-          <div className="mt-auto flex flex-col gap-1 pt-2">
+          <div className="mt-auto flex flex-col gap-1.5 pt-2">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" />{ad.city}
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{ad.city}</span>
             </span>
-            <div className="mt-1 flex items-center justify-between">
-              {/* Seller identity — name + tiny avatar only, no
-                  rating/verified/etc. (that detail lives in SellerCard
-                  on the ad detail page, per design brief item 3.4). */}
-              <div className="flex min-w-0 items-center gap-1.5">
-                <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-muted">
-                  <SafeImage
-                    variant="avatar"
-                    src={sellerAvatar}
-                    alt={ad.user.name}
-                    fill
-                    className="object-cover"
-                    sizes="20px"
-                  />
-                </div>
-                <span className="max-w-[4.5rem] truncate text-xs text-muted-foreground">{ad.user.name}</span>
-                {ad.sellerProfile?.verified && (
-                  <BadgeCheck
-                    className="h-3.5 w-3.5 shrink-0 text-primary"
-                    aria-label="بائع موثّق"
-                  />
-                )}
+            {/* Seller row: identity only — badges + time on the next line
+                so narrow cards (related-ads carousel ~42% width) never
+                stack "بائع جديد" over the relative time. */}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-muted">
+                <SafeImage
+                  variant="avatar"
+                  src={sellerAvatar}
+                  alt={ad.user.name}
+                  fill
+                  className="object-cover"
+                  sizes="20px"
+                />
+              </div>
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                {ad.user.name}
+              </span>
+              {ad.sellerProfile?.verified && (
+                <BadgeCheck
+                  className="h-3.5 w-3.5 shrink-0 text-primary"
+                  aria-label="بائع موثّق"
+                />
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
                 {ad.sellerProfile && ad.sellerProfile.totalRatings > 0 && (
                   <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted-foreground">
                     <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
@@ -224,12 +229,14 @@ export function AdCard({ ad, className, priority = false }: Props) {
                   </span>
                 )}
                 {ad.sellerProfile && ad.sellerProfile.totalRatings === 0 && (
-                  <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
                     بائع جديد
                   </span>
                 )}
               </div>
-              <span className={cn('shrink-0 text-xs', timeColorClass)}>{formatRelativeTime(ad.createdAt)}</span>
+              <span className={cn('shrink-0 whitespace-nowrap text-[10px] tabular-nums', timeColorClass)}>
+                {formatRelativeTime(ad.createdAt)}
+              </span>
             </div>
           </div>
         </div>

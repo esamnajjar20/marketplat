@@ -41,6 +41,7 @@ vi.mock('@/hooks/queries/useCategories', () => ({
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
+  selectUser: (s: { user: unknown }) => s.user,
 }));
 
 vi.mock('sonner', () => ({
@@ -59,6 +60,19 @@ vi.mock('@/components/ads/SellerCard', () => ({
 vi.mock('@/components/ads/ReportAdButton', () => ({
   ReportAdButton: ({ adId }: { adId: string }) => <div>ReportAdButton: {adId}</div>,
 }));
+
+vi.mock('@/components/ads/StickyContactBar', () => ({
+  StickyContactBar: () => null,
+}));
+
+vi.mock('next/navigation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/navigation')>();
+  return {
+    ...actual,
+    useSearchParams: () => new URLSearchParams(),
+    useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  };
+});
 
 const mockToggleMutate = vi.fn();
 
@@ -101,7 +115,8 @@ function renderWithClient(ui: ReactElement) {
 
 function mockAuth(isAuthenticated: boolean) {
   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-    (selector: (s: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated }),
+    (selector: (s: { isAuthenticated: boolean; user: { id: string } | null }) => unknown) =>
+      selector({ isAuthenticated, user: isAuthenticated ? { id: 'viewer-1' } : null }),
   );
 }
 

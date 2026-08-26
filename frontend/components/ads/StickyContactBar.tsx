@@ -70,31 +70,28 @@ export function StickyContactBar({
         className,
       )}
     >
-      <div className="mx-auto max-w-lg px-4 py-2.5">
-        <div className="flex items-center gap-3">
+      <div className="mx-auto max-w-lg px-3 py-2 sm:px-4">
+        <div className="flex items-center gap-2.5">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-bold text-primary tabular-nums">
+            <p className="truncate text-base font-bold text-primary tabular-nums sm:text-lg">
               {formatPrice(price)}
             </p>
             {isNegotiable && (
-              <p className="text-xs text-muted-foreground">قابل للتفاوض</p>
+              <p className="text-[11px] text-muted-foreground">قابل للتفاوض</p>
             )}
           </div>
           <Button
             type="button"
             size="lg"
-            className="h-12 min-w-[9.5rem] shrink-0 gap-2 rounded-xl px-5 text-base"
+            className="h-11 min-w-[8.5rem] shrink-0 gap-2 rounded-xl px-4 text-sm sm:h-12 sm:min-w-[9.5rem] sm:text-base"
             disabled={startConversation.isPending}
             onClick={handleMessage}
             aria-label={`مراسلة ${seller.name}`}
           >
-            <MessageSquare className="h-5 w-5" aria-hidden />
+            <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
             {startConversation.isPending ? 'جاري...' : 'راسل البائع'}
           </Button>
         </div>
-        <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
-          نصيحة: قابل البائع في مكان عام ولا تحوّل مالاً مسبقاً.
-        </p>
       </div>
     </div>
   );

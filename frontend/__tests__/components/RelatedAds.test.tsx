@@ -54,8 +54,10 @@ describe('RelatedAds', () => {
     render(<RelatedAds adId="ad-1" />);
 
     expect(screen.getByText('إعلانات مشابهة')).toBeInTheDocument();
-    expect(screen.getAllByTestId('ad-card')).toHaveLength(2);
-    expect(screen.getByText('إعلان أول')).toBeInTheDocument();
-    expect(screen.getByText('إعلان ثاني')).toBeInTheDocument();
+    // RelatedAds renders two layouts: mobile horizontal strip + sm+ grid.
+    // Each ad appears once per layout → 2 ads × 2 layouts = 4 cards in the DOM.
+    expect(screen.getAllByTestId('ad-card')).toHaveLength(4);
+    expect(screen.getAllByText('إعلان أول').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('إعلان ثاني').length).toBeGreaterThanOrEqual(1);
   });
 });

@@ -197,7 +197,7 @@ describe('ChatWindow', () => {
       const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
-      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(screen.getByLabelText(/خيارات المحادثة/));
       await user.click(await screen.findByText('إلغاء حظر المستخدم'));
 
       expect(mockToggleBlockMutate).toHaveBeenCalledWith(seller.id);
@@ -209,7 +209,7 @@ describe('ChatWindow', () => {
       const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
-      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(screen.getByLabelText(/خيارات المحادثة/));
       await user.click(await screen.findByText('حظر المستخدم'));
 
       expect(screen.getByText(`حظر ${seller.name}؟`)).toBeInTheDocument();
@@ -221,7 +221,7 @@ describe('ChatWindow', () => {
       const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
-      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(screen.getByLabelText(/خيارات المحادثة/));
       await user.click(await screen.findByText('حظر المستخدم'));
       await user.click(screen.getByRole('button', { name: 'حظر' }));
 
@@ -236,7 +236,7 @@ describe('ChatWindow', () => {
       const user = setupUser();
       render(<ChatWindow conversationId="conv-1" />);
 
-      await user.click(screen.getByLabelText('خيارات المحادثة'));
+      await user.click(screen.getByLabelText(/خيارات المحادثة/));
       await user.click(await screen.findByText('حظر المستخدم'));
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 

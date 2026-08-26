@@ -227,8 +227,11 @@ describe('useCreateAd', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
     expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
-    expect(toast.success).toHaveBeenCalledWith('تم نشر الإعلان بنجاح');
-    expect(mockPush).toHaveBeenCalledWith('/ads/ad-new');
+    expect(toast.success).toHaveBeenCalledWith(
+      'تم نشر الإعلان بنجاح',
+      expect.objectContaining({ description: expect.any(String) }),
+    );
+    expect(mockPush).toHaveBeenCalledWith('/ads/ad-new?published=1');
   });
 
   it('shows an error toast and does not navigate on failure', async () => {

@@ -29,12 +29,15 @@ export function ScrollToTop({ className }: { className?: string }) {
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="العودة إلى الأعلى"
       className={cn(
-        // Above sticky contact (z-40) and below bottom nav (z-50) is fine;
-        // keep z-45-ish via z-40 and offset above the tab bar.
-        'fixed end-4 z-40 flex h-12 w-12 items-center justify-center rounded-full',
+        // RTL: `start` = right side — keeps clear of StickyContactBar's
+        // primary CTA ("راسل البائع") which sits on the inline-start of
+        // the bar (left in RTL). Bottom offset clears BottomNav (~3.5rem)
+        // + sticky contact bar (~5.5rem) so the FAB never covers the tip
+        // line or the message button.
+        'fixed start-4 z-40 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full',
         'border bg-card text-foreground shadow-lg transition-opacity',
         'hover:bg-muted active:scale-95',
-        'bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6',
+        'bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))] md:bottom-6',
         className,
       )}
     >
