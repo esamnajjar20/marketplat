@@ -9,6 +9,7 @@
  * ServiceProviderDetails. See store.types.ts for the store side.
  */
 import type { StoreDetails } from './store.types';
+import type { SellerProfile } from './seller.types';
 
 export type ProductAvailability = 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
 export type ProductStatus = 'ACTIVE' | 'PAUSED' | 'DELETED';
@@ -62,9 +63,13 @@ export type ProductWithStore = Product & {
   effectivePrice: EffectivePrice;
 };
 
-/** GET /products/:id — public detail, includes full store context. */
+/** GET /products/:id — public detail, includes full store + owning seller
+ * (backend products.repository productWithRelations includes
+ * store.sellerProfile — needed for contact/message without a second fetch). */
 export type ProductWithFullStore = Product & {
-  store: StoreDetails;
+  store: StoreDetails & {
+    sellerProfile: Pick<SellerProfile, 'id' | 'userId' | 'verified' | 'averageRating' | 'totalRatings'>;
+  };
   category: Pick<ProductCategory, 'id' | 'name' | 'nameAr' | 'slug'>;
   effectivePrice: EffectivePrice;
 };

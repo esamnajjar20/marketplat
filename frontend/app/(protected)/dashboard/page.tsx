@@ -2,6 +2,7 @@ import type { Metadata }       from 'next';
 import { DashboardStats }      from '@/components/profile/DashboardStats';
 import { RecentActivityFeed }  from '@/components/profile/RecentActivityFeed';
 import { SellerDailyBrief } from '@/components/profile/SellerDailyBrief';
+import { SellerTodayTasks } from '@/components/profile/SellerTodayTasks';
 import { OnboardingChecklist } from '@/components/profile/OnboardingChecklist';
 import { buildMetadata }       from '@/lib/seo';
 
@@ -15,6 +16,7 @@ export default function DashboardPage() {
           zero) sees "what to do" before "here's your empty numbers". */}
       <OnboardingChecklist />
       <SellerDailyBrief />
+      <SellerTodayTasks />
       <DashboardStats />
       {/* REORG-05: QuickActions removed — 4 of its 5 buttons (publish ad,
           my ads, favorites, settings) duplicated permanent ProtectedSidebar

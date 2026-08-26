@@ -24,9 +24,13 @@ import { track } from '@/lib/analytics';
 
 interface Props {
   targetUserId: string;
+  className?: string;
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+  variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link';
+  label?: string;
 }
 
-export function MessageUserButtonGate({ targetUserId }: Props) {
+export function MessageUserButtonGate({ targetUserId, className, size = 'sm', variant = 'outline', label = 'مراسلة' }: Props) {
   const router = useRouter();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
@@ -42,7 +46,7 @@ export function MessageUserButtonGate({ targetUserId }: Props) {
       toast.error('يرجى تسجيل الدخول أولاً');
       return;
     }
-    track('CONTACT_CLICK', { sellerId: targetUserId, source: 'profile' });
+    track('CONTACT_CLICK', { sellerId: targetUserId, source: 'product_or_profile' });
     startConversation.mutate(
       { userId: targetUserId },
       { onSuccess: (conversation) => router.push(ROUTES.conversationDetail(conversation!.id)) }
@@ -51,14 +55,14 @@ export function MessageUserButtonGate({ targetUserId }: Props) {
 
   return (
     <Button
-      variant="outline"
-      size="sm"
-      className="gap-2"
+      variant={variant}
+      size={size}
+      className={className ?? 'gap-2'}
       disabled={startConversation.isPending}
       onClick={handleMessage}
     >
       <MessageSquare className="h-4 w-4" />
-      {startConversation.isPending ? 'جارٍ التحضير…' : 'مراسلة'}
+      {startConversation.isPending ? 'جارٍ التحضير…' : label}
     </Button>
   );
 }

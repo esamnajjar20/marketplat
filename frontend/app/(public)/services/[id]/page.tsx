@@ -63,15 +63,19 @@ export default async function ServiceListingPage({ params }: Props) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
+    <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl">
       {/* PR4A: render-nothing tracker, see ServiceViewTracker.tsx's own
           comment for why this can't just be a useEffect inline here —
           this file is a Server Component. */}
       <ServiceViewTracker serviceListingId={listing.id} categoryId={listing.categoryId} />
-      <ServiceListingDetail listing={listing} />
-      <ServiceRequestButton
-        listingId={listing.id}
-        providerUserId={listing.provider.sellerProfile.userId}
+      <ServiceListingDetail
+        listing={listing}
+        action={
+          <ServiceRequestButton
+            listingId={listing.id}
+            providerUserId={listing.provider.sellerProfile.userId}
+          />
+        }
       />
       <ServiceRecommendations excludeServiceListingId={listing.id} />
     </div>

@@ -15,6 +15,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -198,7 +199,7 @@ export function ProductDetail({ product, related = [] }: Props) {
         </aside>
       </div>
 
-      {/* Mobile sticky CTA */}
+      {/* Mobile sticky CTA — call + message store owner (startFromUser) */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-lg gap-2">
           {store.phone && (
@@ -209,12 +210,23 @@ export function ProductDetail({ product, related = [] }: Props) {
               </a>
             </Button>
           )}
-          <Button asChild className="min-h-[48px] flex-[1.4] font-semibold">
-            <Link href={ROUTES.storeDetail(store.slug || store.id)}>
-              <StoreIcon className="h-4 w-4" aria-hidden />
-              زيارة المتجر
-            </Link>
-          </Button>
+          {store.sellerProfile?.userId && (
+            <MessageUserButtonGate
+              targetUserId={store.sellerProfile.userId}
+              size="default"
+              variant="default"
+              label="راسل المتجر"
+              className="min-h-[48px] flex-[1.4] gap-2 font-semibold"
+            />
+          )}
+          {!store.sellerProfile?.userId && (
+            <Button asChild className="min-h-[48px] flex-[1.4] font-semibold">
+              <Link href={ROUTES.storeDetail(store.slug || store.id)}>
+                <StoreIcon className="h-4 w-4" aria-hidden />
+                زيارة المتجر
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -314,6 +326,7 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
 }
 
 function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
+  const ownerId = store.sellerProfile?.userId;
   return (
     <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">المتجر</p>
@@ -335,17 +348,28 @@ function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
           )}
         </div>
       </Link>
-      {store.phone && (
-        <Button asChild variant="outline" className="w-full">
-          <a href={`tel:${store.phone}`}>
-            <Phone className="h-4 w-4" />
-            {formatPhone(store.phone)}
-          </a>
+      <div className="flex flex-col gap-2">
+        {store.phone && (
+          <Button asChild variant="outline" className="w-full gap-2 font-semibold">
+            <a href={`tel:${store.phone}`}>
+              <Phone className="h-4 w-4" />
+              اتصال · {formatPhone(store.phone)}
+            </a>
+          </Button>
+        )}
+        {ownerId && (
+          <MessageUserButtonGate
+            targetUserId={ownerId}
+            size="default"
+            variant="default"
+            label="راسل المتجر"
+            className="w-full gap-2 font-semibold"
+          />
+        )}
+        <Button asChild variant="ghost" className="w-full text-muted-foreground">
+          <Link href={ROUTES.storeDetail(store.slug || store.id)}>عرض صفحة المتجر</Link>
         </Button>
-      )}
-      <Button asChild className="w-full font-semibold">
-        <Link href={ROUTES.storeDetail(store.slug || store.id)}>عرض صفحة المتجر</Link>
-      </Button>
+      </div>
     </div>
   );
 }
