@@ -42,9 +42,17 @@ export function HeroBanner() {
           <p className="text-sm text-primary-foreground/85">
             سيارات، عقارات، إلكترونيات وأكثر — بيع واشترِ من جيرانك، بثقة.
           </p>
-          <div className="pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <Button asChild size="default" variant="secondary" className="font-semibold">
               <Link href={ROUTES.adCreate}>نشر إعلان مجاناً</Link>
+            </Button>
+            <Button
+              asChild
+              size="default"
+              variant="ghost"
+              className="font-semibold text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+            >
+              <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
             </Button>
           </div>
         </div>
@@ -66,9 +74,17 @@ export function HeroBanner() {
 
         <SearchBar className="mx-auto max-w-xl [&_input]:bg-primary-foreground [&_input]:text-foreground" />
 
-        <div className="pt-1">
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
           <Button asChild size="lg" variant="secondary" className="font-semibold">
             <Link href={ROUTES.adCreate}>نشر إعلان مجاناً</Link>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="ghost"
+            className="font-semibold text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+          >
+            <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
           </Button>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Eye, Star, BadgeCheck } from 'lucide-react';
+import { MapPin, Star, BadgeCheck } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
@@ -61,7 +61,7 @@ export function UnifiedResultCard({ result, className }: Props) {
     <Link
       href={result.url}
       className={cn(
-        'group block overflow-hidden rounded-xl border bg-card transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+        'group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
         className
       )}
     >
@@ -85,53 +85,55 @@ export function UnifiedResultCard({ result, className }: Props) {
         </span>
       </div>
 
-      <div className="space-y-1.5 p-3">
-        <h3 className="line-clamp-2 text-sm font-medium leading-snug">{result.title}</h3>
-
+      {/* Price-first body — mirrors AdCard so mixed search grids feel
+          like one product, not four different card designs. */}
+      <div className="flex flex-1 flex-col gap-1.5 p-3">
         {result.price !== null && (
-          <p className="font-mono text-base font-bold text-primary">{formatPrice(result.price)}</p>
+          <p className="font-mono text-base font-bold tabular-nums text-primary leading-none">
+            {formatPrice(result.price)}
+          </p>
         )}
+        <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
+          {result.title}
+        </h3>
 
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="truncate">{result.seller.name}</span>
-          {result.seller.verified && (
-            <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="بائع موثّق" />
-          )}
-        </div>
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            {result.city && (
-              <>
-                <MapPin className="h-3 w-3" />
-                {result.city}
-                {distanceLabel && <span className="text-primary font-medium">· {distanceLabel}</span>}
-              </>
-            )}
-            {!result.city && distanceLabel && (
-              <>
-                <MapPin className="h-3 w-3" />
-                <span className="text-primary font-medium">{distanceLabel}</span>
-              </>
-            )}
-          </span>
-          <span className="flex items-center gap-2">
-            {result.rating > 0 && (
-              <span className="flex items-center gap-0.5">
-                <Star className="h-3 w-3 fill-rating text-rating" />
-                {result.rating.toFixed(1)}
+        <div className="mt-auto flex flex-col gap-1 pt-1">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            {(result.city || distanceLabel) && (
+              <span className="flex min-w-0 items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span className="truncate">
+                  {result.city}
+                  {result.city && distanceLabel ? ' · ' : ''}
+                  {distanceLabel && (
+                    <span className="font-medium text-primary">{distanceLabel}</span>
+                  )}
+                </span>
               </span>
             )}
-            {result.type !== 'store' && (
-              <span className="flex items-center gap-1">
-                <Eye className="h-3 w-3" />
-                {result.views}
-              </span>
-            )}
-          </span>
-        </div>
+          </div>
 
-        <p className="text-xs text-muted-foreground">{formatRelativeTime(result.createdAt)}</p>
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="flex min-w-0 items-center gap-1">
+              <span className="truncate">{result.seller.name}</span>
+              {result.seller.verified && (
+                <BadgeCheck
+                  className="h-3.5 w-3.5 shrink-0 text-primary"
+                  aria-label="بائع موثّق"
+                />
+              )}
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              {result.rating > 0 && (
+                <span className="flex items-center gap-0.5">
+                  <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
+                  {result.rating.toFixed(1)}
+                </span>
+              )}
+              <span className="tabular-nums">{formatRelativeTime(result.createdAt)}</span>
+            </span>
+          </div>
+        </div>
       </div>
     </Link>
   );

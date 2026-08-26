@@ -2,12 +2,11 @@
 
 /**
  * UX: sticky mobile contact bar on ad detail.
- * Keeps the primary buyer action (message seller) one thumb-tap away
- * while scrolling the gallery/description — without replacing SellerCard
- * on desktop (lg+ hides this bar).
+ * Primary conversion surface — one dominant "راسل البائع" action,
+ * price always visible, sits above BottomNav without fighting it.
  */
 
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, LogIn, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
@@ -44,52 +43,76 @@ export function StickyContactBar({
 
   function handleMessage() {
     if (!isAuth) {
-      toast.error('يرجى تسجيل الدخول أولاً');
+      toast.error('سجّل الدخول لتراسل البائع');
+      router.push(`${ROUTES.login}?next=${encodeURIComponent(ROUTES.adDetail(adId))}`);
       return;
     }
     track('CONTACT_CLICK', { adId, sellerId: seller.id, source: 'sticky_bar' });
     startConversation.mutate(
       { adId },
       {
-        onSuccess: (conversation) =>
-          router.push(ROUTES.conversationDetail(conversation!.id)),
+        onSuccess: (conversation) => {
+          toast.success('تم فتح المحادثة');
+          router.push(ROUTES.conversationDetail(conversation!.id));
+        },
+        onError: () => {
+          toast.error('تعذّر بدء المحادثة، حاول مرة أخرى');
+        },
       },
     );
   }
+
+  const pending = startConversation.isPending;
 
   return (
     <div
       role="region"
       aria-label="تواصل سريع مع البائع"
       className={cn(
-        // Sits just above BottomNav (fixed bottom-0, ~56–64px + safe area).
-        // z-40 < BottomNav's z-50 so the tab bar stays tappable on top of page chrome.
-        'fixed inset-x-0 z-40 border-t bg-background/95 backdrop-blur',
+        // Above BottomNav (z-50); keep this at z-40 so tabs stay tappable.
+        'fixed inset-x-0 z-40 border-t border-border/80 bg-background/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur',
         'bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))]',
         'supports-[backdrop-filter]:bg-background/90 lg:hidden',
         className,
       )}
     >
-      <div className="mx-auto max-w-lg px-3 py-2 sm:px-4">
-        <div className="flex items-center gap-2.5">
+      <div className="mx-auto max-w-lg px-3 py-2.5 sm:px-4">
+        <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-bold text-primary tabular-nums sm:text-lg">
+            <p className="truncate font-mono text-lg font-bold tabular-nums text-primary leading-tight">
               {formatPrice(price)}
             </p>
-            {isNegotiable && (
-              <p className="text-[11px] text-muted-foreground">قابل للتفاوض</p>
+            {isNegotiable ? (
+              <p className="text-[11px] font-medium text-primary/80">قابل للتفاوض</p>
+            ) : (
+              <p className="truncate text-[11px] text-muted-foreground">
+                مع {seller.name}
+              </p>
             )}
           </div>
+
           <Button
             type="button"
             size="lg"
-            className="h-11 min-w-[8.5rem] shrink-0 gap-2 rounded-xl px-4 text-sm sm:h-12 sm:min-w-[9.5rem] sm:text-base"
-            disabled={startConversation.isPending}
+            className={cn(
+              // Single dominant CTA — full brand primary, roomy hit target
+              'h-12 min-w-[9.5rem] shrink-0 gap-2 rounded-xl px-5 text-sm font-semibold shadow-md',
+              'sm:min-w-[11rem] sm:text-base',
+              'active:scale-[0.98]',
+            )}
+            disabled={pending}
             onClick={handleMessage}
-            aria-label={`مراسلة ${seller.name}`}
+            aria-label={isAuth ? `مراسلة ${seller.name}` : 'سجّل الدخول لمراسلة البائع'}
+            aria-busy={pending}
           >
-            <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
-            {startConversation.isPending ? 'جاري...' : 'راسل البائع'}
+            {pending ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : isAuth ? (
+              <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
+            ) : (
+              <LogIn className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
+            )}
+            {pending ? 'جاري الفتح…' : isAuth ? 'راسل البائع' : 'سجّل للتواصل'}
           </Button>
         </div>
       </div>
