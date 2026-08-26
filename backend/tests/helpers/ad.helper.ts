@@ -10,6 +10,14 @@ export const createTestAd = async (
     city: string;
     categoryId: string;
     views: number;
+    // PR5B: trending-composite integration coverage needs direct
+    // control over createdAt (recencyScore) and isPinned/isFeatured
+    // (the hard priority tiers above the composite score) — same
+    // "Prisma allows an explicit value at create time" reasoning
+    // store.helper.ts's own PR5A additions use.
+    createdAt: Date;
+    isPinned: boolean;
+    isFeatured: boolean;
   }>
 ): Promise<Ad> => {
   // Real ad creation always attaches a SellerProfile (ads.service.ts's

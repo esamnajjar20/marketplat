@@ -1,5 +1,5 @@
 import { prisma } from '../../src/config/prisma';
-import { StoreDetails, StoreStatus } from '@prisma/client';
+import { StoreDetails, StoreStatus, StorePlan } from '@prisma/client';
 
 // STORE-SLUG: `slug` is a required, unique column on store_details as
 // of Foundation v1 — this helper previously didn't set it at all,
@@ -29,6 +29,18 @@ export const createTestStore = async (
     phone: string;
     status: StoreStatus;
     slug: string;
+    // PR5A: recommendations.repository.test integration coverage
+    // needs to control every input to the composite score directly —
+    // latitude/longitude for distanceScore, plan for planScore, and
+    // createdAt/updatedAt for freshnessScore (GREATEST(store.updatedAt,
+    // ...)). Prisma allows an explicit value at create time even for
+    // @default(now())/@updatedAt fields, so passing these through
+    // just works without any extra follow-up update() call.
+    latitude: number;
+    longitude: number;
+    plan: StorePlan;
+    createdAt: Date;
+    updatedAt: Date;
   }>
 ): Promise<StoreDetails> => {
   const name = overrides?.name ?? 'Test Store';
@@ -42,6 +54,11 @@ export const createTestStore = async (
       address: overrides?.address,
       phone: overrides?.phone ?? '0599111222',
       status: overrides?.status ?? 'ACTIVE',
+      ...(overrides?.latitude !== undefined && { latitude: overrides.latitude }),
+      ...(overrides?.longitude !== undefined && { longitude: overrides.longitude }),
+      ...(overrides?.plan && { plan: overrides.plan }),
+      ...(overrides?.createdAt && { createdAt: overrides.createdAt }),
+      ...(overrides?.updatedAt && { updatedAt: overrides.updatedAt }),
     },
   });
 };

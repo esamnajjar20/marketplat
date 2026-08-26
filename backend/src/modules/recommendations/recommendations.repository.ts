@@ -68,6 +68,113 @@ export interface CategoryWeight {
 // scanning a user's entire multi-year view history on every request.
 const VIEW_SIGNAL_LOOKBACK_DAYS = 30;
 
+// PR5B: bounded trending composite score, shared by AD/PRODUCT/
+// SERVICE_LISTING findTrending below (each repository's own
+// findTrending calls rankTrendingCandidates — see that function's own
+// comment for the two-pool fetch shape).
+//
+// Problem this replaces: every findTrending previously ordered purely
+// by `views DESC` (then createdAt as a tiebreak). Lifetime `views` is
+// monotonically increasing and never decays, so a brand-new listing
+// with views = 0 sits behind every existing listing with even a
+// single view — starvation, not "less popular".
+//
+// Fix: compute a bounded composite of (a) a diminishing-returns
+// transform of views and (b) an age-based recency score, then re-sort
+// by that composite instead of raw views. Computed in JS over a small
+// already-fetched candidate pool rather than in SQL — this keeps
+// findTrending's own `where` clause (and therefore this file's
+// existing findTrending unit tests, which assert on that exact
+// `where` object) completely unchanged, which is the smallest safe
+// change that preserves current semantics per this task's own
+// instruction, and it stays directly unit-testable without needing a
+// live Postgres connection to exercise EXTRACT/NOW() SQL.
+//
+// viewsScore = views / (views + K), K = TRENDING_VIEWS_NORMALIZATION_CONSTANT
+//   Bounded to [0, 1) with diminishing returns (at K views the score
+//   is already 0.5) — a single very-high-view outlier can no longer
+//   push its raw magnitude straight through unchecked the way a plain
+//   `views DESC` sort would.
+// recencyScore = 1 / (1 + ageDays / TRENDING_RECENCY_DECAY_DAYS)
+//   Same bounded-decay shape PR5A's freshnessScore uses. Deliberately
+//   a separate named constant from VIEW_SIGNAL_LOOKBACK_DAYS even
+//   though both currently equal 30 — that one bounds an event-lookback
+//   *window* (a hard cutoff on which AnalyticsEvent rows are read at
+//   all); this one is a decay *rate* for scoring (no cutoff, just
+//   smoothly shrinking influence). Coupling them via reuse would tie
+//   two conceptually different knobs together for no reason.
+const TRENDING_VIEWS_NORMALIZATION_CONSTANT = 10;
+const TRENDING_RECENCY_DECAY_DAYS = 30;
+const TRENDING_VIEWS_WEIGHT = 0.7;
+const TRENDING_RECENCY_WEIGHT = 0.3;
+// Size of each candidate pool findTrending fetches (see
+// rankTrendingCandidates below) — comfortably above 24, the largest
+// `limit` GET /recommendations accepts (recommendations.validation.ts),
+// so the pool always has strictly more real candidates than could
+// ever be requested in one call, without ever scanning/sorting the
+// whole table.
+const TRENDING_POOL_SIZE = 60;
+
+interface TrendingCandidate {
+  id: string;
+  views: number;
+  createdAt: Date;
+}
+
+const trendingCompositeScore = (candidate: TrendingCandidate, nowMs: number): number => {
+  const viewsScore = candidate.views / (candidate.views + TRENDING_VIEWS_NORMALIZATION_CONSTANT);
+  const ageDays = (nowMs - candidate.createdAt.getTime()) / (24 * 60 * 60 * 1000);
+  const recencyScore = 1 / (1 + ageDays / TRENDING_RECENCY_DECAY_DAYS);
+  return viewsScore * TRENDING_VIEWS_WEIGHT + recencyScore * TRENDING_RECENCY_WEIGHT;
+};
+
+// Merges 1+ already-fetched candidate pools (deduped by id, first
+// occurrence wins), then sorts by:
+//   1. tierKeys(item), if given — an ordered array of booleans, each
+//      compared most-significant-first, true sorts before false. Used
+//      by AD's findTrending to keep isPinned/isFeatured as the same
+//      two hard priority tiers they always were; PRODUCT/SERVICE_LISTING
+//      pass no tierKeys since neither field exists on those models.
+//   2. trendingCompositeScore DESC
+//   3. createdAt DESC
+//   4. id ASC — final deterministic tie-break, same convention PR5A's
+//      findRanked uses, so two candidates identical on every signal
+//      above (including createdAt, as in a test fixture) still return
+//      in a stable, repeatable order.
+// Then slices to `limit`. Pure/sync — this is what stays fully
+// unit-testable without a live DB.
+function rankTrendingCandidates<T extends TrendingCandidate>(
+  pools: T[][],
+  limit: number,
+  tierKeys?: (item: T) => boolean[]
+): T[] {
+  const byId = new Map<string, T>();
+  for (const pool of pools) {
+    for (const item of pool) {
+      if (!byId.has(item.id)) byId.set(item.id, item);
+    }
+  }
+  const nowMs = Date.now();
+  const items = Array.from(byId.values());
+  items.sort((a, b) => {
+    if (tierKeys) {
+      const tiersA = tierKeys(a);
+      const tiersB = tierKeys(b);
+      for (let i = 0; i < tiersA.length; i += 1) {
+        if (tiersA[i] !== tiersB[i]) return tiersA[i] ? -1 : 1;
+      }
+    }
+    const scoreDiff = trendingCompositeScore(b, nowMs) - trendingCompositeScore(a, nowMs);
+    if (scoreDiff !== 0) return scoreDiff;
+    const createdAtDiff = b.createdAt.getTime() - a.createdAt.getTime();
+    if (createdAtDiff !== 0) return createdAtDiff;
+    if (a.id < b.id) return -1;
+    if (a.id > b.id) return 1;
+    return 0;
+  });
+  return items.slice(0, limit);
+}
+
 // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): PRODUCT and
 // SERVICE_LISTING both have a real categoryId (see Product/
 // ServiceListing's own schema models) and DELETED-based soft-delete,
@@ -239,18 +346,34 @@ export const productRecommendationsRepository = {
     });
   },
 
+  // PR5B: two bounded candidate pools instead of one views-sorted
+  // page — see rankTrendingCandidates' own header comment for why.
+  // topByViews keeps genuinely popular older products in the
+  // candidate set; mostRecent guarantees a brand-new, zero-view
+  // product is always a candidate for the composite score even though
+  // it would never appear on a pure `views DESC` page. `where` is
+  // unchanged from before PR5B — same object reused for both queries.
   findTrending: async (excludeIds: string[], limit: number): Promise<ProductWithStore[]> => {
     const where: Prisma.ProductWhereInput = {
       status: ProductStatus.ACTIVE,
       store: { sellerProfile: { suspended: false } },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
-    return prisma.product.findMany({
-      where,
-      include: productWithRelations,
-      orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
-      take: limit,
-    });
+    const [topByViews, mostRecent] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: productWithRelations,
+        orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
+        take: TRENDING_POOL_SIZE,
+      }),
+      prisma.product.findMany({
+        where,
+        include: productWithRelations,
+        orderBy: [{ createdAt: 'desc' }],
+        take: TRENDING_POOL_SIZE,
+      }),
+    ]);
+    return rankTrendingCandidates([topByViews, mostRecent], limit);
   },
 };
 
@@ -374,18 +497,29 @@ export const serviceListingRecommendationsRepository = {
     });
   },
 
+  // PR5B: same two-pool shape as productRecommendationsRepository's
+  // findTrending above — see rankTrendingCandidates' own comment.
   findTrending: async (excludeIds: string[], limit: number): Promise<ServiceListingWithProvider[]> => {
     const where: Prisma.ServiceListingWhereInput = {
       status: ServiceListingStatus.ACTIVE,
       provider: { sellerProfile: { suspended: false } },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
-    return prisma.serviceListing.findMany({
-      where,
-      include: listingWithRelations,
-      orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
-      take: limit,
-    });
+    const [topByViews, mostRecent] = await Promise.all([
+      prisma.serviceListing.findMany({
+        where,
+        include: listingWithRelations,
+        orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
+        take: TRENDING_POOL_SIZE,
+      }),
+      prisma.serviceListing.findMany({
+        where,
+        include: listingWithRelations,
+        orderBy: [{ createdAt: 'desc' }],
+        take: TRENDING_POOL_SIZE,
+      }),
+    ]);
+    return rankTrendingCandidates([topByViews, mostRecent], limit);
   },
 };
 
@@ -563,6 +697,13 @@ export const recommendationsRepository = {
   // featured and pinned first, then most-viewed recently, same signal
   // shape as FeaturedAds.tsx's own client-side filter but done here so
   // it can also backfill a personalized rail that came up short.
+  //
+  // PR5B: within the isPinned/isFeatured tiers (unchanged — those stay
+  // the same two hard priority tiers they always were), views DESC is
+  // replaced by the bounded composite score so a zero-view new ad
+  // isn't starved behind every ad with even one view. Two bounded
+  // candidate pools instead of one views-sorted page — see
+  // rankTrendingCandidates' own comment for why.
   findTrending: async (excludeIds: string[], limit: number): Promise<AdListRow[]> => {
     // SEC-FIX: same suspended-seller leak as findByCategoryWeights
     // above — sellerProfile is Ad's direct belongs-to relation
@@ -573,12 +714,21 @@ export const recommendationsRepository = {
       sellerProfile: { suspended: false },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
-    return prisma.ad.findMany({
-      where,
-      select: recommendationAdSelect,
-      orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
-      take: limit,
-    });
+    const [topByViews, mostRecent] = await Promise.all([
+      prisma.ad.findMany({
+        where,
+        select: recommendationAdSelect,
+        orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
+        take: TRENDING_POOL_SIZE,
+      }),
+      prisma.ad.findMany({
+        where,
+        select: recommendationAdSelect,
+        orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
+        take: TRENDING_POOL_SIZE,
+      }),
+    ]);
+    return rankTrendingCandidates([topByViews, mostRecent], limit, ad => [ad.isPinned, ad.isFeatured]);
   },
 };
 
@@ -627,6 +777,47 @@ export const recommendationsRepository = {
 // recommendationAdSelect's own findTrending already uses
 // ([isPinned, isFeatured, views, createdAt]), just with different
 // columns.
+// PR5A: bounded composite score replacing the old lexicographic
+// ORDER BY (freshness, distance, plan, createdAt). That chain let
+// freshness dominate outright — two stores' freshness timestamps
+// almost never tie, so distance/plan never got a real chance to
+// break a freshness "tie" that in practice never happened. A weighted
+// sum lets all three signals actually trade off against each other.
+//
+// Weights (caller supplied lat/lng, and the store itself has
+// coordinates): freshness 0.45, distance 0.40, plan 0.15 — freshness
+// and distance are deliberately close to each other (both real,
+// continuous, evidence-based signals) while plan stays a minority
+// "nudge" per the original design intent ("محدود" — limited, a
+// tie-lean, not an override).
+const STORE_FRESHNESS_WEIGHT_WITH_GEO = 0.45;
+const STORE_DISTANCE_WEIGHT = 0.4;
+const STORE_PLAN_WEIGHT_WITH_GEO = 0.15;
+// No-geo weights (caller sent no lat/lng, OR sent lat/lng but this
+// particular store has none — see hasStoreGeoExpr below): distance
+// drops out entirely rather than defaulting to some contrived
+// "neutral" distance value, and its 0.40 share is redistributed
+// proportionally between the two remaining signals (0.45/0.60 * 0.75
+// ≈ 0.5625 vs 0.15/0.60 * 0.75 ≈ 0.1875 — close enough to the flatly
+// simple 0.75/0.25 split actually used; picking the simpler numbers
+// keeps the formula legible without meaningfully changing behavior).
+const STORE_FRESHNESS_WEIGHT_NO_GEO = 0.75;
+const STORE_PLAN_WEIGHT_NO_GEO = 0.25;
+// Decay divisor for distanceScore = 1 / (1 + distanceKm / 10) — at
+// 10km a store's distance contribution is already halved, decaying
+// smoothly toward 0 with no hard radius cutoff (PR5A explicitly asked
+// for no cutoff — this is a ranking signal, not a filter).
+const STORE_DISTANCE_SCORE_DECAY_KM = 10;
+
+// freshnessScore = 1 / (1 + ageDays / 30) — reuses
+// VIEW_SIGNAL_LOOKBACK_DAYS (declared above) rather than a second
+// "30" constant, per this task's own instruction to not invent a
+// parallel constant for the same number.
+function storeFreshnessScoreExprSql(freshnessTimestampExpr: Prisma.Sql): Prisma.Sql {
+  const ageDaysExpr = Prisma.sql`(EXTRACT(EPOCH FROM (NOW() - (${freshnessTimestampExpr}))) / 86400.0)`;
+  return Prisma.sql`(1.0 / (1.0 + (${ageDaysExpr}) / ${VIEW_SIGNAL_LOOKBACK_DAYS}::float))`;
+}
+
 export interface StoreRankingParams {
   excludeIds: string[];
   lat?: number;
@@ -685,41 +876,36 @@ export const storeRecommendationsRepository = {
   // never surface in a recommendation rail any more than it surfaces
   // in the public directory.
   //
-  // Ranking (deterministic, no invented weights):
-  //   1. Freshness/activity — GREATEST(store.updatedAt, most recent
-  //      ACTIVE product's createdAt). A store that keeps listing new
-  //      products, or was recently edited, is "active" in the sense a
-  //      recommendation rail should prefer over one that has sat
-  //      untouched — same intuition as ads/products/services' own
-  //      findTrending ordering by recency, just measured off the
-  //      store's actual activity instead of the store row's own
-  //      createdAt (which never changes and would rank every store by
-  //      "how old is it", the opposite of what freshness should mean).
-  //      LEFT JOIN + GROUP BY sd."id" (Postgres allows referencing the
-  //      rest of a table's columns once GROUP BY covers its primary
-  //      key — no need to also list updatedAt/plan/createdAt/lat/lng)
-  //      rather than a correlated subquery, and GROUP BY is what makes
-  //      this safe against a store with several active products
-  //      collapsing to one row instead of duplicating per product.
-  //   2. Distance in km — same Haversine formula
-  //      search.repository.ts's own haversineExprSql uses (duplicated,
-  //      not imported — that function is a private, unexported const
-  //      there, same "duplicate rather than reach into another
-  //      module's private helper" convention recommendationAdSelect
-  //      above already follows). NULL when the caller didn't supply
-  //      lat/lng, or when the store itself has no pin — sorts last via
-  //      NULLS LAST either way, never excluding a store for lacking
-  //      coordinates (this is a ranking signal, not a radius filter —
-  //      unlike search's sort=distance, there is no requirement here
-  //      that geo be present at all).
-  //   3. Plan boost, LIMITED: FEATURED sorts above FREE only as a
-  //      third-tier tie-break — after freshness and distance, not
-  //      instead of them — so a stale, far-away FEATURED store still
-  //      loses to an active, nearby FREE one. That's the "محدود"
-  //      (limited) the task asked for: a nudge, not an override.
-  //   4. store.createdAt DESC — final deterministic tie-break so two
-  //      stores identical on every signal above still return in a
-  //      stable order.
+  // Ranking (deterministic, no invented weights beyond the three
+  // fixed coefficients documented on the STORE_*_WEIGHT_* constants
+  // above): a single bounded composite score, not a lexicographic
+  // chain — see this file's PR5A header comment above for why the
+  // lexicographic version let freshness dominate outright.
+  //
+  //   score = freshnessScore * W_fresh + distanceScore * W_dist + planScore * W_plan   (geo present, store has coords)
+  //   score = freshnessScore * W_fresh_nogeo + planScore * W_plan_nogeo               (no geo, either side)
+  //
+  //   freshnessScore = 1 / (1 + ageDays / VIEW_SIGNAL_LOOKBACK_DAYS)
+  //     ageDays from GREATEST(store.updatedAt, most recent ACTIVE
+  //     product's createdAt) — same freshness-timestamp definition
+  //     the old lexicographic version used (LEFT JOIN + GROUP BY
+  //     sd."id" for the same "collapse multiple active products to
+  //     one row" reason as before).
+  //   distanceScore = 1 / (1 + distanceKm / 10), no radius cutoff —
+  //     distanceKm from the same Haversine expression
+  //     search.repository.ts's own haversineExprSql uses (duplicated,
+  //     not imported — see this method's original doc comment on why).
+  //   planScore = 1 for FEATURED, 0 for FREE.
+  //
+  // A store with no coordinates of its own still gets ranked by the
+  // no-geo formula (never NULL, never excluded) even when the caller
+  // DID supply lat/lng — hasStoreGeoExpr below is what selects the
+  // right formula per row rather than per request.
+  //
+  // Tie-break after the composite score: store.createdAt DESC, then
+  // sd."id" ASC as a final deterministic tie-break so two stores
+  // identical on every signal above (including createdAt, in tests)
+  // still return in a stable, repeatable order.
   findRanked: async (params: StoreRankingParams): Promise<StoreWithSeller[]> => {
     const { excludeIds, lat, lng, limit } = params;
 
@@ -736,9 +922,8 @@ export const storeRecommendationsRepository = {
     // Same Haversine expression as search.repository.ts's
     // haversineExprSql — see this method's own doc comment above for
     // why it's duplicated rather than imported. NULL::float (not the
-    // expression) when the caller supplied no lat/lng, so the ORDER BY
-    // column is a harmless constant instead of computing geometry
-    // against undefined values.
+    // expression) when the caller supplied no lat/lng, so
+    // distanceScoreExpr below is never even reached for that request.
     const distanceExprSql = hasGeo
       ? Prisma.sql`
           6371 * acos(
@@ -751,6 +936,24 @@ export const storeRecommendationsRepository = {
         `
       : Prisma.sql`NULL::float`;
 
+    const freshnessTimestampExpr = Prisma.sql`GREATEST(sd."updatedAt", COALESCE(MAX(p."createdAt"), sd."updatedAt"))`;
+    const freshnessScoreExpr = storeFreshnessScoreExprSql(freshnessTimestampExpr);
+    const distanceScoreExpr = Prisma.sql`(1.0 / (1.0 + (${distanceExprSql}) / ${STORE_DISTANCE_SCORE_DECAY_KM}::float))`;
+    const planScoreExpr = Prisma.sql`(CASE WHEN sd."plan" = ${StorePlan.FEATURED}::"StorePlan" THEN 1.0 ELSE 0.0 END)`;
+    const noGeoScoreExpr = Prisma.sql`((${freshnessScoreExpr}) * ${STORE_FRESHNESS_WEIGHT_NO_GEO}::float + (${planScoreExpr}) * ${STORE_PLAN_WEIGHT_NO_GEO}::float)`;
+    // hasStoreGeoExpr is only ever evaluated when hasGeo is true (it's
+    // nested inside the `hasGeo ?` branch below) — a request with no
+    // lat/lng always takes noGeoScoreExpr unconditionally, per row,
+    // regardless of whether that store happens to have coordinates.
+    const hasStoreGeoExpr = Prisma.sql`(sd."latitude" IS NOT NULL AND sd."longitude" IS NOT NULL)`;
+    const compositeScoreExpr = hasGeo
+      ? Prisma.sql`(CASE WHEN ${hasStoreGeoExpr} THEN
+          (${freshnessScoreExpr}) * ${STORE_FRESHNESS_WEIGHT_WITH_GEO}::float
+          + (${distanceScoreExpr}) * ${STORE_DISTANCE_WEIGHT}::float
+          + (${planScoreExpr}) * ${STORE_PLAN_WEIGHT_WITH_GEO}::float
+        ELSE ${noGeoScoreExpr} END)`
+      : noGeoScoreExpr;
+
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT sd."id"
       FROM "store_details" sd
@@ -759,10 +962,9 @@ export const storeRecommendationsRepository = {
       WHERE ${whereSql}
       GROUP BY sd."id"
       ORDER BY
-        GREATEST(sd."updatedAt", COALESCE(MAX(p."createdAt"), sd."updatedAt")) DESC,
-        (${distanceExprSql}) ASC NULLS LAST,
-        CASE WHEN sd."plan" = ${StorePlan.FEATURED}::"StorePlan" THEN 1 ELSE 0 END DESC,
-        sd."createdAt" DESC
+        (${compositeScoreExpr}) DESC,
+        sd."createdAt" DESC,
+        sd."id" ASC
       LIMIT ${limit}
     `;
 

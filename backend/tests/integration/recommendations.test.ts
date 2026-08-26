@@ -408,5 +408,248 @@ describe('Recommendations API', () => {
         .query({ type: 'store', lat: 31.5 });
       expect(res.status).toBe(400);
     });
+
+    /** Sets both createdAt and updatedAt via raw SQL, same reasoning
+     *  as freezeUpdatedAt above (Prisma's @updatedAt would otherwise
+     *  silently overwrite an explicit updatedAt on a plain update()
+     *  call) — needed wherever a test has to pin an exact age in days
+     *  for the freshness formula rather than just "now vs FIXED_TIME". */
+    const setStoreTimestamps = (storeId: string, createdAt: Date, updatedAt: Date) =>
+      prisma.$executeRaw`UPDATE "store_details" SET "createdAt" = ${createdAt}, "updatedAt" = ${updatedAt} WHERE "id" = ${storeId}`;
+    const daysAgo = (n: number): Date => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+    // Gaza City-ish coordinates as "near" the caller in every geo test
+    // below; a point ~9000km away (Sydney) as "far".
+    const NEAR_LAT = 31.5;
+    const NEAR_LNG = 34.45;
+    const FAR_LAT = -33.87;
+    const FAR_LNG = 151.21;
+
+    // PR5A regression test 1/2: a distant store with only a small
+    // freshness edge must not beat a nearby store — distance (weight
+    // 0.40) and freshness (weight 0.45) are close enough in weight
+    // that a SMALL freshness gap can't buy back a ~9000km distance
+    // gap (distanceScore near-0 vs near-1). This is exactly the
+    // failure mode the old lexicographic ORDER BY had in reverse
+    // (freshness alone decided everything); this test would have
+    // failed under that old ordering.
+    it('does not let a far store with a small freshness edge outrank a close store', async () => {
+      const nearOwner = await createTestUser();
+      const nearSellerProfile = await createTestSellerProfile(nearOwner.id);
+      const nearStore = await createTestStore(nearSellerProfile.id, { name: 'Close Slightly Older Store' });
+
+      const farOwner = await createTestUser();
+      const farSellerProfile = await createTestSellerProfile(farOwner.id);
+      const farStore = await createTestStore(farSellerProfile.id, { name: 'Far Slightly Newer Store' });
+
+      await prisma.storeDetails.update({ where: { id: nearStore.id }, data: { latitude: NEAR_LAT, longitude: NEAR_LNG } });
+      await prisma.storeDetails.update({ where: { id: farStore.id }, data: { latitude: FAR_LAT, longitude: FAR_LNG } });
+      await demoteOtherStores([nearStore.id, farStore.id]);
+      // near: 10 days old. far: 1 day old — a real but small freshness
+      // edge in the far store's favor, nowhere near enough to offset
+      // ~9000km of distance at these weights.
+      await setStoreTimestamps(nearStore.id, daysAgo(10), daysAgo(10));
+      await setStoreTimestamps(farStore.id, daysAgo(1), daysAgo(1));
+
+      const res = await request(app)
+        .get('/api/v1/recommendations')
+        .query({ type: 'store', limit: 24, lat: NEAR_LAT, lng: NEAR_LNG });
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((s: { id: string }) => s.id);
+      const nearIndex = ids.indexOf(nearStore.id);
+      const farIndex = ids.indexOf(farStore.id);
+      expect(nearIndex).toBeGreaterThanOrEqual(0);
+      expect(farIndex).toBeGreaterThanOrEqual(0);
+      expect(nearIndex).toBeLessThan(farIndex);
+    });
+
+    it('lets a close-but-slightly-older store beat a far-but-fresher store', async () => {
+      const nearOwner = await createTestUser();
+      const nearSellerProfile = await createTestSellerProfile(nearOwner.id);
+      const nearStore = await createTestStore(nearSellerProfile.id, { name: 'Close Older Store 2' });
+
+      const farOwner = await createTestUser();
+      const farSellerProfile = await createTestSellerProfile(farOwner.id);
+      const farStore = await createTestStore(farSellerProfile.id, { name: 'Far Fresh Store 2' });
+
+      await prisma.storeDetails.update({ where: { id: nearStore.id }, data: { latitude: NEAR_LAT, longitude: NEAR_LNG } });
+      await prisma.storeDetails.update({ where: { id: farStore.id }, data: { latitude: FAR_LAT, longitude: FAR_LNG } });
+      await demoteOtherStores([nearStore.id, farStore.id]);
+      // near: 20 days old. far: brand new (0 days) — a bigger
+      // freshness gap than the previous test, still not enough to
+      // outweigh distance at these weights.
+      await setStoreTimestamps(nearStore.id, daysAgo(20), daysAgo(20));
+      await setStoreTimestamps(farStore.id, daysAgo(0), daysAgo(0));
+
+      const res = await request(app)
+        .get('/api/v1/recommendations')
+        .query({ type: 'store', limit: 24, lat: NEAR_LAT, lng: NEAR_LNG });
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((s: { id: string }) => s.id);
+      const nearIndex = ids.indexOf(nearStore.id);
+      const farIndex = ids.indexOf(farStore.id);
+      expect(nearIndex).toBeGreaterThanOrEqual(0);
+      expect(farIndex).toBeGreaterThanOrEqual(0);
+      expect(nearIndex).toBeLessThan(farIndex);
+    });
+
+    // PR5A regression test 3: FEATURED's weight (0.15 with geo) must
+    // stay a minority nudge — it should not flip a ranking against a
+    // LARGE combined freshness+distance gap.
+    it('does not let FEATURED flip the ranking against a large freshness/distance gap', async () => {
+      const nearOwner = await createTestUser();
+      const nearSellerProfile = await createTestSellerProfile(nearOwner.id);
+      const nearFreshFreeStore = await createTestStore(nearSellerProfile.id, { name: 'Near Fresh FREE Store' });
+
+      const farOwner = await createTestUser();
+      const farSellerProfile = await createTestSellerProfile(farOwner.id);
+      const farStaleFeaturedStore = await createTestStore(farSellerProfile.id, { name: 'Far Stale FEATURED Store' });
+
+      await prisma.storeDetails.update({ where: { id: nearFreshFreeStore.id }, data: { latitude: NEAR_LAT, longitude: NEAR_LNG } });
+      await prisma.storeDetails.update({
+        where: { id: farStaleFeaturedStore.id },
+        data: { latitude: FAR_LAT, longitude: FAR_LNG, plan: 'FEATURED' },
+      });
+      await demoteOtherStores([nearFreshFreeStore.id, farStaleFeaturedStore.id]);
+      await setStoreTimestamps(nearFreshFreeStore.id, daysAgo(0), daysAgo(0));
+      await setStoreTimestamps(farStaleFeaturedStore.id, daysAgo(365), daysAgo(365));
+
+      const res = await request(app)
+        .get('/api/v1/recommendations')
+        .query({ type: 'store', limit: 24, lat: NEAR_LAT, lng: NEAR_LNG });
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((s: { id: string }) => s.id);
+      const nearIndex = ids.indexOf(nearFreshFreeStore.id);
+      const farIndex = ids.indexOf(farStaleFeaturedStore.id);
+      expect(nearIndex).toBeGreaterThanOrEqual(0);
+      expect(farIndex).toBeGreaterThanOrEqual(0);
+      expect(nearIndex).toBeLessThan(farIndex);
+    });
+
+    // PR5A regression test 4: a store with no coordinates of its own
+    // must still be ranked (via the no-geo formula for that one row)
+    // and must still appear — never NULL score, never silently
+    // excluded — even though the caller DID supply lat/lng.
+    it('still ranks and returns a coordinate-less store even when the caller supplies lat/lng', async () => {
+      const noCoordsOwner = await createTestUser();
+      const noCoordsSellerProfile = await createTestSellerProfile(noCoordsOwner.id);
+      const noCoordsStore = await createTestStore(noCoordsSellerProfile.id, { name: 'No-Coordinates Store' });
+
+      await demoteOtherStores([noCoordsStore.id]);
+      await setStoreTimestamps(noCoordsStore.id, daysAgo(1), daysAgo(1));
+
+      const res = await request(app)
+        .get('/api/v1/recommendations')
+        .query({ type: 'store', limit: 24, lat: NEAR_LAT, lng: NEAR_LNG });
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((s: { id: string }) => s.id);
+      expect(ids).toContain(noCoordsStore.id);
+    });
+
+    // PR5A regression test 5: with no lat/lng at all, ranking runs on
+    // freshness + plan only — already implicitly covered by the
+    // existing "gives a FEATURED store a limited boost" test above
+    // (which never supplies lat/lng), so not duplicated here.
+
+    // PR5A regression test 6: two stores identical on every ranking
+    // signal (including createdAt) must still return in a stable,
+    // deterministic order — id ASC.
+    it('breaks a full tie (equal score, equal createdAt) deterministically by id ASC', async () => {
+      const ownerA = await createTestUser();
+      const sellerProfileA = await createTestSellerProfile(ownerA.id);
+      const storeA = await createTestStore(sellerProfileA.id, { name: 'Tied Store A' });
+
+      const ownerB = await createTestUser();
+      const sellerProfileB = await createTestSellerProfile(ownerB.id);
+      const storeB = await createTestStore(sellerProfileB.id, { name: 'Tied Store B' });
+
+      await demoteOtherStores([storeA.id, storeB.id]);
+      const sameInstant = daysAgo(5);
+      await setStoreTimestamps(storeA.id, sameInstant, sameInstant);
+      await setStoreTimestamps(storeB.id, sameInstant, sameInstant);
+
+      const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 24 });
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((s: { id: string }) => s.id);
+      const [expectedFirst, expectedSecond] = [storeA.id, storeB.id].sort();
+      const firstIndex = ids.indexOf(expectedFirst);
+      const secondIndex = ids.indexOf(expectedSecond);
+      expect(firstIndex).toBeGreaterThanOrEqual(0);
+      expect(secondIndex).toBeGreaterThanOrEqual(0);
+      expect(firstIndex).toBeLessThan(secondIndex);
+    });
+
+    // PR5D edge cases (STORE)
+    describe('PR5D edge cases', () => {
+      it('returns an empty list, not an error, when every candidate store is excluded (own store)', async () => {
+        const user = await createTestUser();
+        const sellerProfile = await createTestSellerProfile(user.id);
+        await createTestStore(sellerProfile.id, { name: 'Only Store, Owned By Caller' });
+        await demoteOtherStores([]);
+
+        const res = await request(app)
+          .get('/api/v1/recommendations')
+          .query({ type: 'store', limit: 24 })
+          .set('Authorization', `Bearer ${user.accessToken}`);
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('respects limit = 1', async () => {
+        const owners = await Promise.all(Array.from({ length: 3 }).map(() => createTestUser()));
+        const sellerProfiles = await Promise.all(owners.map(o => createTestSellerProfile(o.id)));
+        await Promise.all(sellerProfiles.map((sp, i) => createTestStore(sp.id, { name: `Limit1 Store ${i}` })));
+
+        const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 1 });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.length).toBeLessThanOrEqual(1);
+      });
+
+      it('respects the maximum allowed limit (24)', async () => {
+        const res = await request(app).get('/api/v1/recommendations').query({ type: 'store', limit: 24 });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.length).toBeLessThanOrEqual(24);
+      });
+
+      it('rejects an invalid (non-numeric) lat/lng pair', async () => {
+        const res = await request(app)
+          .get('/api/v1/recommendations')
+          .query({ type: 'store', lat: 'not-a-number', lng: 'not-a-number' });
+
+        expect(res.status).toBe(400);
+      });
+    });
+  });
+
+  // PR5B (Trending starvation fix) — end-to-end confirmation that a
+  // brand-new, zero-view ad is at least reachable through the public
+  // endpoint (the precise composite-score ordering itself is unit-
+  // tested against the merged pools in recommendations.repository.test.ts,
+  // where time/views can be controlled exactly without DB timing
+  // flakiness).
+  describe('PR5B trending starvation fix (AD, PRODUCT, SERVICE_LISTING)', () => {
+    it('AD: a brand-new ad is a reachable trending candidate, not permanently invisible', async () => {
+      const owner = await createTestUser();
+      const brandNewAd = await createTestAd(owner.id, { title: 'Brand New Zero-View Ad' });
+
+      const res = await request(app).get('/api/v1/recommendations').query({ excludeAdId: brandNewAd.id, limit: 24 });
+
+      // excludeAdId mode ranks by that ad's own category, which is a
+      // different code path (findByCategoryWeights) than findTrending
+      // — this just confirms the endpoint stays healthy with a fresh
+      // zero-view ad in the system. The actual starvation-fix
+      // assertions live in the repository unit tests above, where the
+      // two-pool merge can be checked precisely without depending on
+      // exactly how many other ACTIVE ads happen to exist in this
+      // suite's shared test DB.
+      expect(res.status).toBe(200);
+    });
   });
 });

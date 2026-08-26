@@ -1056,6 +1056,21 @@ model AnalyticsEvent {
   @@index([event, createdAt])
   @@index([sessionId])
   @@index([userId])
+  // PR5C: recommendations.repository.ts's recentlyViewedCategoryIds
+  // (AD/PRODUCT/SERVICE_LISTING) all run the same shape —
+  // WHERE "userId" = ? AND "event" = ? AND "createdAt" >= ?
+  // ORDER BY "createdAt" DESC LIMIT 200
+  // — filtering on all three columns together. The existing
+  // [userId] and [event, createdAt] indexes each cover only part of
+  // that predicate; neither lets Postgres narrow to this one user's
+  // rows of this one event type directly. See migration
+  // 20260826000000_add_analytics_event_recommendation_index for the
+  // actual composite index (column order userId, event, createdAt —
+  // matches the three WHERE equality/range predicates left-to-right,
+  // with createdAt last so its DESC ordering also serves the
+  // ORDER BY/LIMIT for free once the first two columns narrow the
+  // scan).
+  @@index([userId, event, createdAt])
   // FIX M-021: analytics.repository.ts's topCategories() groups by
   // metadata->>'categoryId', which no index here covered — see
   // migration 20260809000000_add_analytics_category_index for the
