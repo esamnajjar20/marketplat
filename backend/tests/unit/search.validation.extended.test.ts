@@ -76,6 +76,47 @@ describe('search.validation', () => {
     it('rejects a city longer than 100 characters', () => {
       expect(() => searchQuerySchema.parse({ query: { city: 'x'.repeat(101) } })).toThrow();
     });
+
+    // TRACK-NEARBY-SEARCH / Phase 2: geo params
+    it('rejects lat without lng (must be provided together)', () => {
+      expect(() => searchQuerySchema.parse({ query: { lat: 31.5 } })).toThrow();
+    });
+
+    it('rejects lng without lat', () => {
+      expect(() => searchQuerySchema.parse({ query: { lng: 34.5 } })).toThrow();
+    });
+
+    it('accepts lat+lng together and defaults radius to 10', () => {
+      const result = searchQuerySchema.parse({ query: { lat: 31.5, lng: 34.5 } });
+      expect(result.query.lat).toBe(31.5);
+      expect(result.query.lng).toBe(34.5);
+      expect(result.query.radius).toBe(10);
+    });
+
+    it('rejects sort=distance without lat/lng', () => {
+      expect(() => searchQuerySchema.parse({ query: { sort: 'distance' } })).toThrow();
+    });
+
+    it('accepts sort=distance when lat and lng are present', () => {
+      const result = searchQuerySchema.parse({
+        query: { sort: 'distance', lat: 31.5, lng: 34.5, radius: 15 },
+      });
+      expect(result.query.sort).toBe('distance');
+      expect(result.query.radius).toBe(15);
+    });
+
+    it('rejects lat outside [-90, 90]', () => {
+      expect(() => searchQuerySchema.parse({ query: { lat: 91, lng: 0 } })).toThrow();
+    });
+
+    it('rejects radius below 0.5 or above 100', () => {
+      expect(() =>
+        searchQuerySchema.parse({ query: { lat: 0, lng: 0, radius: 0.1 } }),
+      ).toThrow();
+      expect(() =>
+        searchQuerySchema.parse({ query: { lat: 0, lng: 0, radius: 101 } }),
+      ).toThrow();
+    });
   });
 
   describe('searchSuggestionsQuerySchema', () => {

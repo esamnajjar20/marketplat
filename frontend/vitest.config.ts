@@ -34,12 +34,15 @@ export default defineConfig({
         '**/node_modules/**',
         '**/*.d.ts',
         'components/ui/**',      // shadcn primitives — not our code
+        // Phase 4: empty placeholder module (export {} only) — no runtime logic
+        'lib/i18n/ar/common.ts',
       ],
       thresholds: {
-        lines:     70,
-        branches:  65,
-        functions: 70,
-        statements: 70,
+        // Phase 4: raised global floor slightly after P0–P3 coverage work
+        lines:     75,
+        branches:  70,
+        functions: 75,
+        statements: 75,
       },
     },
   },
