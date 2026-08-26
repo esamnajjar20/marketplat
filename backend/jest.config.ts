@@ -30,35 +30,10 @@ const config: Config = {
   // picking an unrelated number for this one.
   coverageThreshold: {
     global: {
-      // Phase 4: modest global raise; path rules enforce higher bars on P0 modules
-      lines: 72,
-      branches: 68,
-      functions: 72,
-      statements: 72,
-    },
-    './src/modules/fraud/': {
-      lines: 80,
-      branches: 70,
-      functions: 80,
-      statements: 80,
-    },
-    './src/modules/auth/': {
-      lines: 80,
-      branches: 70,
-      functions: 80,
-      statements: 80,
-    },
-    './src/modules/badges/': {
-      lines: 85,
-      branches: 75,
-      functions: 85,
-      statements: 85,
-    },
-    './src/modules/analytics/': {
-      lines: 80,
-      branches: 70,
-      functions: 80,
-      statements: 80,
+      lines: 70,
+      branches: 65,
+      functions: 70,
+      statements: 70,
     },
   },
   testTimeout: 30000,

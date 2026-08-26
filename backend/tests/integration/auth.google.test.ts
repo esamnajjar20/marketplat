@@ -1,3 +1,4 @@
+import { env } from '../../src/config/env';
 import request from 'supertest';
 import type { Express } from 'express';
 
@@ -201,7 +202,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     const res = await performGoogleOAuthCallback(app);
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('http://localhost:3000');
+    expect(res.headers.location).toBe(env.frontendUrl);
 
     const setCookieHeader = res.headers['set-cookie'] as unknown as string[];
     const refreshCookie = setCookieHeader.find((c) => c.startsWith('refreshToken='));
@@ -246,7 +247,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
 
     const res = await performGoogleOAuthCallback(googleApp);
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('http://localhost:3000');
+    expect(res.headers.location).toBe(env.frontendUrl);
 
     const { prisma } = await import('../../src/config/prisma');
     const users = await prisma.user.findMany({ where: { email } });

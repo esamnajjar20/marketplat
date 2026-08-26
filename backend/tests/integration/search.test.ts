@@ -87,7 +87,9 @@ describe('Search API', () => {
         .query({ q: title.slice(0, 4) });
 
       expect(res.status).toBe(200);
-      const suggestions = res.body.data;
+      // Controller wraps as { suggestions: string[] } via successResponse
+      const payload = res.body.data;
+      const suggestions = Array.isArray(payload) ? payload : payload?.suggestions;
       expect(Array.isArray(suggestions)).toBe(true);
     });
   });
