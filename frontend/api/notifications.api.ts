@@ -27,4 +27,12 @@ export const notificationsApi = {
   /** PATCH /notifications/read-all */
   markAllRead: () =>
     apiClient.patch<ApiResponse<{ count: number }>>('/notifications/read-all'),
+
+  /** DELETE /notifications/:id */
+  deleteOne: (id: string) =>
+    apiClient.delete<ApiResponse<void>>(`/notifications/${id}`),
+
+  /** DELETE /notifications/read — remove all read notifications */
+  deleteAllRead: () =>
+    apiClient.delete<ApiResponse<{ count: number }>>('/notifications/read'),
 };

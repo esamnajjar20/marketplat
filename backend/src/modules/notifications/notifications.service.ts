@@ -4,6 +4,55 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { pushService } from '../../shared/utils/pushService';
+import { prisma } from '../../config/prisma';
+
+/** Keys stored on User.notificationPreferences — must stay aligned with
+ * frontend NotificationPreferences and users.validation.ts. */
+type PrefKey =
+  | 'newMessage'
+  | 'adViews'
+  | 'favAdUpdated'
+  | 'promotions'
+  | 'myPromotions'
+  | 'savedSearch'
+  | 'storeUpdates'
+  | 'serviceQuotes';
+
+/** Same defaults as NotificationSettingsForm — used when a key is missing
+ * from the JSON blob (older accounts). */
+const DEFAULT_PREFS: Record<PrefKey, boolean> = {
+  newMessage: true,
+  adViews: false,
+  favAdUpdated: true,
+  promotions: false,
+  myPromotions: true,
+  savedSearch: true,
+  storeUpdates: true,
+  serviceQuotes: true,
+};
+
+function readPref(raw: unknown, key: PrefKey): boolean {
+  if (raw && typeof raw === 'object' && key in (raw as object)) {
+    return Boolean((raw as Record<string, unknown>)[key]);
+  }
+  return DEFAULT_PREFS[key];
+}
+
+/** Returns the subset of userIds whose notificationPreferences allow `key`. */
+async function filterUserIdsByPref(userIds: string[], key: PrefKey): Promise<string[]> {
+  if (userIds.length === 0) return [];
+  const unique = Array.from(new Set(userIds));
+  const rows = await prisma.user.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, notificationPreferences: true },
+  });
+  return rows.filter((u) => readPref(u.notificationPreferences, key)).map((u) => u.id);
+}
+
+async function userAllowsPref(userId: string, key: PrefKey): Promise<boolean> {
+  const allowed = await filterUserIdsByPref([userId], key);
+  return allowed.length > 0;
+}
 
 export const notificationsService = {
   getMyNotifications: async (
@@ -44,8 +93,10 @@ export const notificationsService = {
    */
   broadcastPromotion: async (userIds: string[], title: string, body: string): Promise<number> => {
     if (userIds.length === 0) return 0;
+    const recipients = await filterUserIdsByPref(userIds, 'promotions');
+    if (recipients.length === 0) return 0;
     const result = await notificationsRepository.createMany(
-      userIds.map((userId) => ({ userId, type: 'PROMOTION' as const, title, body }))
+      recipients.map((userId) => ({ userId, type: 'PROMOTION' as const, title, body }))
     );
     return result.count;
   },
@@ -61,6 +112,51 @@ export const notificationsService = {
    * 0-row result isn't treated as NotFound here (unlike markRead). */
   unsubscribeFromPush: (userId: string, endpoint: string): Promise<void> =>
     notificationsRepository.deletePushSubscription(userId, endpoint).then(() => undefined),
+
+  /** Opens a chat thread → clear NEW_MESSAGE bell rows for that conversation. */
+  markConversationNotificationsRead: (userId: string, conversationId: string) =>
+    notificationsRepository.markUnreadNewMessagesForConversation(userId, conversationId),
+
+  deleteNotification: async (userId: string, id: string): Promise<void> => {
+    const result = await notificationsRepository.deleteForUser(id, userId);
+    if (result.count === 0) {
+      throw new NotFoundError('Notification not found', 'NOTIFICATION_NOT_FOUND');
+    }
+  },
+
+  deleteAllRead: async (userId: string): Promise<number> => {
+    const result = await notificationsRepository.deleteAllReadForUser(userId);
+    return result.count;
+  },
+
+  /**
+   * Admin snapshot: volume by type + unread share over the last N days.
+   * Read-only aggregates for the analytics dashboard.
+   */
+  getAdminStats: async (days = 30) => {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const [byType, unreadTotal, totalInWindow] = await Promise.all([
+      prisma.notification.groupBy({
+        by: ['type'],
+        where: { createdAt: { gte: since } },
+        _count: { _all: true },
+      }),
+      prisma.notification.count({ where: { readAt: null, createdAt: { gte: since } } }),
+      prisma.notification.count({ where: { createdAt: { gte: since } } }),
+    ]);
+    return {
+      days,
+      total: totalInWindow,
+      unread: unreadTotal,
+      readRate:
+        totalInWindow === 0
+          ? null
+          : Math.round(((totalInWindow - unreadTotal) / totalInWindow) * 1000) / 10,
+      byType: byType
+        .map((row) => ({ type: row.type, count: row._count._all }))
+        .sort((a, b) => b.count - a.count),
+    };
+  },
 };
 
 /**
@@ -86,24 +182,20 @@ export const notificationsService = {
 // covers the "same content for everyone" shape; onSavedSearchMatched's
 // per-recipient variant is left inline since collapsing it in here
 // would just move the branching rather than remove it.
-function fanOutSameContentNotification(
+async function fanOutSameContentNotification(
   userIds: string[],
   type: NotificationType,
   content: { title: string; body: string; data: Prisma.InputJsonValue },
   pushUrl: string,
-  pushTag: string
+  pushTag: string,
+  prefKey?: PrefKey
 ): Promise<{ count: number }> {
-  if (userIds.length === 0) return Promise.resolve({ count: 0 });
+  const recipients = prefKey ? await filterUserIdsByPref(userIds, prefKey) : userIds;
+  if (recipients.length === 0) return { count: 0 };
   const { title, body, data } = content;
-  // FIX PWA-PUSH-01: fire-and-forget, same convention as this whole
-  // object's doc comment — a push failing to send must never affect
-  // the in-app notification write below. AUDIT-FIX 2.1: safe to leave
-  // un-awaited — pushService.notifyUser(s) catches every internal
-  // failure and logs it, so this can never produce an unhandled
-  // promise rejection.
-  void pushService.notifyUsers(userIds, { title, body, url: pushUrl, tag: pushTag }).catch(() => {});
+  void pushService.notifyUsers(recipients, { title, body, url: pushUrl, tag: pushTag }).catch(() => {});
   return notificationsRepository.createMany(
-    userIds.map((userId) => ({ userId, type, title, body, data }))
+    recipients.map((userId) => ({ userId, type, title, body, data }))
   );
 }
 
@@ -111,29 +203,21 @@ export const notificationEvents = {
   /** conversations.service.ts's sendMessage calls this after a message
    * is created — notifies the OTHER party in the thread, never the
    * sender. */
-  onNewMessage: (recipientUserId: string, conversationId: string, senderName: string) => {
+  onNewMessage: async (recipientUserId: string, conversationId: string, senderName: string) => {
+    if (!(await userAllowsPref(recipientUserId, 'newMessage'))) return null;
     const title = 'رسالة جديدة';
     const body = `${senderName} أرسل لك رسالة`;
-    // FIX PWA-PUSH-01: fire-and-forget, same convention as this whole
-    // object's own doc comment above — a push failing to send must
-    // never affect the in-app notification write this runs alongside,
-    // so it isn't part of the returned promise chain.
-    // AUDIT-FIX 2.1: pushService.notifyUser now catches every failure
-    // internally (including a failed subscriptions lookup, which
-    // previously had no guard) and logs it — this `void` call can never
-    // produce an unhandled promise rejection.
     void pushService.notifyUser(recipientUserId, {
       title,
       body,
       url: `/messages/${conversationId}`,
       tag: `conversation-${conversationId}`,
     }).catch(() => {});
-    return notificationsRepository.create({
+    return notificationsRepository.createOrRefreshNewMessage({
       userId: recipientUserId,
-      type: 'NEW_MESSAGE',
+      conversationId,
       title,
       body,
-      data: { conversationId },
     });
   },
 
@@ -150,7 +234,8 @@ export const notificationEvents = {
       'FAV_AD_PRICE_CHANGED',
       { title: 'تغيّر سعر إعلان في المفضلة', body: `تم تحديث سعر "${adTitle}"`, data: { adId } },
       `/ads/${adId}`,
-      `ad-${adId}`
+      `ad-${adId}`,
+      'favAdUpdated'
     ),
 
   /** ads.service.ts's updateAd calls this after an ACTIVE -> SOLD
@@ -170,7 +255,8 @@ export const notificationEvents = {
       'FAV_AD_SOLD',
       { title: 'تم بيع إعلان في المفضلة', body: `تم بيع \"${adTitle}\"`, data: { adId } },
       `/ads/${adId}`,
-      `ad-${adId}`
+      `ad-${adId}`,
+      'favAdUpdated'
     ),
 
   /** saved-searches.service.ts's onAdCreated/onProductCreated/
@@ -199,11 +285,14 @@ export const notificationEvents = {
    * `entityId`, so a notification's `data` shape stays self-describing
    * without needing `type` cross-referenced to know which key to
    * read. */
-  onSavedSearchMatched: (
+  onSavedSearchMatched: async (
     matches: { userId: string; savedSearchId: string; label: string }[],
     entity: { type: 'ad' | 'product' | 'service'; id: string; title: string }
   ): Promise<{ count: number }> => {
-    if (matches.length === 0) return Promise.resolve({ count: 0 });
+    if (matches.length === 0) return { count: 0 };
+    const allowedIds = new Set(await filterUserIdsByPref(matches.map((m) => m.userId), 'savedSearch'));
+    matches = matches.filter((m) => allowedIds.has(m.userId));
+    if (matches.length === 0) return { count: 0 };
 
     const { url, entityData, title } = ((): {
       url: string;
@@ -274,7 +363,8 @@ export const notificationEvents = {
       'STORE_NEW_PRODUCT',
       { title: 'منتج جديد', body: `متجر "${storeName}" أضاف منتجًا جديدًا: ${productName}`, data: { storeId } },
       `/stores/${storeId}`,
-      `store-${storeId}`
+      `store-${storeId}`,
+      'storeUpdates'
     ),
 
   /** myPromotionsExpiring.ts's processStarted calls this alongside (not
@@ -299,8 +389,9 @@ export const notificationEvents = {
         body: `عرض جديد على "${productName}": ${promotionTitle}`,
         data: { storeId, promotionId, productId },
       },
-      `/stores/${storeId}`,
-      `store-promotion-${promotionId}`
+      `/products/${productId}`,
+      `store-promotion-${promotionId}`,
+      'storeUpdates'
     ),
 
   /** products.service.ts's updateProduct calls this after an
@@ -325,20 +416,22 @@ export const notificationEvents = {
         body: `عاد المنتج "${productName}" للمخزون`,
         data: { storeId, productId },
       },
-      `/stores/${storeId}`,
-      `store-restock-${productId}`
+      `/products/${productId}`,
+      `store-restock-${productId}`,
+      'storeUpdates'
     ),
 
   /** service-broadcasts.service.ts's submitQuote calls this after a
    * quote is created — notifies the broadcast's customer that a new
    * offer came in. */
-  onNewServiceQuote: (
+  onNewServiceQuote: async (
     customerId: string,
     broadcastId: string,
     quoteId: string,
     providerName: string,
     broadcastTitle: string
   ) => {
+    if (!(await userAllowsPref(customerId, 'serviceQuotes'))) return null;
     const title = 'عرض سعر جديد';
     const body = `${providerName} أرسل عرض سعر على طلبك "${broadcastTitle}"`;
     void pushService.notifyUser(customerId, {
@@ -358,12 +451,13 @@ export const notificationEvents = {
 
   /** service-broadcasts.service.ts's acceptQuote calls this after a
    * quote is accepted — notifies the winning provider. */
-  onServiceQuoteAccepted: (
+  onServiceQuoteAccepted: async (
     providerUserId: string,
     broadcastId: string,
     quoteId: string,
     broadcastTitle: string
   ) => {
+    if (!(await userAllowsPref(providerUserId, 'serviceQuotes'))) return null;
     const title = 'تم قبول عرضك';
     const body = `تم قبول عرض السعر الخاص بك على طلب "${broadcastTitle}"`;
     void pushService.notifyUser(providerUserId, {

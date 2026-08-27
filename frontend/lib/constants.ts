@@ -27,6 +27,7 @@ export const ROUTES = {
   // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter's own filed reports.
   myReports:     '/my-reports',
   messages:      '/messages',
+  notifications: '/notifications',
   conversationDetail: (id: string) => `/messages/${id}`,
   dashboard:     '/dashboard',
   services:            '/services',
@@ -244,8 +245,8 @@ export const CACHE_TTL = {
   // this codebase's existing shortest TTLs (serviceRequests/appointments
   // at 20s) since a conversation is exactly as live as those.
   conversations: 20_000,   // 20 s
-  conversationUnreadCount: 15_000, // 15 s — nav badge
-  messages: 5_000,         // 5 s — the actively-open thread polls faster
+  messages: 5_000,
+  conversationUnreadCount: 15_000,         // 5 s — the actively-open thread polls faster
   // Online dots — refreshed at the same cadence as messages (the one
   // view where "are they even around right now" actually matters) so
   // the dot and the thread never feel out of sync with each other.

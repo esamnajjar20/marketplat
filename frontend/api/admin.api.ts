@@ -245,4 +245,16 @@ export const adminApi = {
 
   reviewFraudSignal: (signalId: string) =>
     apiClient.patch<ApiResponse<FraudSignal>>(`/admin/fraud/signals/${signalId}/review`),
+
+  /** GET /admin/notifications/stats — volume by type + read rate. */
+  getNotificationStats: (params?: { days?: number }) =>
+    apiClient.get<
+      ApiResponse<{
+        days: number;
+        total: number;
+        unread: number;
+        readRate: number | null;
+        byType: { type: string; count: number }[];
+      }>
+    >('/admin/notifications/stats', { params }),
 };

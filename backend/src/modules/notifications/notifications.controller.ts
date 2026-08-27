@@ -8,6 +8,7 @@ import {
 } from './notifications.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { addNotificationStreamClient } from '../../shared/utils/notificationStream';
 
 export const notificationsController = {
   getMyNotifications: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -79,6 +80,47 @@ export const notificationsController = {
       const { body } = deletePushSubscriptionSchema.parse({ body: req.body });
       await notificationsService.unsubscribeFromPush(user.userId, body.endpoint);
       res.status(200).json(successResponse('Push subscription removed'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteNotification: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = notificationIdSchema.parse({ params: req.params });
+      await notificationsService.deleteNotification(user.userId, params.id);
+      res.status(200).json(successResponse('Notification deleted'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteAllRead: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const count = await notificationsService.deleteAllRead(user.userId);
+      res.status(200).json(successResponse('Read notifications deleted', { count }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * GET /notifications/stream — Server-Sent Events.
+   * Requires Authorization: Bearer (EventSource cannot set headers, so the
+   * frontend uses fetch + ReadableStream instead).
+   */
+  stream: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders?.();
+      addNotificationStreamClient(user.userId, res);
+      // Keep the request open; cleanup is on res 'close'.
     } catch (error) {
       next(error);
     }

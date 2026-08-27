@@ -31,7 +31,7 @@ vi.mock('@/hooks/mutations/useUpdateProfile', () => ({
 const mockMutate = vi.fn();
 
 const FULL_PREFS = {
-  newMessage: true, adViews: false, favAdUpdated: true, promotions: false, myPromotions: true,
+  newMessage: true, adViews: false, favAdUpdated: true, promotions: false, myPromotions: true, savedSearch: true, storeUpdates: true, serviceQuotes: true,
 };
 
 describe('NotificationSettingsForm', () => {
@@ -163,6 +163,9 @@ describe('NotificationSettingsForm', () => {
     expect(screen.getByRole('switch', { name: 'تحديثات المفضلة' })).not.toBeDisabled();
     expect(screen.getByRole('switch', { name: 'عروض وتخفيضات' })).not.toBeDisabled();
     expect(screen.getByRole('switch', { name: 'عروضي' })).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'البحث المحفوظ' })).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'تحديثات المتاجر' })).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'عروض أسعار الخدمات' })).not.toBeDisabled();
   });
 
   it('reverts the switch to its previous state when the save fails (UX-FIX P2-9)', async () => {
@@ -226,6 +229,14 @@ describe('NotificationSettingsForm', () => {
 
       expect(screen.getByRole('switch', { name: 'عروض وتخفيضات' })).toHaveAttribute('aria-checked', 'false');
       expect(mockMutate.mock.calls[0][0]).toEqual({ myPromotions: false });
+    });
+  });
+
+  describe('new preference toggles', () => {
+    it('renders savedSearch, storeUpdates, and serviceQuotes switches', () => {
+      expect(screen.getByRole('switch', { name: 'البحث المحفوظ' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'تحديثات المتاجر' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'عروض أسعار الخدمات' })).toBeInTheDocument();
     });
   });
 });

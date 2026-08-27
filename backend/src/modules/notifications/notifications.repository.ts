@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma, Notification, NotificationType, PushSubscription } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
+import { publishNotificationEvent, publishNotificationEventToMany } from '../../shared/utils/notificationStream';
 import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
 
 export interface CreateNotificationInput {
@@ -26,12 +27,15 @@ export interface PushSubscriptionInput {
 export const notificationsRepository = {
   create: async (input: CreateNotificationInput): Promise<Notification> => {
     const notification = await prisma.notification.create({ data: input });
-    // AUDIT-FIX 1.10/1.12: this is the only creation path with a single
-    // known recipient — invalidate immediately rather than waiting out
-    // the cache's TTL, so a freshly created notification's unread count
-    // is correct on the very next read (e.g. the badge right after a
-    // push arrives), not just eventually-correct.
     await unreadNotificationsCache.invalidate(input.userId);
+    void publishNotificationEvent(input.userId, {
+      type: 'notification',
+      action: 'created',
+      notificationId: notification.id,
+      notificationType: notification.type,
+      title: notification.title,
+      body: notification.body,
+    });
     return notification;
   },
 
@@ -51,6 +55,13 @@ export const notificationsRepository = {
     // or fail the others.
     const recipientIds = Array.from(new Set(inputs.map(i => i.userId)));
     await Promise.all(recipientIds.map(userId => unreadNotificationsCache.invalidate(userId)));
+    void publishNotificationEventToMany(recipientIds, {
+      type: 'notification',
+      action: 'created',
+      notificationType: inputs[0]?.type,
+      title: inputs[0]?.title,
+      body: inputs[0]?.body,
+    });
     return result;
   },
 
@@ -108,6 +119,103 @@ export const notificationsRepository = {
       data: { readAt: new Date() },
     });
     await unreadNotificationsCache.invalidate(userId);
+    return result;
+  },
+
+  deleteForUser: async (id: string, userId: string): Promise<Prisma.BatchPayload> => {
+    const result = await prisma.notification.deleteMany({ where: { id, userId } });
+    if (result.count > 0) await unreadNotificationsCache.invalidate(userId);
+    return result;
+  },
+
+  deleteAllReadForUser: async (userId: string): Promise<Prisma.BatchPayload> => {
+    const result = await prisma.notification.deleteMany({
+      where: { userId, readAt: { not: null } },
+    });
+    await unreadNotificationsCache.invalidate(userId);
+    return result;
+  },
+
+  deleteReadOlderThan: async (olderThan: Date): Promise<number> => {
+    const result = await prisma.notification.deleteMany({
+      where: { readAt: { not: null }, createdAt: { lt: olderThan } },
+    });
+    return result.count;
+  },
+
+
+  /**
+   * Marks every unread NEW_MESSAGE notification for this conversation as
+   * read — called when the user opens/polls the thread (getMessages), so
+   * the bell stays in sync with chat read state without requiring a
+   * separate click on each notification row.
+   */
+
+  /**
+   * NEW_MESSAGE coalesce: if an unread NEW_MESSAGE already exists for this
+   * conversation, refresh its body/title and bump createdAt so it stays a
+   * single badge item instead of one row per message in a burst.
+   */
+  createOrRefreshNewMessage: async (input: {
+    userId: string;
+    conversationId: string;
+    title: string;
+    body: string;
+  }): Promise<Notification> => {
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: input.userId,
+        type: 'NEW_MESSAGE',
+        readAt: null,
+        data: { path: ['conversationId'], equals: input.conversationId },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing) {
+      const updated = await prisma.notification.update({
+        where: { id: existing.id },
+        data: {
+          title: input.title,
+          body: input.body,
+          createdAt: new Date(),
+        },
+      });
+      await unreadNotificationsCache.invalidate(input.userId);
+      void publishNotificationEvent(input.userId, {
+        type: 'notification',
+        action: 'updated',
+        notificationId: updated.id,
+        notificationType: updated.type,
+        title: updated.title,
+        body: updated.body,
+      });
+      return updated;
+    }
+    return notificationsRepository.create({
+      userId: input.userId,
+      type: 'NEW_MESSAGE',
+      title: input.title,
+      body: input.body,
+      data: { conversationId: input.conversationId },
+    });
+  },
+
+  markUnreadNewMessagesForConversation: async (
+    userId: string,
+    conversationId: string
+  ): Promise<Prisma.BatchPayload> => {
+    const result = await prisma.notification.updateMany({
+      where: {
+        userId,
+        type: 'NEW_MESSAGE',
+        readAt: null,
+        data: { path: ['conversationId'], equals: conversationId },
+      },
+      data: { readAt: new Date() },
+    });
+    if (result.count > 0) {
+      await unreadNotificationsCache.invalidate(userId);
+    }
     return result;
   },
 

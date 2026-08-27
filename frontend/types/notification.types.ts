@@ -37,7 +37,9 @@ export type NotificationType =
   | 'PROMOTION_STATUS_CHANGE'
   | 'STORE_NEW_PRODUCT'
   | 'STORE_PROMOTION_STARTED'
-  | 'STORE_PRODUCT_RESTOCKED';
+  | 'STORE_PRODUCT_RESTOCKED'
+  | 'NEW_SERVICE_QUOTE'
+  | 'SERVICE_QUOTE_ACCEPTED';
 
 /** Per-type deep-link payload — only the keys relevant to `type` are
  * ever present. NEW_MESSAGE carries conversationId,
@@ -50,8 +52,7 @@ export type NotificationType =
  * myPromotionsExpiring.ts's own doc comment on the backend.
  * STORE_NEW_PRODUCT carries storeId. STORE_PROMOTION_STARTED carries
  * storeId, promotionId, productId. STORE_PRODUCT_RESTOCKED carries
- * storeId, productId — both link to the store page (there is no public
- * /products/:id route in this frontend). */
+ * storeId, productId — link to product or store when ids are present. */
 export interface NotificationData {
   conversationId?: string;
   adId?: string;
@@ -59,7 +60,13 @@ export interface NotificationData {
   promotionId?: string;
   productId?: string;
   storeId?: string;
+  listingId?: string;
+  broadcastId?: string;
+  quoteId?: string;
   event?: 'started' | 'expiring' | 'expired';
+  /** Set by dailyNotificationDigest job */
+  digest?: boolean;
+  counts?: Record<string, number>;
 }
 
 export interface Notification {

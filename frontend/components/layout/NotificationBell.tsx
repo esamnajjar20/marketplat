@@ -2,7 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, MessageSquare, Tag, Megaphone, BarChart3, CheckCheck, Search, ChevronDown, Flame, Package, Store } from 'lucide-react';
+import {
+  Bell,
+  MessageSquare,
+  Tag,
+  Megaphone,
+  BarChart3,
+  CheckCheck,
+  Search,
+  ChevronDown,
+  Flame,
+  Package,
+  Store,
+  ClipboardList,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -10,7 +23,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/shared/ui/DropdownMenu';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useMyNotifications, useUnreadNotificationCount } from '@/hooks/queries/useNotifications';
 import {
@@ -29,16 +41,12 @@ const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   PROMOTION: Megaphone,
   WEEKLY_AD_VIEWS_REPORT: BarChart3,
   SAVED_SEARCH_MATCH: Search,
-  // PROMO-1 (Phase 14): same fire icon as ProductCard's live-promotion
-  // badge (🔥) for visual consistency with how a promotion is already
-  // represented elsewhere in the app.
   PROMOTION_STATUS_CHANGE: Flame,
-  // FIX (Foundation v1): closes the pre-existing STORE_NEW_PRODUCT gap
-  // this map's own doc comment used to flag, and adds the two new
-  // store-follower types from the same pass.
   STORE_NEW_PRODUCT: Store,
   STORE_PROMOTION_STARTED: Flame,
   STORE_PRODUCT_RESTOCKED: Package,
+  NEW_SERVICE_QUOTE: ClipboardList,
+  SERVICE_QUOTE_ACCEPTED: ClipboardList,
 };
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -52,72 +60,57 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   STORE_NEW_PRODUCT: 'منتجات جديدة',
   STORE_PROMOTION_STARTED: 'عروض المتاجر',
   STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
+  NEW_SERVICE_QUOTE: 'عروض الأسعار',
+  SERVICE_QUOTE_ACCEPTED: 'عروض مقبولة',
 };
 
-/** Where clicking a notification row should navigate — null means the
- * row is informational only (no known deep link for this type/data
- * combination yet, e.g. a PROMOTION with no adId). */
 function hrefFor(notification: Notification): string | null {
-  if (notification.type === 'NEW_MESSAGE' && notification.data?.conversationId) {
-    return ROUTES.conversationDetail(notification.data.conversationId);
+  const d = notification.data;
+  if (notification.type === 'NEW_MESSAGE' && d?.conversationId) {
+    return ROUTES.conversationDetail(d.conversationId);
   }
   if (
-    (notification.type === 'FAV_AD_PRICE_CHANGED' ||
-      notification.type === 'FAV_AD_SOLD' ||
-      notification.type === 'SAVED_SEARCH_MATCH') &&
-    notification.data?.adId
+    (notification.type === 'FAV_AD_PRICE_CHANGED' || notification.type === 'FAV_AD_SOLD') &&
+    d?.adId
   ) {
-    return ROUTES.adDetail(notification.data.adId);
+    return ROUTES.adDetail(d.adId);
   }
-  // PROMO-1 (Phase 14): always the promotions dashboard, not the
-  // individual product — the owner's next action for any of the three
-  // lifecycle events (started/expiring/expired) is "go look at my
-  // promotions", same destination myPromotionsExpiring.ts's push
-  // payload already links to.
+  if (notification.type === 'SAVED_SEARCH_MATCH') {
+    if (d?.adId) return ROUTES.adDetail(d.adId);
+    if (d?.productId) return ROUTES.productDetail(d.productId);
+    if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
+  }
   if (notification.type === 'PROMOTION_STATUS_CHANGE') {
     return ROUTES.myStorePromotions;
   }
-  // FIX (Foundation v1): closes the pre-existing STORE_NEW_PRODUCT gap
-  // (see NotificationType's doc comment) and wires the two new
-  // store-follower types — all three link to the store page, since
-  // there is no public /products/:id route in this frontend.
   if (
-    (notification.type === 'STORE_NEW_PRODUCT' ||
-      notification.type === 'STORE_PROMOTION_STARTED' ||
-      notification.type === 'STORE_PRODUCT_RESTOCKED') &&
-    notification.data?.storeId
+    notification.type === 'STORE_PROMOTION_STARTED' ||
+    notification.type === 'STORE_PRODUCT_RESTOCKED'
   ) {
-    return ROUTES.storeDetail(notification.data.storeId);
+    if (d?.productId) return ROUTES.productDetail(d.productId);
+    if (d?.storeId) return ROUTES.storeDetail(d.storeId);
+  }
+  if (notification.type === 'STORE_NEW_PRODUCT' && d?.storeId) {
+    return ROUTES.storeDetail(d.storeId);
+  }
+  if (
+    (notification.type === 'NEW_SERVICE_QUOTE' ||
+      notification.type === 'SERVICE_QUOTE_ACCEPTED') &&
+    d?.broadcastId
+  ) {
+    return `/service-broadcasts/${d.broadcastId}`;
   }
   return null;
 }
 
-/**
- * CONV-READ FIX: clicking one NEW_MESSAGE notification used to mark
- * only that single row read — a burst of "رسالة جديدة" notifications
- * from the same conversation (someone sends 4 messages in a row) sat
- * there as 4 separate unread rows even after the caller had already
- * opened the thread and read all of it via the first click. This row
- * no longer calls useMarkNotificationRead itself; it defers to
- * onNotificationClick (see NotificationBell below), which marks every
- * *other* unread NEW_MESSAGE row sharing the same conversationId read
- * at the same time, not just this one.
- *
- * Scoped to conversationId, not sender identity — NotificationData
- * (types/notification.types.ts) only carries conversationId today, no
- * senderId/otherUserId. That's an accurate proxy for "same person" in
- * the common case (one ad ⇒ one conversation ⇒ one counterpart), but
- * two people who've messaged each other about *different* ads get two
- * separate conversationIds and won't be grouped — a real backend field
- * addition, not something fixable from here.
- */
 function NotificationRow({
-  notification, onNotificationClick,
+  notification,
+  onNotificationClick,
 }: {
   notification: Notification;
   onNotificationClick: (notification: Notification) => void;
 }) {
-  const Icon = TYPE_ICON[notification.type];
+  const Icon = TYPE_ICON[notification.type] ?? Bell;
   const href = hrefFor(notification);
   const isUnread = !notification.readAt;
 
@@ -129,24 +122,28 @@ function NotificationRow({
     <div
       className={cn(
         'flex items-start gap-2.5 p-3 text-start transition-colors hover:bg-muted/50',
-        isUnread && 'bg-primary/5'
+        isUnread && 'bg-primary/5',
       )}
     >
       <div
         className={cn(
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-          isUnread ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+          isUnread ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
         )}
       >
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex items-start justify-between gap-2">
-          <p className={cn('text-sm line-clamp-1', isUnread && 'font-medium')}>{notification.title}</p>
+          <p className={cn('text-sm line-clamp-1', isUnread && 'font-medium')}>
+            {notification.title}
+          </p>
           {isUnread && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2">{notification.body}</p>
-        <p className="text-[10px] text-muted-foreground">{formatRelativeTime(notification.createdAt)}</p>
+        <p className="text-[10px] text-muted-foreground">
+          {formatRelativeTime(notification.createdAt)}
+        </p>
       </div>
     </div>
   );
@@ -166,15 +163,6 @@ function NotificationRow({
   );
 }
 
-/**
- * FIX P2-11: consecutive same-type notifications ("مشاهدات إعلانك" ×5,
- * one per glance) each rendered as a full separate row — a burst of
- * activity on one ad buried everything else under repetition. Groups
- * *consecutive* items of the same type (list is already createdAt-desc
- * from the API, so consecutive == temporally adjacent) into a single
- * collapsed summary row once there are 3+ in a run; smaller runs (1-2)
- * render individually since collapsing them saves no real space.
- */
 type NotificationGroupT =
   | { kind: 'single'; notification: Notification }
   | { kind: 'group'; type: NotificationType; notifications: Notification[] };
@@ -197,14 +185,16 @@ function groupNotifications(items: Notification[]): NotificationGroupT[] {
 }
 
 function NotificationGroupRow({
-  type, notifications, onNotificationClick,
+  type,
+  notifications,
+  onNotificationClick,
 }: {
   type: NotificationType;
   notifications: Notification[];
   onNotificationClick: (notification: Notification) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const Icon = TYPE_ICON[type];
+  const Icon = TYPE_ICON[type] ?? Bell;
   const unreadCount = notifications.filter((n) => !n.readAt).length;
 
   if (expanded) {
@@ -220,7 +210,11 @@ function NotificationGroupRow({
         </button>
         <div className="divide-y border-t">
           {notifications.map((n) => (
-            <NotificationRow key={n.id} notification={n} onNotificationClick={onNotificationClick} />
+            <NotificationRow
+              key={n.id}
+              notification={n}
+              onNotificationClick={onNotificationClick}
+            />
           ))}
         </div>
       </div>
@@ -233,13 +227,13 @@ function NotificationGroupRow({
       onClick={() => setExpanded(true)}
       className={cn(
         'flex w-full items-start gap-2.5 p-3 text-start transition-colors hover:bg-muted/50',
-        unreadCount > 0 && 'bg-primary/5'
+        unreadCount > 0 && 'bg-primary/5',
       )}
     >
       <div
         className={cn(
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-          unreadCount > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+          unreadCount > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
         )}
       >
         <Icon className="h-4 w-4" />
@@ -252,21 +246,15 @@ function NotificationGroupRow({
           {unreadCount > 0 && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-1">{notifications[0]!.body}</p>
-        <p className="text-[10px] text-muted-foreground">{formatRelativeTime(notifications[0]!.createdAt)}</p>
+        <p className="text-[10px] text-muted-foreground">
+          {formatRelativeTime(notifications[0]!.createdAt)}
+        </p>
       </div>
       <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
   );
 }
 
-/**
- * NotificationBell — Epic 6, the in-app notification center. Sits next
- * to UserMenu in both PublicHeader and ProtectedHeader; reuses the same
- * Radix DropdownMenu primitive UserMenu already uses, but with custom
- * row content instead of DropdownMenuItem links (a notification row
- * needs its own read-state styling and click handling, not a plain nav
- * link).
- */
 export function NotificationBell() {
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: notificationsPage, isLoading } = useMyNotifications({ limit: 10 });
@@ -276,25 +264,6 @@ export function NotificationBell() {
   const items = notificationsPage?.items ?? [];
   const groups = groupNotifications(items);
 
-  /**
-   * CONV-READ FIX: see NotificationRow's own doc comment. Clicking any
-   * unread NEW_MESSAGE notification marks every other unread
-   * NEW_MESSAGE row in this same dropdown load that shares its
-   * conversationId — not just the one clicked. Other notification
-   * types are unaffected (single mark-read, same as before), since
-   * "several notifications about the same thing" only really applies
-   * to messages here — FAV_AD_PRICE_CHANGED/FAV_AD_SOLD/etc. are each
-   * about a specific event, not a running thread.
-   *
-   * Only reaches notifications already loaded in this dropdown (up to
-   * 10 — useMyNotifications's own limit above); the backend has no
-   * bulk or conversation-scoped mark-read route to reach further than
-   * that (notifications.api.ts: "only list + unread-count + the two
-   * mark-read actions"). One PATCH per sibling via the existing
-   * single-id endpoint — fine for the realistic case (a handful of
-   * messages from one person), not something to loop over hundreds of
-   * ids without a real bulk endpoint.
-   */
   function handleNotificationClick(notification: Notification) {
     const siblingIds =
       notification.type === 'NEW_MESSAGE' && notification.data?.conversationId
@@ -346,9 +315,25 @@ export function NotificationBell() {
 
         <div className="max-h-96 overflow-y-auto">
           {isLoading ? (
-            <div className="flex justify-center py-8"><LoadingSpinner /></div>
+            <div className="flex flex-col gap-0 divide-y" role="status" aria-label="جارٍ التحميل">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-2.5 p-3 animate-pulse">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-3 w-2/3 rounded bg-muted" />
+                    <div className="h-3 w-full rounded bg-muted/70" />
+                    <div className="h-2 w-1/4 rounded bg-muted/50" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : items.length === 0 ? (
-            <EmptyState className="py-8" icon={<Bell className="h-8 w-8" />} title="لا توجد إشعارات" />
+            <EmptyState
+              className="py-8"
+              icon={<Bell className="h-8 w-8" />}
+              title="لا توجد إشعارات"
+              description="ستظهر هنا التنبيهات عند وصول رسائل أو تحديثات تهمّك"
+            />
           ) : (
             <div className="divide-y">
               {groups.map((g) =>
@@ -370,7 +355,20 @@ export function NotificationBell() {
             </div>
           )}
         </div>
+
+        <DropdownMenuSeparator className="m-0" />
+        <div className="p-2">
+          <Link
+            href={ROUTES.notifications}
+            className="flex w-full items-center justify-center rounded-md px-3 py-2 text-sm font-medium text-primary hover:bg-muted/60"
+          >
+            عرض كل الإشعارات
+          </Link>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+
+/** Shared by full notifications page. */
+export { hrefFor, TYPE_ICON, TYPE_LABEL };

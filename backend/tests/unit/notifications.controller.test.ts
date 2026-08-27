@@ -260,4 +260,50 @@ describe('notificationsController', () => {
       expect(notificationsService.unsubscribeFromPush).not.toHaveBeenCalled();
     });
   });
+
+  describe('deleteNotification', () => {
+    it('returns 200 when the service deletes the row', async () => {
+      const req = mockRequest({ params: { id: 'notif-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (notificationsService.deleteNotification as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationsController.deleteNotification(req, res, next);
+
+      expect(notificationsService.deleteNotification).toHaveBeenCalledWith('user-1', 'notif-1');
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('calls next when the service throws', async () => {
+      const req = mockRequest({ params: { id: 'missing' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (notificationsService.deleteNotification as jest.Mock).mockRejectedValue(new NotFoundError());
+
+      await notificationsController.deleteNotification(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+    });
+  });
+
+  describe('deleteAllRead', () => {
+    it('returns 200 with the deleted count', async () => {
+      const req = mockRequest({});
+      const res = mockResponse();
+      const next = mockNext();
+      (notificationsService.deleteAllRead as jest.Mock).mockResolvedValue(3);
+
+      await notificationsController.deleteAllRead(req, res, next);
+
+      expect(notificationsService.deleteAllRead).toHaveBeenCalledWith('user-1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: { count: 3 },
+        }),
+      );
+    });
+  });
+
 });

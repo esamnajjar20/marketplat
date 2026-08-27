@@ -37,3 +37,31 @@ export function useMarkAllNotificationsRead() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+/** DELETE /notifications/:id */
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => notificationsApi.deleteOne(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/** DELETE /notifications/read — clear every read notification. */
+export function useDeleteAllReadNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => notificationsApi.deleteAllRead().then((r) => r.data.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      const count = data?.count ?? 0;
+      toast.success(count > 0 ? `تم حذف ${count} إشعاراً مقروءاً` : 'لا توجد إشعارات مقروءة');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}

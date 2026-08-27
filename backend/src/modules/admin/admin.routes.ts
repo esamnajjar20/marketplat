@@ -132,3 +132,4 @@ adminRouter.patch('/stores/:id/plan', requireMinRole(ROLES.ADMIN), storesControl
 // ADMIN+ (Gap #20: a mass broadcast to users is outside the MODERATOR
 // tier).
 adminRouter.post('/notifications/broadcast', requireMinRole(ROLES.ADMIN), adminController.broadcastNotification);
+adminRouter.get('/notifications/stats', requireMinRole(ROLES.ADMIN), adminController.getNotificationStats);

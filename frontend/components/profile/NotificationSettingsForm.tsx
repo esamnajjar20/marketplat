@@ -16,10 +16,13 @@ const SETTINGS = [
   // newsletter) — this is about the seller's OWN Promotion rows on
   // their own products, driven by myPromotionsExpiring.ts.
   { key: 'myPromotions',   label: 'عروضي',                     desc: 'عند بدء أو قرب انتهاء أو انتهاء عرض على أحد منتجاتك' },
+  { key: 'savedSearch',    label: 'البحث المحفوظ',              desc: 'عند ظهور إعلان أو منتج أو خدمة تطابق بحثك' },
+  { key: 'storeUpdates',   label: 'تحديثات المتاجر',            desc: 'منتجات وعروض وإعادة توفّر من متاجر تتابعها' },
+  { key: 'serviceQuotes',  label: 'عروض أسعار الخدمات',         desc: 'عند استلام عرض سعر أو قبول عرضك' },
 ] as const satisfies readonly { key: keyof NotificationPreferences; label: string; desc: string }[];
 
 const DEFAULT_PREFS: NotificationPreferences = {
-  newMessage: true, adViews: false, favAdUpdated: true, promotions: false, myPromotions: true,
+  newMessage: true, adViews: false, favAdUpdated: true, promotions: false, myPromotions: true, savedSearch: true, storeUpdates: true, serviceQuotes: true,
 };
 
 /**

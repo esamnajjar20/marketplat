@@ -15,12 +15,19 @@ jest.mock('../../src/modules/users/users.repository');
 jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/notifications', () => ({
   notificationEvents: { onNewMessage: jest.fn() },
+  notificationsService: { markConversationNotificationsRead: jest.fn().mockResolvedValue({ count: 0 }) },
 }));
 jest.mock('../../src/modules/blocked-users', () => ({
   blockedUsersService: { isBlockedEitherDirection: jest.fn() },
 }));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
+}));
+jest.mock('../../src/modules/activity', () => ({
+  activityService: { record: jest.fn() },
+  activityTemplates: {
+    messageSent: jest.fn().mockReturnValue({ type: 'MESSAGE_SENT' }),
+  },
 }));
 
 const buyerId = 'buyer-1';
@@ -38,6 +45,12 @@ const mockConversation = {
   buyer: { id: buyerId, name: 'Buyer Name', avatarUrl: null },
   seller: { id: sellerId, name: 'Seller Name', avatarUrl: null },
 } as any;
+
+
+jest.mock('../../src/shared/utils/notificationStream', () => ({
+  publishNotificationEvent: jest.fn().mockResolvedValue(undefined),
+  publishNotificationEventToMany: jest.fn().mockResolvedValue(undefined),
+}));
 
 describe('conversationsService', () => {
   beforeEach(() => {
@@ -325,7 +338,15 @@ describe('conversationsService', () => {
   });
 
   describe('sendMessage', () => {
-    const mockMessage = { id: 'msg-1', conversationId: 'conv-1', senderId: buyerId, body: 'Hi' } as any;
+    const mockMessage = {
+      id: 'msg-1',
+      conversationId: 'conv-1',
+      senderId: buyerId,
+      body: 'Hi',
+      readAt: null,
+      deletedAt: null,
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+    } as any;
 
     it('throws NotFoundError when the conversation does not exist', async () => {
       (conversationsRepository.findById as jest.Mock).mockResolvedValue(null);
@@ -344,6 +365,15 @@ describe('conversationsService', () => {
       expect(messagesRepository.create).not.toHaveBeenCalled();
     });
 
+    it('rejects known scam phrasing with BadRequestError', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+
+      await expect(
+        conversationsService.sendMessage(buyerId, 'conv-1', 'Please use Western Union only')
+      ).rejects.toThrow(BadRequestError);
+      expect(messagesRepository.create).not.toHaveBeenCalled();
+    });
+
     it('creates the message and bumps the conversation updatedAt', async () => {
       (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
@@ -354,6 +384,16 @@ describe('conversationsService', () => {
       expect(messagesRepository.create).toHaveBeenCalledWith('conv-1', buyerId, 'Hi');
       expect(conversationsRepository.touchUpdatedAt).toHaveBeenCalledWith('conv-1');
       expect(result).toEqual(mockMessage);
+
+      const { publishNotificationEvent } = require('../../src/shared/utils/notificationStream');
+      expect(publishNotificationEvent).toHaveBeenCalledWith(
+        sellerId,
+        expect.objectContaining({ type: 'message:new', conversationId: 'conv-1' }),
+      );
+      expect(publishNotificationEvent).toHaveBeenCalledWith(
+        buyerId,
+        expect.objectContaining({ type: 'message:new', conversationId: 'conv-1' }),
+      );
     });
 
     it('notifies the seller (not the sender) when the buyer sends a message', async () => {

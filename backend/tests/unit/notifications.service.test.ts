@@ -2,6 +2,7 @@ import { notificationsService, notificationEvents } from '../../src/modules/noti
 import { notificationsRepository } from '../../src/modules/notifications/notifications.repository';
 import { pushService } from '../../src/shared/utils/pushService';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
+import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/modules/notifications/notifications.repository');
 jest.mock('../../src/shared/utils/pushService', () => ({
@@ -9,6 +10,17 @@ jest.mock('../../src/shared/utils/pushService', () => ({
     notifyUser: jest.fn().mockResolvedValue(undefined),
     notifyUsers: jest.fn().mockResolvedValue(undefined),
   },
+}));
+jest.mock('../../src/config/prisma', () => ({
+  prisma: {
+    user: { findMany: jest.fn() },
+    notification: { groupBy: jest.fn(), count: jest.fn() },
+  },
+}));
+jest.mock('../../src/shared/utils/notificationStream', () => ({
+  publishNotificationEvent: jest.fn().mockResolvedValue(undefined),
+  publishNotificationEventToMany: jest.fn().mockResolvedValue(undefined),
+  addNotificationStreamClient: jest.fn(),
 }));
 
 const userId = 'user-1';
@@ -140,6 +152,24 @@ describe('notificationsService', () => {
     });
   });
 
+  describe('deleteNotification', () => {
+    it('resolves when one row is deleted', async () => {
+      (notificationsRepository.deleteForUser as jest.Mock).mockResolvedValue({ count: 1 });
+      await expect(notificationsService.deleteNotification(userId, 'n1')).resolves.toBeUndefined();
+    });
+    it('throws NotFoundError when zero rows deleted', async () => {
+      (notificationsRepository.deleteForUser as jest.Mock).mockResolvedValue({ count: 0 });
+      await expect(notificationsService.deleteNotification(userId, 'n1')).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('deleteAllRead', () => {
+    it('returns the deleted count', async () => {
+      (notificationsRepository.deleteAllReadForUser as jest.Mock).mockResolvedValue({ count: 4 });
+      await expect(notificationsService.deleteAllRead(userId)).resolves.toBe(4);
+    });
+  });
+
   describe('unsubscribeFromPush', () => {
     it('deletes the subscription via the repository and resolves undefined regardless of row count', async () => {
       (notificationsRepository.deletePushSubscription as jest.Mock).mockResolvedValue({
@@ -158,25 +188,30 @@ describe('notificationsService', () => {
 });
 
 describe('notificationEvents', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Empty prefs blob → service defaults (all critical channels on).
+    (prisma.user.findMany as jest.Mock).mockImplementation(async ({ where }: { where: { id: { in: string[] } } }) =>
+      (where.id.in ?? []).map((id: string) => ({ id, notificationPreferences: {} })),
+    );
+  });
 
   describe('onNewMessage', () => {
-    it('creates a NEW_MESSAGE notification for the recipient with the conversationId in data', async () => {
-      (notificationsRepository.create as jest.Mock).mockResolvedValue({ id: 'notif-1' });
+    it('creates/refreshes a NEW_MESSAGE notification for the recipient', async () => {
+      (notificationsRepository.createOrRefreshNewMessage as jest.Mock).mockResolvedValue({ id: 'notif-1' });
 
       await notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name');
 
-      expect(notificationsRepository.create).toHaveBeenCalledWith({
+      expect(notificationsRepository.createOrRefreshNewMessage).toHaveBeenCalledWith({
         userId: 'recipient-1',
-        type: 'NEW_MESSAGE',
+        conversationId: 'conv-1',
         title: 'رسالة جديدة',
         body: 'Sender Name أرسل لك رسالة',
-        data: { conversationId: 'conv-1' },
       });
     });
 
     it('also fires a push to the recipient with a link to the conversation', async () => {
-      (notificationsRepository.create as jest.Mock).mockResolvedValue({ id: 'notif-1' });
+      (notificationsRepository.createOrRefreshNewMessage as jest.Mock).mockResolvedValue({ id: 'notif-1' });
 
       await notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name');
 
@@ -189,12 +224,24 @@ describe('notificationEvents', () => {
     });
 
     it('still creates the in-app notification even if the push send rejects', async () => {
-      (notificationsRepository.create as jest.Mock).mockResolvedValue({ id: 'notif-1' });
+      (notificationsRepository.createOrRefreshNewMessage as jest.Mock).mockResolvedValue({ id: 'notif-1' });
       (pushService.notifyUser as jest.Mock).mockRejectedValueOnce(new Error('push failed'));
 
       await expect(
         notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name')
       ).resolves.toEqual({ id: 'notif-1' });
+    });
+
+    it('skips create and push when the recipient disabled newMessage', async () => {
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { id: 'recipient-1', notificationPreferences: { newMessage: false } },
+      ]);
+
+      const result = await notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name');
+
+      expect(result).toBeNull();
+      expect(notificationsRepository.createOrRefreshNewMessage).not.toHaveBeenCalled();
+      expect(pushService.notifyUser).not.toHaveBeenCalled();
     });
   });
 

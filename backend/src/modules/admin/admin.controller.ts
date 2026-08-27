@@ -266,4 +266,17 @@ export const adminController = {
       next(error);
     }
   },
+  getNotificationStats: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const daysRaw = req.query.days;
+      const days = typeof daysRaw === 'string' && daysRaw ? Number(daysRaw) : 30;
+      const stats = await notificationsService.getAdminStats(
+        Number.isFinite(days) && days > 0 ? Math.min(days, 90) : 30,
+      );
+      res.status(200).json(successResponse('Notification stats fetched', stats));
+    } catch (error) {
+      next(error);
+    }
+  },
+
 };

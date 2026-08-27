@@ -5,6 +5,7 @@ import { conversationsApi } from '@/api/conversations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { isNotificationStreamConnected } from '@/hooks/useNotificationStream';
 import type { ConversationsQuery, MessagesQuery } from '@/types/conversation.types';
 
 /** GET /conversations — every thread the caller is a party to, most
@@ -18,7 +19,8 @@ export function useMyConversations(params?: ConversationsQuery) {
     queryKey: queryKeys.conversations.mine(params),
     queryFn: () => conversationsApi.getMine(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.conversations,
-    refetchInterval: CACHE_TTL.conversations,
+    refetchInterval: () =>
+      isNotificationStreamConnected() ? CACHE_TTL.conversations * 3 : CACHE_TTL.conversations,
     enabled: isAuthenticated,
   });
 }
@@ -46,17 +48,8 @@ export function useConversation(id: string) {
  * moment-to-moment — same faster-for-the-active-view idea as
  * availability's own shorter TTL relative to appointments.
  */
-export function useMessages(
-  conversationId: string,
-  params?: MessagesQuery,
-  options?: { enabled?: boolean },
-) {
+export function useMessages(conversationId: string, params?: MessagesQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  // FIX UX-GAP-03b: only the live (page 1 / no page) query should poll.
-  // Older history pages are static once loaded.
-  const isLivePage = !params?.page || params.page <= 1;
-  const enabled =
-    isAuthenticated && Boolean(conversationId) && (options?.enabled ?? true);
 
   return useQuery({
     queryKey: queryKeys.conversations.messages(conversationId, params),
@@ -71,8 +64,10 @@ export function useMessages(
           return { ...data, items: [...data.items].reverse() };
         }),
     staleTime: CACHE_TTL.messages,
-    refetchInterval: isLivePage && enabled ? CACHE_TTL.messages : false,
-    enabled,
+    // When SSE is up, live message:new updates the cache — poll only as backup.
+    refetchInterval: () =>
+      isNotificationStreamConnected() ? CACHE_TTL.messages * 6 : CACHE_TTL.messages,
+    enabled: isAuthenticated && Boolean(conversationId),
   });
 }
 
@@ -83,8 +78,11 @@ export function useUnreadConversationCount() {
   return useQuery({
     queryKey: queryKeys.conversations.unreadCount(),
     queryFn: () => conversationsApi.getUnreadCount().then((r) => r.data.data?.count ?? 0),
-    staleTime: CACHE_TTL.conversationUnreadCount,
-    refetchInterval: CACHE_TTL.conversationUnreadCount,
+    staleTime: CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations,
+    refetchInterval: () =>
+      isNotificationStreamConnected()
+        ? (CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations) * 3
+        : (CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations),
     enabled: isAuthenticated,
   });
 }

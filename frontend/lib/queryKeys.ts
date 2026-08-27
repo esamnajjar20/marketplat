@@ -187,9 +187,9 @@ export const queryKeys = {
   conversations: {
     mine:     (params?: object) => ['conversations', 'me', params ?? {}] as const,
     detail:   (id: string)      => ['conversations', 'detail', id] as const,
+    unreadCount: ()             => ['conversations', 'unreadCount'] as const,
     messages: (id: string, params?: object) =>
       ['conversations', 'detail', id, 'messages', params ?? {}] as const,
-    unreadCount: () => ['conversations', 'unread-count'] as const,
   },
 
   // ── Presence — online/offline dots on chat, heartbeat-based ────────

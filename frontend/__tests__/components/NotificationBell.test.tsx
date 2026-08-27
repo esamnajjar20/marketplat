@@ -518,4 +518,37 @@ describe('NotificationBell', () => {
       expect(screen.getByText('ترويج د')).toBeInTheDocument();
     });
   });
+
+  describe('view-all link', () => {
+    it('renders a link to the full notifications page', async () => {
+      const user = setupUser();
+      render(<NotificationBell />);
+      await openMenu(user);
+      const link = await screen.findByRole('link', { name: 'عرض كل الإشعارات' });
+      expect(link).toHaveAttribute('href', '/notifications');
+    });
+  });
+
+  describe('service quote deep links', () => {
+    it('links NEW_SERVICE_QUOTE to /service-broadcasts/:id', async () => {
+      (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: {
+          items: [
+            makeNotification({
+              type: 'NEW_SERVICE_QUOTE',
+              title: 'عرض سعر جديد',
+              data: { broadcastId: 'bc-1', quoteId: 'q-1' },
+            }),
+          ],
+        },
+        isLoading: false,
+      });
+      const user = setupUser();
+      render(<NotificationBell />);
+      await openMenu(user);
+      const row = await screen.findByText('عرض سعر جديد');
+      expect(row.closest('a')).toHaveAttribute('href', '/service-broadcasts/bc-1');
+    });
+  });
+
 });

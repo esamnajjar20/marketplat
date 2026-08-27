@@ -81,6 +81,9 @@ export const updateNotificationPreferencesSchema = z.object({
     // into the existing `promotions` key even though the names are
     // easy to confuse — see myPromotionsExpiring.ts's own doc comment.
     myPromotions: z.boolean().optional(),
+    savedSearch: z.boolean().optional(),
+    storeUpdates: z.boolean().optional(),
+    serviceQuotes: z.boolean().optional(),
   }).refine(obj => Object.keys(obj).length > 0, {
     message: 'At least one preference must be provided',
   }),

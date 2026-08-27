@@ -15,8 +15,16 @@ notificationsRouter.get(
   CACHE.NONE,
   notificationsController.getUnreadCount
 );
-notificationsRouter.patch('/:id/read', authenticate, notificationsController.markRead);
+notificationsRouter.get(
+  '/stream',
+  authenticate,
+  CACHE.NONE,
+  notificationsController.stream
+);
 notificationsRouter.patch('/read-all', authenticate, notificationsController.markAllRead);
+notificationsRouter.delete('/read', authenticate, notificationsController.deleteAllRead);
+notificationsRouter.patch('/:id/read', authenticate, notificationsController.markRead);
+notificationsRouter.delete('/:id', authenticate, notificationsController.deleteNotification);
 
 // FIX PWA-PUSH-01: matches the frontend's existing calls in lib/pwa.ts
 // (POST on subscribe, DELETE with { endpoint } in the body on

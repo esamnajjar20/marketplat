@@ -3,7 +3,8 @@ import { conversationsRepository, messagesRepository, ConversationWithRelations,
 import { adsRepository } from '../ads/ads.repository';
 import { usersRepository } from '../users/users.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
-import { notificationEvents } from '../notifications';
+import { notificationEvents, notificationsService } from '../notifications';
+import { publishNotificationEvent } from '../../shared/utils/notificationStream';
 import { blockedUsersService } from '../blocked-users';
 import { activityService, activityTemplates } from '../activity';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -176,18 +177,9 @@ export const conversationsService = {
   ): Promise<PaginatedResult<ConversationListItem>> => {
     const { conversations, total } = await conversationsRepository.findManyForUser(userId, query);
     return {
-      items: conversations.map((c) => ({
-        ...c,
-        lastMessage: c.lastMessage ? redactIfDeleted(c.lastMessage) : null,
-      })),
+      items: conversations,
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
     };
-  },
-
-  /** FIX NAV-BADGE-01: aggregate unread thread count for the nav icon. */
-  getUnreadCount: async (userId: string): Promise<{ count: number }> => {
-    const count = await messagesRepository.countUnreadConversationsForUser(userId);
-    return { count };
   },
 
   sendMessage: async (userId: string, conversationId: string, body: string): Promise<Message> => {
@@ -218,6 +210,28 @@ export const conversationsService = {
     // the sender.
     const recipient = conversation.buyerId === userId ? conversation.seller : conversation.buyer;
     const sender = conversation.buyerId === userId ? conversation.buyer : conversation.seller;
+    // Live chat: push the saved message to both parties' SSE streams
+    // (sender's other devices + recipient). Offline users catch up via REST.
+    const messagePayload = {
+      id: message.id,
+      conversationId: message.conversationId,
+      senderId: message.senderId,
+      body: message.body,
+      readAt: message.readAt ? message.readAt.toISOString() : null,
+      deletedAt: message.deletedAt ? message.deletedAt.toISOString() : null,
+      createdAt: message.createdAt.toISOString(),
+    };
+    void publishNotificationEvent(recipient.id, {
+      type: 'message:new',
+      conversationId,
+      message: messagePayload,
+    });
+    void publishNotificationEvent(userId, {
+      type: 'message:new',
+      conversationId,
+      message: messagePayload,
+    });
+
     notificationEvents
       .onNewMessage(recipient.id, conversationId, sender.name)
       .catch((err) => logger.error('Failed to create NEW_MESSAGE notification', { err, conversationId }));
@@ -256,7 +270,30 @@ export const conversationsService = {
     if (message.deletedAt) return redactIfDeleted(message);
 
     const deleted = await messagesRepository.softDelete(messageId);
+    const deletedIso = deleted.deletedAt
+      ? deleted.deletedAt.toISOString()
+      : new Date().toISOString();
+    const buyerId = conversation.buyerId;
+    const sellerId = conversation.sellerId;
+    void publishNotificationEvent(buyerId, {
+      type: 'message:deleted',
+      conversationId,
+      messageId,
+      deletedAt: deletedIso,
+    });
+    void publishNotificationEvent(sellerId, {
+      type: 'message:deleted',
+      conversationId,
+      messageId,
+      deletedAt: deletedIso,
+    });
     return redactIfDeleted(deleted);
+  },
+
+  /** Aggregate unread thread count for the nav messages badge. */
+  getUnreadCount: async (userId: string): Promise<{ count: number }> => {
+    const count = await messagesRepository.countUnreadConversationsForUser(userId);
+    return { count };
   },
 
   /**
@@ -275,19 +312,19 @@ export const conversationsService = {
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
 
-    // Only the live (newest) page is a "read receipt" signal — loading
-    // older history must not re-run markRead on every poll of page 2+.
-    const page = query.page ?? 1;
     const [{ messages, total }] = await Promise.all([
       messagesRepository.findManyByConversationId(conversationId, query),
-      page <= 1
-        ? messagesRepository.markReadForRecipient(conversationId, userId)
-        : Promise.resolve({ count: 0 }),
+      messagesRepository.markReadForRecipient(conversationId, userId),
     ]);
+
+    // Sync bell: mark NEW_MESSAGE notifications for this conversation read.
+    void notificationsService
+      .markConversationNotificationsRead(userId, conversationId)
+      .catch(() => {});
 
     return {
       items: messages.map(redactIfDeleted),
-      meta: buildPaginationMeta(total, page, query.limit ?? 30),
+      meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),
     };
   },
 };

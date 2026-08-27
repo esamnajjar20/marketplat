@@ -2,6 +2,10 @@ import { notificationsRepository } from '../../src/modules/notifications/notific
 import { prisma } from '../../src/config/prisma';
 import { pushSubscriptionsRepository } from '../../src/shared/utils/pushSubscriptionsRepository';
 
+jest.mock('../../src/shared/utils/notificationStream', () => ({
+  publishNotificationEvent: jest.fn().mockResolvedValue(undefined),
+  publishNotificationEventToMany: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     notification: {
