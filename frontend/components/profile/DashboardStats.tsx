@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Unified dashboard metrics — ads + optional store + optional service provider.
+ * Main dashboard metrics — ads + messages only.
+ * Store/service KPIs live on their analytics pages; actionable items on SellerTodayTasks + hubs.
  */
 
 import Link from 'next/link';
@@ -12,17 +13,13 @@ import {
   TrendingUp,
   AlertTriangle,
   MessageSquare,
-  Package,
-  Users,
   Store,
   Wrench,
-  Inbox,
-  CalendarClock,
 } from 'lucide-react';
 import { useMyAdStats } from '@/hooks/queries/useAds';
 import { useMyConversations } from '@/hooks/queries/useConversations';
-import { useMyStoreAnalytics } from '@/hooks/queries/useStores';
-import { useMyServiceProviderAnalytics } from '@/hooks/queries/useServiceProviders';
+import { useMyStore } from '@/hooks/queries/useStores';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { formatNumber } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
@@ -40,14 +37,8 @@ type StatItem = {
 export function DashboardStats() {
   const { data: stats, isLoading, isError, refetch } = useMyAdStats();
   const { data: convData, isLoading: convLoading } = useMyConversations({ limit: 20 });
-  const {
-    data: storeAnalytics,
-    isSuccess: storeOk,
-  } = useMyStoreAnalytics();
-  const {
-    data: serviceAnalytics,
-    isSuccess: serviceOk,
-  } = useMyServiceProviderAnalytics();
+  const { data: myStore, isSuccess: storeOk } = useMyStore();
+  const { data: myProvider, isSuccess: providerOk } = useMyServiceProvider();
 
   if (isLoading || convLoading) {
     return (
@@ -115,130 +106,78 @@ export function DashboardStats() {
     },
   ];
 
-  const storeItems: StatItem[] =
-    storeOk && storeAnalytics
-      ? [
-          {
-            label: 'مشاهدات المتجر',
-            value: storeAnalytics.views,
-            icon: Store,
-            color: 'text-primary',
-            href: ROUTES.myStoreAnalytics,
-          },
-          {
-            label: 'المتابعون',
-            value: storeAnalytics.followers,
-            icon: Users,
-            color: 'text-accent',
-            href: ROUTES.myStoreAnalytics,
-          },
-          {
-            label: 'منتجات نشطة',
-            value: storeAnalytics.activeProducts,
-            icon: Package,
-            color: 'text-success',
-            href: ROUTES.myStoreProducts,
-          },
-        ]
-      : [];
-
-  const serviceItems: StatItem[] =
-    serviceOk && serviceAnalytics
-      ? [
-          {
-            label: 'خدمات نشطة',
-            value: serviceAnalytics.activeListings,
-            icon: Wrench,
-            color: 'text-primary',
-            href: ROUTES.myServices,
-          },
-          {
-            label: 'طلبات معلّقة',
-            value: serviceAnalytics.pendingRequests,
-            icon: Inbox,
-            color: 'text-accent',
-            href: ROUTES.incomingServiceRequests,
-            highlight: serviceAnalytics.pendingRequests > 0,
-          },
-          {
-            label: 'مواعيد قادمة',
-            value: serviceAnalytics.upcomingAppointments,
-            icon: CalendarClock,
-            color: 'text-success',
-            href: ROUTES.myServiceAppointments,
-            highlight: serviceAnalytics.upcomingAppointments > 0,
-          },
-          {
-            label: 'طلبات مكتملة',
-            value: serviceAnalytics.completedRequests,
-            icon: TrendingUp,
-            color: 'text-muted-foreground',
-            href: ROUTES.myServiceProviderAnalytics,
-          },
-        ]
-      : [];
-
-  function renderGrid(list: StatItem[]) {
-    return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        {list.map(({ label, value, icon: Icon, color, href, highlight }) => {
-          const inner = (
-            <>
-              <Icon className={cn('h-5 w-5', color)} />
-              <p className="text-2xl font-bold tabular-nums">{formatNumber(value)}</p>
-              <p className="text-sm text-muted-foreground">{label}</p>
-            </>
-          );
-          const className = cn(
-            'rounded-lg border bg-card p-4 space-y-2 transition-colors',
-            highlight && 'border-primary/30 bg-primary/5',
-            href && 'hover:bg-muted/50',
-          );
-          return href ? (
-            <Link key={label} href={href} className={className}>
-              {inner}
-            </Link>
-          ) : (
-            <div key={label} className={className}>
-              {inner}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <section aria-label="إحصائيات الإعلانات والرسائل" className="space-y-2">
         <h2 className="text-sm font-semibold text-muted-foreground">ملخص سريع</h2>
-        {renderGrid(adItems)}
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+          {adItems.map(({ label, value, icon: Icon, color, href, highlight }) => {
+            const inner = (
+              <>
+                <Icon className={cn('h-5 w-5', color)} />
+                <p className="text-2xl font-bold tabular-nums">{formatNumber(value)}</p>
+                <p className="text-sm text-muted-foreground">{label}</p>
+              </>
+            );
+            const className = cn(
+              'rounded-lg border bg-card p-4 space-y-2 transition-colors',
+              highlight && 'border-primary/30 bg-primary/5',
+              href && 'hover:bg-muted/50',
+            );
+            return href ? (
+              <Link key={label} href={href} className={className}>
+                {inner}
+              </Link>
+            ) : (
+              <div key={label} className={className}>
+                {inner}
+              </div>
+            );
+          })}
+        </div>
       </section>
-      {storeItems.length > 0 && (
-        <section aria-label="إحصائيات المتجر" className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-muted-foreground">المتجر</h2>
-            <Link href={ROUTES.myStoreAnalytics} className="text-xs text-primary hover:underline">
-              التفاصيل
+
+      {(storeOk && myStore) || (providerOk && myProvider) ? (
+        <section
+          aria-label="اختصارات التشغيل"
+          className="flex flex-wrap gap-2 text-sm"
+        >
+          {storeOk && myStore && (
+            <Link
+              href={ROUTES.myStore}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50"
+            >
+              <Store className="h-3.5 w-3.5" />
+              لوحة المتجر
             </Link>
-          </div>
-          {renderGrid(storeItems)}
-        </section>
-      )}
-      {serviceItems.length > 0 && (
-        <section aria-label="إحصائيات الخدمات" className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-muted-foreground">الخدمات</h2>
+          )}
+          {storeOk && myStore && (
+            <Link
+              href={ROUTES.myStoreAnalytics}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50 text-muted-foreground"
+            >
+              إحصائيات المتجر
+            </Link>
+          )}
+          {providerOk && myProvider && (
+            <Link
+              href={ROUTES.myServices}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50"
+            >
+              <Wrench className="h-3.5 w-3.5" />
+              لوحة الخدمات
+            </Link>
+          )}
+          {providerOk && myProvider && (
             <Link
               href={ROUTES.myServiceProviderAnalytics}
-              className="text-xs text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50 text-muted-foreground"
             >
-              التفاصيل
+              إحصائيات الخدمات
             </Link>
-          </div>
-          {renderGrid(serviceItems)}
+          )}
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

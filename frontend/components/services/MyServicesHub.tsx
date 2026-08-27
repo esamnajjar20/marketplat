@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Service provider operating hub — KPIs, availability, quick actions.
- * List of listings remains on the same page below this component.
+ * Service provider operating hub — status, attention, quick actions.
+ * Full metrics live only on /my-services/analytics.
  */
 
 import Link from 'next/link';
@@ -14,7 +14,7 @@ import {
   CalendarClock,
   BarChart3,
   AlertTriangle,
-  Eye,
+  Radio,
 } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -25,7 +25,6 @@ import {
 } from '@/hooks/queries/useServiceProviders';
 import { BecomeServiceProviderCard } from './BecomeServiceProviderCard';
 import { ROUTES } from '@/lib/constants';
-import { formatNumber } from '@/lib/formatters';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { ParsedError } from '@/lib/errorParser';
 import type { ServiceAvailability, ServiceProviderDetails } from '@/types/service.types';
@@ -42,35 +41,9 @@ const AVAIL_VARIANT: Record<ServiceAvailability, 'default' | 'secondary' | 'dest
   UNAVAILABLE: 'destructive',
 };
 
-function KpiCard({
-  label,
-  value,
-  href,
-  icon: Icon,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  highlight?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-lg border bg-card p-4 space-y-2 transition-colors hover:bg-muted/50 ${
-        highlight ? 'border-primary/30 bg-primary/5' : ''
-      }`}
-    >
-      <Icon className="h-4 w-4 text-primary" />
-      <p className="text-2xl font-bold tabular-nums">{formatNumber(value)}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </Link>
-  );
-}
-
 function HubBody({ provider }: { provider: ServiceProviderDetails }) {
-  const { data: analytics, isLoading: analyticsLoading } = useMyServiceProviderAnalytics();
+  // Only for actionable pending count — not full KPI mirror of analytics page
+  const { data: analytics } = useMyServiceProviderAnalytics();
   const currentUser = useAuthStore(selectUser);
   const publicProfileHref = currentUser?.id ? ROUTES.userProfile(currentUser.id) : null;
 
@@ -102,49 +75,13 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
           <Button variant="outline" size="sm" asChild className="gap-1.5">
             <Link href={ROUTES.settings.serviceProvider}>الإعدادات</Link>
           </Button>
+          <Button variant="outline" size="sm" asChild className="gap-1.5">
+            <Link href={ROUTES.myServiceProviderAnalytics}>
+              <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
+            </Link>
+          </Button>
         </div>
       </div>
-
-      {analyticsLoading ? (
-        <div className="flex justify-center py-6">
-          <LoadingSpinner />
-        </div>
-      ) : analytics ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KpiCard
-            label="مشاهدات الخدمات"
-            value={analytics.totalViews}
-            href={ROUTES.myServiceProviderAnalytics}
-            icon={Eye}
-          />
-          <KpiCard
-            label="خدمات نشطة"
-            value={analytics.activeListings}
-            href={ROUTES.myServices}
-            icon={Wrench}
-          />
-          <KpiCard
-            label="طلبات معلّقة"
-            value={analytics.pendingRequests}
-            href={ROUTES.incomingServiceRequests}
-            icon={Inbox}
-            highlight={analytics.pendingRequests > 0}
-          />
-          <KpiCard
-            label="مواعيد قادمة"
-            value={analytics.upcomingAppointments}
-            href={ROUTES.myServiceAppointments}
-            icon={CalendarClock}
-            highlight={analytics.upcomingAppointments > 0}
-          />
-          <KpiCard
-            label="طلبات مكتملة"
-            value={analytics.completedRequests}
-            href={ROUTES.myServiceProviderAnalytics}
-            icon={BarChart3}
-          />
-        </div>
-      ) : null}
 
       {analytics && analytics.pendingRequests > 0 && (
         <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-sm flex flex-wrap gap-2 items-center">
@@ -155,9 +92,18 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
         </div>
       )}
 
+      {analytics && analytics.upcomingAppointments > 0 && (
+        <div className="rounded-lg border p-3 text-sm flex flex-wrap gap-2 items-center">
+          <CalendarClock className="h-4 w-4 text-primary shrink-0" />
+          <Link href={ROUTES.myServiceAppointments} className="text-primary hover:underline">
+            {analytics.upcomingAppointments} موعد قادم
+          </Link>
+        </div>
+      )}
+
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">إجراءات سريعة</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <Button asChild className="h-auto flex-col gap-1 py-3 font-semibold">
             <Link href={ROUTES.myServiceCreate}>
               <Plus className="h-4 w-4" />
@@ -177,6 +123,12 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+            <Link href={ROUTES.serviceBroadcasts}>
+              <Radio className="h-4 w-4" />
+              سوق الطلبات
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
             <Link href={ROUTES.myServiceProviderAnalytics}>
               <BarChart3 className="h-4 w-4" />
               الإحصائيات
@@ -184,42 +136,6 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
           </Button>
         </div>
       </section>
-
-      {analytics && analytics.topListings.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">الأكثر مشاهدة</h2>
-            <Link
-              href={ROUTES.myServiceProviderAnalytics}
-              className="text-xs text-primary hover:underline"
-            >
-              الكل
-            </Link>
-          </div>
-          <ul className="space-y-2 rounded-lg border divide-y">
-            {analytics.topListings.slice(0, 5).map((item, i) => {
-              const maxViews = analytics.topListings[0]?.views || 1;
-              const pct = Math.max(8, Math.round((item.views / maxViews) * 100));
-              return (
-                <li key={item.id} className="px-3 py-2.5 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate font-medium">
-                      <span className="text-muted-foreground me-2">{i + 1}.</span>
-                      {item.title}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
-                      {formatNumber(item.views)} مشاهدة
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }
