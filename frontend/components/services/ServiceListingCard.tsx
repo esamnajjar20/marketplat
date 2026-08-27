@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { BadgeCheck, MapPin } from 'lucide-react';
+import { BadgeCheck, Clock } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
