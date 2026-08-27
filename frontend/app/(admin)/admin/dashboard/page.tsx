@@ -2,6 +2,8 @@ import type { Metadata }   from 'next';
 import { AdminStatsGrid }  from '@/components/admin/AdminStatsGrid';
 import { AdminRecentActivity } from '@/components/admin/AdminRecentActivity';
 import { BroadcastNotificationButton } from '@/components/admin/BroadcastNotificationButton';
+import { AdminOpsQueue } from '@/components/admin/AdminOpsQueue';
+import { AdminPlatformTrends } from '@/components/admin/AdminPlatformTrends';
 import { buildMetadata }   from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'لوحة الإدارة', noIndex: true });
@@ -17,6 +19,8 @@ export default function AdminDashboardPage() {
          */}
         <BroadcastNotificationButton />
       </div>
+      <AdminOpsQueue />
+      <AdminPlatformTrends />
       <AdminStatsGrid />
       {/*
        * FIX DEAD-04: AdminRecentActivity was fully built and tested but

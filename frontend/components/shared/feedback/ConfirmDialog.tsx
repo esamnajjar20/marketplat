@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 import {
   Dialog,
@@ -34,6 +35,12 @@ interface ConfirmDialogProps {
    */
   isPending?: boolean;
   confirmingLabel?: string;
+  /** When true, shows a required reason textarea before confirm is enabled. */
+  requireReason?: boolean;
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
+  /** Called with the trimmed reason when requireReason is on. */
+  onConfirmWithReason?: (reason: string) => void;
 }
 
 /**
@@ -73,7 +80,15 @@ export function ConfirmDialog({
   onConfirm,
   isPending,
   confirmingLabel = 'جارٍ التنفيذ…',
+  requireReason = false,
+  reasonLabel = 'السبب',
+  reasonPlaceholder = 'اكتب سبب الإجراء (3 أحرف على الأقل)…',
+  onConfirmWithReason,
 }: ConfirmDialogProps) {
+  const [reason, setReason] = useState('');
+  useEffect(() => {
+    if (!open) setReason('');
+  }, [open]);
   // UX-FIX P1-3: `isPending` being provided at all (not just its value)
   // is the signal that the caller has opted into pending-aware behavior.
   // Callers that pass isPending are expected to close the dialog
@@ -82,8 +97,17 @@ export function ConfirmDialog({
   // immediately on click regardless of what happens next.
   const isPendingAware = isPending !== undefined;
 
+  const reasonOk = !requireReason || reason.trim().length >= 3;
+
   function handleConfirm() {
-    onConfirm();
+    if (requireReason) {
+      if (!reasonOk) return;
+      onConfirmWithReason?.(reason.trim());
+      // Also call onConfirm for callers that ignore reason param
+      if (!onConfirmWithReason) onConfirm();
+    } else {
+      onConfirm();
+    }
     if (!isPendingAware) {
       onOpenChange(false);
     }
@@ -104,6 +128,25 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
+        {requireReason && (
+          <div className="space-y-1.5 px-1">
+            <label className="text-sm font-medium" htmlFor="confirm-reason">
+              {reasonLabel}
+            </label>
+            <textarea
+              id="confirm-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={reasonPlaceholder}
+              rows={3}
+              disabled={isPending}
+              className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {reason.trim().length > 0 && reason.trim().length < 3 && (
+              <p className="text-xs text-destructive">السبب قصير جداً</p>
+            )}
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
             {cancelLabel}
@@ -111,7 +154,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? 'destructive' : 'default'}
             onClick={handleConfirm}
-            disabled={isPending}
+            disabled={isPending || !reasonOk}
           >
             {isPending ? confirmingLabel : confirmLabel}
           </Button>

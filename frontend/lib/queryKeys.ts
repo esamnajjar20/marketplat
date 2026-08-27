@@ -294,6 +294,7 @@ export const queryKeys = {
 
   // ── Admin ──────────────────────────────────────────────────────
   admin: {
+    opsQueue: () => ['admin', 'ops-queue'] as const,
     /** FIX Q-04: parameterised so prefix invalidation matches these entries */
     stats:        ()                              => ['admin', 'stats'] as const,
     ads:          (params?: AdminGetAdsParams)   => ['admin', 'ads',     params ?? {}] as const,

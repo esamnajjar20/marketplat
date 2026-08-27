@@ -112,6 +112,9 @@ function AdSignalsPanel({ adId }: { adId: string }) {
 
 export function AdminFraudTable() {
   const sp     = useSearchParams();
+  // URL `?reviewed=false` is reserved for ops-queue deep links; wire when
+  // the fraud list API supports a reviewed filter server-side.
+  void sp.get('reviewed');
   const page   = Number(sp.get('page') ?? 1);
 
   const { data, isLoading, isError, error, refetch } = useAdminFlaggedAds({ page });

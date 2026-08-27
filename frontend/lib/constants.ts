@@ -94,6 +94,9 @@ export const ROUTES = {
     analytics:         '/admin/analytics',
     // FRAUD-UI: /admin/fraud/* backend module had no reachable page.
     fraud:             '/admin/fraud',
+    products:          '/admin/products',
+    serviceListings:   '/admin/service-listings',
+    system:            '/admin/system',
   },
 } as const;
 

@@ -308,10 +308,12 @@ export function AdminStoresTable() {
         confirmLabel="حظر"
         destructive
         isPending={updateStatus.isPending}
-        onConfirm={() => {
+        requireReason
+        onConfirm={() => {}}
+        onConfirmWithReason={(reason) => {
           if (!blockTarget) return;
           updateStatus.mutate(
-            { storeId: blockTarget.id, status: 'BLOCKED' },
+            { storeId: blockTarget.id, status: 'BLOCKED', reason },
             { onSuccess: () => setBlockTarget(null) },
           );
         }}
@@ -328,9 +330,11 @@ export function AdminStoresTable() {
         confirmLabel="حظر"
         destructive
         isPending={bulkUpdateStatus.isPending}
-        onConfirm={() => {
+        requireReason
+        onConfirm={() => {}}
+        onConfirmWithReason={(reason) => {
           bulkUpdateStatus.mutate(
-            { storeIds: Array.from(selectedIds), status: 'BLOCKED' },
+            { storeIds: Array.from(selectedIds), status: 'BLOCKED', reason },
             {
               onSuccess: () => {
                 setSelectedIds(new Set());

@@ -26,6 +26,20 @@ vi.mock('next/navigation', () => ({
   usePathname: () => mockUsePathname(),
 }));
 
+vi.mock('@/hooks/queries/useAdmin', () => ({
+  useAdminOpsQueue: () => ({
+    data: {
+      openReports: 0,
+      pendingStores: 0,
+      pendingSellers: 0,
+      unreviewedFraud: 0,
+      total: 0,
+    },
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 // Gap #20 (admin permission tiers): the sidebar now reads the signed-in
 // user's role to decide which links a MODERATOR can see, so
 // useAuthStore must be mocked explicitly rather than left to hit the
@@ -72,7 +86,7 @@ describe('AdminSidebar', () => {
 
   // ── Renders all nav links ──────────────────────────────────────────
 
-  it('renders all 11 admin nav links in the desktop sidebar', () => {
+  it('renders all admin nav links in the desktop sidebar', () => {
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     expect(within(desktopNav).getByText('الرئيسية')).toBeInTheDocument();
@@ -81,11 +95,15 @@ describe('AdminSidebar', () => {
     expect(within(desktopNav).getByText('البائعون')).toBeInTheDocument();
     expect(within(desktopNav).getByText('المتاجر')).toBeInTheDocument();
     expect(within(desktopNav).getByText('البلاغات')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('مكافحة الاحتيال')).toBeInTheDocument();
     expect(within(desktopNav).getByText('فئات الإعلانات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('فئات الخدمات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('فئات المنتجات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('سجل العمليات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('المنتجات')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('الخدمات')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('صحة النظام')).toBeInTheDocument();
   });
 
   it('links to /admin/categories for the فئات الإعلانات item (report item #6 fix)', () => {

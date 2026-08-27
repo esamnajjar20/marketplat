@@ -28,6 +28,7 @@ export function BroadcastNotificationButton() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [audience, setAudience] = useState<'all' | 'sellers'>('all');
   const broadcast = useAdminBroadcastNotification();
 
   // UX-FIX P1-2: the inner ConfirmDialog was already pending-aware (via
@@ -115,7 +116,33 @@ export function BroadcastNotificationButton() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
+      
+        <div className="space-y-2 rounded-lg border bg-muted/40 p-3 text-sm">
+          <p className="font-medium text-muted-foreground">معاينة</p>
+          <p className="font-semibold">{title.trim() || '—'}</p>
+          <p className="text-muted-foreground whitespace-pre-wrap">{body.trim() || '—'}</p>
+          <p className="text-xs text-muted-foreground">
+            الجمهور: {audience === 'all' ? 'كل المستخدمين النشطين' : 'البائعون فقط (قريباً عبر allUsers)'}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={`rounded-md border px-3 py-1.5 text-xs ${audience === 'all' ? 'bg-primary text-primary-foreground' : ''}`}
+            onClick={() => setAudience('all')}
+          >
+            الكل
+          </button>
+          <button
+            type="button"
+            className={`rounded-md border px-3 py-1.5 text-xs ${audience === 'sellers' ? 'bg-primary text-primary-foreground' : ''}`}
+            onClick={() => setAudience('sellers')}
+          >
+            البائعون
+          </button>
+        </div>
+
+        <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="تأكيد الإرسال"

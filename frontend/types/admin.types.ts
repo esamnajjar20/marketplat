@@ -154,11 +154,12 @@ export interface AdminSeller {
 export interface AdminGetSellersParams extends PaginationParams {
   verified?:  boolean;
   suspended?: boolean;
+  verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
   q?: string;
 }
 
 export interface SetSellerVerifiedPayload  { verified:  boolean; }
-export interface SetSellerSuspendedPayload { suspended: boolean; }
+export interface SetSellerSuspendedPayload { suspended: boolean; reason?: string; }
 
 // ── Stores (audit report issue #1) ──────────────────────────────────
 // The report's finding: createStore requires admin approval (PENDING →
@@ -198,7 +199,7 @@ export interface AdminGetStoresParams extends PaginationParams {
   q?: string;
 }
 
-export interface UpdateStoreStatusPayload { status: AdminStoreStatus; }
+export interface UpdateStoreStatusPayload { status: AdminStoreStatus; reason?: string; }
 
 // FIX BUG-02: payload for the new plan-change admin endpoint.
 export interface UpdateStorePlanPayload { plan: AdminStorePlan; }

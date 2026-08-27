@@ -319,7 +319,7 @@ export const storesService = {
     void auditLog({
       event: AuditEvent.ADMIN_STORE_STATUS_CHANGED,
       userId: adminUserId,
-      details: { storeId: id, status: input.status },
+      details: { storeId: id, status: input.status, ...(input.reason ? { reason: input.reason } : {}) },
     });
 
     return updated;

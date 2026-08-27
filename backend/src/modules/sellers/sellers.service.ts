@@ -186,14 +186,15 @@ export const sellersService = {
     limit?: number;
     verified?: boolean;
     suspended?: boolean;
+    verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
     q?: string;
   }) => {
-    const { page = 1, limit = 20, verified, suspended, q } = query;
+    const { page = 1, limit = 20, verified, suspended, verificationStatus, q } = query;
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
-      sellersRepository.findMany({ skip, take: limit, verified, suspended, q }),
-      sellersRepository.count({ verified, suspended, q }),
+      sellersRepository.findMany({ skip, take: limit, verified, suspended, verificationStatus, q }),
+      sellersRepository.count({ verified, suspended, verificationStatus, q }),
     ]);
 
     return { items, meta: buildPaginationMeta(total, page, limit) };
@@ -236,7 +237,8 @@ export const sellersService = {
   setSuspension: async (
     sellerProfileId: string,
     suspended: boolean,
-    adminUserId?: string
+    adminUserId?: string,
+    reason?: string,
   ): Promise<SellerProfile> => {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
@@ -246,7 +248,7 @@ export const sellersService = {
     auditLog({
       event: AuditEvent.ADMIN_SELLER_SUSPENDED,
       userId: adminUserId,
-      details: { sellerProfileId, suspended },
+      details: { sellerProfileId, suspended, ...(reason ? { reason } : {}) },
     }).catch(() => {});
 
     return updated;

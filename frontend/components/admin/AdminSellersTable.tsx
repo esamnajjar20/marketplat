@@ -25,6 +25,7 @@ import { Input }         from '@/components/shared/ui/Input';
 import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -48,8 +49,16 @@ export function AdminSellersTable() {
   // accepts undefined, not an empty string). q itself stays '' for
   // the Input defaultValue below.
   const q      = sp.get('q') ?? '';
+  const VERIFICATION_VALUES = ['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED'] as const;
+  type VerificationFilter = (typeof VERIFICATION_VALUES)[number] | 'ALL';
+  const verificationParam = sp.get('verification') ?? 'ALL';
+  const verification: VerificationFilter =
+    verificationParam === 'ALL' ||
+    (VERIFICATION_VALUES as readonly string[]).includes(verificationParam)
+      ? (verificationParam as VerificationFilter)
+      : 'ALL';
 
-  const { data, isLoading, isError, error, refetch } = useAdminSellers({ page, q: q || undefined });
+  const { data, isLoading, isError, error, refetch } = useAdminSellers({ page, q: q || undefined, verificationStatus: verification === 'ALL' ? undefined : verification });
   const setVerified  = useAdminSetSellerVerified();
   const setSuspended = useAdminSetSellerSuspended();
   const bulkSetVerified  = useAdminBulkSetSellerVerified();
@@ -108,6 +117,19 @@ export function AdminSellersTable() {
 
   return (
     <div className="space-y-4">
+      <AdminFilterBar
+        searchParam="q"
+        searchPlaceholder="بحث عن بائع…"
+        tabParam="verification"
+        defaultTab="ALL"
+        tabs={[
+          { value: 'ALL', label: 'الكل' },
+          { value: 'PENDING', label: 'بانتظار التحقق' },
+          { value: 'VERIFIED', label: 'موثّق' },
+          { value: 'UNVERIFIED', label: 'غير موثّق' },
+          { value: 'REJECTED', label: 'مرفوض' },
+        ]}
+      />
       {/* FIX BUG-XX: see AdminUsersTable — key={q} forces a remount when
           `q` changes via browser back/forward, so the uncontrolled
           defaultValue doesn't go stale relative to the URL/results. */}
@@ -253,10 +275,12 @@ export function AdminSellersTable() {
         confirmLabel="إيقاف"
         destructive
         isPending={setSuspended.isPending}
-        onConfirm={() => {
+        requireReason
+        onConfirm={() => {}}
+        onConfirmWithReason={(reason) => {
           if (!suspendTarget) return;
           setSuspended.mutate(
-            { sellerProfileId: suspendTarget.id, suspended: true },
+            { sellerProfileId: suspendTarget.id, suspended: true, reason },
             { onSuccess: () => setSuspendTarget(null) },
           );
         }}
@@ -273,9 +297,11 @@ export function AdminSellersTable() {
         confirmLabel="إيقاف"
         destructive
         isPending={bulkSetSuspended.isPending}
-        onConfirm={() => {
+        requireReason
+        onConfirm={() => {}}
+        onConfirmWithReason={(reason) => {
           bulkSetSuspended.mutate(
-            { sellerProfileIds: Array.from(selectedIds), suspended: true },
+            { sellerProfileIds: Array.from(selectedIds), suspended: true, reason },
             {
               onSuccess: () => {
                 setSelectedIds(new Set());

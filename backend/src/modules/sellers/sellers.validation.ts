@@ -12,6 +12,9 @@ export const adminGetSellersSchema = z.object({
       .enum(['true', 'false'])
       .optional()
       .transform(v => (v === undefined ? undefined : v === 'true')),
+    verificationStatus: z
+      .enum(['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED'])
+      .optional(),
     suspended: z
       .enum(['true', 'false'])
       .optional()
@@ -78,6 +81,15 @@ export const suspendSellerSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Seller profile ID is required') }),
   body: z.object({
     suspended: z.boolean(),
+    reason: z.string().trim().min(3).max(500).optional(),
+  }).superRefine((body, ctx) => {
+    if (body.suspended && !body.reason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Reason is required when suspending a seller',
+        path: ['reason'],
+      });
+    }
   }),
 });
 
@@ -96,7 +108,19 @@ export const bulkVerifySellersSchema = z.object({
 });
 
 export const bulkSuspendSellersSchema = z.object({
-  body: z.object({ sellerProfileIds: bulkSellerIdsSchema, suspended: z.boolean() }),
+  body: z.object({
+    sellerProfileIds: bulkSellerIdsSchema,
+    suspended: z.boolean(),
+    reason: z.string().trim().min(3).max(500).optional(),
+  }).superRefine((body, ctx) => {
+    if (body.suspended && !body.reason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Reason is required when suspending sellers',
+        path: ['reason'],
+      });
+    }
+  }),
 });
 
 export type BulkVerifySellersInput = z.infer<typeof bulkVerifySellersSchema>['body'];

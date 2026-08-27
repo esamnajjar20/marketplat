@@ -39,7 +39,7 @@ let mockSearchParams = new URLSearchParams();
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockPush }),
 }));
 
 const mockUpdateStatusMutate = vi.fn();
@@ -212,16 +212,18 @@ describe('AdminStoresTable', () => {
       expect(mockUpdateStatusMutate).not.toHaveBeenCalled();
     });
 
-    it('confirming the dialog calls mutate with status: BLOCKED', async () => {
+    it('confirming the dialog calls mutate with status: BLOCKED and reason', async () => {
       mockStoresData([makeStore({ id: 'store-9', name: 'متجر تسعة', status: 'ACTIVE' })]);
       const user = setupUser();
       render(<AdminStoresTable />);
 
       await user.click(screen.getByLabelText('حظر متجر متجر تسعة'));
+      const reason = screen.getByLabelText(/السبب/);
+      await user.type(reason, 'محتوى مخالف');
       await user.click(screen.getByRole('button', { name: 'حظر' }));
 
       expect(mockUpdateStatusMutate).toHaveBeenCalledWith(
-        { storeId: 'store-9', status: 'BLOCKED' },
+        { storeId: 'store-9', status: 'BLOCKED', reason: 'محتوى مخالف' },
         expect.objectContaining({ onSuccess: expect.any(Function) }),
       );
     });

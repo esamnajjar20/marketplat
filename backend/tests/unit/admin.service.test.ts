@@ -678,4 +678,37 @@ describe('AdminService', () => {
       ).rejects.toThrow('This action conflicted with another operation, please try again');
     });
   });
+
+
+  describe('getOpsQueue', () => {
+    it('returns aggregated action counts', async () => {
+      jest.spyOn(prisma.report, 'count').mockResolvedValue(2);
+      jest.spyOn(prisma.storeDetails, 'count').mockResolvedValue(3);
+      jest.spyOn(prisma.sellerProfile, 'count').mockResolvedValue(1);
+      jest.spyOn(prisma.fraudSignal, 'count').mockResolvedValue(4);
+
+      const queue = await adminService.getOpsQueue();
+
+      expect(queue).toEqual({
+        openReports: 2,
+        pendingStores: 3,
+        pendingSellers: 1,
+        unreviewedFraud: 4,
+        total: 10,
+      });
+    });
+  });
+
+  describe('getSystemHealth', () => {
+    it('reports db ok when query succeeds', async () => {
+      jest.spyOn(prisma, '$queryRaw').mockResolvedValue([{ '?column?': 1 }] as any);
+      // redis may fail in unit env — we only assert shape
+      const health = await adminService.getSystemHealth();
+      expect(health).toHaveProperty('db');
+      expect(health).toHaveProperty('redis');
+      expect(health).toHaveProperty('checkedAt');
+      expect(health.db.ok).toBe(true);
+    });
+  });
+
 });

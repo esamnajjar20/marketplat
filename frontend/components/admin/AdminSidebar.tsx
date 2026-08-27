@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
+  HeartPulse } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
+import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 
@@ -20,16 +22,18 @@ const NAV_LINKS = [
   { href: ROUTES.admin.ads,               label: 'الإعلانات',      icon: ShoppingBag },
   { href: ROUTES.admin.users,             label: 'المستخدمون',     icon: Users,           tierRequired: 'ADMIN' as const },
   // EPIC 1.1: was entirely missing — see AdminSellersTable.tsx.
-  { href: ROUTES.admin.sellers,           label: 'البائعون',       icon: UserCheck,       tierRequired: 'ADMIN' as const },
+  { href: ROUTES.admin.sellers,           label: 'البائعون',       icon: UserCheck,       tierRequired: 'ADMIN' as const, badgeKey: 'pendingSellers' as const },
   // AUDIT-FIX (issue #1): was entirely missing — see AdminStoresTable.tsx.
   // Without this link, POST /stores had a working PENDING→ACTIVE
   // transition server-side but zero discoverable path to it.
-  { href: ROUTES.admin.stores,            label: 'المتاجر',        icon: Store,           tierRequired: 'ADMIN' as const },
-  { href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag },
+  { href: ROUTES.admin.stores,            label: 'المتاجر',        icon: Store,           tierRequired: 'ADMIN' as const, badgeKey: 'pendingStores' as const },
+  { href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag, badgeKey: 'openReports' as const },
   // FRAUD-UI: fraud.routes.ts gates /admin/fraud at MODERATOR+ (same
   // tier as ads/reports above), same backend requireMinRole call —
   // no tierRequired, so a MODERATOR sees this link too.
-  { href: ROUTES.admin.fraud,             label: 'مكافحة الاحتيال', icon: ShieldAlert },
+  { href: ROUTES.admin.fraud,             label: 'مكافحة الاحتيال', icon: ShieldAlert, badgeKey: 'unreviewedFraud' as const },
+  { href: ROUTES.admin.products,          label: 'المنتجات',       icon: Package },
+  { href: ROUTES.admin.serviceListings,   label: 'الخدمات',        icon: Wrench },
   { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree,      tierRequired: 'ADMIN' as const },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
   { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench,          tierRequired: 'ADMIN' as const },
@@ -41,11 +45,13 @@ const NAV_LINKS = [
   // Gap #7 (product analytics): GET /admin/analytics/summary — see
   // AdminAnalyticsDashboard.tsx.
   { href: ROUTES.admin.analytics,         label: 'التحليلات',      icon: BarChart3,       tierRequired: 'ADMIN' as const },
+  { href: ROUTES.admin.system,            label: 'صحة النظام',     icon: HeartPulse,      tierRequired: 'ADMIN' as const },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const user     = useAuthStore(selectUser);
+  const { data: queue } = useAdminOpsQueue();
   // A MODERATOR only sees links with no tierRequired (ads/reports);
   // ADMIN and SUPER_ADMIN see everything — mirrors the backend's own
   // requireMinRole(ADMIN) gate on every tierRequired route.
@@ -57,8 +63,13 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-4">
         لوحة الإدارة
       </p>
-      {links.map(({ href, label, icon: Icon }) => {
+      {links.map((link) => {
+        const { href, label, icon: Icon } = link;
         const isActive = pathname === href || pathname.startsWith(href + '/');
+        const badgeKey = 'badgeKey' in link ? (link.badgeKey as
+          'openReports' | 'pendingStores' | 'pendingSellers' | 'unreviewedFraud' | undefined) : undefined;
+        const badge =
+          badgeKey && queue && typeof queue[badgeKey] === 'number' ? queue[badgeKey] : 0;
         return (
           <Link
             key={href}
@@ -73,7 +84,19 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             )}
           >
             <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {label}
+            <span className="flex-1">{label}</span>
+            {badge > 0 && (
+              <span
+                className={cn(
+                  'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums',
+                  isActive
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-destructive text-destructive-foreground',
+                )}
+              >
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
           </Link>
         );
       })}

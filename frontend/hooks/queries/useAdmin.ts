@@ -125,6 +125,16 @@ export function useAdminAuditLogs(params?: AdminGetAuditLogsParams) {
  * viewsToday was hardcoded to 0. Now a single request to a dedicated
  * endpoint that computes each figure correctly server-side.
  */
+/** GET /admin/ops-queue — work items needing action (badges + dashboard). */
+export function useAdminOpsQueue() {
+  return useQuery({
+    queryKey: queryKeys.admin.opsQueue(),
+    queryFn: () => adminApi.getOpsQueue().then((r) => r.data.data),
+    staleTime: CACHE_TTL.adminList ?? 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
 export function useAdminStats() {
   return useQuery({
     queryKey:  queryKeys.admin.stats(),
@@ -171,5 +181,40 @@ export function useAdminAnalyticsSummary(params?: GetAnalyticsSummaryParams) {
     queryKey:  queryKeys.admin.analyticsSummary(params),
     queryFn:   () => analyticsApi.getSummary(params),
     staleTime: CACHE_TTL.adminAnalytics,
+  });
+}
+
+export function useAdminProducts(params?: { page?: number; limit?: number; status?: string; q?: string }) {
+  return useQuery({
+    queryKey: ['admin', 'products', params ?? {}],
+    queryFn: () => adminApi.getAdminProducts(params).then((r) => r.data),
+    staleTime: CACHE_TTL.adminList ?? 30_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminServiceListings(params?: { page?: number; limit?: number; status?: string; q?: string }) {
+  return useQuery({
+    queryKey: ['admin', 'service-listings', params ?? {}],
+    queryFn: () => adminApi.getAdminServiceListings(params).then((r) => r.data),
+    staleTime: CACHE_TTL.adminList ?? 30_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminPlatformTrends(days = 30) {
+  return useQuery({
+    queryKey: ['admin', 'trends', days],
+    queryFn: () => adminApi.getPlatformTrends(days).then((r) => r.data.data),
+    staleTime: CACHE_TTL.adminAnalytics ?? 120_000,
+  });
+}
+
+export function useAdminSystemHealth() {
+  return useQuery({
+    queryKey: ['admin', 'system-health'],
+    queryFn: () => adminApi.getSystemHealth().then((r) => r.data.data),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 }

@@ -286,8 +286,8 @@ export function useAdminSetSellerVerified() {
 export function useAdminSetSellerSuspended() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: ({ sellerProfileId, suspended }: { sellerProfileId: string; suspended: boolean }) =>
-      adminApi.setSellerSuspended(sellerProfileId, { suspended }).then((r) => r.data.data),
+    mutationFn: ({ sellerProfileId, suspended, reason }: { sellerProfileId: string; suspended: boolean; reason?: string }) =>
+      adminApi.setSellerSuspended(sellerProfileId, { suspended, reason }).then((r) => r.data.data),
     onMutate: async ({ sellerProfileId, suspended }) => {
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminSeller>>({
         queryKey: ['admin', 'sellers'],
@@ -338,8 +338,8 @@ export function useAdminBulkSetSellerVerified() {
 export function useAdminBulkSetSellerSuspended() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ sellerProfileIds, suspended }: { sellerProfileIds: string[]; suspended: boolean }) =>
-      adminApi.bulkSetSellerSuspended(sellerProfileIds, suspended).then((r) => r.data),
+    mutationFn: ({ sellerProfileIds, suspended, reason }: { sellerProfileIds: string[]; suspended: boolean; reason?: string }) =>
+      adminApi.bulkSetSellerSuspended(sellerProfileIds, suspended, reason).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('بائع', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
@@ -400,8 +400,8 @@ export function useAdminChangeRole() {
 export function useAdminUpdateStoreStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ storeId, status }: { storeId: string; status: 'PENDING' | 'ACTIVE' | 'BLOCKED' }) =>
-      adminApi.updateStoreStatus(storeId, { status }).then((r) => r.data.data),
+    mutationFn: ({ storeId, status, reason }: { storeId: string; status: 'ACTIVE' | 'PENDING' | 'BLOCKED'; reason?: string }) =>
+      adminApi.updateStoreStatus(storeId, { status, reason }).then((r) => r.data.data),
     onMutate: async ({ storeId, status }) => {
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
         queryKey: ['admin', 'stores'],
@@ -480,8 +480,8 @@ export function useAdminUpdateStorePlan() {
 export function useAdminBulkUpdateStoreStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ storeIds, status }: { storeIds: string[]; status: 'PENDING' | 'ACTIVE' | 'BLOCKED' }) =>
-      adminApi.bulkUpdateStoreStatus(storeIds, status).then((r) => r.data),
+    mutationFn: ({ storeIds, status, reason }: { storeIds: string[]; status: 'ACTIVE' | 'PENDING' | 'BLOCKED'; reason?: string }) =>
+      adminApi.bulkUpdateStoreStatus(storeIds, status, reason).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('متجر', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
@@ -614,5 +614,27 @@ export function useAdminReviewFraudSignal() {
       toast.success('تم تأكيد مراجعة الإشارة');
     },
     onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+export function useAdminSetProductStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, reason }: { id: string; status: string; reason?: string }) =>
+      adminApi.setProductStatus(id, { status, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+    },
+  });
+}
+
+export function useAdminSetServiceListingStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, reason }: { id: string; status: string; reason?: string }) =>
+      adminApi.setServiceListingStatus(id, { status, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'service-listings'] });
+    },
   });
 }

@@ -243,7 +243,10 @@ describe('sellersController', () => {
 
   describe('suspendSeller', () => {
     it('returns 200 with the updated profile on success', async () => {
-      const req = mockRequest({ params: { id: 'seller-profile-1' }, body: { suspended: true } });
+      const req = mockRequest({
+        params: { id: 'seller-profile-1' },
+        body: { suspended: true, reason: 'سياسة المنصة' },
+      });
       const res = mockResponse();
       const next = mockNext();
       (sellersService.setSuspension as jest.Mock).mockResolvedValue({
@@ -254,7 +257,23 @@ describe('sellersController', () => {
       await sellersController.suspendSeller(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(sellersService.setSuspension).toHaveBeenCalledWith('seller-profile-1', true, 'user-1');
+      expect(sellersService.setSuspension).toHaveBeenCalledWith(
+        'seller-profile-1',
+        true,
+        'user-1',
+        'سياسة المنصة',
+      );
+    });
+
+    it('calls next(error) when suspending without a reason', async () => {
+      const req = mockRequest({ params: { id: 'seller-profile-1' }, body: { suspended: true } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await sellersController.suspendSeller(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(sellersService.setSuspension).not.toHaveBeenCalled();
     });
 
     it('calls next(error) when suspended is not a boolean', async () => {
@@ -269,7 +288,10 @@ describe('sellersController', () => {
     });
 
     it('calls next(error) when the service throws NotFoundError', async () => {
-      const req = mockRequest({ params: { id: 'missing' }, body: { suspended: true } });
+      const req = mockRequest({
+        params: { id: 'missing' },
+        body: { suspended: true, reason: 'سبب الاختبار' },
+      });
       const res = mockResponse();
       const next = mockNext();
       (sellersService.setSuspension as jest.Mock).mockRejectedValue(

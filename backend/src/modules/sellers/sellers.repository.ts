@@ -38,6 +38,7 @@ export const sellersRepository = {
     take: number;
     verified?: boolean;
     suspended?: boolean;
+    verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
     q?: string;
   }): Promise<
     Array<SellerProfile & { user: { id: string; name: string; email: string } }>
@@ -46,6 +47,7 @@ export const sellersRepository = {
       where: {
         ...(params.verified !== undefined && { verified: params.verified }),
         ...(params.suspended !== undefined && { suspended: params.suspended }),
+        ...(params.verificationStatus !== undefined && { verificationStatus: params.verificationStatus }),
         // Same tradeoff noted in admin.service.ts's getAllAds/getAllUsers:
         // no index covers this pattern-match, acceptable for a
         // low-QPS admin-only endpoint.
@@ -63,11 +65,17 @@ export const sellersRepository = {
       take: params.take,
     }),
 
-  count: (params: { verified?: boolean; suspended?: boolean; q?: string }): Promise<number> =>
+  count: (params: {
+    verified?: boolean;
+    suspended?: boolean;
+    verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+    q?: string;
+  }): Promise<number> =>
     prisma.sellerProfile.count({
       where: {
         ...(params.verified !== undefined && { verified: params.verified }),
         ...(params.suspended !== undefined && { suspended: params.suspended }),
+        ...(params.verificationStatus !== undefined && { verificationStatus: params.verificationStatus }),
         ...(params.q && {
           OR: [
             { displayName: { contains: params.q, mode: 'insensitive' as const } },

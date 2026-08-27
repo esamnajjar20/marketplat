@@ -21,6 +21,20 @@ adminRouter.use(authenticate);
 // Dashboard stats — FIX FEAT-05. ADMIN+ rather than MODERATOR+: the
 // response includes totalUsers/activeUsers, the same user-management
 // data the /users routes below are gated on.
+
+// Catalog moderation (products + service listings)
+adminRouter.get('/products', requireMinRole(ROLES.MODERATOR), adminController.getAdminProducts);
+adminRouter.patch('/products/:id/status', requireMinRole(ROLES.MODERATOR), adminController.setProductStatus);
+adminRouter.get('/service-listings', requireMinRole(ROLES.MODERATOR), adminController.getAdminServiceListings);
+adminRouter.patch('/service-listings/:id/status', requireMinRole(ROLES.MODERATOR), adminController.setServiceListingStatus);
+
+
+adminRouter.get('/trends', requireMinRole(ROLES.ADMIN), adminController.getPlatformTrends);
+adminRouter.get('/system-health', requireMinRole(ROLES.ADMIN), adminController.getSystemHealth);
+adminRouter.get('/export/users.csv', requireMinRole(ROLES.ADMIN), adminController.exportUsersCsv);
+adminRouter.get('/export/reports.csv', requireMinRole(ROLES.ADMIN), adminController.exportReportsCsv);
+
+adminRouter.get('/ops-queue', requireMinRole(ROLES.MODERATOR), adminController.getOpsQueue);
 adminRouter.get('/stats', requireMinRole(ROLES.ADMIN), adminController.getStats);
 
 // Ads management — MODERATOR+ (Gap #20: ads moderation is explicitly
@@ -132,4 +146,3 @@ adminRouter.patch('/stores/:id/plan', requireMinRole(ROLES.ADMIN), storesControl
 // ADMIN+ (Gap #20: a mass broadcast to users is outside the MODERATOR
 // tier).
 adminRouter.post('/notifications/broadcast', requireMinRole(ROLES.ADMIN), adminController.broadcastNotification);
-adminRouter.get('/notifications/stats', requireMinRole(ROLES.ADMIN), adminController.getNotificationStats);

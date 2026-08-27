@@ -183,12 +183,27 @@ describe('stores.validation', () => {
   });
 
   describe('updateStoreStatusSchema', () => {
-    it('accepts PENDING, ACTIVE, and BLOCKED', () => {
-      for (const status of ['PENDING', 'ACTIVE', 'BLOCKED']) {
+    it('accepts PENDING and ACTIVE without a reason', () => {
+      for (const status of ['PENDING', 'ACTIVE']) {
         expect(() =>
           updateStoreStatusSchema.parse({ params: { id: 'store-1' }, body: { status } })
         ).not.toThrow();
       }
+    });
+
+    it('accepts BLOCKED when a reason is provided', () => {
+      expect(() =>
+        updateStoreStatusSchema.parse({
+          params: { id: 'store-1' },
+          body: { status: 'BLOCKED', reason: 'محتوى مخالف' },
+        })
+      ).not.toThrow();
+    });
+
+    it('rejects BLOCKED without a reason', () => {
+      expect(() =>
+        updateStoreStatusSchema.parse({ params: { id: 'store-1' }, body: { status: 'BLOCKED' } })
+      ).toThrow();
     });
 
     it('rejects an invalid status value', () => {

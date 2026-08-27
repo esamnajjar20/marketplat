@@ -57,6 +57,45 @@ export const adminApi = {
    * workaround of firing getAds/getUsers/getReports with limit=1 just
    * to read each response's meta.total.
    */
+  
+  getAdminProducts: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
+    apiClient.get('/admin/products', { params }),
+
+  setProductStatus: (id: string, body: { status: string; reason?: string }) =>
+    apiClient.patch(`/admin/products/${id}/status`, body),
+
+  getAdminServiceListings: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
+    apiClient.get('/admin/service-listings', { params }),
+
+  setServiceListingStatus: (id: string, body: { status: string; reason?: string }) =>
+    apiClient.patch(`/admin/service-listings/${id}/status`, body),
+
+  
+  getPlatformTrends: (days?: number) =>
+    apiClient.get('/admin/trends', { params: { days } }),
+
+  getSystemHealth: () => apiClient.get('/admin/system-health'),
+
+  exportUsersCsv: () =>
+    apiClient.get('/admin/export/users.csv', { responseType: 'blob' }),
+
+  exportReportsCsv: () =>
+    apiClient.get('/admin/export/reports.csv', { responseType: 'blob' }),
+
+  getNotificationStats: (params?: { days?: number }) =>
+    apiClient.get('/admin/notifications/stats', { params }),
+
+  getOpsQueue: () =>
+    apiClient.get<
+      ApiResponse<{
+        openReports: number;
+        pendingStores: number;
+        pendingSellers: number;
+        unreviewedFraud: number;
+        total: number;
+      }>
+    >('/admin/ops-queue'),
+
   getStats: () =>
     apiClient.get<ApiResponse<AdminStats>>('/admin/stats'),
 
@@ -136,10 +175,11 @@ export const adminApi = {
       verified,
     }),
 
-  bulkSetSellerSuspended: (sellerProfileIds: string[], suspended: boolean) =>
+  bulkSetSellerSuspended: (sellerProfileIds: string[], suspended: boolean, reason?: string) =>
     apiClient.patch<BulkApiResponse<AdminSeller>>('/admin/sellers/bulk/suspend', {
       sellerProfileIds,
       suspended,
+      reason,
     }),
 
   // ── Stores (audit report issue #1) ───────────────────────────────
@@ -158,8 +198,8 @@ export const adminApi = {
     apiClient.patch<ApiResponse<AdminStore>>(`/admin/stores/${storeId}/status`, payload),
 
   // BULK-ADMIN (item 17): backend PATCH /admin/stores/bulk/status.
-  bulkUpdateStoreStatus: (storeIds: string[], status: UpdateStoreStatusPayload['status']) =>
-    apiClient.patch<BulkApiResponse<AdminStore>>('/admin/stores/bulk/status', { storeIds, status }),
+  bulkUpdateStoreStatus: (storeIds: string[], status: UpdateStoreStatusPayload['status'], reason?: string) =>
+    apiClient.patch<BulkApiResponse<AdminStore>>('/admin/stores/bulk/status', { storeIds, status, reason }),
 
   // FIX BUG-02: StorePlan.FEATURED was rendered across the store UI
   // (StoreHeader/StoreCard/MyStoreCard/FeaturedStoresSection) but no
@@ -245,16 +285,4 @@ export const adminApi = {
 
   reviewFraudSignal: (signalId: string) =>
     apiClient.patch<ApiResponse<FraudSignal>>(`/admin/fraud/signals/${signalId}/review`),
-
-  /** GET /admin/notifications/stats — volume by type + read rate. */
-  getNotificationStats: (params?: { days?: number }) =>
-    apiClient.get<
-      ApiResponse<{
-        days: number;
-        total: number;
-        unread: number;
-        readRate: number | null;
-        byType: { type: string; count: number }[];
-      }>
-    >('/admin/notifications/stats', { params }),
 };

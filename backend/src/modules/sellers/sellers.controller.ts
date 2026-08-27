@@ -121,7 +121,7 @@ export const sellersController = {
     try {
       const admin = requireUser(req);
       const { params, body } = suspendSellerSchema.parse({ params: req.params, body: req.body });
-      const profile = await sellersService.setSuspension(params.id, body.suspended, admin.userId);
+      const profile = await sellersService.setSuspension(params.id, body.suspended, admin.userId, body.reason);
       res.status(200).json(successResponse('Seller suspension updated', profile));
     } catch (error) {
       next(error);

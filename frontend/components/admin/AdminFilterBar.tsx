@@ -1,0 +1,120 @@
+'use client';
+
+/**
+ * Shared admin list filter chrome: search + status/segment tabs, always
+ * synced to the URL so deep links from the ops queue work and refresh
+ * keeps the same view.
+ */
+
+import { useCallback, useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Search } from 'lucide-react';
+import { Input } from '@/components/shared/ui/Input';
+import { cn } from '@/lib/utils';
+
+export type AdminFilterTab = {
+  value: string;
+  label: string;
+};
+
+type Props = {
+  /** Query param for the free-text search (default `q`). */
+  searchParam?: string;
+  searchPlaceholder?: string;
+  /** Query param for the active tab (default `status`). */
+  tabParam?: string;
+  tabs: AdminFilterTab[];
+  /** When URL has no tab value, use this. */
+  defaultTab: string;
+  className?: string;
+};
+
+export function AdminFilterBar({
+  searchParam = 'q',
+  searchPlaceholder = 'بحث…',
+  tabParam = 'status',
+  tabs,
+  defaultTab,
+  className,
+}: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const sp = useSearchParams();
+
+  const urlSearch = sp.get(searchParam) ?? '';
+  const urlTab = sp.get(tabParam) ?? defaultTab;
+
+  const [search, setSearch] = useState(urlSearch);
+
+  useEffect(() => {
+    setSearch(urlSearch);
+  }, [urlSearch]);
+
+  const replaceParams = useCallback(
+    (patch: Record<string, string | null>) => {
+      const next = new URLSearchParams(sp.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === null || v === '') next.delete(k);
+        else next.set(k, v);
+      }
+      // Reset page when filters change
+      if ('page' in patch === false) next.delete('page');
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, sp],
+  );
+
+  // Debounce search → URL
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (search === urlSearch) return;
+      replaceParams({ [searchParam]: search.trim() || null });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search, urlSearch, replaceParams, searchParam]);
+
+  return (
+    <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between', className)}>
+      <div className="relative w-full sm:max-w-xs">
+        <Search className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={searchPlaceholder}
+          className="ps-9"
+          aria-label={searchPlaceholder}
+        />
+      </div>
+      <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
+        {tabs.map((tab) => {
+          const active = urlTab === tab.value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => replaceParams({ [tabParam]: tab.value === defaultTab ? tab.value : tab.value })}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm',
+                active
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Horizontal scroll wrapper for wide admin tables on small screens. */
+export function AdminTableScroll({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn('w-full overflow-x-auto rounded-lg border', className)}>
+      <div className="min-w-[640px]">{children}</div>
+    </div>
+  );
+}

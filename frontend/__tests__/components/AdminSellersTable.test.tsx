@@ -43,7 +43,7 @@ let mockSearchParams = new URLSearchParams();
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockPush }),
 }));
 
 const mockSetVerifiedMutate = vi.fn();
@@ -224,18 +224,30 @@ describe('AdminSellersTable', () => {
       expect(mockSetSuspendedMutate).not.toHaveBeenCalled();
     });
 
-    it('confirming the dialog calls setSuspended.mutate with suspended: true', async () => {
+    it('confirming the dialog calls setSuspended.mutate with suspended: true and reason', async () => {
       mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', suspended: false })]);
       const user = setupUser();
       render(<AdminSellersTable />);
 
       await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
+      const reason = screen.getByLabelText(/السبب/);
+      await user.type(reason, 'مخالفة السياسات');
       await user.click(screen.getByRole('button', { name: 'إيقاف' }));
 
       expect(mockSetSuspendedMutate).toHaveBeenCalledWith(
-        { sellerProfileId: 'seller-9', suspended: true },
+        { sellerProfileId: 'seller-9', suspended: true, reason: 'مخالفة السياسات' },
         expect.objectContaining({ onSuccess: expect.any(Function) }),
       );
+    });
+
+    it('does not suspend when confirm is clicked without a reason', async () => {
+      mockSellersData([makeSeller({ id: 'seller-9', displayName: 'بائع تسعة', suspended: false })]);
+      const user = setupUser();
+      render(<AdminSellersTable />);
+
+      await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
+      expect(screen.getByRole('button', { name: 'إيقاف' })).toBeDisabled();
+      expect(mockSetSuspendedMutate).not.toHaveBeenCalled();
     });
 
     it('cancelling the dialog does not suspend', async () => {

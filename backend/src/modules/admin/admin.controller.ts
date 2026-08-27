@@ -39,6 +39,116 @@ export const adminController = {
     }
   },
 
+
+  getAdminProducts: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const status = req.query.status as 'ACTIVE' | 'PAUSED' | 'DELETED' | undefined;
+      const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+      const result = await adminService.getAdminProducts({ page, limit, status, q });
+      res.status(200).json(successResponse('Products fetched', result.items, {
+        pagination: result.meta,
+      }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  setProductStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const status = req.body?.status as 'ACTIVE' | 'PAUSED' | 'DELETED';
+      const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+      const product = await adminService.setProductStatus(req.params.id, status, user.userId, reason);
+      res.status(200).json(successResponse('Product status updated', product));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getAdminServiceListings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const status = req.query.status as 'ACTIVE' | 'PAUSED' | 'DELETED' | undefined;
+      const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+      const result = await adminService.getAdminServiceListings({ page, limit, status, q });
+      res.status(200).json(successResponse('Service listings fetched', result.items, {
+        pagination: result.meta,
+      }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  setServiceListingStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const status = req.body?.status as 'ACTIVE' | 'PAUSED' | 'DELETED';
+      const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+      const listing = await adminService.setServiceListingStatus(
+        req.params.id,
+        status,
+        user.userId,
+        reason,
+      );
+      res.status(200).json(successResponse('Service listing status updated', listing));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+
+  getPlatformTrends: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const days = req.query.days ? Number(req.query.days) : 30;
+      const result = await adminService.getPlatformTrends(days);
+      res.status(200).json(successResponse('Platform trends', result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getSystemHealth: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await adminService.getSystemHealth();
+      res.status(200).json(successResponse('System health', result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  exportUsersCsv: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const csv = await adminService.exportUsersCsv();
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="users.csv"');
+      res.status(200).send(csv);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  exportReportsCsv: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const csv = await adminService.exportReportsCsv();
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="reports.csv"');
+      res.status(200).send(csv);
+    } catch (error) {
+      next(error);
+    }
+  },
+  getOpsQueue: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const queue = await adminService.getOpsQueue();
+      res.status(200).json(successResponse('Ops queue fetched', queue));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getAllAds: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { query } = adminGetAdsSchema.parse({ query: req.query });
@@ -266,17 +376,4 @@ export const adminController = {
       next(error);
     }
   },
-  getNotificationStats: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const daysRaw = req.query.days;
-      const days = typeof daysRaw === 'string' && daysRaw ? Number(daysRaw) : 30;
-      const stats = await notificationsService.getAdminStats(
-        Number.isFinite(days) && days > 0 ? Math.min(days, 90) : 30,
-      );
-      res.status(200).json(successResponse('Notification stats fetched', stats));
-    } catch (error) {
-      next(error);
-    }
-  },
-
 };

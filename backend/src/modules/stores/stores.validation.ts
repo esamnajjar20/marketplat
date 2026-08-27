@@ -106,6 +106,15 @@ export const updateStoreStatusSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),
   body: z.object({
     status: z.nativeEnum(StoreStatus),
+    reason: z.string().trim().min(3).max(500).optional(),
+  }).superRefine((body, ctx) => {
+    if (body.status === 'BLOCKED' && !body.reason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Reason is required when blocking a store',
+        path: ['reason'],
+      });
+    }
   }),
 });
 
@@ -132,7 +141,19 @@ export type UpdateStorePlanInput = z.infer<typeof updateStorePlanSchema>['body']
 const bulkStoreIdsSchema = z.array(z.string().min(1)).min(1, 'At least one id is required').max(100);
 
 export const bulkUpdateStoreStatusSchema = z.object({
-  body: z.object({ storeIds: bulkStoreIdsSchema, status: z.nativeEnum(StoreStatus) }),
+  body: z.object({
+    storeIds: bulkStoreIdsSchema,
+    status: z.nativeEnum(StoreStatus),
+    reason: z.string().trim().min(3).max(500).optional(),
+  }).superRefine((body, ctx) => {
+    if (body.status === 'BLOCKED' && !body.reason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Reason is required when blocking stores',
+        path: ['reason'],
+      });
+    }
+  }),
 });
 
 export type BulkUpdateStoreStatusInput = z.infer<typeof bulkUpdateStoreStatusSchema>['body'];

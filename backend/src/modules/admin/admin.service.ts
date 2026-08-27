@@ -559,4 +559,290 @@ export const adminService = {
     const users = await prisma.user.findMany({ where: { isActive: true }, select: { id: true } });
     return users.map((u) => u.id);
   },
+
+  /**
+   * Ops queue counts for the admin dashboard / sidebar badges —
+   * items that need human action right now (not historical totals).
+   */
+
+  /** Admin catalog moderation — products across all stores. */
+  getAdminProducts: async (query: {
+    page?: number;
+    limit?: number;
+    status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
+    q?: string;
+  }) => {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const where: Prisma.ProductWhereInput = {
+      ...(query.status ? { status: query.status } : { status: { not: 'DELETED' } }),
+      ...(query.q
+        ? { name: { contains: query.q, mode: 'insensitive' as const } }
+        : {}),
+    };
+    const [items, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          status: true,
+          createdAt: true,
+          storeId: true,
+          store: { select: { id: true, name: true, slug: true } },
+        },
+      }),
+      prisma.product.count({ where }),
+    ]);
+    return { items, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  setProductStatus: async (
+    productId: string,
+    status: 'ACTIVE' | 'PAUSED' | 'DELETED',
+    adminUserId: string,
+    reason?: string,
+  ) => {
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    const updated = await prisma.product.update({
+      where: { id: productId },
+      data: { status },
+    });
+    auditLog({
+      event: AuditEventType.ADMIN_AD_DELETED, // closest existing event; details carry product
+      userId: adminUserId,
+      details: { productId, status, reason: reason ?? null, kind: 'product' },
+    }).catch(() => {});
+    return updated;
+  },
+
+  getAdminServiceListings: async (query: {
+    page?: number;
+    limit?: number;
+    status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
+    q?: string;
+  }) => {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const where: Prisma.ServiceListingWhereInput = {
+      ...(query.status ? { status: query.status } : { status: { not: 'DELETED' } }),
+      ...(query.q
+        ? { title: { contains: query.q, mode: 'insensitive' as const } }
+        : {}),
+    };
+    const [items, total] = await Promise.all([
+      prisma.serviceListing.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          price: true,
+          status: true,
+          createdAt: true,
+          providerId: true,
+          provider: {
+            select: {
+              id: true,
+              businessName: true,
+              sellerProfileId: true,
+            },
+          },
+        },
+      }),
+      prisma.serviceListing.count({ where }),
+    ]);
+    return { items, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  setServiceListingStatus: async (
+    listingId: string,
+    status: 'ACTIVE' | 'PAUSED' | 'DELETED',
+    adminUserId: string,
+    reason?: string,
+  ) => {
+    const listing = await prisma.serviceListing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+    const updated = await prisma.serviceListing.update({
+      where: { id: listingId },
+      data: { status },
+    });
+    auditLog({
+      event: AuditEventType.ADMIN_AD_DELETED,
+      userId: adminUserId,
+      details: { listingId, status, reason: reason ?? null, kind: 'service_listing' },
+    }).catch(() => {});
+    return updated;
+  },
+
+
+  /**
+   * Daily counts for users / ads / reports over the last N days —
+   * powers the admin trend bars without a charting library.
+   */
+  getPlatformTrends: async (days = 30): Promise<{
+    days: number;
+    series: Array<{ date: string; users: number; ads: number; reports: number }>;
+  }> => {
+    const safeDays = Math.min(90, Math.max(7, days));
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (safeDays - 1));
+
+    const [userRows, adRows, reportRows] = await Promise.all([
+      prisma.$queryRaw<Array<{ d: Date; c: bigint }>>`
+        SELECT date_trunc('day', "createdAt") AS d, COUNT(*)::bigint AS c
+        FROM users WHERE "createdAt" >= ${start}
+        GROUP BY 1 ORDER BY 1`,
+      prisma.$queryRaw<Array<{ d: Date; c: bigint }>>`
+        SELECT date_trunc('day', "createdAt") AS d, COUNT(*)::bigint AS c
+        FROM ads WHERE "createdAt" >= ${start}
+        GROUP BY 1 ORDER BY 1`,
+      prisma.$queryRaw<Array<{ d: Date; c: bigint }>>`
+        SELECT date_trunc('day', "createdAt") AS d, COUNT(*)::bigint AS c
+        FROM reports WHERE "createdAt" >= ${start}
+        GROUP BY 1 ORDER BY 1`,
+    ]);
+
+    const mapCount = (rows: Array<{ d: Date; c: bigint }>) => {
+      const m = new Map<string, number>();
+      for (const r of rows) {
+        const key = new Date(r.d).toISOString().slice(0, 10);
+        m.set(key, Number(r.c));
+      }
+      return m;
+    };
+    const uMap = mapCount(userRows);
+    const aMap = mapCount(adRows);
+    const rMap = mapCount(reportRows);
+
+    const series: Array<{ date: string; users: number; ads: number; reports: number }> = [];
+    for (let i = 0; i < safeDays; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      series.push({
+        date: key,
+        users: uMap.get(key) ?? 0,
+        ads: aMap.get(key) ?? 0,
+        reports: rMap.get(key) ?? 0,
+      });
+    }
+    return { days: safeDays, series };
+  },
+
+  getSystemHealth: async (): Promise<{
+    redis: { ok: boolean; latencyMs: number | null; error?: string };
+    db: { ok: boolean; latencyMs: number | null; error?: string };
+    checkedAt: string;
+  }> => {
+    const checkedAt = new Date().toISOString();
+    let redisOk = false;
+    let redisMs: number | null = null;
+    let redisErr: string | undefined;
+    try {
+      const { redis } = await import('../../config/redis');
+      const t0 = Date.now();
+      await redis.ping();
+      redisMs = Date.now() - t0;
+      redisOk = true;
+    } catch (e) {
+      redisErr = e instanceof Error ? e.message : 'redis unreachable';
+    }
+    let dbOk = false;
+    let dbMs: number | null = null;
+    let dbErr: string | undefined;
+    try {
+      const t0 = Date.now();
+      await prisma.$queryRaw`SELECT 1`;
+      dbMs = Date.now() - t0;
+      dbOk = true;
+    } catch (e) {
+      dbErr = e instanceof Error ? e.message : 'db unreachable';
+    }
+    return {
+      redis: { ok: redisOk, latencyMs: redisMs, error: redisErr },
+      db: { ok: dbOk, latencyMs: dbMs, error: dbErr },
+      checkedAt,
+    };
+  },
+
+  exportUsersCsv: async (): Promise<string> => {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+    const header = 'id,email,name,role,isActive,createdAt';
+    const lines = users.map((u) =>
+      [u.id, u.email, JSON.stringify(u.name ?? ''), u.role, u.isActive, u.createdAt.toISOString()].join(','),
+    );
+    return [header, ...lines].join('\n');
+  },
+
+  exportReportsCsv: async (): Promise<string> => {
+    const reports = await prisma.report.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+      select: {
+        id: true,
+        reason: true,
+        status: true,
+        targetType: true,
+        targetId: true,
+        userId: true,
+        notes: true,
+        createdAt: true,
+      },
+    });
+    const header = 'id,reason,status,targetType,targetId,userId,notes,createdAt';
+    const lines = reports.map((r) =>
+      [
+        r.id,
+        r.reason,
+        r.status,
+        r.targetType,
+        r.targetId,
+        r.userId,
+        JSON.stringify(r.notes ?? ''),
+        r.createdAt.toISOString(),
+      ].join(','),
+    );
+    return [header, ...lines].join('\n');
+  },
+
+  getOpsQueue: async (): Promise<{
+    openReports: number;
+    pendingStores: number;
+    pendingSellers: number;
+    unreviewedFraud: number;
+    total: number;
+  }> => {
+    const [openReports, pendingStores, pendingSellers, unreviewedFraud] = await Promise.all([
+      prisma.report.count({ where: { status: 'PENDING' } }),
+      prisma.storeDetails.count({ where: { status: 'PENDING' } }),
+      prisma.sellerProfile.count({ where: { verificationStatus: 'PENDING' } }),
+      prisma.fraudSignal.count({ where: { reviewed: false } }),
+    ]);
+    const total = openReports + pendingStores + pendingSellers + unreviewedFraud;
+    return { openReports, pendingStores, pendingSellers, unreviewedFraud, total };
+  },
+
+
 };

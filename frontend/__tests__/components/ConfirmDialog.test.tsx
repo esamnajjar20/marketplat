@@ -162,4 +162,29 @@ describe('ConfirmDialog', () => {
     const confirmBtn = screen.getByRole('button', { name: 'تأكيد' });
     expect(confirmBtn.className).not.toContain('destructive');
   });
+
+  describe('requireReason', () => {
+    it('disables confirm until reason has at least 3 characters', async () => {
+      const onConfirm = vi.fn();
+      const onConfirmWithReason = vi.fn();
+      const user = setupUser();
+      render(
+        <ConfirmDialog
+          open
+          onOpenChange={() => {}}
+          title="تأكيد؟"
+          requireReason
+          onConfirm={onConfirm}
+          onConfirmWithReason={onConfirmWithReason}
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'تأكيد' })).toBeDisabled();
+      await user.type(screen.getByLabelText(/السبب/), 'أب');
+      expect(screen.getByRole('button', { name: 'تأكيد' })).toBeDisabled();
+      await user.type(screen.getByLabelText(/السبب/), 'ج');
+      expect(screen.getByRole('button', { name: 'تأكيد' })).not.toBeDisabled();
+      await user.click(screen.getByRole('button', { name: 'تأكيد' }));
+      expect(onConfirmWithReason).toHaveBeenCalledWith('أبج');
+    });
+  });
 });
