@@ -81,6 +81,7 @@ export interface ServiceProviderAnalytics {
   reviewCount: number;
   revenue: number;
   topListings: { id: string; title: string; views: number; image: string | null }[];
+  period: '7d' | '30d' | 'all';
 }
 
 export interface ServiceCategory {
@@ -135,7 +136,10 @@ export interface ServiceListing {
 
 /** Listing card in browse/search results — includes provider summary to avoid N+1 fetches. */
 export type ServiceListingWithProvider = ServiceListing & {
-  provider: Pick<ServiceProviderDetails, 'id' | 'businessName' | 'logoUrl' | 'availabilityStatus'> & {
+  provider: Pick<
+    ServiceProviderDetails,
+    'id' | 'businessName' | 'logoUrl' | 'availabilityStatus' | 'contactPhone'
+  > & {
     // Epic 3.1: userId added so ServiceRequestButton can hide itself on
     // one's own listing — same self-request guard as ads/sellers already have.
     sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'verified' | 'averageRating'>;

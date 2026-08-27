@@ -53,6 +53,8 @@ export const getServiceListingsSchema = z.object({
       search: z.string().min(1).max(200).optional(),
       sortBy: z.enum(SERVICE_LISTING_SORT_FIELDS).optional(),
       sortOrder: z.enum(['asc', 'desc']).optional(),
+      /** Owner-only filter for GET /service-listings/me */
+      status: z.nativeEnum(ServiceListingStatus).optional(),
     })
     // FIX M-024: see ads.validation.ts's getAdsSchema refine for the
     // same fix and rationale — same silent-empty-result bug here.

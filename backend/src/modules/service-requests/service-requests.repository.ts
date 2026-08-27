@@ -96,12 +96,20 @@ export const serviceRequestsRepository = {
   // (ServiceRequest has no direct providerId column), same relation
   // findManyByProviderId below already uses.
   countTerminalStatsByProviderId: async (
-    providerId: string
+    providerId: string,
+    since?: Date
   ): Promise<{ completed: number; cancelledOrRejected: number }> => {
+    const sinceFilter = since ? { updatedAt: { gte: since } } : {};
     const [completed, cancelledOrRejected] = await Promise.all([
-      prisma.serviceRequest.count({ where: { listing: { providerId }, status: 'COMPLETED' } }),
       prisma.serviceRequest.count({
-        where: { listing: { providerId }, status: { in: ['CANCELLED', 'REJECTED'] } },
+        where: { listing: { providerId }, status: 'COMPLETED', ...sinceFilter },
+      }),
+      prisma.serviceRequest.count({
+        where: {
+          listing: { providerId },
+          status: { in: ['CANCELLED', 'REJECTED'] },
+          ...sinceFilter,
+        },
       }),
     ]);
     return { completed, cancelledOrRejected };
@@ -120,9 +128,13 @@ export const serviceRequestsRepository = {
   // isn't real yet" reasoning as StoreAnalytics omitting revenue
   // entirely where no Order model exists. This one does exist here
   // (ServiceRequest.agreedPrice), so it's included.
-  sumRevenueByProviderId: async (providerId: string): Promise<number> => {
+  sumRevenueByProviderId: async (providerId: string, since?: Date): Promise<number> => {
     const result = await prisma.serviceRequest.aggregate({
-      where: { listing: { providerId }, status: 'COMPLETED' },
+      where: {
+        listing: { providerId },
+        status: 'COMPLETED',
+        ...(since ? { updatedAt: { gte: since } } : {}),
+      },
       _sum: { agreedPrice: true },
     });
     return result._sum.agreedPrice ? Number(result._sum.agreedPrice) : 0;

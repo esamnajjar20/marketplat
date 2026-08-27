@@ -69,6 +69,9 @@ export const SERVICES_GROUP = {
     { label: 'الطلبات الواردة', href: ROUTES.incomingServiceRequests },
     { label: 'مواعيدي', href: ROUTES.myServiceAppointments },
     { label: 'طلباتي', href: ROUTES.myServiceRequests },
+    { label: 'سوق الطلبات', href: ROUTES.serviceBroadcasts },
+    { label: 'عروضي', href: ROUTES.myServiceBroadcastQuotes },
+    { label: 'الإحصائيات', href: ROUTES.myServiceProviderAnalytics },
   ],
 } as const;
 

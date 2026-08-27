@@ -48,6 +48,10 @@ export const ROUTES = {
   myServiceAppointments:   '/my-services/appointments',
   // ANALYTICS: mirrors myStoreAnalytics below.
   myServiceProviderAnalytics: '/my-services/analytics',
+  serviceBroadcasts:       '/service-broadcasts',
+  serviceBroadcast:        (id: string) => `/service-broadcasts/${id}`,
+  myServiceBroadcastQuotes: '/service-broadcasts/quotes',
+  myServiceBroadcasts:     '/service-broadcasts/mine',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,
   // FEAT-HOME-DISCOVERY: public cross-store products browse page —

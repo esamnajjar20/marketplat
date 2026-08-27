@@ -43,6 +43,8 @@ export interface ServiceProviderAnalytics {
   reviewCount: number;
   revenue: number;
   topListings: { id: string; title: string; views: number; image: string | null }[];
+  /** Window used for completedRequests + revenue; views/pending stay snapshot. */
+  period: '7d' | '30d' | 'all';
 }
 
 export const serviceProvidersService = {
@@ -52,20 +54,30 @@ export const serviceProvidersService = {
   // with no provider profile has no analytics to show, same "go
   // create one first" gap MyStoreAnalytics.tsx's own 404 branch
   // already handles for stores).
-  getMyServiceProviderAnalytics: async (userId: string): Promise<ServiceProviderAnalytics> => {
+  getMyServiceProviderAnalytics: async (
+    userId: string,
+    period: '7d' | '30d' | 'all' = 'all'
+  ): Promise<ServiceProviderAnalytics> => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
     if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
+    const since =
+      period === '7d'
+        ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        : period === '30d'
+          ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          : undefined;
+
     const [listingStats, topListings, pendingRequests, terminalStats, revenue, upcomingAppointments, rating] =
       await Promise.all([
         serviceListingsRepository.getStatsByProviderId(provider.id),
         serviceListingsRepository.findTopByProviderId(provider.id, 5),
         serviceRequestsRepository.countPendingByProviderId(provider.id),
-        serviceRequestsRepository.countTerminalStatsByProviderId(provider.id),
-        serviceRequestsRepository.sumRevenueByProviderId(provider.id),
+        serviceRequestsRepository.countTerminalStatsByProviderId(provider.id, since),
+        serviceRequestsRepository.sumRevenueByProviderId(provider.id, since),
         appointmentsRepository.countUpcomingByProviderId(provider.id),
         serviceReviewsRepository.getRatingSummary(sellerProfile.id),
       ]);
@@ -89,6 +101,7 @@ export const serviceProvidersService = {
         views: listing.views,
         image: listing.images[0] ?? null,
       })),
+      period,
     };
   },
 

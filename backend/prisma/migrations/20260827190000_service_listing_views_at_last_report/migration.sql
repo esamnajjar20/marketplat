@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "service_listings" ADD COLUMN IF NOT EXISTS "viewsAtLastReport" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterEnum
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'WEEKLY_SERVICE_VIEWS_REPORT';

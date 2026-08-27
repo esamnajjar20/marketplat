@@ -1,9 +1,7 @@
 'use client';
 
 /**
- * Unified dashboard metrics — ads stats + optional store metrics +
- * unread messages. Replaces the previous SellerDailyBrief + DashboardStats
- * duplication of the same ad numbers.
+ * Unified dashboard metrics — ads + optional store + optional service provider.
  */
 
 import Link from 'next/link';
@@ -17,10 +15,14 @@ import {
   Package,
   Users,
   Store,
+  Wrench,
+  Inbox,
+  CalendarClock,
 } from 'lucide-react';
 import { useMyAdStats } from '@/hooks/queries/useAds';
 import { useMyConversations } from '@/hooks/queries/useConversations';
 import { useMyStoreAnalytics } from '@/hooks/queries/useStores';
+import { useMyServiceProviderAnalytics } from '@/hooks/queries/useServiceProviders';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { formatNumber } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
@@ -42,6 +44,10 @@ export function DashboardStats() {
     data: storeAnalytics,
     isSuccess: storeOk,
   } = useMyStoreAnalytics();
+  const {
+    data: serviceAnalytics,
+    isSuccess: serviceOk,
+  } = useMyServiceProviderAnalytics();
 
   if (isLoading || convLoading) {
     return (
@@ -109,31 +115,68 @@ export function DashboardStats() {
     },
   ];
 
-  const storeItems: StatItem[] = storeOk && storeAnalytics
-    ? [
-        {
-          label: 'مشاهدات المتجر',
-          value: storeAnalytics.views,
-          icon: Store,
-          color: 'text-primary',
-          href: ROUTES.myStoreAnalytics,
-        },
-        {
-          label: 'المتابعون',
-          value: storeAnalytics.followers,
-          icon: Users,
-          color: 'text-accent',
-          href: ROUTES.myStoreAnalytics,
-        },
-        {
-          label: 'منتجات نشطة',
-          value: storeAnalytics.activeProducts,
-          icon: Package,
-          color: 'text-success',
-          href: ROUTES.myStoreProducts,
-        },
-      ]
-    : [];
+  const storeItems: StatItem[] =
+    storeOk && storeAnalytics
+      ? [
+          {
+            label: 'مشاهدات المتجر',
+            value: storeAnalytics.views,
+            icon: Store,
+            color: 'text-primary',
+            href: ROUTES.myStoreAnalytics,
+          },
+          {
+            label: 'المتابعون',
+            value: storeAnalytics.followers,
+            icon: Users,
+            color: 'text-accent',
+            href: ROUTES.myStoreAnalytics,
+          },
+          {
+            label: 'منتجات نشطة',
+            value: storeAnalytics.activeProducts,
+            icon: Package,
+            color: 'text-success',
+            href: ROUTES.myStoreProducts,
+          },
+        ]
+      : [];
+
+  const serviceItems: StatItem[] =
+    serviceOk && serviceAnalytics
+      ? [
+          {
+            label: 'خدمات نشطة',
+            value: serviceAnalytics.activeListings,
+            icon: Wrench,
+            color: 'text-primary',
+            href: ROUTES.myServices,
+          },
+          {
+            label: 'طلبات معلّقة',
+            value: serviceAnalytics.pendingRequests,
+            icon: Inbox,
+            color: 'text-accent',
+            href: ROUTES.incomingServiceRequests,
+            highlight: serviceAnalytics.pendingRequests > 0,
+          },
+          {
+            label: 'مواعيد قادمة',
+            value: serviceAnalytics.upcomingAppointments,
+            icon: CalendarClock,
+            color: 'text-success',
+            href: ROUTES.myServiceAppointments,
+            highlight: serviceAnalytics.upcomingAppointments > 0,
+          },
+          {
+            label: 'طلبات مكتملة',
+            value: serviceAnalytics.completedRequests,
+            icon: TrendingUp,
+            color: 'text-muted-foreground',
+            href: ROUTES.myServiceProviderAnalytics,
+          },
+        ]
+      : [];
 
   function renderGrid(list: StatItem[]) {
     return (
@@ -180,6 +223,20 @@ export function DashboardStats() {
             </Link>
           </div>
           {renderGrid(storeItems)}
+        </section>
+      )}
+      {serviceItems.length > 0 && (
+        <section aria-label="إحصائيات الخدمات" className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-muted-foreground">الخدمات</h2>
+            <Link
+              href={ROUTES.myServiceProviderAnalytics}
+              className="text-xs text-primary hover:underline"
+            >
+              التفاصيل
+            </Link>
+          </div>
+          {renderGrid(serviceItems)}
         </section>
       )}
     </div>

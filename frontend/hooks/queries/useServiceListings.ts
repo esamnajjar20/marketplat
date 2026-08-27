@@ -26,10 +26,14 @@ export function useServiceListing(id: string) {
 }
 
 /** GET /service-listings/me — caller's own listings (my-services page). */
-export function useMyServiceListings(params?: ServiceListingsQuery) {
+export function useMyServiceListings(
+  params?: ServiceListingsQuery,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: queryKeys.serviceListings.mine(params),
     queryFn: () => serviceListingsApi.getMine(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.myAds,
+    enabled: options?.enabled ?? true,
   });
 }

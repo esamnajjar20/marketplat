@@ -17,6 +17,7 @@ export function ServiceListingsGrid() {
   const search = sp.get('search') ?? undefined;
   const page = Number(sp.get('page') ?? 1);
   const categoryId = sp.get('categoryId') ?? undefined;
+  const providerId = sp.get('providerId') ?? undefined;
   const city = sp.get('city') ?? undefined;
   const serviceLocation = (sp.get('serviceLocation') as 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' | undefined) ?? undefined;
   const minPrice = sp.get('minPrice') ? Number(sp.get('minPrice')) : undefined;
@@ -25,7 +26,7 @@ export function ServiceListingsGrid() {
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
 
   const { data, isLoading, isError, refetch } = useServiceListings({
-    search, page, categoryId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
+    search, page, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
   });
 
   const items = data?.items ?? [];

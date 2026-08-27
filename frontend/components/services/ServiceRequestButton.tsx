@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MessageSquarePlus } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -20,10 +21,7 @@ const MIN_DETAILS_LENGTH = 10;
 const MAX_DETAILS_LENGTH = 1000;
 
 /**
- * ServiceRequestButton — Epic 3.1. Was previously just a comment on
- * services/[id]/page.tsx ("سيُضاف في المرحلة 3"); the API client
- * (serviceRequestsApi) already existed and matched the backend exactly,
- * so this wires that client to real UI for the first time.
+ * Customer CTA: request a service. S3 clarifies the path (login → describe → track).
  */
 export function ServiceRequestButton({ listingId, providerUserId }: Props) {
   const [open, setOpen] = useState(false);
@@ -33,7 +31,6 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
   const router = useRouter();
   const createRequest = useCreateServiceRequest();
 
-  // A provider can't send a request to their own listing.
   if (user?.id === providerUserId) return null;
 
   function handleOpen() {
@@ -55,8 +52,14 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
         onSuccess: () => {
           setOpen(false);
           setDetails('');
+          toast.success('تم إرسال الطلب — تابع حالته من «طلباتي»', {
+            action: {
+              label: 'طلباتي',
+              onClick: () => router.push(ROUTES.myServiceRequests),
+            },
+          });
         },
-      }
+      },
     );
   }
 
@@ -66,6 +69,9 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
         <MessageSquarePlus className="h-4 w-4" />
         إرسال طلب لمقدم الخدمة
       </Button>
+      <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+        المسار: طلب → رد المقدّم → (اختياري) موعد → اكتمال الخدمة
+      </p>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -73,6 +79,12 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
             <DialogTitle>إرسال طلب خدمة</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <ol className="list-decimal ps-4 text-xs text-muted-foreground space-y-1">
+              <li>صف احتياجك بوضوح (مكان، وقت، تفاصيل).</li>
+              <li>المقدّم يرد بالقبول أو الرفض أو عرض سعر.</li>
+              <li>يمكنك متابعة الحالة من صفحة طلباتي.</li>
+            </ol>
+
             <div className="space-y-1.5">
               <label htmlFor="request-details" className="text-sm font-medium">
                 وصّف اللي محتاجه بالتفصيل
@@ -91,16 +103,25 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
               </p>
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={details.trim().length < MIN_DETAILS_LENGTH || createRequest.isPending}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Link
+                href={ROUTES.myServiceRequests}
+                className="text-xs text-primary hover:underline"
+                onClick={() => setOpen(false)}
               >
-                {createRequest.isPending ? 'جارٍ الإرسال…' : 'إرسال الطلب'}
-              </Button>
+                عرض طلباتي السابقة
+              </Link>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  إلغاء
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={details.trim().length < MIN_DETAILS_LENGTH || createRequest.isPending}
+                >
+                  {createRequest.isPending ? 'جارٍ الإرسال…' : 'إرسال الطلب'}
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>

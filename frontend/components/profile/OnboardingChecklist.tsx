@@ -1,23 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, Circle, User, Store, PlusCircle, ArrowLeft, Package } from 'lucide-react';
+import { Check, Circle, User, Store, PlusCircle, ArrowLeft, Package, Wrench } from 'lucide-react';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyAds } from '@/hooks/queries/useAds';
 import { useMyStore } from '@/hooks/queries/useStores';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/ui/Button';
 
 /**
- * Dashboard onboarding — distinguishes classified ads vs store catalog.
+ * Dashboard onboarding — ads, store catalog, and service provider paths.
  */
 export function OnboardingChecklist() {
   const user = useAuthStore(selectUser);
   const { data: sellerProfile, isLoading: sellerLoading, isError: sellerError } = useMySellerProfile();
   const { data: myAds, isLoading: adsLoading } = useMyAds({ limit: 1 });
   const { data: myStore, isSuccess: storeLoaded } = useMyStore();
+  const { data: myProvider, isSuccess: providerLoaded } = useMyServiceProvider();
 
   if (sellerLoading || adsLoading) return null;
 
@@ -25,6 +27,7 @@ export function OnboardingChecklist() {
   const hasSellerProfile = !sellerError && Boolean(sellerProfile);
   const hasAd = Boolean(myAds?.items?.length);
   const hasStore = storeLoaded && Boolean(myStore);
+  const hasProvider = providerLoaded && Boolean(myProvider);
 
   const steps = [
     {
@@ -55,6 +58,14 @@ export function OnboardingChecklist() {
       label: 'افتح متجرك (كتالوج منتجات)',
       icon: Package,
     },
+    {
+      done: hasProvider,
+      href: hasSellerProfile
+        ? ROUTES.settings.serviceProvider
+        : `${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.settings.serviceProvider)}`,
+      label: 'سجّل كمزود خدمة (طلبات ومواعيد)',
+      icon: Wrench,
+    },
   ];
 
   const doneCount = steps.filter((s) => s.done).length;
@@ -63,6 +74,7 @@ export function OnboardingChecklist() {
 
   const next = remaining[0]!;
   const progress = (doneCount / steps.length) * 100;
+  const showPathPicker = hasSellerProfile && !hasAd && !hasStore && !hasProvider;
 
   return (
     <section
@@ -72,7 +84,7 @@ export function OnboardingChecklist() {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-0.5">
           <h2 id="onboarding-heading" className="text-sm font-semibold">
-            ابدأ بيعك على سوق غزة
+            ابدأ على سوق غزة
           </h2>
           <p className="text-xs text-muted-foreground">
             {doneCount} من {steps.length} خطوات
@@ -98,15 +110,18 @@ export function OnboardingChecklist() {
         />
       </div>
 
-      {hasSellerProfile && !hasAd && !hasStore && (
+      {showPathPicker && (
         <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground space-y-2">
-          <p className="font-medium text-foreground">اختر مسار البيع:</p>
+          <p className="font-medium text-foreground">اختر مسار العمل:</p>
           <ul className="list-disc ps-4 space-y-1">
             <li>
               <strong className="text-foreground">إعلان:</strong> سلعة واحدة أو مستعمل — نشر سريع.
             </li>
             <li>
               <strong className="text-foreground">متجر:</strong> كتالوج منتجات مستمر مع عروض ومجموعات.
+            </li>
+            <li>
+              <strong className="text-foreground">خدمة:</strong> طلبات عملاء، عروض أسعار، ومواعيد.
             </li>
           </ul>
           <div className="flex flex-wrap gap-2 pt-1">
@@ -115,6 +130,9 @@ export function OnboardingChecklist() {
             </Button>
             <Button size="sm" variant="outline" asChild>
               <Link href={ROUTES.myStore}>فتح متجر</Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href={ROUTES.settings.serviceProvider}>مزود خدمة</Link>
             </Button>
           </div>
         </div>

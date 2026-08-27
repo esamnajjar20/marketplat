@@ -135,6 +135,25 @@ describe('serviceListingsController', () => {
       expect(next).toHaveBeenCalled();
       expect(serviceListingsService.getMyServiceListings).not.toHaveBeenCalled();
     });
+
+    it('forwards search and status query params to the service', async () => {
+      const req = mockRequest({
+        query: { search: 'تصليح', status: 'ACTIVE' },
+      });
+      const res = mockResponse();
+      const next = mockNext();
+      (serviceListingsService.getMyServiceListings as jest.Mock).mockResolvedValue({
+        items: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPrevPage: false },
+      });
+
+      await serviceListingsController.getMyServiceListings(req, res, next);
+
+      expect(serviceListingsService.getMyServiceListings).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ search: 'تصليح', status: 'ACTIVE' })
+      );
+    });
   });
 
   describe('getServiceListings', () => {

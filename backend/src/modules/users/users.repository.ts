@@ -119,6 +119,8 @@ const publicUserSelect = {
           serviceAreaCities: true,
           availabilityStatus: true,
           completedRequestsCount: true,
+          // S3: public contact for call / WhatsApp (same visibility as store phone on store page)
+          contactPhone: true,
         },
       },
     },

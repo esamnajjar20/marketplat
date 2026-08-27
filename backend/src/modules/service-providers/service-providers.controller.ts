@@ -59,7 +59,9 @@ export const serviceProvidersController = {
   getMyServiceProviderAnalytics: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const analytics = await serviceProvidersService.getMyServiceProviderAnalytics(user.userId);
+      const periodRaw = typeof req.query.period === 'string' ? req.query.period : 'all';
+      const period = (['7d', '30d', 'all'].includes(periodRaw) ? periodRaw : 'all') as '7d' | '30d' | 'all';
+      const analytics = await serviceProvidersService.getMyServiceProviderAnalytics(user.userId, period);
       res.status(200).json(successResponse('Service provider analytics fetched', analytics));
     } catch (error) {
       next(error);

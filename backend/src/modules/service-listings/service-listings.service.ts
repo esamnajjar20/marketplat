@@ -143,7 +143,12 @@ export const serviceListingsService = {
 
   getMyServiceListings: async (
     userId: string,
-    query: { page?: number; limit?: number; status?: 'ACTIVE' | 'PAUSED' | 'DELETED' }
+    query: {
+      page?: number;
+      limit?: number;
+      status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
+      search?: string;
+    }
   ): Promise<PaginatedResult<ServiceListing>> => {
     const provider = await requireOwnProvider(userId);
     const { listings, total } = await serviceListingsRepository.findManyByProviderId(

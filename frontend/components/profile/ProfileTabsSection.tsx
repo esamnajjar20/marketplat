@@ -90,7 +90,11 @@ export function ProfileTabsSection({ user }: Props) {
       )}
 
       {value === 'services' && seller?.serviceProviderDetails && (
-        <ProfileServiceProviderSummary provider={seller.serviceProviderDetails} isOwnProvider={isOwnProvider} />
+        <ProfileServiceProviderSummary
+          provider={seller.serviceProviderDetails}
+          profileUserId={user.id}
+          isOwnProvider={isOwnProvider}
+        />
       )}
 
       {value === 'ratings' && seller && (

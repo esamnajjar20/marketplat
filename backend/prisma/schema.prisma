@@ -511,6 +511,8 @@ model ServiceListing {
   serviceLocation  ServiceLocationType    @default(AT_PROVIDER)
   status           ServiceListingStatus   @default(ACTIVE)
   views            Int                    @default(0)
+  /// Baseline for weekly provider views report deltas.
+  viewsAtLastReport Int                   @default(0)
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
   category         ServiceCategory        @relation(fields: [categoryId], references: [id])
@@ -1152,6 +1154,7 @@ enum NotificationType {
   PROMOTION
   WEEKLY_AD_VIEWS_REPORT
   WEEKLY_STORE_VIEWS_REPORT
+  WEEKLY_SERVICE_VIEWS_REPORT
   SAVED_SEARCH_MATCH
   STORE_NEW_PRODUCT
   // PROMO-1 (Phase 14): lifecycle notification for a store owner's own

@@ -2,13 +2,13 @@
 
 import { useState, useCallback, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, MapPin, Clock, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { BadgeCheck, MapPin, Clock, Eye, ChevronLeft, ChevronRight, X, Phone } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/shared/ui/Badge';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ROUTES, APP_URL } from '@/lib/constants';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice, formatRelativeTime, formatPhone } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type {
@@ -33,6 +33,39 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
   if (pricingType === 'NEGOTIABLE' || !price) return 'حسب الاتفاق';
   const formatted = formatPrice(price);
   return pricingType === 'STARTING_FROM' ? `يبدأ من ${formatted}` : formatted;
+}
+
+
+function toWaPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('970')) return digits;
+  if (digits.startsWith('0')) return `970${digits.slice(1)}`;
+  return digits;
+}
+
+function ProviderContactRow({ phone }: { phone: string }) {
+  const wa = toWaPhone(phone);
+  return (
+    <div className="flex flex-wrap gap-2">
+      <a
+        href={`tel:${phone}`}
+        className="inline-flex flex-1 min-w-[7rem] items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium hover:bg-muted/50"
+      >
+        <Phone className="h-3.5 w-3.5" />
+        {formatPhone(phone)}
+      </a>
+      {wa.length >= 9 && (
+        <a
+          href={`https://wa.me/${wa}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex flex-1 min-w-[7rem] items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-2 text-sm font-medium text-[#128C7E] dark:text-[#25D366]"
+        >
+          واتساب
+        </a>
+      )}
+    </div>
+  );
 }
 
 export function ServiceListingDetail({ listing, action }: Props) {
@@ -173,7 +206,10 @@ export function ServiceListingDetail({ listing, action }: Props) {
                 <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
                 <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
               </div>
-              {action && <div className="pt-1">{action}</div>}
+              {action && <div className="pt-1 space-y-2">{action}</div>}
+              {listing.provider.contactPhone && (
+                <ProviderContactRow phone={listing.provider.contactPhone} />
+              )}
             </div>
             <ProviderLink listing={listing} />
           </div>
@@ -183,7 +219,12 @@ export function ServiceListingDetail({ listing, action }: Props) {
       {/* Mobile sticky CTA — above BottomNav; tall padding for dual buttons */}
       {action && (
         <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:hidden">
-          <div className="mx-auto max-w-lg space-y-2">{action}</div>
+          <div className="mx-auto max-w-lg space-y-2">
+            {action}
+            {listing.provider.contactPhone && (
+              <ProviderContactRow phone={listing.provider.contactPhone} />
+            )}
+          </div>
         </div>
       )}
 

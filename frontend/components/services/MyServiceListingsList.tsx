@@ -2,16 +2,33 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Pencil, Trash2, Eye, Briefcase, AlertTriangle, Pause, Play } from 'lucide-react';
+import {
+  Pencil,
+  Trash2,
+  Eye,
+  Briefcase,
+  AlertTriangle,
+  Pause,
+  Play,
+  Search,
+  Inbox,
+  CalendarClock,
+} from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
+import { Input } from '@/components/shared/ui/Input';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
-import { useDeleteServiceListing, useToggleServiceListingStatus } from '@/hooks/mutations/useServiceListingMutations';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import {
+  useDeleteServiceListing,
+  useToggleServiceListingStatus,
+} from '@/hooks/mutations/useServiceListingMutations';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -31,21 +48,36 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
 }
 
 export function MyServiceListingsList() {
-  // Page/status logic shared with MyAdsList and MyProductsList — see
-  // useOwnedListPage.
-  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(ROUTES.myServices);
+  const router = useRouter();
+  const { data: provider, isSuccess: providerOk } = useMyServiceProvider();
+  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(
+    ROUTES.myServices,
+  );
+  const searchQ = sp.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(searchQ);
 
-  const { data, isLoading, isError, refetch } = useMyServiceListings({ page, limit: 10, status });
+  const hasProvider = providerOk && Boolean(provider);
+  const { data, isLoading, isError, refetch } = useMyServiceListings(
+    {
+      page,
+      limit: 10,
+      status,
+      search: searchQ || undefined,
+    },
+    { enabled: hasProvider },
+  );
+
+  // Hub shows BecomeServiceProviderCard; hide list until a provider exists.
+  if (!hasProvider) return null;
   const deleteListing = useDeleteServiceListing();
-  const toggleStatus  = useToggleServiceListingStatus();
+  const toggleStatus = useToggleServiceListingStatus();
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
 
-  // Out-of-range-page recovery — same fix as MyAdsList's own original
-  // I-09 fix, now shared via useOwnedListPage.
   const isOutOfRange = useOutOfRangeRedirect({
     baseUrl: ROUTES.myServices,
     page,
@@ -54,28 +86,54 @@ export function MyServiceListingsList() {
     searchParams: sp,
   });
 
-  // FIX P1-9: same skeleton swap as MyAdsList — see that file's comment.
+  function pushParams(mutator: (params: URLSearchParams) => void) {
+    const params = new URLSearchParams(sp.toString());
+    mutator(params);
+    params.delete('page');
+    router.push(`${ROUTES.myServices}?${params.toString()}`);
+  }
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    pushParams((params) => {
+      const q = searchInput.trim();
+      if (q) params.set('q', q);
+      else params.delete('q');
+    });
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkStatus(next: 'ACTIVE' | 'PAUSED') {
+    for (const id of selected) {
+      await toggleStatus.mutateAsync({ id, status: next });
+    }
+    setSelected(new Set());
+  }
+
   if (isLoading || isOutOfRange) {
     return (
       <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, i) => <AdListItemSkeleton key={i} />)}
+        {Array.from({ length: 5 }).map((_, i) => (
+          <AdListItemSkeleton key={i} />
+        ))}
       </div>
     );
   }
 
-  // UX-FIX P1-9 (services variant of the MyAdsList fix): a failed fetch
-  // must not be misread as "you have no services" — it means we
-  // couldn't load them.
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertTriangle className="h-10 w-10 text-muted-foreground" />
         <p className="text-destructive">حدث خطأ أثناء تحميل خدماتك</p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="text-sm text-primary hover:underline"
-        >
+        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
           إعادة المحاولة
         </button>
       </div>
@@ -84,46 +142,144 @@ export function MyServiceListingsList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 border-b pb-3 overflow-x-auto" role="group" aria-label="تصفية الخدمات حسب الحالة">
-        {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['PAUSED', 'متوقفة'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
-          <button
-            key={val}
-            onClick={() => setStatus(val)}
-            aria-pressed={(status ?? '') === val}
-            className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors
-              ${(status ?? '') === val ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-sm font-semibold text-muted-foreground">قائمة الخدمات</h2>
+        <Link href={ROUTES.myServiceCreate}>
+          <Button size="sm">خدمة جديدة</Button>
+        </Link>
       </div>
+
+      <form onSubmit={submitSearch} className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="ابحث بعنوان الخدمة…"
+            className="ps-9"
+            aria-label="بحث في الخدمات"
+          />
+        </div>
+        <Button type="submit" variant="secondary">
+          بحث
+        </Button>
+      </form>
+
+      <div
+        className="flex gap-2 border-b pb-3 overflow-x-auto"
+        role="group"
+        aria-label="تصفية الخدمات حسب الحالة"
+      >
+        {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['PAUSED', 'متوقفة'], ['DELETED', 'محذوفة']] as const).map(
+          ([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setStatus(val)}
+              aria-pressed={(status ?? '') === val}
+              className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${
+                (status ?? '') === val
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-muted text-muted-foreground'
+              }`}
+            >
+              {label}
+            </button>
+          ),
+        )}
+      </div>
+
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">
+          <span className="font-medium">{selected.size} محدد</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => bulkStatus('ACTIVE')}
+            disabled={toggleStatus.isPending}
+          >
+            تفعيل
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => bulkStatus('PAUSED')}
+            disabled={toggleStatus.isPending}
+          >
+            إيقاف
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+            إلغاء التحديد
+          </Button>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <EmptyState
           icon={<Briefcase className="h-10 w-10" />}
-          title="لا توجد خدمات"
-          description="لم تنشر أي خدمة بعد"
-          action={<Link href={ROUTES.services}><Button>نشر خدمة</Button></Link>}
+          title={searchQ ? 'لا نتائج لهذا البحث' : 'لا توجد خدمات'}
+          description={
+            searchQ
+              ? 'جرّب تغيير كلمة البحث أو فلاتر الحالة'
+              : 'أضف خدمة ثم تابع الطلبات الواردة واحجز المواعيد مع العملاء'
+          }
+          action={
+            <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <Link href={ROUTES.myServiceCreate}>
+                <Button>إضافة خدمة</Button>
+              </Link>
+              {!searchQ && (
+                <>
+                  <Link href={ROUTES.incomingServiceRequests}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Inbox className="h-4 w-4" /> الطلبات
+                    </Button>
+                  </Link>
+                  <Link href={ROUTES.myServiceAppointments}>
+                    <Button variant="outline" className="gap-1.5">
+                      <CalendarClock className="h-4 w-4" /> المواعيد
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+          }
         />
       ) : (
         <div className="space-y-3">
           {items.map((listing) => {
-            const thumb = listing.images[0] ? getThumbnailUrl(listing.images[0], 120, 90) : PLACEHOLDER_SVG;
+            const thumb = listing.images[0]
+              ? getThumbnailUrl(listing.images[0], 120, 90)
+              : PLACEHOLDER_SVG;
             return (
               <div key={listing.id} className="flex gap-3 p-3 rounded-lg border bg-card">
+                {listing.status !== 'DELETED' && (
+                  <input
+                    type="checkbox"
+                    className="mt-1 shrink-0"
+                    checked={selected.has(listing.id)}
+                    onChange={() => toggleSelect(listing.id)}
+                    aria-label={`تحديد ${listing.title}`}
+                  />
+                )}
                 <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
                   <SafeImage src={thumb} alt={listing.title} fill className="object-cover" sizes="96px" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <Link href={ROUTES.serviceDetail(listing.id)} className="font-medium text-sm hover:underline line-clamp-1">
+                    <Link
+                      href={ROUTES.serviceDetail(listing.id)}
+                      className="font-medium text-sm hover:underline line-clamp-1"
+                    >
                       {listing.title}
                     </Link>
                     <Badge
                       variant={
-                        listing.status === 'ACTIVE' ? 'default'
-                        : listing.status === 'PAUSED' ? 'secondary'
-                        : 'destructive'
+                        listing.status === 'ACTIVE'
+                          ? 'default'
+                          : listing.status === 'PAUSED'
+                            ? 'secondary'
+                            : 'destructive'
                       }
                       className="shrink-0 text-xs"
                     >
@@ -134,40 +290,48 @@ export function MyServiceListingsList() {
                     {formatServicePrice(listing.pricingType, listing.price)}
                   </p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{listing.views}</span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      {listing.views}
+                    </span>
                     <span>{formatRelativeTime(listing.createdAt)}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   <Link href={ROUTES.myServiceEdit(listing.id)}>
-                    <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${listing.title}`}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10"
+                      aria-label={`تعديل ${listing.title}`}
+                    >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
-                  {/*
-                    EPIC 1.3: the report's finding — "PAUSED only
-                    appears as a filter tab label, never as an action a
-                    user can trigger... no way at all to set a service
-                    listing to PAUSED anywhere in the frontend." Only
-                    shown for ACTIVE/PAUSED — a DELETED listing has no
-                    meaningful pause/resume action.
-                  */}
                   {listing.status !== 'DELETED' && (
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-10 w-10"
-                      aria-label={listing.status === 'PAUSED' ? `إعادة تفعيل ${listing.title}` : `إيقاف ${listing.title} مؤقتاً`}
+                      aria-label={
+                        listing.status === 'PAUSED'
+                          ? `إعادة تفعيل ${listing.title}`
+                          : `إيقاف ${listing.title} مؤقتاً`
+                      }
                       title={listing.status === 'PAUSED' ? 'إعادة تفعيل' : 'إيقاف مؤقت'}
                       disabled={toggleStatus.isPending && toggleStatus.variables?.id === listing.id}
-                      onClick={() => toggleStatus.mutate({
-                        id: listing.id,
-                        status: listing.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED',
-                      })}
+                      onClick={() =>
+                        toggleStatus.mutate({
+                          id: listing.id,
+                          status: listing.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED',
+                        })
+                      }
                     >
-                      {listing.status === 'PAUSED'
-                        ? <Play className="h-3.5 w-3.5 text-success" />
-                        : <Pause className="h-3.5 w-3.5" />}
+                      {listing.status === 'PAUSED' ? (
+                        <Play className="h-3.5 w-3.5 text-success" />
+                      ) : (
+                        <Pause className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                   )}
                   <Button
@@ -197,7 +361,9 @@ export function MyServiceListingsList() {
 
       <ConfirmDialog
         open={deleteTargetId !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
         title="حذف الخدمة؟"
         description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
         confirmLabel="حذف"

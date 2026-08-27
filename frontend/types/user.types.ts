@@ -77,6 +77,8 @@ export interface PublicProfileServiceProvider {
   serviceAreaCities:      string[];
   availabilityStatus:     ServiceAvailability;
   completedRequestsCount: number;
+  /** Public contact — call / WhatsApp on the profile services tab. */
+  contactPhone:           string;
 }
 
 export interface PublicSellerProfile {

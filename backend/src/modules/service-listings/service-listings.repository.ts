@@ -223,13 +223,26 @@ export const serviceListingsRepository = {
 
   findManyByProviderId: async (
     providerId: string,
-    query: { page?: number; limit?: number; status?: ServiceListingStatus }
+    query: {
+      page?: number;
+      limit?: number;
+      status?: ServiceListingStatus;
+      search?: string;
+    }
   ): Promise<{ listings: ServiceListing[]; total: number }> => {
-    const { page = 1, limit = 20, status } = query;
+    const { page = 1, limit = 20, status, search } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.ServiceListingWhereInput = {
       providerId,
       status: status ? status : { not: 'DELETED' },
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     };
 
     const [listings, total] = await Promise.all([

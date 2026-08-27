@@ -46,8 +46,10 @@ export const serviceProvidersApi = {
     apiClient.patch<ApiResponse<ServiceProviderDetails>>('/service-providers/me', payload),
 
   /** GET /service-providers/me/analytics — owner-only dashboard. */
-  getMyAnalytics: () =>
-    apiClient.get<ApiResponse<ServiceProviderAnalytics>>('/service-providers/me/analytics'),
+  getMyAnalytics: (period: '7d' | '30d' | 'all' = 'all') =>
+    apiClient.get<ApiResponse<ServiceProviderAnalytics>>('/service-providers/me/analytics', {
+      params: { period },
+    }),
 
   /** POST /service-providers/me/logo — multipart upload, same shape as storesApi.uploadLogo. */
   uploadLogo: (file: File) => {

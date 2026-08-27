@@ -5,6 +5,7 @@ import { Eye, ListChecks, Clock, CheckCircle2, CalendarClock, Wallet, Star } fro
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/ui/Card';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { useState } from 'react';
 import { useMyServiceProviderAnalytics } from '@/hooks/queries/useServiceProviders';
 import { getThumbnailUrl } from '@/lib/cloudinary';
 import { formatPrice } from '@/lib/formatters';
@@ -43,7 +44,8 @@ function StatCard({
 }
 
 export function MyServiceProviderAnalytics() {
-  const { data: analytics, isLoading, isError, error, refetch } = useMyServiceProviderAnalytics();
+  const [period, setPeriod] = useState<'7d' | '30d' | 'all'>('all');
+  const { data: analytics, isLoading, isError, error, refetch } = useMyServiceProviderAnalytics(period);
 
   if (isLoading) {
     return (
@@ -79,6 +81,29 @@ export function MyServiceProviderAnalytics() {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="فترة الإحصائيات">
+        {([
+          ['all', 'الكل'],
+          ['7d', '7 أيام'],
+          ['30d', '30 يوماً'],
+        ] as const).map(([val, label]) => (
+          <button
+            key={val}
+            type="button"
+            onClick={() => setPeriod(val)}
+            className={`text-sm px-3 py-1 rounded-full transition-colors ${
+              period === val
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted text-muted-foreground border'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        النافذة الزمنية تؤثر على الطلبات المكتملة والإيرادات. المشاهدات والخدمات النشطة تبقى إجمالية.
+      </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard icon={Eye} label="مشاهدات الخدمات" value={analytics.totalViews.toLocaleString('ar')} />
         <StatCard icon={ListChecks} label="خدمات نشطة" value={analytics.activeListings.toLocaleString('ar')} />

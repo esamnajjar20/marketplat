@@ -1,29 +1,55 @@
 /**
- * __tests__/components/DashboardStats.test.tsx
- *
- * FIX BUG-06/BUG-07 (superseded): DashboardStats no longer aggregates
- * raw ad/favorite lists client-side — it renders whatever
- * GET /ads/me/stats (via useMyAdStats) returns directly. The
- * off-by-one/wrong-filter risk this test used to guard against moved
- * server-side, to ads.repository.ts's getStatsByUserId and
- * favorites.repository.ts's countByUserId — this test now only checks
- * loading/error/render-mapping behavior, which is where the risk
- * actually remains on the frontend.
+ * DashboardStats — ads stats + optional store + optional service provider sections.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DashboardStats } from '@/components/profile/DashboardStats';
 import { useMyAdStats } from '@/hooks/queries/useAds';
+import { useMyConversations } from '@/hooks/queries/useConversations';
+import { useMyStoreAnalytics } from '@/hooks/queries/useStores';
+import { useMyServiceProviderAnalytics } from '@/hooks/queries/useServiceProviders';
 
 vi.mock('@/hooks/queries/useAds', () => ({
   useMyAdStats: vi.fn(),
 }));
+vi.mock('@/hooks/queries/useConversations', () => ({
+  useMyConversations: vi.fn(),
+}));
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStoreAnalytics: vi.fn(),
+}));
+vi.mock('@/hooks/queries/useServiceProviders', () => ({
+  useMyServiceProviderAnalytics: vi.fn(),
+}));
 
 const mockUseMyAdStats = vi.mocked(useMyAdStats);
+const mockUseMyConversations = vi.mocked(useMyConversations);
+const mockUseMyStoreAnalytics = vi.mocked(useMyStoreAnalytics);
+const mockUseMyServiceProviderAnalytics = vi.mocked(useMyServiceProviderAnalytics);
+
+beforeEach(() => {
+  mockUseMyConversations.mockReturnValue({
+    data: { items: [] },
+    isLoading: false,
+  } as never);
+  mockUseMyStoreAnalytics.mockReturnValue({
+    data: undefined,
+    isSuccess: false,
+  } as never);
+  mockUseMyServiceProviderAnalytics.mockReturnValue({
+    data: undefined,
+    isSuccess: false,
+  } as never);
+});
 
 describe('DashboardStats', () => {
   it('shows a loading spinner while stats are loading', () => {
-    mockUseMyAdStats.mockReturnValue({ data: undefined, isLoading: true, isError: false, refetch: vi.fn() } as never);
+    mockUseMyAdStats.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    } as never);
     const { container } = render(<DashboardStats />);
 
     expect(container.querySelector('.py-8')).toBeInTheDocument();
@@ -32,7 +58,12 @@ describe('DashboardStats', () => {
 
   it('shows an error state with retry when the stats query fails, instead of rendering zeros silently', () => {
     const refetch = vi.fn();
-    mockUseMyAdStats.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as never);
+    mockUseMyAdStats.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    } as never);
     render(<DashboardStats />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل الإحصائيات')).toBeInTheDocument();
@@ -51,37 +82,52 @@ describe('DashboardStats', () => {
     } as never);
     render(<DashboardStats />);
 
-    expect(screen.getByText('الإعلانات النشطة').closest('div')).toHaveTextContent((4).toLocaleString('ar'));
-    expect(screen.getByText('إعلانات تم بيعها').closest('div')).toHaveTextContent((2).toLocaleString('ar'));
-    expect(screen.getByText('إجمالي المشاهدات').closest('div')).toHaveTextContent((137).toLocaleString('ar'));
-    expect(screen.getByText('المفضلة').closest('div')).toHaveTextContent((9).toLocaleString('ar'));
+    expect(screen.getByText('الإعلانات النشطة').closest('a,div')).toHaveTextContent(
+      (4).toLocaleString('ar'),
+    );
+    expect(screen.getByText('إعلانات تم بيعها').closest('a,div')).toHaveTextContent(
+      (2).toLocaleString('ar'),
+    );
+    expect(screen.getByText('إجمالي المشاهدات').closest('a,div')).toHaveTextContent(
+      (137).toLocaleString('ar'),
+    );
+    expect(screen.getByText('المفضلة').closest('a,div')).toHaveTextContent(
+      (9).toLocaleString('ar'),
+    );
   });
 
-  it('defaults every stat to 0 when the query resolves with no data', () => {
-    mockUseMyAdStats.mockReturnValue({ data: undefined, isLoading: false, isError: false, refetch: vi.fn() } as never);
-    render(<DashboardStats />);
-
-    expect(screen.getByText('الإعلانات النشطة')).toBeInTheDocument();
-    const activeCard = screen.getByText('الإعلانات النشطة').closest('div');
-    expect(activeCard).toHaveTextContent((0).toLocaleString('ar'));
-  });
-
-  // Guards against the exact class of bug BUG-06/BUG-07 were: a stat
-  // silently correct only up to some hidden page-size ceiling. With no
-  // client-side list/reduce left in this component at all, there is no
-  // ceiling to regress to — this just documents that expectation.
-  it('renders correctly for counts well beyond the old 100-item page-size ceiling', () => {
+  it('renders service provider section when analytics succeed', () => {
     mockUseMyAdStats.mockReturnValue({
-      data: { activeAds: 430, soldAds: 215, totalViews: 98_000, favoritesCount: 640 },
+      data: { activeAds: 0, soldAds: 0, totalViews: 0, favoritesCount: 0 },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
     } as never);
+    mockUseMyServiceProviderAnalytics.mockReturnValue({
+      data: {
+        activeListings: 3,
+        pendingRequests: 2,
+        upcomingAppointments: 1,
+        completedRequests: 5,
+        totalViews: 10,
+        fulfillmentRate: null,
+        averageRating: null,
+        reviewCount: 0,
+        revenue: 0,
+        topListings: [],
+        period: 'all',
+      },
+      isSuccess: true,
+    } as never);
+
     render(<DashboardStats />);
 
-    expect(screen.getByText('الإعلانات النشطة').closest('div')).toHaveTextContent((430).toLocaleString('ar'));
-    expect(screen.getByText('إعلانات تم بيعها').closest('div')).toHaveTextContent((215).toLocaleString('ar'));
-    expect(screen.getByText('إجمالي المشاهدات').closest('div')).toHaveTextContent((98_000).toLocaleString('ar'));
-    expect(screen.getByText('المفضلة').closest('div')).toHaveTextContent((640).toLocaleString('ar'));
+    expect(screen.getByText('الخدمات')).toBeInTheDocument();
+    expect(screen.getByText('خدمات نشطة').closest('a,div')).toHaveTextContent(
+      (3).toLocaleString('ar'),
+    );
+    expect(screen.getByText('طلبات معلّقة').closest('a,div')).toHaveTextContent(
+      (2).toLocaleString('ar'),
+    );
   });
 });

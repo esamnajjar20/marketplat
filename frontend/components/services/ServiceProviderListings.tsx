@@ -41,6 +41,7 @@ export function ServiceProviderListings({ provider, listings }: Props) {
               businessName: provider.businessName,
               logoUrl: provider.logoUrl,
               availabilityStatus: provider.availabilityStatus,
+              contactPhone: provider.contactPhone,
               sellerProfile: {
                 userId: provider.sellerProfile.userId,
                 displayName: provider.sellerProfile.displayName,
