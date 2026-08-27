@@ -14,6 +14,7 @@ import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ROUTES } from '@/lib/constants';
 import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 
@@ -169,6 +170,26 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             </Button>
           )}
         </div>
+
+        {/* FEAT-MSG-UNIFY: "مراسلة المتجر" — unified messaging entry
+            point (MessageUserButtonGate) targeting the store's owner
+            user, exactly like SellerCard/ProductDetail's own "راسل
+            المتجر" button. Reuses the same (buyerId, sellerId) thread
+            as any other entry point for this owner — no store-specific
+            conversation. The component already hides itself on the
+            owner's own store and handles the unauthenticated case, so
+            no extra isOwnStore/isAuthenticated guard is needed here. */}
+        {!isOwnStore && (
+          <div className="mt-3 w-full max-w-sm">
+            <MessageUserButtonGate
+              targetUserId={store.sellerProfile.userId}
+              size="lg"
+              variant="outline"
+              label="مراسلة المتجر"
+              className="w-full rounded-full py-3 h-auto gap-2 font-medium"
+            />
+          </div>
+        )}
 
         {/* Owner tools — products + store management (NOT classified ads).
             Ads stay on /ads/create from dashboard/nav; the store surface

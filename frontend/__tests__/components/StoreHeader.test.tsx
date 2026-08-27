@@ -35,6 +35,16 @@ vi.mock('@/components/stores/ReportStoreButton', () => ({
   ReportStoreButton: () => <div data-testid="report-store-button" />,
 }));
 
+// FEAT-MSG-UNIFY: StoreHeader now renders MessageUserButtonGate
+// ("مراسلة المتجر") — mocked the same way PublicProfileHeader.test.tsx
+// mocks it, so this file's existing assertions stay unaffected. The
+// gate's own self-hide/self-message/unauthenticated logic is covered
+// by MessageUserButtonGate.test.tsx; this file only asserts StoreHeader
+// wires it to the store owner's userId and respects isOwnStore.
+vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+  useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
 // FEAT-FAVORITE-POLYMORPHIC PR3: StoreHeader now also renders a
 // FavoriteButton (STORE entity, warm=true — distinct from the follow
 // button above). Own behavior covered by FavoriteButton.test.tsx.
@@ -171,5 +181,28 @@ describe('StoreHeader', () => {
     render(<StoreHeader store={store} />);
 
     expect(screen.queryByTestId('report-store-button')).not.toBeInTheDocument();
+  });
+
+  // FEAT-MSG-UNIFY
+  describe('مراسلة المتجر (MessageUserButtonGate)', () => {
+    it('renders the message-store button for a non-owner viewer', () => {
+      render(<StoreHeader store={store} />);
+
+      expect(screen.getByRole('button', { name: /مراسلة المتجر/ })).toBeInTheDocument();
+    });
+
+    it('hides the message-store button on the user\'s own store (self-messaging guard)', () => {
+      mockAuth({ user: { id: 'owner-1' }, isAuthenticated: true });
+      render(<StoreHeader store={store} />);
+
+      expect(screen.queryByRole('button', { name: /مراسلة المتجر/ })).not.toBeInTheDocument();
+    });
+
+    it('still shows the message-store button when unauthenticated (auth handled inside the gate)', () => {
+      mockAuth({ user: null, isAuthenticated: false });
+      render(<StoreHeader store={store} />);
+
+      expect(screen.getByRole('button', { name: /مراسلة المتجر/ })).toBeInTheDocument();
+    });
   });
 });

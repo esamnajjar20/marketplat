@@ -6,6 +6,7 @@ import { buildMetadata } from '@/lib/seo';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
 import { ServiceRecommendations } from '@/components/recommendations/ServiceRecommendations';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -71,10 +72,27 @@ export default async function ServiceListingPage({ params }: Props) {
       <ServiceListingDetail
         listing={listing}
         action={
-          <ServiceRequestButton
-            listingId={listing.id}
-            providerUserId={listing.provider.sellerProfile.userId}
-          />
+          // FEAT-MSG-UNIFY: "مراسلة مقدم الخدمة" sits alongside the
+          // existing service-request flow, not in place of it —
+          // ServiceRequestButton creates a ServiceRequest (its own
+          // workflow, unrelated to this change), while
+          // MessageUserButtonGate opens a direct thread with the same
+          // provider owner user via the unified startFromUser branch.
+          // Both ultimately point at the same (buyer, provider) thread
+          // once a message is sent either way.
+          <div className="flex flex-col gap-2">
+            <ServiceRequestButton
+              listingId={listing.id}
+              providerUserId={listing.provider.sellerProfile.userId}
+            />
+            <MessageUserButtonGate
+              targetUserId={listing.provider.sellerProfile.userId}
+              size="lg"
+              variant="outline"
+              label="مراسلة مقدم الخدمة"
+              className="w-full gap-1.5"
+            />
+          </div>
         }
       />
       <ServiceRecommendations excludeServiceListingId={listing.id} />

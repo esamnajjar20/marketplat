@@ -6,6 +6,7 @@ import { Star, Phone, MapPin, PlusCircle } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Button } from '@/components/shared/ui/Button';
 import { ProviderBadges } from '@/components/services/ProviderBadges';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -91,6 +92,23 @@ export function ServiceProviderHeader({ provider }: Props) {
         >
           <Phone className="h-4 w-4" /> {formatPhone(provider.contactPhone)}
         </a>
+      </div>
+
+      {/* FEAT-MSG-UNIFY: "مراسلة مقدم الخدمة" — same unified messaging
+          entry point (MessageUserButtonGate) as StoreHeader's "مراسلة
+          المتجر" and ProductDetail's "راسل المتجر", targeting the
+          provider's owner user. Reuses whatever thread already exists
+          for this owner from an ad, profile, store, or another service
+          — never a provider-specific conversation. Self-hides on the
+          owner's own provider page, so no isOwnProvider guard needed. */}
+      <div className="mt-3 w-full max-w-sm">
+        <MessageUserButtonGate
+          targetUserId={provider.sellerProfile.userId}
+          size="lg"
+          variant="outline"
+          label="مراسلة مقدم الخدمة"
+          className="w-full rounded-full py-3 h-auto gap-2 font-medium"
+        />
       </div>
 
       {/*
