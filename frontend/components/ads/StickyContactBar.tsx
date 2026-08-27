@@ -53,8 +53,7 @@ export function StickyContactBar({ adId, price, isNegotiable, seller, className 
       role="region"
       aria-label="تواصل سريع مع البائع"
       className={cn(
-        'fixed inset-x-0 z-40 border-t border-border/80 bg-background/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur',
-        'bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))]',
+        'sticky-contact-bar border-t border-border/80 bg-background/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur',
         'supports-[backdrop-filter]:bg-background/90 lg:hidden',
         className,
       )}

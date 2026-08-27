@@ -40,6 +40,16 @@ export const conversationsController = {
     }
   },
 
+  getUnreadCount: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const result = await conversationsService.getUnreadCount(user.userId);
+      res.status(200).json(successResponse('Unread conversation count', result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getConversationById: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);

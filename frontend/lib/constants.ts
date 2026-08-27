@@ -244,6 +244,7 @@ export const CACHE_TTL = {
   // this codebase's existing shortest TTLs (serviceRequests/appointments
   // at 20s) since a conversation is exactly as live as those.
   conversations: 20_000,   // 20 s
+  conversationUnreadCount: 15_000, // 15 s — nav badge
   messages: 5_000,         // 5 s — the actively-open thread polls faster
   // Online dots — refreshed at the same cadence as messages (the one
   // view where "are they even around right now" actually matters) so

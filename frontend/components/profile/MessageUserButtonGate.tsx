@@ -57,7 +57,7 @@ export function MessageUserButtonGate({ targetUserId, className, size = 'sm', va
     <Button
       variant={variant}
       size={size}
-      className={className ?? 'gap-2'}
+      className={className ?? 'gap-2 min-h-11'}
       disabled={startConversation.isPending}
       onClick={handleMessage}
     >

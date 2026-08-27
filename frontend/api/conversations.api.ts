@@ -33,6 +33,10 @@ export const conversationsApi = {
       .get<ApiResponse<ConversationListItem[]>>('/conversations', { params })
       .then((r) => unwrapPaginated<ConversationListItem>(r)),
 
+  /** GET /conversations/unread-count — aggregate unread threads for nav badge. */
+  getUnreadCount: () =>
+    apiClient.get<ApiResponse<{ count: number }>>('/conversations/unread-count'),
+
   /** POST /conversations — start (or reopen) a thread about an ad. */
   start: (payload: StartConversationPayload) =>
     apiClient.post<ApiResponse<Conversation>>('/conversations', payload),

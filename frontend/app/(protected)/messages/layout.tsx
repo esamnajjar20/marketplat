@@ -52,26 +52,25 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
   const selectedId = isInboxRoute ? undefined : pathname.split('/').pop();
 
   return (
-    <div className="lg:flex lg:h-[calc(100vh-8rem)] lg:gap-0 lg:overflow-hidden lg:rounded-lg lg:border lg:bg-card">
+    <div className="lg:flex lg:h-[calc(100vh-7rem)] lg:gap-0 lg:overflow-hidden lg:rounded-xl lg:border lg:bg-card lg:shadow-sm">
       <aside
         className={cn(
-          'lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-e',
-          // Below lg: full list only on the bare /messages route —
-          // once a thread is open, ChatWindow owns the whole screen,
-          // same full-screen-per-thread behavior as before this file.
+          'lg:w-[22rem] lg:shrink-0 lg:overflow-hidden lg:flex lg:flex-col lg:border-e',
           isInboxRoute ? 'block' : 'hidden',
           'lg:block'
         )}
       >
-        <div className="space-y-4 p-4 lg:p-0 lg:space-y-0">
-          <h1 className="text-xl font-bold lg:hidden">الرسائل</h1>
+        <div className="space-y-3 p-3 sm:p-4 lg:p-0 lg:space-y-0 lg:flex lg:flex-col lg:h-full lg:min-h-0">
+          <div className="lg:hidden flex items-center justify-between gap-2 px-1">
+            <h1 className="text-xl font-bold tracking-tight">الرسائل</h1>
+          </div>
           <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
             <ConversationList selectedId={selectedId} />
           </Suspense>
         </div>
       </aside>
 
-      <div className={cn('min-w-0 lg:flex-1', isInboxRoute ? 'hidden lg:block' : 'block')}>
+      <div className={cn('min-w-0 lg:flex-1 lg:min-h-0', isInboxRoute ? 'hidden lg:block' : 'block')}>
         {children}
       </div>
     </div>

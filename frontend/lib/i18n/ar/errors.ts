@@ -76,6 +76,8 @@ export const errorMessages: Record<string, ErrorMessageEntry> = {
   TOO_MANY_FILES: 'الحد الأقصى 10 صور',
   TOO_MANY_FORM_FIELDS: 'عدد الحقول المرسلة أكبر من المسموح',
 
+  MESSAGE_CONTENT_BLOCKED: 'تم حظر الرسالة: محتوى يطابق أنماط احتيال معروفة. أبقِ التفاوض داخل المنصة.',
+
   // ── Bookings / appointments ─────────────────────────────────────
   BOOKING_NOT_FOUND: 'الحجز غير موجود',
   TIME_SLOT_ALREADY_BOOKED: 'هذا الموعد محجوز بالفعل',

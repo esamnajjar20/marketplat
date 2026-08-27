@@ -121,6 +121,7 @@ export const ErrorCode = {
   // Blocked users
   CANNOT_BLOCK_SELF: 'CANNOT_BLOCK_SELF',
   USER_BLOCKED: 'USER_BLOCKED',
+  MESSAGE_CONTENT_BLOCKED: 'MESSAGE_CONTENT_BLOCKED',
 
   // Images (ads / products / service listings — shared image-management
   // guard). FIX SEC-6.5/9.10: this code was already used at three call

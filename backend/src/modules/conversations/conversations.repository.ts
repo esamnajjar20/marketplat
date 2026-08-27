@@ -20,7 +20,14 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
  * a badge on a thread the caller is currently looking at doesn't mean
  * anything.
  */
-export type ConversationListItem = ConversationWithRelations & { unreadCount: number };
+/**
+ * FIX UX-16: list rows carry the newest message for inbox preview.
+ * Soft-deleted messages stay (body redacted in the service layer).
+ */
+export type ConversationListItem = ConversationWithRelations & {
+  unreadCount: number;
+  lastMessage: Message | null;
+};
 
 const isPrismaError = (err: unknown, code: string): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
@@ -112,6 +119,14 @@ export const conversationsRepository = {
     sellerId: string,
     context: { adId?: string | null; serviceRequestId?: string | null } = {}
   ): Promise<Conversation> => {
+    // Lookup is direction-agnostic so A→B and B→A resolve to the same
+    // thread. Insert keeps SEMANTIC roles: buyerId = initiator / customer,
+    // sellerId = listing owner / provider. Do NOT alphabetize — metrics
+    // jobs (updateSellerResponseMetrics) and trust UI depend on those
+    // meanings. Same-order races are covered by @@unique + P2002; reverse-
+    // order concurrent inserts remain rare and are cleaned by the merge
+    // migration. A future LEAST/GREATEST unique index can harden this
+    // without rewriting column semantics.
     const existing = await conversationsRepository.findByUserPair(buyerId, sellerId);
     if (existing) return existing;
 
@@ -155,10 +170,20 @@ export const conversationsRepository = {
         where,
         include: {
           ...conversationWithRelations,
+          // FIX UX-15b: soft-deleted messages must not keep a badge alive
+          // after the sender retracted them before the recipient opened
+          // the thread.
           _count: {
             select: {
-              messages: { where: { senderId: { not: userId }, readAt: null } },
+              messages: {
+                where: { senderId: { not: userId }, readAt: null, deletedAt: null },
+              },
             },
+          },
+          // FIX UX-16: newest message for inbox preview (1 row, not N+1).
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
           },
         },
         orderBy: { updatedAt: 'desc' },
@@ -169,9 +194,10 @@ export const conversationsRepository = {
     ]);
 
     return {
-      conversations: conversations.map(({ _count, ...conversation }) => ({
+      conversations: conversations.map(({ _count, messages, ...conversation }) => ({
         ...conversation,
         unreadCount: _count.messages,
+        lastMessage: messages[0] ?? null,
       })),
       total,
     };
@@ -231,14 +257,15 @@ export const messagesRepository = {
       data: { readAt: new Date() },
     }),
 
-  /** Count of conversations with at least one unread message addressed
-   * to the caller — powers a future unread-badge; not otherwise used by
-   * this module's own endpoints yet. */
+  /** Count of conversations with at least one unread (non-deleted)
+   * inbound message — powers the nav badge via GET /conversations/unread-count. */
   countUnreadConversationsForUser: (userId: string): Promise<number> =>
     prisma.conversation.count({
       where: {
         OR: [{ buyerId: userId }, { sellerId: userId }],
-        messages: { some: { senderId: { not: userId }, readAt: null } },
+        messages: {
+          some: { senderId: { not: userId }, readAt: null, deletedAt: null },
+        },
       },
     }),
 };

@@ -78,6 +78,7 @@ import {
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
+import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
 import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
@@ -97,15 +98,14 @@ const NAV_ITEMS = [
 // comment for the full reasoning.
 
 function NavLink({
-  label, href, icon: Icon, isActive, indent = false,
+  label, href, icon: Icon, isActive, indent = false, badge,
 }: {
   label: string; href: string; icon?: React.ComponentType<{ className?: string }>;
-  isActive: boolean; indent?: boolean;
+  isActive: boolean; indent?: boolean; badge?: number;
 }) {
   return (
     <Link
       href={href}
-      // UX-08 FIX: aria-current="page" on the active item
       aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors',
@@ -115,9 +115,16 @@ function NavLink({
           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
-      {/* UX-15 FIX: aria-hidden so screen readers skip the decorative icon */}
       {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />}
-      {label}
+      <span className="flex-1">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className={cn(
+          'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold',
+          isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary text-primary-foreground',
+        )}>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -173,6 +180,7 @@ function DisclosureGroup({
 
 export function ProtectedSidebar() {
   const pathname = usePathname();
+  const { data: unreadMessages = 0 } = useUnreadConversationCount();
   const user = useAuthStore(selectUser);
   // ROLE-SEP 3.2: isSuccess && data is the only positive signal —
   // everything else (loading, 404, network error) reads as "no
@@ -188,7 +196,14 @@ export function ProtectedSidebar() {
         {NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);
           return (
-            <NavLink key={item.href} label={item.label} href={item.href} icon={item.icon} isActive={isActive} />
+            <NavLink
+              key={item.href}
+              label={item.label}
+              href={item.href}
+              icon={item.icon}
+              isActive={isActive}
+              badge={item.href === ROUTES.messages ? unreadMessages : undefined}
+            />
           );
         })}
 

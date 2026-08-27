@@ -10,6 +10,13 @@ export const conversationsRouter = Router();
 // buyer/seller pair, never publicly listable (same posture as
 // service-requests.routes.ts).
 conversationsRouter.get('/', authenticate, CACHE.NONE, conversationsController.getMyConversations);
+// Static path before /:id so "unread-count" is not captured as an id.
+conversationsRouter.get(
+  '/unread-count',
+  authenticate,
+  CACHE.NONE,
+  conversationsController.getUnreadCount
+);
 conversationsRouter.post(
   '/',
   authenticate,

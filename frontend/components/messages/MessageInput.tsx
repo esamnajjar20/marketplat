@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { Send } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Send, Ban } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { cn } from '@/lib/utils';
 
 interface Props {
   conversationId: string;
-  /** Disables the composer entirely — used when the other party is
-   * blocked (either direction), since sendMessage would just 403 with
-   * USER_BLOCKED anyway. Keeps that state visible in the UI instead of
-   * only surfacing it as an error toast after a failed send. */
+  /** Disables the composer when the other party is blocked. */
   disabled?: boolean;
 }
 
@@ -20,49 +17,54 @@ const QUICK_TEMPLATES = [
   'هل ما زال متوفراً؟',
   'ما آخر سعر؟',
   'أين مكان الاستلام؟',
+  'ممكن صور إضافية؟',
 ] as const;
 
-// FIX UX-GAP-05: the counter only needs to earn its place once getting
-// cut off is a real possibility — showing "12/2000" on every short
-// message is noise. 90% mirrors the threshold this codebase already
-// uses for the same purpose (see AdForm's description counter).
 const WARN_THRESHOLD = MAX_LENGTH * 0.9;
 
-/** MessageInput — Epic 5, the composer bar at the bottom of ChatWindow. */
+/** MessageInput — composer bar at the bottom of ChatWindow. */
 export function MessageInput({ conversationId, disabled }: Props) {
   const [body, setBody] = useState('');
   const sendMessage = useSendMessage(conversationId);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow textarea up to max-height
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [body]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = body.trim();
     if (!trimmed || sendMessage.isPending || disabled) return;
-    // UX-FIX (perceived-latency): clear the composer immediately instead
-    // of waiting for onSuccess — useSendMessage's onMutate already puts
-    // the bubble on screen synchronously (see that hook's own comment),
-    // so leaving the typed text sitting in the box until the network
-    // round-trip finished was the other half of the "nothing happens
-    // for a second" gap. On failure the text is restored below so a
-    // failed send doesn't silently lose what was typed.
     setBody('');
     sendMessage.mutate({ body: trimmed }, { onError: () => setBody(trimmed) });
+    // Keep focus for rapid back-and-forth
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   if (disabled) {
     return (
-      <div className="bg-card/90 backdrop-blur-md px-4 py-3 text-center text-sm text-muted-foreground">
-        لا يمكنك مراسلة هذا المستخدم
+      <div className="border-t bg-card/95 px-4 py-4">
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-muted-foreground">
+          <Ban className="h-4 w-4 shrink-0 text-destructive/70" aria-hidden />
+          <span>لا يمكنك مراسلة هذا المستخدم</span>
+        </div>
       </div>
     );
   }
 
   const nearLimit = body.length >= WARN_THRESHOLD;
+  const canSend = Boolean(body.trim()) && !sendMessage.isPending;
 
   return (
-    <div className="bg-card/90 backdrop-blur-md">
+    <div className="border-t border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/90 dark:bg-card/95">
       {!body.trim() && (
         <div
-          className="flex gap-2 overflow-x-auto px-3 pt-2 pb-1 [&::-webkit-scrollbar]:hidden"
+          className="flex gap-2 overflow-x-auto px-3 pt-2.5 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
           role="group"
           aria-label="رسائل سريعة"
         >
@@ -70,62 +72,72 @@ export function MessageInput({ conversationId, disabled }: Props) {
             <button
               key={label}
               type="button"
-              onClick={() => setBody(label)}
-              className="shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-foreground min-h-[36px] hover:bg-muted"
+              onClick={() => {
+                setBody(label);
+                requestAnimationFrame(() => textareaRef.current?.focus());
+              }}
+              className="snap-start shrink-0 rounded-full border border-border/80 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors min-h-[36px] hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
             >
               {label}
             </button>
           ))}
         </div>
       )}
-    <form onSubmit={handleSubmit} className="px-3 py-3">
-      <div className="flex items-end gap-2 bg-muted rounded-3xl p-1.5 shadow-inner focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-        <div className="flex-1 min-w-0">
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-            maxLength={MAX_LENGTH}
-            rows={1}
-            placeholder="اكتب رسالتك..."
-            className="w-full resize-none bg-transparent border-none outline-none px-3 py-2 text-sm placeholder:text-muted-foreground max-h-32"
-          />
-          {/* FIX UX-GAP-05: previously nothing signalled the 2000-char
-              cap until the user hit it mid-sentence (maxLength just
-              silently stops accepting input) — a long negotiation
-              message could be cut off with no warning. Only rendered
-              once nearLimit is true, matching the "don't show noise
-              for short messages" reasoning above. */}
-          {nearLimit && (
-            <p
-              className={cn(
-                'px-3 pb-1 text-xs text-end',
-                body.length >= MAX_LENGTH ? 'text-destructive font-medium' : 'text-muted-foreground'
-              )}
-            >
-              {body.length}/{MAX_LENGTH}
-            </p>
+
+      <form onSubmit={handleSubmit} className="px-3 py-2.5">
+        <div
+          className={cn(
+            'flex items-end gap-2 rounded-3xl border bg-muted/60 p-1.5 shadow-inner transition-all',
+            'focus-within:border-primary/30 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/15',
           )}
-        </div>
-        {/* FIX BUG-XX: icon-only button had no aria-label — every other
-            icon-only button in the codebase has one (see AdDetail's
-            favorite button, ShareAdButton, etc.). Without it, a screen
-            reader announces only "button", not what it does. */}
-        <button
-          type="submit"
-          aria-label="إرسال"
-          disabled={!body.trim() || sendMessage.isPending}
-          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-all disabled:opacity-40 disabled:pointer-events-none hover:shadow-lg"
         >
-          <Send className="h-4 w-4 rtl:-scale-x-100" />
-        </button>
-      </div>
-    </form>
+          <div className="min-w-0 flex-1">
+            <textarea
+              ref={textareaRef}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+              maxLength={MAX_LENGTH}
+              rows={1}
+              placeholder="اكتب رسالتك..."
+              className="w-full resize-none bg-transparent border-none outline-none px-3 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground max-h-32"
+              aria-label="نص الرسالة"
+            />
+            {nearLimit && (
+              <p
+                className={cn(
+                  'px-3 pb-1 text-[11px] text-end tabular-nums',
+                  body.length >= MAX_LENGTH ? 'font-medium text-destructive' : 'text-muted-foreground',
+                )}
+              >
+                {body.length}/{MAX_LENGTH}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            aria-label="إرسال"
+            disabled={!canSend}
+            className={cn(
+              'mb-0.5 me-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-md transition-all',
+              canSend
+                ? 'bg-primary text-primary-foreground hover:shadow-lg hover:scale-105 active:scale-95'
+                : 'bg-muted text-muted-foreground opacity-50 pointer-events-none',
+            )}
+          >
+            <Send className="h-4 w-4 rtl:-scale-x-100" />
+          </button>
+        </div>
+        <p className="mt-1.5 px-1 text-[10px] text-muted-foreground/70 text-center">
+          Enter للإرسال · Shift+Enter لسطر جديد
+        </p>
+      </form>
     </div>
   );
 }

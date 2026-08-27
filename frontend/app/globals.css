@@ -189,6 +189,37 @@
 }
 
 /**
+ * Mobile sticky contact / message CTAs must sit ABOVE BottomNav
+ * (z-50, ~3.5rem + safe-area). Using bottom-0 put the message button
+ * under the nav on product & service detail pages.
+ */
+.sticky-contact-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+}
+
+/* Content clearance: BottomNav (~3.5rem) + single-row CTA (~4.75rem) */
+.pb-sticky-contact {
+  padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Dual CTA stack (request + message) is taller */
+.pb-sticky-contact-tall {
+  padding-bottom: calc(11.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .pb-sticky-contact,
+  .pb-sticky-contact-tall {
+    padding-bottom: 0;
+  }
+}
+
+
+
+/**
  * FIX UX-22: project-level "stagger fade-in" for listing grids
  * (ads/products/services/stores) — cards were appearing instantly,
  * all at once, once data resolved. This gives the grid a light,

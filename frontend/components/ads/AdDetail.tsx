@@ -136,7 +136,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </p>
         </div>
       )}
-    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 pb-32 lg:pb-0">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 pb-sticky-contact">
       {/* LEFT: images + details */}
       <div className="flex-1 lg:w-2/3 min-w-0 space-y-6">
 

@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { Button } from '@/components/shared/ui/Button';
 import {
@@ -16,6 +15,7 @@ import {
 } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
+import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
@@ -96,6 +96,14 @@ export function ChatWindow({ conversationId }: Props) {
   const { mutate: toggleBlock, isPending: togglingBlock } = useToggleUserBlock();
   const { mutate: deleteMessage, isPending: deletingMessage } = useDeleteMessage(conversationId);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
+  const [showSafetyTip, setShowSafetyTip] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return sessionStorage.getItem('msg-safety-tip-dismissed') !== '1';
+    } catch {
+      return true;
+    }
+  });
 
   // FIX UX-GAP-03: `page` starts at null (unused — the live query above
   // already covers page 1) and only becomes a real second fetch once
@@ -103,10 +111,14 @@ export function ChatWindow({ conversationId }: Props) {
   // below (page argument only set once olderPage is non-null).
   const [olderPage, setOlderPage] = useState<number | null>(null);
   const [olderMessages, setOlderMessages] = useState<Message[]>([]);
+  // FIX UX-GAP-03c: store scroll anchor until older messages actually land
+  // in the DOM (the previous rAF ran before the fetch finished).
+  const scrollAnchorRef = useRef<{ height: number; top: number } | null>(null);
 
   const { data: olderPageData, isFetching: fetchingOlder } = useMessages(
     conversationId,
-    olderPage !== null ? { page: olderPage, limit: MESSAGES_PAGE_SIZE } : { limit: MESSAGES_PAGE_SIZE },
+    { page: olderPage ?? 2, limit: MESSAGES_PAGE_SIZE },
+    { enabled: olderPage !== null },
   );
 
   useEffect(() => {
@@ -118,41 +130,28 @@ export function ChatWindow({ conversationId }: Props) {
     });
   }, [olderPage, olderPageData]);
 
+  // Restore scroll after older messages are committed to the DOM.
+  useLayoutEffect(() => {
+    const anchor = scrollAnchorRef.current;
+    const el = scrollRef.current;
+    if (!anchor || !el) return;
+    el.scrollTop = anchor.top + (el.scrollHeight - anchor.height);
+    scrollAnchorRef.current = null;
+  }, [olderMessages]);
+
   const liveMessages = messagesPage?.items ?? [];
-  // FIX UX-GAP-03 (dedup bug): the effect above only deduped a newly
-  // fetched older page against `olderMessages`' own prior state — it
-  // never checked against `liveMessages`, so a message id present in
-  // both (e.g. the live page's oldest item lands on an older page's
-  // newest slot, a real possibility since both are independent fetches
-  // hitting a list that can shift between them) rendered twice. Filter
-  // olderMessages against the live set here, where both are actually
-  // known together, rather than trying to guess it inside the effect.
   const liveIds = new Set(liveMessages.map((m) => m.id));
   const messages = [...olderMessages.filter((m) => !liveIds.has(m.id)), ...liveMessages];
-  // Whether an older page beyond whichever page was fetched last is
-  // still available: before any click, that's the live page-1 fetch's
-  // own hasNextPage; after a click, it's the latest older-page fetch's
-  // hasNextPage, since that one's now the frontier of what's loaded.
   const hasMoreOlder = Boolean((olderPage === null ? messagesPage : olderPageData)?.meta?.hasNextPage);
 
   function handleLoadOlder() {
-    if (!scrollRef.current) {
-      setOlderPage((p) => (p ?? 1) + 1);
-      return;
+    if (scrollRef.current) {
+      scrollAnchorRef.current = {
+        height: scrollRef.current.scrollHeight,
+        top: scrollRef.current.scrollTop,
+      };
     }
-    const el = scrollRef.current;
-    const prevScrollHeight = el.scrollHeight;
-    const prevScrollTop = el.scrollTop;
     setOlderPage((p) => (p ?? 1) + 1);
-    // Runs after the DOM updates with the newly prepended messages —
-    // requestAnimationFrame (not useLayoutEffect keyed to state, which
-    // would fire before the new rows are actually measurable) restores
-    // the same visual scroll offset the user had before older content
-    // was added above it.
-    requestAnimationFrame(() => {
-      const newScrollHeight = el.scrollHeight;
-      el.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
-    });
   }
 
   useEffect(() => {
@@ -229,17 +228,52 @@ export function ChatWindow({ conversationId }: Props) {
           <ReportAdButton adId={conversation.ad.id} />
         </div>
       )}
+      {!conversation.ad && conversation.serviceRequest && (
+        <Link
+          href={ROUTES.serviceRequestDetail(conversation.serviceRequest.id)}
+          className="flex items-center gap-3 border-b bg-card px-3 py-2.5 shrink-0 hover:bg-muted/40 transition-colors"
+        >
+          <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+            <SafeImage
+              src={conversation.serviceRequest.listing?.images?.[0] ? getThumbnailUrl(conversation.serviceRequest.listing.images[0], 88, 88) : PLACEHOLDER_SVG}
+              alt={conversation.serviceRequest.listing?.title ?? 'طلب خدمة'}
+              fill
+              className="object-cover"
+              sizes="44px"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium line-clamp-1">
+              {conversation.serviceRequest.listing?.title ?? 'طلب خدمة'}
+            </p>
+            <p className="text-xs text-muted-foreground line-clamp-1">بخصوص طلب خدمة</p>
+          </div>
+        </Link>
+      )}
 
-      {/* Trust tip — once per thread, above the sticky party header */}
-      <div
-        role="note"
-        className="flex items-start gap-2 border-b border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
-      >
-        <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-        <p>
-          نصيحة أمان: تفاوض داخل المنصة، ولا تدفع مقدّماً خارجها. إن شعرت بشيء مريب استخدم «خيارات المحادثة».
-        </p>
-      </div>
+      {/* Trust tip — dismissible per session */}
+      {showSafetyTip && (
+        <div
+          role="note"
+          className="flex items-start gap-2 border-b border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+          <p className="flex-1 leading-relaxed">
+            نصيحة أمان: تفاوض داخل المنصة، ولا تدفع مقدّماً خارجها. إن شعرت بشيء مريب استخدم «خيارات المحادثة».
+          </p>
+          <button
+            type="button"
+            className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-amber-500/10 hover:text-foreground"
+            aria-label="إخفاء النصيحة"
+            onClick={() => {
+              setShowSafetyTip(false);
+              try { sessionStorage.setItem('msg-safety-tip-dismissed', '1'); } catch { /* ignore */ }
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 bg-card/90 backdrop-blur-md shadow-sm px-3 py-3 sticky top-0 z-10">
         <Link
@@ -271,9 +305,9 @@ export function ChatWindow({ conversationId }: Props) {
                 Online status now always gets this line when the ad
                 strip is showing, instead of losing it to the ad
                 condition it used to share an else-if with. */}
-            {isPartyOnline && (
-              <p className="text-xs text-online line-clamp-1">متصل الآن</p>
-            )}
+            <p className={cn('text-xs line-clamp-1', isPartyOnline ? 'text-online' : 'text-muted-foreground')}>
+              {isPartyOnline ? 'متصل الآن' : isBlocked ? 'محظور' : 'آخر ظهور غير معروف'}
+            </p>
           </div>
         </Link>
 
@@ -299,103 +333,138 @@ export function ChatWindow({ conversationId }: Props) {
               {isBlocked ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
               {isBlocked ? 'إلغاء حظر المستخدم' : 'حظر المستخدم'}
             </DropdownMenuItem>
+            {party && (
+              <div className="px-2 py-1.5 border-t mt-1">
+                <ReportUserButtonGate targetUserId={party.id} />
+              </div>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 flex flex-col gap-1.5 bg-muted/30 dark:bg-muted/15"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 1px 1px, hsl(var(--border) / 0.4) 1px, transparent 0)',
+          backgroundSize: '18px 18px',
+        }}
+      >
         {messagesLoading ? (
           <div className="flex justify-center py-8"><LoadingSpinner /></div>
         ) : messages.length === 0 ? (
-          <EmptyState
-            className="py-8"
-            title="ابدأ المحادثة"
-            description="أرسل أول رسالة لبدء الحديث"
-          />
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <ShieldAlert className="h-6 w-6" aria-hidden />
+            </div>
+            <div className="space-y-1 max-w-xs">
+              <p className="font-semibold text-foreground">ابدأ المحادثة</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                أرسل أول رسالة — يمكنك استخدام القوالب السريعة بالأسفل.
+              </p>
+            </div>
+          </div>
         ) : (
           <>
             {hasMoreOlder && (
-              <div className="flex justify-center pb-1">
-                <Button variant="ghost" size="sm" disabled={fetchingOlder} onClick={handleLoadOlder}>
-                  {fetchingOlder ? <Loader2 className="h-4 w-4 animate-spin" /> : 'تحميل رسائل أقدم'}
+              <div className="flex justify-center py-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={fetchingOlder}
+                  onClick={handleLoadOlder}
+                  className="gap-2 rounded-full shadow-sm"
+                >
+                  {fetchingOlder ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  تحميل رسائل أقدم
                 </Button>
               </div>
             )}
-            {messages.map((message) => {
+            {messages.map((message, index) => {
               const isMine = message.senderId === user?.id;
               const isDeleted = Boolean(message.deletedAt);
-              // UX-FIX (perceived-latency): useSendMessage's onMutate
-              // (useConversationMutations.ts) writes a temporary message
-              // with a client-generated `optimistic-...` id straight into
-              // this same cache so it appears the instant "إرسال" is
-              // pressed, before the server has responded. Flagged here
-              // purely by id shape (no new field on Message itself) so
-              // it renders as "sending" (faded, clock icon, no delete
-              // menu — there's no real id to delete yet) instead of a
-              // confirmed sent/read message until the real one replaces
-              // it on refetch.
               const isOptimistic = message.id.startsWith('optimistic-');
+              const prev = index > 0 ? messages[index - 1] : null;
+              const showDateSep = (() => {
+                if (!prev) return true;
+                const a = new Date(prev.createdAt).toDateString();
+                const b = new Date(message.createdAt).toDateString();
+                return a !== b;
+              })();
+              const tight = prev && prev.senderId === message.senderId && !showDateSep;
+
               return (
-                <div
-                  key={message.id}
-                  className={cn('group flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
-                >
-                  <div className="flex items-center gap-1">
-                    {isMine && !isDeleted && !isOptimistic && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted shrink-0"
-                            aria-label="خيارات الرسالة"
-                          >
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
-                            onClick={() => setConfirmDeleteMessageId(message.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            حذف الرسالة
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                    <div
-                      className={cn(
-                        'rounded-2xl px-4 py-2.5 text-sm shadow-sm transition-opacity',
-                        // FIX BUG-XX: rounded-br-sm/rounded-bl-sm are physical
-                        // (bottom-right/bottom-left) in a dir="rtl" app
-                        // (app/layout.tsx), so the "pointed" corner sat on the
-                        // wrong side of the bubble. rounded-ee-sm/rounded-es-sm
-                        // are logical (bottom-end/bottom-start) and follow the
-                        // actual text direction instead.
-                        isDeleted
-                          ? 'bg-muted text-muted-foreground italic'
-                          : isMine
-                            ? 'bg-primary text-primary-foreground rounded-ee-sm'
-                            : 'bg-card text-foreground rounded-es-sm',
-                        isOptimistic && 'opacity-60'
-                      )}
-                    >
-                      <p className="whitespace-pre-wrap break-words">
-                        {isDeleted ? 'تم حذف هذه الرسالة' : message.body}
-                      </p>
+                <div key={message.id} className="contents">
+                  {showDateSep && (
+                    <div className="flex justify-center py-3">
+                      <span className="rounded-full bg-background/90 px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-sm border">
+                        {new Date(message.createdAt).toLocaleDateString('ar', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1 px-1">
-                    <span className="text-[10px] text-muted-foreground">
-                      {formatTime(message.createdAt)}
-                    </span>
-                    {isMine && !isDeleted && (
-                      isOptimistic
-                        ? <Clock className="h-3 w-3 text-muted-foreground" aria-label="جارٍ الإرسال" />
-                        : message.readAt
-                          ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
-                          : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
+                  )}
+                  <div
+                    className={cn(
+                      'group flex flex-col max-w-[min(85%,28rem)]',
+                      isMine ? 'items-end self-end' : 'items-start self-start',
+                      tight ? 'mt-0.5' : 'mt-2',
                     )}
+                  >
+                    <div className={cn('flex items-end gap-1', isMine && 'flex-row-reverse')}>
+                      {isMine && !isDeleted && !isOptimistic && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted shrink-0"
+                              aria-label="خيارات الرسالة"
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                              onClick={() => setConfirmDeleteMessageId(message.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              حذف الرسالة
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                      <div
+                        className={cn(
+                          'rounded-2xl px-3.5 py-2 text-sm shadow-sm transition-opacity leading-relaxed',
+                          isDeleted
+                            ? 'bg-muted/80 text-muted-foreground italic border border-border/50'
+                            : isMine
+                              ? 'bg-primary text-primary-foreground rounded-ee-md'
+                              : 'bg-card text-foreground rounded-es-md border border-border/60 dark:bg-card dark:border-border/80 dark:shadow-none',
+                          isOptimistic && 'opacity-60',
+                        )}
+                      >
+                        <p className="whitespace-pre-wrap break-words">
+                          {isDeleted ? 'تم حذف هذه الرسالة' : message.body}
+                        </p>
+                      </div>
+                    </div>
+                    <div className={cn('flex items-center gap-1 px-1.5 mt-0.5', isMine && 'flex-row-reverse')}>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                        {formatTime(message.createdAt)}
+                      </span>
+                      {isMine && !isDeleted && (
+                        isOptimistic
+                          ? <Clock className="h-3 w-3 text-muted-foreground" aria-label="جارٍ الإرسال" />
+                          : message.readAt
+                            ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
+                            : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
+                      )}
+                    </div>
                   </div>
                 </div>
               );

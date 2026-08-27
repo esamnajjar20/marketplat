@@ -56,6 +56,8 @@ export interface Conversation {
  */
 export interface ConversationListItem extends Conversation {
   unreadCount: number;
+  /** Newest message in the thread (body already redacted if soft-deleted). */
+  lastMessage: Message | null;
 }
 
 export interface Message {

@@ -29,6 +29,32 @@ const assertParty = (conversation: Conversation, userId: string): void => {
 const redactIfDeleted = (message: Message): Message =>
   message.deletedAt ? { ...message, body: '' } : message;
 
+// FIX MSG-SCAN-01: same high-signal scam phrasing the ad fraud scorer
+// uses — applied here so steering payment off-platform in chat can't
+// bypass the ad-side check. Phone numbers are NOT rejected: arranging
+// a meetup is legitimate marketplace use. URLs alone are also allowed;
+// only the explicit scam phrases below are hard-blocked.
+const MESSAGE_SCAM_PATTERNS: RegExp[] = [
+  /wire\s*transfer\s*only/i,
+  /western\s*union/i,
+  /gift\s*card/i,
+  // Word-bounded: avoid matching unrelated "send … deposit … first" spans
+  /\bsend\s+(?:a\s+)?deposit\s+first\b/i,
+  /حوالة\s*بنكية\s*فقط/,
+  /ادفع\s+مقدم(?:اً|ا)?\s+قبل/,
+  /تحويل\s*غربي/,
+  /بطاقة\s*هدية/,
+];
+
+const assertMessageBodySafe = (body: string): void => {
+  if (MESSAGE_SCAM_PATTERNS.some((p) => p.test(body))) {
+    throw new BadRequestError(
+      'Message blocked: content matches known scam patterns. Keep negotiation on-platform.',
+      'MESSAGE_CONTENT_BLOCKED'
+    );
+  }
+};
+
 export const conversationsService = {
   /**
    * Starts (or reopens) a thread about a specific ad. The only entry
@@ -150,9 +176,18 @@ export const conversationsService = {
   ): Promise<PaginatedResult<ConversationListItem>> => {
     const { conversations, total } = await conversationsRepository.findManyForUser(userId, query);
     return {
-      items: conversations,
+      items: conversations.map((c) => ({
+        ...c,
+        lastMessage: c.lastMessage ? redactIfDeleted(c.lastMessage) : null,
+      })),
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
     };
+  },
+
+  /** FIX NAV-BADGE-01: aggregate unread thread count for the nav icon. */
+  getUnreadCount: async (userId: string): Promise<{ count: number }> => {
+    const count = await messagesRepository.countUnreadConversationsForUser(userId);
+    return { count };
   },
 
   sendMessage: async (userId: string, conversationId: string, body: string): Promise<Message> => {
@@ -169,6 +204,8 @@ export const conversationsService = {
     if (await blockedUsersService.isBlockedEitherDirection(userId, otherPartyId)) {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
+
+    assertMessageBodySafe(body);
 
     const [message] = await Promise.all([
       messagesRepository.create(conversationId, userId, body),
@@ -238,14 +275,19 @@ export const conversationsService = {
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
 
+    // Only the live (newest) page is a "read receipt" signal — loading
+    // older history must not re-run markRead on every poll of page 2+.
+    const page = query.page ?? 1;
     const [{ messages, total }] = await Promise.all([
       messagesRepository.findManyByConversationId(conversationId, query),
-      messagesRepository.markReadForRecipient(conversationId, userId),
+      page <= 1
+        ? messagesRepository.markReadForRecipient(conversationId, userId)
+        : Promise.resolve({ count: 0 }),
     ]);
 
     return {
       items: messages.map(redactIfDeleted),
-      meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),
+      meta: buildPaginationMeta(total, page, query.limit ?? 30),
     };
   },
 };
