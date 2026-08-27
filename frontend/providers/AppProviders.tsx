@@ -18,6 +18,7 @@ import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
+import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 
 interface AppProvidersProps {
@@ -86,6 +87,8 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         {/* Chat presence heartbeat — see PresenceHeartbeat.tsx's own
             header; same mount-once, no-props posture as the two above. */}
         <PresenceHeartbeat />
+
+        <NetworkStatusBanner />
 
         {/* Critical notification toasts — still poll-based, no WS. */}
         <NotificationToasts />

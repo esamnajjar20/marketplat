@@ -48,10 +48,9 @@ export const ROUTES = {
   myServiceAppointments:   '/my-services/appointments',
   // ANALYTICS: mirrors myStoreAnalytics below.
   myServiceProviderAnalytics: '/my-services/analytics',
-  serviceBroadcasts:       '/service-broadcasts',
-  serviceBroadcast:        (id: string) => `/service-broadcasts/${id}`,
+  serviceBroadcasts: '/service-broadcasts',
+  serviceBroadcast: (id: string) => `/service-broadcasts/${id}`,
   myServiceBroadcastQuotes: '/service-broadcasts/quotes',
-  myServiceBroadcasts:     '/service-broadcasts/mine',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,
   // FEAT-HOME-DISCOVERY: public cross-store products browse page —
@@ -60,7 +59,6 @@ export const ROUTES = {
   // existing GET /products (useProducts with no storeId), no new API.
   products:             '/products',
   myStore:              '/my-store',
-  myStoreSettings:      '/my-store/settings',
   myStoreProducts:       '/my-store/products',
   myStoreProductCreate:  '/my-store/products/new',
   myStoreProductEdit:    (id: string) => `/my-store/products/${id}/edit`,
@@ -70,6 +68,7 @@ export const ROUTES = {
   myStoreCollectionManage: (id: string) => `/my-store/collections/${id}`,
   // STORE-ANALYTICS (Foundation v1)
   myStoreAnalytics:      '/my-store/analytics',
+  myStoreSettings:      '/my-store/settings',
   myFollowedStores:     '/my-store/followed',
   settings: {
     root:          '/settings',
@@ -212,9 +211,9 @@ export const API_BASE_URL =
  * the same TTL values and they can be tuned in one place.
  */
 export const CACHE_TTL = {
-  adsList:     30_000,   //  30 s
-  adDetail:    60_000,   //  60 s
-  myAds:       30_000,   //  30 s
+  adsList:     90_000,   //  90 s — N2 public lists
+  adDetail:    120_000,  // 120 s — N2
+  myAds:       45_000,   //  45 s — N2
   categories:  300_000,  //   5 m
   userProfile: 120_000,  //   2 m
   sellerProfile: 60_000, //  60 s
@@ -232,7 +231,7 @@ export const CACHE_TTL = {
   // cache is possible), so this is purely the client-side React Query
   // staleTime. Matches adsList's 30s: a fresh favorite/view should
   // reasonably show up in the rail within the same browsing session.
-  recommendations: 30_000, // 30 s
+  recommendations: 60_000, // 60 s — N2
   // Epic 3.1: service requests move through PENDING/ACCEPTED/etc fairly
   // often (a provider can respond any time), so keep this shorter than
   // myAds — same reasoning as adsList's 30s over categories' 5m.
@@ -277,9 +276,9 @@ export const CACHE_TTL = {
   // categories' 5m as a "rarely changes, safe to cache long" TTL.
   savedSearches: 300_000,  // 5 m
   // Unified search: same volatility as adsList (its own results are a
-  // superset that includes ads) — 30s keeps results fresh without
+  // superset that includes ads) — 90s N2 for weak nets without
   // re-querying on every keystroke-triggered re-render.
-  search: 30_000,          // 30 s
+  search: 90_000,          // 90 s — N2 matches adsList
   // Suggestions change far less than search results (a new product
   // name only starts appearing once that product exists) and the
   // backend already caches this server-side for 5 minutes (see

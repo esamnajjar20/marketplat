@@ -11,16 +11,30 @@ import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'الرئيسية', path: '/' });
 
+/**
+ * N3: below-the-fold sections use a tighter rootMargin and recommendations
+ * wait for idle time so weak nets don't fire 5 list queries at once.
+ */
 export default function HomePage() {
   return (
     <div className="pb-8">
       <HeroBanner />
       <HomeAboveFold />
-      <LazySection minHeight={280}><PromotedProductsSection /></LazySection>
-      <LazySection minHeight={300}><RecentProductsSection /></LazySection>
-      <LazySection minHeight={280}><NearbyProvidersSection /></LazySection>
-      <LazySection minHeight={280}><FeaturedStoresSection /></LazySection>
-      <LazySection minHeight={260}><RecommendedAds /></LazySection>
+      <LazySection minHeight={280} rootMargin="100px 0px">
+        <PromotedProductsSection />
+      </LazySection>
+      <LazySection minHeight={300} rootMargin="80px 0px">
+        <RecentProductsSection />
+      </LazySection>
+      <LazySection minHeight={280} rootMargin="80px 0px">
+        <NearbyProvidersSection />
+      </LazySection>
+      <LazySection minHeight={280} rootMargin="60px 0px">
+        <FeaturedStoresSection />
+      </LazySection>
+      <LazySection minHeight={260} rootMargin="40px 0px" whenIdle>
+        <RecommendedAds />
+      </LazySection>
     </div>
   );
 }

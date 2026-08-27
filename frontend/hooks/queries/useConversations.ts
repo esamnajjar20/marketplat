@@ -5,7 +5,7 @@ import { conversationsApi } from '@/api/conversations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import { isNotificationStreamConnected } from '@/hooks/useNotificationStream';
+import { pollingInterval } from '@/lib/polling';
 import type { ConversationsQuery, MessagesQuery } from '@/types/conversation.types';
 
 /** GET /conversations — every thread the caller is a party to, most
@@ -19,8 +19,7 @@ export function useMyConversations(params?: ConversationsQuery) {
     queryKey: queryKeys.conversations.mine(params),
     queryFn: () => conversationsApi.getMine(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.conversations,
-    refetchInterval: () =>
-      isNotificationStreamConnected() ? CACHE_TTL.conversations * 3 : CACHE_TTL.conversations,
+    refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 3),
     enabled: isAuthenticated,
   });
 }
@@ -65,8 +64,8 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
         }),
     staleTime: CACHE_TTL.messages,
     // When SSE is up, live message:new updates the cache — poll only as backup.
-    refetchInterval: () =>
-      isNotificationStreamConnected() ? CACHE_TTL.messages * 6 : CACHE_TTL.messages,
+    // SSE delivers message:new; poll is backup only (longer when stream is up).
+    refetchInterval: () => pollingInterval(CACHE_TTL.messages, 6),
     enabled: isAuthenticated && Boolean(conversationId),
   });
 }
@@ -80,9 +79,7 @@ export function useUnreadConversationCount() {
     queryFn: () => conversationsApi.getUnreadCount().then((r) => r.data.data?.count ?? 0),
     staleTime: CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations,
     refetchInterval: () =>
-      isNotificationStreamConnected()
-        ? (CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations) * 3
-        : (CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations),
+      pollingInterval(CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations, 3),
     enabled: isAuthenticated,
   });
 }

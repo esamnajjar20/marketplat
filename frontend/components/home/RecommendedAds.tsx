@@ -4,8 +4,7 @@ import { Sparkle, AlertTriangle } from 'lucide-react';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useRecommendations } from '@/hooks/queries/useRecommendations';
-
-const DISPLAY_COUNT = 8;
+import { homeSectionLimit } from '@/lib/listLimits';
 
 /**
  * "قد يعجبك أيضًا" — home-page personalized rail (Gap #9). Owns its
@@ -31,7 +30,8 @@ const DISPLAY_COUNT = 8;
  * as before — that behavior is correct, not the bug.
  */
 export function RecommendedAds() {
-  const { data, isLoading, isError, refetch } = useRecommendations({ limit: DISPLAY_COUNT });
+  const limit = homeSectionLimit(8, 4);
+  const { data, isLoading, isError, refetch } = useRecommendations({ limit });
 
   if (!isLoading && !isError && !data?.length) return null;
 
@@ -49,7 +49,7 @@ export function RecommendedAds() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {Array.from({ length: DISPLAY_COUNT }).map((_, i) => <AdCardSkeleton key={i} />)}
+          {Array.from({ length: limit }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center gap-2 py-6 text-center text-sm">

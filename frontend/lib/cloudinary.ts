@@ -11,6 +11,8 @@
  */
 
 /** Supported image formats for auto-format delivery. */
+import { isDataSaverEnabled } from '@/lib/dataSaver';
+
 type ImageFormat = 'auto' | 'webp' | 'avif' | 'jpg' | 'png';
 
 /** Supported crop modes. */
@@ -32,7 +34,7 @@ export interface CloudinaryTransformOptions {
   height?:  number;
   crop?:    CropMode;
   gravity?: Gravity;
-  quality?: number | 'auto';
+  quality?: number | 'auto' | 'auto:eco' | 'auto:low';
   format?:  ImageFormat;
   /** Apply a blur effect (1–2000). Useful for placeholder blur-up. */
   blur?:    number;
@@ -106,12 +108,15 @@ export function buildTransformString(opts: CloudinaryTransformOptions): string {
  */
 export function getOptimisedUrl(
   url: string,
-  opts: Omit<CloudinaryTransformOptions, 'format' | 'quality'> = {},
+  opts: Omit<CloudinaryTransformOptions, 'format' | 'quality'> & {
+    quality?: CloudinaryTransformOptions['quality'];
+  } = {},
 ): string {
+  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
   const transforms = buildTransformString({
     ...opts,
-    format:  'auto',
-    quality: 'auto',
+    format: 'auto',
+    quality: opts.quality ?? (saver ? 'auto:eco' : 'auto'),
   });
   return applyTransformation(url, transforms);
 }
@@ -121,15 +126,25 @@ export function getOptimisedUrl(
  *
  * Used for ad list cards and search results.
  */
+/** Default card size on normal networks. */
+export const CARD_THUMB_WIDTH = 400;
+export const CARD_THUMB_HEIGHT = 300;
+/** Smaller card size when data-saver / 2G is active. */
+export const CARD_THUMB_WIDTH_SAVER = 280;
+export const CARD_THUMB_HEIGHT_SAVER = 210;
+
 export function getThumbnailUrl(
   url: string,
-  width  = 400,
-  height = 300,
+  width = CARD_THUMB_WIDTH,
+  height = CARD_THUMB_HEIGHT,
 ): string {
+  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
+  const w = saver ? Math.min(width, CARD_THUMB_WIDTH_SAVER) : width;
+  const h = saver ? Math.min(height, CARD_THUMB_HEIGHT_SAVER) : height;
   return getOptimisedUrl(url, {
-    width,
-    height,
-    crop:    'fill',
+    width: w,
+    height: h,
+    crop: 'fill',
     gravity: 'auto',
   });
 }
@@ -154,9 +169,11 @@ export function getPlaceholderUrl(url: string): string {
  * Maintains aspect ratio, delivers at up to 1200px wide.
  */
 export function getDetailImageUrl(url: string, maxWidth = 1200): string {
+  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
+  const w = saver ? Math.min(maxWidth, 800) : maxWidth;
   return getOptimisedUrl(url, {
-    width: maxWidth,
-    crop:  'scale',
+    width: w,
+    crop: 'scale',
   });
 }
 

@@ -4,12 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { usersApi } from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import { pollingInterval } from '@/lib/polling';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 
 /**
  * GET /users/presence?ids=... — bulk online lookup for however many
  * user IDs the current view needs a dot for. Polls at CACHE_TTL.presence
- * (5s) — no WebSocket in this codebase, same polling-only posture as
+ * (paused when tab hidden/offline; stretched when SSE is up) — same posture as
  * useMessages/useMyConversations (see those hooks' own doc comments).
  *
  * userIds should be a stable array (memoized by the caller) — it feeds
@@ -25,7 +26,7 @@ export function usePresence(userIds: string[]) {
     queryKey: queryKeys.presence.bulk(userIds),
     queryFn: () => usersApi.getPresence(userIds).then((r) => r.data.data),
     staleTime: CACHE_TTL.presence,
-    refetchInterval: CACHE_TTL.presence,
+    refetchInterval: () => pollingInterval(CACHE_TTL.presence, 3),
     enabled: isAuthenticated && userIds.length > 0,
   });
 }

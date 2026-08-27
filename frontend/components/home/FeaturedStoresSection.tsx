@@ -5,6 +5,7 @@ import { StoreCard } from '@/components/stores/StoreCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { useStores } from '@/hooks/queries/useStores';
+import { homeSectionLimit } from '@/lib/listLimits';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { ROUTES } from '@/lib/constants';
 
@@ -32,7 +33,7 @@ import { ROUTES } from '@/lib/constants';
 export function FeaturedStoresSection() {
   const location = useLocationResolver();
   const city = location.source === 'city' ? location.city : undefined;
-  const { data, isLoading } = useStores({ limit: 6, city });
+  const { data, isLoading } = useStores({ limit: homeSectionLimit(6, 4), city });
   const items = data?.items ?? [];
 
   const header = (

@@ -1,18 +1,33 @@
 /**
- * Client-side "data saver" preference — reduces Cloudinary thumbnail
- * dimensions and skips blur placeholders so slower mobile networks
- * transfer less image data.
+ * Client-side data-saver preference — reduces Cloudinary sizes and skips
+ * blur placeholders on slower networks.
+ *
+ * Enabled when:
+ * - user toggled localStorage flag, OR
+ * - browser Save-Data / effectiveType is 2g / slow-2g (N2 auto)
  */
 
 const KEY = 'marketplat:data-saver';
 
+function connectionWantsSaver(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const conn = (navigator as Navigator & {
+    connection?: { effectiveType?: string; saveData?: boolean };
+  }).connection;
+  if (!conn) return false;
+  if (conn.saveData) return true;
+  const t = conn.effectiveType;
+  return t === 'slow-2g' || t === '2g';
+}
+
 export function isDataSaverEnabled(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage.getItem(KEY) === '1';
+    if (window.localStorage.getItem(KEY) === '1') return true;
   } catch {
-    return false;
+    /* ignore */
   }
+  return connectionWantsSaver();
 }
 
 export function setDataSaverEnabled(on: boolean): void {

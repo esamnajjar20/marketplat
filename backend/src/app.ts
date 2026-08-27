@@ -47,7 +47,8 @@ app.use(
 // written afterward; /health, /ready, /live, /metrics stay tiny plain
 // text so compressing them isn't harmful, just unnecessary — not worth
 // a filter exception. Cheap CPU/response-size tradeoff at this scale.
-app.use(compression());
+// N3: threshold 1KB avoids compressing tiny health payloads; level 6 = size/CPU balance.
+app.use(compression({ threshold: 1024, level: 6 }));
 
 // PROD-FIX-15: parses the refreshToken/csrfToken cookies (see
 // shared/utils/authCookies.ts) into req.cookies. Registered right

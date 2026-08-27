@@ -6,6 +6,7 @@ import { SectionHeader } from '@/components/home/SectionHeader';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { ApiError } from '@/components/shared/ApiError';
 import { useProducts } from '@/hooks/queries/useProducts';
+import { homeSectionLimit } from '@/lib/listLimits';
 import { ROUTES } from '@/lib/constants';
 
 /**
@@ -33,7 +34,7 @@ import { ROUTES } from '@/lib/constants';
  */
 export function PromotedProductsSection() {
   const { data, isLoading, isError, error, refetch } = useProducts({
-    limit: 8,
+    limit: homeSectionLimit(8, 4),
     sortBy: 'createdAt',
     sortOrder: 'desc',
     hasPromotion: true,

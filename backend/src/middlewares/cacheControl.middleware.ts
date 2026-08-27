@@ -20,10 +20,10 @@ export const cacheControl =
 export const CACHE = {
   // Static-ish data: categories tree (1 hour)
   LONG: cacheControl(3600, 600),
-  // Frequently changing lists: ads feed (30s + 30s swr)
-  SHORT: cacheControl(30, 30),
-  // Individual resources: ad detail (60s)
-  MEDIUM: cacheControl(60, 30),
+  // Public lists — N2 longer TTL for weak nets (90s + 60s SWR)
+  SHORT: cacheControl(90, 60),
+  // Individual public resources (ad/product detail)
+  MEDIUM: cacheControl(120, 60),
   // No cache: authenticated or mutating routes
   NONE: (_req: Request, res: Response, next: NextFunction): void => {
     res.setHeader("Cache-Control", "no-store");
