@@ -1,6 +1,8 @@
 import { conversationsRepository, messagesRepository } from '../../src/modules/conversations/conversations.repository';
 import { prisma } from '../../src/config/prisma';
 
+import { Prisma } from '@prisma/client';
+
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     conversation: {
@@ -41,33 +43,23 @@ const adId = 'ad-1';
 describe('conversationsRepository', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  describe('findExisting', () => {
-    it('queries by the (adId, buyerId, sellerId) compound unique key', async () => {
-      (prisma.conversation.findUnique as jest.Mock).mockResolvedValue(null);
-
-      await conversationsRepository.findExisting(adId, buyerId, sellerId);
-
-      expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
-        where: { adId_buyerId_sellerId: { adId, buyerId, sellerId } },
-      });
-    });
-
-  });
-
-  // NOTE: findExisting no longer accepts a null adId. Postgres treats NULL
-  // as distinct from itself inside a unique index, so
-  // @@unique([adId, buyerId, sellerId]) does not dedupe adId: null rows —
-  // findUnique against a null adId would silently never find a match,
-  // breaking the idempotent-reuse guarantee for ad-less threads. That case
-  // is handled below by findExistingWithoutAd instead, which uses findFirst.
-  describe('findExistingWithoutAd', () => {
-    it('queries by (adId: null, buyerId, sellerId) via findFirst, not findUnique', async () => {
+  describe('findByUserPair', () => {
+    // FEAT-CONV-DEDUP: identity is the (buyerId, sellerId) pair
+    // regardless of which column either user landed in, so the lookup
+    // must check both orderings in one query, not just the exact
+    // ordering passed in.
+    it('queries by findFirst with both (buyerId, sellerId) orderings', async () => {
       (prisma.conversation.findFirst as jest.Mock).mockResolvedValue(null);
 
-      await conversationsRepository.findExistingWithoutAd(buyerId, sellerId);
+      await conversationsRepository.findByUserPair(buyerId, sellerId);
 
       expect(prisma.conversation.findFirst).toHaveBeenCalledWith({
-        where: { adId: null, buyerId, sellerId },
+        where: {
+          OR: [
+            { buyerId, sellerId },
+            { buyerId: sellerId, sellerId: buyerId },
+          ],
+        },
       });
       expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
     });
@@ -92,6 +84,77 @@ describe('conversationsRepository', () => {
       expect(prisma.conversation.create).toHaveBeenCalledWith({
         data: { buyerId, sellerId, adId: null, serviceRequestId: null },
       });
+    });
+  });
+
+  describe('findOrCreate', () => {
+    it('returns the existing conversation for the pair without calling create', async () => {
+      const existing = { id: 'conv-1', buyerId, sellerId };
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValue(existing);
+
+      const result = await conversationsRepository.findOrCreate(buyerId, sellerId, { adId });
+
+      expect(result).toEqual(existing);
+      expect(prisma.conversation.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a new conversation when no existing pair is found', async () => {
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValue(null);
+      const created = { id: 'conv-1', buyerId, sellerId, adId };
+      (prisma.conversation.create as jest.Mock).mockResolvedValue(created);
+
+      const result = await conversationsRepository.findOrCreate(buyerId, sellerId, { adId });
+
+      expect(prisma.conversation.create).toHaveBeenCalledWith({
+        data: { buyerId, sellerId, adId, serviceRequestId: null },
+      });
+      expect(result).toEqual(created);
+    });
+
+    // The core race-condition guarantee: two concurrent callers can both
+    // pass the initial findFirst (neither sees the other's row yet), then
+    // both call create(). The loser's insert violates the DB's
+    // @@unique([buyerId, sellerId]) and throws P2002 — that must be
+    // caught and turned into "fetch and return the winner's row", not a
+    // user-facing error, and must never leave the caller with zero
+    // conversations or an unhandled rejection.
+    it('on a P2002 unique conflict, refetches and returns the winning conversation instead of throwing', async () => {
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      const conflictError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['buyerId', 'sellerId'] },
+      });
+      (prisma.conversation.create as jest.Mock).mockRejectedValue(conflictError);
+      const winner = { id: 'conv-winner', buyerId, sellerId };
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValueOnce(winner);
+
+      const result = await conversationsRepository.findOrCreate(buyerId, sellerId, { adId });
+
+      expect(result).toEqual(winner);
+      expect(prisma.conversation.findFirst).toHaveBeenCalledTimes(2);
+    });
+
+    it('rethrows a P2002 conflict if the refetch somehow still finds nothing', async () => {
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValue(null);
+      const conflictError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['buyerId', 'sellerId'] },
+      });
+      (prisma.conversation.create as jest.Mock).mockRejectedValue(conflictError);
+
+      await expect(conversationsRepository.findOrCreate(buyerId, sellerId)).rejects.toBe(
+        conflictError
+      );
+    });
+
+    it('rethrows a non-P2002 error from create without swallowing it', async () => {
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValue(null);
+      const dbError = new Error('connection lost');
+      (prisma.conversation.create as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(conversationsRepository.findOrCreate(buyerId, sellerId)).rejects.toBe(dbError);
     });
   });
 

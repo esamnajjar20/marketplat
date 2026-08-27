@@ -35,9 +35,12 @@ export const conversationsService = {
    * point in the current UI (SellerCard's "مراسلة البائع") always
    * supplies an adId — this resolves the ad's owner as the seller side
    * and the caller as the buyer side, then reuses the existing thread
-   * for that (ad, buyer, seller) triple if one already exists rather
-   * than creating a duplicate — same idempotent-create shape as
-   * sellers.service's own profile-creation guard.
+   * for this (buyer, seller) *pair* if one already exists — regardless
+   * of which ad (this one or any other) it originally started from —
+   * rather than creating a duplicate. adId is only ever recorded on a
+   * conversation created fresh by this call; reopening an existing
+   * thread never overwrites its stored context. Same idempotent-create
+   * shape as sellers.service's own profile-creation guard.
    */
   startFromAd: async (buyerId: string, adId: string): Promise<Conversation> => {
     const ad = await adsRepository.findById(adId);
@@ -57,10 +60,7 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    const existing = await conversationsRepository.findExisting(adId, buyerId, sellerId);
-    if (existing) return existing;
-
-    return conversationsRepository.create(buyerId, sellerId, { adId });
+    return conversationsRepository.findOrCreate(buyerId, sellerId, { adId });
   },
 
   /**
@@ -69,8 +69,9 @@ export const conversationsService = {
    * wants to reach someone without going through one of their listings
    * first. Mirrors startFromAd's guard order (self-message, then block
    * check, then idempotent reuse) but resolves the target user instead
-   * of an ad, and uses findExistingWithoutAd since the ad-based unique
-   * lookup doesn't apply when adId is null.
+   * of an ad. findOrCreate's pair lookup checks both directions, so
+   * this also reopens a thread that started the other way around (the
+   * target previously messaged buyerId's ad or profile first).
    */
   startFromUser: async (buyerId: string, targetUserId: string): Promise<Conversation> => {
     const target = await usersRepository.findPublicById(targetUserId);
@@ -87,10 +88,7 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    const existing = await conversationsRepository.findExistingWithoutAd(buyerId, sellerId);
-    if (existing) return existing;
-
-    return conversationsRepository.create(buyerId, sellerId);
+    return conversationsRepository.findOrCreate(buyerId, sellerId);
   },
 
   /**
@@ -98,11 +96,20 @@ export const conversationsService = {
    * request detail page's "تواصل" entry point. Unlike startFromAd
    * (always buyer-initiated toward the ad owner), either the customer
    * or the provider on the request may call this first; whichever one
-   * isn't the caller becomes the other party. serviceRequestId is
-   * @unique on Conversation, so — unlike ad-based threads, where many
-   * different buyers can each have their own thread about the same ad
-   * — there is only ever one thread for a given request, and this is
-   * idempotent for either party calling it.
+   * isn't the caller becomes the other party.
+   *
+   * FEAT-CONV-DEDUP: this now goes through the same pair-based
+   * findOrCreate as every other entry point — if the customer and
+   * provider already have a conversation (started via an ad, a direct
+   * profile message, or a different service request between the same
+   * two people), that thread is reused and serviceRequestId is left as
+   * whatever it already was, not overwritten to point at this request.
+   * serviceRequestId is still recorded as this conversation's context
+   * on the branch that actually creates a fresh row — the request's
+   * own @unique constraint on that column only matters at that point
+   * (findOrCreate's pair lookup already covers "does a thread for this
+   * specific request already exist", since a request has exactly one
+   * customer and one provider).
    */
   startFromServiceRequest: async (userId: string, serviceRequestId: string): Promise<Conversation> => {
     const request = await serviceRequestsRepository.findById(serviceRequestId);
@@ -127,10 +134,7 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    const existing = await conversationsRepository.findExistingByServiceRequestId(serviceRequestId);
-    if (existing) return existing;
-
-    return conversationsRepository.create(customerId, providerUserId, { serviceRequestId });
+    return conversationsRepository.findOrCreate(customerId, providerUserId, { serviceRequestId });
   },
 
   getConversationById: async (userId: string, id: string): Promise<ConversationWithRelations> => {

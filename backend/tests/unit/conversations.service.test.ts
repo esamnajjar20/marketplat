@@ -2,6 +2,7 @@ import { conversationsService } from '../../src/modules/conversations/conversati
 import { conversationsRepository, messagesRepository } from '../../src/modules/conversations/conversations.repository';
 import { adsRepository } from '../../src/modules/ads/ads.repository';
 import { usersRepository } from '../../src/modules/users/users.repository';
+import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
 import { notificationEvents } from '../../src/modules/notifications';
 import { blockedUsersService } from '../../src/modules/blocked-users';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
@@ -11,6 +12,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 jest.mock('../../src/modules/conversations/conversations.repository');
 jest.mock('../../src/modules/ads/ads.repository');
 jest.mock('../../src/modules/users/users.repository');
+jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/notifications', () => ({
   notificationEvents: { onNewMessage: jest.fn() },
 }));
@@ -63,28 +65,46 @@ describe('conversationsService', () => {
       await expect(conversationsService.startFromAd(sellerId, adId)).rejects.toThrow(
         BadRequestError
       );
-      expect(conversationsRepository.findExisting).not.toHaveBeenCalled();
+      expect(conversationsRepository.findOrCreate).not.toHaveBeenCalled();
     });
 
-    it('reuses an existing conversation for the same (ad, buyer, seller) triple', async () => {
+    it('delegates to findOrCreate for the (buyer, seller) pair with adId as context', async () => {
       (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
-      (conversationsRepository.findExisting as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findOrCreate as jest.Mock).mockResolvedValue(mockConversation);
 
       const result = await conversationsService.startFromAd(buyerId, adId);
 
+      expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId, {
+        adId,
+      });
       expect(result).toEqual(mockConversation);
-      expect(conversationsRepository.create).not.toHaveBeenCalled();
     });
 
-    it('creates a new conversation when none exists yet', async () => {
-      (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
-      (conversationsRepository.findExisting as jest.Mock).mockResolvedValue(null);
-      (conversationsRepository.create as jest.Mock).mockResolvedValue(mockConversation);
+    // FEAT-CONV-DEDUP: the same seller's second (or third) ad must
+    // resolve to the exact same conversation as the first — this is
+    // the specific behavior findOrCreate's pair-based (not ad-based)
+    // lookup exists to guarantee. Modeled here as the repository
+    // returning the same row for two different adIds against the same
+    // buyer/seller pair, since findOrCreate itself is unit-tested in
+    // conversations.repository.test.ts.
+    it('reuses the same conversation across multiple different ads from the same seller', async () => {
+      const otherAdId = 'ad-2';
+      (adsRepository.findById as jest.Mock)
+        .mockResolvedValueOnce(mockAd)
+        .mockResolvedValueOnce({ ...mockAd, id: otherAdId });
+      (conversationsRepository.findOrCreate as jest.Mock).mockResolvedValue(mockConversation);
 
-      const result = await conversationsService.startFromAd(buyerId, adId);
+      const first = await conversationsService.startFromAd(buyerId, adId);
+      const second = await conversationsService.startFromAd(buyerId, otherAdId);
 
-      expect(conversationsRepository.create).toHaveBeenCalledWith(buyerId, sellerId, { adId });
-      expect(result).toEqual(mockConversation);
+      expect(first.id).toBe(mockConversation.id);
+      expect(second.id).toBe(mockConversation.id);
+      expect(conversationsRepository.findOrCreate).toHaveBeenNthCalledWith(1, buyerId, sellerId, {
+        adId,
+      });
+      expect(conversationsRepository.findOrCreate).toHaveBeenNthCalledWith(2, buyerId, sellerId, {
+        adId: otherAdId,
+      });
     });
 
     it('throws ForbiddenError when either party has blocked the other', async () => {
@@ -95,7 +115,7 @@ describe('conversationsService', () => {
         ForbiddenError
       );
       expect(blockedUsersService.isBlockedEitherDirection).toHaveBeenCalledWith(buyerId, sellerId);
-      expect(conversationsRepository.findExisting).not.toHaveBeenCalled();
+      expect(conversationsRepository.findOrCreate).not.toHaveBeenCalled();
     });
   });
 
@@ -131,7 +151,7 @@ describe('conversationsService', () => {
       await expect(conversationsService.startFromUser(buyerId, buyerId)).rejects.toThrow(
         BadRequestError
       );
-      expect(conversationsRepository.findExistingWithoutAd).not.toHaveBeenCalled();
+      expect(conversationsRepository.findOrCreate).not.toHaveBeenCalled();
     });
 
     it('throws ForbiddenError when either party has blocked the other', async () => {
@@ -141,30 +161,92 @@ describe('conversationsService', () => {
       await expect(conversationsService.startFromUser(buyerId, sellerId)).rejects.toThrow(
         ForbiddenError
       );
-      expect(conversationsRepository.findExistingWithoutAd).not.toHaveBeenCalled();
+      expect(conversationsRepository.findOrCreate).not.toHaveBeenCalled();
     });
 
-    it('reuses an existing no-ad conversation for the same (buyer, seller) pair', async () => {
+    it('delegates to findOrCreate for the (buyer, seller) pair with no context', async () => {
       (usersRepository.findPublicById as jest.Mock).mockResolvedValue(mockTarget);
-      (conversationsRepository.findExistingWithoutAd as jest.Mock).mockResolvedValue(
-        mockConversationNoAd
-      );
+      (conversationsRepository.findOrCreate as jest.Mock).mockResolvedValue(mockConversationNoAd);
 
       const result = await conversationsService.startFromUser(buyerId, sellerId);
 
+      expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId);
       expect(result).toEqual(mockConversationNoAd);
-      expect(conversationsRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('startFromServiceRequest', () => {
+    const requestId = 'req-1';
+    const mockRequest = {
+      id: requestId,
+      customerId: buyerId,
+      listing: { provider: { sellerProfile: { userId: sellerId } } },
+    } as any;
+
+    it('throws NotFoundError when the service request does not exist', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        conversationsService.startFromServiceRequest(buyerId, requestId)
+      ).rejects.toThrow(NotFoundError);
     });
 
-    it('creates a new no-ad conversation when none exists yet', async () => {
-      (usersRepository.findPublicById as jest.Mock).mockResolvedValue(mockTarget);
-      (conversationsRepository.findExistingWithoutAd as jest.Mock).mockResolvedValue(null);
-      (conversationsRepository.create as jest.Mock).mockResolvedValue(mockConversationNoAd);
+    it('throws ForbiddenError when the caller is neither the customer nor the provider', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(mockRequest);
 
-      const result = await conversationsService.startFromUser(buyerId, sellerId);
+      await expect(
+        conversationsService.startFromServiceRequest('stranger-1', requestId)
+      ).rejects.toThrow(ForbiddenError);
+      expect(conversationsRepository.findOrCreate).not.toHaveBeenCalled();
+    });
 
-      expect(conversationsRepository.create).toHaveBeenCalledWith(buyerId, sellerId);
-      expect(result).toEqual(mockConversationNoAd);
+    it('throws ForbiddenError when either party has blocked the other', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(mockRequest);
+      (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        conversationsService.startFromServiceRequest(buyerId, requestId)
+      ).rejects.toThrow(ForbiddenError);
+      expect(conversationsRepository.findOrCreate).not.toHaveBeenCalled();
+    });
+
+    it('delegates to findOrCreate for the (customer, provider) pair with serviceRequestId as context', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(mockRequest);
+      (conversationsRepository.findOrCreate as jest.Mock).mockResolvedValue(mockConversation);
+
+      const result = await conversationsService.startFromServiceRequest(buyerId, requestId);
+
+      expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId, {
+        serviceRequestId: requestId,
+      });
+      expect(result).toEqual(mockConversation);
+    });
+
+    // Scenario 5 from the design: if this customer/provider pair already
+    // has a thread (started via an ad, a direct profile message, or a
+    // different request), starting from a new service request between
+    // the same two people must resolve to that same conversation, not a
+    // second one. findOrCreate's pair-based lookup is what guarantees
+    // this — this test locks in that startFromServiceRequest actually
+    // goes through it rather than any request-specific shortcut.
+    it('reuses an existing conversation for the pair when one already exists', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(mockRequest);
+      (conversationsRepository.findOrCreate as jest.Mock).mockResolvedValue(mockConversation);
+
+      const result = await conversationsService.startFromServiceRequest(buyerId, requestId);
+
+      expect(result.id).toBe(mockConversation.id);
+    });
+
+    it('either party (customer or provider) resolves to the same call shape', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(mockRequest);
+      (conversationsRepository.findOrCreate as jest.Mock).mockResolvedValue(mockConversation);
+
+      await conversationsService.startFromServiceRequest(sellerId, requestId);
+
+      expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId, {
+        serviceRequestId: requestId,
+      });
     });
   });
 

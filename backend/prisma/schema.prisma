@@ -879,15 +879,18 @@ model StoreReview {
 
 model Conversation {
   id        String    @id @default(cuid())
+  // FEAT-CONV-DEDUP: adId is initial-context only — which ad/listing
+  // the thread happened to start from — and is deliberately NOT part
+  // of the identity key below anymore. See @@unique([buyerId, sellerId]).
   adId      String?
   // CHAT-LINK: lets a service request's own detail page offer a
   // "تواصل" entry point into a real thread instead of only a phone
-  // number, same as an ad already does via adId. Unique (not part of
-  // a composite key like adId_buyerId_sellerId) because a
-  // ServiceRequest already has exactly one customer and one provider
-  // — there is only ever one legitimate conversation for a given
-  // request, unlike an ad, which many different buyers can each start
-  // their own thread about.
+  // number, same as an ad already does via adId. Still its own
+  // @unique (a ServiceRequest has exactly one customer and one
+  // provider, so at most one thread can legitimately be "for" it) but
+  // no longer part of the conversation's identity key either — see
+  // @@unique([buyerId, sellerId]) below, which is now the sole
+  // identity for a thread between two users.
   serviceRequestId String?        @unique
   buyerId   String
   sellerId  String
@@ -899,7 +902,16 @@ model Conversation {
   seller    User      @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   messages  Message[]
 
-  @@unique([adId, buyerId, sellerId])
+  // FEAT-CONV-DEDUP: was @@unique([adId, buyerId, sellerId]) — that let
+  // the same two users accumulate a separate conversation per ad. The
+  // conversation's identity is now the (buyerId, sellerId) pair alone:
+  // one thread per pair of users, regardless of which ad/product/
+  // service/service-request it started from. Enforced at the DB level
+  // (not just an application-level findFirst) so concurrent requests
+  // can't create two rows for the same pair — see
+  // conversations.repository.ts's create() for the P2002-then-refetch
+  // handling this requires.
+  @@unique([buyerId, sellerId])
   @@index([buyerId, updatedAt])
   @@index([sellerId, updatedAt])
   @@map("conversations")

@@ -22,6 +22,9 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
  */
 export type ConversationListItem = ConversationWithRelations & { unreadCount: number };
 
+const isPrismaError = (err: unknown, code: string): boolean =>
+  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+
 const conversationWithRelations = {
   // Epic 5: ad is nullable on the row itself (adId String?) — the
   // include still always resolves buyer/seller since those FKs are
@@ -47,38 +50,32 @@ const conversationWithRelations = {
 } as const;
 
 export const conversationsRepository = {
-  /** Looks up the single existing thread for a given (ad, buyer, seller)
-   * triple — mirrors the @@unique([adId, buyerId, sellerId]) constraint
-   * exactly, so this is always a unique lookup, never a list. */
-  findExisting: (
-    adId: string,
-    buyerId: string,
-    sellerId: string
-  ): Promise<Conversation | null> =>
-    prisma.conversation.findUnique({
-      where: { adId_buyerId_sellerId: { adId, buyerId, sellerId } },
-    }),
-
   /**
-   * Same idempotent-lookup idea as findExisting, but for the no-ad case
-   * (userId-based start). Postgres treats NULL as distinct from itself
-   * in a unique index, so @@unique([adId, buyerId, sellerId]) does NOT
-   * dedupe rows where adId is null — findUnique can't be used here the
-   * way findExisting uses it above. findFirst against (adId: null,
-   * buyerId, sellerId) is the correct equivalent lookup for this case.
+   * FEAT-CONV-DEDUP: the conversation's identity is the (buyerId,
+   * sellerId) *pair* of users — not which of the two is stored in
+   * which column. A thread A opens by messaging B's ad (buyerId: A,
+   * sellerId: B) must be the same thread B later reopens by messaging
+   * A's ad (buyerId: B, sellerId: A) or A's profile directly. The DB's
+   * own @@unique([buyerId, sellerId]) only dedupes one exact ordering
+   * (see that index's schema comment), so every lookup here checks
+   * both orderings — whichever one exists, if any, is the canonical
+   * conversation for this pair. Always a findFirst, never findUnique:
+   * even though at most one row can match, Postgres has no single
+   * index that covers "either ordering" as one unique key.
    */
-  findExistingWithoutAd: (buyerId: string, sellerId: string): Promise<Conversation | null> =>
+  findByUserPair: (userAId: string, userBId: string): Promise<Conversation | null> =>
     prisma.conversation.findFirst({
-      where: { adId: null, buyerId, sellerId },
+      where: {
+        OR: [
+          { buyerId: userAId, sellerId: userBId },
+          { buyerId: userBId, sellerId: userAId },
+        ],
+      },
     }),
 
-  // CHAT-LINK: mirrors findExisting's unique-lookup shape exactly —
-  // serviceRequestId is @unique on the row (a request has at most one
-  // thread), so this is a true findUnique, not a list/findFirst like
-  // findExistingWithoutAd above has to be for the null-adId case.
-  findExistingByServiceRequestId: (serviceRequestId: string): Promise<Conversation | null> =>
-    prisma.conversation.findUnique({ where: { serviceRequestId } }),
-
+  /** Raw insert — no dedup, no race handling. Use findOrCreate for the
+   * idempotent start-a-conversation flow; this stays a thin primitive
+   * mainly so tests can assert the exact row shape being written. */
   create: (
     buyerId: string,
     sellerId: string,
@@ -92,6 +89,41 @@ export const conversationsRepository = {
         serviceRequestId: context.serviceRequestId ?? null,
       },
     }),
+
+  /**
+   * Idempotent start-a-conversation: reuse the existing thread for this
+   * pair of users if one exists (either direction — see
+   * findByUserPair), otherwise create one. Concurrent callers can both
+   * pass the initial lookup and race into create() — the DB's
+   * @@unique([buyerId, sellerId]) then rejects whichever insert loses
+   * the race with P2002, which is caught here and turned into a
+   * refetch-and-return-existing instead of a user-facing error. Same
+   * idempotent-create shape already used elsewhere in this codebase
+   * (see blocked-users.service.ts's toggleBlock).
+   *
+   * context (adId / serviceRequestId) is only ever applied on the
+   * branch that actually creates a new row — reusing an existing
+   * conversation never mutates its stored context to match whatever
+   * ad/request this particular call happened to come from, matching
+   * adId's existing "initial context only" contract.
+   */
+  findOrCreate: async (
+    buyerId: string,
+    sellerId: string,
+    context: { adId?: string | null; serviceRequestId?: string | null } = {}
+  ): Promise<Conversation> => {
+    const existing = await conversationsRepository.findByUserPair(buyerId, sellerId);
+    if (existing) return existing;
+
+    try {
+      return await conversationsRepository.create(buyerId, sellerId, context);
+    } catch (err) {
+      if (!isPrismaError(err, 'P2002')) throw err;
+      const winner = await conversationsRepository.findByUserPair(buyerId, sellerId);
+      if (winner) return winner;
+      throw err;
+    }
+  },
 
   findById: (id: string): Promise<ConversationWithRelations | null> =>
     prisma.conversation.findUnique({ where: { id }, include: conversationWithRelations }),
