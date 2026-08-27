@@ -379,3 +379,6 @@ export interface AvailabilityResponse {
   available: boolean;
   freeRanges: AvailabilitySlot[];
 }
+
+/** Mirrors backend/prisma/schema.prisma's ServiceQuoteStatus enum. */
+export type ServiceQuoteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
