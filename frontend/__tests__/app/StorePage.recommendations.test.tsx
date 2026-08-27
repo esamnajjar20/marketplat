@@ -1,12 +1,8 @@
 /**
  * __tests__/app/StorePage.recommendations.test.tsx
  *
- * PR4C integration coverage: the public store detail page
- * (app/(public)/stores/[id]/page.tsx) must mount StoreRecommendations
- * with excludeStoreId set to the store actually being viewed,
- * alongside its existing content (StoreHeader/StoreProducts/
- * StoreCollections/StoreReviewsList/StoreReviewButton) — none of
- * which this PR touches.
+ * PR4C + Phase 3: public store page mounts StoreRecommendations with
+ * excludeStoreId, StoreHeader, and StoreStorefront (tabs).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -18,20 +14,17 @@ vi.mock('@/api/stores.api', () => ({
 }));
 
 vi.mock('@/components/stores/StoreHeader', () => ({
-  StoreHeader: ({ store }: { store: { id: string } }) => <div data-testid="store-header">{store.id}</div>,
+  StoreHeader: ({ store }: { store: { id: string } }) => (
+    <div data-testid="store-header">{store.id}</div>
+  ),
 }));
-vi.mock('@/components/stores/StoreProducts', () => ({
-  StoreProducts: () => <div data-testid="store-products" />,
+
+vi.mock('@/components/stores/StoreStorefront', () => ({
+  StoreStorefront: ({ storeId }: { storeId: string }) => (
+    <div data-testid="store-storefront">{storeId}</div>
+  ),
 }));
-vi.mock('@/components/stores/StoreCollections', () => ({
-  StoreCollections: () => null,
-}));
-vi.mock('@/components/stores/StoreReviewsList', () => ({
-  StoreReviewsList: () => <div data-testid="store-reviews" />,
-}));
-vi.mock('@/components/stores/StoreReviewButton', () => ({
-  StoreReviewButton: () => <div data-testid="review-button" />,
-}));
+
 vi.mock('@/components/recommendations/StoreRecommendations', () => ({
   StoreRecommendations: ({ excludeStoreId }: { excludeStoreId: string }) => (
     <div data-testid="store-recommendations">{excludeStoreId}</div>
@@ -56,6 +49,7 @@ describe('StorePage — recommendations integration', () => {
     render(jsx);
 
     expect(screen.getByTestId('store-header')).toHaveTextContent('store-1');
+    expect(screen.getByTestId('store-storefront')).toHaveTextContent('store-1');
     expect(screen.getByTestId('store-recommendations')).toHaveTextContent('store-1');
   });
 
@@ -66,5 +60,6 @@ describe('StorePage — recommendations integration', () => {
     render(jsx);
 
     expect(screen.queryByTestId('store-recommendations')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('store-header')).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Tag, Plus, AlertTriangle, XCircle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -45,6 +46,8 @@ function discountLabel(promotion: Promotion): string {
  * cancel-and-recreate is the only mutation path after creation).
  */
 export function MyPromotionsList() {
+  const searchParams = useSearchParams();
+  const productIdFromUrl = searchParams.get('productId') ?? undefined;
   const { data: promotions, isLoading, isError, refetch } = useMyPromotions();
   // Needed to resolve productId -> product name for display, since
   // promotions.api.ts's list endpoint returns the bare Promotion shape
@@ -57,6 +60,10 @@ export function MyPromotionsList() {
   const cancelPromotion = useCancelPromotion();
   const [formOpen, setFormOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (productIdFromUrl) setFormOpen(true);
+  }, [productIdFromUrl]);
 
   if (isLoading) {
     return (
@@ -132,7 +139,7 @@ export function MyPromotionsList() {
         </div>
       )}
 
-      <PromotionForm open={formOpen} onOpenChange={setFormOpen} />
+      <PromotionForm open={formOpen} onOpenChange={setFormOpen} initialProductId={productIdFromUrl} />
 
       <ConfirmDialog
         open={cancelTargetId !== null}

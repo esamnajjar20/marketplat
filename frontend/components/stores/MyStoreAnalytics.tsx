@@ -83,6 +83,7 @@ export function MyStoreAnalytics() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard icon={Eye} label="مشاهدات المتجر" value={analytics.views} />
         <StatCard icon={Users} label="المتابعون" value={analytics.followers} />
+        <StatCard icon={UserPlus} label="متابعون جدد (٧ أيام)" value={analytics.newFollowers7d} />
         <StatCard icon={UserPlus} label="متابعون جدد (٣٠ يوم)" value={analytics.newFollowers30d} />
         <StatCard icon={Package} label="منتجات نشطة" value={analytics.activeProducts} />
         <StatCard icon={Tag} label="عروض نشطة" value={analytics.activePromotions} />
@@ -98,8 +99,12 @@ export function MyStoreAnalytics() {
             <p className="text-sm text-muted-foreground">لا توجد بيانات مشاهدات بعد.</p>
           ) : (
             <ul className="space-y-3">
-              {analytics.topProducts.map((product, index) => (
-                <li key={product.id} className="flex items-center gap-3">
+              {analytics.topProducts.map((product, index) => {
+                const maxViews = analytics.topProducts[0]?.views || 1;
+                const pct = Math.max(8, Math.round((product.views / maxViews) * 100));
+                return (
+                <li key={product.id} className="space-y-1.5">
+                  <div className="flex items-center gap-3">
                   <span className="w-4 shrink-0 text-sm text-muted-foreground">{index + 1}</span>
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-muted">
                     {product.image && (
@@ -116,8 +121,12 @@ export function MyStoreAnalytics() {
                   <span className="shrink-0 text-xs text-muted-foreground">
                     {product.views.toLocaleString('ar')} مشاهدة
                   </span>
+                  </div>
+                  <div className="ms-7 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
+                  </div>
                 </li>
-              ))}
+              );})}
             </ul>
           )}
         </CardContent>

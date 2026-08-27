@@ -25,6 +25,7 @@ storesRouter.get('/me/followed', authenticate, CACHE.NONE, storesController.getM
 // STORE-ANALYTICS (Foundation v1): owner-only, same registration-order
 // reasoning as /me/followed above.
 storesRouter.get('/me/analytics', authenticate, CACHE.NONE, storesController.getMyStoreAnalytics);
+storesRouter.post('/me/feature-request', authenticate, CACHE.NONE, storesController.requestFeature);
 
 // Logo/cover upload — same single-image pattern as POST /users/me/avatar.
 // Registered alongside the other /me routes for the same "never

@@ -1,9 +1,8 @@
 'use client';
 
 /**
- * Actionable "what needs attention" strip for the dashboard —
- * pending service requests, ads missing images, products out of stock.
- * Hides itself when there is nothing to do.
+ * Actionable "what needs attention" strip — backed by
+ * GET /sellers/me/attention (server-side counts).
  */
 
 import Link from 'next/link';
@@ -14,11 +13,8 @@ import {
   ArrowLeft,
   Wrench,
 } from 'lucide-react';
-import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
-import { useMyAds } from '@/hooks/queries/useAds';
-import { useMyProducts } from '@/hooks/queries/useProducts';
+import { useMyAttention, useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
-import { useIsSeller } from '@/hooks/queries/useSellers';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -28,18 +24,12 @@ type Task = {
   count: number;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  tone: 'warning' | 'primary' | 'muted';
 };
 
 export function SellerTodayTasks() {
-  const { isProvider, isLoaded: providerLoaded } = useIsProvider();
   const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
-
-  const { data: incoming, isLoading: incomingLoading } = useIncomingServiceRequests(
-    { status: 'PENDING', limit: 20 },
-  );
-  const { data: myAds, isLoading: adsLoading } = useMyAds({ limit: 50, status: 'ACTIVE' });
-  const { data: myProducts, isLoading: productsLoading } = useMyProducts({ limit: 50 });
+  const { isProvider, isLoaded: providerLoaded } = useIsProvider();
+  const { data: attention, isLoading, isError, refetch } = useMyAttention();
 
   if (!sellerLoaded || !providerLoaded) {
     return <div className="h-20 animate-pulse rounded-xl bg-muted" aria-hidden />;
@@ -47,67 +37,60 @@ export function SellerTodayTasks() {
 
   if (!isSeller && !isProvider) return null;
 
-  const pendingRequests = (incoming?.items ?? []).filter((r) => r.status === 'PENDING').length;
-  const adsMissingImages = (myAds?.items ?? []).filter(
-    (ad) => !ad.images || ad.images.length === 0,
-  ).length;
-  const productsOut = (myProducts?.items ?? []).filter(
-    (p) => p.availability === 'OUT_OF_STOCK',
-  ).length;
-  const productsNoImage = (myProducts?.items ?? []).filter(
-    (p) => !p.images || p.images.length === 0,
-  ).length;
+  if (isLoading) {
+    return <div className="h-20 animate-pulse rounded-xl bg-muted" aria-hidden />;
+  }
+
+  if (isError || !attention) {
+    return (
+      <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 text-center text-sm">
+        <p className="text-muted-foreground">تعذّر تحميل المهام</p>
+        <button type="button" onClick={() => refetch()} className="mt-1 text-primary hover:underline">
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   const tasks: Task[] = [];
 
-  if (isProvider && pendingRequests > 0) {
+  if (attention.isProvider && attention.pendingServiceRequests > 0) {
     tasks.push({
       id: 'requests',
       label: 'طلبات خدمة بانتظار ردك',
-      count: pendingRequests,
+      count: attention.pendingServiceRequests,
       href: ROUTES.incomingServiceRequests,
       icon: ClipboardList,
-      tone: 'warning',
     });
   }
-  if (isSeller && adsMissingImages > 0) {
+  if (isSeller && attention.adsMissingImages > 0) {
     tasks.push({
       id: 'ads-img',
       label: 'إعلانات بدون صور',
-      count: adsMissingImages,
+      count: attention.adsMissingImages,
       href: ROUTES.myAds,
       icon: ImageOff,
-      tone: 'muted',
     });
   }
-  if (isSeller && productsOut > 0) {
+  if (attention.hasStore && attention.productsOutOfStock > 0) {
     tasks.push({
       id: 'oos',
       label: 'منتجات غير متوفرة',
-      count: productsOut,
+      count: attention.productsOutOfStock,
       href: ROUTES.myStoreProducts,
       icon: PackageX,
-      tone: 'warning',
     });
   }
-  if (isSeller && productsNoImage > 0) {
+  if (attention.hasStore && attention.productsMissingImages > 0) {
     tasks.push({
       id: 'prod-img',
       label: 'منتجات بدون صور',
-      count: productsNoImage,
+      count: attention.productsMissingImages,
       href: ROUTES.myStoreProducts,
       icon: ImageOff,
-      tone: 'muted',
     });
   }
-  if (isProvider && pendingRequests === 0 && !incomingLoading) {
-    // optional soft nudge — skip if we want only problems
-  }
 
-  const loading = incomingLoading || adsLoading || productsLoading;
-  if (loading && tasks.length === 0) {
-    return <div className="h-20 animate-pulse rounded-xl bg-muted" aria-hidden />;
-  }
   if (tasks.length === 0) return null;
 
   return (

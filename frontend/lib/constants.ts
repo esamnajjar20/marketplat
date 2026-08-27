@@ -56,6 +56,7 @@ export const ROUTES = {
   // existing GET /products (useProducts with no storeId), no new API.
   products:             '/products',
   myStore:              '/my-store',
+  myStoreSettings:      '/my-store/settings',
   myStoreProducts:       '/my-store/products',
   myStoreProductCreate:  '/my-store/products/new',
   myStoreProductEdit:    (id: string) => `/my-store/products/${id}/edit`,

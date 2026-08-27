@@ -430,4 +430,43 @@ describe('storesController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
     });
   });
+
+  describe('requestFeature', () => {
+    it('returns 200 with the store on success', async () => {
+      const req = mockRequest({ user: authUser } as any);
+      const res = mockResponse();
+      const next = mockNext();
+      const featured = { ...mockStore, featureRequestedAt: new Date().toISOString() };
+      (storesService.requestFeature as jest.Mock).mockResolvedValue(featured);
+
+      await storesController.requestFeature(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(storesService.requestFeature).toHaveBeenCalledWith('user-1');
+    });
+
+    it('calls next(UnauthorizedError) when there is no authenticated user', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+      const next = mockNext();
+
+      await storesController.requestFeature(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+    });
+
+    it('calls next(error) when the service rejects', async () => {
+      const req = mockRequest({ user: authUser } as any);
+      const res = mockResponse();
+      const next = mockNext();
+      (storesService.requestFeature as jest.Mock).mockRejectedValue(
+        new NotFoundError('Store not found')
+      );
+
+      await storesController.requestFeature(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+    });
+  });
+
 });

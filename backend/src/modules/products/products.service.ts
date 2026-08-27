@@ -51,6 +51,16 @@ const FREE_PLAN_PRODUCT_LIMIT = 20;
 // comment for the full reconciliation rule.
 export type ProductWithEffectivePrice<T> = T & { effectivePrice: EffectivePrice };
 
+function deriveAvailabilityFromStock(
+  stock: number | null | undefined,
+  fallback: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' | undefined,
+): 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' {
+  if (stock === undefined || stock === null) return fallback ?? 'IN_STOCK';
+  if (stock <= 0) return 'OUT_OF_STOCK';
+  if (stock <= 5) return 'LIMITED';
+  return 'IN_STOCK';
+}
+
 export const productsService = {
   createProduct: async (
     userId: string,
@@ -122,7 +132,8 @@ export const productsService = {
             discountPrice: input.discountPrice,
             wholesalePrice: input.wholesalePrice,
             wholesaleMinQty: input.wholesaleMinQty,
-            availability: input.availability,
+            availability: deriveAvailabilityFromStock(input.stockQuantity, input.availability),
+            stockQuantity: input.stockQuantity ?? null,
           })
         );
       });
@@ -158,7 +169,13 @@ export const productsService = {
 
   getMyProducts: async (
     userId: string,
-    query: { page?: number; limit?: number; status?: 'ACTIVE' | 'PAUSED' | 'DELETED' }
+    query: {
+      page?: number;
+      limit?: number;
+      status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
+      availability?: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
+      search?: string;
+    }
   ): Promise<PaginatedResult<Product>> => {
     const store = await requireOwnStoreForProducts(userId);
     const { products, total } = await productsRepository.findManyByStoreId(store.id, query);
@@ -248,7 +265,14 @@ export const productsService = {
       }
     }
 
-    const updated = await productsRepository.update(id, input);
+    const patch = { ...input };
+    if (input.stockQuantity !== undefined) {
+      patch.availability = deriveAvailabilityFromStock(
+        input.stockQuantity,
+        input.availability ?? product.availability,
+      );
+    }
+    const updated = await productsRepository.update(id, patch);
 
     // Gap #10: fire-and-forget, see createProduct's own comment above.
     activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });

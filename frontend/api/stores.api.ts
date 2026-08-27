@@ -1,3 +1,4 @@
+import type { ApiResponse } from '@/types/api.types';
 /**
  * Stores API — maps to backend /api/v1/stores/* endpoints.
  * Verified against the stores backend module's stores.routes.ts /
@@ -14,7 +15,6 @@
  */
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
-import type { ApiResponse } from '@/types/api.types';
 import type {
   StoreDetails,
   StoreWithSeller,
@@ -32,6 +32,12 @@ import type {
 } from '@/types/store.types';
 
 export const storesApi = {
+  /** POST /stores/me/feature-request — ask admin for FEATURED plan */
+  requestFeature: () =>
+    apiClient.post<ApiResponse<import('@/types/store.types').StoreDetails>>(
+      '/stores/me/feature-request',
+    ),
+
   /** GET /stores — public directory, paginated. FEATURED-plan stores sort first server-side. */
   getAll: (params?: StoresQuery) =>
     apiClient

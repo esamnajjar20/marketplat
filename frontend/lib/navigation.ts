@@ -78,8 +78,12 @@ export const STORE_GROUP = {
   href: ROUTES.myStore,
   icon: Store,
   children: [
-    { label: 'إدارة المتجر', href: ROUTES.myStore },
+    { label: 'لوحة المتجر', href: ROUTES.myStore },
     { label: 'منتجاتي', href: ROUTES.myStoreProducts },
+    { label: 'العروض', href: ROUTES.myStorePromotions },
+    { label: 'المجموعات', href: ROUTES.myStoreCollections },
+    { label: 'الإحصائيات', href: ROUTES.myStoreAnalytics },
+    { label: 'إعدادات المتجر', href: ROUTES.myStoreSettings },
     { label: 'المتاجر المتابَعة', href: ROUTES.myFollowedStores },
   ],
 } as const;

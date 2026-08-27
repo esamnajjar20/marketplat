@@ -38,6 +38,28 @@ export const createSellerProfileSchema = z.object({
 
 export type CreateSellerProfileInput = z.infer<typeof createSellerProfileSchema>['body'];
 
+/** PATCH /sellers/me/profile — owner may update display fields only. */
+export const updateSellerProfileSchema = z.object({
+  body: z
+    .object({
+      displayName: z.string().trim().min(2, 'Display name must be at least 2 characters').max(50).optional(),
+      bio: z
+        .union([z.string().trim().max(300, 'Bio must be at most 300 characters'), z.null()])
+        .optional(),
+      avatarUrl: z
+        .union([z.string().url('avatarUrl must be a valid URL'), z.null()])
+        .optional(),
+    })
+    .refine(
+      (body) =>
+        body.displayName !== undefined || body.bio !== undefined || body.avatarUrl !== undefined,
+      { message: 'At least one field is required' }
+    ),
+});
+
+export type UpdateSellerProfileInput = z.infer<typeof updateSellerProfileSchema>['body'];
+
+
 export const sellerIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Seller profile ID is required') }),
 });

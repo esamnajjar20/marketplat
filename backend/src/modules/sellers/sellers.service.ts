@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { sellersRepository, SellerProfileWithAds, SellerRatingWithRater } from './sellers.repository';
-import { CreateSellerProfileInput, CreateRatingInput, GetSellerRatingsQuery } from './sellers.validation';
+import { CreateSellerProfileInput, UpdateSellerProfileInput, CreateRatingInput, GetSellerRatingsQuery } from './sellers.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -71,6 +71,88 @@ export const sellersService = {
     if (!profile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
     return profile;
   },
+
+  updateMySellerProfile: async (
+    userId: string,
+    input: UpdateSellerProfileInput
+  ): Promise<SellerProfile> => {
+    const profile = await sellersRepository.findByUserId(userId);
+    if (!profile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+    if (profile.suspended) {
+      throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
+    }
+    return sellersRepository.updateMyProfile(profile.id, {
+      displayName: input.displayName,
+      bio: input.bio,
+      avatarUrl: input.avatarUrl,
+    });
+  },
+
+  getMyAttention: async (userId: string): Promise<{
+    adsMissingImages: number;
+    productsOutOfStock: number;
+    productsMissingImages: number;
+    pendingServiceRequests: number;
+    hasStore: boolean;
+    isProvider: boolean;
+  }> => {
+    const profile = await sellersRepository.findByUserId(userId);
+
+    const [adsMissingImages, store, provider] = await Promise.all([
+      prisma.$queryRaw<[{ c: bigint }]>`
+            SELECT COUNT(*)::bigint AS c
+            FROM ads
+            WHERE "userId" = ${userId}
+              AND status = 'ACTIVE'
+              AND cardinality(images) = 0
+          `.then((rows) => Number(rows[0]?.c ?? 0)),
+      profile
+        ? prisma.storeDetails.findUnique({ where: { sellerProfileId: profile.id }, select: { id: true } })
+        : Promise.resolve(null),
+      profile
+        ? prisma.serviceProviderDetails.findUnique({
+            where: { sellerProfileId: profile.id },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    let productsOutOfStock = 0;
+    let productsMissingImages = 0;
+    if (store) {
+      const [oos, noImg] = await Promise.all([
+        prisma.product.count({
+          where: { storeId: store.id, status: 'ACTIVE', availability: 'OUT_OF_STOCK' },
+        }),
+        prisma.$queryRaw<[{ c: bigint }]>`
+          SELECT COUNT(*)::bigint AS c
+          FROM products
+          WHERE "storeId" = ${store.id}
+            AND status = 'ACTIVE'
+            AND cardinality(images) = 0
+        `.then((rows) => Number(rows[0]?.c ?? 0)),
+      ]);
+      productsOutOfStock = oos;
+      productsMissingImages = noImg;
+    }
+
+    let pendingServiceRequests = 0;
+    if (provider) {
+      pendingServiceRequests = await prisma.serviceRequest.count({
+        where: { listing: { providerId: provider.id }, status: 'PENDING' },
+      });
+    }
+
+    return {
+      adsMissingImages,
+      productsOutOfStock,
+      productsMissingImages,
+      pendingServiceRequests,
+      hasStore: Boolean(store),
+      isProvider: Boolean(provider),
+    };
+  },
+
 
   // PLAN-P1-4: verification was previously admin-initiated only —
   // an admin had to already know/decide a seller deserved it, with

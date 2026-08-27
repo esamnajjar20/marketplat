@@ -42,6 +42,7 @@ export interface Product {
   wholesaleMinQty: number | null;
   discountPrice: string | null;
   availability: ProductAvailability;
+  stockQuantity?: number | null;
   status: ProductStatus;
   views: number;
   createdAt: string;
@@ -107,6 +108,7 @@ export interface CreateProductPayload {
   wholesalePrice?: number;
   wholesaleMinQty?: number;
   availability?: ProductAvailability;
+  stockQuantity?: number;
   images: File[];
 }
 
@@ -125,6 +127,7 @@ export interface UpdateProductPayload {
   wholesalePrice?: number | null;
   wholesaleMinQty?: number | null;
   availability?: ProductAvailability;
+  stockQuantity?: number | null;
   status?: ProductStatus;
 }
 

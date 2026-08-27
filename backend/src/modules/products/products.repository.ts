@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, Product, ProductStatus } from '@prisma/client';
+import { Prisma, Product, ProductStatus, ProductAvailability } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { GetProductsQuery } from './products.validation';
 
@@ -33,6 +33,7 @@ export const productsRepository = {
       wholesalePrice?: number;
       wholesaleMinQty?: number;
       availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
+      stockQuantity?: number | null;
     }
   ): Promise<Product> =>
     tx.product.create({
@@ -47,6 +48,7 @@ export const productsRepository = {
         wholesalePrice: data.wholesalePrice,
         wholesaleMinQty: data.wholesaleMinQty,
         availability: data.availability,
+        stockQuantity: data.stockQuantity ?? null,
       },
     }),
 
@@ -78,6 +80,7 @@ export const productsRepository = {
       description: string;
       images: string[];
       price: number;
+      stockQuantity: number | null;
       discountPrice: number | null;
       wholesalePrice: number | null;
       wholesaleMinQty: number | null;
@@ -221,13 +224,28 @@ export const productsRepository = {
 
   findManyByStoreId: async (
     storeId: string,
-    query: { page?: number; limit?: number; status?: ProductStatus }
+    query: {
+      page?: number;
+      limit?: number;
+      status?: ProductStatus;
+      availability?: ProductAvailability;
+      search?: string;
+    }
   ): Promise<{ products: Product[]; total: number }> => {
-    const { page = 1, limit = 20, status } = query;
+    const { page = 1, limit = 20, status, availability, search } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.ProductWhereInput = {
       storeId,
       status: status ? status : { not: 'DELETED' },
+      ...(availability ? { availability } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     };
 
     const [products, total] = await Promise.all([

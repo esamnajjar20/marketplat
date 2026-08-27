@@ -43,6 +43,8 @@ export function BecomeStoreOwnerCard() {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
 
@@ -107,6 +109,8 @@ export function BecomeStoreOwnerCard() {
         city,
         address: address.trim() || undefined,
         phone: phone.trim(),
+        ...(latitude.trim() ? { latitude: Number(latitude) } : {}),
+        ...(longitude.trim() ? { longitude: Number(longitude) } : {}),
       },
       {
         onSuccess: () => {
@@ -188,6 +192,15 @@ export function BecomeStoreOwnerCard() {
             placeholder="الشارع، الحي..."
           />
         </FormField>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="خط العرض (اختياري)" htmlFor="store-lat">
+            <Input id="store-lat" inputMode="decimal" placeholder="31.5" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+          </FormField>
+          <FormField label="خط الطول (اختياري)" htmlFor="store-lng">
+            <Input id="store-lng" inputMode="decimal" placeholder="34.4" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+          </FormField>
+        </div>
 
         <Button type="submit" disabled={isFormIncomplete || createStore.isPending}>
           {createStore.isPending ? 'جارٍ الإنشاء…' : 'إنشاء المتجر'}

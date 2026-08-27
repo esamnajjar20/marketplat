@@ -691,6 +691,8 @@ model StoreDetails {
   // from the AnalyticsEvent pipeline (that table has no storeId column
   // today; adding one is a separate, bigger migration).
   views           Int             @default(0)
+  viewsAtLastReport Int           @default(0)
+  featureRequestedAt DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   sellerProfile   SellerProfile   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
@@ -733,6 +735,7 @@ model Product {
   wholesaleMinQty Int?
   discountPrice   Decimal?            @db.Decimal(10, 2)
   availability    ProductAvailability @default(IN_STOCK)
+  stockQuantity   Int?
   status          ProductStatus       @default(ACTIVE)
   views           Int                 @default(0)
   createdAt       DateTime            @default(now())
@@ -1148,6 +1151,7 @@ enum NotificationType {
   FAV_AD_SOLD
   PROMOTION
   WEEKLY_AD_VIEWS_REPORT
+  WEEKLY_STORE_VIEWS_REPORT
   SAVED_SEARCH_MATCH
   STORE_NEW_PRODUCT
   // PROMO-1 (Phase 14): lifecycle notification for a store owner's own

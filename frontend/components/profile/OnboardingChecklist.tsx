@@ -1,27 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, Circle, User, Store, PlusCircle, ArrowLeft } from 'lucide-react';
+import { Check, Circle, User, Store, PlusCircle, ArrowLeft, Package } from 'lucide-react';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyAds } from '@/hooks/queries/useAds';
+import { useMyStore } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/ui/Button';
 
 /**
- * Dashboard onboarding for new users — collapses once all steps are done.
+ * Dashboard onboarding — distinguishes classified ads vs store catalog.
  */
 export function OnboardingChecklist() {
   const user = useAuthStore(selectUser);
   const { data: sellerProfile, isLoading: sellerLoading, isError: sellerError } = useMySellerProfile();
   const { data: myAds, isLoading: adsLoading } = useMyAds({ limit: 1 });
+  const { data: myStore, isSuccess: storeLoaded } = useMyStore();
 
   if (sellerLoading || adsLoading) return null;
 
   const hasAvatar = Boolean(user?.avatarUrl);
   const hasSellerProfile = !sellerError && Boolean(sellerProfile);
   const hasAd = Boolean(myAds?.items?.length);
+  const hasStore = storeLoaded && Boolean(myStore);
 
   const steps = [
     {
@@ -41,8 +44,16 @@ export function OnboardingChecklist() {
       href: hasSellerProfile
         ? ROUTES.adCreate
         : `${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.adCreate)}`,
-      label: 'انشر إعلانك الأول',
+      label: 'انشر إعلانك الأول (سلعة فردية)',
       icon: PlusCircle,
+    },
+    {
+      done: hasStore,
+      href: hasSellerProfile
+        ? ROUTES.myStore
+        : `${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.myStore)}`,
+      label: 'افتح متجرك (كتالوج منتجات)',
+      icon: Package,
     },
   ];
 
@@ -64,7 +75,7 @@ export function OnboardingChecklist() {
             ابدأ بيعك على سوق غزة
           </h2>
           <p className="text-xs text-muted-foreground">
-            {doneCount} من {steps.length} خطوات مكتملة
+            {doneCount} من {steps.length} خطوات
             {remaining.length === 1 ? ' — خطوة أخيرة!' : ''}
           </p>
         </div>
@@ -87,6 +98,28 @@ export function OnboardingChecklist() {
         />
       </div>
 
+      {hasSellerProfile && !hasAd && !hasStore && (
+        <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground space-y-2">
+          <p className="font-medium text-foreground">اختر مسار البيع:</p>
+          <ul className="list-disc ps-4 space-y-1">
+            <li>
+              <strong className="text-foreground">إعلان:</strong> سلعة واحدة أو مستعمل — نشر سريع.
+            </li>
+            <li>
+              <strong className="text-foreground">متجر:</strong> كتالوج منتجات مستمر مع عروض ومجموعات.
+            </li>
+          </ul>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button size="sm" asChild>
+              <Link href={ROUTES.adCreate}>إعلان سريع</Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href={ROUTES.myStore}>فتح متجر</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
       <ul className="space-y-1">
         {steps.map((step) => (
           <li key={step.label}>
@@ -106,9 +139,7 @@ export function OnboardingChecklist() {
                 <Circle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 <step.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
                 <span className="flex-1 text-start">{step.label}</span>
-                {step === next && (
-                  <ArrowLeft className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                )}
+                {step === next && <ArrowLeft className="h-4 w-4 shrink-0 text-primary" aria-hidden />}
               </Link>
             )}
           </li>

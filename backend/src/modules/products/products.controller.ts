@@ -5,6 +5,7 @@ import {
   updateProductSchema,
   productIdSchema,
   getProductsSchema,
+  getMyProductsSchema,
 } from './products.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -28,7 +29,7 @@ export const productsController = {
   getMyProducts: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const query = paginationQuerySchema.parse(req.query);
+      const { query } = getMyProductsSchema.parse({ query: req.query });
       const result = await productsService.getMyProducts(user.userId, query);
       res
         .status(200)

@@ -5,7 +5,7 @@ import { sellersApi } from '@/api/sellers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
-import type { CreateSellerProfilePayload, CreateSellerRatingPayload } from '@/types/seller.types';
+import type { CreateSellerProfilePayload, UpdateSellerProfilePayload, CreateSellerRatingPayload } from '@/types/seller.types';
 
 /**
  * POST /sellers/me/profile — one-time seller profile creation.
@@ -67,6 +67,22 @@ export function useCreateSellerRating(sellerProfileId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.sellers.detail(sellerProfileId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.sellers.ratings(sellerProfileId) });
       toast.success('تم إرسال تقييمك');
+    },
+    onError: err => toast.error(parseApiError(err).message),
+  });
+}
+
+
+/** PATCH /sellers/me/profile — edit displayName / bio after creation. */
+export function useUpdateSellerProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UpdateSellerProfilePayload) =>
+      sellersApi.updateMyProfile(payload).then(r => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sellers.me() });
+      toast.success('تم حفظ تعديلات ملف البائع');
     },
     onError: err => toast.error(parseApiError(err).message),
   });

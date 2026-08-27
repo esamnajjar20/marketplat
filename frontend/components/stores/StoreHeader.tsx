@@ -13,9 +13,10 @@ import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.st
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
+import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_URL } from '@/lib/constants';
 import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 
 // STORE-HOURS (Foundation v1): sat-first order, same as
@@ -63,6 +64,13 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const derivedIsFollowing = useIsFollowingStore(store.id);
   const isFollowing = isFollowingProp ?? derivedIsFollowing;
   const isOwnStore = currentUser?.id === store.sellerProfile.userId;
+  const shareUrl = `${APP_URL}${ROUTES.storeDetail(store.id)}`;
+  const waDigits = store.phone.replace(/\D/g, '');
+  const waPhone = waDigits.startsWith('970')
+    ? waDigits
+    : waDigits.startsWith('0')
+      ? `970${waDigits.slice(1)}`
+      : waDigits;
   const avatar = getAvatarUrl(store.logoUrl ?? store.sellerProfile.avatarUrl ?? '', 128);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;
   const rating = parseFloat(store.sellerProfile.averageRating);
@@ -171,6 +179,20 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
         </div>
 
+        <div className="mt-3 flex gap-2 w-full max-w-sm justify-center items-center">
+          {!isOwnStore && waPhone.length >= 9 && (
+            <a
+              href={`https://wa.me/${waPhone}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 rounded-full border border-[#25D366]/40 bg-[#25D366]/10 py-2.5 px-3 text-center text-sm font-medium text-[#128C7E] dark:text-[#25D366] transition-colors hover:bg-[#25D366]/15"
+            >
+              واتساب
+            </a>
+          )}
+          <ShareAdButton title={store.name} url={shareUrl} variant="button" className="flex-1" />
+        </div>
+
         {/* FEAT-MSG-UNIFY: "مراسلة المتجر" — unified messaging entry
             point (MessageUserButtonGate) targeting the store's owner
             user, exactly like SellerCard/ProductDetail's own "راسل
@@ -229,9 +251,21 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         )}
 
         {store.description && (
-          <p className="mt-6 text-sm text-muted-foreground text-center max-w-[280px]">
+          <p className="mt-6 text-sm text-muted-foreground text-center max-w-md">
             {store.description}
           </p>
+        )}
+
+        {store.latitude && store.longitude && (
+          <a
+            href={`https://www.openstreetmap.org/?mlat=${store.latitude}&mlon=${store.longitude}#map=16/${store.latitude}/${store.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            عرض الموقع على الخريطة
+          </a>
         )}
 
         {/* STORE-HOURS (Foundation v1): full weekly schedule, shown only

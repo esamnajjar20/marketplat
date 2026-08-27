@@ -19,6 +19,7 @@ export const createProductSchema = z.object({
     wholesalePrice: z.coerce.number().positive().multipleOf(0.01).optional(),
     wholesaleMinQty: z.coerce.number().int().positive().optional(),
     availability: z.nativeEnum(ProductAvailability).default('IN_STOCK'),
+    stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
   })
     // Wholesale pricing is a pair — a minimum quantity with no price
     // (or vice versa) is a contradiction, not a valid partial state.
@@ -49,6 +50,7 @@ export const updateProductSchema = z.object({
     wholesalePrice: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
     wholesaleMinQty: z.coerce.number().int().positive().nullable().optional(),
     availability: z.nativeEnum(ProductAvailability).optional(),
+    stockQuantity: z.coerce.number().int().min(0).max(1000000).nullable().optional(),
     status: z.nativeEnum(ProductStatus).optional(),
   }),
 });
@@ -91,6 +93,19 @@ export const getProductsSchema = z.object({
 });
 
 export type GetProductsQuery = z.infer<typeof getProductsSchema>['query'];
+
+export const getMyProductsSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    status: z.nativeEnum(ProductStatus).optional(),
+    availability: z.nativeEnum(ProductAvailability).optional(),
+    search: z.string().trim().min(1).max(200).optional(),
+  }),
+});
+
+export type GetMyProductsQuery = z.infer<typeof getMyProductsSchema>['query'];
+
 
 export const productIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Product ID is required') }),

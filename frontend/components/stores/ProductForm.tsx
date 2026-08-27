@@ -32,6 +32,7 @@ interface Values {
   wholesalePrice: string;
   wholesaleMinQty: string;
   availability: ProductAvailability;
+  stockQuantity: string;
   images: File[];         // new uploads staged for this submit
   existingImages: string[]; // URLs already on server (edit mode)
 }
@@ -84,6 +85,7 @@ export function ProductForm({ mode, product }: Props) {
           wholesalePrice: product.wholesalePrice ?? '',
           wholesaleMinQty: product.wholesaleMinQty ? String(product.wholesaleMinQty) : '',
           availability: product.availability,
+          stockQuantity: product.stockQuantity != null ? String(product.stockQuantity) : '',
           images: [],
           existingImages: product.images,
         }
@@ -96,6 +98,7 @@ export function ProductForm({ mode, product }: Props) {
           wholesalePrice: '',
           wholesaleMinQty: '',
           availability: 'IN_STOCK',
+          stockQuantity: '',
           images: [],
           existingImages: [],
         }
@@ -175,6 +178,7 @@ export function ProductForm({ mode, product }: Props) {
           wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : undefined,
           wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : undefined,
           availability: values.availability,
+          ...(values.stockQuantity.trim() !== '' ? { stockQuantity: Number(values.stockQuantity) } : {}),
           images: values.images,
         },
         {
@@ -251,6 +255,7 @@ export function ProductForm({ mode, product }: Props) {
       wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : null,
       wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : null,
       availability: values.availability,
+      stockQuantity: values.stockQuantity.trim() === '' ? null : Number(values.stockQuantity),
     } satisfies UpdateProductPayload;
 
     update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
@@ -369,7 +374,22 @@ export function ProductForm({ mode, product }: Props) {
               )}
             </SelectContent>
           </Select>
-        </div>
+        
+        <FormField label="الكمية في المخزون (اختياري)" htmlFor="stockQuantity">
+          <Input
+            id="stockQuantity"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={values.stockQuantity}
+            onChange={(e) => set('stockQuantity', e.target.value)}
+            placeholder="مثال: 25"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            0 = غير متوفر، 1–5 = محدود، أكثر = متوفر (يُحدَّث التوفر تلقائيًا عند الحفظ).
+          </p>
+        </FormField>
+</div>
       </div>
 
       {/* Gap #3 fix: images are now editable after creation too, via the

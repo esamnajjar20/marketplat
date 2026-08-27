@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { sellersService } from './sellers.service';
 import {
   createSellerProfileSchema,
+  updateSellerProfileSchema,
   sellerIdSchema,
   createRatingSchema,
   getSellerRatingsSchema,
@@ -32,6 +33,27 @@ export const sellersController = {
       const user = requireUser(req);
       const profile = await sellersService.getMySellerProfile(user.userId);
       res.status(200).json(successResponse('Seller profile fetched', profile));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateMySellerProfile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { body } = updateSellerProfileSchema.parse({ body: req.body });
+      const profile = await sellersService.updateMySellerProfile(user.userId, body);
+      res.status(200).json(successResponse('Seller profile updated', profile));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getMyAttention: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const attention = await sellersService.getMyAttention(user.userId);
+      res.status(200).json(successResponse('Seller attention fetched', attention));
     } catch (error) {
       next(error);
     }

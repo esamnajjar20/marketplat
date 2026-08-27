@@ -25,6 +25,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed:e2e": "ts-node-dev --transpile-only --exit-child src/scripts/seedE2E.ts",
     "smoke-test": "ts-node-dev --transpile-only --exit-child src/scripts/smokeTest.ts",
+    "report:weekly-store-views": "ts-node-dev --transpile-only --exit-child src/scripts/weeklyStoreViewsReport.ts",
     "report:weekly-ad-views": "ts-node-dev --transpile-only --exit-child src/scripts/weeklyAdViewsReport.ts",
     "report:promotion-lifecycle": "ts-node-dev --transpile-only --exit-child src/scripts/myPromotionsExpiring.ts",
     "report:seller-response-metrics": "ts-node-dev --transpile-only --exit-child src/scripts/updateSellerResponseMetrics.ts",

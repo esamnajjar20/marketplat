@@ -13,6 +13,8 @@ export const sellersRouter = Router();
 // Authenticated only — no role check. Any signed-in USER is eligible
 // once they meet the eligibility checks in sellersService.
 sellersRouter.get('/me/profile', authenticate, CACHE.NONE, sellersController.getMySellerProfile);
+sellersRouter.patch('/me/profile', authenticate, CACHE.NONE, sellersController.updateMySellerProfile);
+sellersRouter.get('/me/attention', authenticate, CACHE.NONE, sellersController.getMyAttention);
 sellersRouter.post(
   '/me/profile',
   authenticate,

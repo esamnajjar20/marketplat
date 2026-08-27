@@ -38,7 +38,7 @@ export function useUpdateStore() {
       // public directory/detail queries shouldn't keep showing stale
       // data after an owner edits their store. Same reasoning as
       // useUpdateServiceListing's I-05 fix.
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
       toast.success('تم حفظ التعديلات');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -64,7 +64,7 @@ export function useUploadStoreLogo() {
       return promise;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
     },
   });
 }
@@ -84,7 +84,7 @@ export function useUploadStoreCover() {
       return promise;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
     },
   });
 }
@@ -116,6 +116,18 @@ export function useToggleStoreFollow() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.detail(storeId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.followed() });
       toast.success(data?.action === 'followed' ? 'تمت متابعة المتجر' : 'تم إلغاء متابعة المتجر');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+export function useRequestStoreFeature() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => storesApi.requestFeature().then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
+      toast.success('تم إرسال طلب تمييز المتجر — تراجعه الإدارة قريبًا');
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });

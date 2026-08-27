@@ -48,3 +48,17 @@ export function useIsSeller(): { isSeller: boolean; isLoaded: boolean } {
   const { data, isSuccess } = useMySellerProfile();
   return { isSeller: isSuccess && Boolean(data), isLoaded: isSuccess };
 }
+
+
+/** GET /sellers/me/attention — dashboard "needs attention" counters. */
+export function useMyAttention() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+
+  return useQuery({
+    queryKey: queryKeys.sellers.attention(),
+    queryFn: () => sellersApi.getMyAttention().then(r => r.data.data),
+    staleTime: CACHE_TTL.sellerProfile,
+    enabled: isAuthenticated,
+    retry: false,
+  });
+}

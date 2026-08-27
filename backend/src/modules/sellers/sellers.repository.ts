@@ -100,7 +100,20 @@ export const sellersRepository = {
       },
     }),
 
-  // Called inside the same transaction as ad creation (see ads.service.ts)
+  updateMyProfile: (
+    id: string,
+    data: { displayName?: string; bio?: string | null; avatarUrl?: string | null }
+  ): Promise<SellerProfile> =>
+    prisma.sellerProfile.update({
+      where: { id },
+      data: {
+        ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
+        ...(data.bio !== undefined ? { bio: data.bio } : {}),
+        ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
+      },
+    }),
+
+    // Called inside the same transaction as ad creation (see ads.service.ts)
   // so totalAds/activeAds never drift from the actual number of ads
   // referencing this sellerProfileId.
   incrementStatsOnAdCreated: (

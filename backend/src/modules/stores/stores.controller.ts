@@ -124,7 +124,17 @@ export const storesController = {
 
   // FIX BUG-02: admin-only endpoint that finally makes StorePlan.FEATURED
   // reachable — see stores.service.ts's updateStorePlan doc comment.
-  updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  
+  requestFeature: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const store = await storesService.requestFeature(user.userId);
+      res.status(200).json(successResponse('Feature request submitted', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const admin = requireUser(req);
       const { params, body } = updateStorePlanSchema.parse({

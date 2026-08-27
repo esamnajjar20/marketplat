@@ -58,6 +58,23 @@ export interface CreateSellerProfilePayload {
   agreedToSellerTerms: true;
 }
 
+/** Payload for PATCH /sellers/me/profile */
+export interface UpdateSellerProfilePayload {
+  displayName?: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+}
+
+/** GET /sellers/me/attention — dashboard task counters */
+export interface SellerAttention {
+  adsMissingImages: number;
+  productsOutOfStock: number;
+  productsMissingImages: number;
+  pendingServiceRequests: number;
+  hasStore: boolean;
+  isProvider: boolean;
+}
+
 /** Payload for POST /sellers/:id/ratings */
 export interface CreateSellerRatingPayload {
   adId?: string;

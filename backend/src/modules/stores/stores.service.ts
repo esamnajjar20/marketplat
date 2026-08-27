@@ -331,7 +331,25 @@ export const storesService = {
   // once it exists). Mirrors updateStoreStatus above: existence check,
   // repository write, audit trail via the new ADMIN_STORE_PLAN_CHANGED
   // event.
-  updateStorePlan: async (
+  
+  requestFeature: async (userId: string) => {
+    const sellerProfile = await sellersRepository.findByUserId(userId);
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+    const store = await storesRepository.findBySellerProfileId(sellerProfile.id);
+    if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    if (store.status !== 'ACTIVE') {
+      throw new BadRequestError('Store must be active before requesting featured placement.');
+    }
+    if (store.plan === 'FEATURED') {
+      throw new BadRequestError('Store is already featured.');
+    }
+    if (store.featureRequestedAt) {
+      return store;
+    }
+    return storesRepository.setFeatureRequestedAt(store.id, new Date());
+  },
+
+updateStorePlan: async (
     id: string,
     input: UpdateStorePlanInput,
     adminUserId: string

@@ -10,8 +10,10 @@ import type {
   SellerProfile,
   SellerProfileWithAds,
   CreateSellerProfilePayload,
+  UpdateSellerProfilePayload,
   CreateSellerRatingPayload,
   SellerRating,
+  SellerAttention,
 } from '@/types/seller.types';
 
 export const sellersApi = {
@@ -22,6 +24,14 @@ export const sellersApi = {
   /** GET /sellers/me/profile — the caller's own seller profile. 404 if none yet. */
   getMyProfile: () =>
     apiClient.get<ApiResponse<SellerProfile>>('/sellers/me/profile'),
+
+  /** PATCH /sellers/me/profile — update displayName / bio / avatarUrl. */
+  updateMyProfile: (payload: UpdateSellerProfilePayload) =>
+    apiClient.patch<ApiResponse<SellerProfile>>('/sellers/me/profile', payload),
+
+  /** GET /sellers/me/attention — lightweight dashboard task counters. */
+  getMyAttention: () =>
+    apiClient.get<ApiResponse<SellerAttention>>('/sellers/me/attention'),
 
   /** POST /sellers/me/profile/verification-request — moves the
    *  caller's own profile to verificationStatus PENDING for admin

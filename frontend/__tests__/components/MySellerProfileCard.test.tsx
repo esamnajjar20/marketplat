@@ -11,11 +11,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MySellerProfileCard } from '@/components/sellers/MySellerProfileCard';
-import { useRequestSellerVerification } from '@/hooks/mutations/useSellerMutations';
+import { useRequestSellerVerification, useUpdateSellerProfile } from '@/hooks/mutations/useSellerMutations';
 import type { SellerProfile } from '@/types/seller.types';
 
 vi.mock('@/hooks/mutations/useSellerMutations', () => ({
   useRequestSellerVerification: vi.fn(),
+  useUpdateSellerProfile: vi.fn(),
 }));
 
 const mockRequestVerification = vi.fn();
@@ -45,6 +46,10 @@ beforeEach(() => {
   mockRequestVerification.mockReset();
   vi.mocked(useRequestSellerVerification).mockReturnValue({
     mutate: mockRequestVerification,
+    isPending: false,
+  } as never);
+  vi.mocked(useUpdateSellerProfile).mockReturnValue({
+    mutate: vi.fn(),
     isPending: false,
   } as never);
 });

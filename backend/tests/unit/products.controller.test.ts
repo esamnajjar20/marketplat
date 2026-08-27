@@ -146,6 +146,30 @@ describe('productsController', () => {
       expect(next).toHaveBeenCalled();
       expect(productsService.getMyProducts).not.toHaveBeenCalled();
     });
+
+    it('forwards search and availability query params to the service', async () => {
+      const req = mockRequest({
+        query: { search: 'phone', availability: 'IN_STOCK', status: 'ACTIVE' },
+      });
+      const res = mockResponse();
+      const next = mockNext();
+      (productsService.getMyProducts as jest.Mock).mockResolvedValue({
+        items: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPrevPage: false },
+      });
+
+      await productsController.getMyProducts(req, res, next);
+
+      expect(productsService.getMyProducts).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          search: 'phone',
+          availability: 'IN_STOCK',
+          status: 'ACTIVE',
+        })
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
   });
 
   describe('getProducts', () => {

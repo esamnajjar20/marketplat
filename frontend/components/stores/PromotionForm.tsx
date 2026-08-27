@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
@@ -15,6 +15,7 @@ import type { DiscountType } from '@/types/promotion.types';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialProductId?: string;
 }
 
 interface Values {
@@ -62,12 +63,19 @@ const emptyValues: Values = {
  * live — cancelling and creating a new one is the intended path for
  * "I want different terms", same reasoning as most coupon systems.
  */
-export function PromotionForm({ open, onOpenChange }: Props) {
+export function PromotionForm({ open, onOpenChange, initialProductId }: Props) {
   const { data: productsPage } = useMyProducts({ status: 'ACTIVE', limit: 100 });
   const products = productsPage?.items ?? [];
   const create = useCreatePromotion();
 
-  const [values, setValues] = useState<Values>(emptyValues);
+  const [values, setValues] = useState<Values>(() =>
+    initialProductId ? { ...emptyValues, productId: initialProductId } : emptyValues,
+  );
+  useEffect(() => {
+    if (open && initialProductId) {
+      setValues((v) => ({ ...v, productId: initialProductId }));
+    }
+  }, [open, initialProductId]);
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
 

@@ -1,0 +1,7 @@
+-- Phase 4
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "stockQuantity" INTEGER;
+ALTER TABLE "store_details" ADD COLUMN IF NOT EXISTS "viewsAtLastReport" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "store_details" ADD COLUMN IF NOT EXISTS "featureRequestedAt" TIMESTAMP(3);
+DO $$ BEGIN
+  ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'WEEKLY_STORE_VIEWS_REPORT';
+EXCEPTION WHEN duplicate_object THEN null; END $$;

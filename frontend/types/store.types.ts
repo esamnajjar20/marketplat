@@ -43,6 +43,7 @@ export interface StoreDetails {
   phone: string;
   status: StoreStatus;
   plan: StorePlan;
+  featureRequestedAt?: string | null;
   /** Prisma Decimal(9,6) — string in JSON, or null if unset. */
   latitude: string | null;
   longitude: string | null;

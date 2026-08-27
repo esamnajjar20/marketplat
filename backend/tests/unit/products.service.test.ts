@@ -75,6 +75,39 @@ describe('productsService', () => {
       expect(productsRepository.create).toHaveBeenCalled();
     });
 
+    it('derives OUT_OF_STOCK availability when stockQuantity is 0', async () => {
+      await productsService.createProduct(
+        'user-1',
+        { ...validInput, stockQuantity: 0, availability: 'IN_STOCK' },
+        []
+      );
+      const data = (productsRepository.create as jest.Mock).mock.calls[0][2];
+      expect(data.availability).toBe('OUT_OF_STOCK');
+      expect(data.stockQuantity).toBe(0);
+    });
+
+    it('derives LIMITED availability when stockQuantity is between 1 and 5', async () => {
+      await productsService.createProduct(
+        'user-1',
+        { ...validInput, stockQuantity: 3 },
+        []
+      );
+      const data = (productsRepository.create as jest.Mock).mock.calls[0][2];
+      expect(data.availability).toBe('LIMITED');
+      expect(data.stockQuantity).toBe(3);
+    });
+
+    it('derives IN_STOCK availability when stockQuantity is greater than 5', async () => {
+      await productsService.createProduct(
+        'user-1',
+        { ...validInput, stockQuantity: 20, availability: 'OUT_OF_STOCK' },
+        []
+      );
+      const data = (productsRepository.create as jest.Mock).mock.calls[0][2];
+      expect(data.availability).toBe('IN_STOCK');
+      expect(data.stockQuantity).toBe(20);
+    });
+
     it('rejects when the store is not yet ACTIVE', async () => {
       (requireOwnStoreForProducts as jest.Mock).mockResolvedValue({
         ...mockActiveStore,
@@ -216,6 +249,26 @@ describe('productsService', () => {
       const result = await productsService.getMyProducts('user-1', {});
       expect(result.meta.page).toBe(1);
       expect(result.meta.limit).toBe(20);
+    });
+
+    it('forwards search and availability filters to the repository', async () => {
+      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (productsRepository.findManyByStoreId as jest.Mock).mockResolvedValue({
+        products: [],
+        total: 0,
+      });
+
+      await productsService.getMyProducts('user-1', {
+        search: 'هاتف',
+        availability: 'OUT_OF_STOCK',
+        status: 'ACTIVE',
+      });
+
+      expect(productsRepository.findManyByStoreId).toHaveBeenCalledWith('store-1', {
+        search: 'هاتف',
+        availability: 'OUT_OF_STOCK',
+        status: 'ACTIVE',
+      });
     });
   });
 

@@ -303,4 +303,88 @@ describe('sellersController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
     });
   });
+
+  describe('updateMySellerProfile', () => {
+    it('returns 200 with the updated profile on success', async () => {
+      const req = mockRequest({
+        body: { displayName: 'اسم جديد', bio: 'نبذة محدثة' },
+      });
+      const res = mockResponse();
+      const next = mockNext();
+      (sellersService.updateMySellerProfile as jest.Mock).mockResolvedValue({
+        ...mockProfile,
+        displayName: 'اسم جديد',
+      });
+
+      await sellersController.updateMySellerProfile(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(sellersService.updateMySellerProfile).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ displayName: 'اسم جديد' })
+      );
+    });
+
+    it('calls next(error) when unauthenticated', async () => {
+      const req = mockRequest({ body: { displayName: 'اسم' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await sellersController.updateMySellerProfile(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+    });
+
+    it('calls next(error) when validation fails (displayName too short)', async () => {
+      const req = mockRequest({ body: { displayName: 'ا' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await sellersController.updateMySellerProfile(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(sellersService.updateMySellerProfile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getMyAttention', () => {
+    it('returns 200 with attention counts', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+      const next = mockNext();
+      const attention = {
+        adsMissingImages: 1,
+        productsOutOfStock: 2,
+        productsMissingImages: 0,
+        pendingServiceRequests: 0,
+        hasStore: true,
+        isProvider: false,
+      };
+      (sellersService.getMyAttention as jest.Mock).mockResolvedValue(attention);
+
+      await sellersController.getMyAttention(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, data: attention })
+      );
+    });
+
+    it('calls next(error) when unauthenticated', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await sellersController.getMyAttention(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+    });
+  });
+
 });

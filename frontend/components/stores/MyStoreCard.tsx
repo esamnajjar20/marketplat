@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Store, ExternalLink, Sparkles, PackagePlus, Package, BarChart3, Heart } from 'lucide-react';
+import { Store, ExternalLink, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -50,6 +50,8 @@ export function MyStoreCard({ store }: Props) {
   const [city, setCity] = useState(store.city);
   const [address, setAddress] = useState(store.address ?? '');
   const [phone, setPhone] = useState(store.phone);
+  const [latitude, setLatitude] = useState(store.latitude ?? '');
+  const [longitude, setLongitude] = useState(store.longitude ?? '');
   // STORE-HOURS (Foundation v1): store.workingHours is optional (null
   // until an owner sets it for the first time) — ALL_CLOSED is the
   // WorkingHoursEditor's own starting shape, same default a brand-new
@@ -110,6 +112,8 @@ export function MyStoreCard({ store }: Props) {
         address: address.trim() || null,
         phone: phone.trim(),
         workingHours,
+        latitude: latitude.trim() === '' ? null : Number(latitude),
+        longitude: longitude.trim() === '' ? null : Number(longitude),
       },
       { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) }
     );
@@ -264,6 +268,30 @@ export function MyStoreCard({ store }: Props) {
           />
         </FormField>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="خط العرض (اختياري)" htmlFor="my-store-lat">
+            <Input
+              id="my-store-lat"
+              inputMode="decimal"
+              placeholder="31.5"
+              value={latitude}
+              onChange={(e) => setLatitude(e.target.value)}
+            />
+          </FormField>
+          <FormField label="خط الطول (اختياري)" htmlFor="my-store-lng">
+            <Input
+              id="my-store-lng"
+              inputMode="decimal"
+              placeholder="34.4"
+              value={longitude}
+              onChange={(e) => setLongitude(e.target.value)}
+            />
+          </FormField>
+        </div>
+        <p className="text-xs text-muted-foreground -mt-2">
+          يساعد المشترين على إيجاد متجرك على الخريطة في الصفحة العامة.
+        </p>
+
         {/* STORE-HOURS (Foundation v1): reuses the same editor
             services/WorkingHoursEditor.tsx already provides for
             ServiceProviderDetails — identical { sun: {open,close}|null,
@@ -277,34 +305,10 @@ export function MyStoreCard({ store }: Props) {
         </Button>
       </form>
 
-      <div className="space-y-3 border-t pt-4">
-        <p className="text-xs font-medium text-muted-foreground">إدارة سريعة</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Button asChild className="h-auto flex-col gap-1 py-3 font-semibold">
-            <Link href={ROUTES.myStoreProductCreate}>
-              <PackagePlus className="h-4 w-4" aria-hidden />
-              إضافة منتج
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStoreProducts}>
-              <Package className="h-4 w-4" aria-hidden />
-              منتجاتي
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStoreAnalytics}>
-              <BarChart3 className="h-4 w-4" aria-hidden />
-              الإحصائيات
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myFollowedStores}>
-              <Heart className="h-4 w-4" aria-hidden />
-              المتابَعة
-            </Link>
-          </Button>
-        </div>
+      <div className="space-y-2 border-t pt-4">
+        <Button variant="outline" size="sm" asChild className="gap-1.5">
+          <Link href={ROUTES.myStore}>العودة للوحة المتجر</Link>
+        </Button>
         {store.status === 'ACTIVE' && (
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-muted-foreground">
             <Link href={ROUTES.storeDetail(store.id)}>

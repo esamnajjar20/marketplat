@@ -119,6 +119,9 @@ export const storesRepository = {
     prisma.storeDetails.update({ where: { id }, data: { status } }),
 
   // FIX BUG-02: the DB write half of the FEATURED-plan admin endpoint.
+  setFeatureRequestedAt: (id: string, at: Date | null) =>
+    prisma.storeDetails.update({ where: { id }, data: { featureRequestedAt: at } }),
+
   updatePlan: (id: string, plan: 'FREE' | 'FEATURED'): Promise<StoreDetails> =>
     prisma.storeDetails.update({ where: { id }, data: { plan } }),
 
