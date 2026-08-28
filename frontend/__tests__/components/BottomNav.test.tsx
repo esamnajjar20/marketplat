@@ -8,19 +8,21 @@
  * destinations reachable through it — not just /search.
  *
  * No prior test file existed for BottomNav itself; this also covers
- * its pre-existing seller/guest + button swap and home/messages links
- * so the whole component has baseline coverage, not just the new tab.
+ * its pre-existing guest/authenticated home/messages links so the
+ * whole component has baseline coverage, not just the new tab.
+ *
+ * CREATE-SHEET FIX: the center button no longer swaps between
+ * /ads/create and /settings/seller based on isSeller — it opens
+ * CreateSheet with all three create destinations, and no longer
+ * queries useIsSeller at all (see BottomNav's own doc comment), so
+ * the old "center create button" describe block below is replaced
+ * with coverage of the sheet instead.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { useAuthStore } from '@/store/auth.store';
-import { useIsSeller } from '@/hooks/queries/useSellers';
-
-vi.mock('@/hooks/queries/useSellers', () => ({
-  useIsSeller: vi.fn(() => ({ isSeller: false, isLoaded: true })),
-}));
 
 const mockUsePathname = vi.fn(() => '/');
 vi.mock('next/navigation', () => ({
@@ -32,7 +34,6 @@ describe('BottomNav', () => {
     vi.clearAllMocks();
     mockUsePathname.mockReturnValue('/');
     useAuthStore.getState().logout();
-    vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: true });
   });
 
   it('renders الرئيسية, استكشاف, الرسائل, and the menu button', () => {
@@ -85,26 +86,25 @@ describe('BottomNav', () => {
   });
 
   describe('center create button', () => {
-    // Label text sits in a sibling <span>, not inside the <Link> (the
-    // link only wraps the Plus icon). Walk up to the shared parent and
-    // read the href from the <a> there.
-    function centerCreateHref() {
-      const label = screen.getByText(/نشر إعلان|أنشئ حساب بائع/);
-      return label.parentElement?.querySelector('a')?.getAttribute('href');
-    }
-
-    it('links to /ads/create for a seller', () => {
-      vi.mocked(useIsSeller).mockReturnValue({ isSeller: true, isLoaded: true });
-      useAuthStore.getState().setAuth({ id: 'u1', name: 'أحمد', email: 'a@a.com', role: 'USER' }, { accessToken: 't' });
+    it('renders an "أضف" button, not a direct link', () => {
       render(<BottomNav />);
-      expect(centerCreateHref()).toBe('/ads/create');
+      expect(screen.getByRole('button', { name: 'أضف' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'أضف' })).not.toBeInTheDocument();
     });
 
-    it('links to seller signup for an authenticated non-seller', () => {
-      vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: true });
-      useAuthStore.getState().setAuth({ id: 'u1', name: 'أحمد', email: 'a@a.com', role: 'USER' }, { accessToken: 't' });
+    it('does not render CreateSheet contents until "أضف" is tapped', () => {
       render(<BottomNav />);
-      expect(centerCreateHref()).toBe('/settings/seller');
+      expect(screen.queryByText('إعلان جديد')).not.toBeInTheDocument();
+    });
+
+    it('opens CreateSheet with all three create destinations when "أضف" is tapped', async () => {
+      const user = setupUser();
+      render(<BottomNav />);
+      await user.click(screen.getByRole('button', { name: 'أضف' }));
+
+      expect(screen.getByRole('link', { name: /إعلان جديد/ })).toHaveAttribute('href', '/ads/create');
+      expect(screen.getByRole('link', { name: /منتج جديد/ })).toHaveAttribute('href', '/my-store/products/new');
+      expect(screen.getByRole('link', { name: /خدمة جديدة/ })).toHaveAttribute('href', '/my-services/new');
     });
   });
 });

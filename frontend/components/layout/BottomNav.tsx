@@ -6,10 +6,10 @@ import { usePathname } from 'next/navigation';
 import { Home, Compass, MessageCircle, Menu, Plus } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import { useIsSeller } from '@/hooks/queries/useSellers';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
+import { CreateSheet } from '@/components/layout/CreateSheet';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 
@@ -51,6 +51,16 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  * auth-redirect handles guests the same way it already does for other
  * protected destinations — no extra branching needed here either.
  *
+ * CREATE-SHEET FIX: the center button no longer jumps straight to
+ * /ads/create — with products (stores) and services (providers) now
+ * equally first-class listing types, a single-destination button
+ * buried the other two. Tapping "+" opens CreateSheet (see its own
+ * doc), which lists all three; each destination page is already
+ * gated (CreateAdGate/CreateProductGate/CreateServiceListingGate), so
+ * this bar no longer needs its own isSeller lookup just to pick a
+ * link/label — the gate on the destination page handles "you need a
+ * seller/store/provider profile first" itself.
+ *
  * AUDIT-FIX ("Bottom Nav بيدفن 3 من 4 أقسام رئيسية"): "البحث" replaced
  * with "استكشاف", which opens ExploreSheet — a single entry point for
  * الإعلانات/المنتجات/الخدمات/المتاجر/مقدمو الخدمة (plus a plain
@@ -65,13 +75,7 @@ export function BottomNav() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
-  // SELLER-GATE: /ads/create requires a SellerProfile server-side
-  // (ads.service.ts's createAd) — hook internally gates its query on
-  // isAuthenticated, so this issues no request for guests. Mirrors
-  // ProtectedHeader's identical swap: seller → post button,
-  // non-seller → seller-signup CTA, guest → falls through to
-  // /ads/create's own auth-redirect same as before this fix.
-  const { isSeller } = useIsSeller();
+  const [createOpen, setCreateOpen] = useState(false);
 
   const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
@@ -132,19 +136,19 @@ export function BottomNav() {
       </button>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
-        <Link
-          href={isAuthenticated && !isSeller ? ROUTES.settings.seller : ROUTES.adCreate}
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          aria-haspopup="dialog"
           className="-mt-5 flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
         >
           <Plus className="h-5 w-5" aria-hidden={true} />
-        </Link>
+        </button>
         {/* Label added to match the other four items' icon+label
             pattern — this button was the only one in the bar with no
             visible text, breaking visual consistency with its
             siblings. */}
-        <span className="text-[11px] font-medium text-muted-foreground">
-          {isAuthenticated && !isSeller ? 'أنشئ حساب بائع' : 'نشر إعلان'}
-        </span>
+        <span className="text-[11px] font-medium text-muted-foreground">أضف</span>
       </div>
 
       {trailingItems.map(renderItem)}
@@ -159,6 +163,7 @@ export function BottomNav() {
       </button>
 
       <ExploreSheet open={exploreOpen} onOpenChange={setExploreOpen} />
+      <CreateSheet open={createOpen} onOpenChange={setCreateOpen} />
     </nav>
   );
 }
