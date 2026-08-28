@@ -87,9 +87,9 @@ self.addEventListener('install', (event) => {
         }),
       );
 
-      // FIX PWA-01: activate the newly installed SW immediately.
-      // The frontend can still explicitly control this through SKIP_WAITING.
-      await self.skipWaiting();
+      // لا نستدعي skipWaiting هنا — نترك الـ SW في حالة waiting حتى يضغط
+      // المستخدم زر "تحديث الآن" في UpdatePrompt، فيُرسل SKIP_WAITING.
+      // التفعيل التلقائي كان يمنع ظهور زر التحديث نهائيًا.
     })(),
   );
 });

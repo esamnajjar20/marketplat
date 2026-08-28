@@ -4,33 +4,156 @@
  * لا نُحدِّث الـ Service Worker تلقائيًا دون إذن المستخدم — قد يكون في
  * منتصف تعبئة نموذج (إعلان جديد، طلب خدمة...) وإعادة تحميل مفاجئة
  * تفقده عمله. الزر يمنحه التحكم في توقيت التحديث.
+ *
+ * - مؤقت وقابل للإغلاق بزر ✕ من الطرف.
+ * - بعد الإغلاق يُعاد الظهور دوريًا (كل 4 ساعات) طالما التحديث ما زال متاحًا.
+ * - يُعرَض أيضًا كإشعار في قسم الإشعارات (NotificationBell + صفحة الإشعارات).
  */
 'use client';
 
-import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { onServiceWorkerUpdate, activateWaitingServiceWorker } from '@/lib/pwa';
 
+// إعادة تصدير ليستخدمها NotificationBell وصفحة الإشعارات
+export { activateWaitingServiceWorker };
+
+const DISMISS_KEY = 'pwa-update-dismissed-at';
+/** بعد الإغلاق، أعد إظهار الشريط بعد هذه المدة (مللي ثانية). */
+const REAPPEAR_AFTER_MS = 4 * 60 * 60 * 1000; // 4 ساعات
+
+/** حالة مشتركة بين UpdatePrompt وقسم الإشعارات. */
+let sharedRegistration: ServiceWorkerRegistration | null = null;
+const sharedListeners = new Set<(reg: ServiceWorkerRegistration | null) => void>();
+
+function notifyShared(reg: ServiceWorkerRegistration | null) {
+  sharedRegistration = reg;
+  sharedListeners.forEach((cb) => cb(reg));
+}
+
+/** يستمع مكوّن الإشعارات لهذه الحالة لعرض عنصر "تحديث التطبيق". */
+export function onPwaUpdateAvailable(
+  listener: (reg: ServiceWorkerRegistration | null) => void,
+): () => void {
+  sharedListeners.add(listener);
+  // أبلغ فورًا بالحالة الحالية
+  listener(sharedRegistration);
+  return () => {
+    sharedListeners.delete(listener);
+  };
+}
+
+export function getPwaUpdateRegistration(): ServiceWorkerRegistration | null {
+  return sharedRegistration;
+}
+
+function isDismissedRecently(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    const ts = Number(raw);
+    if (Number.isNaN(ts)) return false;
+    return Date.now() - ts < REAPPEAR_AFTER_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markDismissed() {
+  try {
+    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function clearDismissed() {
+  try {
+    localStorage.removeItem(DISMISS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function UpdatePrompt() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
-    return onServiceWorkerUpdate((reg) => setRegistration(reg));
+  const showIfAllowed = useCallback((reg: ServiceWorkerRegistration) => {
+    setRegistration(reg);
+    notifyShared(reg);
+    if (!isDismissedRecently()) {
+      setVisible(true);
+    }
   }, []);
 
-  if (!registration) return null;
+  useEffect(() => {
+    return onServiceWorkerUpdate((reg) => {
+      showIfAllowed(reg);
+    });
+  }, [showIfAllowed]);
+
+  // إعادة الظهور الدوري: كل دقيقة نفحص إن انتهت فترة الإخفاء والتحديث ما زال waiting
+  useEffect(() => {
+    if (!registration?.waiting) return;
+
+    const tick = () => {
+      if (registration.waiting && !isDismissedRecently()) {
+        setVisible(true);
+      }
+    };
+
+    const id = window.setInterval(tick, 60_000);
+    // أيضًا عند عودة التبويب للواجهة
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [registration]);
+
+  const handleUpdate = () => {
+    if (!registration) return;
+    clearDismissed();
+    notifyShared(null);
+    activateWaitingServiceWorker(registration);
+  };
+
+  const handleDismiss = () => {
+    markDismissed();
+    setVisible(false);
+    // نبقي sharedRegistration حتى يظهر في قسم الإشعارات
+  };
+
+  if (!visible || !registration) return null;
 
   return (
     <div
       dir="rtl"
-      className="fixed inset-x-4 top-4 z-50 flex items-center gap-3 rounded-xl border bg-card p-3 shadow-lg sm:inset-x-auto sm:start-1/2 sm:max-w-md sm:-translate-x-1/2"
+      role="status"
+      aria-live="polite"
+      className="fixed inset-x-4 top-4 z-50 flex items-center gap-2 rounded-xl border bg-card p-3 shadow-lg sm:inset-x-auto sm:start-1/2 sm:max-w-md sm:-translate-x-1/2"
     >
       <RefreshCw className="h-5 w-5 shrink-0 text-primary" />
       <p className="flex-1 text-sm">يتوفر تحديث جديد للتطبيق</p>
-      <Button size="sm" onClick={() => activateWaitingServiceWorker(registration)}>
+      <Button size="sm" onClick={handleUpdate}>
         تحديث الآن
       </Button>
+      <button
+        type="button"
+        onClick={handleDismiss}
+        aria-label="إخفاء الإشعار"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
+

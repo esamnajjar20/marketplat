@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Bell, CheckCheck, Loader2, Settings, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, Settings, Trash2, RefreshCw } from 'lucide-react';
 import { useMyNotifications, useUnreadNotificationCount } from '@/hooks/queries/useNotifications';
 import {
   useMarkNotificationRead,
@@ -17,6 +17,7 @@ import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Notification } from '@/types/notification.types';
+import { onPwaUpdateAvailable, activateWaitingServiceWorker } from '@/components/pwa/UpdatePrompt';
 
 const PAGE_SIZE = 20;
 
@@ -25,6 +26,11 @@ type Tab = 'all' | 'unread';
 export function NotificationsPage() {
   const [tab, setTab] = useState<Tab>('all');
   const [limit, setLimit] = useState(PAGE_SIZE);
+  const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
+
+  useEffect(() => {
+    return onPwaUpdateAvailable(setPwaReg);
+  }, []);
 
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data, isLoading, isFetching, isError, refetch } = useMyNotifications({
@@ -144,7 +150,7 @@ export function NotificationsPage() {
               إعادة المحاولة
             </Button>
           </div>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && !pwaReg ? (
           <EmptyState
             className="py-12"
             icon={<Bell className="h-10 w-10" />}
@@ -157,6 +163,31 @@ export function NotificationsPage() {
           />
         ) : (
           <ul className="divide-y">
+            {pwaReg && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => activateWaitingServiceWorker(pwaReg)}
+                  className="flex w-full items-start gap-3 bg-primary/[0.04] p-4 text-start transition-colors hover:bg-primary/10"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <RefreshCw className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">تحديث التطبيق متاح</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">تحديث النظام</p>
+                      </div>
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      اضغط لتحديث التطبيق الآن والحصول على آخر الميزات والإصلاحات
+                    </p>
+                  </div>
+                </button>
+              </li>
+            )}
             {items.map((n) => {
               const Icon = TYPE_ICON[n.type] ?? Bell;
               const href = hrefFor(n);
@@ -249,3 +280,4 @@ export function NotificationsPage() {
     </div>
   );
 }
+

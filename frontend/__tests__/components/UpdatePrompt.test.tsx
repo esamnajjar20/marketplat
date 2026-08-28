@@ -4,9 +4,8 @@
  * Real logic under test: renders nothing until
  * onServiceWorkerUpdate's callback fires with a registration, then
  * renders the update banner; clicking "تحديث الآن" calls
- * activateWaitingServiceWorker with that exact registration; and the
- * subscription is cleaned up (the unsubscribe function returned by
- * onServiceWorkerUpdate is called) on unmount.
+ * activateWaitingServiceWorker with that exact registration; dismiss
+ * hides the banner; and the subscription is cleaned up on unmount.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
@@ -29,6 +28,7 @@ describe('UpdatePrompt', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOnServiceWorkerUpdate.mockReturnValue(mockUnsubscribe);
+    localStorage.clear();
   });
 
   it('renders nothing before an update is available', () => {
@@ -50,6 +50,8 @@ describe('UpdatePrompt', () => {
       capturedListener(fakeRegistration);
     });
     expect(screen.getByText('يتوفر تحديث جديد للتطبيق')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'تحديث الآن' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'إخفاء الإشعار' })).toBeInTheDocument();
   });
 
   it('calls activateWaitingServiceWorker with the exact registration on click', async () => {
@@ -70,9 +72,28 @@ describe('UpdatePrompt', () => {
     expect(mockActivate).toHaveBeenCalledWith(fakeRegistration);
   });
 
+  it('hides the banner when dismiss is clicked', async () => {
+    let capturedListener: (reg: ServiceWorkerRegistration) => void = () => {};
+    mockOnServiceWorkerUpdate.mockImplementation((listener) => {
+      capturedListener = listener;
+      return mockUnsubscribe;
+    });
+
+    const user = setupUser();
+    render(<UpdatePrompt />);
+    act(() => {
+      capturedListener(fakeRegistration);
+    });
+
+    expect(screen.getByText('يتوفر تحديث جديد للتطبيق')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'إخفاء الإشعار' }));
+    expect(screen.queryByText('يتوفر تحديث جديد للتطبيق')).not.toBeInTheDocument();
+  });
+
   it('unsubscribes the listener on unmount', () => {
     const { unmount } = render(<UpdatePrompt />);
     unmount();
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
   });
 });
+

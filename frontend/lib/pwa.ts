@@ -63,6 +63,20 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       window.location.reload();
     });
 
+    // فحص دوري لوجود تحديث (كل ساعة) — يضمن ظهور زر التحديث حتى لو
+    // فُتح التطبيق قبل نشر النسخة الجديدة.
+    const UPDATE_CHECK_MS = 60 * 60 * 1000;
+    const checkUpdate = () => {
+      void registration.update().catch(() => undefined);
+    };
+    window.setInterval(checkUpdate, UPDATE_CHECK_MS);
+    // فحص إضافي عند عودة التبويب
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkUpdate();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    // تنظيف عند إلغاء التسجيل نادرًا ما يحدث؛ نتركه بسيطًا.
+
     return registration;
   } catch (err) {
     // فشل التسجيل لا يجب أن يكسر التطبيق — PWA هي تحسين إضافي (progressive enhancement).
@@ -170,3 +184,4 @@ export async function unsubscribeFromPush(): Promise<void> {
     .delete('/notifications/push-subscriptions', { data: { endpoint } })
     .catch(() => undefined); // فشل حذف السجل من الخادم لا يجب أن يمنع الإلغاء المحلي
 }
+

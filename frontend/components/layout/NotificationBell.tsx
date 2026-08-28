@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Bell,
@@ -15,6 +15,7 @@ import {
   Package,
   Store,
   ClipboardList,
+  RefreshCw,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/types/notification.types';
+import { onPwaUpdateAvailable, activateWaitingServiceWorker } from '@/components/pwa/UpdatePrompt';
 
 const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   NEW_MESSAGE: MessageSquare,
@@ -260,9 +262,15 @@ export function NotificationBell() {
   const { data: notificationsPage, isLoading } = useMyNotifications({ limit: 10 });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
+
+  useEffect(() => {
+    return onPwaUpdateAvailable(setPwaReg);
+  }, []);
 
   const items = notificationsPage?.items ?? [];
   const groups = groupNotifications(items);
+  const displayUnread = unreadCount + (pwaReg ? 1 : 0);
 
   function handleNotificationClick(notification: Notification) {
     const siblingIds =
@@ -288,9 +296,9 @@ export function NotificationBell() {
           aria-label="الإشعارات"
         >
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {displayUnread > 0 && (
             <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
-              {unreadCount > 99 ? '99+' : unreadCount}
+              {displayUnread > 99 ? '99+' : displayUnread}
             </span>
           )}
         </button>
@@ -314,6 +322,26 @@ export function NotificationBell() {
         <DropdownMenuSeparator className="m-0" />
 
         <div className="max-h-96 overflow-y-auto">
+          {pwaReg && (
+            <button
+              type="button"
+              onClick={() => activateWaitingServiceWorker(pwaReg)}
+              className="flex w-full items-start gap-2.5 border-b bg-primary/5 p-3 text-start transition-colors hover:bg-primary/10"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <RefreshCw className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">تحديث التطبيق متاح</p>
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  اضغط لتحديث التطبيق الآن والحصول على آخر الميزات والإصلاحات
+                </p>
+              </div>
+            </button>
+          )}
           {isLoading ? (
             <div className="flex flex-col gap-0 divide-y" role="status" aria-label="جارٍ التحميل">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -327,13 +355,15 @@ export function NotificationBell() {
                 </div>
               ))}
             </div>
-          ) : items.length === 0 ? (
+          ) : items.length === 0 && !pwaReg ? (
             <EmptyState
               className="py-8"
               icon={<Bell className="h-8 w-8" />}
               title="لا توجد إشعارات"
               description="ستظهر هنا التنبيهات عند وصول رسائل أو تحديثات تهمّك"
             />
+          ) : items.length === 0 && pwaReg ? (
+            null
           ) : (
             <div className="divide-y">
               {groups.map((g) =>
@@ -372,3 +402,4 @@ export function NotificationBell() {
 
 /** Shared by full notifications page. */
 export { hrefFor, TYPE_ICON, TYPE_LABEL };
+
