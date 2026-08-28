@@ -23,6 +23,8 @@ export const ROUTES = {
   myAds:         '/my-ads',
   favorites:     '/favorites',
   savedSearches: '/saved-searches',
+  downloads:     '/downloads',
+  savedPayments: '/saved-payments',
   activity:      '/activity',
   // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter's own filed reports.
   myReports:     '/my-reports',

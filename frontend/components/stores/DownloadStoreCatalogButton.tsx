@@ -5,6 +5,7 @@ import { Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { productsApi } from '@/api/products.api';
 import type { ProductWithStore } from '@/types/product.types';
+import { recordCatalogDownload } from '@/lib/downloadStorage';
 
 interface Props {
   storeId: string;
@@ -253,6 +254,12 @@ export function DownloadStoreCatalogButton({
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      recordCatalogDownload({
+        storeId,
+        storeName,
+        productCount: products.length,
+        fileName: `كتالوج-${safeName}.html`,
+      });
     } catch (err) {
       console.error('Failed to download store catalog', err);
       alert('تعذّر تحميل الكتالوج. تأكد من الاتصال وحاول مرة أخرى.');
