@@ -237,27 +237,97 @@
 @layer utilities {
   .stagger-fade-in > * {
     opacity: 0;
-    animation: fade-slide-up 0.35s ease-out forwards;
+    animation: fade-slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
   .stagger-fade-in > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger-fade-in > *:nth-child(2) { animation-delay: 40ms; }
-  .stagger-fade-in > *:nth-child(3) { animation-delay: 80ms; }
-  .stagger-fade-in > *:nth-child(4) { animation-delay: 120ms; }
-  .stagger-fade-in > *:nth-child(5) { animation-delay: 160ms; }
-  .stagger-fade-in > *:nth-child(6) { animation-delay: 200ms; }
-  .stagger-fade-in > *:nth-child(7) { animation-delay: 240ms; }
-  .stagger-fade-in > *:nth-child(n+8) { animation-delay: 280ms; }
+  .stagger-fade-in > *:nth-child(2) { animation-delay: 45ms; }
+  .stagger-fade-in > *:nth-child(3) { animation-delay: 90ms; }
+  .stagger-fade-in > *:nth-child(4) { animation-delay: 135ms; }
+  .stagger-fade-in > *:nth-child(5) { animation-delay: 180ms; }
+  .stagger-fade-in > *:nth-child(6) { animation-delay: 225ms; }
+  .stagger-fade-in > *:nth-child(7) { animation-delay: 270ms; }
+  .stagger-fade-in > *:nth-child(n+8) { animation-delay: 300ms; }
+
+  /* بطاقات/عناصر قابلة للتفاعل — رفع خفيف + ظل عند التحويم */
+  .interactive-lift {
+    transition:
+      transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .interactive-lift:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 10px 25px -8px rgb(0 0 0 / 12%),
+      0 4px 10px -4px rgb(0 0 0 / 8%);
+  }
+  .interactive-lift:active {
+    transform: translateY(-1px) scale(0.98);
+  }
+
+  /* ضغط عام للأزرار والروابط الشبيهة بالأزرار */
+  .pressable {
+    transition: transform 0.15s ease-out, filter 0.15s ease-out;
+  }
+  .pressable:active {
+    transform: scale(0.96);
+    filter: brightness(0.95);
+  }
+
+  /* ظهور ناعم للأقسام */
+  .section-enter {
+    animation: fade-slide-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* هيكل تحميل لامع */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.55) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
 }
 
 @keyframes fade-slide-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* روابط وقوائم عامة — انتقال لون/خلفية أسلس */
+a, button, [role="button"] {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform, filter;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: 150ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .stagger-fade-in > * {
-    animation: none;
+  .stagger-fade-in > *,
+  .section-enter,
+  .skeleton-shimmer {
+    animation: none !important;
     opacity: 1;
+  }
+  .interactive-lift,
+  .interactive-lift:hover,
+  .interactive-lift:active,
+  .pressable,
+  .pressable:active {
+    transition: none !important;
+    transform: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+  a, button, [role="button"] {
+    transition: none !important;
   }
 }
 

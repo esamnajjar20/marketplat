@@ -14,7 +14,7 @@ import { usePathname } from 'next/navigation';
  * existing animation surface, see tailwind.config.ts) and keeps this
  * near-zero bundle cost. A key change on pathname remounts the
  * wrapper, and the CSS animation (registered once in tailwind.config)
- * runs its short fade-in on every mount — no JS-driven timing, no
+ * runs its short fade + slide-up on every mount — no JS-driven timing, no
  * exit animation to coordinate (an exit fade would need the old page
  * to stay mounted during navigation, which reintroduces real
  * complexity for a purely decorative effect).

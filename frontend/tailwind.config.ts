@@ -116,8 +116,8 @@ const config: Config = {
         },
         // FIX UX-20: powers PageTransition.tsx's fade-on-navigate.
         'page-fade': {
-          from: { opacity: '0' },
-          to:   { opacity: '1' },
+          from: { opacity: '0', transform: 'translateY(6px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
         },
         // FIX UX-21: powers AdCard's favorite-heart "pop" on add —
         // mirrors the pop the original static mock did with raw JS
@@ -129,12 +129,33 @@ const config: Config = {
           '70%':  { transform: 'scale(0.92)' },
           '100%': { transform: 'scale(1)' },
         },
+        // Project-wide interactive motion (CSS-only, no new deps)
+        'scale-in': {
+          from: { opacity: '0', transform: 'scale(0.96)' },
+          to:   { opacity: '1', transform: 'scale(1)' },
+        },
+        'soft-bounce': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%':      { transform: 'translateY(-3px)' },
+        },
+        'shimmer': {
+          '0%':   { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        'fade-in-up': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up':   'accordion-up 0.2s ease-out',
-        'page-fade':      'page-fade 0.15s ease-out',
+        'page-fade':      'page-fade 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
         'heart-pop':      'heart-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        'scale-in':       'scale-in 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+        'soft-bounce':    'soft-bounce 1.6s ease-in-out infinite',
+        'shimmer':        'shimmer 1.4s linear infinite',
+        'fade-in-up':     'fade-in-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },
