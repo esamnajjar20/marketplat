@@ -120,7 +120,7 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options',              value: 'DENY' },
           // FIX NEXT-01: X-XSS-Protection removed — deprecated since 2019.
           { key: 'Referrer-Policy',              value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy',           value: 'camera=(), microphone=(), geolocation=(self)' },
+          { key: 'Permissions-Policy',           value: 'camera=(self), microphone=(), geolocation=(self)' },
           // FIX NEXT-05: HSTS — force HTTPS; ignored on HTTP (local dev).
           ...(isProd
             ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]

@@ -193,7 +193,10 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // there's nothing left that needs either host allow-listed.
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
-    "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co",
+    // img-src: Cloudinary + placeholders + QR image fallbacks (payment/net-cards).
+    // Primary QR path is local Canvas (no network); these hosts are allow-listed
+    // only so <img> fallbacks are not blocked by CSP if local generation fails.
+    "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co https://api.qrserver.com https://quickchart.io",
     `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو
     // الصارمة) قد ترفض تسجيل public/sw.js حتى لو كان default-src 'self'

@@ -62,14 +62,14 @@ export function StoreStorefront({ storeId, storeName, ownerUserId }: Props) {
 
       {active === 'products' && (
         <section className="space-y-3" role="tabpanel">
-          <StoreProducts storeId={storeId} />
+          <StoreProducts storeId={storeId} storeName={storeName} />
         </section>
       )}
 
       {active === 'offers' && (
         <section className="space-y-3" role="tabpanel">
           <p className="text-sm text-muted-foreground">منتجات عليها عروض نشطة حاليًا</p>
-          <StoreProducts storeId={storeId} offersOnly />
+          <StoreProducts storeId={storeId} storeName={storeName} offersOnly />
         </section>
       )}
 

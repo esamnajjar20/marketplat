@@ -1,13 +1,20 @@
 'use client';
 
 /**
- * Weak-net N1: banner when offline or on constrained connections (2g / saveData).
+ * شريط حالة الشبكة — أعلى الصفحة، مؤقت، وقابل للإغلاق.
  */
 
-import { useEffect, useState } from 'react';
-import { WifiOff, Wifi } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { WifiOff, Wifi, X } from 'lucide-react';
 
 type BannerState = 'offline' | 'slow' | 'back' | null;
+
+/** مدة الظهور بالميلي ثانية */
+const DURATION_MS: Record<Exclude<BannerState, null>, number> = {
+  offline: 8000,
+  slow: 6000,
+  back: 3500,
+};
 
 function isSlowConnection(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -22,49 +29,77 @@ function isSlowConnection(): boolean {
 
 export function NetworkStatusBanner() {
   const [state, setState] = useState<BannerState>(null);
+  /** المستخدم أغلق الشريط — لا نعيده إلا عند تغيّر حالة الشبكة */
+  const dismissedRef = useRef<BannerState | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearHideTimer() {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }
+
+  function show(next: BannerState) {
+    if (!next) {
+      clearHideTimer();
+      setState(null);
+      return;
+    }
+    // إذا أغلق المستخدم نفس الحالة، لا نعيدها حتى تتغير الشبكة
+    if (dismissedRef.current === next) return;
+
+    clearHideTimer();
+    setState(next);
+    hideTimerRef.current = setTimeout(() => {
+      setState(null);
+      hideTimerRef.current = null;
+    }, DURATION_MS[next]);
+  }
+
+  function dismiss() {
+    dismissedRef.current = state;
+    clearHideTimer();
+    setState(null);
+  }
 
   useEffect(() => {
-    let backTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const clearBack = () => {
-      if (backTimer) {
-        clearTimeout(backTimer);
-        backTimer = null;
-      }
-    };
-
-    const showOnlineRecovery = () => {
-      clearBack();
-      setState('back');
-      backTimer = setTimeout(() => {
-        setState(isSlowConnection() ? 'slow' : null);
-      }, 2500);
-    };
-
     const onOffline = () => {
-      clearBack();
-      setState('offline');
+      dismissedRef.current = null;
+      show('offline');
     };
 
     const onOnline = () => {
-      showOnlineRecovery();
+      dismissedRef.current = null;
+      show('back');
     };
 
     const onConnectionChange = () => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        setState('offline');
+        dismissedRef.current = null;
+        show('offline');
         return;
       }
-      setState((prev) => {
-        if (prev === 'offline' || prev === 'back') return prev;
-        return isSlowConnection() ? 'slow' : null;
-      });
+      if (isSlowConnection()) {
+        // لا تقاطع رسالة "عاد الاتصال"
+        setState((prev) => {
+          if (prev === 'back') return prev;
+          if (dismissedRef.current === 'slow') return prev;
+          dismissedRef.current = null;
+          clearHideTimer();
+          hideTimerRef.current = setTimeout(() => {
+            setState(null);
+            hideTimerRef.current = null;
+          }, DURATION_MS.slow);
+          return 'slow';
+        });
+      }
     };
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setState('offline');
+      show('offline');
     } else if (isSlowConnection()) {
-      setState('slow');
+      show('slow');
     }
 
     window.addEventListener('offline', onOffline);
@@ -74,49 +109,56 @@ export function NetworkStatusBanner() {
     conn?.addEventListener?.('change', onConnectionChange);
 
     return () => {
-      clearBack();
+      clearHideTimer();
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
       conn?.removeEventListener?.('change', onConnectionChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!state) return null;
 
-  if (state === 'offline') {
-    return (
-      <div
-        role="status"
-        className="fixed inset-x-0 top-0 z-[100] bg-destructive px-3 py-2 text-center text-sm text-destructive-foreground shadow"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
-          لا يوجد اتصال بالإنترنت — سيتم استئناف التحديث عند عودة الشبكة
-        </span>
-      </div>
-    );
-  }
+  const barBase =
+    'fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-2 px-3 py-2.5 text-center text-sm shadow-md pt-[max(0.5rem,env(safe-area-inset-top))]';
 
-  if (state === 'slow') {
-    return (
-      <div
-        role="status"
-        className="fixed inset-x-0 top-0 z-[100] bg-amber-600 px-3 py-2 text-center text-sm text-white shadow dark:bg-amber-700"
-      >
-        اتصال بطيء أو توفير بيانات مفعّل — قد يتأخر تحميل الصور والقوائم
-      </div>
-    );
-  }
+  const styles: Record<Exclude<BannerState, null>, string> = {
+    offline: 'bg-destructive text-destructive-foreground',
+    slow: 'bg-amber-600 text-white dark:bg-amber-700',
+    back: 'bg-emerald-600 text-white',
+  };
+
+  const messages: Record<Exclude<BannerState, null>, { icon: typeof Wifi; text: string }> = {
+    offline: {
+      icon: WifiOff,
+      text: 'لا يوجد اتصال بالإنترنت — سيتم استئناف التحديث عند عودة الشبكة',
+    },
+    slow: {
+      icon: Wifi,
+      text: 'اتصال بطيء أو توفير بيانات مفعّل — قد يتأخر تحميل الصور والقوائم',
+    },
+    back: {
+      icon: Wifi,
+      text: 'عاد الاتصال',
+    },
+  };
+
+  const { icon: Icon, text } = messages[state];
 
   return (
-    <div
-      role="status"
-      className="fixed inset-x-0 top-0 z-[100] bg-emerald-600 px-3 py-2 text-center text-sm text-white shadow"
-    >
-      <span className="inline-flex items-center justify-center gap-2">
-        <Wifi className="h-4 w-4 shrink-0" aria-hidden />
-        عاد الاتصال
+    <div role="status" className={`${barBase} ${styles[state]}`}>
+      <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 pe-8">
+        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="leading-snug">{text}</span>
       </span>
+      <button
+        type="button"
+        onClick={dismiss}
+        className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 opacity-90 transition hover:bg-black/15 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        aria-label="إغلاق الرسالة"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }

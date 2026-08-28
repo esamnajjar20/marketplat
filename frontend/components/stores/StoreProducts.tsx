@@ -8,6 +8,7 @@ import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
+import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
@@ -16,6 +17,8 @@ import type { ProductSortField } from '@/types/product.types';
 
 interface Props {
   storeId: string;
+  /** اسم المتجر لعنوان ملف التحميل — اختياري */
+  storeName?: string;
   offersOnly?: boolean;
 }
 
@@ -26,7 +29,7 @@ const SORT_OPTIONS: { value: string; label: string; sortBy: ProductSortField; so
   { value: 'views', label: 'الأكثر مشاهدة', sortBy: 'views', sortOrder: 'desc' },
 ];
 
-export function StoreProducts({ storeId, offersOnly = false }: Props) {
+export function StoreProducts({ storeId, storeName, offersOnly = false }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const page = Number(sp.get('productsPage') ?? 1);
@@ -96,22 +99,33 @@ export function StoreProducts({ storeId, offersOnly = false }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="ترتيب المنتجات">
-        {SORT_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => setSort(opt.value)}
-            className={cn(
-              'shrink-0 rounded-full border px-3 py-1 text-xs transition-colors',
-              sortKey === opt.value
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-muted',
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="ترتيب المنتجات">
+          {SORT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setSort(opt.value)}
+              className={cn(
+                'shrink-0 rounded-full border px-3 py-1 text-xs transition-colors',
+                sortKey === opt.value
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted',
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {!offersOnly && storeName && (
+          <DownloadStoreCatalogButton
+            storeId={storeId}
+            storeName={storeName}
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1.5 rounded-full text-xs"
+          />
+        )}
       </div>
 
       {items.length === 0 ? (

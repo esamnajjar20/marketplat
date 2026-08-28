@@ -16,6 +16,8 @@ import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
+import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
+import { StorePaymentActions } from '@/components/payment/StorePaymentActions';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 
@@ -192,6 +194,23 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
           <ShareAdButton title={store.name} url={shareUrl} variant="button" className="flex-1" />
         </div>
+
+        {/* تحميل كتالوج المنتجات كاملًا كملف HTML للمشاهدة بدون إنترنت */}
+        <div className="mt-3 w-full max-w-sm">
+          <DownloadStoreCatalogButton
+            storeId={store.id}
+            storeName={store.name}
+            variant="outline"
+            className="w-full rounded-full py-2.5 h-auto gap-2 text-sm font-medium"
+          />
+        </div>
+
+        {/* دفع فقط (بطاقات النت في الرئيسية) */}
+        <StorePaymentActions
+          storeName={store.name}
+          storePhone={store.phone}
+          className="mt-3 grid w-full max-w-sm grid-cols-2 gap-2"
+        />
 
         {/* FEAT-MSG-UNIFY: "مراسلة المتجر" — unified messaging entry
             point (MessageUserButtonGate) targeting the store's owner

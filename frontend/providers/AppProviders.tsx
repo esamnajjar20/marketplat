@@ -43,12 +43,13 @@ function ThemedToaster() {
   const { resolvedTheme } = useTheme();
   return (
     <Toaster
-      position="top-center"
+      position="bottom-center"
       dir="rtl"
       richColors
       duration={4000}
       closeButton
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      offset="max(1rem, env(safe-area-inset-bottom))"
     />
   );
 }

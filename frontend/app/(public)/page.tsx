@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { HeroBanner } from '@/components/home/HeroBanner';
+import { HomeQuickActions } from '@/components/home/HomeQuickActions';
 import { HomeAboveFold } from '@/components/home/HomeAboveFold';
 import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
@@ -19,6 +20,7 @@ export default function HomePage() {
   return (
     <div className="pb-8">
       <HeroBanner />
+      <HomeQuickActions />
       <HomeAboveFold />
       <LazySection minHeight={280} rootMargin="100px 0px">
         <PromotedProductsSection />
