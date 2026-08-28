@@ -13,6 +13,9 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useSearch } from '@/hooks/queries/useSearch';
+import { useProgressiveSearchRadius } from '@/hooks/queries/useProgressiveSearchRadius';
+import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
+import { formatRadiusLabel } from '@/lib/progressiveRadius';
 import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
 import type { SearchSort, SearchType } from '@/types/search.types';
@@ -48,14 +51,48 @@ export function SearchResults() {
   const radiusParam = sp.get('radius');
   const radius      = radiusParam !== null ? Number(radiusParam) : undefined;
 
+  // توسيع تدريجي عندما يتوفر GPS ولم يُحدَّد radius يدويًا وليس هناك مدينة
+  const progressive = useProgressiveSearchRadius({
+    enabled: lat !== undefined && lng !== undefined,
+    lat,
+    lng,
+    explicitRadius: radius,
+    type,
+    q,
+    city,
+    categoryId,
+    sort: lat !== undefined ? 'distance' : sort,
+    limit: 12,
+  });
+
+  const effectiveRadius =
+    radius !== undefined && !Number.isNaN(radius)
+      ? radius
+      : progressive.radiusKm ?? undefined;
+
+  const effectiveSort: SearchSort =
+    lat !== undefined && lng !== undefined && (sort === 'relevance' || sort === 'distance')
+      ? 'distance'
+      : sort;
+
   // UX-FIX (audit P2-02): mirrors exactly what SearchFilters.tsx's own
   // reset button clears (city/categoryId/sort/geo — q is deliberately
   // preserved by that button, so it's not "active" in this sense).
   const hasActiveFilters = Boolean(city || categoryId || (sort && sort !== 'relevance') || lat !== undefined);
 
-  const { data, isLoading, isError, refetch } = useSearch({
-    q, city, type, categoryId, sort, page, lat, lng, radius,
+  const { data, isLoading: searchLoading, isError, refetch } = useSearch({
+    q,
+    city,
+    type,
+    categoryId,
+    sort: effectiveSort,
+    page,
+    lat,
+    lng,
+    radius: effectiveRadius,
   });
+
+  const isLoading = searchLoading || (Boolean(lat !== undefined && lng !== undefined) && !progressive.resolved);
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -111,6 +148,15 @@ export function SearchResults() {
 
   return (
     <div className="space-y-4">
+      {lat !== undefined && lng !== undefined && effectiveRadius != null && (
+        <div className="flex flex-wrap items-center gap-2">
+          <LocationSourceBadge source="gps" radiusKm={effectiveRadius} />
+          <span className="text-xs text-muted-foreground">
+            أقرب النتائج أولًا — {formatRadiusLabel(Number(effectiveRadius))}
+          </span>
+        </div>
+      )}
+
       {/* Toolbar — same "count on the left, save-search on the right"
           pattern as ads/SearchResults.tsx (categories/[slug] page), so
           the action is available on the main /search page too and not

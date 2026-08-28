@@ -36,7 +36,7 @@ import { ROUTES } from '@/lib/constants';
  * still 'gps-current'/'city' — the badge reflects what's on screen).
  */
 export function NearbyProvidersSection() {
-  const { isChecking, data, isLoading, isError, source } = useNearbyProvidersForHome();
+  const { isChecking, data, isLoading, isError, source, radiusKm } = useNearbyProvidersForHome();
   const location = useLocationResolver();
 
   const items = data?.items ?? [];
@@ -50,7 +50,7 @@ export function NearbyProvidersSection() {
       title="مقدمو خدمات قريبون منك"
       icon={<LocateFixed className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.serviceProviders, label: 'عرض الكل ←' }}
-      badge={!showSkeleton ? <LocationSourceBadge source={source} city={badgeCity} /> : undefined}
+      badge={!showSkeleton ? <LocationSourceBadge source={source} city={badgeCity} radiusKm={radiusKm} /> : undefined}
     />
   );
 

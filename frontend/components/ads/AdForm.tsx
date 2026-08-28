@@ -526,6 +526,13 @@ export function AdForm({ mode, ad }: Props) {
           </FormField>
         </div>
 
+        <p className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">نصيحة للظهور:</span>
+          {' '}
+          اختيار المدينة الصحيحة يساعد المشترين القريبين على إيجاد إعلانك أولًا.
+          إن أضفت موقعًا أدق لاحقًا (إحداثيات) يظهر إعلانك ضمن نطاق «قريب منك» بشكل أفضل.
+        </p>
+
         <div className="space-y-1.5">
           <label htmlFor="condition" className="text-sm font-medium">حالة المنتج</label>
           <Select value={values.condition} onValueChange={(v) => set('condition', v as typeof values.condition)}>

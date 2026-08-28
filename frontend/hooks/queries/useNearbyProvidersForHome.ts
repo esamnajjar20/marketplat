@@ -1,91 +1,147 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useServiceProviders } from '@/hooks/queries/useServiceProviders';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
-import { useNearbyServiceProviders, useServiceProviders } from '@/hooks/queries/useServiceProviders';
+import { serviceProvidersApi } from '@/api/service-providers.api';
+import { queryKeys } from '@/lib/queryKeys';
+import { CACHE_TTL } from '@/lib/constants';
+import {
+  PROGRESSIVE_RADIUS_KM,
+  MIN_RESULTS_ACCEPT,
+} from '@/lib/progressiveRadius';
 
-const RADIUS_KM = 10;
 const HOME_LIMIT = 6;
 
 export type NearbyProvidersForHomeSource = 'gps' | 'city' | 'general';
 
 /**
- * Phase 4: "مقدمو خدمات قريبون منك" data source for Home, now driven
- * by useLocationResolver's full priority chain instead of a GPS-only
- * permission check (see git history for the prior gps-current-only
- * version of this hook, which this replaces).
- *
- *   - gps-current / gps-saved → GET /service-providers/nearby
- *     (Haversine radius search), same RADIUS_KM/HOME_LIMIT as before.
- *   - city                    → Phase 3's GET /service-providers?city=
- *     (serviceAreaCities `has` filter), capped to HOME_LIMIT.
- *   - fallback                → same endpoint with no city param —
- *     general/unfiltered directory. The section never disappears for
- *     lack of location; only a genuine empty result (no providers at
- *     all) hides it.
- *
- * Fallback cascade: a failed or empty GPS/nearby query now falls
- * through to the same general/unfiltered directory query the
- * `fallback` source itself uses (audit §6) — a nearby search that
- * errors or genuinely finds nobody within RADIUS_KM no longer leaves
- * the section empty when a general directory listing could still show
- * something. A failed/empty city query cascades the same way. Only
- * ever one step down to a single fixed general query, so there's no
- * possibility of a refetch loop.
- *
- * All three underlying queries are called unconditionally (Rules of
- * Hooks) and gated via their own `enabled`/null-params mechanism.
+ * مقدمو خدمات — توسيع متسلسل لنصف القطر ثم الدليل العام.
  */
 export function useNearbyProvidersForHome() {
   const location = useLocationResolver();
 
   const isGps = location.source === 'gps-current' || location.source === 'gps-saved';
   const isCity = location.source === 'city';
+  const lat = location.latitude;
+  const lng = location.longitude;
 
-  const nearbyParams = isGps
-    ? { lat: location.latitude!, lng: location.longitude!, radius: RADIUS_KM, limit: HOME_LIMIT }
-    : null;
-  const nearbyQuery = useNearbyServiceProviders(nearbyParams);
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    setStep(0);
+  }, [lat, lng, isGps]);
+
+  const radius = PROGRESSIVE_RADIUS_KM[Math.min(step, PROGRESSIVE_RADIUS_KM.length - 1)]!;
+
+  const nearbyQuery = useQuery({
+    queryKey: queryKeys.serviceProviders.nearby({
+      lat: lat ?? 0,
+      lng: lng ?? 0,
+      radius,
+      limit: HOME_LIMIT,
+    }),
+    queryFn: () =>
+      serviceProvidersApi
+        .getNearby({ lat: lat!, lng: lng!, radius, limit: HOME_LIMIT })
+        .then((r) => r.data.data),
+    enabled: Boolean(isGps && lat != null && lng != null),
+    staleTime: CACHE_TTL.adsList,
+  });
+
+  const count = nearbyQuery.data?.items?.length ?? 0;
+  const hasEnough = count >= MIN_RESULTS_ACCEPT;
+  const isLast = step >= PROGRESSIVE_RADIUS_KM.length - 1;
+
+  useEffect(() => {
+    if (!isGps || nearbyQuery.isLoading || nearbyQuery.isFetching || nearbyQuery.isError) return;
+    if (hasEnough || isLast) return;
+    setStep((s) => Math.min(s + 1, PROGRESSIVE_RADIUS_KM.length - 1));
+  }, [isGps, nearbyQuery.isLoading, nearbyQuery.isFetching, nearbyQuery.isError, hasEnough, isLast, count, step]);
 
   const cityQuery = useServiceProviders(
     isCity ? { city: location.city, limit: HOME_LIMIT } : undefined,
     { enabled: isCity },
   );
 
-  // Always-available cascade target for both the GPS and city
-  // branches, and the query the `fallback` source itself shows
-  // directly — same general/unfiltered directory, no city param.
   const generalQuery = useServiceProviders({ limit: HOME_LIMIT });
 
   const isChecking = location.isLoading;
-  const generalResult = {
+
+  return useMemo(() => {
+    const generalResult = {
+      isChecking,
+      source: 'general' as NearbyProvidersForHomeSource,
+      data: generalQuery.data,
+      isLoading: generalQuery.isLoading,
+      isError: generalQuery.isError,
+      radiusKm: null as number | null,
+    };
+
+    if (isGps) {
+      const settled =
+        !nearbyQuery.isLoading &&
+        !nearbyQuery.isFetching &&
+        (hasEnough || isLast || nearbyQuery.isError);
+      if (!settled) {
+        return {
+          isChecking,
+          source: 'gps' as NearbyProvidersForHomeSource,
+          data: undefined,
+          isLoading: true,
+          isError: false,
+          radiusKm: null as number | null,
+        };
+      }
+      if (!nearbyQuery.isError && count > 0) {
+        return {
+          isChecking,
+          source: 'gps' as NearbyProvidersForHomeSource,
+          data: nearbyQuery.data,
+          isLoading: false,
+          isError: false,
+          radiusKm: radius,
+        };
+      }
+      return generalResult;
+    }
+
+    if (isCity) {
+      if (cityQuery.isLoading) {
+        return {
+          isChecking,
+          source: 'city' as NearbyProvidersForHomeSource,
+          data: undefined,
+          isLoading: true,
+          isError: false,
+          radiusKm: null as number | null,
+        };
+      }
+      const cityItems = cityQuery.data?.items ?? [];
+      if (!cityQuery.isError && cityItems.length > 0) {
+        return {
+          isChecking,
+          source: 'city' as NearbyProvidersForHomeSource,
+          data: cityQuery.data,
+          isLoading: false,
+          isError: false,
+          radiusKm: null as number | null,
+        };
+      }
+      return generalResult;
+    }
+
+    return generalResult;
+  }, [
     isChecking,
-    source: 'general' as NearbyProvidersForHomeSource,
-    data: generalQuery.data,
-    isLoading: generalQuery.isLoading,
-    isError: generalQuery.isError,
-  };
-
-  if (isGps) {
-    if (nearbyQuery.isLoading) {
-      return { isChecking, source: 'gps' as NearbyProvidersForHomeSource, data: undefined, isLoading: true, isError: false };
-    }
-    const nearbyItems = nearbyQuery.data?.items ?? [];
-    if (!nearbyQuery.isError && nearbyItems.length > 0) {
-      return { isChecking, source: 'gps' as NearbyProvidersForHomeSource, data: nearbyQuery.data, isLoading: false, isError: false };
-    }
-    return generalResult;
-  }
-
-  if (isCity) {
-    if (cityQuery.isLoading) {
-      return { isChecking, source: 'city' as NearbyProvidersForHomeSource, data: undefined, isLoading: true, isError: false };
-    }
-    const cityItems = cityQuery.data?.items ?? [];
-    if (!cityQuery.isError && cityItems.length > 0) {
-      return { isChecking, source: 'city' as NearbyProvidersForHomeSource, data: cityQuery.data, isLoading: false, isError: false };
-    }
-    return generalResult;
-  }
-
-  return generalResult;
+    isGps,
+    isCity,
+    nearbyQuery,
+    cityQuery,
+    generalQuery,
+    hasEnough,
+    isLast,
+    count,
+    radius,
+  ]);
 }

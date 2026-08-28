@@ -69,7 +69,7 @@ export function HomeAboveFold() {
   // React Query serves the same cache entry (no duplicate request) and
   // the coordinated skeleton's timing reflects what's actually shown.
   const { isLoading: featuredLoading } = useAds({ isFeatured: true, limit: 4 });
-  const { isChecking: recentChecking, isLoading: recentLoading, source: recentSource } = useAdsForHome();
+  const { isChecking: recentChecking, isLoading: recentLoading, source: recentSource, radiusKm: recentRadiusKm } = useAdsForHome();
   const location = useLocationResolver();
 
   const stillLoading = categoriesLoading || featuredLoading || recentChecking || recentLoading;
@@ -95,7 +95,7 @@ export function HomeAboveFold() {
       title="أحدث الإعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
-      badge={<LocationSourceBadge source={recentSource} city={badgeCity} />}
+      badge={<LocationSourceBadge source={recentSource} city={badgeCity} radiusKm={recentRadiusKm} />}
     />
   );
 
