@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WifiOff, RotateCw } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/shared/ui/Button';
 import { getQueuedRequestCount, requestQueueReplay } from '@/lib/offlineQueue';
 
@@ -93,6 +94,20 @@ export default function OfflinePage() {
         <RotateCw className={`me-2 h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
         إعادة المحاولة
       </Button>
+
+      {!isOnline && (
+        <div className="mt-2 flex max-w-sm flex-col gap-2 text-sm">
+          <p className="text-muted-foreground">متاح على هذا الجهاز دون نت:</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/downloads">التنزيلات / كتالوجات</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/saved-payments">دفع وبطاقات محفوظة</Link>
+            </Button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

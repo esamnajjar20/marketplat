@@ -1,9 +1,15 @@
 /**
- * سجل تنزيلات كتالوجات المتاجر — محلي فقط (metadata).
- * الملف نفسه يُحمَّل للجهاز؛ الصفحة تعرض السجل وروابط إعادة التحميل من المتجر.
+ * سجل تنزيلات الكتالوج + ربط IndexedDB للمحتوى الكامل (تصفح دون نت).
  */
 
-const KEY = 'marketplat:catalog-downloads';
+import { localGet, localSet } from '@/lib/localStore';
+import {
+  idbPutCatalog,
+  idbDeleteCatalog,
+  openCatalogOffline,
+} from '@/lib/catalogIdb';
+
+const KEY = 'catalog-downloads';
 
 export interface CatalogDownloadRecord {
   id: string;
@@ -12,26 +18,16 @@ export interface CatalogDownloadRecord {
   productCount: number;
   fileName: string;
   downloadedAt: string;
+  /** هل المحتوى محفوظ في IndexedDB للفتح دون نت */
+  hasOfflineBody?: boolean;
 }
 
 function readList(): CatalogDownloadRecord[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as CatalogDownloadRecord[];
-  } catch {
-    return [];
-  }
+  return localGet<CatalogDownloadRecord[]>(KEY, []);
 }
 
 function writeList(list: CatalogDownloadRecord[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(list.slice(0, 50)));
-  } catch {
-    /* quota */
-  }
+  localSet(KEY, list.slice(0, 50));
 }
 
 export function listCatalogDownloads(): CatalogDownloadRecord[] {
@@ -40,12 +36,13 @@ export function listCatalogDownloads(): CatalogDownloadRecord[] {
   );
 }
 
-export function recordCatalogDownload(input: {
+export async function recordCatalogDownload(input: {
   storeId: string;
   storeName: string;
   productCount: number;
   fileName: string;
-}): CatalogDownloadRecord {
+  html?: string;
+}): Promise<CatalogDownloadRecord> {
   const list = readList().filter((r) => r.storeId !== input.storeId);
   const entry: CatalogDownloadRecord = {
     id: crypto.randomUUID(),
@@ -54,15 +51,43 @@ export function recordCatalogDownload(input: {
     productCount: input.productCount,
     fileName: input.fileName,
     downloadedAt: new Date().toISOString(),
+    hasOfflineBody: Boolean(input.html),
   };
+
+  if (input.html) {
+    try {
+      await idbPutCatalog({
+        id: entry.id,
+        storeId: entry.storeId,
+        storeName: entry.storeName,
+        fileName: entry.fileName,
+        productCount: entry.productCount,
+        html: input.html,
+        savedAt: entry.downloadedAt,
+      });
+      entry.hasOfflineBody = true;
+    } catch {
+      entry.hasOfflineBody = false;
+    }
+  }
+
   writeList([entry, ...list]);
   return entry;
 }
 
-export function removeCatalogDownload(id: string) {
+export async function removeCatalogDownload(id: string): Promise<void> {
   writeList(readList().filter((r) => r.id !== id));
+  try {
+    await idbDeleteCatalog(id);
+  } catch {
+    /* ignore */
+  }
 }
 
-export function clearCatalogDownloads() {
+export function clearCatalogDownloads(): void {
+  const ids = readList().map((r) => r.id);
   writeList([]);
+  void Promise.all(ids.map((id) => idbDeleteCatalog(id).catch(() => undefined)));
 }
+
+export { openCatalogOffline };

@@ -1,10 +1,13 @@
 /**
- * حفظ محلي لجهات الدفع وبطاقات الإنترنت — بدون backend.
- * المفاتيح معزولة تحت marketplat: حتى لا تتعارض مع بيانات أخرى.
+ * حفظ محلي لجهات الدفع وبطاقات الإنترنت — عبر localStore الموحّد.
  */
 
-const PAYEES_KEY = 'marketplat:saved-payees';
-const CARDS_KEY = 'marketplat:saved-net-cards';
+import { localGet, localSet } from '@/lib/localStore';
+
+const PAYEES_KEY = 'saved-payees';
+const CARDS_KEY = 'saved-net-cards';
+const LEGACY_PAYEES = 'marketplat:saved-payees';
+const LEGACY_CARDS = 'marketplat:saved-net-cards';
 
 export type PayMethod = 'jawwal' | 'palpay' | 'bank';
 
@@ -24,28 +27,27 @@ export interface SavedNetCard {
   savedAt: string;
 }
 
-function readJson<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback;
+function migrateLegacy<T>(legacyKey: string, newKey: string): T[] {
+  if (typeof window === 'undefined') return [];
+  const current = localGet<T[]>(newKey, []);
+  if (current.length > 0) return current;
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    const raw = localStorage.getItem(legacyKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as T[];
+    if (Array.isArray(parsed) && parsed.length) {
+      localSet(newKey, parsed);
+      localStorage.removeItem(legacyKey);
+      return parsed;
+    }
   } catch {
-    return fallback;
+    /* ignore */
   }
-}
-
-function writeJson(key: string, value: unknown) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* quota / private mode */
-  }
+  return [];
 }
 
 export function listSavedPayees(): SavedPayee[] {
-  return readJson<SavedPayee[]>(PAYEES_KEY, []);
+  return migrateLegacy<SavedPayee>(LEGACY_PAYEES, PAYEES_KEY);
 }
 
 export function savePayee(payee: Omit<SavedPayee, 'id' | 'savedAt'>): SavedPayee {
@@ -56,7 +58,7 @@ export function savePayee(payee: Omit<SavedPayee, 'id' | 'savedAt'>): SavedPayee
   if (existing) {
     existing.name = payee.name;
     existing.savedAt = new Date().toISOString();
-    writeJson(PAYEES_KEY, list);
+    localSet(PAYEES_KEY, list);
     return existing;
   }
   const entry: SavedPayee = {
@@ -64,19 +66,19 @@ export function savePayee(payee: Omit<SavedPayee, 'id' | 'savedAt'>): SavedPayee
     id: crypto.randomUUID(),
     savedAt: new Date().toISOString(),
   };
-  writeJson(PAYEES_KEY, [entry, ...list].slice(0, 30));
+  localSet(PAYEES_KEY, [entry, ...list].slice(0, 30));
   return entry;
 }
 
 export function removePayee(id: string) {
-  writeJson(
+  localSet(
     PAYEES_KEY,
     listSavedPayees().filter((p) => p.id !== id),
   );
 }
 
 export function listSavedNetCards(): SavedNetCard[] {
-  return readJson<SavedNetCard[]>(CARDS_KEY, []);
+  return migrateLegacy<SavedNetCard>(LEGACY_CARDS, CARDS_KEY);
 }
 
 export function saveNetCard(
@@ -88,7 +90,7 @@ export function saveNetCard(
     existing.password = card.password;
     existing.label = card.label;
     existing.savedAt = new Date().toISOString();
-    writeJson(CARDS_KEY, list);
+    localSet(CARDS_KEY, list);
     return existing;
   }
   const entry: SavedNetCard = {
@@ -96,18 +98,17 @@ export function saveNetCard(
     id: crypto.randomUUID(),
     savedAt: new Date().toISOString(),
   };
-  writeJson(CARDS_KEY, [entry, ...list].slice(0, 30));
+  localSet(CARDS_KEY, [entry, ...list].slice(0, 30));
   return entry;
 }
 
 export function removeNetCard(id: string) {
-  writeJson(
+  localSet(
     CARDS_KEY,
     listSavedNetCards().filter((c) => c.id !== id),
   );
 }
 
-/** أكواد USSD حسب الشركة ونوع المستلم */
 export function buildUssd(
   method: 'jawwal' | 'palpay',
   recipient: 'friend' | 'merchant',
@@ -117,12 +118,10 @@ export function buildUssd(
   const n = number.replace(/\D/g, '');
   const a = amount.replace(/[^\d.]/g, '');
   if (method === 'palpay') {
-    // صديق: *370*1*1*الرقم*السعر#   تاجر: *370*2*الرقم*السعر#
     return recipient === 'friend'
       ? `*370*1*1*${n}*${a}#`
       : `*370*2*${n}*${a}#`;
   }
-  // جوال بي — صديق: *268*1*الرقم*السعر#   تاجر: *268*2*الرقم*السعر#
   return recipient === 'friend'
     ? `*268*1*${n}*${a}#`
     : `*268*2*${n}*${a}#`;

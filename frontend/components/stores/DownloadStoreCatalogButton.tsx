@@ -254,11 +254,12 @@ export function DownloadStoreCatalogButton({
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      recordCatalogDownload({
+      await recordCatalogDownload({
         storeId,
         storeName,
         productCount: products.length,
         fileName: `كتالوج-${safeName}.html`,
+        html,
       });
     } catch (err) {
       console.error('Failed to download store catalog', err);
