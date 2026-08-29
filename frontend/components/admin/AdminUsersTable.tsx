@@ -8,6 +8,7 @@ import { Badge }        from '@/components/shared/ui/Badge';
 import { Input }        from '@/components/shared/ui/Input';
 import { Checkbox }     from '@/components/shared/ui/Checkbox';
 import { Pagination }   from '@/components/shared/ui/Pagination';
+import { Tooltip }      from '@/components/shared/ui/Tooltip';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
@@ -268,26 +269,29 @@ export function AdminUsersTable() {
                     <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{formatDate(user.createdAt)}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-1">
-                        {/* FIX A11Y-01: title alone isn't reliably
-                            announced by screen readers and is useless
-                            for keyboard-only users (no hover). Kept
-                            title for the visual tooltip, added
-                            aria-label as the actual accessible name. */}
-                        <Button variant="ghost" size="icon" className="h-9 w-9"
-                          title={
+                        {/* DESKTOP-AUDIT-01: title= → Tooltip, same
+                            content this button already computed for its
+                            (unstyled, inconsistent-across-browsers)
+                            native title — aria-label untouched, it's the
+                            real accessible name for screen readers. */}
+                        <Tooltip
+                          content={
                             isTargetSuperAdmin
                               ? 'لا يمكن تعديل حساب مدير أعلى'
                               : !canManageStatus
                                 ? 'لا تملك صلاحية تعديل هذا الحساب'
                                 : (user.isActive ? 'إيقاف' : 'تفعيل')
                           }
-                          aria-label={user.isActive ? `إيقاف ${user.name}` : `تفعيل ${user.name}`}
-                          disabled={!canManageStatus || pendingStatusUserId === user.id}
-                          onClick={() => changeUserStatus.mutate({ userId: user.id, isActive: !user.isActive })}>
-                          {user.isActive
-                            ? <ShieldOff className="h-3.5 w-3.5 text-destructive" />
-                            : <ShieldCheck className="h-3.5 w-3.5 text-success" />}
-                        </Button>
+                        >
+                          <Button variant="ghost" size="icon" className="h-9 w-9"
+                            aria-label={user.isActive ? `إيقاف ${user.name}` : `تفعيل ${user.name}`}
+                            disabled={!canManageStatus || pendingStatusUserId === user.id}
+                            onClick={() => changeUserStatus.mutate({ userId: user.id, isActive: !user.isActive })}>
+                            {user.isActive
+                              ? <ShieldOff className="h-3.5 w-3.5 text-destructive" />
+                              : <ShieldCheck className="h-3.5 w-3.5 text-success" />}
+                          </Button>
+                        </Tooltip>
 
                         {/* FIX AUDIT-V3-05 / Gap #20: role menu — replaces
                             the old two-way USER<->ADMIN toggle now that

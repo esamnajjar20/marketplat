@@ -44,6 +44,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import { headers }                    from 'next/headers';
 import { AppProviders }               from '@/providers/AppProviders';
+import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
 import '@/app/globals.css';
 
@@ -178,6 +179,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // warning on every load even though nothing is actually broken.
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body>
+        {/* DESKTOP-AUDIT-02: first tab stop on every page, before any
+            header/nav — see SkipLink's own doc comment. */}
+        <SkipLink />
         <AppProviders nonce={nonce}>
           {children}
         </AppProviders>

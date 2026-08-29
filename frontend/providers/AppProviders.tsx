@@ -20,6 +20,7 @@ import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
+import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -93,6 +94,12 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
 
         {/* Critical notification toasts — still poll-based, no WS. */}
         <NotificationToasts />
+
+        {/* DESKTOP-AUDIT-03: Ctrl/Cmd+K quick-search — see the
+            component's own header for the full rationale. No props,
+            no visible output, same mount-once posture as the trackers
+            above. */}
+        <GlobalSearchShortcut />
 
         {process.env.NODE_ENV === 'development' && (
           <ReactQueryDevtools initialIsOpen={false} />

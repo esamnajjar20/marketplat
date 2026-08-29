@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
+import { Tooltip } from '@/components/shared/ui/Tooltip';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError }       from '@/components/shared/ApiError';
 import { ConfirmDialog }  from '@/components/shared/feedback/ConfirmDialog';
@@ -255,27 +256,36 @@ export function AdminAdsTable() {
                           equivalent — aria-label is the real accessible
                           name here, and reflects the actual action
                           (toggle on/off) rather than a static label. */}
+                      {/* DESKTOP-AUDIT-01: title= → Tooltip, matching
+                          AdminAuditLogsTable. Content now tracks the
+                          actual toggle state (was static "تمييز"/"تثبيت"
+                          regardless of ad.isFeatured/isPinned — aria-label
+                          already had the correct dynamic text, the visual
+                          hint just hadn't caught up to it). */}
                       <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-9 w-9"
-                          title="تمييز"
-                          aria-label={ad.isFeatured ? `إلغاء تمييز ${ad.title}` : `تمييز ${ad.title}`}
-                          disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'featured'}
-                          onClick={() => toggleFeatured(ad.id, !ad.isFeatured)}>
-                          <Star className={`h-3.5 w-3.5 ${ad.isFeatured ? 'fill-warning text-warning' : ''}`} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9"
-                          title="تثبيت"
-                          aria-label={ad.isPinned ? `إلغاء تثبيت ${ad.title}` : `تثبيت ${ad.title}`}
-                          disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'pinned'}
-                          onClick={() => togglePinned(ad.id, !ad.isPinned)}>
-                          <Pin className={`h-3.5 w-3.5 ${ad.isPinned ? 'text-primary' : ''}`} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive"
-                          title="حذف"
-                          aria-label={`حذف ${ad.title}`}
-                          onClick={() => setDeleteTargetId(ad.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tooltip content={ad.isFeatured ? 'إلغاء تمييز' : 'تمييز'}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9"
+                            aria-label={ad.isFeatured ? `إلغاء تمييز ${ad.title}` : `تمييز ${ad.title}`}
+                            disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'featured'}
+                            onClick={() => toggleFeatured(ad.id, !ad.isFeatured)}>
+                            <Star className={`h-3.5 w-3.5 ${ad.isFeatured ? 'fill-warning text-warning' : ''}`} />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={ad.isPinned ? 'إلغاء تثبيت' : 'تثبيت'}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9"
+                            aria-label={ad.isPinned ? `إلغاء تثبيت ${ad.title}` : `تثبيت ${ad.title}`}
+                            disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'pinned'}
+                            onClick={() => togglePinned(ad.id, !ad.isPinned)}>
+                            <Pin className={`h-3.5 w-3.5 ${ad.isPinned ? 'text-primary' : ''}`} />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content="حذف">
+                          <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive"
+                            aria-label={`حذف ${ad.title}`}
+                            onClick={() => setDeleteTargetId(ad.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>

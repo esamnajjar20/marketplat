@@ -12,7 +12,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex min-h-screen min-w-0 flex-col">
       <PublicHeader />
-      <main className="min-w-0 flex-1 pb-16 md:pb-0">
+      {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
+      <main id="main-content" className="min-w-0 flex-1 pb-16 md:pb-0">
         <PageTransition>{children}</PageTransition>
       </main>
       <PublicFooter />

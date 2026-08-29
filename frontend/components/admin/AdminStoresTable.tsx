@@ -29,6 +29,7 @@ import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
 import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
+import { Tooltip }       from '@/components/shared/ui/Tooltip';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
@@ -243,45 +244,52 @@ export function AdminStoresTable() {
                       {formatDate(store.createdAt)}
                     </td>
                     <td className="p-3">
+                      {/* DESKTOP-AUDIT-01: title= → Tooltip across this
+                          row's four actions, same pattern as
+                          AdminAuditLogsTable/AdminAdsTable/AdminUsersTable. */}
                       <div className="flex items-center gap-1">
                         {store.status !== 'ACTIVE' && (
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            title="الموافقة على المتجر"
-                            aria-label={`الموافقة على متجر ${store.name}`}
-                            disabled={pendingId === store.id}
-                            onClick={() => updateStatus.mutate({ storeId: store.id, status: 'ACTIVE' })}>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                          </Button>
+                          <Tooltip content="الموافقة على المتجر">
+                            <Button variant="ghost" size="icon" className="h-9 w-9"
+                              aria-label={`الموافقة على متجر ${store.name}`}
+                              disabled={pendingId === store.id}
+                              onClick={() => updateStatus.mutate({ storeId: store.id, status: 'ACTIVE' })}>
+                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                            </Button>
+                          </Tooltip>
                         )}
                         {store.status === 'BLOCKED' ? (
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            title="رفع الحظر"
-                            aria-label={`رفع الحظر عن متجر ${store.name}`}
-                            disabled={pendingId === store.id}
-                            onClick={() => updateStatus.mutate({ storeId: store.id, status: 'PENDING' })}>
-                            <RotateCcw className="h-3.5 w-3.5 text-success" />
-                          </Button>
+                          <Tooltip content="رفع الحظر">
+                            <Button variant="ghost" size="icon" className="h-9 w-9"
+                              aria-label={`رفع الحظر عن متجر ${store.name}`}
+                              disabled={pendingId === store.id}
+                              onClick={() => updateStatus.mutate({ storeId: store.id, status: 'PENDING' })}>
+                              <RotateCcw className="h-3.5 w-3.5 text-success" />
+                            </Button>
+                          </Tooltip>
                         ) : (
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            title="حظر المتجر"
-                            aria-label={`حظر متجر ${store.name}`}
-                            disabled={pendingId === store.id}
-                            onClick={() => setBlockTarget({ id: store.id, name: store.name })}>
-                            <Ban className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
+                          <Tooltip content="حظر المتجر">
+                            <Button variant="ghost" size="icon" className="h-9 w-9"
+                              aria-label={`حظر متجر ${store.name}`}
+                              disabled={pendingId === store.id}
+                              onClick={() => setBlockTarget({ id: store.id, name: store.name })}>
+                              <Ban className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </Tooltip>
                         )}
                         {/* FIX BUG-02: StorePlan.FEATURED was unreachable
                             — no admin control existed to ever set it. */}
-                        <Button variant="ghost" size="icon" className="h-9 w-9"
-                          title={store.plan === 'FEATURED' ? 'إلغاء تمييز المتجر' : 'تمييز المتجر'}
-                          aria-label={store.plan === 'FEATURED' ? `إلغاء تمييز متجر ${store.name}` : `تمييز متجر ${store.name}`}
-                          disabled={pendingId === store.id}
-                          onClick={() => updatePlan.mutate({
-                            storeId: store.id,
-                            plan: store.plan === 'FEATURED' ? 'FREE' : 'FEATURED',
-                          })}>
-                          <Star className={`h-3.5 w-3.5 ${store.plan === 'FEATURED' ? 'fill-warning text-warning' : 'text-muted-foreground'}`} />
-                        </Button>
+                        <Tooltip content={store.plan === 'FEATURED' ? 'إلغاء تمييز المتجر' : 'تمييز المتجر'}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9"
+                            aria-label={store.plan === 'FEATURED' ? `إلغاء تمييز متجر ${store.name}` : `تمييز متجر ${store.name}`}
+                            disabled={pendingId === store.id}
+                            onClick={() => updatePlan.mutate({
+                              storeId: store.id,
+                              plan: store.plan === 'FEATURED' ? 'FREE' : 'FEATURED',
+                            })}>
+                            <Star className={`h-3.5 w-3.5 ${store.plan === 'FEATURED' ? 'fill-warning text-warning' : 'text-muted-foreground'}`} />
+                          </Button>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>

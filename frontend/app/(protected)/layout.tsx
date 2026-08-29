@@ -93,7 +93,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
             16px mobile scaling to 24–32px desktop. px-4 py-4 (16px)
             is the mobile base; md:p-6 (24px) and lg:p-8 (32px) scale
             it up, with pb-20/md:pb-6 layered on top for BottomNav. */}
-        <main className="min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8">
+        {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
+        <main id="main-content" className="min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

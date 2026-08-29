@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Clock } from 'lucide-react';
 
@@ -31,9 +31,30 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   const [value, setValue] = useState(defaultValue);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setRecent(getRecentSearches());
+  }, []);
+
+  // DESKTOP-AUDIT-03: GlobalSearchShortcut (Ctrl/Cmd+K) appends
+  // ?focus=1 when it navigates here from elsewhere in the app — this
+  // is the one SearchBox instance that route actually renders
+  // (app/(public)/search/page.tsx). Focus the field, then strip the
+  // param via router.replace so it doesn't linger in the URL bar or
+  // get re-triggered on a manual refresh/back-navigation.
+  useEffect(() => {
+    if (sp.get('focus') !== '1') return;
+    inputRef.current?.focus();
+    const params = new URLSearchParams(sp.toString());
+    params.delete('focus');
+    const query = params.toString();
+    router.replace(query ? `${ROUTES.search}?${query}` : ROUTES.search);
+    // Only ever meant to run once per navigation that carries the
+    // param — deliberately not depending on `sp`/`router` themselves,
+    // which would re-fire this on every param change this effect
+    // itself just made.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function navigate(q: string) {
@@ -71,6 +92,8 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={inputRef}
+            id="global-search-input"
             type="search"
             value={value}
             onChange={(e) => {

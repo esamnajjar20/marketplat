@@ -10,6 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
+import { Tooltip } from '@/components/shared/ui/Tooltip';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
@@ -191,19 +192,37 @@ export function AdminAuditLogsTable() {
                     {log.ip ?? '—'}
                   </td>
                   <td className="p-3 hidden xl:table-cell text-muted-foreground text-xs max-w-[220px] truncate">
-                    {log.userAgent ?? '—'}
+                    {/* DESKTOP-AUDIT-01: was truncate with no way to read
+                        the full value — a mouse user on this exact
+                        breakpoint (xl, where this column is even visible)
+                        had no way to see the rest without opening the
+                        details dialog. Only wrap in Tooltip when there's
+                        something to truncate — an empty '—' never needs one. */}
+                    {log.userAgent ? (
+                      <Tooltip content={log.userAgent} side="top">
+                        <span className="cursor-default">{log.userAgent}</span>
+                      </Tooltip>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="p-3">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
-                      title="التفاصيل"
-                      aria-label={`عرض تفاصيل الحدث ${AUDIT_EVENT_LABELS[log.event] ?? log.event}`}
-                      onClick={() => setDetailsLog(log)}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
+                    {/* DESKTOP-AUDIT-01: title= gave a native browser
+                        tooltip (slow, unstyled, inconsistent across
+                        browsers) — swapped for the app's own Tooltip.
+                        aria-label stays; it's what's actually announced
+                        to screen readers, independent of the visual hint. */}
+                    <Tooltip content="التفاصيل">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9"
+                        aria-label={`عرض تفاصيل الحدث ${AUDIT_EVENT_LABELS[log.event] ?? log.event}`}
+                        onClick={() => setDetailsLog(log)}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                    </Tooltip>
                   </td>
                 </tr>
               ))}

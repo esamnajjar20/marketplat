@@ -24,6 +24,7 @@ import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
 import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
+import { Tooltip }       from '@/components/shared/ui/Tooltip';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
@@ -222,34 +223,38 @@ export function AdminSellersTable() {
                     {formatDate(seller.createdAt)}
                   </td>
                   <td className="p-3">
+                    {/* DESKTOP-AUDIT-01: title= → Tooltip, same pattern
+                        as the other admin tables. */}
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-9 w-9"
-                        title={seller.verified ? 'إلغاء التوثيق' : 'توثيق البائع'}
-                        aria-label={seller.verified ? `إلغاء توثيق ${seller.displayName}` : `توثيق ${seller.displayName}`}
-                        disabled={pendingVerifyId === seller.id}
-                        onClick={() => setVerified.mutate({ sellerProfileId: seller.id, verified: !seller.verified })}>
-                        {seller.verified
-                          ? <BadgeX className="h-3.5 w-3.5 text-muted-foreground" />
-                          : <BadgeCheck className="h-3.5 w-3.5 text-success" />}
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-9 w-9"
-                        title={seller.suspended ? 'رفع الإيقاف' : 'إيقاف البائع'}
-                        aria-label={seller.suspended ? `رفع الإيقاف عن ${seller.displayName}` : `إيقاف ${seller.displayName}`}
-                        disabled={pendingSuspendId === seller.id}
-                        onClick={() => {
-                          // Un-suspending is low-risk and reversible with
-                          // one click either way, so only the
-                          // suspend direction goes through the dialog.
-                          if (seller.suspended) {
-                            setSuspended.mutate({ sellerProfileId: seller.id, suspended: false });
-                          } else {
-                            setSuspendTarget({ id: seller.id, name: seller.displayName });
-                          }
-                        }}>
-                        {seller.suspended
-                          ? <ShieldCheck className="h-3.5 w-3.5 text-success" />
-                          : <ShieldOff className="h-3.5 w-3.5 text-destructive" />}
-                      </Button>
+                      <Tooltip content={seller.verified ? 'إلغاء التوثيق' : 'توثيق البائع'}>
+                        <Button variant="ghost" size="icon" className="h-9 w-9"
+                          aria-label={seller.verified ? `إلغاء توثيق ${seller.displayName}` : `توثيق ${seller.displayName}`}
+                          disabled={pendingVerifyId === seller.id}
+                          onClick={() => setVerified.mutate({ sellerProfileId: seller.id, verified: !seller.verified })}>
+                          {seller.verified
+                            ? <BadgeX className="h-3.5 w-3.5 text-muted-foreground" />
+                            : <BadgeCheck className="h-3.5 w-3.5 text-success" />}
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content={seller.suspended ? 'رفع الإيقاف' : 'إيقاف البائع'}>
+                        <Button variant="ghost" size="icon" className="h-9 w-9"
+                          aria-label={seller.suspended ? `رفع الإيقاف عن ${seller.displayName}` : `إيقاف ${seller.displayName}`}
+                          disabled={pendingSuspendId === seller.id}
+                          onClick={() => {
+                            // Un-suspending is low-risk and reversible with
+                            // one click either way, so only the
+                            // suspend direction goes through the dialog.
+                            if (seller.suspended) {
+                              setSuspended.mutate({ sellerProfileId: seller.id, suspended: false });
+                            } else {
+                              setSuspendTarget({ id: seller.id, name: seller.displayName });
+                            }
+                          }}>
+                          {seller.suspended
+                            ? <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                            : <ShieldOff className="h-3.5 w-3.5 text-destructive" />}
+                        </Button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>
