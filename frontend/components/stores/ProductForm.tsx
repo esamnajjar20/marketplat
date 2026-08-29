@@ -16,25 +16,13 @@ import {
 } from '@/hooks/mutations/useProductMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { MAX_IMAGES } from '@/lib/constants';
-import type { Product, ProductAvailability, UpdateProductPayload } from '@/types/product.types';
+import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
+import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
+import type { Product, ProductAvailability, UpdateProductPayload, ProductFormValues } from '@/types/product.types';
 
 interface Props {
   mode: 'create' | 'edit';
   product?: Product;
-}
-
-interface Values {
-  categoryId: string;
-  name: string;
-  description: string;
-  price: string;
-  discountPrice: string;
-  wholesalePrice: string;
-  wholesaleMinQty: string;
-  availability: ProductAvailability;
-  stockQuantity: string;
-  images: File[];         // new uploads staged for this submit
-  existingImages: string[]; // URLs already on server (edit mode)
 }
 
 interface Errors {
@@ -74,7 +62,7 @@ export function ProductForm({ mode, product }: Props) {
   // originalImages (FIX I-04).
   const [originalImages] = useState<string[]>(() => product?.images ?? []);
 
-  const [values, setValues] = useState<Values>(() =>
+  const [values, setValues] = useState<ProductFormValues>(() =>
     product
       ? {
           categoryId: product.categoryId,
@@ -110,7 +98,7 @@ export function ProductForm({ mode, product }: Props) {
     return errors[field] ?? serverErrors?.[field]?.[0];
   }
 
-  function set<K extends keyof Values>(key: K, val: Values[K]) {
+  function set<K extends keyof ProductFormValues>(key: K, val: ProductFormValues[K]) {
     setValues((v) => ({ ...v, [key]: val }));
   }
 
@@ -261,7 +249,7 @@ export function ProductForm({ mode, product }: Props) {
     update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
   }
 
-  return (
+  const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <div className="rounded-lg border bg-card p-4 space-y-4">
         <h2 className="font-semibold">معلومات المنتج</h2>
@@ -424,4 +412,13 @@ export function ProductForm({ mode, product }: Props) {
       </div>
     </form>
   );
+
+  // DESKTOP-AUDIT-05: see AdForm's matching comment — create mode only
+  // gets the lg+ split view via the shared CreateFormLayout.
+  if (mode === 'create') {
+    return (
+      <CreateFormLayout form={formElement} preview={<ProductFormPreview values={values} />} />
+    );
+  }
+  return formElement;
 }

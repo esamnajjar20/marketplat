@@ -16,28 +16,19 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { MAX_IMAGES } from '@/lib/constants';
+import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
+import { ServiceListingFormPreview } from '@/components/services/ServiceListingFormPreview';
 import type {
   ServiceListing,
   ServicePricingType,
   ServiceLocationType,
   UpdateServiceListingPayload,
+  ServiceListingFormValues,
 } from '@/types/service.types';
 
 interface Props {
   mode: 'create' | 'edit';
   listing?: ServiceListing;
-}
-
-interface Values {
-  categoryId: string;
-  title: string;
-  description: string;
-  pricingType: ServicePricingType;
-  price: string;
-  durationEstimate: string;
-  serviceLocation: ServiceLocationType;
-  images: File[];           // new uploads staged for this submit
-  existingImages: string[]; // URLs already on server (edit mode)
 }
 
 interface Errors {
@@ -83,7 +74,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
   // same as AdForm's originalImages (FIX I-04).
   const [originalImages] = useState<string[]>(() => listing?.images ?? []);
 
-  const [values, setValues] = useState<Values>(() =>
+  const [values, setValues] = useState<ServiceListingFormValues>(() =>
     listing
       ? {
           categoryId: listing.categoryId,
@@ -115,7 +106,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
     return errors[field] ?? serverErrors?.[field]?.[0];
   }
 
-  function set<K extends keyof Values>(key: K, val: Values[K]) {
+  function set<K extends keyof ServiceListingFormValues>(key: K, val: ServiceListingFormValues[K]) {
     setValues((v) => ({ ...v, [key]: val }));
   }
 
@@ -252,7 +243,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
     update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
   }
 
-  return (
+  const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <div className="rounded-lg border bg-card p-4 space-y-4">
         <h2 className="font-semibold">معلومات الخدمة</h2>
@@ -397,4 +388,13 @@ export function ServiceListingForm({ mode, listing }: Props) {
       </div>
     </form>
   );
+
+  // DESKTOP-AUDIT-05: see AdForm's matching comment — create mode only
+  // gets the lg+ split view via the shared CreateFormLayout.
+  if (mode === 'create') {
+    return (
+      <CreateFormLayout form={formElement} preview={<ServiceListingFormPreview values={values} />} />
+    );
+  }
+  return formElement;
 }

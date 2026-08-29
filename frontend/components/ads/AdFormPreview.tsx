@@ -1,17 +1,23 @@
 'use client';
 
 /**
- * Live preview of how the ad will appear as a card — shown on the last
- * wizard step (and optionally in edit mode) so the seller can catch a
- * weak title/price/photo before publishing.
+ * Live preview of how the ad will appear as a card — shown inline on
+ * the last wizard step (mobile/tablet) and in CreateFormLayout's sticky
+ * sidebar (lg+, all steps — see AdForm) so the seller can catch a weak
+ * title/price/photo before publishing.
+ *
+ * DESKTOP-AUDIT-05: now built on the shared LivePreviewCard shell (see
+ * that file) instead of its own copy of the border/rounded/shadow/
+ * label/caption markup — ProductFormPreview/ServiceListingFormPreview
+ * share the same shell.
  */
 
 import { MapPin } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { CONDITION_LABELS } from '@/lib/constants';
 import { PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { LivePreviewCard } from '@/components/shared/forms/LivePreviewCard';
 import type { AdFormValues } from '@/types/ad.types';
-import { cn } from '@/lib/utils';
 
 interface Props {
   values: AdFormValues;
@@ -27,11 +33,10 @@ export function AdFormPreview({ values, className }: Props) {
     : null;
 
   return (
-    <div className={cn('space-y-2', className)}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        معاينة البطاقة
-      </p>
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <LivePreviewCard
+      className={className}
+      caption="هكذا سيظهر إعلانك تقريباً في القوائم والبحث."
+      media={
         <div className="relative aspect-[4/3] bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageSrc} alt="" className="h-full w-full object-cover" />
@@ -41,31 +46,27 @@ export function AdFormPreview({ values, className }: Props) {
             </span>
           )}
         </div>
-        <div className="space-y-1 p-3">
-          {values.price ? (
-            <p className="font-mono text-base font-bold tabular-nums text-primary">
-              {formatPrice(values.price)}
-              {values.isNegotiable && (
-                <span className="ms-1 text-[10px] font-medium text-primary/80">قابل للتفاوض</span>
-              )}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">بدون سعر</p>
+      }
+    >
+      {values.price ? (
+        <p className="font-mono text-base font-bold tabular-nums text-primary">
+          {formatPrice(values.price)}
+          {values.isNegotiable && (
+            <span className="ms-1 text-[10px] font-medium text-primary/80">قابل للتفاوض</span>
           )}
-          <h3 className="line-clamp-2 text-sm font-medium leading-snug">
-            {values.title.trim() || 'عنوان الإعلان'}
-          </h3>
-          {values.city && (
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" aria-hidden />
-              {values.city}
-            </p>
-          )}
-        </div>
-      </div>
-      <p className="text-[11px] text-muted-foreground">
-        هكذا سيظهر إعلانك تقريباً في القوائم والبحث.
-      </p>
-    </div>
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">بدون سعر</p>
+      )}
+      <h3 className="line-clamp-2 text-sm font-medium leading-snug">
+        {values.title.trim() || 'عنوان الإعلان'}
+      </h3>
+      {values.city && (
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" aria-hidden />
+          {values.city}
+        </p>
+      )}
+    </LivePreviewCard>
   );
 }

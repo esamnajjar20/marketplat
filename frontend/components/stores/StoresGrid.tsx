@@ -36,7 +36,14 @@ export function StoresGrid() {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* DESKTOP-AUDIT-05: capped at md:grid-cols-2 with no lg/xl/2xl
+            step at all, unlike ProductsGrid/ServiceListingsGrid/
+            SearchResults sharing this exact same content column width
+            (see the lg:grid-cols-4 sidebar+content split in
+            stores/page.tsx) — store cards are horizontal list-style
+            (flex row, min-w-0 flex-1 text) so they reflow safely into
+            more columns, they just never had the breakpoints to do so. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <StoreCardSkeleton key={i} />)}
         </div>
       </div>
@@ -71,7 +78,7 @@ export function StoresGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد متاجر مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((store) => (
             <StoreCard key={store.id} store={store} />
           ))}

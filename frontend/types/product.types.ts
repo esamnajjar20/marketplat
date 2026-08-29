@@ -169,3 +169,22 @@ export interface CreateProductCategoryPayload {
 export type UpdateProductCategoryPayload = Partial<CreateProductCategoryPayload> & {
   isActive?: boolean;
 };
+
+// ── Product create/edit form values ─────────────────────────────
+// DESKTOP-AUDIT-05: moved here from ProductForm.tsx (colocated
+// originally) to match AdFormValues' own home in ad.types.ts — lets
+// ProductFormPreview import the type without a circular import back
+// through the form component itself.
+export interface ProductFormValues {
+  categoryId: string;
+  name: string;
+  description: string;
+  price: string;
+  discountPrice: string;
+  wholesalePrice: string;
+  wholesaleMinQty: string;
+  availability: ProductAvailability;
+  stockQuantity: string;
+  images: File[];         // new uploads staged for this submit
+  existingImages: string[]; // URLs already on server (edit mode)
+}

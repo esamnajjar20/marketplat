@@ -382,3 +382,20 @@ export interface AvailabilityResponse {
 
 /** Mirrors backend/prisma/schema.prisma's ServiceQuoteStatus enum. */
 export type ServiceQuoteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
+
+// ── Service listing create/edit form values ─────────────────────
+// DESKTOP-AUDIT-05: moved here from ServiceListingForm.tsx (colocated
+// originally) to match AdFormValues' own home in ad.types.ts — lets
+// ServiceListingFormPreview import the type without a circular import
+// back through the form component itself.
+export interface ServiceListingFormValues {
+  categoryId: string;
+  title: string;
+  description: string;
+  pricingType: ServicePricingType;
+  price: string;
+  durationEstimate: string;
+  serviceLocation: ServiceLocationType;
+  images: File[];           // new uploads staged for this submit
+  existingImages: string[]; // URLs already on server (edit mode)
+}

@@ -10,7 +10,12 @@ export const metadata: Metadata = buildMetadata({ title: 'نشر إعلان جد
 // ensureSellerProfileForAdCreation).
 export default function CreateAdPage() {
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    // DESKTOP-AUDIT-05: max-w-2xl → max-w-5xl so AdForm's create-mode
+    // split view (form + sticky preview sidebar, see CreateFormLayout)
+    // has room for both columns at lg+. AdForm itself still caps its
+    // own form column's readable width; this just stops the page
+    // shell from clipping the sidebar next to it.
+    <div className="max-w-5xl mx-auto space-y-4">
       <h1 className="text-xl font-bold">نشر إعلان جديد</h1>
       <CreateAdGate />
     </div>

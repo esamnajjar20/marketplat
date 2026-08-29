@@ -41,7 +41,7 @@ export function ServiceListingsGrid() {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <ServiceListingCardSkeleton key={i} />)}
         </div>
       </div>
@@ -84,7 +84,7 @@ export function ServiceListingsGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد خدمات مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 stagger-fade-in">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 stagger-fade-in">
           {items.map((listing) => (
             <ServiceListingCard key={listing.id} listing={listing} />
           ))}

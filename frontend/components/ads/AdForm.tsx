@@ -15,6 +15,7 @@ import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { AdFormPreview } from '@/components/ads/AdFormPreview';
+import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { parseApiError } from '@/lib/errorParser';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
 import { toast } from 'sonner';
@@ -402,7 +403,7 @@ export function AdForm({ mode, ad }: Props) {
     setStep((s) => Math.max(1, s - 1));
   }
 
-  return (
+  const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {mode === 'create' && lastSavedAt && (
         <p
@@ -576,8 +577,12 @@ export function AdForm({ mode, ad }: Props) {
           uploadProgress={uploadProgress}
         />
 
-        {/* Live card preview — last chance to catch weak title/price/photo */}
-        <AdFormPreview values={values} className="pt-2" />
+        {/* Live card preview — last chance to catch weak title/price/photo.
+            lg+ only shows this once: the CreateFormLayout sidebar handles
+            it there (visible across all 3 steps, not just this one), so
+            this inline copy is mobile/tablet-only to avoid showing the
+            same card twice on desktop at this step. */}
+        <AdFormPreview values={values} className="pt-2 lg:hidden" />
       </div>
 
       {/* Submit / wizard navigation — sticky on mobile for thumb reach */}
@@ -628,4 +633,15 @@ export function AdForm({ mode, ad }: Props) {
       />
     </form>
   );
+
+  // DESKTOP-AUDIT-05: create mode only gets the lg+ split view (form +
+  // sticky live-preview sidebar, same CreateFormLayout used by
+  // ProductForm/ServiceListingForm) — edit mode keeps the original
+  // single-column render unchanged, since there's already a real saved
+  // ad to look at and this wizard doesn't even run there (isWizard is
+  // mode === 'create' only, see above).
+  if (mode === 'create') {
+    return <CreateFormLayout form={formElement} preview={<AdFormPreview values={values} />} />;
+  }
+  return formElement;
 }

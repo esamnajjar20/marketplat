@@ -52,7 +52,7 @@ export function ProductsGrid() {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
           {Array.from({ length: 12 }).map((_, i) => <ProductCardSkeleton key={i} />)}
         </div>
       </div>
@@ -96,7 +96,14 @@ export function ProductsGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد منتجات مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 stagger-fade-in">
+        // DESKTOP-AUDIT-06: the app never used the 2xl breakpoint
+        // anywhere — the container's own 1400px cap kept things from
+        // looking broken on very wide screens, but capped at
+        // lg:grid-cols-4 that just meant wider empty gutters past
+        // ~1600px instead of an extra column of actual content. Same
+        // change applied to ServiceListingsGrid/search+ads
+        // SearchResults/StoresGrid.
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 stagger-fade-in">
           {items.map((product) => (
             <div key={product.id} className="space-y-1.5">
               {/* Store attribution — the one thing StoreProducts.tsx

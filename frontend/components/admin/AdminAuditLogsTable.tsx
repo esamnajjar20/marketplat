@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AlertTriangle, Eye } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -94,6 +95,54 @@ export function AdminAuditLogsTable() {
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
 
+  // DESKTOP-AUDIT-04: rows were only reachable one Tab stop at a time
+  // (landing on the Eye button), with no way to move row-to-row without
+  // tabbing through every other focusable element on the page around
+  // the table. This is the one admin table where a row maps to a single
+  // unambiguous action (open details) — the other admin tables (users/
+  // stores/ads/sellers) have several independent per-cell actions per
+  // row (approve/ban/feature/etc.), so a single "activate this row"
+  // gesture doesn't apply there the same way and was left alone rather
+  // than forcing a fake primary action onto them.
+  //
+  // Rows are focusable (tabIndex 0) and clickable, mirroring the Eye
+  // button's own action so mouse and keyboard land on the same
+  // behavior. ArrowUp/ArrowDown move focus between rows (Home/End jump
+  // to the first/last), Enter/Space open the details dialog — the
+  // conventional roving-row pattern for a list of otherwise-identical
+  // rows, without turning the table into a full ARIA grid (each row
+  // still exposes its native `row` semantics for screen readers; this
+  // is a keyboard-convenience layer on top, not a role change).
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+
+  function handleRowKeyDown(e: KeyboardEvent<HTMLTableRowElement>, log: AuditLog, index: number) {
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        setDetailsLog(log);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        rowRefs.current[index + 1]?.focus();
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        rowRefs.current[index - 1]?.focus();
+        break;
+      case 'Home':
+        e.preventDefault();
+        rowRefs.current[0]?.focus();
+        break;
+      case 'End':
+        e.preventDefault();
+        rowRefs.current[items.length - 1]?.focus();
+        break;
+      default:
+        break;
+    }
+  }
+
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set(key, value); else params.delete(key);
@@ -175,8 +224,15 @@ export function AdminAuditLogsTable() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {items.map((log) => (
-                <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+              {items.map((log, index) => (
+                <tr
+                  key={log.id}
+                  ref={(el) => { rowRefs.current[index] = el; }}
+                  tabIndex={0}
+                  onClick={() => setDetailsLog(log)}
+                  onKeyDown={(e) => handleRowKeyDown(e, log, index)}
+                  className="cursor-pointer hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                >
                   <td className="p-3">
                     <Badge variant="outline" className="text-xs">
                       {AUDIT_EVENT_LABELS[log.event] ?? log.event}
@@ -218,7 +274,7 @@ export function AdminAuditLogsTable() {
                         size="icon"
                         className="h-9 w-9"
                         aria-label={`عرض تفاصيل الحدث ${AUDIT_EVENT_LABELS[log.event] ?? log.event}`}
-                        onClick={() => setDetailsLog(log)}
+                        onClick={(e) => { e.stopPropagation(); setDetailsLog(log); }}
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </Button>

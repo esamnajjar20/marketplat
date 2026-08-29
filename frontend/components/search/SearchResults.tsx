@@ -128,7 +128,7 @@ export function SearchResults() {
             other ad grid in the app (RecentAds/FeaturedAds/etc.) reaches
             4 columns. Same fix mirrored below and in ads/SearchResults.tsx
             (categories/[slug] uses the identical 1-col-sidebar layout). */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       </div>
@@ -227,7 +227,7 @@ export function SearchResults() {
         <EmptySearchAlternatives />
         </>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 stagger-fade-in">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 stagger-fade-in">
           {items.map((result) => (
             <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} />
           ))}
