@@ -389,12 +389,9 @@ export function ServiceListingForm({ mode, listing }: Props) {
     </form>
   );
 
-  // DESKTOP-AUDIT-05: see AdForm's matching comment — create mode only
-  // gets the lg+ split view via the shared CreateFormLayout.
-  if (mode === 'create') {
-    return (
-      <CreateFormLayout form={formElement} preview={<ServiceListingFormPreview values={values} />} />
-    );
-  }
-  return formElement;
+  // FIX DESKTOP-WIDTH-02: see AdForm's matching comment — no longer
+  // create-mode only, same reasoning applies here.
+  return (
+    <CreateFormLayout form={formElement} preview={<ServiceListingFormPreview values={values} />} />
+  );
 }

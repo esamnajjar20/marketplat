@@ -17,8 +17,13 @@
  * place instead of being copy-pasted three times with the risk of
  * drifting apart.
  *
- * Edit mode intentionally does NOT use this — see the mode check at
- * each form's own call site.
+ * FIX DESKTOP-WIDTH-02: previously edit mode intentionally skipped
+ * this (see git history) since there was "already a real saved item
+ * to look at". In practice that just meant leaving the page to check.
+ * All three forms (AdForm/ProductForm/ServiceListingForm) now use this
+ * for both create and edit — their `values` state is seeded from the
+ * existing item in edit mode too, so the live preview reflects the
+ * in-progress edit just as accurately as it does a new draft.
  */
 import type { ReactNode } from 'react';
 

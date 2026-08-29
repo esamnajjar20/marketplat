@@ -45,7 +45,10 @@ export default function EditProductPage({ params }: Props) {
   if (isRedirecting) return null;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-2xl">
+    // FIX DESKTOP-WIDTH-02: max-w-2xl → max-w-5xl, matching
+    // products/new/page.tsx, now that ProductForm's edit mode also
+    // renders CreateFormLayout's form+preview split at lg+.
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
       <EditPageHeader backTo={ROUTES.myStoreProducts} backLabel="المنتجات" title="تعديل المنتج" />
       <ProductForm mode="edit" product={product} />
     </div>

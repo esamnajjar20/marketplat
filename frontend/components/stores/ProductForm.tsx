@@ -413,12 +413,11 @@ export function ProductForm({ mode, product }: Props) {
     </form>
   );
 
-  // DESKTOP-AUDIT-05: see AdForm's matching comment — create mode only
-  // gets the lg+ split view via the shared CreateFormLayout.
-  if (mode === 'create') {
-    return (
-      <CreateFormLayout form={formElement} preview={<ProductFormPreview values={values} />} />
-    );
-  }
-  return formElement;
+  // FIX DESKTOP-WIDTH-02: previously create-mode only. `values` is
+  // seeded from `product` in edit mode too (see the useState above),
+  // and ProductFormPreview already reads existingImages for the
+  // edit-mode image source, so the same lg+ split view now applies to
+  // both modes — a seller editing a product gets the same live preview
+  // a seller creating one gets, instead of a bare single column.
+  return <CreateFormLayout form={formElement} preview={<ProductFormPreview values={values} />} />;
 }

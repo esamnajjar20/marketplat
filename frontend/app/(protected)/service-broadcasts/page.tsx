@@ -18,7 +18,8 @@ export default function ServiceBroadcastsFeedPage() {
   const items = data?.data ?? [];
 
   return (
-    <div className="space-y-4">
+    // FIX DESKTOP-WIDTH-01: see my-reports/page.tsx's matching comment.
+    <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl font-bold">سوق الطلبات</h1>

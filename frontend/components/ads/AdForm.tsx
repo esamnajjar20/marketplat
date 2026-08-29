@@ -634,14 +634,12 @@ export function AdForm({ mode, ad }: Props) {
     </form>
   );
 
-  // DESKTOP-AUDIT-05: create mode only gets the lg+ split view (form +
-  // sticky live-preview sidebar, same CreateFormLayout used by
-  // ProductForm/ServiceListingForm) — edit mode keeps the original
-  // single-column render unchanged, since there's already a real saved
-  // ad to look at and this wizard doesn't even run there (isWizard is
-  // mode === 'create' only, see above).
-  if (mode === 'create') {
-    return <CreateFormLayout form={formElement} preview={<AdFormPreview values={values} />} />;
-  }
-  return formElement;
+  // FIX DESKTOP-WIDTH-02: previously create-mode only (see the removed
+  // comment's reasoning — edit mode "already has a real saved ad to
+  // look at"). In practice that meant leaving the app to check, which
+  // is worse than a live preview reflecting the in-progress edit. The
+  // wizard/step-hiding above is still gated on isWizard (mode ===
+  // 'create' only) — this only extends the lg+ form+preview split
+  // itself, unrelated to the step wizard, to edit mode's flat form too.
+  return <CreateFormLayout form={formElement} preview={<AdFormPreview values={values} />} />;
 }

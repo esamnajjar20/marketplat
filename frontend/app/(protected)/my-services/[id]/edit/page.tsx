@@ -44,7 +44,10 @@ export default function EditServiceListingPage({ params }: Props) {
   if (isRedirecting) return null;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-2xl">
+    // FIX DESKTOP-WIDTH-02: max-w-2xl → max-w-5xl, matching
+    // my-services/new/page.tsx, now that ServiceListingForm's edit
+    // mode also renders CreateFormLayout's form+preview split at lg+.
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
       <EditPageHeader backTo={ROUTES.myServices} backLabel="الخدمات" title="تعديل الخدمة" />
       <ServiceListingForm mode="edit" listing={listing} />
     </div>

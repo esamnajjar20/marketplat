@@ -57,7 +57,8 @@ export default function MyServiceQuotesPage() {
   const items = data?.data ?? [];
 
   return (
-    <div className="space-y-4">
+    // FIX DESKTOP-WIDTH-01: see my-reports/page.tsx's matching comment.
+    <div className="mx-auto max-w-2xl space-y-4">
       <h1 className="text-xl font-bold">عروضي على سوق الطلبات</h1>
       {isLoading && (
         <div className="flex justify-center py-12">

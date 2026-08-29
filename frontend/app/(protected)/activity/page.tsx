@@ -7,7 +7,8 @@ export const metadata: Metadata = buildMetadata({ title: 'نشاطي', noIndex: 
 
 export default function ActivityPage() {
   return (
-    <div className="space-y-4">
+    // FIX DESKTOP-WIDTH-01: see my-reports/page.tsx's matching comment.
+    <div className="mx-auto max-w-2xl space-y-4">
       <h1 className="text-xl font-bold">نشاطي</h1>
       <Suspense><Timeline /></Suspense>
     </div>
