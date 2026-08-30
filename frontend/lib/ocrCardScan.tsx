@@ -366,21 +366,44 @@ function dynamicCropRoi(src: HTMLCanvasElement, field: 'username' | 'password' |
   const rows = 10;
   const rowHeight = Math.floor(src.height / rows);
   const edgeSumPerRow = new Array(rows).fill(0);
+  // حواف كل عمود ضمن كل صف — تُستخدم لتمييز سطر نص (حواف موزّعة على عرض الحقل)
+  // عن عنصر رسومي مضغوط كأيقونة الواي فاي أو دائرة السعر/الساعة (حواف مركّزة في نطاق ضيق من العرض)
+  const colEdgePerRow: number[][] = [];
   for (let r = 0; r < rows; r++) {
+    const colSum = new Array(src.width).fill(0);
     for (let y = r * rowHeight; y < (r + 1) * rowHeight; y++) {
       for (let x = 1; x < src.width - 1; x++) {
         const gx = gray[y * src.width + x - 1]! - gray[y * src.width + x + 1]!;
         const gy = gray[(y - 1) * src.width + x]! - gray[(y + 1) * src.width + x]!;
-        edgeSumPerRow[r] += Math.abs(gx) + Math.abs(gy);
+        const mag = Math.abs(gx) + Math.abs(gy);
+        colSum[x]! += mag;
+        edgeSumPerRow[r] += mag;
       }
     }
+    colEdgePerRow.push(colSum);
   }
+
+  // نسبة الأعمدة "الفعّالة" (حوافها أعلى من 40% من متوسط الصف) لكل صف — مرتفعة لسطر نص، منخفضة لعنصر مضغوط
+  const coveragePerRow = colEdgePerRow.map((colSum) => {
+    const mean = colSum.reduce((a, b) => a + b, 0) / colSum.length || 0;
+    const threshold = mean * 0.4;
+    const above = colSum.filter((v) => v > threshold).length;
+    return above / colSum.length;
+  });
 
   let bestStartRow = 0, bestEndRow = 0, bestScore = -1;
   for (let i = 0; i < rows; i++) {
     for (let j = i; j < Math.min(i + 3, rows); j++) {
-      let score = 0;
-      for (let k = i; k <= j; k++) score += edgeSumPerRow[k];
+      let edgeScore = 0;
+      let coverageAvg = 0;
+      for (let k = i; k <= j; k++) {
+        edgeScore += edgeSumPerRow[k];
+        coverageAvg += coveragePerRow[k]!;
+      }
+      coverageAvg /= (j - i + 1);
+      // ضرب الحواف بالتغطية يعاقب صفوفًا عالية-الحدة لكن ضيقة الامتداد (أيقونات/دوائر)
+      // لصالح صفوف نص أقل حدّة لكن ممتدة عبر عرض الحقل
+      const score = edgeScore * coverageAvg;
       if (score > bestScore) {
         bestScore = score;
         bestStartRow = i;
