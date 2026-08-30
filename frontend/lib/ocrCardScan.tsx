@@ -253,8 +253,10 @@ function deskewCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
 
   let bestAngle = 0;
   let maxVotes = 0;
+  let totalVotes = 0;
   for (const angle in angleVotes) {
     const a = parseInt(angle);
+    totalVotes += angleVotes[a] ?? 0;
     const deviation = Math.abs(a) % 90;
     if (deviation > 5 && deviation < 85) {
       if ((angleVotes[a] ?? 0) > maxVotes) {
@@ -263,6 +265,18 @@ function deskewCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
       }
     }
   }
+
+  // حارس الحد الأدنى من الأدلة: على صورة ضبابية/قليلة التباين، عدد نقاط
+  // الحواف المؤهلة (>50) قد يكون ضئيلًا جدًا (عشرات فقط بدل مئات/آلاف) —
+  // عندها حتى "الفئة الفائزة" ليست إشارة ميل حقيقية بل ضجيج عشوائي، وتطبيق
+  // دوران بناءً عليها يُفسد بطاقة مصطفة أصلًا بشكل صحيح. تحقّقنا فعليًا على
+  // صورة حقيقية: 4 أصوات من أصل 30 نقطة مؤهلة فقط أنتجت دورانًا زائفًا
+  // بمقدار -20°، بينما صورة اصطناعية بنص حقيقي مائل أنتجت 80 صوتًا من أصل
+  // 611 — أي أن الفارق الحاسم هو العدد المطلق للأدلة، وليس فقط نسبتها
+  // (النسبتان كانتا متقاربتين ~13% في الحالتين).
+  const MIN_TOTAL_EDGE_VOTES = 150;
+  const MIN_WINNING_VOTES = 20;
+  if (totalVotes < MIN_TOTAL_EDGE_VOTES || maxVotes < MIN_WINNING_VOTES) return src;
 
   if (bestAngle === 0) return src;
 
@@ -281,8 +295,12 @@ function deskewCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
  * معالجة مسبقة بمعادلة التباين التكيفي (CLAHE) و مرشح متوسط.
  */
 function preprocessAdvanced(src: HTMLCanvasElement, kind: PrepKind): HTMLCanvasElement {
-  const deskewed = deskewCanvas(src);
-  const c = cloneCanvas(deskewed);
+  // FIX DESKEW-DUP-01: كانت هذه الدالة تستدعي deskewCanvas داخليًا، بينما
+  // كل الاستدعاءات الآن تُدسكِو مصدرها مرة واحدة صراحةً قبل أي قص/تحجيم
+  // (انظر التعليق أعلى deskewCanvas) — استدعاء ثانٍ هنا كان يعني دورانًا
+  // مزدوجًا لكل تمريرة معالجة (3× لكل حقل)، وقد يُراكم دورانًا زائفًا ثانيًا
+  // فوق الأول بدل تركه بلا تأثير. الدالة تستقبل الآن مصدرًا مُدسكوًا مسبقًا.
+  const c = cloneCanvas(src);
   const ctx = c.getContext('2d');
   if (!ctx) return c;
   const img = ctx.getImageData(0, 0, c.width, c.height);
@@ -611,8 +629,13 @@ export interface CardOcrFields {
 }
 
 export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
-  const userRoi = dynamicCropRoi(guideCanvas, 'username');
-  const passRoi = dynamicCropRoi(guideCanvas, 'password');
+  // FIX DESKEW-DUP-01: دسكو الصورة كاملة مرة واحدة هنا (بدل الاعتماد على
+  // deskewCanvas الداخلي المُزال من preprocessAdvanced) — إعطاء الخوارزمية
+  // البطاقة كاملة بدل قصاصة ROI ضيقة يمنحها أدلة حواف أكثر بكثير لتقدير
+  // ميل موثوق (نفس نمط ocrCardFieldsFromTightCrop).
+  const deskewedGuide = deskewCanvas(guideCanvas);
+  const userRoi = dynamicCropRoi(deskewedGuide, 'username');
+  const passRoi = dynamicCropRoi(deskewedGuide, 'password');
 
   const [userRes, passRes] = await Promise.all([
     ocrDigitsOnCanvas(userRoi, 'username', 0),
@@ -630,7 +653,7 @@ export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Pr
   let fullText = '';
   if (needFullFallback) {
     try {
-      const fullScaled = upscaleCanvas(guideCanvas, guideCanvas.width < 500 ? 2.5 : 2);
+      const fullScaled = upscaleCanvas(deskewedGuide, deskewedGuide.width < 500 ? 2.5 : 2);
       const worker = await getWorker(0);
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789',
@@ -1033,8 +1056,10 @@ export interface PayOcrFields {
 }
 
 export async function ocrPayFieldsFromGuide(guideCanvas: HTMLCanvasElement): Promise<PayOcrFields> {
-  const nameRoi = dynamicCropRoi(guideCanvas, 'name');
-  const phoneRoi = dynamicCropRoi(guideCanvas, 'phone');
+  // FIX DESKEW-DUP-01: انظر نفس الإصلاح في ocrCardFieldsFromGuide
+  const deskewedGuide = deskewCanvas(guideCanvas);
+  const nameRoi = dynamicCropRoi(deskewedGuide, 'name');
+  const phoneRoi = dynamicCropRoi(deskewedGuide, 'phone');
 
   const [nameRes, phoneRes] = await Promise.all([
     ocrPayNameOnCanvas(nameRoi),
@@ -1043,7 +1068,7 @@ export async function ocrPayFieldsFromGuide(guideCanvas: HTMLCanvasElement): Pro
 
   let phone = phoneRes.phone;
   if (!isValidPayPhone(phone)) {
-    const full = upscaleCanvas(guideCanvas, 2);
+    const full = upscaleCanvas(deskewedGuide, 2);
     const fullPhone = await ocrPayPhoneOnCanvas(full);
     if (isValidPayPhone(fullPhone.phone)) phone = fullPhone.phone;
   }
@@ -1273,7 +1298,9 @@ export async function ocrCardText(
 ): Promise<string> {
   const worker = await getWorker();
   const scale = options.scale ?? 2;
-  const scaled = upscaleCanvas(canvas, scale);
+  // FIX DESKEW-DUP-01: دسكو صريح هنا بدل الاعتماد على preprocessAdvanced
+  const deskewed = deskewCanvas(canvas);
+  const scaled = upscaleCanvas(deskewed, scale);
   const prepped = preprocessAdvanced(scaled, 'contrast');
 
   const whitelist =
