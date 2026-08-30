@@ -11,6 +11,7 @@ import {
   BookmarkPlus,
   User,
   Store,
+  ClipboardPaste,
 } from 'lucide-react';
 import {
   Dialog,
@@ -129,9 +130,6 @@ export function PayWithQRDialog({
     if (parsed.name) setName(parsed.name);
     if (parsed.number) setNumber(parsed.number);
     setStep('result');
-    // نفس ملاحظة onCardParsed بـInternetCardsQRDialog: confidence شكلي فقط
-    // ومستقل عن verified (اتفاق تمريرتَي OCR) — verified يجب أن يتغلب على
-    // رقم الثقة الشكلي، وإلا يتناقض التوست مع تحذير "غير مؤكدة" بنفس الشاشة.
     const conf = Math.round(parsed.confidence * 100);
     toast.success(
       !verified
@@ -140,6 +138,19 @@ export function PayWithQRDialog({
           ? `تم الكشف بثقة ${conf}%`
           : 'تم المسح — راجع الاسم والرقم وعدّل إن لزم',
     );
+  }
+
+  function simulatePaste() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+      if (file) {
+        toast.info('اخترت صورة، لكن التكامل المباشر للصق لم يُفعّل بعد. استخدم زر "من صورة" داخل الكاميرا');
+      }
+    };
+    input.click();
   }
 
   const ussdCode = useMemo(() => {
@@ -227,10 +238,13 @@ export function PayWithQRDialog({
           </div>
         )}
 
-        {/* كاميرا — لا كود مولَّد في البداية */}
         {step === 'scan' && method && (
           <div className="space-y-3">
             <QrScannerCamera onScan={onScanned} onPayParsed={onPayParsed} prefer="pay" />
+            <Button type="button" variant="outline" size="sm" className="w-full gap-2" onClick={simulatePaste}>
+              <ClipboardPaste className="h-4 w-4" />
+              لصق صورة من الحافظة
+            </Button>
             <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setStep('method')}>
               رجوع
             </Button>

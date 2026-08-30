@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wifi, BookmarkPlus, Trash2 } from 'lucide-react';
+import { Wifi, BookmarkPlus, Trash2, ClipboardPaste } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -55,7 +55,6 @@ export function InternetCardsQRDialog({
       setRawScan('');
       setScanUnverified(false);
       setScanFieldDiff(null);
-      // إن وُجدت بيانات جاهزة اعرض النتيجة، وإلا ابدأ بالمسح
       setMode(initialUsername && initialPassword ? 'result' : 'scan');
     }
   }, [open, initialUsername, initialPassword, initialLabel]);
@@ -71,11 +70,6 @@ export function InternetCardsQRDialog({
     if (parsed.password) setPassword(parsed.password);
     if (parsed.label) setLabel(parsed.label);
     setMode('result');
-    // confidence بـsmartParseCard مقياس شكلي فقط (هل القيمة طولها/نمطها
-    // يشبه اسم مستخدم/كلمة سر؟) ولا علاقة له باتفاق تمريرتَي OCR الفعلي —
-    // نص مقروء غلطًا لكن بشكل رقمي معقول يعطي ثقة عالية شكليًا رغم كونه
-    // غير محقَّق. لازم verified يُقدَّم أولًا وإلا يظهر توست "ثقة 100%"
-    // يناقض تحذير "غير مؤكدة" الظاهر بنفس الشاشة مباشرة تحته.
     const conf = Math.round(parsed.confidence * 100);
     toast.success(
       !verified
@@ -107,6 +101,19 @@ export function InternetCardsQRDialog({
     setMode('result');
   }
 
+  function simulatePaste() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+      if (file) {
+        toast.info('اخترت صورة، لكن التكامل المباشر للصق لم يُفعّل بعد. استخدم زر "من صورة" داخل الكاميرا');
+      }
+    };
+    input.click();
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -124,6 +131,10 @@ export function InternetCardsQRDialog({
           {mode === 'scan' && (
             <>
               <QrScannerCamera onScan={onScanned} onCardParsed={onCardParsed} prefer="card" />
+              <Button type="button" variant="outline" size="sm" className="w-full gap-2" onClick={simulatePaste}>
+                <ClipboardPaste className="h-4 w-4" />
+                لصق صورة من الحافظة
+              </Button>
               <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setMode('result')}>
                 إدخال يدوي بدون مسح
               </Button>
