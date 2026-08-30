@@ -672,14 +672,52 @@ export async function ocrCardFieldsFromTightCrop(cropCanvas: HTMLCanvasElement):
     password = '';
   }
 
+  // FIX OCR-VERIFY-01: التصويت أعلاه بين preps.length نسخ معالجة (contrast/
+  // thresh130/gray) كلها مشتقّة من *نفس* صورة القص — أخطاء قراءة منهجية
+  // (رقم غير واضح بسبب إضاءة/تشويش) قد تتكرر بنفس الشكل الخاطئ في نسختين
+  // من الثلاث، فتفوز بالتصويت وتُعلَّم verified=true رغم كونها خاطئة —
+  // تحقّقنا من هذا فعليًا: قراءة تجريبية لرقم مستخدم حقيقي (12 خانة) أنتجت
+  // نتيجة "صالحة الطول" لكن خاطئة المحتوى (خانتان أوليان مختلفتان)، وكانت
+  // ستُقبل بصمت لأن التحقق السابق فحص الطول فقط دون محتوى مستقل.
+  // الحل: تحقق مستقل ثانٍ عبر مسار OCR مختلف فعليًا — قص ROI منفصل لكل
+  // حقل (dynamicCropRoi، نفس أسلوب ocrCardFieldsFromGuide) بوضع psm 7
+  // (سطر واحد) بدل psm 6 (كتلة متعددة الأسطر) على نفس صورة القص. طريقتا
+  // القراءة تعالجان بكسلات مختلفة (كتلة كاملة مقابل منطقة سطر واحد) بمعالجة
+  // مختلفة، فاحتمال تكرار نفس الخطأ في الاثنتين معًا أقل بكثير من تكراره
+  // بين نسختي معالجة لنفس القص. verified لا يُمنح إلا عند توافق المسارين.
+  const userRoi = dynamicCropRoi(scaled, 'username');
+  const passRoi = dynamicCropRoi(scaled, 'password');
+  const [roiUser, roiPass] = await Promise.all([
+    ocrDigitsOnCanvas(userRoi, 'username', 0),
+    ocrDigitsOnCanvas(passRoi, 'password', 1),
+  ]);
+
+  // احتياطي: لو فشل التصويت الأساسي بإيجاد قيمة صالحة، اقبل قيمة الـROI
+  // المستقلة إن كانت صالحة الشكل — أفضل من عدم وجود نتيجة إطلاقًا.
+  if ((!username || !isValidCardUsername(username)) && isValidCardUsername(roiUser.digits)) {
+    username = roiUser.digits;
+  }
+  if ((!password || !isValidCardPassword(password)) && isValidCardPassword(roiPass.digits)) {
+    password = roiPass.digits;
+  }
+  if (username && password && username === password) {
+    password = '';
+  }
+
   const userOk = isValidCardUsername(username);
   const passOk = isValidCardPassword(password);
+  const userAgrees = !!roiUser.digits && roiUser.digits === username;
+  const passAgrees = !!roiPass.digits && roiPass.digits === password;
+
   const confidence = Math.min(
     1,
-    (u.votes / preps.length) * 0.5 + (p.votes / preps.length) * 0.5 +
-      (userOk ? 0.15 : 0) + (passOk ? 0.15 : 0),
+    (u.votes / preps.length) * 0.4 + (p.votes / preps.length) * 0.4 +
+      (userOk ? 0.1 : 0) + (passOk ? 0.1 : 0) +
+      (userAgrees ? 0.1 : 0) + (passAgrees ? 0.1 : 0),
   );
-  const verified = userOk && passOk && u.votes >= 2 && p.votes >= 2;
+  // verified يتطلب الآن: طول صالح + أغلبية تصويت + توافق مسار OCR مستقل ثانٍ.
+  const verified =
+    userOk && passOk && u.votes >= 2 && p.votes >= 2 && userAgrees && passAgrees;
 
   return {
     username,
@@ -1167,3 +1205,4 @@ export function looksLikeOcrCard(text: string): boolean {
 
 // ====== تصدير الدوال الجديدة ======
 export { deskewCanvas, preprocessAdvanced, dynamicCropRoi };
+
