@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { Camera, CameraOff, Loader2, ImagePlus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { cn } from '@/lib/utils';
@@ -22,6 +29,7 @@ import {
   looksLikeOcrCard,
   isValidPayPhone,
 } from '@/lib/ocrCardScan';
+import { detectContentRegion } from '@/lib/imageRegionDetect';
 
 interface Props {
   onScan: (text: string, verified?: boolean, fieldDiff?: string | null) => void;
@@ -90,6 +98,14 @@ export function QrScannerCamera({
   const [qualityHint, setQualityHint] = useState<string | null>(null);
   const [autoCapture, setAutoCapture] = useState(false);
   const lastBlurRef = useRef(100);
+  const autoCaptureRef = useRef(false);
+  const ocrBusyRef = useRef(false);
+
+  // كشف موضع البطاقة/الورقة تلقائيًا داخل الكاميرا الحية (بدل الإطار الثابت فقط)
+  const [positionHint, setPositionHint] = useState<string | null>(null);
+  const [guideBoxStyle, setGuideBoxStyle] = useState<CSSProperties | null>(null);
+  const [guideGood, setGuideGood] = useState<boolean | null>(null);
+  const goodFramesRef = useRef(0);
 
   // --- قص يدوي لصورة مرفوعة ---
   const cropContainerRef = useRef<HTMLDivElement | null>(null);
@@ -124,9 +140,23 @@ export function QrScannerCamera({
     noMatchFramesRef.current = 0;
     setAutoCapture(false);
     setQualityHint(null);
+    setPositionHint(null);
+    setGuideBoxStyle(null);
+    setGuideGood(null);
+    goodFramesRef.current = 0;
   }, []);
 
   useEffect(() => () => stop(), [stop]);
+
+  // نحافظ على مرجع محدّث لقيمتي autoCapture و ocrBusy لأن حلقة tick تعمل
+  // عبر requestAnimationFrame المتداخل وتحتفظ بإغلاق (closure) قديم لا يرى
+  // تحديثات الحالة اللاحقة — القراءة من ref تتجنب هذه المشكلة.
+  useEffect(() => {
+    autoCaptureRef.current = autoCapture;
+  }, [autoCapture]);
+  useEffect(() => {
+    ocrBusyRef.current = ocrBusy;
+  }, [ocrBusy]);
 
   useEffect(() => {
     void import('@/lib/vendor/jsQR.js')
@@ -403,6 +433,73 @@ export function QrScannerCamera({
     return { brightness, blur };
   }
 
+  /**
+   * يكشف موضع/حجم البطاقة داخل إطار الكاميرا الحالي، ويحدّث:
+   * 1) إرشادًا نصيًا ديناميكيًا (قرّب / ابتعد / حرّك يمينًا.. إلخ).
+   * 2) موضع إطار الدليل الأخضر ليحيط بالبطاقة المكتشفة فعليًا بدل موضع ثابت.
+   * 3) عدّاد "الإطارات الجيدة المتتالية" المستخدم لتفعيل الالتقاط التلقائي.
+   */
+  function updateCardDetection(v: HTMLVideoElement) {
+    const frameCanvas = captureFrameToCanvas();
+    if (!frameCanvas) return;
+    const rect = detectContentRegion(frameCanvas, { maxAnalysisDim: 220, padding: 0.1 });
+
+    if (!rect) {
+      goodFramesRef.current = 0;
+      setPositionHint(null);
+      setGuideBoxStyle(null);
+      setGuideGood(null);
+      return;
+    }
+
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2;
+    const area = rect.w * rect.h;
+    const dx = cx - 0.5;
+    const dy = cy - 0.5;
+
+    let posHint: string | null = null;
+    if (Math.abs(dx) > 0.14) {
+      posHint =
+        dx > 0 ? `حرّك ${surfaceLabel} قليلًا نحو اليسار` : `حرّك ${surfaceLabel} قليلًا نحو اليمين`;
+    } else if (Math.abs(dy) > 0.16) {
+      posHint =
+        dy > 0 ? `حرّك ${surfaceLabel} قليلًا للأعلى` : `حرّك ${surfaceLabel} قليلًا للأسفل`;
+    } else if (area < 0.06) {
+      posHint = `اقترب أكثر من ${surfaceLabel}`;
+    } else if (area > 0.55) {
+      posHint = `ابتعد قليلًا عن ${surfaceLabel}`;
+    }
+
+    setPositionHint(posHint);
+    const good = !posHint;
+    setGuideGood(good);
+    goodFramesRef.current = good ? goodFramesRef.current + 1 : 0;
+
+    // تحويل المستطيل المكتشف (نسب من الفيديو الأصلي) إلى موضع مرئي فوق العنصر
+    const nativeW = v.videoWidth || 640;
+    const nativeH = v.videoHeight || 480;
+    const vRect = v.getBoundingClientRect();
+    if (vRect.width > 0 && vRect.height > 0) {
+      const scale = Math.max(vRect.width / nativeW, vRect.height / nativeH);
+      const renderedW = nativeW * scale;
+      const renderedH = nativeH * scale;
+      const offsetX = (renderedW - vRect.width) / 2;
+      const offsetY = (renderedH - vRect.height) / 2;
+      const leftPct = ((rect.x * nativeW * scale - offsetX) / vRect.width) * 100;
+      const topPct = ((rect.y * nativeH * scale - offsetY) / vRect.height) * 100;
+      const widthPct = ((rect.w * nativeW * scale) / vRect.width) * 100;
+      const heightPct = ((rect.h * nativeH * scale) / vRect.height) * 100;
+      setGuideBoxStyle({
+        position: 'absolute',
+        left: `${Math.max(0, Math.min(100, leftPct))}%`,
+        top: `${Math.max(0, Math.min(100, topPct))}%`,
+        width: `${Math.max(4, Math.min(100, widthPct))}%`,
+        height: `${Math.max(4, Math.min(100, heightPct))}%`,
+      });
+    }
+  }
+
   async function onManualOcr() {
     const canvas = captureGuideCropToCanvas();
     if (!canvas) return;
@@ -418,6 +515,10 @@ export function QrScannerCamera({
     setOcrFieldDiff(null);
     lastScanRef.current = '';
     setHint('جاري تشغيل الكاميرا…');
+    setPositionHint(null);
+    setGuideBoxStyle(null);
+    setGuideGood(null);
+    goodFramesRef.current = 0;
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('المتصفح لا يدعم الكاميرا');
@@ -440,25 +541,30 @@ export function QrScannerCamera({
       const skipQrSearch = prefer !== 'auto';
       setHint(
         skipQrSearch
-          ? `لا يوجد رمز QR على ${surfaceLabel} — اضغط "قراءة النص" أدناه`
+          ? `ضع ${surfaceLabel} داخل الإطار — سيتم الالتقاط تلقائيًا عند وضوحها`
           : useWideGuide
             ? `ضع ${surfaceLabel} داخل الإطار`
             : 'ثبّت الرمز داخل الإطار',
       );
       setShowOcrOption(skipQrSearch && allowOcr);
       noMatchFramesRef.current = 0;
-      setAutoCapture(false);
+      setAutoCapture(skipQrSearch && allowOcr);
       setQualityHint(null);
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      let frames = 0;
+      let qrFrames = 0;
+      let tickCount = 0;
 
       const tick = async () => {
         if (!streamRef.current || !videoRef.current || !ctx) return;
         const v = videoRef.current;
         if (v.readyState >= 2) {
-          if (frames % 10 === 0) {
+          tickCount += 1;
+          // فحص جودة الصورة (إضاءة/تشويش) كل 10 إطارات فقط — كان سابقًا
+          // يعمل على كل إطار في وضع OCR (skipQrSearch) لأن العدّاد القديم
+          // لم يكن يتقدّم إلا داخل مسار بحث QR، ما كان يستهلك أداءً غير ضروري.
+          if (tickCount % 10 === 0) {
             const { brightness, blur } = analyzeFrameQuality(v);
             lastBlurRef.current = blur;
             if (brightness < 60) {
@@ -477,8 +583,8 @@ export function QrScannerCamera({
             canvas.height = h;
             ctx.drawImage(v, 0, 0, w, h);
 
-            frames += 1;
-            if (frames % 2 === 0) {
+            qrFrames += 1;
+            if (qrFrames % 2 === 0) {
               const decoded = await decodeCanvas(ctx, w, h);
               if (decoded) {
                 emitDecoded(decoded);
@@ -491,7 +597,17 @@ export function QrScannerCamera({
               }
             }
           } else {
-            if (autoCapture && lastBlurRef.current < 15 && !ocrBusy) {
+            // كشف موضع البطاقة كل 6 إطارات (~بضع مرات في الثانية) — يكفي
+            // لتوجيه المستخدم بدون تحميل زائد على المعالج.
+            if (tickCount % 6 === 0) {
+              updateCardDetection(v);
+            }
+            if (
+              autoCaptureRef.current &&
+              lastBlurRef.current < 15 &&
+              goodFramesRef.current >= 3 &&
+              !ocrBusyRef.current
+            ) {
               setAutoCapture(false);
               void onManualOcr();
               return;
@@ -663,11 +779,27 @@ export function QrScannerCamera({
       }
 
       cropCanvasSourceRef.current = canvas;
-      setCropRect({ x: 0.1, y: 0.35, w: 0.8, h: 0.3 });
+      setError(null);
+
+      // محاولة كشف منطقة النص/البطاقة تلقائيًا (كشف حواف) وقراءتها مباشرة
+      // بدل إجبار المستخدم على تحديد المنطقة يدويًا في كل مرة.
+      setHint('جاري تحديد منطقة النص تلقائيًا…');
+      const detected = detectContentRegion(canvas, { padding: 0.15 });
+      if (detected) {
+        setHint('جاري قراءة النص من المنطقة المكتشفة تلقائيًا…');
+        const cropped = cropSourceToCanvas(canvas, detected);
+        if (cropped) {
+          const outcome = await runOcr(cropped, true);
+          if (outcome.ok) return; // نجحت القراءة التلقائية — لا حاجة لواجهة القص اليدوي
+        }
+      }
+
+      // احتياطي: الكشف التلقائي فشل أو لم يُعثر على بيانات — نعرض واجهة القص
+      // اليدوي، ونبدأ من المنطقة المكتشفة إن وُجدت لتقليل الجهد على المستخدم.
+      setCropRect(detected ?? { x: 0.1, y: 0.35, w: 0.8, h: 0.3 });
       setCropUrl(canvas.toDataURL('image/jpeg', 0.92));
       setShowCropUI(true);
-      setError(null);
-      setHint(`لا يوجد رمز QR على ${surfaceLabel} — حدّد منطقة النص ثم اضغط "قص وقراءة"`);
+      setHint(`تعذّرت القراءة التلقائية — حدّد منطقة النص يدويًا ثم اضغط "قص وقراءة"`);
     } catch {
       setError('تعذّر قراءة الملف');
     }
@@ -763,17 +895,19 @@ export function QrScannerCamera({
                 <div
                   ref={guideRef}
                   className={cn(
-                    'animate-pulse rounded-2xl border-2 border-emerald-400/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]',
-                    useWideGuide ? 'h-28 w-[85%]' : 'h-48 w-48',
+                    'animate-pulse rounded-2xl border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]',
+                    guideGood === false ? 'border-amber-400/90' : 'border-emerald-400/90',
+                    !guideBoxStyle && (useWideGuide ? 'h-28 w-[85%]' : 'h-48 w-48'),
                   )}
+                  style={guideBoxStyle ?? undefined}
                 />
               </div>
               <p className="absolute inset-x-0 bottom-2 text-center text-xs text-white drop-shadow">
                 {hint}
               </p>
-              {qualityHint && (
+              {(qualityHint || positionHint) && (
                 <p className="absolute inset-x-0 top-2 text-center text-xs text-yellow-300 drop-shadow">
-                  {qualityHint}
+                  {qualityHint || positionHint}
                 </p>
               )}
             </>
