@@ -7,7 +7,9 @@
  *
  * الفكرة: نص/بطاقة على خلفية (طاولة، يد، إلخ) ينتج تركّز أعلى بكثير
  * للحواف (تباين حاد بين الحروف/الأرقام والخلفية) مقارنة بمناطق الخلفية
- * الأكثر تجانسًا. نبحث عن أصغر مستطيل يحيط بخلايا الشبكة عالية الحواف.
+ * الأكثر تجانسًا. نبحث عن أكبر عنقود متصل من خلايا الشبكة عالية الحواف
+ * (وليس المستطيل المحيط بكل الخلايا دفعة واحدة — انظر FIX REGION-01 أدناه)،
+ * لأن خلفيات ذات نقوش (سجادة، جلد اليد) تنتج خلايا متفرقة في الصورة كلها.
  */
 
 export interface NormRect {
@@ -112,35 +114,95 @@ export function detectContentRegion(
   const mean = total / grid.length;
   const threshold = Math.max(mean * 1.4, max * 0.12);
 
-  let minCol = cols;
-  let maxCol = -1;
-  let minRow = rows;
-  let maxRow = -1;
-  let activeCells = 0;
+  const active = new Uint8Array(cols * rows);
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i]! >= threshold) active[i] = 1;
+  }
+
+  // FIX REGION-01: كنا نأخذ المستطيل المحيط بكل الخلايا فوق العتبة دفعة
+  // واحدة. على خلفيات بها نقوش/تجاعيد (سجادة مخططة، جلد اليد)، تنتج هذه
+  // خلايا حواف متفرقة في زوايا الصورة، فيتمدد المستطيل ليغطي الصورة كاملة
+  // تقريبًا بدل الاقتصار على البطاقة/الورقة فعليًا — تحقّقنا من هذا على
+  // صورة حقيقية: كانت النتيجة القديمة 100% من الصورة بدل ~32% حول البطاقة.
+  // الحل: تجميع الخلايا في عناقيد متصلة (4-connectivity) واختيار العنقود
+  // الأعلى مجموع شدة حواف (وليس الأكبر عدد خلايا) — نص/بطاقة مطبوعة ينتج
+  // عنقودًا واحدًا كثيف التباين، بينما نقوش الخلفية تتوزع كعناقيد صغيرة
+  // متفرقة أضعف مجموعًا حتى لو كانت أكثر عددًا.
+  const labels = new Int32Array(cols * rows).fill(-1);
+  let bestLabel = -1;
+  let bestScore = -1;
+  let bestMinCol = 0, bestMaxCol = 0, bestMinRow = 0, bestMaxRow = 0;
+  const stackR = new Int32Array(cols * rows);
+  const stackC = new Int32Array(cols * rows);
+
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (grid[r * cols + c]! >= threshold) {
-        activeCells++;
-        if (c < minCol) minCol = c;
-        if (c > maxCol) maxCol = c;
-        if (r < minRow) minRow = r;
-        if (r > maxRow) maxRow = r;
+      const startIdx = r * cols + c;
+      if (!active[startIdx] || labels[startIdx] !== -1) continue;
+
+      const label = startIdx;
+      let sp = 0;
+      stackR[sp] = r;
+      stackC[sp] = c;
+      sp++;
+      labels[startIdx] = label;
+
+      let score = 0;
+      let cMinCol = c, cMaxCol = c, cMinRow = r, cMaxRow = r;
+
+      while (sp > 0) {
+        sp--;
+        const cr = stackR[sp]!;
+        const cc = stackC[sp]!;
+        const idx = cr * cols + cc;
+        score += grid[idx]!;
+        if (cc < cMinCol) cMinCol = cc;
+        if (cc > cMaxCol) cMaxCol = cc;
+        if (cr < cMinRow) cMinRow = cr;
+        if (cr > cMaxRow) cMaxRow = cr;
+
+        const neighbors: Array<[number, number]> = [
+          [cr - 1, cc],
+          [cr + 1, cc],
+          [cr, cc - 1],
+          [cr, cc + 1],
+        ];
+        for (const [nr, nc] of neighbors) {
+          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+          const nIdx = nr * cols + nc;
+          if (active[nIdx] && labels[nIdx] === -1) {
+            labels[nIdx] = label;
+            stackR[sp] = nr;
+            stackC[sp] = nc;
+            sp++;
+          }
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestLabel = label;
+        bestMinCol = cMinCol;
+        bestMaxCol = cMaxCol;
+        bestMinRow = cMinRow;
+        bestMaxRow = cMaxRow;
       }
     }
   }
 
-  if (maxCol < 0 || maxRow < 0) return null;
+  if (bestLabel < 0) return null;
 
-  const areaRatio = activeCells / (cols * rows);
+  const areaRatio =
+    ((bestMaxCol - bestMinCol + 1) * (bestMaxRow - bestMinRow + 1)) / (cols * rows);
   // خلفية مشوشة بالكامل (خدوش/نقوش) — لا يمكن تمييز البطاقة بثقة، أفضل عدم الكشف
   if (areaRatio > o.maxAreaRatio) return null;
   // لا يوجد محتوى كافٍ (ربما لا يوجد نص واضح بعد) — لا نخاطر بكشف غير موثوق
   if (areaRatio < o.minAreaRatio) return null;
 
-  let x0 = minCol / cols;
-  let y0 = minRow / rows;
-  let x1 = (maxCol + 1) / cols;
-  let y1 = (maxRow + 1) / rows;
+  let x0 = bestMinCol / cols;
+  let y0 = bestMinRow / rows;
+  let x1 = (bestMaxCol + 1) / cols;
+  let y1 = (bestMaxRow + 1) / rows;
 
   const padX = (x1 - x0) * o.padding;
   const padY = (y1 - y0) * o.padding;
