@@ -372,10 +372,67 @@ function preprocessAdvanced(src: HTMLCanvasElement, kind: PrepKind): HTMLCanvasE
 
 // ====== نظام ROI ديناميكي ======
 
-function dynamicCropRoi(src: HTMLCanvasElement, field: 'username' | 'password' | 'name' | 'phone'): HTMLCanvasElement {
-  const gray = new Uint8ClampedArray(src.width * src.height);
+type RowBand = { startRow: number; endRow: number; score: number };
+
+// FIX ROI-SPLIT-01: كانت الدالة تبحث عن *شريط نص واحد* فقط (أعلى نافذة 1-3
+// صفوف من حيث edgeScore × coverageAvg)، ثم تقتصّ الحقلين (username/password
+// أو name/phone) كنسبتين ثابتتين (أعلى 45% / أسفل 45%) من *نفس* الشريط.
+// هذا الافتراض يفشل حين يكون السطر الثاني (كلمة السر) أقصر وأخف كثافة
+// بكثير من الأول (اسم المستخدم) — تحقّقنا فعليًا على بطاقة حقيقية: اسم
+// المستخدم "445282914562" (12 خانة تملأ عرض الحقل) مقابل كلمة السر "168135"
+// (6 خانات فقط، تغطية أعمدة أقل بكثير). البحث كان يختار شريط اسم المستخدم
+// في كلا الاستدعاءين (لأنه الأعلى تغطية عبر كل الصفوف)، فينتج القصّان
+// (username split top-45% / password split bottom-55%) شريحتين من نفس سطر
+// اسم المستخدم فقط — كلمة السر الحقيقية أسفل الصورة لم تُقتصّ إطلاقًا.
+//
+// الحل: البحث عن *شريطين* نصّيين مستقلّين غير متداخلين (لا شريط واحد
+// يُقسَّم بنسبة ثابتة) — كل شريط يُقيَّم بمعزل عن الآخر، فلا يُقصي الشريط
+// الأعرض/الأكثف الشريطَ الأضيق. يُرتَّبان حسب الموضع الرأسي: الأعلى = خانة
+// الاسم/المستخدم، الأسفل = خانة كلمة السر/الهاتف. إن تعذّر إيجاد شريط ثانٍ
+// موثوق (بطاقة بسطر واحد فعليًا)، نرجع لتقسيم الشريط الواحد كخيار احتياطي
+// بدل إفشال القصّ بالكامل.
+const roiBandCache = new WeakMap<HTMLCanvasElement, { band1: RowBand; band2: RowBand | null; rows: number; rowHeight: number } | null>();
+
+function findRowBand(
+  edgeSumPerRow: number[],
+  coveragePerRow: number[],
+  rows: number,
+  exclude: RowBand | null,
+): RowBand {
+  let bestStartRow = 0, bestEndRow = 0, bestScore = -1;
+  for (let i = 0; i < rows; i++) {
+    for (let j = i; j < Math.min(i + 3, rows); j++) {
+      if (exclude && i <= exclude.endRow + 1 && j >= exclude.startRow - 1) continue; // تجنّب التداخل مع هامش صف واحد
+      let edgeScore = 0;
+      let coverageAvg = 0;
+      for (let k = i; k <= j; k++) {
+        edgeScore += edgeSumPerRow[k]!;
+        coverageAvg += coveragePerRow[k]!;
+      }
+      coverageAvg /= (j - i + 1);
+      // ضرب الحواف بالتغطية يعاقب صفوفًا عالية-الحدة لكن ضيقة الامتداد (أيقونات/دوائر)
+      // لصالح صفوف نص أقل حدّة لكن ممتدة عبر عرض الحقل
+      const score = edgeScore * coverageAvg;
+      if (score > bestScore) {
+        bestScore = score;
+        bestStartRow = i;
+        bestEndRow = j;
+      }
+    }
+  }
+  return { startRow: bestStartRow, endRow: bestEndRow, score: bestScore };
+}
+
+function computeTextLineBands(src: HTMLCanvasElement) {
+  const cached = roiBandCache.get(src);
+  if (cached !== undefined) return cached;
+
   const ctx = src.getContext('2d');
-  if (!ctx) return src;
+  if (!ctx) {
+    roiBandCache.set(src, null);
+    return null;
+  }
+  const gray = new Uint8ClampedArray(src.width * src.height);
   const data = ctx.getImageData(0, 0, src.width, src.height).data;
   for (let i = 0, j = 0; i < data.length; i += 4, j++) {
     gray[j] = Math.round(0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!);
@@ -409,44 +466,54 @@ function dynamicCropRoi(src: HTMLCanvasElement, field: 'username' | 'password' |
     return above / colSum.length;
   });
 
-  let bestStartRow = 0, bestEndRow = 0, bestScore = -1;
-  for (let i = 0; i < rows; i++) {
-    for (let j = i; j < Math.min(i + 3, rows); j++) {
-      let edgeScore = 0;
-      let coverageAvg = 0;
-      for (let k = i; k <= j; k++) {
-        edgeScore += edgeSumPerRow[k];
-        coverageAvg += coveragePerRow[k]!;
-      }
-      coverageAvg /= (j - i + 1);
-      // ضرب الحواف بالتغطية يعاقب صفوفًا عالية-الحدة لكن ضيقة الامتداد (أيقونات/دوائر)
-      // لصالح صفوف نص أقل حدّة لكن ممتدة عبر عرض الحقل
-      const score = edgeScore * coverageAvg;
-      if (score > bestScore) {
-        bestScore = score;
-        bestStartRow = i;
-        bestEndRow = j;
-      }
-    }
+  const first = findRowBand(edgeSumPerRow, coveragePerRow, rows, null);
+  let second: RowBand | null = findRowBand(edgeSumPerRow, coveragePerRow, rows, first);
+  // شريط ثانٍ ضعيف جدًا (مثلاً <15% من قوة الأول) على الأرجح ضجيج/خلفية لا
+  // سطر نص حقيقي — أفضل الرجوع لتقسيم الشريط الواحد بدل قصّ منطقة فارغة.
+  if (second.score <= 0 || second.score < first.score * 0.15) second = null;
+
+  let band1 = first;
+  let band2 = second;
+  if (band2 && band2.startRow < band1.startRow) {
+    // رتّب رأسيًا: الشريط الأعلى دائمًا "الأول" (اسم المستخدم/الاسم)
+    const tmp = band1;
+    band1 = band2;
+    band2 = tmp;
   }
 
-  const top = bestStartRow * rowHeight;
-  const height = (bestEndRow - bestStartRow + 1) * rowHeight;
+  const result = { band1, band2, rows, rowHeight };
+  roiBandCache.set(src, result);
+  return result;
+}
+
+function dynamicCropRoi(src: HTMLCanvasElement, field: 'username' | 'password' | 'name' | 'phone'): HTMLCanvasElement {
+  const bands = computeTextLineBands(src);
+  if (!bands) return src;
+  const { band1, band2, rowHeight } = bands;
+  const isSecondField = field === 'password' || field === 'phone';
 
   let finalY: number;
   let finalH: number;
-  if (field === 'username') {
-    finalY = top;
-    finalH = Math.round(height * 0.45);
-  } else if (field === 'password') {
-    finalY = top + Math.round(height * 0.55);
-    finalH = Math.round(height * 0.45);
-  } else if (field === 'name') {
-    finalY = top;
-    finalH = Math.round(height * 0.5);
-  } else { // phone
-    finalY = top + Math.round(height * 0.5);
-    finalH = Math.round(height * 0.5);
+
+  if (band2) {
+    // شريطان مستقلّان: كل حقل يأخذ شريطه الخاص كاملًا (مع هامش بسيط) بدل
+    // تقسيم شريط واحد بنسبة ثابتة.
+    const band = isSecondField ? band2 : band1;
+    const padRows = 0.15; // هامش صغير أعلى/أسفل الشريط لتفادي قصّ أطراف الأرقام
+    finalY = Math.round((band.startRow - padRows) * rowHeight);
+    finalH = Math.round((band.endRow - band.startRow + 1 + padRows * 2) * rowHeight);
+  } else {
+    // احتياطي: لم يُعثر على شريط ثانٍ موثوق — نرجع للسلوك القديم (تقسيم
+    // الشريط الوحيد المكتشف) بدل إفشال القصّ بالكامل.
+    const top = band1.startRow * rowHeight;
+    const height = (band1.endRow - band1.startRow + 1) * rowHeight;
+    if (!isSecondField) {
+      finalY = top;
+      finalH = Math.round(height * 0.45);
+    } else {
+      finalY = top + Math.round(height * 0.55);
+      finalH = Math.round(height * 0.45);
+    }
   }
 
   const x = Math.round(src.width * 0.08);
@@ -1354,5 +1421,6 @@ export function looksLikeOcrCard(text: string): boolean {
 
 // ====== تصدير الدوال الجديدة ======
 export { deskewCanvas, preprocessAdvanced, dynamicCropRoi };
+
 
 
