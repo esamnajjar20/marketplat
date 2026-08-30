@@ -509,6 +509,31 @@ function bestDigitCandidate(text: string, field: 'username' | 'password'): strin
   return normalized;
 }
 
+// دالة تحقق سريعة (تمريرة واحدة فقط) — تُستخدم للتحقق المستقل الثاني في
+// مسارات "القص الضيق" (tight-crop)، حيث المطلوب رأي ثانٍ سريع للمقارنة،
+// وليس استخراجًا كاملًا. استخدام ocrDigitsOnCanvas (3 تمريرات معالجة
+// متسلسلة) هنا كان يضاعف زمن الفحص ~3× لكل حقل فوق زمن التمريرة الأساسية —
+// راجع FIX OCR-PERF-01 عند نقاط الاستدعاء.
+async function ocrDigitsQuickCheck(
+  canvas: HTMLCanvasElement,
+  field: 'username' | 'password',
+  poolIndex = 0,
+): Promise<string> {
+  try {
+    const worker = await getWorker(poolIndex);
+    await worker.setParameters({
+      tessedit_char_whitelist: '0123456789',
+      tessedit_pageseg_mode: '7',
+    });
+    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3 : 2);
+    const prepped = preprocessAdvanced(scaled, 'contrast');
+    const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
+    return bestDigitCandidate(data.text || '', field);
+  } catch {
+    return '';
+  }
+}
+
 // ====== دالة OCR للأرقام ======
 
 async function ocrDigitsOnCanvas(
@@ -685,12 +710,22 @@ export async function ocrCardFieldsFromTightCrop(cropCanvas: HTMLCanvasElement):
   // القراءة تعالجان بكسلات مختلفة (كتلة كاملة مقابل منطقة سطر واحد) بمعالجة
   // مختلفة، فاحتمال تكرار نفس الخطأ في الاثنتين معًا أقل بكثير من تكراره
   // بين نسختي معالجة لنفس القص. verified لا يُمنح إلا عند توافق المسارين.
+  //
+  // FIX OCR-PERF-01: التحقق هنا كان يستخدم ocrDigitsOnCanvas، التي تُجري 3
+  // تمريرات معالجة متسلسلة لكل حقل (لأنها مصمّمة للاستخراج الأساسي في مسار
+  // الكاميرا الحي، حيث الدقة أهم). كتحقق ثانٍ فقط (مقارنة قيمة واحدة بقيمة
+  // أخرى) هذا مبالغ فيه ويضاعف زمن الفحص كاملًا تقريبًا 3× لكل حقل. استُبدلت
+  // بـ ocrDigitsQuickCheck (تمريرة واحدة) — يحافظ على نفس خاصية "مسار OCR
+  // ومعالجة مختلفة فعليًا عن التصويت الأساسي" (وهي الأساس الذي يمنع تكرار
+  // الخطأ في الاثنين معًا)، بدون تكرار المعالجة 3 مرات لغرض لا يحتاجها.
   const userRoi = dynamicCropRoi(scaled, 'username');
   const passRoi = dynamicCropRoi(scaled, 'password');
-  const [roiUser, roiPass] = await Promise.all([
-    ocrDigitsOnCanvas(userRoi, 'username', 0),
-    ocrDigitsOnCanvas(passRoi, 'password', 1),
+  const [roiUserDigits, roiPassDigits] = await Promise.all([
+    ocrDigitsQuickCheck(userRoi, 'username', 0),
+    ocrDigitsQuickCheck(passRoi, 'password', 1),
   ]);
+  const roiUser = { digits: roiUserDigits };
+  const roiPass = { digits: roiPassDigits };
 
   // احتياطي: لو فشل التصويت الأساسي بإيجاد قيمة صالحة، اقبل قيمة الـROI
   // المستقلة إن كانت صالحة الشكل — أفضل من عدم وجود نتيجة إطلاقًا.
@@ -936,6 +971,35 @@ async function ocrPayNameOnCanvas(canvas: HTMLCanvasElement, poolIndex = 0): Pro
   return { name: best, votes: bestVotes };
 }
 
+// نسخ سريعة (تمريرة واحدة) من فحص الهاتف/الاسم — لنفس سبب ocrDigitsQuickCheck:
+// التحقق المستقل لا يحتاج نفس شمولية الاستخراج الأساسي (3 preps للهاتف،
+// 2 للاسم)، ويكفيه رأي ثانٍ سريع بمعالجة/psm مختلفين فعليًا عن preps الأساسية.
+async function ocrPayPhoneQuickCheck(canvas: HTMLCanvasElement, poolIndex = 1): Promise<string> {
+  try {
+    const worker = await getWorker(poolIndex);
+    await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
+    const scaled = upscaleCanvas(canvas, canvas.width < 350 ? 3 : 2.5);
+    const prepped = preprocessAdvanced(scaled, 'contrast');
+    const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
+    return extractPayPhoneFromText(data.text || '');
+  } catch {
+    return '';
+  }
+}
+
+async function ocrPayNameQuickCheck(canvas: HTMLCanvasElement, poolIndex = 0): Promise<string> {
+  try {
+    const worker = await getWorker(poolIndex);
+    await worker.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '7' });
+    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3 : 2);
+    const prepped = preprocessAdvanced(scaled, 'gray');
+    const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
+    return normalizePayName(data.text || '');
+  } catch {
+    return '';
+  }
+}
+
 export interface PayOcrFields {
   name: string;
   phone: string;
@@ -1031,23 +1095,26 @@ export async function ocrPayFieldsFromTightCrop(cropCanvas: HTMLCanvasElement): 
   // المسارين، وليس فقط أغلبية تصويت بين نسخ معالجة لنفس القص. الاسم أُبقي
   // على تحقق أقل صرامة (fallback فقط) لأن تشابه الأسماء العربية بين مسارين
   // مختلفين حساس لفروق تشكيل/حروف لا تُغيّر الهوية فعليًا، وليس حقلاً ماليًا حرجًا.
+  // FIX OCR-PERF-01 (نفس الإصلاح المطبّق على البطاقات): تحقق بتمريرة واحدة
+  // بدل إعادة استخدام ocrPayNameOnCanvas/ocrPayPhoneOnCanvas الكاملتين
+  // (3+2 preps متسلسلة) هنا، لأن هذا مجرد رأي ثانٍ للمقارنة لا استخراج أساسي.
   const nameRoi = dynamicCropRoi(scaled, 'name');
   const phoneRoi = dynamicCropRoi(scaled, 'phone');
-  const [roiName, roiPhone] = await Promise.all([
-    ocrPayNameOnCanvas(nameRoi, 0),
-    ocrPayPhoneOnCanvas(phoneRoi, 1),
+  const [roiNameText, roiPhoneText] = await Promise.all([
+    ocrPayNameQuickCheck(nameRoi, 0),
+    ocrPayPhoneQuickCheck(phoneRoi, 1),
   ]);
 
-  if ((!phone || !isValidPayPhone(phone)) && isValidPayPhone(roiPhone.phone)) {
-    phone = roiPhone.phone;
+  if ((!phone || !isValidPayPhone(phone)) && isValidPayPhone(roiPhoneText)) {
+    phone = roiPhoneText;
   }
-  if ((!name || scorePayNameQuality(name) < 25) && scorePayNameQuality(roiName.name) >= 25) {
-    name = roiName.name;
+  if ((!name || scorePayNameQuality(name) < 25) && scorePayNameQuality(roiNameText) >= 25) {
+    name = roiNameText;
   }
 
   const phoneOk = isValidPayPhone(phone);
   const nameOk = scorePayNameQuality(name) >= 25;
-  const phoneAgrees = !!roiPhone.phone && roiPhone.phone === phone;
+  const phoneAgrees = !!roiPhoneText && roiPhoneText === phone;
 
   return {
     name,
