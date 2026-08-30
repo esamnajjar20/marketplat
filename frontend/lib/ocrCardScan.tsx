@@ -1017,16 +1017,48 @@ export async function ocrPayFieldsFromTightCrop(cropCanvas: HTMLCanvasElement): 
 
   const n = tally('name');
   const p = tally('phone');
-  const phoneOk = isValidPayPhone(p.value);
-  const nameOk = scorePayNameQuality(n.value) >= 25;
+  let name = n.value;
+  let phone = p.value;
+
+  // FIX OCR-VERIFY-02: نفس فئة الخطأ في OCR-VERIFY-01 (ocrCardFieldsFromTightCrop) —
+  // preps الثلاثة هنا مشتقة من *نفس* صورة القص، فخطأ قراءة منهجي في خانة من
+  // خانات الهاتف قد يتكرر بنفس الشكل الخاطئ في نسختين من الثلاث ويفوز
+  // بالتصويت رغم كونه خاطئًا. رقم الهاتف تحديدًا حرج ماليًا (وجهة تحويل) —
+  // قبوله دون تحقق مستقل يعني احتمال قبول رقم خاطئ بصمت وتحويل مبلغ لجهة
+  // غير صحيحة. نطبّق نفس حل الحقول: قص ROI مستقل لكل حقل (dynamicCropRoi)
+  // مع OCR بوضع psm 7 (نفس الدالتين المستخدمتين أصلًا في ocrPayFieldsFromGuide)
+  // على صورة مختلفة معالجةً عن preps أعلاه. verified للهاتف الآن يتطلب توافق
+  // المسارين، وليس فقط أغلبية تصويت بين نسخ معالجة لنفس القص. الاسم أُبقي
+  // على تحقق أقل صرامة (fallback فقط) لأن تشابه الأسماء العربية بين مسارين
+  // مختلفين حساس لفروق تشكيل/حروف لا تُغيّر الهوية فعليًا، وليس حقلاً ماليًا حرجًا.
+  const nameRoi = dynamicCropRoi(scaled, 'name');
+  const phoneRoi = dynamicCropRoi(scaled, 'phone');
+  const [roiName, roiPhone] = await Promise.all([
+    ocrPayNameOnCanvas(nameRoi, 0),
+    ocrPayPhoneOnCanvas(phoneRoi, 1),
+  ]);
+
+  if ((!phone || !isValidPayPhone(phone)) && isValidPayPhone(roiPhone.phone)) {
+    phone = roiPhone.phone;
+  }
+  if ((!name || scorePayNameQuality(name) < 25) && scorePayNameQuality(roiName.name) >= 25) {
+    name = roiName.name;
+  }
+
+  const phoneOk = isValidPayPhone(phone);
+  const nameOk = scorePayNameQuality(name) >= 25;
+  const phoneAgrees = !!roiPhone.phone && roiPhone.phone === phone;
 
   return {
-    name: n.value,
-    phone: p.value,
+    name,
+    phone,
     nameConfidence: Math.min(1, n.votes / preps.length + (nameOk ? 0.3 : 0)),
-    phoneConfidence: Math.min(1, p.votes / preps.length + (phoneOk ? 0.4 : 0)),
-    verified: phoneOk && nameOk && p.votes >= 2,
-    raw: `${n.value}\n${p.value}`.trim(),
+    phoneConfidence: Math.min(
+      1,
+      p.votes / preps.length + (phoneOk ? 0.4 : 0) + (phoneAgrees ? 0.1 : 0),
+    ),
+    verified: phoneOk && nameOk && p.votes >= 2 && phoneAgrees,
+    raw: `${name}\n${phone}`.trim(),
   };
 }
 
@@ -1205,4 +1237,5 @@ export function looksLikeOcrCard(text: string): boolean {
 
 // ====== تصدير الدوال الجديدة ======
 export { deskewCanvas, preprocessAdvanced, dynamicCropRoi };
+
 
