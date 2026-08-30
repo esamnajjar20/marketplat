@@ -3,9 +3,9 @@
  * section on small screens.
  *
  * AUDIT-FIX (protected #1 — critical): ProtectedSidebar is
- * `hidden ... lg:block`, and ProtectedHeader had no hamburger/drawer
- * trigger and no fallback at all under `lg` — unlike (public), which
- * already solves the identical problem with MobileNav.tsx. Below `lg`,
+ * `hidden ... md:block`, and ProtectedHeader had no hamburger/drawer
+ * trigger and no fallback at all under `md` — unlike (public), which
+ * already solves the identical problem with MobileNav.tsx. Below `md`,
  * the five ProtectedSidebar links (dashboard/my ads/favorites/messages/
  * settings) were reachable only through UserMenu, and UserMenu itself
  * doesn't cover every destination either. This drawer follows the same
@@ -180,7 +180,7 @@ export function ProtectedMobileNav() {
       <button
         id={TOGGLE_ID}
         onClick={toggle}
-        className="rounded p-2 hover:bg-muted lg:hidden"
+        className="rounded p-2 hover:bg-muted md:hidden"
         aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
         aria-expanded={isOpen}
         aria-controls={NAV_ID}
@@ -192,7 +192,7 @@ export function ProtectedMobileNav() {
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
           onClick={close}
           aria-hidden="true"
         />
@@ -218,7 +218,7 @@ export function ProtectedMobileNav() {
           // panel itself scroll; overscroll-contain stops that scroll
           // from chaining to the locked body once the panel hits its
           // own top/bottom.
-          'fixed inset-y-0 end-0 z-[60] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 shadow-xl transition-transform duration-200 lg:hidden',
+          'fixed inset-y-0 end-0 z-[60] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 shadow-xl transition-transform duration-200 md:hidden',
           // end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
           // to left:0 — verified against the CSS spec (MDN:
           // "with direction rtl, inset-inline-end moves the element

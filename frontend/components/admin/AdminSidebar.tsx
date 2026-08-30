@@ -107,7 +107,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 /** Desktop sidebar — fixed, always visible on lg+ screens. */
 function DesktopSidebar() {
   return (
-    <aside className="hidden lg:block w-56 shrink-0 border-e bg-card min-h-screen">
+    <aside className="hidden md:block w-52 shrink-0 border-e bg-card min-h-screen lg:w-56">
       <NavLinks />
     </aside>
   );
@@ -122,7 +122,7 @@ function MobileDrawer() {
       {/* Trigger */}
       <button
         onClick={() => setOpen(true)}
-        className="lg:hidden fixed top-3 end-3 z-40 p-2 rounded-md bg-card border shadow-sm"
+        className="md:hidden fixed top-3 end-3 z-40 p-2 rounded-md bg-card border shadow-sm"
         aria-label="فتح القائمة"
       >
         <Menu className="h-5 w-5" />
@@ -131,7 +131,7 @@ function MobileDrawer() {
       {/* Overlay */}
       {open && (
         <div
-          className="lg:hidden fixed inset-0 z-50 flex"
+          className="md:hidden fixed inset-0 z-50 flex"
           role="dialog"
           aria-modal="true"
           aria-label="قائمة الإدارة"

@@ -7,6 +7,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/shared/ui/Badge';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
+import { ReportServiceButton } from '@/components/services/ReportServiceButton';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatPrice, formatRelativeTime, formatPhone } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -85,7 +86,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
   return (
     <>
-      <div className="flex flex-col gap-6 pb-sticky-contact-tall lg:flex-row lg:gap-8">
+      <div className="flex flex-col gap-6 pb-sticky-contact-tall md:flex-row md:gap-8">
         <div className="min-w-0 flex-1 space-y-6">
           {/* Gallery */}
           <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
@@ -180,6 +181,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
             <div className="flex flex-wrap gap-2">
               <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
               <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
+              <ReportServiceButton serviceListingId={listing.id} />
             </div>
           </div>
 
@@ -194,7 +196,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
         </div>
 
         {/* Desktop sidebar */}
-        <aside className="hidden w-full shrink-0 space-y-4 lg:block lg:w-[320px]">
+        <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[320px]">
           <div className="sticky top-20 space-y-4">
             <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
               <p className="font-mono text-2xl font-bold tabular-nums text-primary">
@@ -205,6 +207,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
               <div className="flex flex-wrap gap-2">
                 <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
                 <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
+                <ReportServiceButton serviceListingId={listing.id} />
               </div>
               {action && <div className="pt-1 space-y-2">{action}</div>}
               {listing.provider.contactPhone && (
@@ -218,7 +221,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
       {/* Mobile sticky CTA — above BottomNav; tall padding for dual buttons */}
       {action && (
-        <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:hidden">
+        <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
           <div className="mx-auto max-w-lg space-y-2">
             {action}
             {listing.provider.contactPhone && (

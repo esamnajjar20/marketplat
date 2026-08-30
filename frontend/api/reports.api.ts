@@ -42,6 +42,14 @@ export const reportsApi = {
   reportStore: (storeId: string, payload: CreateReportPayload) =>
     apiClient.post<ApiResponse<null>>(`/reports/stores/${storeId}`, payload),
 
+  /** POST /reports/products/:productId */
+  reportProduct: (productId: string, payload: CreateReportPayload) =>
+    apiClient.post<ApiResponse<null>>(`/reports/products/${productId}`, payload),
+
+  /** POST /reports/services/:serviceListingId */
+  reportService: (serviceListingId: string, payload: CreateReportPayload) =>
+    apiClient.post<ApiResponse<null>>(`/reports/services/${serviceListingId}`, payload),
+
   /**
    * GET /reports/me — "بلاغاتي": the reports the current user has
    * personally filed, any target type. Not admin-gated — every

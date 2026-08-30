@@ -19,11 +19,15 @@ const TARGET_TYPE_LABELS: Record<ReportTargetType, string> = {
   AD: 'إعلان',
   USER: 'مستخدم',
   STORE: 'متجر',
+  PRODUCT: 'منتج',
+  SERVICE_LISTING: 'خدمة',
 };
 
 function targetHref(targetType: ReportTargetType, targetId: string): string {
   if (targetType === 'USER') return ROUTES.userProfile(targetId);
   if (targetType === 'STORE') return ROUTES.storeDetail(targetId);
+  if (targetType === 'PRODUCT') return ROUTES.productDetail(targetId);
+  if (targetType === 'SERVICE_LISTING') return ROUTES.serviceDetail(targetId);
   return ROUTES.adDetail(targetId);
 }
 

@@ -136,9 +136,9 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </p>
         </div>
       )}
-    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 pb-sticky-contact">
+    <div className="flex flex-col md:flex-row gap-6 md:gap-8 pb-sticky-contact">
       {/* LEFT: images + details */}
-      <div className="flex-1 lg:w-2/3 min-w-0 space-y-6">
+      <div className="flex-1 md:w-2/3 min-w-0 space-y-6">
 
         {/* Gallery */}
         <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
@@ -255,7 +255,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </div>
 
           {/* Mobile-only price, mirrors the sticky desktop price panel */}
-          <div className="lg:hidden">
+          <div className="md:hidden">
             <p className="text-3xl font-bold text-primary">
               {formatPrice(ad.price)}
               {ad.isNegotiable && <span className="text-sm font-normal text-muted-foreground ms-2">قابل للتفاوض</span>}
@@ -316,7 +316,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
         {/* Mobile-only seller card, right after the main details block —
             desktop keeps it in the sticky right column below. */}
-        <div className="lg:hidden">
+        <div className="md:hidden">
           <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
         </div>
 
@@ -328,7 +328,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
       {/* RIGHT: price + seller + safety tips (desktop only — mobile
           equivalents are rendered inline above, in reading order) */}
-      <aside className="hidden lg:flex lg:w-1/3 flex-col gap-6">
+      <aside className="hidden md:flex md:w-1/3 flex-col gap-6">
         <div className="sticky top-24 space-y-6">
           <div className="rounded-2xl bg-card shadow-md p-6 space-y-1">
             <div className="text-sm text-muted-foreground">السعر المطلوب</div>

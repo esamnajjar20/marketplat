@@ -41,7 +41,7 @@ export function SectionHeader({ eyebrow, title, icon, cta, badge }: Props) {
         </div>
       </div>
       {cta && (
-        <Link href={cta.href} className="shrink-0 text-sm font-medium text-primary hover:underline">
+        <Link href={cta.href} className="shrink-0 text-sm font-medium text-primary transition-colors hover:text-primary/80 hover:underline underline-offset-4">
           {cta.label}
         </Link>
       )}

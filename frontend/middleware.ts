@@ -186,7 +186,11 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // 'unsafe-inline' when a nonce is present anyway, but we drop it
     // entirely outside dev so older-browser fallback behavior can't
     // silently widen the policy back open.
-    `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
+    // FIX OCR-01: cdn.jsdelivr.net مضاف لِـ script-src لأن قارئ نصوص بطاقات
+    // النت (Tesseract.js — بطاقات نت بلا رمز QR أصلاً) يُحمَّل من هذا الـCDN
+    // وقت التشغيل. 'wasm-unsafe-eval' ضروري لأن Tesseract.js ينفّذ WASM —
+    // بدونه بعض المتصفحات ترفض تشغيل الكود حتى لو تحمّل بنجاح.
+    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' https://cdn.jsdelivr.net${isDev ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
     // FIX OFFLINE-01: fonts.googleapis.com/fonts.gstatic.com dropped —
     // fonts are now self-hosted via @fontsource (see app/layout.tsx)
     // and served from this app's own origin, not Google's CDN, so
@@ -197,13 +201,17 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // Primary QR path is local Canvas (no network); these hosts are allow-listed
     // only so <img> fallbacks are not blocked by CSP if local generation fails.
     "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co https://api.qrserver.com https://quickchart.io",
-    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com`,
+    // FIX OCR-01: cdn.jsdelivr.net مضاف — Tesseract.js يجلب عبره ملفات
+    // WASM وبيانات اللغة (eng.traineddata) بعد تحميل السكربت نفسه.
+    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو
     // الصارمة) قد ترفض تسجيل public/sw.js حتى لو كان default-src 'self'
     // يسمح به نظريًا — worker-src ليس دائمًا يرث من default-src في كل
     // التطبيقات. manifest-src ضروري لتحميل /manifest.webmanifest (app/manifest.ts)
     // الذي يعتمد عليه اكتشاف قابلية التثبيت بالكامل.
-    "worker-src 'self'",
+    // FIX OCR-01: blob: و cdn.jsdelivr.net مضافين لأن Tesseract.js ينشئ
+    // Web Worker من كود مُحمَّل من الـCDN (غالبًا عبر blob: URL داخليًا).
+    "worker-src 'self' blob: https://cdn.jsdelivr.net",
     "manifest-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",

@@ -49,7 +49,7 @@ export function AdminHeader() {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
   return (
-    <header className="h-14 border-b bg-card flex items-center justify-between px-4 shrink-0">
+    <header className="sticky top-0 z-30 h-14 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/90 flex items-center justify-between px-4 shrink-0">
       <Link href="/admin/dashboard" className="font-bold text-sm text-primary">
         سوق غزة — إدارة
       </Link>

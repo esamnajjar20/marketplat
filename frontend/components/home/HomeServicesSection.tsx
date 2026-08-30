@@ -50,14 +50,14 @@ export function HomeServicesSection() {
 
   if (isLoading) {
     return (
-      <section className="container mx-auto space-y-4 px-4 pt-6 sm:pt-10 section-enter">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-10 section-enter">
         <SectionHeader
           eyebrow="خدمات"
           title="خدمات متاحة"
           icon={<Briefcase className="h-3.5 w-3.5" />}
           cta={{ href: ROUTES.services, label: 'عرض الكل ←' }}
         />
-        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="w-[min(100%,280px)] shrink-0 sm:w-auto">
               <StoreCardSkeleton />
@@ -70,7 +70,7 @@ export function HomeServicesSection() {
 
   if (isError) {
     return (
-      <section className="container mx-auto space-y-4 px-4 pt-6 sm:pt-10">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-10">
         <SectionHeader
           eyebrow="خدمات"
           title="خدمات متاحة"
@@ -93,7 +93,7 @@ export function HomeServicesSection() {
   if (!useGeo && listingItems.length === 0) return null;
 
   return (
-    <section className="container mx-auto space-y-4 px-4 pt-6 sm:pt-10 section-enter">
+    <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-10 section-enter">
       <SectionHeader
         eyebrow="خدمات"
         title="خدمات متاحة"
@@ -106,7 +106,7 @@ export function HomeServicesSection() {
           />
         }
       />
-      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4 stagger-fade-in">
+      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-4 stagger-fade-in">
         {useGeo
           ? geo.items.map((item) => (
               <Link

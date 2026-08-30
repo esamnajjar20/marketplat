@@ -43,6 +43,8 @@ export function InternetCardsQRDialog({
   const [saved, setSaved] = useState<SavedNetCard[]>([]);
   const [mode, setMode] = useState<'scan' | 'result'>('scan');
   const [rawScan, setRawScan] = useState('');
+  const [scanUnverified, setScanUnverified] = useState(false);
+  const [scanFieldDiff, setScanFieldDiff] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -51,25 +53,36 @@ export function InternetCardsQRDialog({
       setLabel(initialLabel);
       setSaved(listSavedNetCards());
       setRawScan('');
+      setScanUnverified(false);
+      setScanFieldDiff(null);
       // إن وُجدت بيانات جاهزة اعرض النتيجة، وإلا ابدأ بالمسح
       setMode(initialUsername && initialPassword ? 'result' : 'scan');
     }
   }, [open, initialUsername, initialPassword, initialLabel]);
 
-  function onScanned(text: string) {
+  function onScanned(text: string, verified: boolean = true, fieldDiff?: string | null) {
     setRawScan(text);
+    setScanUnverified(!verified);
+    setScanFieldDiff(fieldDiff ?? null);
   }
 
-  function onCardParsed(parsed: CardParseResult) {
+  function onCardParsed(parsed: CardParseResult, verified: boolean) {
     if (parsed.username) setUsername(parsed.username);
     if (parsed.password) setPassword(parsed.password);
     if (parsed.label) setLabel(parsed.label);
     setMode('result');
+    // confidence بـsmartParseCard مقياس شكلي فقط (هل القيمة طولها/نمطها
+    // يشبه اسم مستخدم/كلمة سر؟) ولا علاقة له باتفاق تمريرتَي OCR الفعلي —
+    // نص مقروء غلطًا لكن بشكل رقمي معقول يعطي ثقة عالية شكليًا رغم كونه
+    // غير محقَّق. لازم verified يُقدَّم أولًا وإلا يظهر توست "ثقة 100%"
+    // يناقض تحذير "غير مؤكدة" الظاهر بنفس الشاشة مباشرة تحته.
     const conf = Math.round(parsed.confidence * 100);
     toast.success(
-      conf >= 70
-        ? `تم كشف البطاقة بثقة ${conf}%`
-        : 'تم المسح — راجع البيانات وعدّل إن لزم',
+      !verified
+        ? 'تم المسح لكن بتيقّن أقل — راجع البيانات مع البطاقة قبل الحفظ'
+        : conf >= 70
+          ? `تم كشف البطاقة بثقة ${conf}%`
+          : 'تم المسح — راجع البيانات وعدّل إن لزم',
     );
   }
 
@@ -131,6 +144,14 @@ export function InternetCardsQRDialog({
                 </p>
               </div>
 
+              {scanUnverified && (
+                <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-center text-xs font-medium text-amber-700">
+                  {scanFieldDiff
+                    ? `⚠️ اختلفت القراءتان بهذا الحقل — تحقق من البطاقة: ${scanFieldDiff}`
+                    : '⚠️ القراءة غير مؤكدة — قارن الأرقام يدويًا مع البطاقة الأصلية قبل الحفظ'}
+                </p>
+              )}
+
               <Input
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
@@ -138,16 +159,20 @@ export function InternetCardsQRDialog({
               />
               <Input
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="اسم المستخدم"
+                onChange={(e) => setUsername(e.target.value.replace(/[^\d]/g, ''))}
+                placeholder="اسم المستخدم (أرقام)"
                 dir="ltr"
+                inputMode="numeric"
+                autoComplete="off"
                 className="font-mono"
               />
               <Input
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="كلمة السر"
+                onChange={(e) => setPassword(e.target.value.replace(/[^\d]/g, ''))}
+                placeholder="كلمة السر (أرقام)"
                 dir="ltr"
+                inputMode="numeric"
+                autoComplete="off"
                 className="font-mono"
               />
 
@@ -167,7 +192,7 @@ export function InternetCardsQRDialog({
               </Button>
 
               {rawScan && (
-                <details className="text-xs text-muted-foreground">
+                <details className="text-xs text-muted-foreground" open={scanUnverified}>
                   <summary className="cursor-pointer">النص الخام من المسح</summary>
                   <pre className="mt-1 whitespace-pre-wrap rounded border bg-muted/40 p-2">{rawScan}</pre>
                 </details>

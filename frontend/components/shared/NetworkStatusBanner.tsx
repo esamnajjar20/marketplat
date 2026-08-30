@@ -7,25 +7,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { WifiOff, Wifi, X } from 'lucide-react';
 
-type BannerState = 'offline' | 'slow' | 'back' | null;
+type BannerState = 'offline' | 'back' | null;
 
 /** مدة الظهور بالميلي ثانية */
 const DURATION_MS: Record<Exclude<BannerState, null>, number> = {
   offline: 8000,
-  slow: 6000,
   back: 3500,
 };
-
-function isSlowConnection(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const conn = (navigator as Navigator & {
-    connection?: { effectiveType?: string; saveData?: boolean };
-  }).connection;
-  if (!conn) return false;
-  if (conn.saveData) return true;
-  const t = conn.effectiveType;
-  return t === 'slow-2g' || t === '2g';
-}
 
 export function NetworkStatusBanner() {
   const [state, setState] = useState<BannerState>(null);
@@ -74,45 +62,17 @@ export function NetworkStatusBanner() {
       show('back');
     };
 
-    const onConnectionChange = () => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        dismissedRef.current = null;
-        show('offline');
-        return;
-      }
-      if (isSlowConnection()) {
-        // لا تقاطع رسالة "عاد الاتصال"
-        setState((prev) => {
-          if (prev === 'back') return prev;
-          if (dismissedRef.current === 'slow') return prev;
-          dismissedRef.current = null;
-          clearHideTimer();
-          hideTimerRef.current = setTimeout(() => {
-            setState(null);
-            hideTimerRef.current = null;
-          }, DURATION_MS.slow);
-          return 'slow';
-        });
-      }
-    };
-
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       show('offline');
-    } else if (isSlowConnection()) {
-      show('slow');
     }
 
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
 
-    const conn = (navigator as Navigator & { connection?: EventTarget }).connection;
-    conn?.addEventListener?.('change', onConnectionChange);
-
     return () => {
       clearHideTimer();
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
-      conn?.removeEventListener?.('change', onConnectionChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -124,7 +84,6 @@ export function NetworkStatusBanner() {
 
   const styles: Record<Exclude<BannerState, null>, string> = {
     offline: 'bg-destructive text-destructive-foreground',
-    slow: 'bg-amber-600 text-white dark:bg-amber-700',
     back: 'bg-emerald-600 text-white',
   };
 
@@ -132,10 +91,6 @@ export function NetworkStatusBanner() {
     offline: {
       icon: WifiOff,
       text: 'لا يوجد اتصال بالإنترنت — سيتم استئناف التحديث عند عودة الشبكة',
-    },
-    slow: {
-      icon: Wifi,
-      text: 'اتصال بطيء أو توفير بيانات مفعّل — قد يتأخر تحميل الصور والقوائم',
     },
     back: {
       icon: Wifi,

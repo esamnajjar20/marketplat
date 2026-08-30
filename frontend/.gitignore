@@ -1,0 +1,4 @@
+
+# Local OCR/Scan runtime files
+public/tesseract/
+public/tessdata/

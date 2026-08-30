@@ -30,17 +30,17 @@ import type { ReactNode } from 'react';
 interface Props {
   /** The <form>...</form> element itself. */
   form: ReactNode;
-  /** Live preview panel — hidden below lg, a sticky sidebar at lg+. */
+  /** Live preview panel — hidden below md, a sticky sidebar at md+. */
   preview: ReactNode;
 }
 
 export function CreateFormLayout({ form, preview }: Props) {
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
+    <div className="md:grid md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-6">
       <div className="min-w-0">{form}</div>
       {/* top-20 matches ProductDetail/ServiceListingDetail's own sticky
           sidebar offset, clearing ProtectedHeader's sticky top-0 bar. */}
-      <aside className="hidden lg:sticky lg:top-20 lg:block">{preview}</aside>
+      <aside className="hidden md:sticky md:top-20 md:block">{preview}</aside>
     </div>
   );
 }

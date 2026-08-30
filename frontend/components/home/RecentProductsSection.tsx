@@ -73,9 +73,9 @@ export function RecentProductsSection() {
 
   if (isLoading) {
     return (
-      <section className="container mx-auto space-y-4 px-4 pt-10">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10">
         {header}
-        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
+        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="w-40 shrink-0 sm:w-auto">
               <ProductCardSkeleton />
@@ -93,7 +93,7 @@ export function RecentProductsSection() {
   // connectivity problem into thinking there's simply nothing there.
   if (isError) {
     return (
-      <section className="container mx-auto space-y-4 px-4 pt-10">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10">
         {header}
         <ApiError error={error} onRetry={refetch} variant="inline" />
       </section>
@@ -102,7 +102,7 @@ export function RecentProductsSection() {
 
   if (items.length === 0) {
     return (
-      <section className="container mx-auto space-y-4 px-4 pt-10">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10">
         {header}
         <EmptyState
           icon={<ShoppingBag className="h-8 w-8" />}
@@ -127,7 +127,7 @@ export function RecentProductsSection() {
   }
 
   return (
-    <section className="container mx-auto space-y-4 px-4 pt-10">
+    <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10">
       {header}
       {showLocateCta && (
         <Button variant="outline" size="sm" className="gap-1.5" onClick={location.requestLocation}>
@@ -135,7 +135,7 @@ export function RecentProductsSection() {
           استخدام موقعي
         </Button>
       )}
-      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4 stagger-fade-in">
+      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-4 stagger-fade-in">
         {items.map((product) => (
           <div key={product.id} className="w-40 shrink-0 sm:w-auto">
             <ProductCard product={product} storeId={product.store.id} />

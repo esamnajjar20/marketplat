@@ -2,6 +2,8 @@ import { reportsRepository, ReportWithDetails } from './reports.repository';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
 import { usersService } from '../users'; // FEAT-REPORT-USER-STORE: target-exists check for USER reports
 import { storesService } from '../stores'; // FEAT-REPORT-USER-STORE: target-exists check for STORE reports
+import { productsService } from '../products';
+import { serviceListingsService } from '../service-listings';
 import {
   CreateReportInput,
   CreateTargetReportInput,
@@ -25,6 +27,8 @@ const TARGET_LABEL: Record<ReportTargetType, string> = {
   AD: 'ad',
   USER: 'user',
   STORE: 'store',
+  PRODUCT: 'product',
+  SERVICE_LISTING: 'service listing',
 };
 
 // FEAT-REPORT-USER-STORE: shared by both createReport (AD, existing
@@ -82,7 +86,7 @@ export const reportsService = {
   // owner for the same self-report check.
   createTargetReport: async (
     userId: string,
-    targetType: 'USER' | 'STORE',
+    targetType: 'USER' | 'STORE' | 'PRODUCT' | 'SERVICE_LISTING',
     targetId: string,
     input: CreateTargetReportInput
   ): Promise<Report> => {
@@ -95,9 +99,33 @@ export const reportsService = {
       return submitReport(userId, 'USER', targetId, targetId, input);
     }
 
-    const store = await storesService.findStoreForReference(targetId);
-    if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
-    return submitReport(userId, 'STORE', targetId, store.sellerProfile.userId, input);
+    if (targetType === 'STORE') {
+      const store = await storesService.findStoreForReference(targetId);
+      if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+      return submitReport(userId, 'STORE', targetId, store.sellerProfile.userId, input);
+    }
+
+    if (targetType === 'PRODUCT') {
+      const product = await productsService.findProductForReference(targetId);
+      if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+      const store = await storesService.findStoreForReference(product.storeId);
+      if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+      return submitReport(userId, 'PRODUCT', targetId, store.sellerProfile.userId, input);
+    }
+
+    // SERVICE_LISTING
+    const listing = await serviceListingsService.findServiceListingForReference(targetId);
+    if (!listing) throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+    // listingWithRelations includes provider.sellerProfile.userId
+    const listingOwner =
+      (listing as { provider?: { userId?: string; sellerProfile?: { userId?: string } } }).provider
+        ?.userId ??
+      (listing as { provider?: { sellerProfile?: { userId?: string } } }).provider?.sellerProfile
+        ?.userId;
+    if (!listingOwner) {
+      throw new NotFoundError('Service listing owner not found', 'SERVICE_LISTING_NOT_FOUND');
+    }
+    return submitReport(userId, 'SERVICE_LISTING', targetId, listingOwner, input);
   },
 
   getReports: async (query: GetReportsQuery): Promise<PaginatedResult<ReportWithDetails>> => {

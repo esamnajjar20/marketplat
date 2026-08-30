@@ -23,7 +23,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { CopyField } from '@/components/payment/CopyField';
 import { QrScannerCamera } from '@/components/payment/QrScannerCamera';
-import type { PayParseResult } from '@/lib/smartScanParse';
+import { type PayParseResult, isValidPalMobile, normalizePalMobile } from '@/lib/smartScanParse';
 import {
   type PayMethod,
   PAY_METHOD_LABELS,
@@ -76,6 +76,8 @@ export function PayWithQRDialog({
   const [recipient, setRecipient] = useState<'friend' | 'merchant' | null>(null);
   const [savedList, setSavedList] = useState<SavedPayee[]>([]);
   const [rawScan, setRawScan] = useState('');
+  const [scanUnverified, setScanUnverified] = useState(false);
+  const [scanFieldDiff, setScanFieldDiff] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -87,6 +89,8 @@ export function PayWithQRDialog({
       setAmount('');
       setRecipient(null);
       setRawScan('');
+      setScanUnverified(false);
+      setScanFieldDiff(null);
     }
   }, [open, defaultName, defaultNumber]);
 
@@ -97,6 +101,8 @@ export function PayWithQRDialog({
       setAmount('');
       setRecipient(null);
       setRawScan('');
+      setScanUnverified(false);
+      setScanFieldDiff(null);
     }
     onOpenChange(next);
   }
@@ -113,19 +119,26 @@ export function PayWithQRDialog({
     setStep('result');
   }
 
-  function onScanned(text: string) {
+  function onScanned(text: string, verified: boolean = true, fieldDiff?: string | null) {
     setRawScan(text);
+    setScanUnverified(!verified);
+    setScanFieldDiff(fieldDiff ?? null);
   }
 
-  function onPayParsed(parsed: PayParseResult) {
+  function onPayParsed(parsed: PayParseResult, verified: boolean) {
     if (parsed.name) setName(parsed.name);
     if (parsed.number) setNumber(parsed.number);
     setStep('result');
+    // نفس ملاحظة onCardParsed بـInternetCardsQRDialog: confidence شكلي فقط
+    // ومستقل عن verified (اتفاق تمريرتَي OCR) — verified يجب أن يتغلب على
+    // رقم الثقة الشكلي، وإلا يتناقض التوست مع تحذير "غير مؤكدة" بنفس الشاشة.
     const conf = Math.round(parsed.confidence * 100);
     toast.success(
-      conf >= 70
-        ? `تم الكشف بثقة ${conf}%`
-        : 'تم المسح — راجع الاسم والرقم وعدّل إن لزم',
+      !verified
+        ? 'تم المسح لكن بتيقّن أقل — راجع الاسم والرقم مع الأصل قبل الحفظ'
+        : conf >= 70
+          ? `تم الكشف بثقة ${conf}%`
+          : 'تم المسح — راجع الاسم والرقم وعدّل إن لزم',
     );
   }
 
@@ -247,26 +260,44 @@ export function PayWithQRDialog({
               </p>
             </div>
 
+            {scanUnverified && (
+              <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-center text-xs font-medium text-amber-700">
+                {scanFieldDiff
+                  ? `⚠️ اختلفت القراءتان بهذا الحقل — تحقق من الإيصال: ${scanFieldDiff}`
+                  : '⚠️ القراءة غير مؤكدة — قارن الرقم يدويًا مع الإيصال/الورقة الأصلية قبل الحفظ'}
+              </p>
+            )}
+
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">تعديل الاسم</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="الاسم" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="الاسم" autoComplete="name" />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">تعديل الرقم</label>
+              <label className="text-xs text-muted-foreground">تعديل الرقم (059 / 056)</label>
               <Input
                 value={number}
-                onChange={(e) => setNumber(e.target.value)}
-                placeholder="05xxxxxxxx"
+                onChange={(e) => setNumber(normalizePalMobile(e.target.value))}
+                placeholder="059xxxxxxx"
                 dir="ltr"
+                inputMode="numeric"
+                autoComplete="tel"
                 className="font-mono"
               />
+              {number.trim() && !isValidPalMobile(number.trim()) && (
+                <p className="text-xs text-amber-600 dark:text-amber-500">
+                  الرقم يجب أن يبدأ بـ 059 أو 056 ويتكون من 10 أرقام
+                </p>
+              )}
+              {isValidPalMobile(number.trim()) && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-500">رقم جوال صالح</p>
+              )}
             </div>
 
             {number.trim() && <CopyField label="نسخ الرقم" value={number.trim()} mono />}
             {name.trim() && <CopyField label="نسخ الاسم" value={name.trim()} />}
 
             {rawScan && (
-              <details className="text-xs text-muted-foreground">
+              <details className="text-xs text-muted-foreground" open={scanUnverified}>
                 <summary className="cursor-pointer">النص الخام من المسح</summary>
                 <pre className="mt-1 whitespace-pre-wrap rounded border bg-muted/40 p-2">{rawScan}</pre>
               </details>

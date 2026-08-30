@@ -12,26 +12,26 @@
  * hide it for — a leftover expectation of exactly this layout that
  * was never actually built.
  *
- * At >=lg this renders ConversationList in a fixed left column
+ * At >=md this renders ConversationList in a fixed left column
  * (this app is RTL — inline-start is the visual left in the LTR sense
  * flipped, i.e. still "first" in DOM/flex order) beside {children}
  * (either /messages' empty state or /messages/:id's ChatWindow) in a
  * right column, both inside one shared bordered frame so the two
  * panes read as a single unit rather than two stacked cards.
  *
- * Below lg this renders only {children} — no sidebar, no shared
+ * Below md this renders only {children} — no sidebar, no shared
  * frame — identical to how these two routes behaved before this file
  * existed. That's deliberate: full-screen-per-thread is the correct
  * mobile pattern already, this file's only job is adding the desktop
  * case that was missing, not changing the mobile one.
  *
  * ONE ConversationList, not two: mounting it once here (rather than
- * once here for >=lg and again inside /messages' page.tsx for <lg)
+ * once here for >=md and again inside /messages' page.tsx for <lg)
  * avoids a duplicate useMyConversations poll running for the same
  * data. usePathname decides the rest — on the bare /messages route
- * (no thread open yet) the list is also shown full-width below lg via
+ * (no thread open yet) the list is also shown full-width below md via
  * the isInboxRoute branch; once a thread is open (/messages/:id)
- * below lg it hides entirely so ChatWindow's own full-screen view
+ * below md it hides entirely so ChatWindow's own full-screen view
  * (already handling its own back button) isn't fighting a second
  * nav element for the same space.
  */
@@ -52,16 +52,16 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
   const selectedId = isInboxRoute ? undefined : pathname.split('/').pop();
 
   return (
-    <div className="lg:flex lg:h-[calc(100vh-7rem)] lg:gap-0 lg:overflow-hidden lg:rounded-xl lg:border lg:bg-card lg:shadow-sm">
+    <div className="md:flex md:h-[calc(100vh-6.5rem)] lg:h-[calc(100vh-7rem)] md:gap-0 md:overflow-hidden md:rounded-xl md:border md:bg-card md:shadow-sm">
       <aside
         className={cn(
-          'lg:w-[22rem] lg:shrink-0 lg:overflow-hidden lg:flex lg:flex-col lg:border-e',
+          'md:w-[18rem] lg:w-[22rem] md:shrink-0 md:overflow-hidden md:flex md:flex-col md:border-e',
           isInboxRoute ? 'block' : 'hidden',
-          'lg:block'
+          'md:block'
         )}
       >
-        <div className="space-y-3 p-3 sm:p-4 lg:p-0 lg:space-y-0 lg:flex lg:flex-col lg:h-full lg:min-h-0">
-          <div className="lg:hidden flex items-center justify-between gap-2 px-1">
+        <div className="space-y-3 p-3 sm:p-4 md:p-0 md:space-y-0 md:flex md:flex-col md:h-full md:min-h-0">
+          <div className="md:hidden flex items-center justify-between gap-2 px-1">
             <h1 className="text-xl font-bold tracking-tight">الرسائل</h1>
           </div>
           <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
@@ -70,7 +70,7 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      <div className={cn('min-w-0 lg:flex-1 lg:min-h-0', isInboxRoute ? 'hidden lg:block' : 'block')}>
+      <div className={cn('min-w-0 md:flex-1 md:min-h-0', isInboxRoute ? 'hidden md:block' : 'block')}>
         {children}
       </div>
     </div>

@@ -20,6 +20,7 @@ import { serviceProvidersRepository } from '../service-providers/service-provide
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
+import { fraudService } from '../fraud';
 import { savedSearchEvents } from '../saved-searches';
 import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
@@ -126,6 +127,18 @@ export const serviceListingsService = {
     // provider.id — activity rows are always keyed by the real user.
     activityService.record({ userId, ...activityTemplates.serviceCreated(listing.id, listing.title) });
 
+    fraudService
+      .scoreListing({
+        entityType: 'SERVICE_LISTING',
+        id: listing.id,
+        userId,
+        title: listing.title,
+        description: listing.description ?? '',
+        price: listing.price != null ? Number(listing.price) : null,
+        categoryId: listing.categoryId,
+      })
+      .catch(() => undefined);
+
     // PLATFORM-WIDE-01: notify saved-search owners (type 'services')
     // whose criteria match this new listing — same fire-and-forget
     // contract as ads.service.ts's createAd -> savedSearchEvents
@@ -225,6 +238,18 @@ export const serviceListingsService = {
 
     // Gap #10: fire-and-forget, see createServiceListing's own comment.
     activityService.record({ userId, ...activityTemplates.serviceUpdated(updated.id, updated.title) });
+
+    fraudService
+      .scoreListing({
+        entityType: 'SERVICE_LISTING',
+        id: updated.id,
+        userId,
+        title: updated.title,
+        description: updated.description ?? '',
+        price: updated.price != null ? Number(updated.price) : null,
+        categoryId: updated.categoryId,
+      })
+      .catch(() => undefined);
 
     return updated;
   },

@@ -15,6 +15,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
+import { ReportProductButton } from '@/components/stores/ReportProductButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
@@ -62,7 +63,7 @@ export function ProductDetail({ product, related = [] }: Props) {
 
   return (
     <>
-      <div className="flex flex-col gap-6 pb-sticky-contact lg:flex-row lg:gap-8">
+      <div className="flex flex-col gap-6 pb-sticky-contact md:flex-row md:gap-8">
         {/* Gallery + description */}
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
           <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
@@ -186,7 +187,7 @@ export function ProductDetail({ product, related = [] }: Props) {
         </div>
 
         {/* Sidebar */}
-        <aside className="hidden w-full shrink-0 space-y-4 lg:block lg:w-1/3">
+        <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-1/3">
           <div className="sticky top-20 space-y-4">
             <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
               <PriceBlock product={product} displayPrice={displayPrice} hasDiscount={hasDiscount} />
@@ -200,7 +201,7 @@ export function ProductDetail({ product, related = [] }: Props) {
       </div>
 
       {/* Mobile sticky CTA — sits above BottomNav (see .sticky-contact-bar) */}
-      <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:hidden">
+      <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
         <div className="mx-auto flex max-w-lg gap-2">
           {store.phone && (
             <Button asChild variant="outline" className="min-h-[48px] flex-1 font-semibold">
@@ -321,6 +322,7 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
     <div className="flex flex-wrap items-center gap-2">
       <FavoriteButton entityType="PRODUCT" entityId={product.id} size="md" warm />
       <ShareAdButton title={product.name} url={shareUrl} variant="button" />
+      <ReportProductButton productId={product.id} />
     </div>
   );
 }

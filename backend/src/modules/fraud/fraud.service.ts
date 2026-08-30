@@ -206,6 +206,77 @@ export const fraudService = {
     }
   },
 
+
+  /**
+   * Scores a product or service listing with the same content heuristics
+   * as scoreAd (price outliers, off-platform contact, scam keywords).
+   * Persists FraudSignal rows keyed by userId + metadata.entityType/entityId
+   * (no adId FK — schema remains ad-oriented for flagged-ads admin queue).
+   * Fire-and-forget safe: never throws to the caller.
+   */
+  scoreListing: async (input: {
+    entityType: 'PRODUCT' | 'SERVICE_LISTING';
+    id: string;
+    userId: string;
+    title: string;
+    description: string;
+    price: number | null;
+    categoryId: string | null;
+  }): Promise<void> => {
+    try {
+      // Reuse ad scoring input shape; RAPID_POSTING still counts ads for this
+      // user (account-level velocity) which is intentional — a user spamming
+      // products after many ads still trips velocity.
+      const signals = await computeSignals({
+        id: input.id,
+        userId: input.userId,
+        title: input.title,
+        description: input.description,
+        city: '',
+        price: input.price,
+        categoryId: input.categoryId,
+      });
+      if (signals.length === 0) return;
+
+      const riskScore = Math.min(
+        100,
+        signals.reduce((sum, s) => sum + s.weight, 0),
+      );
+
+      await prisma.fraudSignal.createMany({
+        data: signals.map((s) => ({
+          type: s.type,
+          weight: s.weight,
+          metadata: {
+            ...(s.metadata ?? {}),
+            entityType: input.entityType,
+            entityId: input.id,
+            riskScore,
+          } as Prisma.InputJsonValue,
+          userId: input.userId,
+          adId: null,
+        })),
+      });
+
+      if (riskScore >= env.fraud.autoFlagThreshold) {
+        logger.warn('Listing auto-flagged for fraud review', {
+          entityType: input.entityType,
+          entityId: input.id,
+          userId: input.userId,
+          riskScore,
+          signalTypes: signals.map((s) => s.type),
+        });
+      }
+    } catch (err) {
+      logger.error('Fraud scoring failed for listing — creation itself is unaffected', {
+        err,
+        entityType: input.entityType,
+        entityId: input.id,
+        userId: input.userId,
+      });
+    }
+  },
+
   getFlaggedAds: async (query: GetFlaggedAdsQuery): Promise<PaginatedResult<FlaggedAdRow>> => {
     const page = query.page || 1;
     const limit = query.limit || 20;

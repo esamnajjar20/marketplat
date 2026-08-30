@@ -1294,6 +1294,8 @@ enum ReportTargetType {
   AD
   USER
   STORE
+  PRODUCT
+  SERVICE_LISTING
 }
 
 // Fraud-detection (item 12). Each value maps to one concrete heuristic

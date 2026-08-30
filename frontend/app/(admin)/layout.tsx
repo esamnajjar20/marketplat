@@ -108,8 +108,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
-        <main id="main-content" className="flex-1 overflow-auto p-6">
-          <PageTransition>{children}</PageTransition>
+        <main id="main-content" className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-[1600px]">
+            <PageTransition>{children}</PageTransition>
+          </div>
         </main>
       </div>
     </div>

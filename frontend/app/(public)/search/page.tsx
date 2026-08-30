@@ -60,7 +60,7 @@ export default async function SearchPage({ searchParams }: Props) {
             single match. Below `lg` that's now a "تصفية" trigger that
             opens the same SearchFilters in a bottom sheet instead;
             above `lg` the sheet trigger hides itself and the always-
-            visible <aside> (now explicitly `hidden lg:block`, matching
+            visible <aside> (now explicitly `hidden md:block`, matching
             the audit's suggested fix) takes over, unchanged from before. */}
         {/* FIX P2-08 (audit item #8): sort sits next to the filters
             trigger, independent of it, on every breakpoint — not nested
@@ -76,13 +76,13 @@ export default async function SearchPage({ searchParams }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <aside className="hidden lg:col-span-1 lg:block">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <aside className="hidden md:col-span-1 md:block">
             <Suspense>
               <SearchFilters />
             </Suspense>
           </aside>
-          <main className="lg:col-span-3">
+          <main className="md:col-span-3">
             <Suspense
               fallback={
                 <div className="flex justify-center py-12">

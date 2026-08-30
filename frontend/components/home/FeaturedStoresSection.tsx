@@ -41,9 +41,9 @@ export function FeaturedStoresSection() {
 
   if (isLoading) {
     return (
-      <section className="container mx-auto space-y-4 px-4 pt-10 section-enter">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10 section-enter">
         {header}
-        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3">
+        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="w-72 shrink-0 sm:w-auto">
               <StoreCardSkeleton />
@@ -57,9 +57,9 @@ export function FeaturedStoresSection() {
   if (items.length === 0) return null;
 
   return (
-    <section className="container mx-auto space-y-4 px-4 pt-10 section-enter">
+    <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10 section-enter">
       {header}
-      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3 stagger-fade-in">
+      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 stagger-fade-in">
         {items.map((store) => (
           <div key={store.id} className="w-72 shrink-0 sm:w-auto">
             <StoreCard store={store} />

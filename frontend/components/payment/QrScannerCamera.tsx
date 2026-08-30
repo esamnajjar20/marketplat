@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Camera, CameraOff, Loader2, ImagePlus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { cn } from '@/lib/utils';
@@ -11,13 +11,30 @@ import {
   type PayParseResult,
   type CardParseResult,
 } from '@/lib/smartScanParse';
+import {
+  ocrCardTextChecked,
+  ocrCardMultiFrame,
+  ocrCardFieldsFromGuide,
+  ocrCardFieldsFromTightCrop,
+  ocrPayMultiFrame,
+  ocrPayFieldsFromGuide,
+  ocrPayFieldsFromTightCrop,
+  looksLikeOcrCard,
+  isValidPayPhone,
+} from '@/lib/ocrCardScan';
 
 interface Props {
-  onScan: (text: string) => void;
+  onScan: (text: string, verified?: boolean, fieldDiff?: string | null) => void;
   /** عند نجاح تحليل ذكي للدفع */
-  onPayParsed?: (result: PayParseResult) => void;
+  // verified: هل اتفقت تمريرتا OCR على نفس النص؟ لازم يوصل للمستهلك صراحة
+  // (لا يُشتق من state منفصل بالمكوّن الأب) لأن onScan وonPayParsed/
+  // onCardParsed يُستدعيان بنفس اللحظة المتزامنة من emitDecoded — استنتاج
+  // verified من state محدَّث بـonScan داخل onCardParsed كان بيقرأ قيمة
+  // قديمة (stale closure) لأن تحديث الـstate ما ينعكس إلا بعد إعادة render
+  // لاحقة، فيوصل toast الثقة بدون علمه بعدم التحقق رغم إنه استُدعي بعده مباشرة.
+  onPayParsed?: (result: PayParseResult, verified: boolean) => void;
   /** عند نجاح تحليل ذكي للبطاقة */
-  onCardParsed?: (result: CardParseResult) => void;
+  onCardParsed?: (result: CardParseResult, verified: boolean) => void;
   /** تفضيل نوع التحليل */
   prefer?: 'pay' | 'card' | 'auto';
   className?: string;
@@ -64,6 +81,7 @@ export function QrScannerCamera({
   stopOnScan = true,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const guideRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef(0);
   const lastScanRef = useRef('');
@@ -73,6 +91,46 @@ export function QrScannerCamera({
   const [starting, setStarting] = useState(false);
   const [hint, setHint] = useState('وجّه الكاميرا نحو الرمز');
   const [scannedOnce, setScannedOnce] = useState(false);
+  const [ocrUnverified, setOcrUnverified] = useState(false);
+  const [ocrFieldDiff, setOcrFieldDiff] = useState<string | null>(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [showOcrOption, setShowOcrOption] = useState(false);
+  const noMatchFramesRef = useRef(0);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // --- قص يدوي لصورة مرفوعة من المعرض قبل OCR -----------------------------
+  // القصّة الحيّة (captureGuideCropToCanvas) بتحسب موقع القص من guideRef/
+  // videoRef، وهذول مش موجودين لصورة ثابتة مرفوعة. فهنا حل مواز: نعرض
+  // الصورة المرفوعة كاملة مع صندوق قص قابل للسحب/التحجيم، والمستخدم يحدد
+  // منطقة النص فعليًا بنفسه، وبعدها نقصّ فقط تلك المنطقة (بإحداثيات بكسل
+  // حقيقية على الصورة الأصلية) ونمررها لـOCR.
+  const cropContainerRef = useRef<HTMLDivElement | null>(null);
+  const cropCanvasSourceRef = useRef<HTMLCanvasElement | null>(null);
+  const [cropUrl, setCropUrl] = useState<string | null>(null);
+  const [showCropUI, setShowCropUI] = useState(false);
+  const [cropBusy, setCropBusy] = useState(false);
+  const [cropRect, setCropRect] = useState({ x: 0.1, y: 0.35, w: 0.8, h: 0.3 });
+  type DragMode = 'move' | 'nw' | 'ne' | 'sw' | 'se';
+  const dragStateRef = useRef<{
+    mode: DragMode;
+    startX: number;
+    startY: number;
+    startRect: { x: number; y: number; w: number; h: number };
+  } | null>(null);
+
+  // OCR كخطة بديلة متاحة لكل الأوضاع: بطاقات النت (لا QR على البطاقة أصلًا)
+  // وبيانات الدفع (لا QR على إيصال/ورقة الدفع) على حد سواء — كلاهما نفس
+  // المشكلة الهندسية: رمز غير موجود لا يمكن فكّه مهما تحسّنت الصورة.
+  const allowOcr = true;
+  const preferPay = prefer === 'pay';
+  const surfaceLabel = preferPay ? 'الورقة/الإيصال' : 'البطاقة';
+  // بطاقات النت وأوراق الدفع مستطيلة عريضة (نص مطبوع بعرض البطاقة)، لا مربّعة
+  // كرموز QR. إطار الدليل المربّع (مناسب لـQR) كان بيخلي المستخدم يوسّع
+  // الصورة كلها بدل التركيز على شريط النص فعليًا — وهو جزء من سبب ضعف قراءة
+  // OCR: كنا نُشغّل القراءة على الكادر كاملًا (يد + خلفية + شعار) بدل منطقة
+  // النص فقط. بأوضاع card/pay (حيث OCR هو الاحتمال المتوقع من البداية)
+  // نعرض إطار دليل عريض ونقصّ الالتقاط عليه فعليًا قبل تمريره لـOCR.
+  const useWideGuide = prefer === 'card' || prefer === 'pay';
 
   const stop = useCallback(() => {
     if (rafRef.current) {
@@ -83,6 +141,8 @@ export function QrScannerCamera({
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setActive(false);
+    setShowOcrOption(false);
+    noMatchFramesRef.current = 0;
   }, []);
 
   useEffect(() => () => stop(), [stop]);
@@ -100,23 +160,53 @@ export function QrScannerCamera({
   }, []);
 
   const emitDecoded = useCallback(
-    (text: string) => {
+    (text: string, verified: boolean = true, alt?: string) => {
       const t = text.trim();
       if (!t || t === lastScanRef.current) return;
       lastScanRef.current = t;
       setScannedOnce(true);
-      setHint('تم القراءة — جاري التحليل الذكي…');
-
-      onScan(t);
+      setOcrUnverified(!verified);
 
       const asCard =
         prefer === 'card' || (prefer === 'auto' && looksLikeCard(t));
+
+      // عند اختلاف تمريرتَي OCR: بدل تحذير عام "راجع كل شي"، نقارن الحقول
+      // المُستخرجة من كل تمريرة على حدة ونحدد بالضبط أيّ حقل اختلف — اختبار
+      // فعلي أظهر أن كل تمريرة ممكن تصيب حقلًا وتخطئ بآخر (مثال حقيقي: تمريرة
+      // أعطت اسم مستخدم صحيحًا 100% وكلمة سر ناقصة، والثانية عكس ذلك تمامًا)،
+      // فتحديد الحقل المختلف تحديدًا أفيد من "راجع كل البيانات".
+      let fieldDiff: string | null = null;
+      if (!verified && alt) {
+        if (asCard) {
+          const pA = smartParseCard(t);
+          const pB = smartParseCard(alt);
+          const diffs: string[] = [];
+          if (pA.username !== pB.username) diffs.push(`اسم المستخدم: ${pA.username || '—'} أو ${pB.username || '—'}`);
+          if (pA.password !== pB.password) diffs.push(`كلمة السر: ${pA.password || '—'} أو ${pB.password || '—'}`);
+          fieldDiff = diffs.length ? diffs.join(' — ') : null;
+        } else {
+          const pA = smartParsePay(t);
+          const pB = smartParsePay(alt);
+          const diffs: string[] = [];
+          if (pA.name !== pB.name) diffs.push(`الاسم: ${pA.name || '—'} أو ${pB.name || '—'}`);
+          if (pA.number !== pB.number) diffs.push(`الرقم: ${pA.number || '—'} أو ${pB.number || '—'}`);
+          fieldDiff = diffs.length ? diffs.join(' — ') : null;
+        }
+      }
+      setOcrFieldDiff(fieldDiff);
+
+      setHint(
+        verified
+          ? 'تم القراءة — جاري التحليل الذكي…'
+          : 'تم القراءة لكن بتيقّن أقل — راجع البيانات مع الأصل',
+      );
+
+      onScan(t, verified, fieldDiff);
+
       if (asCard && onCardParsed) {
-        onCardParsed(smartParseCard(t));
+        onCardParsed(smartParseCard(t), verified);
       } else if (onPayParsed) {
-        onPayParsed(smartParsePay(t));
-      } else if (onCardParsed && asCard) {
-        onCardParsed(smartParseCard(t));
+        onPayParsed(smartParsePay(t), verified);
       }
 
       if (stopOnScan) stop();
@@ -157,10 +247,204 @@ export function QrScannerCamera({
     return null;
   }
 
+  /**
+   * قراءة نصية (OCR) عندما لا يوجد رمز QR/باركود على البطاقة أصلاً — حالة
+   * بطاقات النت المطبوعة نصًا فقط (اسم مستخدم / كلمة سر بلا أي رمز).
+   *
+   * يرجع سبب الفشل بوضوح (مكتبة/شبكة، أو صورة غير واضحة) بدل رسالة عامة —
+   * ضروري لتشخيص المشكلة الفعلية على اتصال ضعيف بدل التخمين.
+   */
+  type OcrOutcome =
+    | { ok: true }
+    | { ok: false; reason: 'unavailable'; message: string }
+    | { ok: false; reason: 'no-match' };
+
+  async function runOcr(canvas: HTMLCanvasElement, manualCrop = false): Promise<OcrOutcome> {
+    setOcrBusy(true);
+    setHint(
+      preferPay
+        ? 'لا يوجد رمز — جاري قراءة الاسم والرقم من الصورة…'
+        : 'جاري قراءة البطاقة (عدة إطارات + مناطق الحقول)…',
+    );
+    try {
+      // مسار القص اليدوي (رفع صورة + المستخدم حدّد صندوق القص بنفسه): صورة
+      // ثابتة واحدة بالفعل، لا فيديو حي ولا "إطارات" حقيقية متعددة — واستدعاء
+      // نفس مسار الدليل الحي هنا كان يعيد تقسيمها بنسب بطاقة كاملة (شعار/
+      // مستخدم/سر) رغم إنها مستطيل تعسفي حدده المستخدم بنفسه، ما يقطّع
+      // الأرقام أو يلتقط سطرًا غلط بالكامل — راجع التوثيق أعلى
+      // ocrCardFieldsFromTightCrop بمكتبة OCR لتفاصيل الدليل الفعلي على هذا.
+      if (manualCrop) {
+        if (preferPay) {
+          const once = await ocrPayFieldsFromTightCrop(canvas);
+          if (!once.name && !once.phone) return { ok: false, reason: 'no-match' };
+          emitDecoded(`${once.name}\n${once.phone}`.trim(), once.verified);
+          return { ok: true };
+        }
+        const once = await ocrCardFieldsFromTightCrop(canvas);
+        if (!once.username && !once.password) return { ok: false, reason: 'no-match' };
+        emitDecoded(`${once.username}\n${once.password}`.trim(), once.verified);
+        return { ok: true };
+      }
+
+      if (preferPay) {
+        const fields = await ocrPayMultiFrame(
+          () => captureGuideCropToCanvas() ?? canvas,
+          3,
+          100,
+        );
+        let name = fields.name;
+        let phone = fields.phone;
+        let verified = fields.verified;
+        if (!name && !isValidPayPhone(phone)) {
+          const once = await ocrPayFieldsFromGuide(canvas);
+          name = once.name;
+          phone = once.phone;
+          verified = once.verified;
+        }
+        if (!name && !phone) {
+          // fallback عام
+          const { text, verified: v2, alt } = await ocrCardTextChecked(canvas, {
+            whitelist: null,
+          });
+          if (text && looksLikeOcrCard(text)) {
+            emitDecoded(text, v2, alt);
+            return { ok: true };
+          }
+          return { ok: false, reason: 'no-match' };
+        }
+        const text = `${name}\n${phone}`.trim();
+        emitDecoded(text, verified || isValidPayPhone(phone));
+        return { ok: true };
+      }
+
+      // بطاقات نت — أرقام فقط: multi-frame + ROI + multi-prep
+      const fields = await ocrCardMultiFrame(
+        () => captureGuideCropToCanvas() ?? canvas,
+        3,
+        100,
+      );
+      // إن فشل التوافق، محاولة أخيرة على الـ canvas الممرّر
+      let username = fields.username;
+      let password = fields.password;
+      let verified = fields.verified;
+      if (!username && !password) {
+        const once = await ocrCardFieldsFromGuide(canvas);
+        username = once.username;
+        password = once.password;
+        verified = once.verified;
+      }
+      if (!username && !password) {
+        return { ok: false, reason: 'no-match' };
+      }
+      const text = `${username}\n${password}`.trim();
+      if (looksLikeOcrCard(text) || username || password) {
+        emitDecoded(text, verified);
+        return { ok: true };
+      }
+      return { ok: false, reason: 'no-match' };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'تعذّر تشغيل قارئ النص';
+      return { ok: false, reason: 'unavailable', message };
+    } finally {
+      setOcrBusy(false);
+    }
+  }
+
+  function applyOcrFailure(outcome: Extract<OcrOutcome, { ok: false }>) {
+    if (outcome.reason === 'unavailable') {
+      // فشل حقيقي بتشغيل المكتبة (تحميل/شبكة) — نعرضه صراحة، ما نخفيه
+      setError(`تعذّر تشغيل قارئ النص (OCR): ${outcome.message}`);
+      setHint('تعذّر تشغيل قارئ النص — تحقق من الاتصال أو أدخل البيانات يدويًا');
+    } else {
+      setError(
+        `لم أستطع قراءة بيانات واضحة من الصورة. قرّب الكاميرا أكثر من ${surfaceLabel} وتأكد من الإضاءة، أو أدخل البيانات يدويًا.`,
+      );
+      setHint('حاول تقريب الصورة أو الإدخال اليدوي');
+    }
+  }
+
+  function captureFrameToCanvas(): HTMLCanvasElement | null {
+    const v = videoRef.current;
+    if (!v || v.readyState < 2) return null;
+    const canvas = canvasRef.current ?? document.createElement('canvas');
+    canvasRef.current = canvas;
+    canvas.width = v.videoWidth || 640;
+    canvas.height = v.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+
+  /**
+   * قص الكادر إلى منطقة إطار الدليل المعروض فقط (بدل الكادر كامل) قبل
+   * تمريره لـOCR.
+   *
+   * لماذا هذا ضروري: اختبار فعلي على صورة بطاقة حقيقية أظهر أن تشغيل OCR
+   * على الكادر الكامل (يد + خلفية + شعار + أيقونات) يفشل شبه كليًا مهما
+   * حسّنّا العتبة أو وضع التقسيم — بينما نفس المحرك بالضبط ينجح جزئيًا لمّا
+   * يُعطى صورة مقصوصة على شريط النص فقط. الفرق الحاسم مش جودة الصورة، هو
+   * كمية المحتوى غير النصي يلي بيربك محرك التعرّف على الأنماط.
+   *
+   * الحساب: <video> مرسوم بـobject-cover (يملأ صندوقه ويقص الزائد وسطيًا)،
+   * فموضع/حجم إطار الدليل بوحدات CSS ما يتحول لبكسلات الفيديو الأصلية
+   * بضرب مباشر — لازم نحسب مقياس object-cover الفعلي أولاً.
+   */
+  function captureGuideCropToCanvas(): HTMLCanvasElement | null {
+    const v = videoRef.current;
+    const guide = guideRef.current;
+    if (!v || !guide || v.readyState < 2) return captureFrameToCanvas();
+
+    const nativeW = v.videoWidth || 640;
+    const nativeH = v.videoHeight || 480;
+    const vRect = v.getBoundingClientRect();
+    const gRect = guide.getBoundingClientRect();
+    if (vRect.width <= 0 || vRect.height <= 0) return captureFrameToCanvas();
+
+    // مقياس object-cover: أكبر مقياس يخلي الفيديو يغطي صندوقه بالكامل
+    const scale = Math.max(vRect.width / nativeW, vRect.height / nativeH);
+    const renderedW = nativeW * scale;
+    const renderedH = nativeH * scale;
+    // الجزء المقصوص وسطيًا من كل جهة بسبب الفائض عن صندوق العرض
+    const offsetX = (renderedW - vRect.width) / 2;
+    const offsetY = (renderedH - vRect.height) / 2;
+
+    const guideLeftInContainer = gRect.left - vRect.left;
+    const guideTopInContainer = gRect.top - vRect.top;
+
+    const sx = Math.round((guideLeftInContainer + offsetX) / scale);
+    const sy = Math.round((guideTopInContainer + offsetY) / scale);
+    const sw = Math.round(gRect.width / scale);
+    const sh = Math.round(gRect.height / scale);
+
+    // حماية من تجاوز حدود الفيديو (تقريب/تخطيط حافة)
+    const clampedX = Math.max(0, Math.min(sx, nativeW - 1));
+    const clampedY = Math.max(0, Math.min(sy, nativeH - 1));
+    const clampedW = Math.max(1, Math.min(sw, nativeW - clampedX));
+    const clampedH = Math.max(1, Math.min(sh, nativeH - clampedY));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = clampedW;
+    canvas.height = clampedH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return captureFrameToCanvas();
+    ctx.drawImage(v, clampedX, clampedY, clampedW, clampedH, 0, 0, clampedW, clampedH);
+    return canvas;
+  }
+
+  async function onManualOcr() {
+    const canvas = captureGuideCropToCanvas();
+    if (!canvas) return;
+    const outcome = await runOcr(canvas);
+    if (!outcome.ok) applyOcrFailure(outcome);
+  }
+
   async function start() {
     setError(null);
     setStarting(true);
     setScannedOnce(false);
+    setOcrUnverified(false);
+    setOcrFieldDiff(null);
     lastScanRef.current = '';
     setHint('جاري تشغيل الكاميرا…');
     try {
@@ -182,7 +466,21 @@ export function QrScannerCamera({
       await video.play();
       setActive(true);
       setStarting(false);
-      setHint('ثبّت الرمز داخل الإطار');
+      // بطاقات النت وإيصالات الدفع (prefer !== 'auto') لا تحمل رمز QR أصلًا
+      // (نفس الافتراض المُثبت أعلاه بـallowOcr/useWideGuide) — فبحث QR لمدة
+      // 45 إطارًا قبل عرض زر "قراءة النص" كان مجرد تأخير بلا فائدة بهذين
+      // الوضعين تحديدًا. لوضع 'auto' فقط (حيث لا نعرف مسبقًا نوع المصدر)
+      // يبقى البحث عن QR أول محاولة منطقية.
+      const skipQrSearch = prefer !== 'auto';
+      setHint(
+        skipQrSearch
+          ? `لا يوجد رمز QR على ${surfaceLabel} — اضغط "قراءة النص" أدناه`
+          : useWideGuide
+            ? `ضع ${surfaceLabel} داخل الإطار`
+            : 'ثبّت الرمز داخل الإطار',
+      );
+      setShowOcrOption(skipQrSearch && allowOcr);
+      noMatchFramesRef.current = 0;
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -191,7 +489,7 @@ export function QrScannerCamera({
       const tick = async () => {
         if (!streamRef.current || !videoRef.current || !ctx) return;
         const v = videoRef.current;
-        if (v.readyState >= 2) {
+        if (v.readyState >= 2 && !skipQrSearch) {
           const w = v.videoWidth || 640;
           const h = v.videoHeight || 480;
           canvas.width = w;
@@ -206,8 +504,19 @@ export function QrScannerCamera({
               emitDecoded(decoded);
               return;
             }
+            // لا يوجد رمز QR/باركود في الصورة — بعد محاولات كافية، هذا مؤشر
+            // أن البطاقة أصلاً لا تحمل رمزًا (بطاقات نت مطبوعة نصًا فقط)،
+            // فنعرض خيار قراءة النص بدل الاستمرار بالبحث عن رمز غير موجود.
+            noMatchFramesRef.current += 1;
+            if (allowOcr && noMatchFramesRef.current === 45) {
+              setShowOcrOption(true);
+              setHint(`لا يوجد رمز QR على ${surfaceLabel}؟ اضغط "قراءة النص" أدناه`);
+            }
           }
         }
+        // skipQrSearch: نستمر بحلقة requestAnimationFrame فقط لإبقاء إمكانية
+        // الإيقاف/التنظيف طبيعية — بلا أي محاولة فك تشفير طالما الزر معروض
+        // من البداية والمستخدم يضغطه يدويًا (onManualOcr) وقت ما يجهز.
         rafRef.current = requestAnimationFrame(() => {
           void tick();
         });
@@ -229,12 +538,142 @@ export function QrScannerCamera({
     }
   }
 
+  function clamp01(n: number) {
+    return Math.max(0, Math.min(1, n));
+  }
+
+  /** يقصّ المصدر الكامل (بإحداثيات نسبية 0..1) إلى كانفاس جديد بحجم بكسل حقيقي. */
+  function cropSourceToCanvas(
+    source: HTMLCanvasElement,
+    rect: { x: number; y: number; w: number; h: number },
+  ): HTMLCanvasElement | null {
+    const sx = Math.round(rect.x * source.width);
+    const sy = Math.round(rect.y * source.height);
+    const sw = Math.max(1, Math.round(rect.w * source.width));
+    const sh = Math.max(1, Math.round(rect.h * source.height));
+    const out = document.createElement('canvas');
+    out.width = sw;
+    out.height = sh;
+    const ctx = out.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+    return out;
+  }
+
+  function pointerToNormalized(e: ReactPointerEvent) {
+    const el = cropContainerRef.current;
+    if (!el) return { x: 0, y: 0 };
+    const r = el.getBoundingClientRect();
+    return {
+      x: clamp01((e.clientX - r.left) / r.width),
+      y: clamp01((e.clientY - r.top) / r.height),
+    };
+  }
+
+  function onCropPointerDown(mode: DragMode, e: ReactPointerEvent) {
+    e.preventDefault();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    const p = pointerToNormalized(e);
+    dragStateRef.current = { mode, startX: p.x, startY: p.y, startRect: cropRect };
+  }
+
+  function onCropPointerMove(e: ReactPointerEvent) {
+    const drag = dragStateRef.current;
+    if (!drag) return;
+    const p = pointerToNormalized(e);
+    const dx = p.x - drag.startX;
+    const dy = p.y - drag.startY;
+    const s = drag.startRect;
+    const minSize = 0.08;
+
+    if (drag.mode === 'move') {
+      const x = Math.max(0, Math.min(1 - s.w, s.x + dx));
+      const y = Math.max(0, Math.min(1 - s.h, s.y + dy));
+      setCropRect({ ...s, x, y });
+      return;
+    }
+
+    let left = s.x;
+    let top = s.y;
+    let right = s.x + s.w;
+    let bottom = s.y + s.h;
+    if (drag.mode === 'nw') {
+      left = clamp01(s.x + dx);
+      top = clamp01(s.y + dy);
+    } else if (drag.mode === 'ne') {
+      right = clamp01(s.x + s.w + dx);
+      top = clamp01(s.y + dy);
+    } else if (drag.mode === 'sw') {
+      left = clamp01(s.x + dx);
+      bottom = clamp01(s.y + s.h + dy);
+    } else if (drag.mode === 'se') {
+      right = clamp01(s.x + s.w + dx);
+      bottom = clamp01(s.y + s.h + dy);
+    }
+    if (right - left < minSize) {
+      if (drag.mode === 'nw' || drag.mode === 'sw') left = right - minSize;
+      else right = left + minSize;
+    }
+    if (bottom - top < minSize) {
+      if (drag.mode === 'nw' || drag.mode === 'ne') top = bottom - minSize;
+      else bottom = top + minSize;
+    }
+    setCropRect({ x: left, y: top, w: right - left, h: bottom - top });
+  }
+
+  function onCropPointerUp() {
+    dragStateRef.current = null;
+  }
+
+  function cancelCrop() {
+    setShowCropUI(false);
+    setCropUrl(null);
+    cropCanvasSourceRef.current = null;
+    setError(null);
+    setHint('اختر صورة أخرى أو افتح الكاميرا');
+  }
+
+  async function confirmCrop() {
+    const source = cropCanvasSourceRef.current;
+    if (!source) return;
+    setCropBusy(true);
+    try {
+      const cropped = cropSourceToCanvas(source, cropRect);
+      if (!cropped) {
+        setError('تعذّر قص الصورة');
+        return;
+      }
+      setHint('جاري قراءة النص من المنطقة المحددة…');
+      const outcome = await runOcr(cropped, true);
+      if (outcome.ok) {
+        setShowCropUI(false);
+        setCropUrl(null);
+        cropCanvasSourceRef.current = null;
+        return;
+      }
+      // فشل القراءة على المنطقة المحددة — نُبقي واجهة القص مفتوحة ليعدّل
+      // المستخدم حدود الصندوق بدل رميه للخارج ومطالبته يرفع الصورة من جديد.
+      applyOcrFailure(outcome);
+    } finally {
+      setCropBusy(false);
+    }
+  }
+
   async function onFile(file: File | null) {
     if (!file) return;
     setError(null);
     setHint('جاري قراءة الصورة…');
     try {
-      const bmp = await createImageBitmap(file);
+      // FIX EXIF-01: صور كاميرا الهاتف غالبًا تُخزَّن بالبيانات الخام على
+      // جنبها (landscape) مع علم EXIF Orientation يوجّه المتصفح "دوّرها
+      // كذا لما تُعرض" — هيك يظهرها معرض الصور والمتصفح صح تلقائيًا. لكن
+      // createImageBitmap بدون تحديد صريح لسلوك الاتجاه يعتمد على افتراضي
+      // المتصفح، وهو غير موحّد عبر متصفحات أندرويد (خصوصًا الأقدم) — بعضها
+      // يتجاهل EXIF فعليًا، فتصير الصورة المُعالجة مقلوبة 90° رغم ظهورها
+      // صحيحة بمعاينة الرفع، ويفشل أي مسح/OCR بغض النظر عن وضوح الصورة.
+      // 'from-image' يجبر تطبيق الدوران دايمًا، بدل الاعتماد على افتراضي
+      // قد يختلف حسب الجهاز.
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
       const canvas = document.createElement('canvas');
       canvas.width = bmp.width;
       canvas.height = bmp.height;
@@ -242,17 +681,34 @@ export function QrScannerCamera({
       if (!ctx) throw new Error('Canvas');
       ctx.drawImage(bmp, 0, 0);
 
+      // أولًا: حاول قراءة QR/باركود على الصورة الكاملة. رمز الـQR صغير
+      // ودقيق ومحرك الكشف مصمم يلقاه بأي موقع بالصورة — قصّه يدويًا ممكن
+      // يضرّه لو المستخدم حدد المنطقة غلط، فما داعي لخطوة القص هون أصلًا.
       const decoded = await decodeCanvas(ctx, canvas.width, canvas.height);
       if (decoded) {
         emitDecoded(decoded);
         return;
       }
 
-      // محاولة OCR خفيفة عبر قراءة نص بديلة غير متوفرة — نطلب صورة أوضح
-      setError(
-        'لم يُعثر على QR في الصورة. استخدم رمزًا أوضح أو تأكد من الإضاءة.',
-      );
-      setHint('حاول صورة أوضح');
+      if (!allowOcr) {
+        setError(`لم أجد رمز QR في الصورة. أدخل البيانات يدويًا.`);
+        setHint('حاول صورة أوضح أو الإدخال اليدوي');
+        return;
+      }
+
+      // لا يوجد QR — متوقع لبطاقات النت/إيصالات الدفع المطبوعة نصًا فقط.
+      // هون بالضبط كانت الفجوة: تشغيل OCR على الصورة الكاملة (يد + خلفية +
+      // شعار) يفشل شبه كليًا رغم إن نفس المحرك ينجح جزئيًا على قصّة تركّز
+      // على شريط النص فقط — نفس المبدأ يلي بيطبقه captureGuideCropToCanvas
+      // على الكاميرا الحية، لكن هون ما في فيديو/إطار دليل حي نحسب منه.
+      // فبدل التخمين، نعرض الصورة المرفوعة كاملة مع صندوق قص يحدده
+      // المستخدم بنفسه، ونمرر المنطقة المقصوصة فقط لـOCR.
+      cropCanvasSourceRef.current = canvas;
+      setCropRect({ x: 0.1, y: 0.35, w: 0.8, h: 0.3 });
+      setCropUrl(canvas.toDataURL('image/jpeg', 0.92));
+      setShowCropUI(true);
+      setError(null);
+      setHint(`لا يوجد رمز QR على ${surfaceLabel} — حدّد منطقة النص ثم اضغط "قص وقراءة"`);
     } catch {
       setError('تعذّر قراءة الملف');
     }
@@ -265,39 +721,132 @@ export function QrScannerCamera({
         <span>مسح ذكي — QR + تحليل الاسم والرقم تلقائيًا</span>
       </div>
 
-      <div className="relative aspect-[3/4] max-h-[360px] overflow-hidden rounded-xl border bg-black">
-        <video
-          ref={videoRef}
-          className={cn('h-full w-full object-cover', !active && 'opacity-0')}
-          playsInline
-          muted
-          autoPlay
-        />
-        {!active && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/90 p-4 text-center">
-            <Camera className="h-10 w-10 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">{hint}</p>
-          </div>
-        )}
-        {active && (
-          <>
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-48 w-48 animate-pulse rounded-2xl border-2 border-emerald-400/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+      {showCropUI && cropUrl ? (
+        <div className="space-y-2">
+          <p className="text-center text-xs font-medium text-primary">
+            حدّد منطقة النص/الأرقام على {surfaceLabel} — اسحب الصندوق أو زواياه
+          </p>
+          <div
+            ref={cropContainerRef}
+            className="relative aspect-[3/4] max-h-[360px] w-full touch-none select-none overflow-hidden rounded-xl border bg-black"
+            onPointerMove={onCropPointerMove}
+            onPointerUp={onCropPointerUp}
+            onPointerCancel={onCropPointerUp}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={cropUrl}
+              alt="الصورة المرفوعة"
+              className="absolute inset-0 h-full w-full object-contain"
+              draggable={false}
+            />
+            {/* قناع معتم حول منطقة القص — أربع مستطيلات بدل clip-path لتفادي تعقيد الثقب */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 bg-black/55" style={{ height: `${cropRect.y * 100}%` }} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/55" style={{ height: `${(1 - cropRect.y - cropRect.h) * 100}%` }} />
+            <div className="pointer-events-none absolute left-0 bg-black/55" style={{ top: `${cropRect.y * 100}%`, width: `${cropRect.x * 100}%`, height: `${cropRect.h * 100}%` }} />
+            <div className="pointer-events-none absolute right-0 bg-black/55" style={{ top: `${cropRect.y * 100}%`, width: `${(1 - cropRect.x - cropRect.w) * 100}%`, height: `${cropRect.h * 100}%` }} />
+
+            <div
+              className="absolute cursor-move border-2 border-emerald-400"
+              style={{
+                left: `${cropRect.x * 100}%`,
+                top: `${cropRect.y * 100}%`,
+                width: `${cropRect.w * 100}%`,
+                height: `${cropRect.h * 100}%`,
+              }}
+              onPointerDown={(e) => onCropPointerDown('move', e)}
+            >
+              {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
+                <div
+                  key={corner}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onCropPointerDown(corner, e);
+                  }}
+                  className={cn(
+                    'absolute h-6 w-6 rounded-full border-2 border-emerald-400 bg-white shadow',
+                    corner === 'nw' && '-left-3 -top-3 cursor-nwse-resize',
+                    corner === 'ne' && '-right-3 -top-3 cursor-nesw-resize',
+                    corner === 'sw' && '-left-3 -bottom-3 cursor-nesw-resize',
+                    corner === 'se' && '-right-3 -bottom-3 cursor-nwse-resize',
+                  )}
+                />
+              ))}
             </div>
-            <p className="absolute inset-x-0 bottom-2 text-center text-xs text-white drop-shadow">
-              {hint}
-            </p>
-          </>
-        )}
-      </div>
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={cancelCrop} disabled={cropBusy}>
+              إلغاء
+            </Button>
+            <Button type="button" className="flex-1 gap-2" onClick={() => void confirmCrop()} disabled={cropBusy}>
+              {cropBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {cropBusy ? 'جاري القراءة…' : 'قص وقراءة'}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="relative aspect-[3/4] max-h-[360px] overflow-hidden rounded-xl border bg-black">
+          <video
+            ref={videoRef}
+            className={cn('h-full w-full object-cover', !active && 'opacity-0')}
+            playsInline
+            muted
+            autoPlay
+          />
+          {!active && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/90 p-4 text-center">
+              <Camera className="h-10 w-10 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">{hint}</p>
+            </div>
+          )}
+          {active && (
+            <>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div
+                  ref={guideRef}
+                  className={cn(
+                    'animate-pulse rounded-2xl border-2 border-emerald-400/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]',
+                    useWideGuide ? 'h-28 w-[85%]' : 'h-48 w-48',
+                  )}
+                />
+              </div>
+              <p className="absolute inset-x-0 bottom-2 text-center text-xs text-white drop-shadow">
+                {hint}
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
       {error && <p className="text-center text-xs text-destructive">{error}</p>}
-      {scannedOnce && (
+      {scannedOnce && !ocrUnverified && (
         <p className="text-center text-xs font-medium text-emerald-600">
           تم المسح والتحليل الذكي
         </p>
       )}
+      {scannedOnce && ocrUnverified && (
+        <p className="text-center text-xs font-medium text-amber-600">
+          {ocrFieldDiff
+            ? `⚠️ اختلفت القراءتان بهذا الحقل تحديدًا — تحقق من البطاقة: ${ocrFieldDiff}`
+            : `⚠️ القراءة غير مؤكدة (اختلفت بين محاولتين) — قارن الأرقام يدويًا مع ${surfaceLabel} قبل الحفظ`}
+        </p>
+      )}
 
+      {active && showOcrOption && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => void onManualOcr()}
+          disabled={ocrBusy}
+        >
+          {ocrBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {ocrBusy ? 'جاري قراءة النص…' : `لا يوجد رمز على ${surfaceLabel} — قراءة النص`}
+        </Button>
+      )}
+
+      {!showCropUI && (
       <div className="flex flex-wrap gap-2">
         {!active ? (
           <Button
@@ -331,6 +880,7 @@ export function QrScannerCamera({
           />
         </label>
       </div>
+      )}
     </div>
   );
 }

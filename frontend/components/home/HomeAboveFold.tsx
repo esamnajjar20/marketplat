@@ -111,7 +111,7 @@ export function HomeAboveFold() {
   if (stillLoading) {
     return (
       <>
-        <section className="container mx-auto space-y-4 px-4 pt-6 sm:pt-10">
+        <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-10">
           <SectionHeader eyebrow="تصفح حسب الفئة" title="ماذا تبحث عنه؟" />
           <div className="flex gap-2 overflow-x-auto sm:hidden">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -126,21 +126,21 @@ export function HomeAboveFold() {
         </section>
 
         <section className="mt-6 sm:mt-10 border-y bg-accent/[0.06] py-6 sm:py-10">
-          <div className="container mx-auto space-y-4 px-4">
+          <div className="container mx-auto max-w-7xl space-y-4 px-4">
             <SectionHeader
               eyebrow="مميز"
               title="إعلانات مميزة"
               icon={<Sparkles className="h-3.5 w-3.5 text-accent" />}
             />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={i} />)}
             </div>
           </div>
         </section>
 
-        <section className="container mx-auto space-y-4 px-4 pt-6 sm:pt-10">
+        <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-10">
           {latestAdsHeadingLoading}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 stagger-fade-in">
             {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
           </div>
         </section>
@@ -150,13 +150,13 @@ export function HomeAboveFold() {
 
   return (
     <>
-      <section className="container mx-auto space-y-4 px-4 pt-10">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10">
         <SectionHeader eyebrow="تصفح حسب الفئة" title="ماذا تبحث عنه؟" />
         <CategoryGrid />
       </section>
 
       <section className="mt-6 sm:mt-10 border-y bg-accent/[0.06] py-6 sm:py-10">
-        <div className="container mx-auto space-y-4 px-4">
+        <div className="container mx-auto max-w-7xl space-y-4 px-4">
           <SectionHeader
             eyebrow="مميز"
             title="إعلانات مميزة"
@@ -166,7 +166,7 @@ export function HomeAboveFold() {
         </div>
       </section>
 
-      <section className="container mx-auto space-y-4 px-4 pt-10">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10">
         {latestAdsHeadingLoaded}
         {showLocateCta && (
           <div className="-mt-2">

@@ -136,7 +136,7 @@ function CategoryGridContent({ categories }: { categories: NonNullable<ReturnTyp
           <Link
             key={cat.id}
             href={ROUTES.category(cat.slug)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap ${PILL_COLOR_ROTATION[i % PILL_COLOR_ROTATION.length]}`}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-opacity hover:opacity-90 ${PILL_COLOR_ROTATION[i % PILL_COLOR_ROTATION.length]}`}
           >
             {cat.nameAr}
           </Link>
@@ -145,14 +145,14 @@ function CategoryGridContent({ categories }: { categories: NonNullable<ReturnTyp
 
       {/* Desktop/tablet: icon-card grid, expandable past the initial 8. */}
       <div className="hidden sm:block">
-        <div className="grid grid-cols-3 gap-3 md:grid-cols-4 stagger-fade-in">
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-4 xl:grid-cols-6 stagger-fade-in">
           {visible.map((cat) => {
             const Icon = iconFor(cat.slug, cat.nameAr);
             return (
               <Link
                 key={cat.id}
                 href={ROUTES.category(cat.slug)}
-                className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
+                className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.04] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   <Icon className="h-5 w-5" />

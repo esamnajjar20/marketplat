@@ -14,7 +14,7 @@
  * بقائهم على نسخة قديمة من التطبيق (bug شائع في PWAs المبنية بسرعة).
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -26,7 +26,20 @@ const CURRENT_CACHES = [STATIC_CACHE, IMAGE_CACHE, API_CACHE];
 // أصول App Shell الأساسية — تُخزّن مسبقًا عند التثبيت.
 // لا نضيف مسارات صفحات ديناميكية هنا (Next.js يولّد أسماء ملفات مع hash
 // تتغير مع كل بناء)؛ الصفحات نفسها تُخزَّن تدريجيًا بمجرد زيارتها.
-const PRECACHE_URLS = [OFFLINE_URL, '/manifest.webmanifest', '/downloads', '/saved-payments'];
+//
+// ملفات OCR: precache حتى يعمل مسح البطاقات/الدفع بدون إنترنت
+// بعد أول زيارة أو تثبيت PWA.
+const PRECACHE_URLS = [
+  OFFLINE_URL,
+  '/manifest.webmanifest',
+  '/downloads',
+  '/saved-payments',
+  '/tesseract/worker.min.js',
+  '/tesseract/tesseract-core-simd-lstm.wasm.js',
+  '/tesseract/tesseract-core-simd-lstm.wasm',
+  '/tessdata/eng.traineddata.gz',
+  '/tessdata/ara.traineddata.gz',
+];
 
 // نقاط API التي لا يجب تخزينها مؤقتًا أبدًا (بيانات جلسة/مصادقة حساسة).
 const NEVER_CACHE_PATTERNS = [/\/auth\//, /\/csrf/];

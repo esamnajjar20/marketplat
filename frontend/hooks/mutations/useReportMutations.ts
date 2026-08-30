@@ -50,3 +50,27 @@ export function useReportStore(storeId: string) {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+// إبلاغ عن منتج
+export function useReportProduct(productId: string) {
+  return useMutation({
+    mutationFn: (payload: CreateReportPayload) =>
+      reportsApi.reportProduct(productId, payload).then((r) => r.data.data),
+    onSuccess: () => {
+      toast.success('تم إرسال بلاغك، شكراً لك');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+// إبلاغ عن خدمة
+export function useReportService(serviceListingId: string) {
+  return useMutation({
+    mutationFn: (payload: CreateReportPayload) =>
+      reportsApi.reportService(serviceListingId, payload).then((r) => r.data.data),
+    onSuccess: () => {
+      toast.success('تم إرسال بلاغك، شكراً لك');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}

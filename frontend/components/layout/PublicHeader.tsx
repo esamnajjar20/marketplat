@@ -6,14 +6,19 @@
  */
 'use client';
 
+import { useState } from 'react';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
 import { UserMenu }       from './UserMenu';
 import { NotificationBell } from './NotificationBell';
+import { MessagesLink } from './MessagesLink';
 import { ThemeToggle }    from './ThemeToggle';
 import { MobileNav }      from './MobileNav';
+import { CreateSheet } from './CreateSheet';
+import { Plus } from 'lucide-react';
 import { Button }         from '@/components/shared/ui/Button';
 import { ROUTES }         from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
@@ -34,6 +39,7 @@ interface Props {
 
 export function PublicHeader({ showSearch = true }: Props = {}) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const [createOpen, setCreateOpen] = useState(false);
   // FIX UI-REVIEW-SEARCH-DUP: /search renders its own SearchBox in a
   // dedicated brand band right below this header (see
   // app/(public)/search/page.tsx) — a more capable control on that
@@ -96,16 +102,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
               BROWSE_LINKS since this header's desktop nav has always
               been its own literal list, not sourced from that shared
               array (only the mobile drawers read BROWSE_LINKS). */}
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="transition-colors">
             <Link href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="transition-colors">
             <Link href={ROUTES.stores}>المتاجر</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="transition-colors">
             <Link href={ROUTES.services}>الخدمات</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="transition-colors">
             <Link href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
           </Button>
         </nav>
@@ -126,15 +132,21 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
                   but was rendered as a ghost button here — the opposite
                   of what its importance calls for, and inconsistent with
                   its own prominent treatment once the user is signed in. */}
-              <Button asChild size="sm">
-                <Link href={ROUTES.adCreate}>نشر إعلان</Link>
+              <Button type="button" size="sm" className="gap-1" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden />
+                أضف
               </Button>
+              <MessagesLink />
               <NotificationBell />
               <UserMenu />
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm">
+              <Button type="button" size="sm" className="gap-1" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden />
+                أضف
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="transition-colors">
                 <Link href={ROUTES.login}>تسجيل الدخول</Link>
               </Button>
               <Button asChild size="sm">
@@ -156,6 +168,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           <SearchBar />
         </div>
       )}
+          <CreateSheet open={createOpen} onOpenChange={setCreateOpen} />
     </header>
   );
 }

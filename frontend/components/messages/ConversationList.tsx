@@ -128,9 +128,9 @@ export function ConversationList({ selectedId }: Props = {}) {
   }
 
   return (
-    <div className="flex flex-col rounded-xl bg-card shadow-sm overflow-hidden lg:rounded-none lg:shadow-none lg:h-full">
+    <div className="flex flex-col rounded-xl bg-card shadow-sm overflow-hidden md:rounded-none md:shadow-none md:h-full">
       {/* Desktop sticky header */}
-      <div className="hidden lg:flex sticky top-0 z-10 flex-col gap-2 border-b bg-card/95 backdrop-blur-sm px-3 py-3">
+      <div className="hidden md:flex sticky top-0 z-10 flex-col gap-2 border-b bg-card/95 backdrop-blur-sm px-3 py-3">
         <div className="flex items-center justify-between gap-2 px-1">
           <h2 className="text-sm font-semibold">الرسائل</h2>
           {totalUnread > 0 && (
@@ -163,7 +163,7 @@ export function ConversationList({ selectedId }: Props = {}) {
       </div>
 
       {/* Mobile search */}
-      <div className="lg:hidden border-b px-3 py-2">
+      <div className="md:hidden border-b px-3 py-2">
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -186,7 +186,7 @@ export function ConversationList({ selectedId }: Props = {}) {
           </button>
         </div>
       ) : (
-        <div className="flex flex-col lg:overflow-y-auto lg:flex-1">
+        <div className="flex flex-col md:overflow-y-auto md:flex-1">
           {filtered.map((conversation, index) => {
             const party = otherParty(conversation, user?.id);
             const avatar = getAvatarUrl(party.avatarUrl ?? '', 56);

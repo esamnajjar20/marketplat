@@ -582,7 +582,7 @@ export function AdForm({ mode, ad }: Props) {
             it there (visible across all 3 steps, not just this one), so
             this inline copy is mobile/tablet-only to avoid showing the
             same card twice on desktop at this step. */}
-        <AdFormPreview values={values} className="pt-2 lg:hidden" />
+        <AdFormPreview values={values} className="pt-2 md:hidden" />
       </div>
 
       {/* Submit / wizard navigation — sticky on mobile for thumb reach */}

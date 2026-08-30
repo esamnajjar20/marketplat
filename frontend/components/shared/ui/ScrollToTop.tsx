@@ -35,8 +35,8 @@ export function ScrollToTop({ className }: { className?: string }) {
         // + sticky contact bar (~5.5rem) so the FAB never covers the tip
         // line or the message button.
         'fixed start-4 z-40 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full',
-        'border bg-card text-foreground shadow-lg transition-opacity',
-        'hover:bg-muted active:scale-95',
+        'border bg-card text-foreground shadow-lg transition-all duration-200',
+        'hover:bg-muted hover:border-primary/40 hover:shadow-xl hover:-translate-y-0.5 active:scale-95',
         'bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))] md:bottom-6',
         className,
       )}

@@ -87,9 +87,9 @@ export type ReportStatus = 'PENDING' | 'RESOLVED' | 'DISMISSED';
 
 /**
  * FEAT-REPORT-USER-STORE: what a Report points at. Backend schema:
- * enum ReportTargetType { AD  USER  STORE }
+ * enum ReportTargetType { AD  USER  STORE  PRODUCT  SERVICE_LISTING }
  */
-export type ReportTargetType = 'AD' | 'USER' | 'STORE';
+export type ReportTargetType = 'AD' | 'USER' | 'STORE' | 'PRODUCT' | 'SERVICE_LISTING';
 
 export interface Report {
   id:         string;

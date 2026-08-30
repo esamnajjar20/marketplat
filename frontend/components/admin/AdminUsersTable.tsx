@@ -208,8 +208,8 @@ export function AdminUsersTable() {
         // see AdminAdsTable for the full rationale.
         <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="w-full overflow-x-auto rounded-lg border">
+          <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
             <thead className="bg-muted/50">
               <tr>
                 <th className="w-10 p-3">

@@ -80,6 +80,8 @@ export function AdminAnalyticsDashboard() {
   const totalsCards = [
     { label: EVENT_LABELS.PAGE_VIEW, value: data.totals.PAGE_VIEW, icon: FileText },
     { label: EVENT_LABELS.AD_VIEW, value: data.totals.AD_VIEW, icon: Eye },
+    { label: EVENT_LABELS.PRODUCT_VIEW, value: data.totals.PRODUCT_VIEW ?? 0, icon: Eye },
+    { label: EVENT_LABELS.SERVICE_VIEW, value: data.totals.SERVICE_VIEW ?? 0, icon: Eye },
     { label: EVENT_LABELS.SEARCH, value: data.totals.SEARCH, icon: Search },
     { label: EVENT_LABELS.CATEGORY_BROWSE, value: data.totals.CATEGORY_BROWSE, icon: Tag },
     { label: EVENT_LABELS.CONTACT_CLICK, value: data.totals.CONTACT_CLICK, icon: MessageSquare },
@@ -99,8 +101,11 @@ export function AdminAnalyticsDashboard() {
   // of how AD_VIEW activity actually moved, since they were being
   // measured against a denominator several times their own real
   // maximum. Scoped to the same AD_VIEW filter the bars themselves use.
-  const adViewCounts = data.trend.filter((t) => t.event === 'AD_VIEW').map((t) => t.count);
-  const maxCount = Math.max(1, ...adViewCounts);
+  // مقياس الرسم يشمل مشاهدات الإعلانات والمنتجات والخدمات (مو بس AD_VIEW)
+  const listingViewCounts = data.trend
+    .filter((t) => t.event === 'AD_VIEW' || t.event === 'PRODUCT_VIEW' || t.event === 'SERVICE_VIEW')
+    .map((t) => t.count);
+  const maxCount = Math.max(1, ...listingViewCounts);
 
   return (
     <div className="space-y-6">
@@ -124,7 +129,7 @@ export function AdminAnalyticsDashboard() {
       </div>
 
       {/* Totals */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-3 md:gap-4">
         {totalsCards.map(({ label, value, icon: Icon }) => (
           <div key={label} className="rounded-lg border bg-card p-4 space-y-2">
             <Icon className="h-5 w-5 text-primary" />
@@ -161,24 +166,32 @@ export function AdminAnalyticsDashboard() {
         </div>
       </div>
 
-      {/* Trend — simple bar chart, no charting library (see file header) */}
+      {/* Trend — مشاهدات الإعلانات + المنتجات + الخدمات */}
       <div className="rounded-lg border bg-card p-4 space-y-3">
-        <h3 className="font-semibold text-sm">الاتجاه الزمني (مشاهدات الإعلانات)</h3>
+        <h3 className="font-semibold text-sm">الاتجاه الزمني (مشاهدات الإعلانات / المنتجات / الخدمات)</h3>
+        <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-primary/70" /> إعلانات</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-500/80" /> منتجات</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-500/80" /> خدمات</span>
+        </div>
         {bucketDates.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">لا توجد بيانات كافية لهذه الفترة</p>
         ) : (
           <div className="flex items-end gap-1 h-40">
             {bucketDates.map((date) => {
-              const count =
-                data.trend.find((t) => t.bucket === date && t.event === 'AD_VIEW')?.count ?? 0;
-              const heightPct = (count / maxCount) * 100;
+              const ad = data.trend.find((t) => t.bucket === date && t.event === 'AD_VIEW')?.count ?? 0;
+              const product = data.trend.find((t) => t.bucket === date && t.event === 'PRODUCT_VIEW')?.count ?? 0;
+              const service = data.trend.find((t) => t.bucket === date && t.event === 'SERVICE_VIEW')?.count ?? 0;
+              const total = ad + product + service;
+              const h = (n: number) => `${Math.max(n > 0 ? 2 : 0, (n / maxCount) * 100)}%`;
               return (
                 <div key={date} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-                  <div
-                    className="w-full bg-primary/70 rounded-t-sm"
-                    style={{ height: `${Math.max(2, heightPct)}%` }}
-                    title={`${new Date(date).toLocaleDateString('ar')}: ${formatNumber(count)}`}
-                  />
+                  <div className="w-full flex items-end gap-px h-36" title={`${new Date(date).toLocaleDateString('ar')}: إعلانات ${formatNumber(ad)} · منتجات ${formatNumber(product)} · خدمات ${formatNumber(service)}`}>
+                    <div className="flex-1 bg-primary/70 rounded-t-sm" style={{ height: h(ad) }} />
+                    <div className="flex-1 bg-emerald-500/80 rounded-t-sm" style={{ height: h(product) }} />
+                    <div className="flex-1 bg-amber-500/80 rounded-t-sm" style={{ height: h(service) }} />
+                  </div>
+                  <span className="text-[9px] text-muted-foreground truncate w-full text-center">{formatNumber(total)}</span>
                 </div>
               );
             })}

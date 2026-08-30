@@ -28,10 +28,17 @@ export const createReportSchema = z.object({
 export const createTargetReportSchema = z.object({
   params: z.object({
     targetType: z
-      .enum(['users', 'stores'], {
-        errorMap: () => ({ message: 'Invalid report target. Must be: users or stores' }),
+      .enum(['users', 'stores', 'products', 'services'], {
+        errorMap: () => ({
+          message: 'Invalid report target. Must be: users, stores, products, or services',
+        }),
       })
-      .transform((v): 'USER' | 'STORE' => (v === 'users' ? 'USER' : 'STORE')),
+      .transform((v): 'USER' | 'STORE' | 'PRODUCT' | 'SERVICE_LISTING' => {
+        if (v === 'users') return 'USER';
+        if (v === 'stores') return 'STORE';
+        if (v === 'products') return 'PRODUCT';
+        return 'SERVICE_LISTING';
+      }),
     targetId: z.string().min(1),
   }),
   body: z.object({

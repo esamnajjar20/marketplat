@@ -17,12 +17,12 @@ export function HomeQuickActions() {
 
   return (
     <>
-      <section className="container mx-auto space-y-2 px-4 pt-4 sm:pt-6">
+      <section className="container mx-auto max-w-7xl space-y-2 px-4 pt-4 sm:pt-6">
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <Button
             type="button"
             variant="default"
-            className="h-auto gap-2 rounded-2xl py-3.5 text-sm font-semibold shadow-sm"
+            className="h-auto gap-2 rounded-2xl py-3.5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
             onClick={() => setPayOpen(true)}
           >
             <Banknote className="h-5 w-5" aria-hidden />
@@ -31,7 +31,7 @@ export function HomeQuickActions() {
           <Button
             type="button"
             variant="outline"
-            className="h-auto gap-2 rounded-2xl border-2 py-3.5 text-sm font-semibold"
+            className="h-auto gap-2 rounded-2xl border-2 py-3.5 text-sm font-semibold transition-all hover:shadow-md"
             onClick={() => setCardsOpen(true)}
           >
             <Wifi className="h-5 w-5" aria-hidden />

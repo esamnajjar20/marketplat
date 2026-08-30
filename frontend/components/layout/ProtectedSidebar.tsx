@@ -191,7 +191,7 @@ export function ProtectedSidebar() {
 
   return (
     // UX-09 FIX: border-e is the logical equivalent of border-r, correct in RTL
-    <aside className="hidden w-56 shrink-0 border-e bg-muted/20 lg:block">
+    <aside className="hidden w-52 shrink-0 border-e bg-muted/20 md:block lg:w-56">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1 p-4">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);

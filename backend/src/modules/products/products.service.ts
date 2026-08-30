@@ -20,6 +20,7 @@ import { logger } from '../../shared/utils/logger';
 import { withProductImagesLock, withStoreProductCreationLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { promotionsService, EffectivePrice } from '../promotions/promotions.service';
+import { fraudService } from '../fraud';
 
 const MAX_PRODUCT_IMAGES = 10; // same cap as ads.images / service-listings.images
 
@@ -164,6 +165,19 @@ export const productsService = {
     // creation. Logged for `userId` (the store owner), not store.id.
     activityService.record({ userId, ...activityTemplates.productCreated(product.id, product.name) });
 
+    // Fraud scoring (content heuristics) — fire-and-forget, same contract as ads.service scoreAd
+    fraudService
+      .scoreListing({
+        entityType: 'PRODUCT',
+        id: product.id,
+        userId,
+        title: product.name,
+        description: product.description ?? '',
+        price: product.price != null ? Number(product.price) : null,
+        categoryId: product.categoryId,
+      })
+      .catch(() => undefined);
+
     return product;
   },
 
@@ -276,6 +290,18 @@ export const productsService = {
 
     // Gap #10: fire-and-forget, see createProduct's own comment above.
     activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });
+
+    fraudService
+      .scoreListing({
+        entityType: 'PRODUCT',
+        id: updated.id,
+        userId,
+        title: updated.name,
+        description: updated.description ?? '',
+        price: updated.price != null ? Number(updated.price) : null,
+        categoryId: updated.categoryId,
+      })
+      .catch(() => undefined);
 
     // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fires once, on the
     // OUT_OF_STOCK -> (IN_STOCK | LIMITED) edge only — checked against
