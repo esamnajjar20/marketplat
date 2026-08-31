@@ -144,7 +144,46 @@ export function AdminFraudTable() {
         // wrongly conclude the queue is genuinely clear.
         <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : (
-        <div className="w-full overflow-x-auto rounded-lg border">
+        <>
+        {/* Mobile cards */}
+        <div className="space-y-2 md:hidden">
+          {items.map((ad) => (
+            <div key={ad.id} className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-xs">
+              <div className="min-w-0 space-y-1">
+                <Link href={ROUTES.adDetail(ad.id)} target="_blank" className="text-sm font-semibold text-primary hover:underline line-clamp-2">
+                  {ad.title}
+                </Link>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold text-primary">{formatPrice(ad.price)}</span>
+                  <span>{ad.user?.name ?? '—'}</span>
+                  <Badge variant={riskBadgeVariant(ad.riskScore)} className="text-xs">{ad.riskScore}</Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{formatRelativeTime(ad.createdAt)}</p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-2">
+                <Button type="button" size="sm" variant="ghost" className="h-8"
+                  onClick={() => setExpandedId(expandedId === ad.id ? null : ad.id)}>
+                  {expandedId === ad.id ? 'إخفاء' : 'إشارات'}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" className="h-8" onClick={() => setFlagTargetId(ad.id)}>
+                  وسم
+                </Button>
+                <Button type="button" size="sm" variant="ghost" className="h-8"
+                  disabled={clearFlag.isPending && clearFlag.variables === ad.id}
+                  onClick={() => setClearTargetId(ad.id)}>
+                  سليم
+                </Button>
+              </div>
+              {expandedId === ad.id && (
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-2">
+                  <AdSignalsPanel adId={ad.id} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden w-full overflow-x-auto rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
             <thead className="bg-muted/50">
               <tr>
@@ -214,6 +253,7 @@ export function AdminFraudTable() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {totalPages > 1 && (

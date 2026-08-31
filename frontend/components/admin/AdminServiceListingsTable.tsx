@@ -66,7 +66,49 @@ export function AdminServiceListingsTable() {
         ]}
       />
 
-      <div className="overflow-x-auto rounded-lg border">
+      {/* Mobile cards */}
+      <div className="space-y-2 md:hidden">
+      {rows.map((row) => {
+        const provider = row.provider as { businessName?: string } | undefined;
+        return (
+        <div key={String(row.id)} className="rounded-xl border border-border bg-card p-3 shadow-xs">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold leading-snug">{String(row.title)}</p>
+            <p className="text-xs text-muted-foreground">{provider?.businessName ?? '—'}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold tabular-nums text-primary">
+                {row.price != null ? formatPrice(Number(row.price)) : '—'}
+              </span>
+              <Badge variant={row.status === 'ACTIVE' ? 'success' : 'secondary'} className="text-xs">
+                {String(row.status)}
+              </Badge>
+            </div>
+          </div>
+          <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
+            {row.status === 'ACTIVE' && (
+              <Button type="button" size="sm" variant="ghost" disabled={setStatus.isPending}
+                onClick={() =>
+                  setStatus.mutate(
+                    { id: String(row.id), status: 'PAUSED' },
+                    { onSuccess: () => toast.success('تم إيقاف الخدمة') },
+                  )
+                }>
+                <Pause className="h-4 w-4" />
+              </Button>
+            )}
+            {row.status !== 'DELETED' && (
+              <Button type="button" size="sm" variant="ghost" className="text-destructive"
+                onClick={() => setDeleteTarget({ id: String(row.id), title: String(row.title) })}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        );
+      })}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border md:block">
         <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
           <thead className="bg-muted/50 text-start">
             <tr>

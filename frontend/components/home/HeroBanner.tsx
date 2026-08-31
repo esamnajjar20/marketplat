@@ -3,14 +3,12 @@
 import { useState } from 'react';
 import { Plus, Compass } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
-import { SearchBar } from '@/components/layout/SearchBar';
 import { WovenTexture } from '@/components/shared/ui/WovenTexture';
 import { CreateSheet } from '@/components/layout/CreateSheet';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
 
 /**
- * Hero الرئيسية — بطاقة متدرجة على الموبايل وشريط علوي على الشاشات الأوسع،
- * مع بحث ظاهر في كلا الحالتين ونصوص CTA أوضح.
+ * Hero الرئيسية — بدون خانة بحث (البحث يبقى في الهيدر فقط لتفادي التكرار).
  */
 export function HeroBanner() {
   const [createOpen, setCreateOpen] = useState(false);
@@ -28,18 +26,18 @@ export function HeroBanner() {
       />
 
       {/* Mobile */}
-      <div className="relative mx-auto max-w-2xl space-y-3 sm:hidden">
+      <div className="relative mx-auto max-w-2xl sm:hidden">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/85 p-5 text-primary-foreground shadow-md">
           <WovenTexture opacity={0.07} />
           <div className="relative space-y-3 text-right">
             <span className="inline-block rounded-full border border-primary-foreground/30 bg-primary-foreground/10 px-3 py-1 text-[11px] font-medium tracking-wide text-primary-foreground/95">
               سوق غزة · محلي وموثوق
             </span>
-            <h1 className="text-2xl font-bold leading-tight tracking-tight">
+            <h1 className="text-[1.35rem] font-bold leading-tight tracking-tight min-[360px]:text-2xl">
               من أهل غزة، لأهل غزة
             </h1>
             <p className="text-sm leading-relaxed text-primary-foreground/90">
-              سيارات، عقارات، إلكترونيات وخدمات — ابحث أو انشر خلال دقائق.
+              إعلانات ومتاجر وخدمات — ابحث وانشر وتعامل مع جيرانك بثقة.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button
@@ -65,7 +63,6 @@ export function HeroBanner() {
             </div>
           </div>
         </div>
-        <SearchBar className="[&_input]:h-11 [&_input]:rounded-xl [&_input]:bg-card [&_input]:shadow-xs" />
       </div>
 
       {/* Desktop */}
@@ -78,9 +75,8 @@ export function HeroBanner() {
           من أهل غزة، لأهل غزة
         </h1>
         <p className="mx-auto max-w-xl text-base text-primary-foreground/90 sm:text-lg">
-          سيارات، عقارات، إلكترونيات وخدمات — بيع واشترِ من جيرانك بثقة.
+          إعلانات، متاجر، ومنتجات وخدمات — بيع واشترِ واطلب خدمة من جيرانك بثقة.
         </p>
-        <SearchBar className="mx-auto max-w-xl lg:max-w-2xl [&_input]:h-12 [&_input]:rounded-xl [&_input]:bg-primary-foreground [&_input]:text-foreground [&_input]:shadow-md" />
         <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
           <Button
             type="button"

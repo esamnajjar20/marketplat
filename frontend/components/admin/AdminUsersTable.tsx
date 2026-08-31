@@ -208,7 +208,45 @@ export function AdminUsersTable() {
         // see AdminAdsTable for the full rationale.
         <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : (
-        <div className="w-full overflow-x-auto rounded-lg border">
+        <>
+        <div className="space-y-2 md:hidden">
+          {items.map((user: AdminUser) => {
+            const userRole = user.role as UserRole;
+            const badge = ROLE_BADGE[userRole];
+            const isTargetSuperAdmin = userRole === 'SUPER_ADMIN';
+            const canManageStatus = !isTargetSuperAdmin && canManageRole(actorRole, userRole, userRole);
+            return (
+              <div key={user.id} className="rounded-xl border border-border bg-card p-3 shadow-xs">
+                <div className="flex items-start gap-3">
+                  {canManageStatus ? (
+                    <Checkbox
+                      checked={selectedIds.has(user.id)}
+                      onChange={() => toggleOne(user.id)}
+                      aria-label={`تحديد ${user.name}`}
+                      className="mt-0.5"
+                    />
+                  ) : (
+                    <span className="w-4" />
+                  )}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-sm font-semibold leading-snug">{user.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      <Badge variant={badge.variant} className={`text-xs ${badge.className ?? ''}`}>
+                        {badge.label}
+                      </Badge>
+                      <Badge variant={USER_ACTIVE_STATUS_VARIANT[userActiveKey(user.isActive)]} className="text-xs">
+                        {USER_ACTIVE_STATUS_LABELS[userActiveKey(user.isActive)]}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden w-full overflow-x-auto rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
             <thead className="bg-muted/50">
               <tr>
@@ -352,6 +390,7 @@ export function AdminUsersTable() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {totalPages > 1 && (

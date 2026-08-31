@@ -197,7 +197,45 @@ export function AdminAdsTable() {
         // table's shape and causing a layout jump each time.
         <TableSkeleton columns={7} />
       ) : (
-        <div className="w-full overflow-x-auto rounded-lg border">
+        <>
+        {/* Mobile card list — avoids cramped horizontal table on narrow screens */}
+        <div className="space-y-2 md:hidden">
+          {items.map((ad) => {
+            const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 80, 60) : PLACEHOLDER_SVG;
+            return (
+              <div key={ad.id} className="rounded-xl border border-border bg-card p-3 shadow-xs">
+                <div className="flex gap-3">
+                  <Checkbox
+                    checked={selectedIds.has(ad.id)}
+                    onChange={() => toggleOne(ad.id)}
+                    aria-label={`تحديد ${ad.title}`}
+                    className="mt-1"
+                  />
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                    <SafeImage src={thumb} alt="" fill className="object-cover" sizes="56px" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="line-clamp-2 text-sm font-medium leading-snug">{ad.title}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-semibold text-primary">{formatPrice(ad.price)}</span>
+                      <Badge variant={AD_STATUS_VARIANT[ad.status]} className="text-[10px]">
+                        {STATUS_LABELS[ad.status] ?? ad.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap justify-end gap-1 border-t border-border/60 pt-2">
+                  {/* actions reused via existing row menu if complex — link to ad */}
+                  <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+                    <Link href={ROUTES.adDetail(ad.id)}>عرض</Link>
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden w-full overflow-x-auto rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
             <thead className="bg-muted/50">
               <tr>
@@ -297,6 +335,7 @@ export function AdminAdsTable() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {totalPages > 1 && (

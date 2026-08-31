@@ -211,7 +211,37 @@ export function AdminAuditLogsTable() {
         // on refetch — see AdminAdsTable for the full rationale.
         <TableSkeleton columns={6} />
       ) : (
-        <div className="w-full overflow-x-auto rounded-lg border">
+        <>
+        {/* Mobile cards */}
+        <div className="space-y-2 md:hidden">
+          {items.map((log) => (
+            <div key={log.id} className="flex items-start justify-between gap-2 rounded-xl border border-border bg-card p-3 shadow-xs">
+              <div className="min-w-0 flex-1 space-y-1">
+                <Badge variant="outline" className="text-xs">
+                  {AUDIT_EVENT_LABELS[log.event] ?? log.event}
+                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  {log.user?.name ?? log.userId ?? '—'}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {formatDateTime(log.createdAt)}
+                  {log.ip ? ` · ${log.ip}` : ''}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                aria-label={`عرض تفاصيل الحدث ${AUDIT_EVENT_LABELS[log.event] ?? log.event}`}
+                onClick={() => setDetailsLog(log)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden w-full overflow-x-auto rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
             <thead className="bg-muted/50">
               <tr>
@@ -304,6 +334,7 @@ export function AdminAuditLogsTable() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {totalPages > 1 && (

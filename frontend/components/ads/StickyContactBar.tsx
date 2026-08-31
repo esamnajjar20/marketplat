@@ -53,15 +53,15 @@ export function StickyContactBar({ adId, price, isNegotiable, seller, className 
       role="region"
       aria-label="تواصل سريع مع البائع"
       className={cn(
-        'sticky-contact-bar border-t border-border/80 bg-background/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur',
-        'supports-[backdrop-filter]:bg-background/90 lg:hidden',
+        'sticky-contact-bar border-t border-border/80 bg-background/95 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.14)] backdrop-blur-md',
+        'supports-[backdrop-filter]:bg-background/90 md:hidden',
         className,
       )}
     >
       <div className="mx-auto max-w-lg px-3 py-2.5 sm:px-4">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-mono text-lg font-bold tabular-nums text-primary leading-tight">
+            <p className="truncate font-mono text-base font-bold tabular-nums leading-tight text-primary sm:text-lg">
               {formatPrice(price)}
             </p>
             {isNegotiable ? (
@@ -73,7 +73,7 @@ export function StickyContactBar({ adId, price, isNegotiable, seller, className 
           <Button
             type="button"
             size="lg"
-            className="h-12 min-w-[9.5rem] shrink-0 gap-2 rounded-xl px-5 text-sm font-semibold shadow-md sm:min-w-[11rem] sm:text-base active:scale-[0.98]"
+            className="h-12 min-w-0 shrink-0 gap-1.5 rounded-xl px-3.5 text-sm font-semibold shadow-md xs:px-5 sm:min-w-[10rem] sm:gap-2 sm:text-base active:scale-[0.98]"
             disabled={pending}
             onClick={handleMessage}
             aria-label={isAuth ? `مراسلة ${seller.name}` : 'سجّل الدخول لمراسلة البائع'}

@@ -229,7 +229,63 @@ export function AdminReportsTable() {
         // see AdminAdsTable for the full rationale.
         <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       ) : (
-        <div className="w-full overflow-x-auto rounded-lg border">
+        <>
+        {/* Mobile cards */}
+        <div className="space-y-2 md:hidden">
+          {items.map((report) => (
+            <div key={report.id} className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-xs">
+              <div className="flex items-start gap-2">
+                {report.status === 'PENDING' ? (
+                  <Checkbox
+                    checked={selectedIds.has(report.id)}
+                    onChange={() => toggleOne(report.id)}
+                    aria-label={`تحديد البلاغ ${report.id}`}
+                    className="mt-0.5"
+                  />
+                ) : (
+                  <span className="w-4" />
+                )}
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="outline" className="text-xs">
+                      {REPORT_REASON_LABELS[report.reason] ?? report.reason}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[10px]">{report.status}</Badge>
+                  </div>
+                  {report.notes && <p className="line-clamp-2 text-xs text-muted-foreground">{report.notes}</p>}
+                  <p className="text-[11px] text-muted-foreground">
+                    {report.user?.name ?? '—'} · {formatRelativeTime(report.createdAt)}
+                  </p>
+                  <Link
+                    href={targetHref(report.targetType, report.targetId)}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    [{TARGET_TYPE_LABELS[report.targetType]}]{' '}
+                    {report.ad?.title ? report.ad.title.slice(0, 36) : report.targetId.slice(-8)}
+                  </Link>
+                </div>
+              </div>
+              {report.status === 'PENDING' && (
+                <div className="flex justify-end gap-1 border-t border-border/60 pt-2">
+                  <Button variant="ghost" size="sm" className="h-8 text-success"
+                    disabled={pendingReportId === report.id}
+                    onClick={() => setConfirmTarget({ reportId: report.id, status: 'RESOLVED' })}>
+                    <CheckCircle className="h-3.5 w-3.5 me-1" />حل
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground"
+                    disabled={pendingReportId === report.id}
+                    onClick={() => setConfirmTarget({ reportId: report.id, status: 'DISMISSED' })}>
+                    رفض
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden w-full overflow-x-auto rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
             <thead className="bg-muted/50">
               <tr>
@@ -319,6 +375,7 @@ export function AdminReportsTable() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {totalPages > 1 && (

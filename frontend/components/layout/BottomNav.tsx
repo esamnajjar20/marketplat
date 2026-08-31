@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, MessageCircle, Menu, Plus } from 'lucide-react';
+import { Home, Compass, MessageCircle, Menu, Plus, UserRound } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
@@ -73,6 +73,7 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
 export function BottomNav() {
   const pathname = usePathname();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const user = useAuthStore(selectUser);
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -163,14 +164,28 @@ export function BottomNav() {
 
       {trailingItems.map(renderItem)}
 
-      <button
-        type="button"
-        onClick={toggleMobileNav}
-        className="flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <Menu className="h-5 w-5" aria-hidden={true} />
-        {isAuthenticated ? 'حسابي' : 'القائمة'}
-      </button>
+      {isAuthenticated && user?.id ? (
+        <Link
+          href={ROUTES.userProfile(user.id)}
+          aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) || pathname.startsWith('/profile/') ? 'page' : undefined}
+          className={cn(
+            'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
+            pathname.startsWith('/profile/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <UserRound className="h-5 w-5" aria-hidden={true} />
+          حسابي
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={toggleMobileNav}
+          className="flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Menu className="h-5 w-5" aria-hidden={true} />
+          القائمة
+        </button>
+      )}
 
       <ExploreSheet open={exploreOpen} onOpenChange={setExploreOpen} />
       <CreateSheet open={createOpen} onOpenChange={setCreateOpen} />
