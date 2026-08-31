@@ -1,0 +1,23 @@
+# Marketplace — example crontab (edit BACKEND path)
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+CRON_TZ=Asia/Gaza
+
+BACKEND=/var/www/marketplace/backend
+RUN=bash $BACKEND/scripts/run-job.sh
+
+# High frequency
+*/15 * * * *  $RUN promotion-lifecycle
+
+# Daily
+0 7 * * *     $RUN notification-digest
+0 3 * * *     $RUN seller-response-metrics
+15 3 * * *    $RUN cleanup-tokens
+30 3 * * *    $RUN cleanup-failed-tasks
+
+# Weekly
+0 4 * * 0     $RUN demote-stale-boosts
+30 3 * * 0    $RUN cleanup-notifications
+0 8 * * 1     $RUN weekly-ad-views
+15 8 * * 1    $RUN weekly-store-views
+30 8 * * 1    $RUN weekly-service-views
