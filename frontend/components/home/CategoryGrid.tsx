@@ -132,15 +132,19 @@ function CategoryGridContent({ categories }: { categories: NonNullable<ReturnTyp
           top-level category — the row already scrolls, so nothing
           needs to be capped or hidden here. */}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:hidden [&::-webkit-scrollbar]:hidden">
-        {categories.map((cat, i) => (
-          <Link
-            key={cat.id}
-            href={ROUTES.category(cat.slug)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-opacity hover:opacity-90 ${PILL_COLOR_ROTATION[i % PILL_COLOR_ROTATION.length]}`}
-          >
-            {cat.nameAr}
-          </Link>
-        ))}
+        {categories.map((cat, i) => {
+          const Icon = iconFor(cat.slug, cat.nameAr);
+          return (
+            <Link
+              key={cat.id}
+              href={ROUTES.category(cat.slug)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium whitespace-nowrap shadow-xs transition-opacity hover:opacity-90 ${PILL_COLOR_ROTATION[i % PILL_COLOR_ROTATION.length]}`}
+            >
+              <Icon className="h-3.5 w-3.5 opacity-90" aria-hidden />
+              {cat.nameAr}
+            </Link>
+          );
+        })}
       </div>
 
       {/* Desktop/tablet: icon-card grid, expandable past the initial 8. */}
@@ -152,7 +156,7 @@ function CategoryGridContent({ categories }: { categories: NonNullable<ReturnTyp
               <Link
                 key={cat.id}
                 href={ROUTES.category(cat.slug)}
-                className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.04] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary-soft/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   <Icon className="h-5 w-5" />

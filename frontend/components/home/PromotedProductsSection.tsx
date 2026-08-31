@@ -43,6 +43,7 @@ export function PromotedProductsSection() {
 
   const header = (
     <SectionHeader
+      tone="featured"
       eyebrow="لا تفوّتها"
       title="عروض مميزة"
       icon={<Flame className="h-3.5 w-3.5" />}
@@ -55,7 +56,7 @@ export function PromotedProductsSection() {
     // there's no visual flash/shift from white → accent band once
     // data resolves.
     return (
-      <section className="border-y bg-accent/[0.06] py-10">
+      <section className="border-y border-accent/10 bg-gradient-to-b from-accent/[0.09] to-transparent py-8 sm:py-10">
         <div className="container mx-auto max-w-7xl space-y-4 px-4">
           {header}
           <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-4">
@@ -80,7 +81,7 @@ export function PromotedProductsSection() {
   // anywhere on this stretch of the page.
   if (isError) {
     return (
-      <section className="border-y bg-accent/[0.06] py-10">
+      <section className="border-y border-accent/10 bg-gradient-to-b from-accent/[0.09] to-transparent py-8 sm:py-10">
         <div className="container mx-auto max-w-7xl space-y-4 px-4">
           {header}
           <ApiError error={error} onRetry={refetch} variant="inline" />
@@ -105,7 +106,7 @@ export function PromotedProductsSection() {
   // its independent self-hide-when-empty timing — see this file's
   // top-level doc comment.
   return (
-    <section className="border-y bg-accent/[0.06] py-10">
+    <section className="border-y border-accent/10 bg-gradient-to-b from-accent/[0.09] to-transparent py-8 sm:py-10">
       <div className="container mx-auto max-w-7xl space-y-4 px-4">
         {header}
         <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-4 stagger-fade-in">

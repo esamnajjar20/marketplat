@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { HeroBanner } from '@/components/home/HeroBanner';
+import { HomeTrustStrip } from '@/components/home/HomeTrustStrip';
 import { HomeQuickActions } from '@/components/home/HomeQuickActions';
 import { HomeAboveFold } from '@/components/home/HomeAboveFold';
 import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
@@ -13,39 +14,31 @@ import { buildMetadata } from '@/lib/seo';
 export const metadata: Metadata = buildMetadata({ title: 'الرئيسية', path: '/' });
 
 /**
- * رئيسية مُعاد ترتيبها:
- * 1) Hero + شريط (بحث / دفع / بطاقات)
- * 2) تصنيفات + إعلانات مميزة + أحدث الإعلانات (قلب الاكتشاف)
- * 3) منتجات (عروض ثم أحدث)
- * 4) خدمات (بدل قريب منك)
- * 5) متاجر مميزة
- * 6) مقترح لك (أسفل الصفحة — لا يستبدل المميز/الأحدث)
+ * رئيسية: هيرو → ثقة → اكتشاف → أدوات → بقية الأقسام
  */
 export default function HomePage() {
   return (
-    <div className="pb-8">
+    <div className="pb-10">
       <HeroBanner />
-      <HomeQuickActions />
-
-      {/* الإعلانات محور رئيسي فوق الطية */}
+      <div className="pt-3 sm:pt-4">
+        <HomeTrustStrip />
+      </div>
       <HomeAboveFold />
-
+      <div className="pt-6 sm:pt-8">
+        <HomeQuickActions />
+      </div>
       <LazySection minHeight={280} rootMargin="100px 0px">
         <PromotedProductsSection />
       </LazySection>
       <LazySection minHeight={300} rootMargin="80px 0px">
         <RecentProductsSection />
       </LazySection>
-
-      {/* خدمات بدل «قريب منك» */}
       <LazySection minHeight={280} rootMargin="80px 0px">
         <HomeServicesSection />
       </LazySection>
-
       <LazySection minHeight={280} rootMargin="60px 0px">
         <FeaturedStoresSection />
       </LazySection>
-
       <LazySection minHeight={260} rootMargin="40px 0px" whenIdle>
         <RecommendedAds />
       </LazySection>

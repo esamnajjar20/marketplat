@@ -1,43 +1,56 @@
 'use client';
 
-import { AdCard }         from '@/components/ads/AdCard';
+import { AdCard } from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
-import { ApiError }       from '@/components/shared/ApiError';
-import { useAds }         from '@/hooks/queries/useAds';
+import { ApiError } from '@/components/shared/ApiError';
+import { useAds } from '@/hooks/queries/useAds';
 
 const DISPLAY_COUNT = 4;
 
-// FIX FEAT-06 (superseded): this used to fetch a wider page (20) and
-// filter isFeatured client-side, because the backend had no isFeatured
-// query param — it only sorted featured ads first. That broke once the
-// marketplace grew past a small number of ads: if fewer than the
-// fetched-window size were currently featured, some or all of them
-// could sit further down the isFeatured-sorted list than the window
-// reached, so this section would show fewer cards than actually exist,
-// or nothing at all, even though featured ads were live elsewhere.
-// The backend now accepts `isFeatured` directly (ads.validation.ts +
-// ads.repository.ts, indexed via the existing [isFeatured, isPinned]
-// index), so this always gets an accurate count regardless of scale.
+/**
+ * إعلانات مميزة — إن لم يوجد مميز يُعرض أحدث الإعلانات كبديل
+ * بدل إخفاء القسم بالكامل (فراغ بصري فوق الطية).
+ */
 export function FeaturedAds() {
-  const { data, isLoading, isError, error, refetch } = useAds({ isFeatured: true, limit: DISPLAY_COUNT });
-  const items = data?.items ?? [];
+  const {
+    data: featuredData,
+    isLoading: featuredLoading,
+    isError: featuredError,
+    error: featuredErr,
+    refetch: refetchFeatured,
+  } = useAds({ isFeatured: true, limit: DISPLAY_COUNT });
+
+  const featuredItems = featuredData?.items ?? [];
+  const useFallback =
+    !featuredLoading && !featuredError && featuredItems.length === 0;
+
+  const {
+    data: fallbackData,
+    isLoading: fallbackLoading,
+    isError: fallbackError,
+    error: fallbackErr,
+    refetch: refetchFallback,
+  } = useAds(
+    { limit: DISPLAY_COUNT, sortBy: 'createdAt', sortOrder: 'desc' },
+    { enabled: useFallback },
+  );
+
+  const isLoading = featuredLoading || (useFallback && fallbackLoading);
+  const isError = useFallback ? fallbackError : featuredError;
+  const error = useFallback ? fallbackErr : featuredErr;
+  const refetch = useFallback ? refetchFallback : refetchFeatured;
+  const items = useFallback ? (fallbackData?.items ?? []) : featuredItems;
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: DISPLAY_COUNT }).map((_, i) => <AdCardSkeleton key={i} />)}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4">
+        {Array.from({ length: DISPLAY_COUNT }).map((_, i) => (
+          <AdCardSkeleton key={i} />
+        ))}
       </div>
     );
   }
 
-  // FIX UI-REVIEW-ERROR-STATE: previously `if (items.length === 0)
-  // return null` treated a failed request identically to "no featured
-  // ads right now" — this section (inside a visually distinct
-  // bg-accent band, per HomeAboveFold) just vanished on a network
-  // failure with nothing to explain why the band above it had a
-  // heading but no content. isError is checked first so a genuine
-  // empty state (items.length === 0 with no error) still self-hides
-  // exactly as before — only an actual fetch failure now surfaces.
   if (isError) {
     return <ApiError error={error} onRetry={refetch} variant="inline" />;
   }
@@ -45,12 +58,17 @@ export function FeaturedAds() {
   if (items.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
-      {/* FIX PERF-05: only the first two cards get priority — a
-          reasonable upper bound for "likely above the fold" across the
-          grid's responsive breakpoints (1/2/4 columns) without
-          over-prioritizing the whole row on the widest layout. */}
-      {items.map((ad, i) => <AdCard key={ad.id} ad={ad} priority={i < 2} />)}
+    <div className="space-y-3">
+      {useFallback && (
+        <p className="text-xs text-muted-foreground">
+          لا إعلانات مميزة حاليًا — نعرض أحدث المنشورات بدلًا منها.
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-3 stagger-fade-in md:grid-cols-3 lg:grid-cols-4 lg:gap-4">
+        {items.map((ad, i) => (
+          <AdCard key={ad.id} ad={ad} priority={i < 2} />
+        ))}
+      </div>
     </div>
   );
 }
