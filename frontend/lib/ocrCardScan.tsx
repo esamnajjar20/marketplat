@@ -292,78 +292,157 @@ function deskewCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 /**
- * معالجة مسبقة بمعادلة التباين التكيفي (CLAHE) و مرشح متوسط.
+ * معالجة مسبقة محسّنة لمقاومة الضجيج والانعكاسات والبطاقة الممسوكة باليد.
+ * - تنعيم متوسط 3×3 (يقلل ضجيج المستشعر)
+ * - CLAHE تقريبي (contrast) أو عتبة تكيفية Sauvola-like (adaptive)
+ * - توضيح خفيف (sharp) لاستعادة حواف الأرقام بعد التنعيم
+ * - عتبات ثابتة كخيارات احتياطية
+ *
+ * FIX DESKEW-DUP-01: لا تستدعي deskew داخليًا — المصدر يُدسكو مرة واحدة قبل الاستدعاء.
  */
 function preprocessAdvanced(src: HTMLCanvasElement, kind: PrepKind): HTMLCanvasElement {
-  // FIX DESKEW-DUP-01: كانت هذه الدالة تستدعي deskewCanvas داخليًا، بينما
-  // كل الاستدعاءات الآن تُدسكِو مصدرها مرة واحدة صراحةً قبل أي قص/تحجيم
-  // (انظر التعليق أعلى deskewCanvas) — استدعاء ثانٍ هنا كان يعني دورانًا
-  // مزدوجًا لكل تمريرة معالجة (3× لكل حقل)، وقد يُراكم دورانًا زائفًا ثانيًا
-  // فوق الأول بدل تركه بلا تأثير. الدالة تستقبل الآن مصدرًا مُدسكوًا مسبقًا.
   const c = cloneCanvas(src);
   const ctx = c.getContext('2d');
   if (!ctx) return c;
   const img = ctx.getImageData(0, 0, c.width, c.height);
   const d = img.data;
+  const w = c.width;
+  const h = c.height;
+  const n = w * h;
 
-  const gray = new Uint8ClampedArray(c.width * c.height);
+  const gray = new Uint8ClampedArray(n);
   for (let i = 0, j = 0; i < d.length; i += 4, j++) {
     gray[j] = Math.round(0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!);
   }
 
-  const filtered = new Uint8ClampedArray(gray.length);
-  const kernelSize = 3;
-  const half = Math.floor(kernelSize / 2);
-  for (let y = half; y < c.height - half; y++) {
-    for (let x = half; x < c.width - half; x++) {
+  // تنعيم متوسط 3×3 — يزيل ضجيجًا عالي التردد دون طمس كبير للأرقام
+  const filtered = new Uint8ClampedArray(n);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
       let sum = 0;
       let count = 0;
-      for (let dy = -half; dy <= half; dy++) {
-        for (let dx = -half; dx <= half; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
           const ny = y + dy;
           const nx = x + dx;
-          if (ny >= 0 && ny < c.height && nx >= 0 && nx < c.width) {
-            sum += gray[ny * c.width + nx]!;
+          if (ny >= 0 && ny < h && nx >= 0 && nx < w) {
+            sum += gray[ny * w + nx]!;
             count++;
           }
         }
       }
-      filtered[y * c.width + x] = Math.round(sum / count);
+      filtered[y * w + x] = Math.round(sum / count);
     }
   }
 
+  const out = new Uint8ClampedArray(n);
+
   if (kind === 'contrast') {
-    const blockSize = 64;
-    for (let by = 0; by < c.height; by += blockSize) {
-      for (let bx = 0; bx < c.width; bx += blockSize) {
-        let minVal = 255, maxVal = 0;
-        for (let y = by; y < Math.min(by + blockSize, c.height); y++) {
-          for (let x = bx; x < Math.min(bx + blockSize, c.width); x++) {
-            const p = filtered[y * c.width + x]!;
+    // CLAHE تقريبي على كتل 48×48 — أفضل للإضاءة غير المتساوية من الكتل الكبيرة
+    const blockSize = 48;
+    for (let by = 0; by < h; by += blockSize) {
+      for (let bx = 0; bx < w; bx += blockSize) {
+        let minVal = 255;
+        let maxVal = 0;
+        const yEnd = Math.min(by + blockSize, h);
+        const xEnd = Math.min(bx + blockSize, w);
+        for (let y = by; y < yEnd; y++) {
+          for (let x = bx; x < xEnd; x++) {
+            const p = filtered[y * w + x]!;
             if (p < minVal) minVal = p;
             if (p > maxVal) maxVal = p;
           }
         }
         const range = maxVal - minVal;
-        if (range > 20) {
-          for (let y = by; y < Math.min(by + blockSize, c.height); y++) {
-            for (let x = bx; x < Math.min(bx + blockSize, c.width); x++) {
-              const idx = y * c.width + x;
-              filtered[idx] = Math.round((filtered[idx]! - minVal) * (255 / range));
+        if (range > 15) {
+          for (let y = by; y < yEnd; y++) {
+            for (let x = bx; x < xEnd; x++) {
+              const idx = y * w + x;
+              out[idx] = Math.round(((filtered[idx]! - minVal) * 255) / range);
+            }
+          }
+        } else {
+          for (let y = by; y < yEnd; y++) {
+            for (let x = bx; x < xEnd; x++) {
+              out[y * w + x] = filtered[y * w + x]!;
             }
           }
         }
       }
     }
+  } else if (kind === 'adaptive') {
+    // عتبة تكيفية تقريبية (Sauvola-like) — ممتازة للانعكاسات والإضاءة المتدرجة
+    // على بطاقة ممسوكة باليد. نافذة 15×15، k=0.2، R=128.
+    const win = 15;
+    const half = (win - 1) >> 1;
+    const k = 0.2;
+    const R = 128;
+    // متوسط محلي سريع عبر صندوق متحرك تقريبي (عيّنة كل صف)
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let sum = 0;
+        let sumSq = 0;
+        let count = 0;
+        const y0 = Math.max(0, y - half);
+        const y1 = Math.min(h - 1, y + half);
+        const x0 = Math.max(0, x - half);
+        const x1 = Math.min(w - 1, x + half);
+        // عيّنة كل بكسلين للسرعة مع الحفاظ على الدقة الكافية للأرقام
+        for (let yy = y0; yy <= y1; yy += 2) {
+          for (let xx = x0; xx <= x1; xx += 2) {
+            const p = filtered[yy * w + xx]!;
+            sum += p;
+            sumSq += p * p;
+            count++;
+          }
+        }
+        const mean = sum / (count || 1);
+        const variance = Math.max(0, sumSq / (count || 1) - mean * mean);
+        const std = Math.sqrt(variance);
+        const thresh = mean * (1 + k * (std / R - 1));
+        out[y * w + x] = filtered[y * w + x]! >= thresh ? 255 : 0;
+      }
+    }
+  } else if (kind === 'sharp') {
+    // توضيح خفيف (unsharp mask) بعد التنعيم — يستعيد حواف الأرقام المفقودة
+    // بسبب الضبابية الناتجة عن الحركة أو البعد البؤري عند الإمساك باليد.
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = y * w + x;
+        const center = filtered[idx]!;
+        // نواة laplace تقريبية
+        const lap =
+          -filtered[(y - 1) * w + x]! -
+          filtered[y * w + (x - 1)]! +
+          5 * center -
+          filtered[y * w + (x + 1)]! -
+          filtered[(y + 1) * w + x]!;
+        // مزج: 70% أصل + 30% توضيح
+        const v = Math.round(center * 0.55 + lap * 0.45);
+        out[idx] = Math.max(0, Math.min(255, v));
+      }
+    }
+    // حواف الصورة
+    for (let x = 0; x < w; x++) {
+      out[x] = filtered[x]!;
+      out[(h - 1) * w + x] = filtered[(h - 1) * w + x]!;
+    }
+    for (let y = 0; y < h; y++) {
+      out[y * w] = filtered[y * w]!;
+      out[y * w + (w - 1)] = filtered[y * w + (w - 1)]!;
+    }
   } else if (kind.startsWith('thresh')) {
     const t = kind === 'thresh100' ? 100 : kind === 'thresh130' ? 130 : 160;
-    for (let i = 0; i < filtered.length; i++) {
-      filtered[i] = filtered[i]! >= t ? 255 : 0;
+    for (let i = 0; i < n; i++) {
+      out[i] = filtered[i]! >= t ? 255 : 0;
     }
+  } else {
+    // gray
+    out.set(filtered);
   }
 
-  for (let i = 0; i < filtered.length; i++) {
-    d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = filtered[i]!;
+  for (let i = 0; i < n; i++) {
+    d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = out[i]!;
     d[i * 4 + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
@@ -496,29 +575,31 @@ function dynamicCropRoi(src: HTMLCanvasElement, field: 'username' | 'password' |
   let finalH: number;
 
   if (band2) {
-    // شريطان مستقلّان: كل حقل يأخذ شريطه الخاص كاملًا (مع هامش بسيط) بدل
-    // تقسيم شريط واحد بنسبة ثابتة.
+    // شريطان مستقلّان: كل حقل يأخذ شريطه الخاص كاملًا (مع هامش أوسع)
+    // لتفادي قصّ أطراف الأرقام عند الإمساك باليد أو الميل الخفيف.
     const band = isSecondField ? band2 : band1;
-    const padRows = 0.15; // هامش صغير أعلى/أسفل الشريط لتفادي قصّ أطراف الأرقام
+    const padRows = 0.35;
     finalY = Math.round((band.startRow - padRows) * rowHeight);
     finalH = Math.round((band.endRow - band.startRow + 1 + padRows * 2) * rowHeight);
   } else {
-    // احتياطي: لم يُعثر على شريط ثانٍ موثوق — نرجع للسلوك القديم (تقسيم
-    // الشريط الوحيد المكتشف) بدل إفشال القصّ بالكامل.
+    // احتياطي: لم يُعثر على شريط ثانٍ موثوق — نرجع لتقسيم الشريط الوحيد
+    // لكن بهامش رأسي أوسع قليلًا لتقليل فقدان الأرقام الطويلة.
     const top = band1.startRow * rowHeight;
     const height = (band1.endRow - band1.startRow + 1) * rowHeight;
     if (!isSecondField) {
-      finalY = top;
-      finalH = Math.round(height * 0.45);
+      finalY = Math.max(0, top - Math.round(height * 0.1));
+      finalH = Math.round(height * 0.55);
     } else {
-      finalY = top + Math.round(height * 0.55);
-      finalH = Math.round(height * 0.45);
+      finalY = top + Math.round(height * 0.45);
+      finalH = Math.round(height * 0.55);
     }
   }
 
-  const x = Math.round(src.width * 0.08);
-  const cropW = Math.round(src.width * 0.84);
-  finalY = Math.max(0, Math.min(finalY, src.height - finalH));
+  // هامش أفقي أضيق (4% بدل 8%) — اسم المستخدم الطويل (12 خانة) يملأ العرض
+  // وقد كانت الحواف تُقصّ أول/آخر رقم عند الإمساك باليد أو عدم التوسيط المثالي.
+  const x = Math.round(src.width * 0.03);
+  const cropW = Math.round(src.width * 0.94);
+  finalY = Math.max(0, Math.min(finalY, src.height - 1));
   finalH = Math.max(1, Math.min(finalH, src.height - finalY));
 
   const c = document.createElement('canvas');
@@ -531,10 +612,19 @@ function dynamicCropRoi(src: HTMLCanvasElement, field: 'username' | 'password' |
 }
 
 // ====== أنواع التحضير ======
-type PrepKind = 'gray' | 'contrast' | 'thresh100' | 'thresh130' | 'thresh160';
+// أُضيف adaptive (عتبة تكيفية) و sharp (توضيح بعد تنعيم) لمقاومة الضجيج
+// والانعكاسات والبطاقة الممسوكة باليد.
+type PrepKind =
+  | 'gray'
+  | 'contrast'
+  | 'thresh100'
+  | 'thresh130'
+  | 'thresh160'
+  | 'adaptive'
+  | 'sharp';
 
-// ثلاث نسخ معالجة
-const PREP_VARIANTS: PrepKind[] = ['gray', 'contrast', 'thresh130'];
+// نسخ معالجة متنوعة — تغطي إضاءة غير متساوية، انعكاسات، وضبابية خفيفة.
+const PREP_VARIANTS: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130', 'gray'];
 
 // ====== دوال التطبيع والتحقق ======
 
@@ -588,33 +678,92 @@ function scoreDigitRun(digits: string, field: 'username' | 'password'): number {
   if (!digits) return 0;
   const ok =
     field === 'username' ? isValidCardUsername(digits) : isValidCardPassword(digits);
-  let score = ok ? 50 + digits.length : digits.length;
-  if (field === 'username' && digits.length >= 10 && digits.length <= 13) score += 20;
-  if (field === 'password' && digits.length >= 5 && digits.length <= 8) score += 20;
+  let score = ok ? 50 + digits.length * 2 : digits.length;
+  // تفضيل قوي للأطوال الشائعة على بطاقات النت الفلسطينية (12 للمستخدم، 6 للسر)
+  if (field === 'username') {
+    if (digits.length >= 10 && digits.length <= 13) score += 25;
+    if (digits.length === 12) score += 15;
+  }
+  if (field === 'password') {
+    if (digits.length >= 5 && digits.length <= 8) score += 25;
+    if (digits.length === 6) score += 15;
+  }
   return score;
+}
+
+/**
+ * دمج مرشّحات رقمية جزئية: إذا ظهر مرشّح كسلسلة جزئية من آخر أطول،
+ * فضّل الأطول (يستعيد الأرقام المفقودة من الحواف عند الإمساك باليد).
+ * مثال: "528261456" ⊆ "445282914562" → اختر الأطول.
+ */
+function fuseDigitCandidates(candidates: string[], field: 'username' | 'password'): string {
+  const uniq = Array.from(new Set(candidates.map(normalizeCardDigits).filter(Boolean)));
+  if (uniq.length === 0) return '';
+  if (uniq.length === 1) return uniq[0]!;
+
+  // رتّب بالأطول أولًا ثم بالدرجة
+  uniq.sort((a, b) => {
+    const sa = scoreDigitRun(a, field);
+    const sb = scoreDigitRun(b, field);
+    if (sb !== sa) return sb - sa;
+    return b.length - a.length;
+  });
+
+  // إذا كان أقصر مرشّح سلسلة جزئية من أطول مرشّح صالح، فضّل الأطول
+  const longestValid = uniq.find((c) =>
+    field === 'username' ? isValidCardUsername(c) : isValidCardPassword(c),
+  );
+  if (longestValid) {
+    const shorterIsSubstring = uniq.some(
+      (c) => c !== longestValid && c.length >= 4 && longestValid.includes(c),
+    );
+    if (shorterIsSubstring || uniq[0] === longestValid) return longestValid;
+  }
+
+  // تصويت بسيط على مستوى الخانة للمرشّحات المتقاربة الطول (±2)
+  const refLen = uniq[0]!.length;
+  const close = uniq.filter((c) => Math.abs(c.length - refLen) <= 2 && c.length >= 4);
+  if (close.length >= 2) {
+    const maxLen = Math.max(...close.map((c) => c.length));
+    let fused = '';
+    for (let i = 0; i < maxLen; i++) {
+      const counts = new Map<string, number>();
+      for (const c of close) {
+        // محاذاة من اليمين للأرقام الطويلة (الأرقام المفقودة غالبًا من اليسار)
+        const idx = i - (maxLen - c.length);
+        if (idx >= 0 && idx < c.length) {
+          const ch = c[idx]!;
+          counts.set(ch, (counts.get(ch) ?? 0) + 1);
+        }
+      }
+      let bestCh = '0';
+      let bestN = -1;
+      for (const [ch, n] of counts) {
+        if (n > bestN) {
+          bestN = n;
+          bestCh = ch;
+        }
+      }
+      if (bestN > 0) fused += bestCh;
+    }
+    if (field === 'username' ? isValidCardUsername(fused) : isValidCardPassword(fused)) {
+      return fused;
+    }
+  }
+
+  return uniq[0]!;
 }
 
 function bestDigitCandidate(text: string, field: 'username' | 'password'): string {
   const normalized = normalizeCardDigits(text);
   if (!normalized) return '';
-  if (scoreDigitRun(normalized, field) > 0) {
-    const runs = text.match(/\d{4,}/g)?.map(normalizeCardDigits) ?? [normalized];
-    let best = '';
-    let bestScore = -1;
-    for (const r of runs) {
-      const sc = scoreDigitRun(r, field);
-      if (sc > bestScore) {
-        bestScore = sc;
-        best = r;
-      }
-    }
-    const fullSc = scoreDigitRun(normalized, field);
-    if (fullSc >= bestScore) return normalized.length <= (field === 'username' ? CARD_USER_LEN.max : CARD_PASS_LEN.max)
-      ? normalized
-      : best || normalized.slice(0, field === 'username' ? CARD_USER_LEN.max : CARD_PASS_LEN.max);
-    return best;
-  }
-  return normalized;
+  const runs = (text.match(/\d{4,}/g) ?? []).map(normalizeCardDigits).filter(Boolean);
+  if (runs.length === 0) runs.push(normalized);
+
+  // أضف النص الكامل كمرشّح إن كان صالح الطول
+  if (normalized.length >= 4 && !runs.includes(normalized)) runs.push(normalized);
+
+  return fuseDigitCandidates(runs, field);
 }
 
 // دالة تحقق سريعة (تمريرة واحدة فقط) — تُستخدم للتحقق المستقل الثاني في
@@ -633,10 +782,20 @@ async function ocrDigitsQuickCheck(
       tessedit_char_whitelist: '0123456789',
       tessedit_pageseg_mode: '7',
     });
-    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3 : 2);
-    const prepped = preprocessAdvanced(scaled, 'contrast');
-    const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
-    return bestDigitCandidate(data.text || '', field);
+    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3.2 : 2.2);
+    // جرّب معالجتين سريعتين واختر الأفضل — adaptive أفضل مع الانعكاسات
+    const candidates: string[] = [];
+    for (const kind of ['adaptive', 'contrast'] as PrepKind[]) {
+      try {
+        const prepped = preprocessAdvanced(scaled, kind);
+        const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
+        const dig = bestDigitCandidate(data.text || '', field);
+        if (dig) candidates.push(dig);
+      } catch {
+        /* next */
+      }
+    }
+    return fuseDigitCandidates(candidates, field);
   } catch {
     return '';
   }
@@ -655,29 +814,48 @@ async function ocrDigitsOnCanvas(
     tessedit_pageseg_mode: '7',
   });
 
-  const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3 : 2);
+  // مقاييس متعددة: الأرقام الصغيرة على بطاقة ممسوكة باليد تستفيد من تكبير أعلى،
+  // بينما التكبير المعتدل أفضل عند وجود ضجيج/انعكاس.
+  const scales =
+    canvas.width < 280 ? [3.5, 2.5] : canvas.width < 450 ? [3, 2] : [2.5, 1.8];
   const tallies = new Map<string, number>();
+  const allCandidates: string[] = [];
 
-  for (const kind of PREP_VARIANTS) {
-    const prepped = preprocessAdvanced(scaled, kind);
-    try {
-      const { data } = await withTimeout(
-        worker.recognize(prepped),
-        RECOGNIZE_TIMEOUT_MS,
-        'OCR',
-      );
-      const digits = bestDigitCandidate(data.text || '', field);
-      if (!digits) continue;
-      tallies.set(digits, (tallies.get(digits) ?? 0) + 1 + (scoreDigitRun(digits, field) > 40 ? 1 : 0));
-    } catch {
-      /* try next prep */
+  for (const scale of scales) {
+    const scaled = upscaleCanvas(canvas, scale);
+    for (const kind of PREP_VARIANTS) {
+      const prepped = preprocessAdvanced(scaled, kind);
+      try {
+        const { data } = await withTimeout(
+          worker.recognize(prepped),
+          RECOGNIZE_TIMEOUT_MS,
+          'OCR',
+        );
+        const digits = bestDigitCandidate(data.text || '', field);
+        if (!digits) continue;
+        allCandidates.push(digits);
+        const bonus = scoreDigitRun(digits, field) > 50 ? 2 : scoreDigitRun(digits, field) > 30 ? 1 : 0;
+        tallies.set(digits, (tallies.get(digits) ?? 0) + 1 + bonus);
+      } catch {
+        /* try next prep/scale */
+      }
     }
+  }
+
+  // دمج المرشّحات الجزئية قبل اختيار الفائز بالتصويت
+  const fused = fuseDigitCandidates(allCandidates, field);
+  if (fused) {
+    tallies.set(fused, (tallies.get(fused) ?? 0) + 3);
   }
 
   let best = '';
   let bestVotes = 0;
   for (const [d, v] of tallies) {
-    if (v > bestVotes || (v === bestVotes && d.length > best.length)) {
+    if (
+      v > bestVotes ||
+      (v === bestVotes && scoreDigitRun(d, field) > scoreDigitRun(best, field)) ||
+      (v === bestVotes && d.length > best.length)
+    ) {
       best = d;
       bestVotes = v;
     }
@@ -720,28 +898,56 @@ export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Pr
   let fullText = '';
   if (needFullFallback) {
     try {
-      const fullScaled = upscaleCanvas(deskewedGuide, deskewedGuide.width < 500 ? 2.5 : 2);
+      const fullScaled = upscaleCanvas(deskewedGuide, deskewedGuide.width < 500 ? 3 : 2.2);
       const worker = await getWorker(0);
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789',
         tessedit_pageseg_mode: '6',
       });
-      const gray = preprocessAdvanced(fullScaled, 'contrast');
-      const { data } = await withTimeout(worker.recognize(gray), RECOGNIZE_TIMEOUT_MS, 'OCR');
-      fullText = data.text || '';
+      // عدة معالجات على الصورة الكاملة لاستعادة أرقام الحواف المفقودة
+      const fallbackCandidatesUser: string[] = [];
+      const fallbackCandidatesPass: string[] = [];
+      const fbPreps: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130'];
+      for (const kind of fbPreps) {
+        try {
+          const prepped = preprocessAdvanced(fullScaled, kind);
+          const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
+          const t = data.text || '';
+          fullText = fullText || t;
+          const extracted = extractOrderedDigitFields(t);
+          if (extracted.username) fallbackCandidatesUser.push(extracted.username);
+          if (extracted.password) fallbackCandidatesPass.push(extracted.password);
+        } catch {
+          /* next */
+        }
+      }
+      if (fallbackCandidatesUser.length) {
+        const fusedU = fuseDigitCandidates(
+          [...fallbackCandidatesUser, ...(username ? [username] : [])],
+          'username',
+        );
+        if (fusedU && (!username || fusedU.length >= username.length)) username = fusedU;
+      }
+      if (fallbackCandidatesPass.length) {
+        const fusedP = fuseDigitCandidates(
+          [...fallbackCandidatesPass, ...(password ? [password] : [])],
+          'password',
+        );
+        if (fusedP && (!password || isValidCardPassword(fusedP))) password = fusedP;
+      }
     } catch {
       fullText = '';
     }
   }
 
-  if (needFullFallback && fullText) {
+  if (needFullFallback && fullText && (!isValidCardUsername(username) || !isValidCardPassword(password))) {
     const extracted = extractOrderedDigitFields(
       fullText,
       isValidCardUsername(username) && userRes.votes >= 2 ? username : '',
       isValidCardPassword(password) && passRes.votes >= 2 ? password : '',
     );
-    username = extracted.username;
-    password = extracted.password;
+    if (!isValidCardUsername(username) && extracted.username) username = extracted.username;
+    if (!isValidCardPassword(password) && extracted.password) password = extracted.password;
   }
 
   if (username && password && username === password) {
@@ -751,8 +957,9 @@ export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Pr
   const userOk = isValidCardUsername(username);
   const passOk = isValidCardPassword(password);
   const votes = userRes.votes + passRes.votes;
-  const confidence = Math.min(1, (votes / 12) * 0.6 + (userOk ? 0.2 : 0) + (passOk ? 0.2 : 0));
-  const verified = userOk && passOk && userRes.votes >= 2 && passRes.votes >= 2;
+  // عتبة تصويت أعلى قليلًا لأننا نستخدم المزيد من المقاييس/المعالجات
+  const confidence = Math.min(1, (votes / 20) * 0.55 + (userOk ? 0.25 : 0) + (passOk ? 0.2 : 0));
+  const verified = userOk && passOk && userRes.votes >= 3 && passRes.votes >= 2;
 
   return {
     username,
@@ -765,8 +972,8 @@ export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Pr
 
 export async function ocrCardFieldsFromTightCrop(cropCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
   const deskewed = deskewCanvas(cropCanvas);
-  const scaled = upscaleCanvas(deskewed, deskewed.width < 500 ? 3 : 2);
-  const preps: PrepKind[] = ['contrast', 'thresh130', 'gray'];
+  const scaled = upscaleCanvas(deskewed, deskewed.width < 500 ? 3.2 : 2.2);
+  const preps: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130'];
 
   const results = await Promise.all(
     preps.map(async (kind, i) => {
@@ -881,25 +1088,48 @@ export function consensusCardFields(
 ): { username: string; password: string; verified: boolean; agreement: number } {
   const count = (key: 'username' | 'password') => {
     const m = new Map<string, number>();
+    const all: string[] = [];
     for (const s of samples) {
       const v = s[key];
       if (!v) continue;
+      all.push(v);
       m.set(v, (m.get(v) ?? 0) + 1);
     }
-    let best = '';
-    let n = 0;
+    // دمج المرشّحات الجزئية عبر الإطارات قبل اختيار الأكثر تكرارًا
+    const fused = fuseDigitCandidates(all, key);
+    let best = fused;
+    let n = fused ? (m.get(fused) ?? 0) : 0;
+    // إذا كان المدمج جديدًا، امنحه أصوات المرشّحات التي هو امتداد لها
+    if (fused) {
+      for (const [v, c] of m) {
+        if (v !== fused && (fused.includes(v) || v.includes(fused))) n += c;
+      }
+    }
     for (const [v, c] of m) {
-      if (c > n) {
+      if (c > n || (c === n && v.length > best.length)) {
         best = v;
         n = c;
       }
+    }
+    // فضّل المدمج إذا كان أطول وصالحًا ويغطي أغلب الأصوات
+    if (
+      fused &&
+      fused !== best &&
+      fused.length > best.length &&
+      (key === 'username' ? isValidCardUsername(fused) : isValidCardPassword(fused))
+    ) {
+      best = fused;
     }
     return { value: best, n };
   };
   const u = count('username');
   const p = count('password');
-  const need = Math.max(2, Math.ceil(samples.length * 0.5));
-  const verified = u.n >= need && p.n >= need && isValidCardUsername(u.value) && isValidCardPassword(p.value);
+  const need = Math.max(2, Math.ceil(samples.length * 0.45));
+  const verified =
+    u.n >= need &&
+    p.n >= need &&
+    isValidCardUsername(u.value) &&
+    isValidCardPassword(p.value);
   return {
     username: u.value,
     password: p.value,
@@ -910,8 +1140,8 @@ export function consensusCardFields(
 
 export async function ocrCardMultiFrame(
   capture: () => HTMLCanvasElement | null,
-  frames = 3,
-  delayMs = 120,
+  frames = 4,
+  delayMs = 100,
 ): Promise<CardOcrFields> {
   const samples: Array<{ username: string; password: string }> = [];
   let lastRaw = '';
@@ -929,6 +1159,7 @@ export async function ocrCardMultiFrame(
         /* frame failed */
       }
     }
+    // إيقاف مبكر عند تطابق إطارين متتاليين بصيغة صالحة
     if (samples.length >= 2) {
       const a = samples[samples.length - 1]!;
       const b = samples[samples.length - 2]!;
@@ -954,7 +1185,7 @@ export async function ocrCardMultiFrame(
   return {
     username: c.username,
     password: c.password,
-    confidence: c.agreement,
+    confidence: Math.min(1, c.agreement + (c.verified ? 0.15 : 0)),
     verified: c.verified,
     raw: lastRaw || `${c.username}\n${c.password}`,
   };

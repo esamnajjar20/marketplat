@@ -308,8 +308,8 @@ export function QrScannerCamera({
 
       const fields = await ocrCardMultiFrame(
         () => captureGuideCropToCanvas() ?? canvas,
-        3,
-        100,
+        4,
+        90,
       );
       let username = fields.username;
       let password = fields.password;
