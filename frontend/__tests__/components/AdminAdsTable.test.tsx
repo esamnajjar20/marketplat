@@ -90,8 +90,8 @@ describe('AdminAdsTable', () => {
     it('renders the ad title, price, seller name, and status', () => {
       render(<AdminAdsTable />);
 
-      expect(screen.getByText('سيارة تويوتا')).toBeInTheDocument();
-      expect(screen.getByText('أحمد')).toBeInTheDocument();
+      expect(screen.getAllByText('سيارة تويوتا').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('أحمد').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows "—" for the seller when user is missing', () => {

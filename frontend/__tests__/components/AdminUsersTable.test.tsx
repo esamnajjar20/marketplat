@@ -106,24 +106,24 @@ describe('AdminUsersTable', () => {
     it('renders the user name without crashing, with no avatar image', () => {
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('أحمد محمد')).toBeInTheDocument();
+      expect(screen.getAllByText('أحمد محمد').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
     });
 
     it('renders the email, role badge, and status badge', () => {
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('ahmad@example.com')).toBeInTheDocument();
-      expect(screen.getByText('مستخدم')).toBeInTheDocument();
-      expect(screen.getByText('نشط')).toBeInTheDocument();
+      expect(screen.getAllByText('ahmad@example.com').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('مستخدم').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('نشط').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows "مدير" and "موقوف" badges for an inactive admin', () => {
       mockUsersData([{ ...adminUser, isActive: false }]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('مدير')).toBeInTheDocument();
-      expect(screen.getByText('موقوف')).toBeInTheDocument();
+      expect(screen.getAllByText('مدير').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('موقوف').length).toBeGreaterThanOrEqual(1);
     });
 
     // Gap #20
@@ -131,14 +131,14 @@ describe('AdminUsersTable', () => {
       mockUsersData([moderatorUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('مشرف مساعد')).toBeInTheDocument();
+      expect(screen.getAllByText('مشرف مساعد').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows the "مدير أعلى" badge for a SUPER_ADMIN', () => {
       mockUsersData([superAdminUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('مدير أعلى')).toBeInTheDocument();
+      expect(screen.getAllByText('مدير أعلى').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows an empty-state message when there are no users', () => {

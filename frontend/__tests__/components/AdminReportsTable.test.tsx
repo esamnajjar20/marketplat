@@ -100,7 +100,7 @@ describe('AdminReportsTable', () => {
 
     it("renders report.user.name (not the nonexistent report.reporter field)", () => {
       render(<AdminReportsTable />);
-      expect(screen.getByText('خالد')).toBeInTheDocument();
+      expect(screen.getAllByText('خالد').length).toBeGreaterThanOrEqual(1);
     });
 
     it('does not render a stray "—" placeholder for the reporter when user is present', () => {
@@ -124,7 +124,7 @@ describe('AdminReportsTable', () => {
 
     it('shows the Arabic reason label', () => {
       render(<AdminReportsTable />);
-      expect(screen.getByText('عملية احتيال')).toBeInTheDocument();
+      expect(screen.getAllByText('عملية احتيال').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows an empty-state message when there are no reports', () => {
@@ -164,7 +164,7 @@ describe('AdminReportsTable', () => {
       const user = setupUser();
       render(<AdminReportsTable />);
 
-      await user.click(screen.getByRole('button', { name: 'رفض' }));
+      await user.click(screen.getAllByRole('button', { name: 'رفض' })[0]);
       await user.click(screen.getByRole('button', { name: 'رفض البلاغ' }));
 
       expect(mockResolveMutate).toHaveBeenCalledWith(

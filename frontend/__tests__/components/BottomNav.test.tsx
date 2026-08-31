@@ -107,4 +107,31 @@ describe('BottomNav', () => {
       expect(screen.getByRole('link', { name: /خدمة جديدة/ })).toHaveAttribute('href', '/my-services/new');
     });
   });
+
+  describe('account tab', () => {
+    it('shows القائمة for guests', () => {
+      render(<BottomNav />);
+      expect(screen.getByRole('button', { name: /القائمة/ })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /حسابي/ })).not.toBeInTheDocument();
+    });
+
+    it('links حسابي to the user profile when authenticated', () => {
+      useAuthStore.setState({
+        user: {
+          id: 'user-1',
+          name: 'Test',
+          email: 't@example.com',
+          role: 'USER',
+          isEmailVerified: true,
+        } as never,
+        accessToken: 'tok',
+        isAuthenticated: true,
+      } as never);
+      render(<BottomNav />);
+      const link = screen.getByRole('link', { name: /حسابي/ });
+      expect(link).toHaveAttribute('href', '/profile/user-1');
+      expect(screen.queryByRole('button', { name: /القائمة/ })).not.toBeInTheDocument();
+    });
+  });
+
 });

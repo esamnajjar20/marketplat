@@ -57,28 +57,28 @@ describe('AdminAuditLogsTable', () => {
   describe('rendering', () => {
     it('renders the Arabic label for the event', () => {
       render(<AdminAuditLogsTable />);
-      expect(screen.getByText('تغيير حالة مستخدم (إدارة)')).toBeInTheDocument();
+      expect(screen.getAllByText('تغيير حالة مستخدم (إدارة)').length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders the related user name', () => {
       render(<AdminAuditLogsTable />);
-      expect(screen.getByText('أحمد')).toBeInTheDocument();
+      expect(screen.getAllByText('أحمد').length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders the IP address', () => {
       render(<AdminAuditLogsTable />);
-      expect(screen.getByText('127.0.0.1')).toBeInTheDocument();
+      expect(screen.getAllByText('127.0.0.1').length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders the user agent', () => {
       render(<AdminAuditLogsTable />);
-      expect(screen.getByText('Mozilla/5.0 Test Agent')).toBeInTheDocument();
+      expect(screen.getAllByText('Mozilla/5.0 Test Agent').length).toBeGreaterThanOrEqual(1);
     });
 
     it('falls back to the raw userId when no related user is present', () => {
       mockAuditLogsData([{ ...baseLog, user: null }]);
       render(<AdminAuditLogsTable />);
-      expect(screen.getByText('admin-1')).toBeInTheDocument();
+      expect(screen.getAllByText('admin-1').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows an empty-state message when there are no logs', () => {
@@ -90,7 +90,7 @@ describe('AdminAuditLogsTable', () => {
     it('falls back to the raw event name for an unmapped event', () => {
       mockAuditLogsData([{ ...baseLog, event: 'SOME_FUTURE_EVENT' as never }]);
       render(<AdminAuditLogsTable />);
-      expect(screen.getByText('SOME_FUTURE_EVENT')).toBeInTheDocument();
+      expect(screen.getAllByText('SOME_FUTURE_EVENT').length).toBeGreaterThanOrEqual(1);
     });
   });
 

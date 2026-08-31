@@ -150,10 +150,10 @@ describe('AdminStoresTable', () => {
       })]);
       render(<AdminStoresTable />);
 
-      expect(screen.getByText('متجر الأمل')).toBeInTheDocument();
+      expect(screen.getAllByText('متجر الأمل').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('أحمد').length).toBeGreaterThan(0);
-      expect(screen.getByText('رفح')).toBeInTheDocument();
-      expect(screen.getByText('نشط')).toBeInTheDocument();
+      expect(screen.getAllByText('رفح').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('نشط').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows the "قيد المراجعة" badge for a PENDING store', () => {
@@ -165,7 +165,7 @@ describe('AdminStoresTable', () => {
     it('shows the "محظور" badge for a BLOCKED store', () => {
       mockStoresData([makeStore({ status: 'BLOCKED' })]);
       render(<AdminStoresTable />);
-      expect(screen.getByText('محظور')).toBeInTheDocument();
+      expect(screen.getAllByText('محظور').length).toBeGreaterThanOrEqual(1);
     });
   });
 

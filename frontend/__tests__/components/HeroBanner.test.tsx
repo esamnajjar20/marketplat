@@ -1,44 +1,40 @@
 /**
  * __tests__/components/HeroBanner.test.tsx
  *
- * HeroBanner is static marketing markup — no conditional logic. Covers
- * the headline/copy rendering and pins down the "نشر إعلان مجاناً" CTA
- * pointing at the real ROUTES.adCreate route (the same
- * ROUTES.createAd-vs-adCreate mismatch fixed in PublicHeader/
- * ProtectedHeader existed as a risk here too — this confirms
- * HeroBanner was written correctly).
+ * Hero renders parallel mobile/desktop layouts (both present in jsdom).
+ * Search lives in the header only — not in the hero.
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { HeroBanner } from '@/components/home/HeroBanner';
-import { ROUTES } from '@/lib/constants';
 
 describe('HeroBanner', () => {
-  it('renders the headline and supporting copy', () => {
+  it('renders the headline on mobile and desktop layouts', () => {
     render(<HeroBanner />);
-
-    // HeroBanner renders two parallel layouts (a compact mobile card,
-    // sm:hidden, and the full desktop hero, hidden sm:block) — both are
-    // present in jsdom since there's no real viewport to hide either via
-    // CSS, so the headline and copy each appear twice.
     expect(screen.getAllByRole('heading', { name: 'من أهل غزة، لأهل غزة' }).length).toBe(2);
-    expect(
-      screen.getAllByText('سيارات، عقارات، إلكترونيات وأكثر — بيع واشترِ من جيرانك، بثقة.').length,
-    ).toBe(2);
   });
 
-  it('renders the search bar', () => {
+  it('renders supporting copy that mentions ads, stores, and services', () => {
     render(<HeroBanner />);
-    expect(screen.getByLabelText('ابحث في الإعلانات')).toBeInTheDocument();
+    // Mobile and desktop wordings differ slightly but both cover the marketplace scope.
+    const mobile = screen.getAllByText(/إعلانات.*متاجر.*خدمات/);
+    expect(mobile.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('links the CTA to the real ad-create route', () => {
+  it('does not render a search field in the hero (search is in the header)', () => {
     render(<HeroBanner />);
+    expect(screen.queryByLabelText('ابحث في الإعلانات')).not.toBeInTheDocument();
+  });
 
-    // Same mobile/desktop duplication as above — two CTA links, both
-    // pointing at the same route.
-    const ctas = screen.getAllByText('نشر إعلان مجاناً').map((el) => el.closest('a'));
-    expect(ctas.length).toBe(2);
-    ctas.forEach((cta) => expect(cta).toHaveAttribute('href', ROUTES.adCreate));
+  it('renders publish CTAs as buttons that open CreateSheet', () => {
+    render(<HeroBanner />);
+    const ctas = screen.getAllByRole('button', { name: /انشر إعلان/ });
+    expect(ctas.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders explore CTAs', () => {
+    render(<HeroBanner />);
+    const explore = screen.getAllByRole('button', { name: /استكشف التصنيفات/ });
+    expect(explore.length).toBeGreaterThanOrEqual(1);
   });
 });

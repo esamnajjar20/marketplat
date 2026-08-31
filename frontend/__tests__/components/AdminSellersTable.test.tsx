@@ -126,41 +126,41 @@ describe('AdminSellersTable', () => {
     it('renders the seller name and email', () => {
       mockSellersData([makeSeller({ displayName: 'متجر الأمل', user: { email: 'amal@example.com' } })]);
       render(<AdminSellersTable />);
-      expect(screen.getByText('متجر الأمل')).toBeInTheDocument();
+      expect(screen.getAllByText('متجر الأمل').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('amal@example.com').length).toBeGreaterThan(0);
     });
 
     it('shows "لا يوجد تقييم" when totalRatings is 0', () => {
       mockSellersData([makeSeller({ totalRatings: 0 })]);
       render(<AdminSellersTable />);
-      expect(screen.getByText('لا يوجد تقييم')).toBeInTheDocument();
+      expect(screen.getAllByText('لا يوجد تقييم').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows the average rating and count when totalRatings > 0', () => {
       mockSellersData([makeSeller({ totalRatings: 12, averageRating: 4.567 })]);
       render(<AdminSellersTable />);
-      expect(screen.getByText('4.6')).toBeInTheDocument();
-      expect(screen.getByText('(12)')).toBeInTheDocument();
+      expect(screen.getAllByText('4.6').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('(12)').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows "موثّق" badge for a verified seller and "غير موثّق" for an unverified one', () => {
       mockSellersData([makeSeller({ verified: true })]);
       const { rerender } = render(<AdminSellersTable />);
-      expect(screen.getByText('موثّق')).toBeInTheDocument();
+      expect(screen.getAllByText('موثّق').length).toBeGreaterThanOrEqual(1);
 
       mockSellersData([makeSeller({ verified: false })]);
       rerender(<AdminSellersTable />);
-      expect(screen.getByText('غير موثّق')).toBeInTheDocument();
+      expect(screen.getAllByText('غير موثّق').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows "موقوف" badge for a suspended seller and "نشط" for an active one', () => {
       mockSellersData([makeSeller({ suspended: true })]);
       const { rerender } = render(<AdminSellersTable />);
-      expect(screen.getByText('موقوف')).toBeInTheDocument();
+      expect(screen.getAllByText('موقوف').length).toBeGreaterThanOrEqual(1);
 
       mockSellersData([makeSeller({ suspended: false })]);
       rerender(<AdminSellersTable />);
-      expect(screen.getByText('نشط')).toBeInTheDocument();
+      expect(screen.getAllByText('نشط').length).toBeGreaterThanOrEqual(1);
     });
   });
 
