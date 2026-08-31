@@ -104,11 +104,16 @@ export function BottomNav() {
         href={href}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
+          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
-        <Icon className="h-5 w-5" aria-hidden={true} />
+        <span className="relative inline-flex">
+          <Icon className="h-5 w-5" aria-hidden={true} />
+          {isActive && (
+            <span className="absolute -bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" aria-hidden />
+          )}
+        </span>
         {label}
       </Link>
     );
@@ -117,7 +122,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="التنقل الرئيسي"
-      className="pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
+      className="pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t border-border/80 bg-background/95 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden"
     >
       {leadingItems.map(renderItem)}
 
@@ -127,11 +132,16 @@ export function BottomNav() {
         aria-current={isExploreActive ? 'page' : undefined}
         aria-haspopup="dialog"
         className={cn(
-          'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
+          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
           isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
-        <Compass className="h-5 w-5" aria-hidden={true} />
+        <span className="relative inline-flex">
+          <Compass className="h-5 w-5" aria-hidden={true} />
+          {isExploreActive && (
+            <span className="absolute -bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" aria-hidden />
+          )}
+        </span>
         استكشاف
       </button>
 
@@ -140,7 +150,7 @@ export function BottomNav() {
           type="button"
           onClick={() => setCreateOpen(true)}
           aria-haspopup="dialog"
-          className="-mt-5 flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+          className="-mt-5 flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105 hover:shadow-lg"
         >
           <Plus className="h-5 w-5" aria-hidden={true} />
         </button>

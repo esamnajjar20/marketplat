@@ -52,10 +52,10 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
   const selectedId = isInboxRoute ? undefined : pathname.split('/').pop();
 
   return (
-    <div className="md:flex md:h-[calc(100vh-6.5rem)] lg:h-[calc(100vh-7rem)] md:gap-0 md:overflow-hidden md:rounded-xl md:border md:bg-card md:shadow-sm">
+    <div className="md:flex md:h-[calc(100vh-6.5rem)] md:gap-0 md:overflow-hidden md:rounded-xl md:border md:border-border md:bg-card md:shadow-sm lg:h-[calc(100vh-7rem)]">
       <aside
         className={cn(
-          'md:w-[18rem] lg:w-[22rem] md:shrink-0 md:overflow-hidden md:flex md:flex-col md:border-e',
+          'md:flex md:w-[18rem] md:shrink-0 md:flex-col md:overflow-hidden md:border-e md:border-border lg:w-[22rem]',
           isInboxRoute ? 'block' : 'hidden',
           'md:block'
         )}

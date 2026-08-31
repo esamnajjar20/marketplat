@@ -66,7 +66,7 @@ export function ProductDetail({ product, related = [] }: Props) {
       <div className="flex flex-col gap-6 pb-sticky-contact md:flex-row md:gap-8">
         {/* Gallery + description */}
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
-          <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <div
               className="relative aspect-[4/3] bg-muted touch-pan-y sm:aspect-[16/9]"
               onTouchStart={(e) => {
@@ -111,7 +111,7 @@ export function ProductDetail({ product, related = [] }: Props) {
                     onClick={goPrev}
                     disabled={imgIdx === 0}
                     aria-label="الصورة السابقة"
-                    className="absolute start-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 shadow disabled:opacity-40"
+                    className="absolute start-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 shadow-sm backdrop-blur-sm disabled:opacity-40"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -120,7 +120,7 @@ export function ProductDetail({ product, related = [] }: Props) {
                     onClick={goNext}
                     disabled={imgIdx === images.length - 1}
                     aria-label="الصورة التالية"
-                    className="absolute end-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 shadow disabled:opacity-40"
+                    className="absolute end-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 shadow-sm backdrop-blur-sm disabled:opacity-40"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
@@ -165,7 +165,7 @@ export function ProductDetail({ product, related = [] }: Props) {
             <ActionRow product={product} shareUrl={shareUrl} />
           </div>
 
-          <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <h2 className="text-sm font-semibold">الوصف</h2>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
               {product.description?.trim() || 'لا يوجد وصف إضافي لهذا المنتج.'}
@@ -189,7 +189,7 @@ export function ProductDetail({ product, related = [] }: Props) {
         {/* Sidebar */}
         <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-1/3">
           <div className="sticky top-20 space-y-4">
-            <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+            <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
               <PriceBlock product={product} displayPrice={displayPrice} hasDiscount={hasDiscount} />
               <h1 className="text-xl font-bold leading-snug">{product.name}</h1>
               <MetaRow product={product} />
@@ -201,7 +201,7 @@ export function ProductDetail({ product, related = [] }: Props) {
       </div>
 
       {/* Mobile sticky CTA — sits above BottomNav (see .sticky-contact-bar) */}
-      <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
+      <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
         <div className="mx-auto flex max-w-lg gap-2">
           {store.phone && (
             <Button asChild variant="outline" className="min-h-[48px] flex-1 font-semibold">
@@ -283,7 +283,7 @@ function PriceBlock({
           product.availability === 'OUT_OF_STOCK'
             ? 'inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
             : product.availability === 'LIMITED'
-              ? 'inline-flex rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400'
+              ? 'inline-flex rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-medium text-warning-foreground'
               : 'inline-flex rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success'
         }
       >
@@ -330,7 +330,7 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
 function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
   const ownerId = store.sellerProfile?.userId;
   return (
-    <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+    <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">المتجر</p>
       <Link
         href={ROUTES.storeDetail(store.slug || store.id)}

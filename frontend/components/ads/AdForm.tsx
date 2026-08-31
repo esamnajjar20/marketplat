@@ -8,6 +8,7 @@ import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { FormField }  from '@/components/shared/forms/FormField';
+import { FormSteps }  from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { PriceInput }  from '@/components/shared/forms/PriceInput';
 import { CITIES, CONDITION_LABELS, MAX_IMAGES } from '@/lib/constants';
@@ -365,7 +366,8 @@ export function AdForm({ mode, ad }: Props) {
 
   function canProceedFromStep(s: number): boolean {
     if (s === 1) {
-      return values.title.trim().length >= 3 && values.description.trim().length >= 10;
+      // Align with computeErrors minima so "التالي" doesn't skip real validation
+      return values.title.trim().length >= 5 && values.description.trim().length >= 20;
     }
     if (s === 2) {
       return Boolean(values.city.trim());
@@ -384,7 +386,7 @@ export function AdForm({ mode, ad }: Props) {
     }
     if (!canProceedFromStep(step)) {
       if (step === 1) {
-        toast.error('أكمل العنوان (3 أحرف على الأقل) والوصف (10 أحرف على الأقل)');
+        toast.error('أكمل العنوان (5 أحرف على الأقل) والوصف (20 حرفًا على الأقل)');
       } else if (step === 2) {
         toast.error('اختر المدينة للمتابعة');
       }
@@ -417,49 +419,43 @@ export function AdForm({ mode, ad }: Props) {
       )}
 
       {isWizard && (
-        <nav
-          aria-label="خطوات نشر الإعلان"
-          className="sticky top-0 z-20 -mx-1 rounded-lg border bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-none"
-        >
-          <ol className="flex items-center justify-between gap-2">
-            {[
-              { n: 1, label: 'الأساسيات' },
-              { n: 2, label: 'التصنيف والسعر' },
-              { n: 3, label: 'الصور والنشر' },
-            ].map((item) => (
-              <li key={item.n} className="flex flex-1 flex-col items-center gap-1.5">
-                <span
-                  className={
-                    item.n === step
-                      ? 'flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground ring-2 ring-primary/30'
-                      : item.n < step
-                        ? 'flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary'
-                        : 'flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground'
-                  }
-                  aria-current={item.n === step ? 'step' : undefined}
-                >
-                  {item.n < step ? '✓' : item.n}
-                </span>
-                <span className={`text-[11px] sm:text-xs ${item.n === step ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
-                  {item.label}
-                </span>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={totalSteps} aria-label="تقدم خطوات النشر">
+        <div className="sticky top-0 z-20 -mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
+          <FormSteps
+            steps={[
+              { id: 'basics', label: 'الأساسيات', description: 'العنوان والوصف' },
+              { id: 'details', label: 'التصنيف والسعر', description: 'المدينة والفئة والسعر' },
+              { id: 'photos', label: 'الصور والنشر', description: 'الصور ومراجعة النشر' },
+            ]}
+            current={step - 1}
+            onStepClick={(index) => {
+              // Allow jumping back to completed steps only
+              if (index + 1 < step) {
+                setHasSubmitted(false);
+                setStep(index + 1);
+              }
+            }}
+          />
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuenow={step}
+            aria-valuemin={1}
+            aria-valuemax={totalSteps}
+            aria-label="تقدم خطوات النشر"
+          >
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{ width: `${(step / totalSteps) * 100}%` }}
             />
           </div>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             الخطوة {step} من {totalSteps}
           </p>
-        </nav>
+        </div>
       )}
 
       {/* Basic info — wizard step 1 */}
-      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 1 ? "hidden" : ""}`}>
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 1 ? "hidden" : ""}`}>
         <h2 className="font-semibold">معلومات الإعلان</h2>
 
         <FormField label="عنوان الإعلان" htmlFor="title" required error={fieldError('title')}>
@@ -478,13 +474,13 @@ export function AdForm({ mode, ad }: Props) {
             onChange={(e) => set('description', e.target.value)}
             onBlur={() => handleBlur('description')}
             placeholder="اكتب تفاصيل الإعلان بوضوح..."
-            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
+            className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           <p className="text-xs text-muted-foreground text-end">{values.description.length}/5000</p>
         </FormField>
       </div>
 
       {/* Classification — wizard step 2 */}
-      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 2 ? "hidden" : ""}`}>
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">التصنيف والموقع</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -550,7 +546,7 @@ export function AdForm({ mode, ad }: Props) {
       </div>
 
       {/* Pricing — wizard step 2 */}
-      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 2 ? "hidden" : ""}`}>
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">السعر</h2>
         <PriceInput
           value={values.price}
@@ -561,7 +557,7 @@ export function AdForm({ mode, ad }: Props) {
       </div>
 
       {/* Images — wizard step 3 */}
-      <div className={`rounded-lg border bg-card p-4 space-y-4 ${isWizard && step !== 3 ? "hidden" : ""}`}>
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
         <h2 className="font-semibold">الصور</h2>
         {/* TEMPORARY: remove this note once image hosting is configured
             and the required-image check above is restored. */}
@@ -586,7 +582,7 @@ export function AdForm({ mode, ad }: Props) {
       </div>
 
       {/* Submit / wizard navigation — sticky on mobile for thumb reach */}
-      <div className="sticky bottom-0 z-20 -mx-1 border-t bg-background/95 p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+      <div className="sticky bottom-0 z-20 -mx-1 border-t bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button type="button" variant="outline" onClick={handleCancel}>إلغاء</Button>
           <div className="flex flex-wrap gap-2">

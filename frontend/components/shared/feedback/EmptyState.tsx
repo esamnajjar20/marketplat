@@ -10,25 +10,32 @@ interface Props {
 }
 
 /**
- * FIX UX-01: the icon previously rendered flat, at 50% muted opacity —
- * functional but visually inert, identical to every other "nothing to
- * see here" pattern. Wrapping it in a soft primary-tinted circle
- * matches the same warm, branded treatment now used for category icons
- * (CategoryGrid) instead of a one-off grey treatment unique to this component.
+ * Empty / error placeholder — soft primary icon well + calm hierarchy.
+ * Uses design-system tokens (primary-soft) so empty states match the rest
+ * of the branded UI instead of a one-off grey circle.
  */
 export function EmptyState({ icon, title, description, action, className }: Props) {
   return (
-    <div className={cn('flex flex-col items-center justify-center py-16 text-center gap-3', className)}>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-4 py-16 text-center section-enter',
+        className,
+      )}
+    >
       {icon && (
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-soft text-primary shadow-xs [&_svg]:h-8 [&_svg]:w-8">
           {icon}
         </div>
       )}
-      <div className="space-y-1">
-        <p className="font-medium text-base">{title}</p>
-        {description && <p className="text-sm text-muted-foreground max-w-xs mx-auto">{description}</p>}
+      <div className="space-y-1.5">
+        <p className="text-base font-semibold tracking-tight text-foreground">{title}</p>
+        {description && (
+          <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        )}
       </div>
-      {action && <div className="mt-2">{action}</div>}
+      {action && <div className="mt-1 flex flex-wrap items-center justify-center gap-2">{action}</div>}
     </div>
   );
 }

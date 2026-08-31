@@ -21,7 +21,7 @@ export function MessagesLink({ className }: { className?: string }) {
     <Link
       href={ROUTES.messages}
       className={cn(
-        'relative hidden h-9 w-9 items-center justify-center rounded-full outline-none ring-offset-background transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:flex',
+        'relative hidden h-10 w-10 items-center justify-center rounded-full outline-none ring-offset-background transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:flex',
         className,
       )}
       aria-label={unread > 0 ? `الرسائل — ${unread} غير مقروءة` : 'الرسائل'}

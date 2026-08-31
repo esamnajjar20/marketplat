@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
+import { FormSteps } from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
@@ -17,6 +18,7 @@ import {
 import { parseApiError } from '@/lib/errorParser';
 import { MAX_IMAGES } from '@/lib/constants';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
+import { toast } from 'sonner';
 import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
 import type { Product, ProductAvailability, UpdateProductPayload, ProductFormValues } from '@/types/product.types';
 
@@ -249,9 +251,79 @@ export function ProductForm({ mode, product }: Props) {
     update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
   }
 
+
+  // Multi-step wizard for create mode only (edit stays one page).
+  const isWizard = mode === 'create';
+  const totalSteps = 3;
+  const [step, setStep] = useState(1);
+
+  function canProceedFromStep(s: number): boolean {
+    if (s === 1) {
+      return (
+        Boolean(values.categoryId) &&
+        values.name.trim().length >= 2 &&
+        values.description.trim().length >= 10
+      );
+    }
+    if (s === 2) {
+      return Boolean(values.price.trim()) && Number(values.price) > 0;
+    }
+    return true;
+  }
+
+  function goNextStep() {
+    if (!canProceedFromStep(step)) {
+      if (step === 1) {
+        toast.error('أكمل الفئة والاسم والوصف (10 أحرف على الأقل) للمتابعة');
+      } else if (step === 2) {
+        toast.error('أدخل سعرًا صالحًا للمتابعة');
+      }
+      return;
+    }
+    setStep((s) => Math.min(totalSteps, s + 1));
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function goPrevStep() {
+    setStep((s) => Math.max(1, s - 1));
+  }
+
   const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      {isWizard && (
+        <div className="sticky top-0 z-20 -mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
+          <FormSteps
+            steps={[
+              { id: 'basics', label: 'الأساسيات', description: 'الفئة والاسم والوصف' },
+              { id: 'pricing', label: 'التسعير', description: 'السعر والتوفر' },
+              { id: 'photos', label: 'الصور', description: 'صور المنتج' },
+            ]}
+            current={step - 1}
+            onStepClick={(index) => {
+              if (index + 1 < step) setStep(index + 1);
+            }}
+          />
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuenow={step}
+            aria-valuemin={1}
+            aria-valuemax={totalSteps}
+            aria-label="تقدم خطوات النموذج"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${(step / totalSteps) * 100}%` }}
+            />
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            الخطوة {step} من {totalSteps}
+          </p>
+        </div>
+      )}
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 1 ? "hidden" : ""}`}>
         <h2 className="font-semibold">معلومات المنتج</h2>
 
         {/* FIX BUG-XX: this field required Select but was hand-rolled
@@ -289,13 +361,13 @@ export function ProductForm({ mode, product }: Props) {
             value={values.description}
             onChange={(e) => set('description', e.target.value)}
             placeholder="اشرح تفاصيل المنتج ومواصفاته..."
-            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+            className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <p className="text-xs text-muted-foreground text-end">{values.description.length}/2000</p>
         </FormField>
       </div>
 
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">التسعير والتوفر</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -382,7 +454,7 @@ export function ProductForm({ mode, product }: Props) {
 
       {/* Gap #3 fix: images are now editable after creation too, via the
           dedicated add/remove endpoints — same ImageUpload usage as AdForm. */}
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
         <h2 className="font-semibold">الصور</h2>
         {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
         <ImageUpload
@@ -404,11 +476,25 @@ export function ProductForm({ mode, product }: Props) {
         />
       </div>
 
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
-        <Button type="submit" disabled={isFormIncomplete || isPending}>
-          {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'إضافة المنتج' : 'حفظ التعديلات'}
-        </Button>
+      <div className="sticky bottom-0 z-20 -mx-1 border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
+          <div className="flex flex-wrap gap-2">
+            {isWizard && step > 1 && (
+              <Button type="button" variant="outline" onClick={goPrevStep}>السابق</Button>
+            )}
+            {isWizard && step < totalSteps && (
+              <Button type="button" className="min-w-[7rem] font-semibold" onClick={goNextStep}>
+                التالي
+              </Button>
+            )}
+            {(!isWizard || step === totalSteps) && (
+              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete || isPending}>
+                {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'إضافة المنتج' : 'حفظ التعديلات'}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </form>
   );

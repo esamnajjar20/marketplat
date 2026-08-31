@@ -73,7 +73,7 @@ export function FormField({
   }
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div className={cn('flex flex-col gap-1.5', error && '[&_input]:border-destructive [&_textarea]:border-destructive [&_button[role=combobox]]:border-destructive', className)}>
       <label
         htmlFor={htmlFor}
         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

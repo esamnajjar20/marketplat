@@ -8,11 +8,11 @@ export const metadata: Metadata = buildMetadata({ title: 'استرداد كلم�
 // AUDIT-FIX auth#2: same fix as LoginPage — see its comment.
 export default function ForgotPasswordPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">نسيت كلمة المرور؟</h1>
+        <h1 className="text-2xl font-bold text-primary sm:text-3xl">نسيت كلمة المرور؟</h1>
       </div>
-      <div className="bg-card rounded-xl border p-6">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-md">
         <Suspense><ForgotPasswordForm /></Suspense>
       </div>
     </div>

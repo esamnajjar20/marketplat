@@ -111,7 +111,7 @@ function NavLink({
         'flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors',
         indent ? 'px-3 ms-7' : 'px-3',
         isActive
-          ? 'bg-primary text-primary-foreground'
+          ? 'bg-primary-soft text-primary shadow-xs'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
@@ -120,7 +120,7 @@ function NavLink({
       {badge !== undefined && badge > 0 && (
         <span className={cn(
           'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold',
-          isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary text-primary-foreground',
+          isActive ? 'bg-primary text-primary-foreground' : 'bg-primary text-primary-foreground',
         )}>
           {badge > 9 ? '9+' : badge}
         </span>
@@ -151,7 +151,7 @@ function DisclosureGroup({
         className={cn(
           'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
           isAnyChildActive && !isOpen
-            ? 'bg-primary text-primary-foreground'
+            ? 'bg-primary-soft text-primary'
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         )}
       >
@@ -191,7 +191,7 @@ export function ProtectedSidebar() {
 
   return (
     // UX-09 FIX: border-e is the logical equivalent of border-r, correct in RTL
-    <aside className="hidden w-52 shrink-0 border-e bg-muted/20 md:block lg:w-56">
+    <aside className="hidden w-52 shrink-0 border-e border-border/80 bg-surface-1 md:block lg:w-56">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1 p-4">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);

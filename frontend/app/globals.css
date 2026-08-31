@@ -5,62 +5,58 @@
 /**
  * Design tokens — سوق غزة brand palette.
  *
- * FIX UX-01: replaced the unmodified shadcn/ui default palette (the
- * exact stock HSL values every fresh shadcn install ships with —
- * primary 221.2 83.2% 53.3%, the generic "shadcn blue") with an
- * identity grounded in the product itself: a warm olive green (rooted
- * in the olive tree as a recurring Palestinian motif, without being a
- * literal illustration of one) paired with a warm terracotta accent.
- * Warm off-white/near-black neutrals replace the cold pure-white/
- * blue-grey defaults so the whole palette reads as one deliberate,
- * warm system rather than assorted stock tokens.
+ * Sprint 1 (visual system):
+ *   - Surface hierarchy (surface-1/2/3) for layered backgrounds
+ *   - primary/accent soft + muted tints for badges, chips, icon wells
+ *   - Elevation shadow scale (xs → lg + focus glow)
+ *   - Keeps the warm olive + terracotta identity (UX-01)
  *
- * All pairs kept at or above WCAG AA (4.5:1) for text use; the one
- * exception (accent, ~3.9:1) is reserved for large text, borders and
- * iconography rather than small body copy — see the accent-foreground
- * comment below.
+ * All text pairs aim for WCAG AA (4.5:1). Accent remains reserved for
+ * large text, borders, and iconography — not small body copy.
  */
 @layer base {
   :root {
     --background: 40 60% 98%;
     --foreground: 33.3 15.8% 11.2%;
+
+    /* Surface hierarchy — warm off-whites stacked above background */
+    --surface-1: 40 50% 96.5%;
+    --surface-2: 38 42% 94%;
+    --surface-3: 36 36% 91%;
+
     --card: 0 0% 100%;
     --card-foreground: 33.3 15.8% 11.2%;
     --popover: 0 0% 100%;
     --popover-foreground: 33.3 15.8% 11.2%;
 
-    /* Warm olive — the brand's primary. */
+    /* Warm olive — brand primary */
     --primary: 148.7 32.9% 27.5%;
     --primary-foreground: 40 60% 98%;
+    --primary-soft: 148 28% 92%;
+    --primary-muted: 148 22% 40%;
 
     --secondary: 36.9 35.1% 92.7%;
     --secondary-foreground: 33.3 15.8% 11.2%;
     --muted: 36.9 35.1% 92.7%;
     --muted-foreground: 34.7 9.7% 38.2%;
 
-    /* Terracotta — used for the "featured" signature and CTA accents,
-       never as a background for small body text (see contrast note above). */
+    /* Terracotta — featured / CTA accent */
     --accent: 20.8 51.6% 49.4%;
     --accent-foreground: 40 60% 98%;
+    --accent-soft: 22 55% 94%;
+    --accent-muted: 21 42% 42%;
 
     --destructive: 4.4 53.8% 49.2%;
     --destructive-foreground: 40 60% 98%;
 
-    /* FIX UX-01: dedicated success/warning tokens so ad-status colors
-       (active/sold/featured badges) stop being hand-picked Tailwind
-       stock colors (bg-amber-400, bg-green-*) scattered across
-       individual components — see AdCard.tsx, StatusBadge.tsx. */
     --success: 142.6 33.3% 35.9%;
     --success-foreground: 40 60% 98%;
+    --success-soft: 142 30% 92%;
+
     --warning: 37.7 61.7% 52.9%;
     --warning-foreground: 33.3 15.8% 11.2%;
+    --warning-soft: 38 70% 93%;
 
-    /* FIX AUDIT-3: dedicated tokens for the two remaining hand-picked
-       Tailwind stock colors found repeated across the app — rating
-       stars (fill-amber-400/text-amber-400, 12 files) and the
-       "online now" indicator (emerald-500/600, 3 files). Same
-       rationale as --success/--warning above: centralise so future
-       palette changes don't require a multi-file find-and-replace. */
     --rating: 37.7 61.7% 52.9%;
     --rating-foreground: 33.3 15.8% 11.2%;
     --online: 142.6 33.3% 35.9%;
@@ -70,49 +66,25 @@
     --input: 37.9 27.5% 86.5%;
     --ring: 148.7 32.9% 27.5%;
 
-    /* AUDIT-5 (documentation only — no component changes made): the
-       audit's finding of "no clear rounded-* rule" is only half true.
-       An implicit but real hierarchy already exists, inherited from
-       shadcn/ui's own primitives and followed consistently by every
-       component built on top of them:
-         rounded-sm  → small elements nested inside another control
-                       (DropdownMenuItem, SelectItem — components/ui/
-                       dropdown-menu.tsx, select.tsx)
-         rounded-md  → standalone interactive controls (Button, Input,
-                       Select trigger, Badge, popovers — --radius below
-                       drives this exact value). 93 uses vs. 1 outlier
-                       app-wide; this is the most consistent tier.
-         rounded-lg  → modal/dialog-level containers (Dialog —
-                       components/ui/dialog.tsx)
-         rounded-xl  → full-bleed sheets (Sheet's rounded-t-xl) *and*
-                       the app's core content cards (AdCard, ProductCard,
-                       ServiceListingCard, UnifiedResultCard, StoreCard
-                       — confirmed byte-for-byte identical across all
-                       five, see audit item #5's findings)
-       So: Button/Input/Badge/Dialog/Sheet and the five card components
-       are NOT part of the reported inconsistency — don't "fix" them by
-       matching a different tier.
-       The real drift is in hand-rolled containers with no shared
-       component to inherit a value from — icon circles, small alert/
-       info boxes, secondary wrappers, skeleton placeholders — where
-       rounded-lg/md/xl are picked ad hoc per call site with no
-       standard to defer to. That's ~150-200 individual call sites
-       app-wide with no single mechanical rule to sort correct from
-       incorrect; each needs a real visual judgment call, which is why
-       this pass documents the existing hierarchy rather than force a
-       bulk rewrite. New code for this kind of small custom container
-       should default to rounded-md (matching the interactive-control
-       tier) unless it's a full-bleed/card-level element, in which case
-       match rounded-xl above. */
+    /*
+     * Radius hierarchy (documented, now the enforced default):
+     *   rounded-sm  → nested menu items
+     *   rounded-md  → buttons, inputs, badges (--radius)
+     *   rounded-lg  → dialogs
+     *   rounded-xl  → content cards
+     *   rounded-2xl → hero / large shells only
+     */
     --radius: 0.6rem;
 
-    /* FIX OFFLINE-01: previously generated automatically by
-       next/font/google (Cairo/IBM_Plex_Mono/IBM_Plex_Sans_Arabic in
-       app/layout.tsx). Now that those fonts load via @fontsource's own
-       CSS imports instead (see app/layout.tsx), these three variables
-       are declared explicitly here, pointing at the exact font-family
-       names @fontsource's @font-face rules register. Consumed by
-       tailwind.config.ts's fontFamily.sans/cairo/sans-arabic/mono. */
+    /* Elevation — warm-tinted shadows (not cold pure black) */
+    --shadow-color: 33 16% 11%;
+    --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.05);
+    --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.07), 0 1px 2px hsl(var(--shadow-color) / 0.04);
+    --shadow-md: 0 4px 14px -2px hsl(var(--shadow-color) / 0.09), 0 2px 6px -2px hsl(var(--shadow-color) / 0.05);
+    --shadow-lg: 0 12px 28px -6px hsl(var(--shadow-color) / 0.12), 0 6px 12px -4px hsl(var(--shadow-color) / 0.06);
+    --shadow-glow-primary: 0 0 0 3px hsl(var(--primary) / 0.2);
+    --shadow-glow-accent: 0 0 0 3px hsl(var(--accent) / 0.22);
+
     --font-cairo: 'Cairo', sans-serif;
     --font-ibm-plex-sans-arabic: 'IBM Plex Sans Arabic', sans-serif;
     --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
@@ -121,6 +93,11 @@
   .dark {
     --background: 150 12% 8%;
     --foreground: 40 30% 94%;
+
+    --surface-1: 150 11% 10%;
+    --surface-2: 150 10% 13%;
+    --surface-3: 150 10% 16%;
+
     --card: 150 12% 11%;
     --card-foreground: 40 30% 94%;
     --popover: 150 12% 11%;
@@ -128,6 +105,8 @@
 
     --primary: 148 38% 52%;
     --primary-foreground: 150 20% 8%;
+    --primary-soft: 148 28% 16%;
+    --primary-muted: 148 30% 62%;
 
     --secondary: 150 10% 17%;
     --secondary-foreground: 40 30% 94%;
@@ -136,23 +115,37 @@
 
     --accent: 21 55% 58%;
     --accent-foreground: 150 20% 8%;
+    --accent-soft: 21 35% 18%;
+    --accent-muted: 21 45% 68%;
 
     --destructive: 4 55% 55%;
     --destructive-foreground: 40 30% 94%;
 
     --success: 143 35% 48%;
     --success-foreground: 150 20% 8%;
+    --success-soft: 143 28% 16%;
+
     --warning: 38 65% 58%;
     --warning-foreground: 33 16% 11%;
+    --warning-soft: 38 40% 18%;
 
     --rating: 38 65% 58%;
     --rating-foreground: 33 16% 11%;
     --online: 143 35% 48%;
     --online-foreground: 150 20% 8%;
 
-    --border: 150 10% 20%;
-    --input: 150 10% 20%;
+    /* Slightly brighter borders so cards don't melt into the background */
+    --border: 150 10% 22%;
+    --input: 150 10% 22%;
     --ring: 148 38% 52%;
+
+    --shadow-color: 150 20% 2%;
+    --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.35);
+    --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.4), 0 1px 2px hsl(var(--shadow-color) / 0.25);
+    --shadow-md: 0 4px 14px -2px hsl(var(--shadow-color) / 0.45), 0 2px 6px -2px hsl(var(--shadow-color) / 0.3);
+    --shadow-lg: 0 12px 28px -6px hsl(var(--shadow-color) / 0.5), 0 6px 12px -4px hsl(var(--shadow-color) / 0.35);
+    --shadow-glow-primary: 0 0 0 3px hsl(var(--primary) / 0.28);
+    --shadow-glow-accent: 0 0 0 3px hsl(var(--accent) / 0.28);
   }
 }
 
@@ -160,25 +153,11 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 
-  /* FIX OVERFLOW-01 (defense-in-depth): the actual bug was missing
-     min-w-0 on flex ancestors in (protected)/layout.tsx and
-     (public)/layout.tsx, allowing a wide flex child (e.g. Timeline's
-     tab row) to stretch <main>/the layout column past viewport width
-     instead of scrolling internally — that's fixed at the source. This
-     is a second line of defense at the document root: if any future
-     component reintroduces the same class of bug, html/body clip
-     instead of the whole page (including fixed elements like
-     BottomNav) silently growing past the visible viewport again. */
   html, body { @apply overflow-x-hidden; }
 }
 
 /**
  * FIX PWA-08: دعم Safe Area — ضروري عند تشغيل التطبيق كـ standalone PWA
- * (بدون شريط متصفح) على أجهزة بها notch/الحافة المستديرة أو شريط سفلي
- * للإيماءات (iPhone الحديثة، وبعض أجهزة Android). بدون هذا، عناصر ثابتة
- * (Header علوي، Bottom navigation) قد تُخفى جزئيًا خلف تلك المناطق.
- * viewport.viewportFit = 'cover' في app/layout.tsx يفعّل env(safe-area-inset-*)
- * أدناه؛ بدونه تكون قيمتها صفرًا دائمًا فلا ضرر في تركها مفعّلة دومًا.
  */
 .pwa-safe-top {
   padding-top: max(env(safe-area-inset-top, 0px), 0px);
@@ -190,8 +169,6 @@
 
 /**
  * Mobile sticky contact / message CTAs must sit ABOVE BottomNav
- * (z-50, ~3.5rem + safe-area). Using bottom-0 put the message button
- * under the nav on product & service detail pages.
  */
 .sticky-contact-bar {
   position: fixed;
@@ -200,12 +177,10 @@
   z-index: 40;
 }
 
-/* Content clearance: BottomNav (~3.5rem) + single-row CTA (~4.75rem) */
 .pb-sticky-contact {
   padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px));
 }
 
-/* Dual CTA stack (request + message) is taller */
 .pb-sticky-contact-tall {
   padding-bottom: calc(11.5rem + env(safe-area-inset-bottom, 0px));
 }
@@ -217,23 +192,6 @@
   }
 }
 
-
-
-/**
- * FIX UX-22: project-level "stagger fade-in" for listing grids
- * (ads/products/services/stores) — cards were appearing instantly,
- * all at once, once data resolved. This gives the grid a light,
- * deliberate entrance without a JS animation library: each direct
- * child fades + slides up on mount, delay staggered by nth-child
- * (capped at 8 — beyond that everything fires together, since a
- * longer stagger just delays content the person is already
- * scrolling toward). CSS-only, same minimal-animation posture as
- * page-fade/heart-pop (tailwind.config.ts) and PageTransition.tsx.
- * Deliberately applied only to the *loaded-data* grid at each call
- * site, never the loading-skeleton grid (which already communicates
- * "loading" via animate-pulse — stacking a second animation on top
- * would be noise, not signal).
- */
 @layer utilities {
   .stagger-fade-in > * {
     opacity: 0;
@@ -257,15 +215,12 @@
   }
   .interactive-lift:hover {
     transform: translateY(-3px);
-    box-shadow:
-      0 10px 25px -8px rgb(0 0 0 / 12%),
-      0 4px 10px -4px rgb(0 0 0 / 8%);
+    box-shadow: var(--shadow-md);
   }
   .interactive-lift:active {
     transform: translateY(-1px) scale(0.98);
   }
 
-  /* ضغط عام للأزرار والروابط الشبيهة بالأزرار */
   .pressable {
     transition: transform 0.15s ease-out, filter 0.15s ease-out;
   }
@@ -274,12 +229,10 @@
     filter: brightness(0.95);
   }
 
-  /* ظهور ناعم للأقسام */
   .section-enter {
     animation: fade-slide-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  /* هيكل تحميل لامع */
   .skeleton-shimmer {
     background: linear-gradient(
       90deg,
@@ -289,6 +242,38 @@
     );
     background-size: 200% 100%;
     animation: shimmer 1.4s linear infinite;
+  }
+
+  /* Sprint 1 — reusable surface + elevation helpers */
+  .surface-1 { background-color: hsl(var(--surface-1)); }
+  .surface-2 { background-color: hsl(var(--surface-2)); }
+  .surface-3 { background-color: hsl(var(--surface-3)); }
+
+  .elevation-xs { box-shadow: var(--shadow-xs); }
+  .elevation-sm { box-shadow: var(--shadow-sm); }
+  .elevation-md { box-shadow: var(--shadow-md); }
+  .elevation-lg { box-shadow: var(--shadow-lg); }
+
+  .ring-glow-primary:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-glow-primary);
+  }
+  .ring-glow-accent:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-glow-accent);
+  }
+
+  /* Page shell — consistent horizontal rhythm */
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+
+  /* Soft icon well — for empty states and section icons */
+  .icon-well {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-soft text-primary;
+  }
+  .icon-well-accent {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-md bg-accent-soft text-accent;
   }
 }
 
@@ -330,4 +315,3 @@ a, button, [role="button"] {
     transition: none !important;
   }
 }
-

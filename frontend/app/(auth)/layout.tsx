@@ -37,18 +37,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex min-h-screen flex-col">
       <PublicHeader showSearch={false} />
-      <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-16">
+      <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-surface-1/40 px-4 py-12 sm:py-16">
         {/* Soft glow accents behind the card — same idea as the
             reference design's two blurred circles, recolored to this
             app's own primary/accent tokens instead of its hardcoded
             hex values. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-40 -right-40 -z-10 h-[500px] w-[500px] rounded-full bg-primary/5 blur-[100px]"
+          className="pointer-events-none absolute -top-40 -right-40 -z-10 h-[500px] w-[500px] rounded-full bg-primary/8 blur-[100px]"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-32 -left-32 -z-10 h-[400px] w-[400px] rounded-full bg-accent/5 blur-[80px]"
+          className="pointer-events-none absolute -bottom-32 -left-32 -z-10 h-[400px] w-[400px] rounded-full bg-accent/8 blur-[80px]"
         />
 
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink —

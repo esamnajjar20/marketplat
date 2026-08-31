@@ -60,7 +60,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
   const onSearchPage = pathname === ROUTES.search;
 
   return (
-    <header className="pwa-safe-top sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="pwa-safe-top sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
       {/* VISUAL (mobile top-bar redesign): a dedicated compact title
           row for < md, replacing the cramped single h-16 row that used
           to squeeze the logo, bell and hamburger together with no

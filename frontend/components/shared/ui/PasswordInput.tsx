@@ -24,7 +24,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(
           {...props}
           ref={ref}
           type={visible ? 'text' : 'password'}
-          className={cn('pe-9', className)}
+          className={cn('pe-11', className)}
         />
         <button
           type="button"
@@ -33,7 +33,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(
           // LoginForm/RegisterForm/SecuritySettingsForm), so the toggle
           // sits on the field's trailing edge in LTR terms — the right
           // side — regardless of the surrounding RTL page direction.
-          className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm"
+          className="absolute inset-y-0 right-0 flex h-full min-w-11 items-center justify-center px-2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
           aria-label={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
           tabIndex={-1}
         >

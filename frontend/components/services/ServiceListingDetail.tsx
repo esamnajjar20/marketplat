@@ -89,7 +89,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
       <div className="flex flex-col gap-6 pb-sticky-contact-tall md:flex-row md:gap-8">
         <div className="min-w-0 flex-1 space-y-6">
           {/* Gallery */}
-          <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <div
               className="relative aspect-[4/3] bg-muted sm:aspect-[16/9]"
               onTouchStart={(e) => {
@@ -185,7 +185,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
             </div>
           </div>
 
-          <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+          <section className="space-y-2 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <h2 className="text-sm font-semibold">الوصف</h2>
             <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
               {listing.description?.trim() || 'لا يوجد وصف إضافي.'}
@@ -198,7 +198,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
         {/* Desktop sidebar */}
         <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[320px]">
           <div className="sticky top-20 space-y-4">
-            <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+            <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
               <p className="font-mono text-2xl font-bold tabular-nums text-primary">
                 {formatServicePrice(listing.pricingType, listing.price)}
               </p>
@@ -279,7 +279,7 @@ function ProviderLink({ listing }: { listing: ServiceListingWithProvider }) {
   return (
     <Link
       href={ROUTES.userProfile(listing.provider.sellerProfile.userId)}
-      className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40"
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">

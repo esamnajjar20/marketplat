@@ -22,7 +22,7 @@ export function StoreCard({ store, className }: Props) {
     <Link
       href={ROUTES.storeDetail(store.id)}
       className={cn(
-        'group flex gap-3 rounded-xl border bg-card p-3 pe-11 transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'group flex gap-3 rounded-xl border border-border bg-card shadow-sm p-3 pe-11 transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
         className
       )}
     >

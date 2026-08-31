@@ -1,23 +1,13 @@
 /**
  * Tailwind CSS configuration.
  *
- * FIX TAILWIND-01: Removed './pages/**' and './src/**' content paths.
- *   These directories do not exist in this project (App Router at root).
- *   Scanning non-existent paths wastes build time and causes confusing
- *   "no utility classes found" warnings in some Tailwind versions.
- *
- * FIX TAILWIND-02: Added './providers/**' and './config/**' to content
- *   scanning so classes used in those files are included in the build.
- *
- * FIX TAILWIND-03: Removed dead 'var(--font-inter)' from fontFamily.sans.
- *   IBM Plex Mono variable added to match layout.tsx font loading.
+ * Sprint 1: surface hierarchy, soft/muted brand tints, elevation shadows.
  */
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
   darkMode: ['class'],
 
-  // FIX TAILWIND-01: Only scan directories that actually exist.
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -28,64 +18,72 @@ const config: Config = {
 
   theme: {
     container: {
-      center:  true,
+      center: true,
       padding: '2rem',
       screens: { '2xl': '1400px' },
     },
     extend: {
       colors: {
-        border:     'hsl(var(--border))',
-        input:      'hsl(var(--input))',
-        ring:       'hsl(var(--ring))',
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+
+        surface: {
+          1: 'hsl(var(--surface-1))',
+          2: 'hsl(var(--surface-2))',
+          3: 'hsl(var(--surface-3))',
+        },
+
         primary: {
-          DEFAULT:    'hsl(var(--primary))',
+          DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          soft: 'hsl(var(--primary-soft))',
+          muted: 'hsl(var(--primary-muted))',
         },
         secondary: {
-          DEFAULT:    'hsl(var(--secondary))',
+          DEFAULT: 'hsl(var(--secondary))',
           foreground: 'hsl(var(--secondary-foreground))',
         },
         destructive: {
-          DEFAULT:    'hsl(var(--destructive))',
+          DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
         muted: {
-          DEFAULT:    'hsl(var(--muted))',
+          DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))',
         },
         accent: {
-          DEFAULT:    'hsl(var(--accent))',
+          DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
+          soft: 'hsl(var(--accent-soft))',
+          muted: 'hsl(var(--accent-muted))',
         },
-        // FIX UX-01: dedicated semantic tokens for ad status (active/
-        // sold/featured) — replaces scattered raw Tailwind stock colors
-        // (bg-amber-400, bg-green-500, ...) hand-picked per component.
         success: {
-          DEFAULT:    'hsl(var(--success))',
+          DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
+          soft: 'hsl(var(--success-soft))',
         },
         warning: {
-          DEFAULT:    'hsl(var(--warning))',
+          DEFAULT: 'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
+          soft: 'hsl(var(--warning-soft))',
         },
-        // FIX AUDIT-3: semantic tokens for rating stars and the
-        // "online now" indicator — see globals.css comment.
         rating: {
-          DEFAULT:    'hsl(var(--rating))',
+          DEFAULT: 'hsl(var(--rating))',
           foreground: 'hsl(var(--rating-foreground))',
         },
         online: {
-          DEFAULT:    'hsl(var(--online))',
+          DEFAULT: 'hsl(var(--online))',
           foreground: 'hsl(var(--online-foreground))',
         },
         card: {
-          DEFAULT:    'hsl(var(--card))',
+          DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
         popover: {
-          DEFAULT:    'hsl(var(--popover))',
+          DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',
         },
       },
@@ -96,66 +94,68 @@ const config: Config = {
         sm: 'calc(var(--radius) - 4px)',
       },
 
+      boxShadow: {
+        xs: 'var(--shadow-xs)',
+        sm: 'var(--shadow-sm)',
+        DEFAULT: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        'glow-primary': 'var(--shadow-glow-primary)',
+        'glow-accent': 'var(--shadow-glow-accent)',
+      },
+
       fontFamily: {
-        // FIX TAILWIND-03: removed dead var(--font-inter) — not loaded in layout.tsx.
-        sans:         ['var(--font-cairo)', 'sans-serif'],
-        cairo:        ['var(--font-cairo)', 'sans-serif'],
-        // PERF-04: Added now that IBM_Plex_Sans_Arabic is actually loaded in layout.tsx.
+        sans: ['var(--font-cairo)', 'sans-serif'],
+        cairo: ['var(--font-cairo)', 'sans-serif'],
         'sans-arabic': ['var(--font-ibm-plex-sans-arabic)', 'var(--font-cairo)', 'sans-serif'],
-        mono:         ['var(--font-ibm-plex-mono)', 'monospace'],
+        mono: ['var(--font-ibm-plex-mono)', 'monospace'],
       },
 
       keyframes: {
         'accordion-down': {
           from: { height: '0' },
-          to:   { height: 'var(--radix-accordion-content-height)' },
+          to: { height: 'var(--radix-accordion-content-height)' },
         },
         'accordion-up': {
           from: { height: 'var(--radix-accordion-content-height)' },
-          to:   { height: '0' },
+          to: { height: '0' },
         },
-        // FIX UX-20: powers PageTransition.tsx's fade-on-navigate.
         'page-fade': {
           from: { opacity: '0', transform: 'translateY(6px)' },
-          to:   { opacity: '1', transform: 'translateY(0)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
         },
-        // FIX UX-21: powers AdCard's favorite-heart "pop" on add —
-        // mirrors the pop the original static mock did with raw JS
-        // (icon.style.transform = 'scale(1.3)' + a timeout reset).
-        // Same CSS-only, no-library approach as page-fade above.
         'heart-pop': {
-          '0%':   { transform: 'scale(1)' },
-          '40%':  { transform: 'scale(1.35)' },
-          '70%':  { transform: 'scale(0.92)' },
+          '0%': { transform: 'scale(1)' },
+          '40%': { transform: 'scale(1.35)' },
+          '70%': { transform: 'scale(0.92)' },
           '100%': { transform: 'scale(1)' },
         },
-        // Project-wide interactive motion (CSS-only, no new deps)
         'scale-in': {
           from: { opacity: '0', transform: 'scale(0.96)' },
-          to:   { opacity: '1', transform: 'scale(1)' },
+          to: { opacity: '1', transform: 'scale(1)' },
         },
         'soft-bounce': {
           '0%, 100%': { transform: 'translateY(0)' },
-          '50%':      { transform: 'translateY(-3px)' },
+          '50%': { transform: 'translateY(-3px)' },
         },
-        'shimmer': {
-          '0%':   { backgroundPosition: '-200% 0' },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
         'fade-in-up': {
           from: { opacity: '0', transform: 'translateY(12px)' },
-          to:   { opacity: '1', transform: 'translateY(0)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
         },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up':   'accordion-up 0.2s ease-out',
-        'page-fade':      'page-fade 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
-        'heart-pop':      'heart-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-        'scale-in':       'scale-in 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
-        'soft-bounce':    'soft-bounce 1.6s ease-in-out infinite',
-        'shimmer':        'shimmer 1.4s linear infinite',
-        'fade-in-up':     'fade-in-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'accordion-up': 'accordion-up 0.2s ease-out',
+        'page-fade': 'page-fade 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
+        'heart-pop': 'heart-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        'scale-in': 'scale-in 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+        'soft-bounce': 'soft-bounce 1.6s ease-in-out infinite',
+        shimmer: 'shimmer 1.4s linear infinite',
+        'fade-in-up': 'fade-in-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },

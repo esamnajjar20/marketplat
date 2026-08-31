@@ -141,7 +141,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
       <div className="flex-1 md:w-2/3 min-w-0 space-y-6">
 
         {/* Gallery */}
-        <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <div
             className="relative aspect-[4/3] sm:aspect-[16/9] bg-muted touch-pan-y"
             onTouchStart={(e) => {
@@ -175,16 +175,16 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 <button onClick={goPrev}
                   disabled={imgIdx === 0}
                   aria-label="الصورة السابقة"
-                  className="absolute start-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
+                  className="absolute start-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-foreground/55 text-background backdrop-blur-sm disabled:opacity-30">
                   <ChevronRight className="h-5 w-5" />
                 </button>
                 <button onClick={goNext}
                   disabled={imgIdx === images.length - 1}
                   aria-label="الصورة التالية"
-                  className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
+                  className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-foreground/55 text-background backdrop-blur-sm disabled:opacity-30">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <span className="absolute bottom-4 end-4 bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full">
+                <span className="absolute bottom-4 end-4 rounded-full bg-foreground/60 px-3 py-1.5 text-xs text-background backdrop-blur-md">
                   {imgIdx + 1} / {images.length}
                 </span>
               </>
@@ -213,7 +213,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
         </div>
 
         {/* Title + meta + specs + description */}
-        <div className="rounded-2xl bg-card shadow-sm p-5 sm:p-7 space-y-6">
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-7 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="space-y-2">
               <h1 className="text-xl sm:text-2xl font-bold leading-snug">{ad.title}</h1>

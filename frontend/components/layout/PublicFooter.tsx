@@ -1,69 +1,83 @@
 /**
- * PublicFooter — site-wide footer rendered in the (public) layout.
- *
- * FIX I18N-01 / FIX AUDIT-V6-06: two issues fixed together since they're
- * on the same lines —
- *  1) Arabic copy, matching the rest of the app (this was the one file
- *     that FIX UX-01 / FIX AUDIT-V5-02 missed).
- *  2) All nine Company/Support/Legal links pointed at pages that don't
- *     exist anywhere in app/ (confirmed against ROUTES in lib/constants.ts,
- *     which has no about/careers/blog/help/contact/safety/terms/privacy/
- *     cookies entries) — every one was a guaranteed 404. Rendered as plain
- *     disabled text for now instead of dead <Link>s; swap a given item back
- *     to <Link href="..."> as soon as its page ships.
+ * PublicFooter — only links that resolve to real pages.
+ * Disabled placeholders (404) were removed; add links back when pages ship.
  */
 import Link from 'next/link';
-import { Logo }   from './Logo';
+import { Logo } from './Logo';
 import { ROUTES, APP_NAME } from '@/lib/constants';
 
 const FOOTER_LINKS = {
-  الشركة: [
-    { label: 'من نحن' },
-    { label: 'وظائف' },
-    { label: 'المدونة' },
+  اكتشف: [
+    { label: 'البحث', href: ROUTES.search },
+    { label: 'المتاجر', href: ROUTES.stores },
+    { label: 'الخدمات', href: ROUTES.services },
+    { label: 'المنتجات', href: ROUTES.products },
   ],
-  الدعم: [
-    { label: 'مركز المساعدة' },
-    { label: 'تواصل معنا' },
-    { label: 'نصائح الأمان' },
+  الحساب: [
+    { label: 'تسجيل الدخول', href: ROUTES.login },
+    { label: 'إنشاء حساب', href: ROUTES.register },
+    { label: 'لوحة التحكم', href: ROUTES.dashboard },
   ],
-  قانوني: [
-    { label: 'شروط الاستخدام' },
-    { label: 'سياسة الخصوصية' },
-    { label: 'سياسة ملفات تعريف الارتباط' },
+  معلومات: [
+    { label: 'من نحن', href: ROUTES.about },
+    { label: 'تواصل معنا', href: ROUTES.contact },
+    { label: 'سياسة الخصوصية', href: ROUTES.privacy },
+    { label: 'شروط الاستخدام', href: ROUTES.terms },
   ],
 } as const;
 
 export function PublicFooter() {
   return (
-    <footer className="border-t bg-muted/40">
+    <footer className="border-t border-border/80 bg-surface-1">
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-          <div className="col-span-2 md:col-span-1">
-            <Link href={ROUTES.home}>
+          <div className="col-span-2 space-y-4 md:col-span-1">
+            <Link href={ROUTES.home} className="inline-block">
               <Logo />
             </Link>
-            <p className="mt-4 text-sm text-muted-foreground">
-              المكان الموثوق للبيع والشراء — كل ما تحتاجه، في حيّك مباشرة.
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+              المكان الموثوق للبيع والشراء والخدمات — من جيرانك، إلى جيرانك.
             </p>
           </div>
           {Object.entries(FOOTER_LINKS).map(([section, links]) => (
             <div key={section}>
-              <h3 className="mb-4 text-sm font-semibold">{section}</h3>
-              <ul className="space-y-2">
+              <h3 className="mb-4 text-sm font-semibold text-foreground">{section}</h3>
+              <ul className="space-y-2.5">
                 {links.map((link) => (
-                  <li key={link.label}>
-                    <span className="text-sm text-muted-foreground/60 cursor-not-allowed">
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                    >
                       {link.label}
-                    </span>
+                    </Link>
                   </li>
                 ))}
               </ul>
             </div>
           ))}
         </div>
-        <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} {APP_NAME}. جميع الحقوق محفوظة.</p>
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border/70 pt-8 text-center text-sm text-muted-foreground sm:flex-row sm:text-start">
+          <p>
+            © {new Date().getFullYear()} {APP_NAME}. جميع الحقوق محفوظة.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 text-xs">
+            <Link href={ROUTES.privacy} className="hover:text-primary">
+              الخصوصية
+            </Link>
+            <span aria-hidden className="text-border">
+              ·
+            </span>
+            <Link href={ROUTES.terms} className="hover:text-primary">
+              الشروط
+            </Link>
+            <span aria-hidden className="text-border">
+              ·
+            </span>
+            <Link href={ROUTES.contact} className="hover:text-primary">
+              تواصل
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

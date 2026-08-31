@@ -29,7 +29,7 @@ export function ProtectedHeader() {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <header className="pwa-safe-top sticky top-0 z-50 flex min-h-16 w-full items-center border-b bg-background px-6 gap-4">
+    <header className="pwa-safe-top sticky top-0 z-50 flex min-h-16 w-full items-center gap-4 border-b border-border/80 bg-background/90 px-6 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
       {/* AUDIT-FIX (protected #1): hamburger trigger for ProtectedMobileNav,
           the only way to reach ProtectedSidebar's destinations below `lg`. */}
       <ProtectedMobileNav />

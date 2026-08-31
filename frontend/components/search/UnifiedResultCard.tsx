@@ -19,15 +19,15 @@ interface Props {
 // "الكل" results grid otherwise gives no visual cue which of the four
 // entities each card actually is.
 const TYPE_BADGE: Record<SearchResultType, { label: string; className: string }> = {
-  ad:      { label: 'إعلان', className: 'bg-foreground/70 text-background' },
-  product: { label: 'منتج',  className: 'bg-primary/90 text-primary-foreground' },
-  store:   { label: 'محل',   className: 'bg-accent text-accent-foreground' },
+  ad:      { label: 'إعلان', className: 'bg-foreground/75 text-background backdrop-blur-sm' },
+  product: { label: 'منتج',  className: 'bg-primary text-primary-foreground shadow-xs' },
+  store:   { label: 'محل',   className: 'bg-accent text-accent-foreground shadow-xs' },
   // DESIGN-FIX (audit): was raw bg-emerald-600/90 text-white — the
   // other three badges above already use semantic tokens, and
   // ServiceListingCard.tsx already maps this same green to --success
   // for the identical concept, so this just adopts that existing token
   // instead of a fourth ad-hoc green.
-  service: { label: 'خدمة',  className: 'bg-success text-success-foreground' },
+  service: { label: 'خدمة',  className: 'bg-success text-success-foreground shadow-xs' },
 };
 
 /**
@@ -61,7 +61,7 @@ export function UnifiedResultCard({ result, className }: Props) {
     <Link
       href={result.url}
       className={cn(
-        'group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+        'group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
         className
       )}
     >

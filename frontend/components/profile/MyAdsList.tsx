@@ -93,12 +93,15 @@ export function MyAdsList() {
   return (
     <div className="space-y-4">
       {/* Status filter tabs */}
-      <div className="flex gap-2 border-b pb-3 overflow-x-auto" role="group" aria-label="تصفية الإعلانات حسب الحالة">
+      <div className="flex gap-2 overflow-x-auto border-b border-border/70 pb-3" role="group" aria-label="تصفية الإعلانات حسب الحالة">
         {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
           <button key={val} onClick={() => setStatus(val)}
             aria-pressed={(status ?? '') === val}
-            className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors
-              ${(status ?? '') === val ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}>
+            className={`shrink-0 rounded-full px-3 py-1 text-sm transition-colors ${
+              (status ?? '') === val
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}>
             {label}
           </button>
         ))}
@@ -125,7 +128,7 @@ export function MyAdsList() {
           {items.map((ad) => {
             const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 120, 90) : PLACEHOLDER_SVG;
             return (
-              <div key={ad.id} className="flex gap-3 p-3 rounded-lg border bg-card">
+              <div key={ad.id} className="flex gap-3 rounded-xl border border-border bg-card p-3 shadow-xs transition-colors hover:border-primary/20">
                 <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
                   <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="96px" />
                 </div>

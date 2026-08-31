@@ -127,12 +127,12 @@ export function Pagination({
             <span
               key={p}
               aria-current="page"
-              className="flex h-8 min-w-8 items-center justify-center rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground"
+              className="flex h-9 min-w-9 items-center justify-center rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground"
             >
               {p}
             </span>
           ) : (
-            <Button key={p} asChild variant="outline" size="sm" className="h-8 min-w-8 px-2">
+            <Button key={p} asChild variant="outline" size="sm" className="h-9 min-w-9 px-2">
               <Link href={buildPageUrl(p)} aria-label={`الصفحة ${p}`}>
                 {p}
               </Link>

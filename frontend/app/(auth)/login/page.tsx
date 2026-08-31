@@ -23,7 +23,7 @@ export default function LoginPage() {
         <h1 className="text-3xl font-bold text-primary sm:text-4xl">تسجيل الدخول</h1>
         <p className="mt-3 text-muted-foreground">مرحباً بك مجدداً في سوق غزة</p>
       </div>
-      <div className="rounded-3xl border bg-card p-6 shadow-xl sm:p-8">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-md sm:p-8">
         <Suspense><LoginForm /></Suspense>
       </div>
     </div>

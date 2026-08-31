@@ -21,7 +21,7 @@ export default function RegisterPage() {
           انضم إلى مجتمع سوق غزة وابدأ في البيع والشراء بكل سهولة
         </p>
       </div>
-      <div className="rounded-3xl border bg-card p-6 shadow-xl sm:p-8">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-md sm:p-8">
         <Suspense><RegisterForm /></Suspense>
       </div>
     </div>

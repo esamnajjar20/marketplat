@@ -79,7 +79,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             className={cn(
               'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
               isActive
-                ? 'bg-primary text-primary-foreground'
+                ? 'bg-primary-soft text-primary shadow-xs'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
@@ -90,7 +90,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 className={cn(
                   'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums',
                   isActive
-                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-destructive text-destructive-foreground',
                 )}
               >
@@ -107,7 +107,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 /** Desktop sidebar — fixed, always visible on lg+ screens. */
 function DesktopSidebar() {
   return (
-    <aside className="hidden md:block w-52 shrink-0 border-e bg-card min-h-screen lg:w-56">
+    <aside className="hidden min-h-screen w-52 shrink-0 border-e border-border/80 bg-surface-1 md:block lg:w-56">
       <NavLinks />
     </aside>
   );
@@ -138,11 +138,11 @@ function MobileDrawer() {
         >
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
           {/* Drawer panel — appears on the end side for RTL */}
-          <div className="relative ms-auto w-64 bg-card h-full shadow-xl">
+          <div className="relative ms-auto h-full w-64 border-s border-border bg-card shadow-lg">
             <button
               onClick={() => setOpen(false)}
               className="absolute top-3 start-3 p-1 rounded-md hover:bg-muted"

@@ -50,7 +50,7 @@ export function DashboardStats() {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card py-8 text-center shadow-xs">
         <AlertTriangle className="h-8 w-8 text-muted-foreground" />
         <p className="text-destructive">حدث خطأ أثناء تحميل الإحصائيات</p>
         <button
@@ -120,9 +120,9 @@ export function DashboardStats() {
               </>
             );
             const className = cn(
-              'rounded-lg border bg-card p-4 space-y-2 transition-colors',
-              highlight && 'border-primary/30 bg-primary/5',
-              href && 'hover:bg-muted/50',
+              'rounded-xl border border-border bg-card p-4 space-y-2 shadow-xs transition-all',
+              highlight && 'border-primary/35 bg-primary-soft',
+              href && 'hover:border-primary/25 hover:shadow-sm',
             );
             return href ? (
               <Link key={label} href={href} className={className}>
@@ -145,7 +145,7 @@ export function DashboardStats() {
           {storeOk && myStore && (
             <Link
               href={ROUTES.myStore}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50"
             >
               <Store className="h-3.5 w-3.5" />
               لوحة المتجر
@@ -154,7 +154,7 @@ export function DashboardStats() {
           {storeOk && myStore && (
             <Link
               href={ROUTES.myStoreAnalytics}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50 text-muted-foreground"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50"
             >
               إحصائيات المتجر
             </Link>
@@ -162,7 +162,7 @@ export function DashboardStats() {
           {providerOk && myProvider && (
             <Link
               href={ROUTES.myServices}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50"
             >
               <Wrench className="h-3.5 w-3.5" />
               لوحة الخدمات
@@ -171,7 +171,7 @@ export function DashboardStats() {
           {providerOk && myProvider && (
             <Link
               href={ROUTES.myServiceProviderAnalytics}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 hover:bg-muted/50 text-muted-foreground"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50"
             >
               إحصائيات الخدمات
             </Link>

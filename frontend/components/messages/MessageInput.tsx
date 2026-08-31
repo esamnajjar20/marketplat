@@ -76,7 +76,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
                 setBody(label);
                 requestAnimationFrame(() => textareaRef.current?.focus());
               }}
-              className="snap-start shrink-0 rounded-full border border-border/80 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors min-h-[36px] hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
+              className="snap-start shrink-0 rounded-full border border-border/80 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors min-h-10 hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
             >
               {label}
             </button>

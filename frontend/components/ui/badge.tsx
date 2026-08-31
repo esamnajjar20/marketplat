@@ -8,15 +8,29 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        default:
+          'border-transparent bg-primary text-primary-foreground shadow-xs hover:bg-primary/80',
+        secondary:
+          'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
         destructive:
-          'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
+          'border-transparent bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/80',
         success:
-          'border-transparent bg-success text-success-foreground shadow hover:bg-success/80',
+          'border-transparent bg-success text-success-foreground shadow-xs hover:bg-success/80',
         warning:
-          'border-transparent bg-warning text-warning-foreground shadow hover:bg-warning/80',
-        outline: 'text-foreground',
+          'border-transparent bg-warning text-warning-foreground shadow-xs hover:bg-warning/80',
+        /** Featured / promoted — terracotta */
+        accent:
+          'border-transparent bg-accent text-accent-foreground shadow-xs hover:bg-accent/80',
+        /** Soft tints — low-noise status chips on dense UIs */
+        soft:
+          'border-transparent bg-primary-soft text-primary',
+        'soft-success':
+          'border-transparent bg-success-soft text-success',
+        'soft-warning':
+          'border-transparent bg-warning-soft text-warning-foreground',
+        'soft-accent':
+          'border-transparent bg-accent-soft text-accent',
+        outline: 'text-foreground border-border',
       },
     },
     defaultVariants: {

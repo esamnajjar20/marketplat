@@ -203,7 +203,7 @@ export function ChatWindow({ conversationId }: Props) {
       {conversation.ad && (
         <Link
           href={ROUTES.adDetail(conversation.ad.id)}
-          className="flex items-center gap-3 border-b bg-card px-3 py-2.5 shrink-0 hover:bg-muted/40 transition-colors"
+          className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-card px-3 py-2.5 transition-colors hover:bg-muted/40"
         >
           <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-lg bg-muted">
             <SafeImage
@@ -233,18 +233,18 @@ export function ChatWindow({ conversationId }: Props) {
       {/* Trust tip — once per thread, above the sticky party header */}
       <div
         role="note"
-        className="flex items-start gap-2 border-b border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
+        className="flex items-start gap-2 border-b border-warning/25 bg-warning-soft px-3 py-2 text-xs text-muted-foreground"
       >
-        <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+        <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
         <p>
           نصيحة أمان: تفاوض داخل المنصة، ولا تدفع مقدّماً خارجها. إن شعرت بشيء مريب استخدم «خيارات المحادثة».
         </p>
       </div>
 
-      <div className="flex items-center gap-3 bg-card/90 backdrop-blur-md shadow-sm px-3 py-3 sticky top-0 z-10">
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/70 bg-card/90 px-3 py-3 shadow-xs backdrop-blur-md">
         <Link
           href={ROUTES.messages}
-          className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors shrink-0"
+          className="lg:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
         >
           <ChevronRight className="h-5 w-5" />
         </Link>
@@ -303,7 +303,7 @@ export function ChatWindow({ conversationId }: Props) {
         </DropdownMenu>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3">
+      <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto bg-surface-1/50 px-4 py-5">
         {messagesLoading ? (
           <div className="flex justify-center py-8"><LoadingSpinner /></div>
         ) : messages.length === 0 ? (
@@ -375,8 +375,8 @@ export function ChatWindow({ conversationId }: Props) {
                         isDeleted
                           ? 'bg-muted text-muted-foreground italic'
                           : isMine
-                            ? 'bg-primary text-primary-foreground rounded-ee-sm'
-                            : 'bg-card text-foreground rounded-es-sm',
+                            ? 'rounded-ee-sm bg-primary text-primary-foreground shadow-xs'
+                            : 'rounded-es-sm border border-border/80 bg-card text-foreground shadow-xs',
                         isOptimistic && 'opacity-60'
                       )}
                     >

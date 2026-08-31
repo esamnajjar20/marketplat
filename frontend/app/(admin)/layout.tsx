@@ -103,7 +103,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAuthenticated || !isAdminTier || isOutOfScopeForModerator) return null;
 
   return (
-    <div className="flex min-h-screen bg-muted/30">
+    <div className="flex min-h-screen bg-surface-1">
       <AdminSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
