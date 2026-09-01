@@ -6,7 +6,7 @@ import { BadgeCheck, MapPin, Clock, Eye, ChevronLeft, ChevronRight, X, Phone } f
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/shared/ui/Badge';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { ShareAdButton } from '@/components/ads/ShareAdButton';
+import { ShareButton } from '@/components/shared/ShareButton';
 import { ReportServiceButton } from '@/components/services/ReportServiceButton';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatPrice, formatRelativeTime, formatPhone } from '@/lib/formatters';
@@ -180,7 +180,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
             <Meta listing={listing} />
             <div className="flex flex-wrap gap-2">
               <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
-              <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
+              <ShareButton title={listing.title} url={shareUrl} variant="button" />
               <ReportServiceButton serviceListingId={listing.id} />
             </div>
           </div>
@@ -206,7 +206,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
               <Meta listing={listing} />
               <div className="flex flex-wrap gap-2">
                 <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
-                <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
+                <ShareButton title={listing.title} url={shareUrl} variant="button" />
                 <ReportServiceButton serviceListingId={listing.id} />
               </div>
               {action && <div className="pt-1 space-y-2">{action}</div>}

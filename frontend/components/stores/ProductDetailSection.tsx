@@ -63,14 +63,16 @@ export function ProductDetailSection({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      <nav aria-label="مسار التنقل" className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-        <Link href={ROUTES.home} className="hover:text-foreground">الرئيسية</Link>
-        <ChevronLeft className="h-3 w-3" aria-hidden />
-        <Link href={ROUTES.storeDetail(product.store.slug || product.storeId)} className="hover:text-foreground">
+      <nav aria-label="مسار التصفح" className="mb-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href={ROUTES.home} className="hover:text-primary">الرئيسية</Link>
+        <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <Link href={ROUTES.products} className="hover:text-primary">المنتجات</Link>
+        <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <Link href={ROUTES.storeDetail(product.store.slug || product.storeId)} className="hover:text-primary">
           {product.store.name}
         </Link>
-        <ChevronLeft className="h-3 w-3" aria-hidden />
-        <span className="line-clamp-1 text-foreground">{product.name}</span>
+        <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="line-clamp-1 text-foreground/80">{product.name}</span>
       </nav>
       <ProductDetail product={product} related={related} />
     </div>

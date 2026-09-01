@@ -1,5 +1,9 @@
 /**
- * ShareAdButton — share an ad via WhatsApp, Telegram, or a copied link.
+ * ShareAdButton — مشاركة عبر واتساب / تيليجرام / نسخ الرابط.
+ *
+ * الاسم الموحّد عبر المنصة: استورد `ShareButton` من
+ * `@/components/shared/ShareButton` (يعيد تصدير هذا المكوّن).
+ * يُستخدم للإعلانات والمنتجات والخدمات والمتاجر.
  *
  * WhatsApp is the dominant sharing channel for classifieds in Gaza, so it
  * gets top billing over the generic Web Share API. We still keep a native
@@ -106,3 +110,6 @@ export function ShareAdButton({ title, url, variant = 'icon', className }: Props
     </DropdownMenu>
   );
 }
+
+/** @deprecated استخدم ShareButton من shared — نفس المكوّن */
+export { ShareAdButton as ShareButton };

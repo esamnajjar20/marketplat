@@ -8,6 +8,8 @@ import { ServiceListingDetail } from '@/components/services/ServiceListingDetail
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
+import { RelatedServices } from '@/components/services/RelatedServices';
+import { ServiceBreadcrumb } from '@/components/services/ServiceBreadcrumb';
 import { ServiceRecommendations } from '@/components/recommendations/ServiceRecommendations';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
@@ -69,6 +71,10 @@ export default async function ServiceListingPage({ params }: Props) {
           comment for why this can't just be a useEffect inline here —
           this file is a Server Component. */}
       <ServiceViewTracker serviceListingId={listing.id} categoryId={listing.categoryId} />
+      <ServiceBreadcrumb
+        title={listing.title}
+        categoryId={listing.categoryId}
+      />
       <ServiceListingDetail
         listing={listing}
         action={
@@ -94,6 +100,11 @@ export default async function ServiceListingPage({ params }: Props) {
             />
           </div>
         }
+      />
+      <RelatedServices
+        serviceListingId={listing.id}
+        categoryId={listing.categoryId}
+        title="خدمات مشابهة"
       />
       <ServiceRecommendations excludeServiceListingId={listing.id} />
     </div>

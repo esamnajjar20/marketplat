@@ -13,7 +13,7 @@ import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.st
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
-import { ShareAdButton } from '@/components/ads/ShareAdButton';
+import { ShareButton } from '@/components/shared/ShareButton';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
@@ -192,7 +192,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
               واتساب
             </a>
           )}
-          <ShareAdButton title={store.name} url={shareUrl} variant="button" className="flex-1" />
+          <ShareButton title={store.name} url={shareUrl} variant="button" className="flex-1" />
         </div>
 
         {/* تحميل كتالوج المنتجات كاملًا كملف HTML للمشاهدة بدون إنترنت */}

@@ -25,7 +25,7 @@
  */
 import {
   Home, Search, Store, Wrench, Users, Settings,
-  History,
+  History, ListOrdered, Package,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -38,6 +38,13 @@ import { ROUTES } from '@/lib/constants';
 export const BROWSE_LINKS = [
   { label: 'الرئيسية', href: ROUTES.home, icon: Home },
   { label: 'البحث', href: ROUTES.search, icon: Search },
+  // FIX NAV-ADS-01: كان رابط الإعلانات موجوداً في ExploreSheet فقط وغير
+  // موجود في BROWSE_LINKS (القائمة الجانبية/الدرج) — فظهر للمستخدم أن
+  // "القائمة الجانبية ما فيها خيار الإعلانات". نفس الوجهة المستخدمة في
+  // ExploreSheet: /search?type=ads. المنتجات أيضاً أُضيفت للتناسق مع
+  // ExploreSheet ووجود /products كصفحة تصفح مستقلة.
+  { label: 'الإعلانات', href: `${ROUTES.search}?type=ads`, icon: ListOrdered },
+  { label: 'المنتجات', href: ROUTES.products, icon: Package },
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
