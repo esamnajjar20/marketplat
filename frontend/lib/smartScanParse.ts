@@ -5,13 +5,11 @@
 const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
 const EN_DIGITS = '0123456789';
 
-// نفس مدى الأطوال المعتمد بـocrCardScan.ts (CARD_USER_LEN / CARD_PASS_LEN) —
-// مكرَّر محليًا هنا عمدًا بدل الاستيراد المتبادل، لأن هذا الملف نص عادي
-// (لا 'use client') وقد يُستخدم خارج سياق المتصفح.
-const CARD_USER_LEN_MIN = 8;
-const CARD_USER_LEN_MAX = 16;
-const CARD_PASS_LEN_MIN = 4;
-const CARD_PASS_LEN_MAX = 10;
+// FIX LEN-BOUND-01 (مطابق لـocrCardScan.ts): أُزيلت حدود الطول الثابتة —
+// بطاقات حقيقية بأكواد من 6 خانات (وأخرى بأطوال مختلفة أصلًا) كانت ستُرفض
+// رغم صحتها. الاعتماد الآن على الترتيب الفيزيائي فقط (أول رقم = اسم
+// المستخدم، التالي المختلف = كلمة السر) — نفس المبدأ الموثّق أدناه أصلًا.
+const CARD_DIGITS_SANITY_MAX = 25;
 
 export function normalizeDigits(s: string): string {
   return s.replace(/[٠-٩]/g, (d) => EN_DIGITS[AR_DIGITS.indexOf(d)] ?? d);
@@ -236,8 +234,8 @@ export function smartParseCard(text: string): CardParseResult {
       const [first, second] = lines.map(toDigits);
       if (
         first && second && first !== second &&
-        first.length >= CARD_USER_LEN_MIN && first.length <= CARD_USER_LEN_MAX &&
-        second.length >= CARD_PASS_LEN_MIN && second.length <= CARD_PASS_LEN_MAX
+        first.length > 0 && first.length <= CARD_DIGITS_SANITY_MAX &&
+        second.length > 0 && second.length <= CARD_DIGITS_SANITY_MAX
       ) {
         if (!username) { username = first; confidence += 0.25; }
         if (!password) { password = second; confidence += 0.25; }
@@ -249,24 +247,24 @@ export function smartParseCard(text: string): CardParseResult {
     // لا نفرز حسب الطول — لو تساوى طول اسم المستخدم وكلمة السر (حالة واقعية
     // مؤكدة)، الفرز التنازلي كان يعطي ترتيبًا عشوائيًا فعليًا بينهما. بدلها:
     // اعتماد ترتيب الظهور بالنص الخام (الموضع الفيزيائي الحقيقي على البطاقة)
-    // — نفس المبدأ المعتمد بـocrCardScan.ts.
+    // — نفس المبدأ المعتمد بـocrCardScan.ts. ولا حدود طول أيضًا (FIX LEN-BOUND-01).
     const runs = (raw.match(/\d{4,}/g) ?? [])
       .map(toDigits)
-      .filter(Boolean);
+      .filter((r) => r.length > 0 && r.length <= CARD_DIGITS_SANITY_MAX);
     if (!username) {
-      const longRun = runs.find((r) => r.length >= 8 && r.length <= 16);
-      if (longRun) {
-        username = longRun;
+      const firstRun = runs[0];
+      if (firstRun) {
+        username = firstRun;
         confidence += 0.25;
       }
     }
     if (!password) {
       const usernameIdx = username ? runs.indexOf(username) : -1;
-      const shortRun =
-        runs.find((r, i) => r !== username && r.length >= 4 && r.length <= 10 && i > usernameIdx) ??
-        runs.find((r) => r !== username && r.length >= 4 && r.length <= 10);
-      if (shortRun) {
-        password = shortRun;
+      const nextRun =
+        runs.find((r, i) => r !== username && i > usernameIdx) ??
+        runs.find((r) => r !== username);
+      if (nextRun) {
+        password = nextRun;
         confidence += 0.25;
       }
     }
@@ -279,8 +277,7 @@ export function smartParseCard(text: string): CardParseResult {
     password = '';
     confidence = Math.max(0, confidence - 0.2);
   }
-  if (username.length >= 8 && username.length <= 16) confidence += 0.1;
-  if (password.length >= 4 && password.length <= 10) confidence += 0.1;
+  if (username && password) confidence += 0.1; // كلا الحقلين موجودان — لا تفضيل لطول معيّن (FIX LEN-BOUND-01)
 
   return {
     username: username.trim(),
@@ -293,7 +290,11 @@ export function smartParseCard(text: string): CardParseResult {
 
 /** هل النص يشبه بطاقة نت أكثر من دفع؟ */
 export function looksLikeCard(text: string): boolean {
-  return /كلمة\s*السر|password|username|اسم\s*المستخدم|بطاقة\s*نت|wifi|user\s*[:：]/i.test(
-    text,
-  );
+  // كلمات مفتاحية صريحة لبطاقات النت
+  if (/كلمة\s*السر|password|username|اسم\s*المستخدم|بطاقة\s*نت|wifi|user\s*[:：]/i.test(text)) {
+    return true;
+  }
+  // أو وجود سلسلتين رقميتين منفصلتين (شكل شائع بدون تسميات)
+  const runs = (text.match(/\d{4,}/g) ?? []).map((r) => r.replace(/\D/g, ''));
+  return runs.length >= 2 && runs[0] !== runs[1];
 }

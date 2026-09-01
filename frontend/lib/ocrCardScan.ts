@@ -6,8 +6,16 @@
  * OCR لبطاقات النت الصغيرة (اسم مستخدم + كلمة سر — أرقام فقط في هذا المشروع).
  *
  * Pipeline:
- *   frame/guide crop → Deskew → Preprocess (CLAHE + Median Filter) → ROI ديناميكي
+ *   frame/guide crop → Deskew → Preprocess (CLAHE + Median + Sauvola/Otsu) → ROI ديناميكي
  *   → upscale 3× → Tesseract (digits only) → تطبيع → validation → توافق إطارات
+ *
+ * تحسينات الدقة المضافة:
+ *   - Sauvola Adaptive أقوى (Integral Image, نافذة 25, k=0.34)
+ *   - Otsu Binarization كخيار معالجة إضافي
+ *   - Multi-Frame Voting موزون بالتكرار
+ *   - estimateImageQuality لرفض اللقطات السيئة مبكراً
+ *   - قراءة الأسماء (Pay): معالجات أقوى + تطبيع عربي محسّن + تقييم جودة أدق
+ *   - تسريع: PREP_VARIANTS_FAST (3 فقط) + early exit + upscale أخف + timeout 12s
  *
  * يعمل محليًا عبر public/tesseract + public/tessdata إن توفّرت، وإلا CDN.
  */
@@ -33,7 +41,7 @@ type TesseractModule = {
 
 const TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const LOAD_TIMEOUT_MS = 20000;
-const RECOGNIZE_TIMEOUT_MS = 25000;
+const RECOGNIZE_TIMEOUT_MS = 12000; // FIX OCR-SPEED-01: كان 25s — فشل أسرع أفضل من انتظار طويل
 const WORKER_INIT_TIMEOUT_MS = 20000;
 
 // المسارات المحلية والـ CDN
@@ -80,9 +88,13 @@ function resolveTesseractPaths(): Promise<{ workerPath: string; corePath: string
   return resolvedPathsPromise;
 }
 
-// أطوال البطاقات
-export const CARD_USER_LEN = { min: 8, max: 16 } as const;
-export const CARD_PASS_LEN = { min: 4, max: 10 } as const;
+// FIX LEN-BOUND-01: كانت هناك حدود طول ثابتة (8-16 لاسم المستخدم، 4-10
+// لكلمة السر) تفترض تنسيق مزوّد واحد بعينه. تحقّقنا من بطاقة حقيقية من
+// مزوّد آخر بكود من 6 خانات فقط — كانت سترفض كقراءة صحيحة رغم صحتها 100%.
+// طلب صريح: لا حد أدنى ولا حد أعلى، لوجود عدة بطاقات بأطوال مختلفة فعليًا.
+// البديل: الاعتماد فقط على الترتيب الفيزيائي على البطاقة (اسم المستخدم
+// دائمًا يسبق كلمة السر) بدل تصنيف حسب الطول — هذا المبدأ كان أصلًا موثّقًا
+// كأساس في smartParseCard (انظر "لا نفرز حسب الطول" هناك).
 
 // دالة withTimeout
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -198,6 +210,34 @@ function cloneCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
   return c;
 }
 
+
+/**
+ * تقييم سريع لجودة الصورة قبل تشغيل OCR (0..1).
+ * يستخدم لتوفير الوقت ورفض اللقطات السيئة جداً.
+ */
+export function estimateImageQuality(canvas: HTMLCanvasElement): number {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return 0;
+  const sw = Math.min(canvas.width, 160);
+  const sh = Math.min(canvas.height, 120);
+  const sample = ctx.getImageData(0, 0, sw, sh);
+  const d = sample.data;
+  const n = sw * sh;
+  let sum = 0;
+  let sumSq = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const g = 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
+    sum += g;
+    sumSq += g * g;
+  }
+  const mean = sum / n;
+  const variance = sumSq / n - mean * mean;
+  const std = Math.sqrt(Math.max(0, variance));
+  const contrastScore = Math.min(1, std / 55);
+  const brightnessScore = mean > 40 && mean < 210 ? 1 : 0.4;
+  return contrastScore * 0.7 + brightnessScore * 0.3;
+}
+
 export function upscaleCanvas(src: HTMLCanvasElement, factor: number): HTMLCanvasElement {
   const f = Math.max(1, Math.min(4, factor));
   const c = document.createElement('canvas');
@@ -209,6 +249,64 @@ export function upscaleCanvas(src: HTMLCanvasElement, factor: number): HTMLCanva
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(src, 0, 0, c.width, c.height);
   return c;
+}
+
+function downscaleCanvas(src: HTMLCanvasElement, maxDim: number): HTMLCanvasElement {
+  const scale = Math.min(1, maxDim / Math.max(src.width, src.height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(src.width * scale));
+  c.height = Math.max(1, Math.round(src.height * scale));
+  const ctx = c.getContext('2d');
+  if (!ctx) return src;
+  ctx.drawImage(src, 0, 0, c.width, c.height);
+  return c;
+}
+
+/** يدور اللقطة بمضاعفات 90° بالضبط (0/1/2/3 = 0°/90°/180°/270° مع عقارب الساعة) دون فقد دقة كما يحصل مع deskewCanvas عند زوايا كسرية كبيرة. */
+function rotateCanvasQuarter(src: HTMLCanvasElement, quarterTurns: 0 | 1 | 2 | 3): HTMLCanvasElement {
+  if (quarterTurns === 0) return src;
+  const swap = quarterTurns % 2 === 1;
+  const c = document.createElement('canvas');
+  c.width = swap ? src.height : src.width;
+  c.height = swap ? src.width : src.height;
+  const ctx = c.getContext('2d');
+  if (!ctx) return src;
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate((quarterTurns * 90 * Math.PI) / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return c;
+}
+
+// FIX ORIENT-01: اكتُشفت على بطاقة حقيقية (بطاقة واي فاي مصوَّرة بزاوية ~90°
+// عن الوضع الأفقي المتوقَّع) — لا deskewCanvas (يتجاهل عمدًا أي ميل قريب من
+// مضاعفات 90°، فهو مصمَّم لتصحيح ميل طفيف فقط، سطر 5-260 أدناه) ولا أي جزء
+// آخر من الأنبوب يصحّح دورانًا بمقدار ربع/نصف لفة. النتيجة: كل الكشف
+// اللاحق (أشرطة الأسطر، قصّ ROI) يعمل على محور خاطئ تمامًا ويفشل حتمًا مهما
+// كانت جودة تلك الخطوات — تحقّقنا رقميًا: قوة "أفقية النص" (نفس مقياس
+// findRowBand) كانت ~1.47M عند تدوير 90° مقابل ~0.78M بلا تدوير على نفس
+// البطاقة، أي الوضع الأصلي كان يقرأ البطاقة على المحور الخاطئ بفارق يقارب
+// الضعف. لا يمكن حسم الاتجاه (90° أم 270°) من هذا المقياس وحده (كلاهما
+// "أفقي" بنفس الدرجة، الفرق بينهما فوق/تحت لا يقاس بحواف الصف)، فنُرجع
+// كلا الاحتمالين ليجرّب المستدعي المسار الكامل على كل منهما ويختار الأفضل
+// نتيجة (نفس فلسفة FIX OCR-VERIFY-01: تفضيل نتيجة تحقّق فعلي بدل تخمين).
+function detectQuarterRotationCandidates(src: HTMLCanvasElement): Array<0 | 1 | 2 | 3> {
+  try {
+    const small0 = downscaleCanvas(src, 220);
+    const bands0 = computeTextLineBands(small0);
+    const score0 = bands0?.band1.score ?? 0;
+
+    const small90 = downscaleCanvas(rotateCanvasQuarter(src, 1), 220);
+    const bands90 = computeTextLineBands(small90);
+    const score90 = bands90?.band1.score ?? 0;
+
+    if (score90 > score0 * 1.3) return [1, 3];
+    if (score0 > score90 * 1.3) return [0];
+    // فرق غير حاسم — البطاقة قد تكون بزاوية وسطية غير مدعومة أصلًا؛ جرّب
+    // الوضع الأصلي أولًا (الأرخص) ثم بديلي الدوران احتياطًا.
+    return [0, 1, 3];
+  } catch {
+    return [0];
+  }
 }
 
 // ====== أدوات جديدة للتحسين ======
@@ -371,37 +469,81 @@ function preprocessAdvanced(src: HTMLCanvasElement, kind: PrepKind): HTMLCanvasE
       }
     }
   } else if (kind === 'adaptive') {
-    // عتبة تكيفية تقريبية (Sauvola-like) — ممتازة للانعكاسات والإضاءة المتدرجة
-    // على بطاقة ممسوكة باليد. نافذة 15×15، k=0.2، R=128.
-    const win = 15;
+    // Sauvola-like محسّن باستخدام Integral Image — أدق وأسرع على الإضاءة المتفاوتة
+    // نافذة 25×25، k=0.34، R=128. أفضل للبطاقات الممسوكة باليد.
+    const win = 25;
     const half = (win - 1) >> 1;
-    const k = 0.2;
+    const k = 0.34;
     const R = 128;
-    // متوسط محلي سريع عبر صندوق متحرك تقريبي (عيّنة كل صف)
+
+    const integral = new Float64Array(n);
+    const integralSq = new Float64Array(n);
+    for (let y = 0; y < h; y++) {
+      let rowSum = 0;
+      let rowSumSq = 0;
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        const val = filtered[idx]!;
+        rowSum += val;
+        rowSumSq += val * val;
+        const above = y > 0 ? integral[(y - 1) * w + x]! : 0;
+        const aboveSq = y > 0 ? integralSq[(y - 1) * w + x]! : 0;
+        integral[idx] = above + rowSum;
+        integralSq[idx] = aboveSq + rowSumSq;
+      }
+    }
+
+    const rectSum = (x1: number, y1: number, x2: number, y2: number, arr: Float64Array) => {
+      x1 = Math.max(0, x1); y1 = Math.max(0, y1);
+      x2 = Math.min(w - 1, x2); y2 = Math.min(h - 1, y2);
+      const a = arr[y2 * w + x2]!;
+      const b = y1 > 0 ? arr[(y1 - 1) * w + x2]! : 0;
+      const c = x1 > 0 ? arr[y2 * w + (x1 - 1)]! : 0;
+      const d = y1 > 0 && x1 > 0 ? arr[(y1 - 1) * w + (x1 - 1)]! : 0;
+      return a - b - c + d;
+    };
+
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        let sum = 0;
-        let sumSq = 0;
-        let count = 0;
-        const y0 = Math.max(0, y - half);
-        const y1 = Math.min(h - 1, y + half);
-        const x0 = Math.max(0, x - half);
-        const x1 = Math.min(w - 1, x + half);
-        // عيّنة كل بكسلين للسرعة مع الحفاظ على الدقة الكافية للأرقام
-        for (let yy = y0; yy <= y1; yy += 2) {
-          for (let xx = x0; xx <= x1; xx += 2) {
-            const p = filtered[yy * w + xx]!;
-            sum += p;
-            sumSq += p * p;
-            count++;
-          }
-        }
-        const mean = sum / (count || 1);
-        const variance = Math.max(0, sumSq / (count || 1) - mean * mean);
+        const x1 = x - half, y1 = y - half, x2 = x + half, y2 = y + half;
+        const area =
+          (Math.min(w - 1, x2) - Math.max(0, x1) + 1) *
+          (Math.min(h - 1, y2) - Math.max(0, y1) + 1);
+        const sum = rectSum(x1, y1, x2, y2, integral);
+        const sumSq = rectSum(x1, y1, x2, y2, integralSq);
+        const mean = sum / (area || 1);
+        const variance = Math.max(0, sumSq / (area || 1) - mean * mean);
         const std = Math.sqrt(variance);
         const thresh = mean * (1 + k * (std / R - 1));
         out[y * w + x] = filtered[y * w + x]! >= thresh ? 255 : 0;
       }
+    }
+  } else if (kind === 'otsu') {
+    // Otsu global threshold — ممتاز عندما يكون التباين بين النص والخلفية واضح
+    const hist = new Array(256).fill(0) as number[];
+    for (let i = 0; i < n; i++) hist[filtered[i]!]!++;
+    let sumAll = 0;
+    for (let i = 0; i < 256; i++) sumAll += i * hist[i]!;
+    let sumB = 0;
+    let wB = 0;
+    let maxVar = 0;
+    let threshold = 127;
+    for (let t = 0; t < 256; t++) {
+      wB += hist[t]!;
+      if (wB === 0) continue;
+      const wF = n - wB;
+      if (wF === 0) break;
+      sumB += t * hist[t]!;
+      const mB = sumB / wB;
+      const mF = (sumAll - sumB) / wF;
+      const varBetween = wB * wF * (mB - mF) * (mB - mF);
+      if (varBetween > maxVar) {
+        maxVar = varBetween;
+        threshold = t;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      out[i] = filtered[i]! > threshold ? 255 : 0;
     }
   } else if (kind === 'sharp') {
     // توضيح خفيف (unsharp mask) بعد التنعيم — يستعيد حواف الأرقام المفقودة
@@ -621,10 +763,14 @@ type PrepKind =
   | 'thresh130'
   | 'thresh160'
   | 'adaptive'
-  | 'sharp';
+  | 'sharp'
+  | 'otsu';
 
 // نسخ معالجة متنوعة — تغطي إضاءة غير متساوية، انعكاسات، وضبابية خفيفة.
-const PREP_VARIANTS: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130', 'gray'];
+// المسار الحي السريع (3 معالجات) — توازن دقة/سرعة
+const PREP_VARIANTS_FAST: PrepKind[] = ['contrast', 'adaptive', 'gray'];
+// المسار الكامل (دقة أعلى) — يُستخدم عند الحاجة أو كاحتياط
+const PREP_VARIANTS_NAME_FAST: PrepKind[] = ['contrast', 'adaptive', 'gray'];
 
 // ====== دوال التطبيع والتحقق ======
 
@@ -644,12 +790,19 @@ export function normalizeCardDigits(raw: string): string {
   return s.replace(/[^\d]/g, '');
 }
 
+// لا حدود طول — أي رقم غير فارغ مقبول شكليًا (انظر FIX LEN-BOUND-01 أعلاه).
+// الحارس الوحيد المتبقّي: رفض السلاسل الطويلة جدًا (25+ خانة) التي لا يمكن
+// أن تكون كودًا حقيقيًا مطبوعًا على بطاقة — عمليًا ناتج التصاق سطرين OCR
+// بالخطأ (مثال واقعي رأيناه: دمج اسم المستخدم وكلمة السر في سلسلة واحدة)،
+// وليس افتراضًا عن طول أي تنسيق بطاقة بعينه.
+const CARD_DIGITS_SANITY_MAX = 25;
+
 export function isValidCardUsername(digits: string): boolean {
-  return digits.length >= CARD_USER_LEN.min && digits.length <= CARD_USER_LEN.max;
+  return digits.length > 0 && digits.length <= CARD_DIGITS_SANITY_MAX;
 }
 
 export function isValidCardPassword(digits: string): boolean {
-  return digits.length >= CARD_PASS_LEN.min && digits.length <= CARD_PASS_LEN.max;
+  return digits.length > 0 && digits.length <= CARD_DIGITS_SANITY_MAX;
 }
 
 function extractOrderedDigitFields(
@@ -678,17 +831,14 @@ function scoreDigitRun(digits: string, field: 'username' | 'password'): number {
   if (!digits) return 0;
   const ok =
     field === 'username' ? isValidCardUsername(digits) : isValidCardPassword(digits);
-  let score = ok ? 50 + digits.length * 2 : digits.length;
-  // تفضيل قوي للأطوال الشائعة على بطاقات النت الفلسطينية (12 للمستخدم، 6 للسر)
-  if (field === 'username') {
-    if (digits.length >= 10 && digits.length <= 13) score += 25;
-    if (digits.length === 12) score += 15;
-  }
-  if (field === 'password') {
-    if (digits.length >= 5 && digits.length <= 8) score += 25;
-    if (digits.length === 6) score += 15;
-  }
-  return score;
+  // FIX LEN-BOUND-01: أُزيل تفضيل صريح كان هنا لأطوال "شائعة" (12 لاسم
+  // المستخدم، 6 لكلمة السر) خاصة بمزوّد واحد — كان يعاقب فعليًا أي بطاقة
+  // بتنسيق آخر (تحقّقنا: بطاقة حقيقية بكود مستخدم من 6 خانات لم تكن لتحصل
+  // على أي تفضيل، بل تُهزم أمام مرشّح ضجيج بطول 12 خطأً). تفضيل "الأطول
+  // بين مرشّحين متداخلين" ما زال قائمًا (السطر التالي) لأنه ليس افتراضًا
+  // عن تنسيق بعينه، بل معالجة معروفة لقراءات OCR الجزئية (تُفقد الخانات
+  // من جهة اليسار غالبًا عند قصّ حواف اليد على البطاقة) — انظر توثيق الدالة.
+  return (ok ? 50 : 0) + digits.length * 2;
 }
 
 /**
@@ -697,12 +847,25 @@ function scoreDigitRun(digits: string, field: 'username' | 'password'): number {
  * مثال: "528261456" ⊆ "445282914562" → اختر الأطول.
  */
 function fuseDigitCandidates(candidates: string[], field: 'username' | 'password'): string {
-  const uniq = Array.from(new Set(candidates.map(normalizeCardDigits).filter(Boolean)));
-  if (uniq.length === 0) return '';
+  const normalized = candidates
+    .map(normalizeCardDigits)
+    .filter((c) => c.length > 0 && c.length <= CARD_DIGITS_SANITY_MAX);
+  if (normalized.length === 0) return '';
+
+  // عدّ مرات الظهور (تصويت موزون بالتكرار)
+  const counts = new Map<string, number>();
+  for (const c of normalized) {
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+
+  const uniq = Array.from(counts.keys());
   if (uniq.length === 1) return uniq[0]!;
 
-  // رتّب بالأطول أولًا ثم بالدرجة
+  // رتّب بالتكرار أولاً، ثم بدرجة scoreDigitRun، ثم بالطول
   uniq.sort((a, b) => {
+    const ca = counts.get(a) ?? 0;
+    const cb = counts.get(b) ?? 0;
+    if (cb !== ca) return cb - ca;
     const sa = scoreDigitRun(a, field);
     const sb = scoreDigitRun(b, field);
     if (sb !== sa) return sb - sa;
@@ -720,25 +883,27 @@ function fuseDigitCandidates(candidates: string[], field: 'username' | 'password
     if (shorterIsSubstring || uniq[0] === longestValid) return longestValid;
   }
 
-  // تصويت بسيط على مستوى الخانة للمرشّحات المتقاربة الطول (±2)
+  // تصويت على مستوى الخانة للمرشّحات المتقاربة الطول (±2)
   const refLen = uniq[0]!.length;
   const close = uniq.filter((c) => Math.abs(c.length - refLen) <= 2 && c.length >= 4);
   if (close.length >= 2) {
     const maxLen = Math.max(...close.map((c) => c.length));
     let fused = '';
     for (let i = 0; i < maxLen; i++) {
-      const counts = new Map<string, number>();
+      const chCounts = new Map<string, number>();
       for (const c of close) {
-        // محاذاة من اليمين للأرقام الطويلة (الأرقام المفقودة غالبًا من اليسار)
+        // محاذاة من اليمين (الأرقام المفقودة غالبًا من اليسار)
         const idx = i - (maxLen - c.length);
         if (idx >= 0 && idx < c.length) {
           const ch = c[idx]!;
-          counts.set(ch, (counts.get(ch) ?? 0) + 1);
+          // وزن إضافي حسب تكرار المرشّح الأصلي
+          const weight = counts.get(c) ?? 1;
+          chCounts.set(ch, (chCounts.get(ch) ?? 0) + weight);
         }
       }
       let bestCh = '0';
       let bestN = -1;
-      for (const [ch, n] of counts) {
+      for (const [ch, n] of chCounts) {
         if (n > bestN) {
           bestN = n;
           bestCh = ch;
@@ -782,7 +947,7 @@ async function ocrDigitsQuickCheck(
       tessedit_char_whitelist: '0123456789',
       tessedit_pageseg_mode: '7',
     });
-    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3.2 : 2.2);
+    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 2.8 : 2.1);
     // جرّب معالجتين سريعتين واختر الأفضل — adaptive أفضل مع الانعكاسات
     const candidates: string[] = [];
     for (const kind of ['adaptive', 'contrast'] as PrepKind[]) {
@@ -814,31 +979,36 @@ async function ocrDigitsOnCanvas(
     tessedit_pageseg_mode: '7',
   });
 
-  // مقاييس متعددة: الأرقام الصغيرة على بطاقة ممسوكة باليد تستفيد من تكبير أعلى،
-  // بينما التكبير المعتدل أفضل عند وجود ضجيج/انعكاس.
-  const scales =
-    canvas.width < 280 ? [3.5, 2.5] : canvas.width < 450 ? [3, 2] : [2.5, 1.8];
+  // FIX OCR-SPEED-01: مقياس واحد في المسار الحي + معالجات FAST فقط.
+  // كان سابقاً مقياسَين × 6 معالجات = حتى 12 تعرف متسلسل (بطيء جداً).
+  const scale = canvas.width < 280 ? 3.2 : canvas.width < 450 ? 2.8 : 2.2;
   const tallies = new Map<string, number>();
   const allCandidates: string[] = [];
+  const scaled = upscaleCanvas(canvas, scale);
 
-  for (const scale of scales) {
-    const scaled = upscaleCanvas(canvas, scale);
-    for (const kind of PREP_VARIANTS) {
-      const prepped = preprocessAdvanced(scaled, kind);
-      try {
-        const { data } = await withTimeout(
-          worker.recognize(prepped),
-          RECOGNIZE_TIMEOUT_MS,
-          'OCR',
-        );
-        const digits = bestDigitCandidate(data.text || '', field);
-        if (!digits) continue;
-        allCandidates.push(digits);
-        const bonus = scoreDigitRun(digits, field) > 50 ? 2 : scoreDigitRun(digits, field) > 30 ? 1 : 0;
-        tallies.set(digits, (tallies.get(digits) ?? 0) + 1 + bonus);
-      } catch {
-        /* try next prep/scale */
+  for (const kind of PREP_VARIANTS_FAST) {
+    const prepped = preprocessAdvanced(scaled, kind);
+    try {
+      const { data } = await withTimeout(
+        worker.recognize(prepped),
+        RECOGNIZE_TIMEOUT_MS,
+        'OCR',
+      );
+      const digits = bestDigitCandidate(data.text || '', field);
+      if (!digits) continue;
+      allCandidates.push(digits);
+      const bonus = scoreDigitRun(digits, field) > 50 ? 2 : scoreDigitRun(digits, field) > 30 ? 1 : 0;
+      const votes = (tallies.get(digits) ?? 0) + 1 + bonus;
+      tallies.set(digits, votes);
+      // إيقاف مبكر: مرشّح صالح حصل على أصوات كافية
+      if (
+        votes >= 3 &&
+        (field === 'username' ? isValidCardUsername(digits) : isValidCardPassword(digits))
+      ) {
+        break;
       }
+    } catch {
+      /* try next prep */
     }
   }
 
@@ -873,7 +1043,7 @@ export interface CardOcrFields {
   raw: string;
 }
 
-export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
+async function ocrCardFieldsFromGuideAt(guideCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
   // FIX DESKEW-DUP-01: دسكو الصورة كاملة مرة واحدة هنا (بدل الاعتماد على
   // deskewCanvas الداخلي المُزال من preprocessAdvanced) — إعطاء الخوارزمية
   // البطاقة كاملة بدل قصاصة ROI ضيقة يمنحها أدلة حواف أكثر بكثير لتقدير
@@ -907,7 +1077,14 @@ export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Pr
       // عدة معالجات على الصورة الكاملة لاستعادة أرقام الحواف المفقودة
       const fallbackCandidatesUser: string[] = [];
       const fallbackCandidatesPass: string[] = [];
-      const fbPreps: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130'];
+      // FIX PREP-DEAD-01: 'thresh160' مُنفَّذ فعليًا في preprocessAdvanced لكنه
+      // لم يكن مُدرجًا في أي مصفوفة معالجات مستخدَمة فعليًا في كل الأنبوب —
+      // كود ميت. تحقّقنا على بطاقة حقيقية (كود 6 خانات، إضاءة/تباين مختلفين
+      // عن العيّنات المعتادة): thresh160 أعطى قراءة مطابقة تمامًا ("724156")
+      // بينما فشلت كل المعالجات الأربع الأخرى في نفس التمريرة. أضيف هنا (مسار
+      // الاحتياط، غير حرج للأداء الحي) لا في PREP_VARIANTS (المسار الحي لكل
+      // إطار كاميرا) لتفادي تكلفة تمريرة OCR إضافية على كل إطار دون مبرر كافٍ بعد.
+      const fbPreps: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130', 'thresh160'];
       for (const kind of fbPreps) {
         try {
           const prepped = preprocessAdvanced(fullScaled, kind);
@@ -970,10 +1147,30 @@ export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Pr
   };
 }
 
-export async function ocrCardFieldsFromTightCrop(cropCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
+/** يختار الأفضل بين نتيجتين: verified يفوز أولًا، ثم confidence الأعلى. */
+function pickBetterCardResult(a: CardOcrFields, b: CardOcrFields): CardOcrFields {
+  if (a.verified !== b.verified) return a.verified ? a : b;
+  return b.confidence > a.confidence ? b : a;
+}
+
+export async function ocrCardFieldsFromGuide(guideCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
+  const candidates = detectQuarterRotationCandidates(guideCanvas);
+  let best: CardOcrFields | null = null;
+  for (const q of candidates) {
+    const rotated = rotateCanvasQuarter(guideCanvas, q);
+    const r = await ocrCardFieldsFromGuideAt(rotated);
+    best = best ? pickBetterCardResult(best, r) : r;
+    if (best.verified) break; // نتيجة مؤكّدة — لا داعٍ لتجربة الاتجاهات الأخرى
+  }
+  return best ?? { username: '', password: '', confidence: 0, verified: false, raw: '' };
+}
+
+async function ocrCardFieldsFromTightCropAt(cropCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
   const deskewed = deskewCanvas(cropCanvas);
   const scaled = upscaleCanvas(deskewed, deskewed.width < 500 ? 3.2 : 2.2);
-  const preps: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130'];
+  // FIX PREP-DEAD-01 (انظر التوثيق في ocrCardFieldsFromGuideAt): thresh160
+  // مضاف هنا أيضًا — هذا مسار القص اليدوي/رفع الملف، ليس حلقة الكاميرا الحيّة.
+  const preps: PrepKind[] = ['contrast', 'adaptive', 'sharp', 'thresh130', 'thresh160'];
 
   const results = await Promise.all(
     preps.map(async (kind, i) => {
@@ -1083,6 +1280,18 @@ export async function ocrCardFieldsFromTightCrop(cropCanvas: HTMLCanvasElement):
   };
 }
 
+export async function ocrCardFieldsFromTightCrop(cropCanvas: HTMLCanvasElement): Promise<CardOcrFields> {
+  const candidates = detectQuarterRotationCandidates(cropCanvas);
+  let best: CardOcrFields | null = null;
+  for (const q of candidates) {
+    const rotated = rotateCanvasQuarter(cropCanvas, q);
+    const r = await ocrCardFieldsFromTightCropAt(rotated);
+    best = best ? pickBetterCardResult(best, r) : r;
+    if (best.verified) break;
+  }
+  return best ?? { username: '', password: '', confidence: 0, verified: false, raw: '' };
+}
+
 export function consensusCardFields(
   samples: Array<{ username: string; password: string }>,
 ): { username: string; password: string; verified: boolean; agreement: number } {
@@ -1140,10 +1349,10 @@ export function consensusCardFields(
 
 export async function ocrCardMultiFrame(
   capture: () => HTMLCanvasElement | null,
-  frames = 4,
-  delayMs = 100,
+  frames = 3,
+  delayMs = 80,
 ): Promise<CardOcrFields> {
-  const samples: Array<{ username: string; password: string }> = [];
+  const samples: Array<{ username: string; password: string; verified: boolean }> = [];
   let lastRaw = '';
 
   for (let i = 0; i < frames; i++) {
@@ -1152,7 +1361,7 @@ export async function ocrCardMultiFrame(
       try {
         const r = await ocrCardFieldsFromGuide(canvas);
         if (r.username || r.password) {
-          samples.push({ username: r.username, password: r.password });
+          samples.push({ username: r.username, password: r.password, verified: r.verified });
           lastRaw = r.raw;
         }
       } catch {
@@ -1160,6 +1369,19 @@ export async function ocrCardMultiFrame(
       }
     }
     // إيقاف مبكر عند تطابق إطارين متتاليين بصيغة صالحة
+    // FIX OCR-CONSENSUS-01: تطابق إطارين متتاليين على نفس القيمة لا يثبت
+    // صحّتها بمفرده — تحقّقنا فعليًا على بطاقة حقيقية: خطأ منهجي في تحديد
+    // موضع سطري اسم المستخدم/كلمة السر (dynamicCropRoi يلتقط شريط العنوان/
+    // الأيقونة بدل سطر الأرقام الفعلي) يجعل ocrCardFieldsFromGuide يسقط
+    // لمسار الاحتياط (OCR كامل البطاقة بقناع أرقام فقط)، وهذا المسار عرضة
+    // لقراءة حواف الحروف العربية/الأيقونات كأرقام plausible الطول لكنها
+    // خاطئة المحتوى. بما أن معالجة الصورة حتمية (نفس البكسلات ⇐ نفس
+    // الخطأ)، إطاران متتاليان من كاميرا شبه ثابتة يعيدان غالبًا *نفس* القيمة
+    // الخاطئة، فيجتازان شرط "تطابق + طول صالح" رغم كونهما خاطئين معًا. طلب
+    // اجتياز أحد الإطارين المتوافقين لتحقّق ocrCardFieldsFromGuide الداخلي
+    // المستقل (r.verified — تصويت ≥3/≥2 عبر عدة معالجات ومقاييس منفصلة،
+    // وليس فقط طول صالح) يمنع اعتماد إجماع بين إطارين اثنين لم يجتز أيّهما
+    // أي تحقّق مستقل أصلًا.
     if (samples.length >= 2) {
       const a = samples[samples.length - 1]!;
       const b = samples[samples.length - 2]!;
@@ -1167,7 +1389,8 @@ export async function ocrCardMultiFrame(
         a.username === b.username &&
         a.password === b.password &&
         isValidCardUsername(a.username) &&
-        isValidCardPassword(a.password)
+        isValidCardPassword(a.password) &&
+        (a.verified || b.verified)
       ) {
         break;
       }
@@ -1182,11 +1405,17 @@ export async function ocrCardMultiFrame(
   }
 
   const c = consensusCardFields(samples);
+  // نفس أساس FIX OCR-CONSENSUS-01: إجماع الأغلبية بين الإطارات (consensusCardFields)
+  // وحده لا يكفي لمنح verified=true إن لم يجتز أي إطار من عيّنات الإجماع
+  // تحقّقه الداخلي المستقل أصلًا — وإلا يمكن لخطأ منهجي متكرر عبر كل
+  // الإطارات (نفس الفشل الموصوف أعلاه) أن يُعلَّم "مؤكد" رغم عدم اجتياز أي
+  // مسار OCR مستقل له فعليًا.
+  const anyFrameVerified = samples.some((s) => s.verified);
   return {
     username: c.username,
     password: c.password,
     confidence: Math.min(1, c.agreement + (c.verified ? 0.15 : 0)),
-    verified: c.verified,
+    verified: c.verified && anyFrameVerified,
     raw: lastRaw || `${c.username}\n${c.password}`,
   };
 }
@@ -1205,14 +1434,20 @@ export function isValidPayPhone(value: string): boolean {
 
 export function normalizePayName(raw: string): string {
   let name = raw
-    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[\u064B-\u065F\u0670]/g, '') // إزالة التشكيل
+    .replace(/\u0640/g, '') // إزالة التطويل
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    // تصحيحات OCR شائعة
+    .replace(/[|]/g, 'ا')
     .replace(/[^\p{L}\p{N}\s.'\-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  name = name.replace(/\u0640/g, '');
-  name = name.replace(/[أإآ]/g, 'ا');
-  name = name.replace(/ى/g, 'ي');
-  name = name.replace(/ة/g, 'ه');
+  // إزالة الأرقام المنفردة في بداية/نهاية الاسم (ضجيج شائع)
+  name = name.replace(/^\d+\s+/, '').replace(/\s+\d+$/, '');
   return name;
 }
 
@@ -1220,10 +1455,28 @@ export function scorePayNameQuality(name: string): number {
   if (!name) return 0;
   const letters = (name.match(/\p{L}/gu) ?? []).length;
   if (letters < 2) return 0;
-  const words = name.split(/\s+/).filter((w) => w.length >= 2);
+
+  const words = name.split(/\s+/).filter((w) => /\p{L}{2,}/u.test(w));
   let s = Math.min(40, letters * 2) + Math.min(30, words.length * 12);
+
+  // طول منطقي لاسم شخص
   if (name.length >= 4 && name.length <= 48) s += 15;
-  if (/\d{4,}/.test(name)) s -= 25;
+  if (name.length >= 6 && name.length <= 30) s += 8;
+
+  // أسماء عربية شائعة جزئياً (مكافأة خفيفة)
+  if (/[اأإآبتثجحخدذرزسشصضطظعغفقكلمنهويى]/u.test(name)) s += 10;
+
+  // كلمتان أو ثلاث كلمات = شكل اسم طبيعي
+  if (words.length >= 2 && words.length <= 4) s += 12;
+
+  // عقوبات
+  if (/\d{3,}/.test(name)) s -= 30; // أرقام كثيرة = غالباً خلط مع رقم جوال
+  if (words.length === 0) s -= 20;
+  if (name.length > 55) s -= 15;
+  // نسبة الحروف إلى الطول الكلي
+  const letterRatio = letters / Math.max(1, name.length);
+  if (letterRatio < 0.55) s -= 15;
+
   return Math.max(0, Math.min(100, s));
 }
 
@@ -1240,10 +1493,11 @@ async function ocrPayPhoneOnCanvas(canvas: HTMLCanvasElement, poolIndex = 1): Pr
     tessedit_char_whitelist: '0123456789',
     tessedit_pageseg_mode: '7',
   });
-  const scaled = upscaleCanvas(canvas, canvas.width < 350 ? 3 : 2.5);
+  // FIX OCR-SPEED-01: upscale أخف + FAST preps + early exit عند رقم صالح
+  const scaled = upscaleCanvas(canvas, canvas.width < 350 ? 2.8 : 2.3);
   const tallies = new Map<string, number>();
 
-  for (const kind of PREP_VARIANTS) {
+  for (const kind of PREP_VARIANTS_FAST) {
     const prepped = preprocessAdvanced(scaled, kind);
     try {
       const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
@@ -1261,11 +1515,15 @@ async function ocrPayPhoneOnCanvas(canvas: HTMLCanvasElement, poolIndex = 1): Pr
         if (isValidPayPhone(n)) candidates.add(n);
       }
       for (const c of candidates) {
-        tallies.set(c, (tallies.get(c) ?? 0) + 2);
+        const v = (tallies.get(c) ?? 0) + 2;
+        tallies.set(c, v);
       }
       if (!candidates.size && phone.length >= 9) {
         tallies.set(phone, (tallies.get(phone) ?? 0) + 1);
       }
+      // إيقاف مبكر إذا ظهر رقم جوال فلسطيني صالح بأصوات كافية
+      const topValid = [...tallies.entries()].find(([p, v]) => isValidPayPhone(p) && v >= 2);
+      if (topValid) break;
     } catch {
       /* next */
     }
@@ -1285,20 +1543,27 @@ async function ocrPayPhoneOnCanvas(canvas: HTMLCanvasElement, poolIndex = 1): Pr
 
 async function ocrPayNameOnCanvas(canvas: HTMLCanvasElement, poolIndex = 0): Promise<{ name: string; votes: number }> {
   const worker = await getWorker(poolIndex);
+  // لا نقيّد الأحرف بقوة (العربية تحتاج نطاق واسع)، نعتمد على التطبيع + تقييم الجودة
   await worker.setParameters({
     tessedit_char_whitelist: '',
-    tessedit_pageseg_mode: '7',
+    tessedit_pageseg_mode: '7', // سطر واحد — مناسب للأسماء
   });
-  const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3 : 2);
+  // FIX OCR-SPEED-01: upscale أخف + 3 معالجات سريعة + early exit
+  const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 2.8 : 2.2);
   const tallies = new Map<string, number>();
 
-  for (const kind of ['gray', 'contrast'] as PrepKind[]) {
+  for (const kind of PREP_VARIANTS_NAME_FAST) {
     const prepped = preprocessAdvanced(scaled, kind);
     try {
       const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
       const name = normalizePayName(data.text || '');
-      if (scorePayNameQuality(name) < 20) continue;
-      tallies.set(name, (tallies.get(name) ?? 0) + 1 + (scorePayNameQuality(name) > 50 ? 1 : 0));
+      const q = scorePayNameQuality(name);
+      if (q < 20) continue;
+      const weight = 1 + (q > 50 ? 1 : 0) + (q > 70 ? 1 : 0);
+      const votes = (tallies.get(name) ?? 0) + weight;
+      tallies.set(name, votes);
+      // إيقاف مبكر عند اسم بجودة عالية وتكرار
+      if (q >= 55 && votes >= 2) break;
     } catch {
       /* next */
     }
@@ -1306,10 +1571,13 @@ async function ocrPayNameOnCanvas(canvas: HTMLCanvasElement, poolIndex = 0): Pro
 
   let best = '';
   let bestVotes = 0;
+  let bestQ = -1;
   for (const [n, v] of tallies) {
-    if (v > bestVotes || (v === bestVotes && scorePayNameQuality(n) > scorePayNameQuality(best))) {
+    const q = scorePayNameQuality(n);
+    if (v > bestVotes || (v === bestVotes && q > bestQ)) {
       best = n;
       bestVotes = v;
+      bestQ = q;
     }
   }
   return { name: best, votes: bestVotes };
@@ -1335,10 +1603,15 @@ async function ocrPayNameQuickCheck(canvas: HTMLCanvasElement, poolIndex = 0): P
   try {
     const worker = await getWorker(poolIndex);
     await worker.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '7' });
-    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 3 : 2);
-    const prepped = preprocessAdvanced(scaled, 'gray');
-    const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
-    return normalizePayName(data.text || '');
+    const scaled = upscaleCanvas(canvas, canvas.width < 400 ? 2.8 : 2.2);
+    // جرب contrast ثم adaptive كرأي ثانٍ أسرع وأدق من gray وحده
+    for (const kind of ['contrast', 'adaptive'] as PrepKind[]) {
+      const prepped = preprocessAdvanced(scaled, kind);
+      const { data } = await withTimeout(worker.recognize(prepped), RECOGNIZE_TIMEOUT_MS, 'OCR');
+      const name = normalizePayName(data.text || '');
+      if (scorePayNameQuality(name) >= 25) return name;
+    }
+    return '';
   } catch {
     return '';
   }
@@ -1541,9 +1814,9 @@ export function consensusPayFields(
 export async function ocrPayMultiFrame(
   capture: () => HTMLCanvasElement | null,
   frames = 3,
-  delayMs = 110,
+  delayMs = 80,
 ): Promise<PayOcrFields> {
-  const samples: Array<{ name: string; phone: string }> = [];
+  const samples: Array<{ name: string; phone: string; verified: boolean }> = [];
   let last: PayOcrFields | null = null;
 
   for (let i = 0; i < frames; i++) {
@@ -1552,17 +1825,22 @@ export async function ocrPayMultiFrame(
       try {
         const r = await ocrPayFieldsFromGuide(canvas);
         if (r.name || r.phone) {
-          samples.push({ name: r.name, phone: r.phone });
+          samples.push({ name: r.name, phone: r.phone, verified: r.verified });
           last = r;
         }
       } catch {
         /* frame fail */
       }
     }
+    // FIX OCR-CONSENSUS-01: نفس إصلاح ocrCardMultiFrame — تطابق إطارين على
+    // نفس رقم الجوال لا يثبت صحّته إن كان الاثنان ناتجين عن نفس الخطأ
+    // المنهجي (معالجة صورة حتمية على كاميرا شبه ثابتة). رقم الجوال هنا
+    // وجهة تحويل مالي، فقبوله بصمت بمجرد تكراره أخطر من حقل بطاقة نت.
+    // نطلب اجتياز أحد الإطارين لتحقّق ocrPayFieldsFromGuide الداخلي.
     if (samples.length >= 2) {
       const a = samples[samples.length - 1]!;
       const b = samples[samples.length - 2]!;
-      if (a.phone === b.phone && a.name === b.name && isValidPayPhone(a.phone)) break;
+      if (a.phone === b.phone && a.name === b.name && isValidPayPhone(a.phone) && (a.verified || b.verified)) break;
     }
     if (i < frames - 1) await new Promise((r) => setTimeout(r, delayMs));
   }
@@ -1572,12 +1850,13 @@ export async function ocrPayMultiFrame(
   }
 
   const c = consensusPayFields(samples);
+  const anyFrameVerified = samples.some((s) => s.verified);
   return {
     name: c.name,
     phone: c.phone,
     nameConfidence: last?.nameConfidence ?? c.agreement,
     phoneConfidence: isValidPayPhone(c.phone) ? Math.max(0.7, c.agreement) : c.agreement * 0.5,
-    verified: c.verified,
+    verified: c.verified && anyFrameVerified,
     raw: `${c.name}\n${c.phone}`.trim(),
   };
 }
