@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 
 /**
  * PR4C: silent, non-prompting coordinate resolver for optional
@@ -35,12 +36,15 @@ export function useSilentCoordinates(): { lat: number; lng: number } | null {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             if (cancelled) return;
-            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            if (!isUsableNearbyCoord(lat, lng)) return;
+            setCoords({ lat, lng });
           },
           () => {
             /* no-op — caller just proceeds without coordinates */
           },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+          GEO_POSITION_OPTIONS
         );
       })
       .catch(() => {

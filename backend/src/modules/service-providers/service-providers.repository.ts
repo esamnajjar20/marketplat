@@ -221,7 +221,12 @@ export const serviceProvidersRepository = {
       .map(row => {
         const provider = providersById.get(row.id);
         if (!provider) return null;
-        return { ...provider, distanceKm: distanceById.get(row.id) ?? row.distanceKm };
+        const raw = distanceById.get(row.id) ?? row.distanceKm;
+        const distanceKm =
+          raw == null || !Number.isFinite(Number(raw)) || Number(raw) < 0 || Number(raw) > 500
+            ? undefined
+            : Number(raw);
+        return { ...provider, distanceKm };
       })
       .filter((row): row is NearbyServiceProviderRow => row !== null);
 

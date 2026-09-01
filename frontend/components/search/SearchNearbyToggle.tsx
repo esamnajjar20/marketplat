@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { LocateFixed, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
+import { DEFAULT_NEARBY_RADIUS_KM, GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 
-const RADIUS_KM = 10;
+const RADIUS_KM = DEFAULT_NEARBY_RADIUS_KM;
 
 /**
  * TRACK-NEARBY-SEARCH: URL-driven equivalent of
@@ -37,17 +38,23 @@ export function SearchNearbyToggle() {
     setStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (!isUsableNearbyCoord(lat, lng)) {
+          setStatus('denied');
+          return;
+        }
         setStatus('idle');
         const params = new URLSearchParams(sp.toString());
-        params.set('lat', String(pos.coords.latitude));
-        params.set('lng', String(pos.coords.longitude));
+        params.set('lat', String(lat));
+        params.set('lng', String(lng));
         params.set('radius', String(RADIUS_KM));
         params.set('sort', 'distance');
         params.delete('page');
         router.push(`${ROUTES.search}?${params.toString()}`);
       },
       () => setStatus('denied'),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+      GEO_POSITION_OPTIONS
     );
   }
 

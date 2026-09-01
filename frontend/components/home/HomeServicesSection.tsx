@@ -13,6 +13,7 @@ import { useSequentialGeoSearch } from '@/hooks/queries/useSequentialGeoSearch';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { formatDistanceKm } from '@/lib/distance';
 
 /**
  * خدمات الرئيسية — GPS بتوسيع متسلسل؛ وإلا أحدث الخدمات العامة.
@@ -121,10 +122,10 @@ export function HomeServicesSection() {
                 {item.city && (
                   <p className="mt-1 text-xs text-muted-foreground">{item.city}</p>
                 )}
-                {item.distanceKm != null && (
-                  <p className="mt-1 text-xs text-primary" dir="ltr">
-                    {Number(item.distanceKm).toFixed(1)} كم
-                  </p>
+                {formatDistanceKm(item.distanceKm) && (
+                  <span className="text-xs text-muted-foreground">
+                    {formatDistanceKm(item.distanceKm)}
+                  </span>
                 )}
               </Link>
             ))

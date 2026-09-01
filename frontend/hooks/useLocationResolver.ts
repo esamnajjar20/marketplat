@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
+import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 
 const STORAGE_KEY = 'location:gps';
 const SAVED_GPS_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -136,6 +137,12 @@ export function useLocationResolver(): ResolvedLocation {
             (pos) => {
               if (cancelled || !mountedRef.current) return;
               const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+              // وضع غزة: رفض إحداثيات خارج المنطقة المعقولة
+              if (!isUsableNearbyCoord(coords.latitude, coords.longitude)) {
+                setIsRequesting(false);
+                setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
+                return;
+              }
               setCurrentCoords(coords);
               persistSavedGps(coords);
             },
@@ -143,7 +150,7 @@ export function useLocationResolver(): ResolvedLocation {
               // Granted but resolution failed (e.g. hardware error) —
               // fall through to saved GPS / city / fallback below.
             },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 },
+            GEO_POSITION_OPTIONS,
           );
         } else if (status.state === 'denied') {
           setPermission('denied');
@@ -172,6 +179,11 @@ export function useLocationResolver(): ResolvedLocation {
       (pos) => {
         if (!mountedRef.current) return;
         const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        if (!isUsableNearbyCoord(coords.latitude, coords.longitude)) {
+          setIsRequesting(false);
+          setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
+          return;
+        }
         setCurrentCoords(coords);
         setPermission('granted');
         setIsRequesting(false);
@@ -184,7 +196,7 @@ export function useLocationResolver(): ResolvedLocation {
         setIsRequesting(false);
         setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
       },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 },
+      GEO_POSITION_OPTIONS,
     );
   }, []);
 
@@ -244,6 +256,9 @@ function readSavedGps(): SavedGps | null {
       return null;
     }
     if (Date.now() - parsed.timestamp > SAVED_GPS_TTL_MS) {
+      return null;
+    }
+    if (!isUsableNearbyCoord(parsed.latitude, parsed.longitude)) {
       return null;
     }
     return { latitude: parsed.latitude, longitude: parsed.longitude, timestamp: parsed.timestamp };

@@ -5,6 +5,16 @@ import { searchRepository } from './search.repository';
 import { SearchQuery, SearchSuggestionsQuery } from './search.validation';
 import { RawSearchRow, SearchResult, UnifiedSearchResponse } from './search.types';
 
+
+/** المسافات غير المنطقية (مثل ~20015 = π×6371 من clamp لـ acos) تُعامل كـ null. */
+function sanitizeDistanceKm(value: number | null | undefined): number | null {
+  if (value == null) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 500) return null;
+  return n;
+}
+
+
 const SUGGESTIONS_TTL = 5 * 60; // 5 minutes — design doc's 5-10min window, low end since categories/products change more often than the ads-search's own 1hr categories cache
 const SUGGESTIONS_LIMIT = 8;
 
@@ -40,7 +50,7 @@ const normalizeRow = (row: RawSearchRow): SearchResult => ({
   },
   url: searchRepository.buildUrl(row.type, row.url_id),
   createdAt: row.created_at.toISOString(),
-  distanceKm: row.distance_km,
+  distanceKm: sanitizeDistanceKm(row.distance_km),
 });
 
 export const searchService = {

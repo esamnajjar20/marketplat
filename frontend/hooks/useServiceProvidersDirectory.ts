@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { useNearbyServiceProviders, useServiceProviders } from '@/hooks/queries/useServiceProviders';
 
-export const SERVICE_PROVIDERS_DIRECTORY_RADIUS_KM = 10;
+import { DEFAULT_NEARBY_RADIUS_KM } from '@/lib/geo';
+
+export const SERVICE_PROVIDERS_DIRECTORY_RADIUS_KM = DEFAULT_NEARBY_RADIUS_KM;
 export const SERVICE_PROVIDERS_DIRECTORY_PAGE_LIMIT = 12;
 
 export type ServiceProvidersDirectorySource = 'gps' | 'city' | 'general';

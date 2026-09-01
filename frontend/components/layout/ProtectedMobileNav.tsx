@@ -51,6 +51,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronRight, User, ExternalLink, Store } from 'lucide-react';
@@ -138,6 +139,8 @@ export function ProtectedMobileNav() {
   const isAdmin = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
   const { isProvider } = useIsProvider();
   const { data: myStore } = useMyStore();
@@ -190,9 +193,11 @@ export function ProtectedMobileNav() {
         <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
       </button>
 
+      {mounted && createPortal(
+        <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-[90] bg-black/50 md:hidden"
           onClick={close}
           aria-hidden="true"
         />
@@ -218,7 +223,7 @@ export function ProtectedMobileNav() {
           // panel itself scroll; overscroll-contain stops that scroll
           // from chaining to the locked body once the panel hits its
           // own top/bottom.
-          'fixed inset-y-0 end-0 z-[60] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 shadow-xl transition-transform duration-200 md:hidden',
+          'fixed inset-y-0 start-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 shadow-xl transition-transform duration-200 md:hidden',
           // end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
           // to left:0 — verified against the CSS spec (MDN:
           // "with direction rtl, inset-inline-end moves the element
@@ -230,7 +235,7 @@ export function ProtectedMobileNav() {
           // translate-x-full (positive) instead pushes it right, onto
           // the visible portion of the screen, which is the bug this
           // reverts.
-          isOpen ? 'translate-x-0' : '-translate-x-full',
+          isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
         aria-label="القائمة الشخصية"
         aria-hidden={!isOpen}
@@ -415,6 +420,9 @@ export function ProtectedMobileNav() {
           </li>
         </ul>
       </nav>
+        </>,
+        document.body,
+      )}
     </>
   );
 }

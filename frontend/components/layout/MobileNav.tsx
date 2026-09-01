@@ -339,7 +339,7 @@ export function MobileNav() {
           {/* Backdrop */}
           {isMobileNavOpen && (
             <div
-              className="fixed inset-0 z-40 bg-black/40"
+              className="fixed inset-0 z-[90] bg-black/50"
               onClick={closeMobileNav}
               aria-hidden="true"
             />
@@ -357,8 +357,8 @@ export function MobileNav() {
             id={NAV_ID}
             // FIX MOBILE-01: max-w-[85vw] — see identical fix in
             // ProtectedMobileNav.tsx.
-            className={`fixed inset-y-0 end-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
-              isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+            className={`fixed inset-y-0 start-0 z-[100] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
+              isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
             aria-hidden={!isMobileNavOpen}

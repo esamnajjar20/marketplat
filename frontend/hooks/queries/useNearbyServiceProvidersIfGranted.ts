@@ -1,10 +1,11 @@
+import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useNearbyServiceProviders } from './useServiceProviders';
 import type { NearbyServiceProvidersParams } from '@/types/service.types';
 
-const RADIUS_KM = 10;
+const RADIUS_KM = 7 /* DEFAULT_NEARBY_RADIUS_KM — وضع غزة */;
 const DISPLAY_LIMIT = 8;
 
 type PermissionState = 'checking' | 'granted' | 'not-granted';
@@ -60,14 +61,20 @@ export function useNearbyServiceProvidersIfGranted() {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             if (cancelled) return;
-            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            if (!isUsableNearbyCoord(lat, lng)) {
+              setPermission('not-granted');
+              return;
+            }
+            setCoords({ lat, lng });
             setPermission('granted');
           },
           () => {
             if (cancelled) return;
             setPermission('not-granted');
           },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 },
+          GEO_POSITION_OPTIONS,
         );
       })
       .catch(() => {

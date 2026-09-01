@@ -5,6 +5,7 @@ import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { formatDistanceKm } from '@/lib/distance';
 import { useAuthStore } from '@/store/auth.store';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
 
@@ -53,11 +54,7 @@ export function ServiceProviderCard({ provider, className }: Props) {
   // serviceAreaCities and the viewer's own city instead of a distance —
   // never render "undefined < 1" or an empty label.
   const distanceLabel =
-    provider.distanceKm !== undefined
-      ? provider.distanceKm < 1
-        ? `${Math.round(provider.distanceKm * 1000)} م`
-        : `${provider.distanceKm.toFixed(1)} كم`
-      : null;
+    formatDistanceKm(provider.distanceKm);
   const sharedCity =
     distanceLabel === null && userCity
       ? provider.serviceAreaCities.find((city) => city === userCity)

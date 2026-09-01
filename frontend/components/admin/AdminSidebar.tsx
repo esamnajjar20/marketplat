@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
@@ -107,7 +108,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 /** Desktop sidebar — fixed, always visible on lg+ screens. */
 function DesktopSidebar() {
   return (
-    <aside className="hidden min-h-screen w-52 shrink-0 border-e border-border/80 bg-surface-1 md:block lg:w-56">
+    <aside className="sticky top-0 z-20 hidden h-screen w-52 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-56">
       <NavLinks />
     </aside>
   );
@@ -116,46 +117,56 @@ function DesktopSidebar() {
 /** Mobile drawer — slide-in sheet triggered by a hamburger button. */
 function MobileDrawer() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   return (
     <>
-      {/* Trigger */}
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-3 end-3 z-40 p-2 rounded-md bg-card border shadow-sm"
+        className="md:hidden fixed top-3 start-3 z-[70] p-2 rounded-md bg-card border shadow-sm"
         aria-label="فتح القائمة"
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Overlay */}
-      {open && (
-        <div
-          className="md:hidden fixed inset-0 z-50 flex"
-          role="dialog"
-          aria-modal="true"
-          aria-label="قائمة الإدارة"
-        >
-          {/* Backdrop */}
+      {mounted &&
+        open &&
+        createPortal(
           <div
-            className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
-            onClick={() => setOpen(false)}
-          />
-          {/* Drawer panel — appears on the end side for RTL */}
-          <div className="relative ms-auto h-full w-64 border-s border-border bg-card shadow-lg">
-            <button
+            className="md:hidden fixed inset-0 z-[100] flex justify-start"
+            role="dialog"
+            aria-modal="true"
+            aria-label="قائمة الإدارة"
+          >
+            <div
+              className="absolute inset-0 bg-foreground/50 backdrop-blur-[2px]"
               onClick={() => setOpen(false)}
-              className="absolute top-3 start-3 p-1 rounded-md hover:bg-muted"
-              aria-label="إغلاق القائمة"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="pt-10">
-              <NavLinks onNavigate={() => setOpen(false)} />
+            />
+            <div className="relative z-[101] h-full w-64 max-w-[85vw] overflow-y-auto border-e border-border bg-card shadow-xl">
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute top-3 end-3 z-[102] p-1 rounded-md hover:bg-muted"
+                aria-label="إغلاق القائمة"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="pt-10">
+                <NavLinks onNavigate={() => setOpen(false)} />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

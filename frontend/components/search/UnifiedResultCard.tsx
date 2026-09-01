@@ -6,6 +6,7 @@ import { MapPin, Star, BadgeCheck } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { formatDistanceKm } from '@/lib/distance';
 import type { SearchResult, SearchResultType } from '@/types/search.types';
 
 interface Props {
@@ -51,11 +52,7 @@ export function UnifiedResultCard({ result, className }: Props) {
   // (non-geo) search, or per-row when that particular result's entity
   // has no lat/lng pin — see SearchResult.distanceKm's own comment.
   const distanceLabel =
-    result.distanceKm === null
-      ? null
-      : result.distanceKm < 1
-        ? `${Math.round(result.distanceKm * 1000)} م`
-        : `${result.distanceKm.toFixed(1)} كم`;
+    formatDistanceKm(result.distanceKm);
 
   return (
     <Link
