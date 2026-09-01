@@ -1,3 +1,4 @@
+'use client';
 /**
  * UserMenu — dropdown for authenticated users.
  * Shows avatar, name, quick links, and logout button.
@@ -20,10 +21,10 @@
  * because either is treated as "confirmed not a seller" but because
  * both are simply absence of the one positive signal.
  */
-'use client';
 
 import Link from 'next/link';
-import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, User, Store } from 'lucide-react';
+import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, Store, User } from 'lucide-react';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
@@ -51,19 +52,24 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none ring-offset-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full outline-none ring-offset-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="قائمة المستخدم"
         >
-          {user.name.charAt(0).toUpperCase()}
+          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={40} />
         </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
+          <div className="flex items-center gap-3">
+            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={40} />
+            <div className="min-w-0">
           <p className="text-sm font-medium leading-none">{user.name}</p>
           <p className="text-xs leading-none text-muted-foreground mt-1 truncate" dir="ltr">
             {user.email}
           </p>
+            </div>
+          </div>
           {(isSeller || isProvider) && (
             <div className="mt-2 flex gap-1.5">
               {isSeller && (

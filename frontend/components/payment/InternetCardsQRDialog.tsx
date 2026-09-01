@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wifi, BookmarkPlus, Trash2, ClipboardPaste } from 'lucide-react';
+import { Wifi, BookmarkPlus, Trash2, ClipboardPaste, Phone } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,8 @@ import {
   listSavedNetCards,
   saveNetCard,
   removeNetCard,
+  buildNetCardUssd,
+  ussdTelHref,
   type SavedNetCard,
 } from '@/lib/paymentStorage';
 import { toast } from 'sonner';
@@ -91,7 +93,17 @@ export function InternetCardsQRDialog({
       label: label.trim() || undefined,
     });
     setSaved(listSavedNetCards());
-    toast.success('تم حفظ البطاقة');
+    const ussd = buildNetCardUssd(username.trim(), password.trim());
+    toast.success('تم حفظ البطاقة', {
+      action: ussd
+        ? {
+            label: 'USSD',
+            onClick: () => {
+              window.location.href = ussdTelHref(ussd);
+            },
+          }
+        : undefined,
+    });
   }
 
   function loadCard(c: SavedNetCard) {
@@ -215,8 +227,11 @@ export function InternetCardsQRDialog({
             <div className="space-y-2 border-t pt-3">
               <p className="text-xs font-medium text-muted-foreground">بطاقات محفوظة</p>
               <ul className="max-h-36 space-y-1 overflow-y-auto">
-                {saved.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 rounded-lg border px-2 py-1.5">
+                {saved.map((c) => {
+                  const ussd = buildNetCardUssd(c.username, c.password);
+                  const tel = ussdTelHref(ussd);
+                  return (
+                  <li key={c.id} className="flex items-center gap-1 rounded-lg border px-2 py-1.5">
                     <button
                       type="button"
                       className="min-w-0 flex-1 truncate text-start text-sm font-medium hover:text-primary"
@@ -224,6 +239,23 @@ export function InternetCardsQRDialog({
                     >
                       {c.label || c.username}
                     </button>
+                    {tel && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-primary"
+                        asChild
+                      >
+                        <a
+                          href={tel}
+                          aria-label={`اتصال USSD للبطاقة ${c.label || c.username}`}
+                          title={ussd}
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
@@ -237,7 +269,8 @@ export function InternetCardsQRDialog({
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           )}

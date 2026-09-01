@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Compass } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { WovenTexture } from '@/components/shared/ui/WovenTexture';
@@ -10,7 +10,29 @@ import { ExploreSheet } from '@/components/layout/ExploreSheet';
 /**
  * Hero الرئيسية — بدون خانة بحث (البحث يبقى في الهيدر فقط لتفادي التكرار).
  */
+const ROTATING_CREATE_LABELS = [
+  'انشر إعلانًا',
+  'أضف منتجًا',
+  'أضف خدمة جديدة',
+] as const;
+
 export function HeroBanner() {
+  const [createLabelIndex, setCreateLabelIndex] = useState(0);
+  const [labelVisible, setLabelVisible] = useState(true);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLabelVisible(false);
+      window.setTimeout(() => {
+        setCreateLabelIndex((i) => (i + 1) % ROTATING_CREATE_LABELS.length);
+        setLabelVisible(true);
+      }, 220);
+    }, 3200);
+    return () => clearInterval(id);
+  }, []);
+
+  const createLabel = ROTATING_CREATE_LABELS[createLabelIndex];
+
   const [createOpen, setCreateOpen] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
 
@@ -46,9 +68,16 @@ export function HeroBanner() {
                 variant="secondary"
                 className="gap-1.5 font-semibold shadow-sm"
                 onClick={() => setCreateOpen(true)}
+                aria-label={createLabel}
               >
-                <Plus className="h-4 w-4" aria-hidden />
-                انشر إعلانًا
+                <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                <span
+                  className={`inline-block min-w-[7.5rem] transition-all duration-200 ${
+                    labelVisible ? 'translate-y-0 opacity-100' : 'translate-y-1.5 opacity-0'
+                  }`}
+                >
+                  {createLabel}
+                </span>
               </Button>
               <Button
                 type="button"
@@ -84,11 +113,18 @@ export function HeroBanner() {
             variant="secondary"
             className="gap-2 font-semibold shadow-md transition-transform hover:scale-[1.02]"
             onClick={() => setCreateOpen(true)}
+                aria-label={createLabel}
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Plus className="h-4 w-4" aria-hidden />
             </span>
-            انشر إعلانًا
+            <span
+              className={`inline-block min-w-[8.5rem] transition-all duration-200 ${
+                labelVisible ? 'translate-y-0 opacity-100' : 'translate-y-1.5 opacity-0'
+              }`}
+            >
+              {createLabel}
+            </span>
           </Button>
           <Button
             type="button"

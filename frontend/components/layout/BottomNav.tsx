@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, MessageCircle, Menu, Plus, UserRound } from 'lucide-react';
+import { Home, Compass, MessageCircle, Menu, Plus } from 'lucide-react';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
@@ -173,7 +174,7 @@ export function BottomNav() {
             pathname.startsWith('/profile/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <UserRound className="h-5 w-5" aria-hidden={true} />
+          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-[10px]" />
           حسابي
         </Link>
       ) : (
