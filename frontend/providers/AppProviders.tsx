@@ -21,6 +21,9 @@ import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
+import { NavigationProgress } from '@/components/shared/NavigationProgress';
+import { GlobalMutationIndicator } from '@/components/shared/GlobalMutationIndicator';
+import { BackgroundRefetchIndicator } from '@/components/shared/BackgroundRefetchIndicator';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -89,6 +92,10 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         {/* Chat presence heartbeat — see PresenceHeartbeat.tsx's own
             header; same mount-once, no-props posture as the two above. */}
         <PresenceHeartbeat />
+
+        <NavigationProgress />
+        <BackgroundRefetchIndicator />
+        <GlobalMutationIndicator />
 
         <NetworkStatusBanner />
 

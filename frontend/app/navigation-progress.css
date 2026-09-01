@@ -1,0 +1,46 @@
+/* شريط تقدّم التنقّل العام — NavigationProgress.tsx */
+@keyframes nav-progress-slide {
+  0% {
+    transform: translateX(-100%);
+    width: 35%;
+  }
+  50% {
+    width: 55%;
+  }
+  100% {
+    transform: translateX(280%);
+    width: 35%;
+  }
+}
+
+html[dir='rtl'] .nav-progress-bar {
+  animation: nav-progress-slide-rtl 1.15s ease-in-out infinite;
+}
+
+html:not([dir='rtl']) .nav-progress-bar {
+  animation: nav-progress-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes nav-progress-slide-rtl {
+  0% {
+    transform: translateX(100%);
+    width: 35%;
+  }
+  50% {
+    width: 55%;
+  }
+  100% {
+    transform: translateX(-280%);
+    width: 35%;
+  }
+}
+
+.nav-progress-bar {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  height: 100%;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.5);
+}
