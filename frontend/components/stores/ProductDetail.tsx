@@ -10,6 +10,7 @@ import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   MapPin, Eye, Package, ChevronRight, ChevronLeft, Phone, Store as StoreIcon, X,
+  BadgeCheck, Star,
 } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
@@ -200,6 +201,11 @@ export function ProductDetail({ product, related = [] }: Props) {
         </aside>
       </div>
 
+      {/* Mobile: معلومات المتجر — نفس أسلوب بطاقة البائع في الإعلان */}
+      <div className="md:hidden">
+        <StorePanel store={store} />
+      </div>
+
       {/* Mobile sticky CTA — sits above BottomNav (see .sticky-contact-bar) */}
       <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-background/90 md:hidden">
         <div className="mx-auto flex max-w-lg gap-2">
@@ -320,7 +326,7 @@ function MetaRow({ product }: { product: ProductWithFullStore }) {
 function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; shareUrl: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <FavoriteButton entityType="PRODUCT" entityId={product.id} size="md" warm showLabel />
+      <FavoriteButton entityType="PRODUCT" entityId={product.id} size="md" warm />
       <ShareAdButton title={product.name} url={shareUrl} variant="button" />
       <ReportProductButton productId={product.id} />
     </div>
@@ -329,30 +335,59 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
 
 function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
   const ownerId = store.sellerProfile?.userId;
+  const logo = store.logoUrl
+    ? getThumbnailUrl(store.logoUrl, 128, 128)
+    : '';
+  const rating = store.sellerProfile?.averageRating
+    ? parseFloat(String(store.sellerProfile.averageRating))
+    : null;
+  const totalRatings = store.sellerProfile?.totalRatings ?? 0;
+  const verified = Boolean(store.sellerProfile?.verified);
+
   return (
-    <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">المتجر</p>
+    <div className="space-y-5 rounded-2xl border bg-card p-6 shadow-md">
+      <h3 className="font-semibold">معلومات المتجر</h3>
+
       <Link
         href={ROUTES.storeDetail(store.slug || store.id)}
-        className="flex items-center gap-3 rounded-lg transition-colors hover:bg-muted/50"
+        className="flex items-center gap-4 transition-opacity hover:opacity-80"
       >
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
-          {store.logoUrl ? (
-            <SafeImage src={getThumbnailUrl(store.logoUrl, 96, 96)} alt="" fill className="object-cover" sizes="48px" />
-          ) : (
-            <StoreIcon className="m-auto h-6 w-6 text-muted-foreground" />
+        <div className="relative shrink-0">
+          <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted">
+            {logo ? (
+              <SafeImage src={logo} alt={store.name} fill className="object-cover" sizes="64px" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <StoreIcon className="h-7 w-7 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+          {verified && (
+            <div
+              className="absolute -bottom-1 -end-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground"
+              title="متجر موثّق"
+            >
+              <BadgeCheck className="h-3.5 w-3.5" />
+            </div>
           )}
         </div>
         <div className="min-w-0">
           <p className="truncate font-semibold">{store.name}</p>
           {store.city && (
-            <p className="truncate text-xs text-muted-foreground">{store.city}</p>
+            <p className="text-sm text-muted-foreground">{store.city}</p>
+          )}
+          {rating != null && totalRatings > 0 && (
+            <span className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
+              <Star className="h-3.5 w-3.5 fill-rating text-rating" />
+              {rating.toFixed(1)} ({totalRatings} تقييم)
+            </span>
           )}
         </div>
       </Link>
+
       <div className="flex flex-col gap-2">
         {store.phone && (
-          <Button asChild variant="outline" className="w-full gap-2 font-semibold">
+          <Button asChild variant="outline" size="lg" className="w-full gap-2 rounded-xl font-semibold">
             <a href={`tel:${store.phone}`}>
               <Phone className="h-4 w-4" />
               اتصال · {formatPhone(store.phone)}
@@ -362,10 +397,10 @@ function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
         {ownerId && (
           <MessageUserButtonGate
             targetUserId={ownerId}
-            size="default"
+            size="lg"
             variant="default"
             label="راسل المتجر"
-            className="w-full gap-2 font-semibold"
+            className="w-full gap-2 rounded-xl font-semibold"
           />
         )}
         <Button asChild variant="ghost" className="w-full text-muted-foreground">
