@@ -3,7 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { useVisualViewportHeight } from '@/hooks/useVisualViewportHeight';
+import { useVisualViewportMetrics } from '@/hooks/useVisualViewportHeight';
 
 /**
  * FIX P1-2: a bottom-anchored counterpart to Dialog.tsx — same
@@ -47,7 +47,7 @@ const SheetContent = React.forwardRef<
   // above the keyboard instead of sliding behind it. Falls back to the
   // static Tailwind class via maxHeight: undefined until the API
   // reports a value (SSR / first paint).
-  const viewportHeight = useVisualViewportHeight();
+  const viewport = useVisualViewportMetrics();
 
   return (
     <SheetPortal>
@@ -55,7 +55,13 @@ const SheetContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         style={{
-          ...(viewportHeight != null ? { maxHeight: viewportHeight * 0.85 } : undefined),
+          ...(viewport != null
+            ? {
+                maxHeight: viewport.height * 0.92,
+                // ارفع اللوحة فوق الكيبورد بدل أن تبقى تحته
+                bottom: viewport.keyboardOffset,
+              }
+            : undefined),
           ...style,
         }}
         className={cn(

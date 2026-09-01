@@ -6,7 +6,8 @@ import { BadgeCheck, MapPin, Clock, Eye, ChevronLeft, ChevronRight, X, Phone } f
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/shared/ui/Badge';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { ShareButton } from '@/components/shared/ShareButton';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
+import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ReportServiceButton } from '@/components/services/ReportServiceButton';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatPrice, formatRelativeTime, formatPhone } from '@/lib/formatters';
@@ -179,8 +180,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
             <h1 className="text-xl font-bold leading-snug">{listing.title}</h1>
             <Meta listing={listing} />
             <div className="flex flex-wrap gap-2">
-              <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
-              <ShareButton title={listing.title} url={shareUrl} variant="button" />
+              <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm showLabel />
+              <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
               <ReportServiceButton serviceListingId={listing.id} />
             </div>
           </div>
@@ -205,8 +206,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
               <h1 className="text-xl font-bold leading-snug">{listing.title}</h1>
               <Meta listing={listing} />
               <div className="flex flex-wrap gap-2">
-                <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
-                <ShareButton title={listing.title} url={shareUrl} variant="button" />
+                <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm showLabel />
+                <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
                 <ReportServiceButton serviceListingId={listing.id} />
               </div>
               {action && <div className="pt-1 space-y-2">{action}</div>}
@@ -220,16 +221,23 @@ export function ServiceListingDetail({ listing, action }: Props) {
       </div>
 
       {/* Mobile sticky CTA — above BottomNav; tall padding for dual buttons */}
-      {action && (
-        <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
+      <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
           <div className="mx-auto max-w-lg space-y-2">
             {action}
+            {listing.provider.sellerProfile?.userId && (
+              <MessageUserButtonGate
+                targetUserId={listing.provider.sellerProfile.userId}
+                size="default"
+                variant="default"
+                label="مراسلة مقدم الخدمة"
+                className="min-h-[48px] w-full gap-2 font-semibold"
+              />
+            )}
             {listing.provider.contactPhone && (
               <ProviderContactRow phone={listing.provider.contactPhone} />
             )}
           </div>
         </div>
-      )}
 
       {lightbox && (
         <div

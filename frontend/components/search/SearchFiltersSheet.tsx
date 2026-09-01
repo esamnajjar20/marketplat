@@ -44,17 +44,17 @@ export function SearchFiltersSheet() {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="flex flex-col p-0">
+        <SheetContent className="flex max-h-[92dvh] flex-col p-0">
           <SheetHeader>
             <SheetTitle>تصفية النتائج</SheetTitle>
             <p className="px-1 text-sm text-muted-foreground">
               الموقع والمدينة أولًا — الفئة تحت «خيارات أكثر». التغييرات تُطبَّق فورًا.
             </p>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 pb-2">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
             <SearchFilters />
           </div>
-          <div className="border-t bg-background p-4">
+          <div className="sticky bottom-0 border-t bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <Button type="button" className="w-full font-semibold" onClick={() => setOpen(false)}>
               عرض النتائج
               {activeCount > 0 ? ` (${activeCount})` : ''}

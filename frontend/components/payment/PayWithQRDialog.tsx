@@ -219,17 +219,29 @@ export function PayWithQRDialog({
                 <p className="text-xs font-medium text-muted-foreground">محفوظة سابقًا</p>
                 <ul className="max-h-36 space-y-1 overflow-y-auto">
                   {savedList.map((p) => (
-                    <li key={p.id}>
+                    <li key={p.id} className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => applySaved(p)}
-                        className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition hover:bg-muted"
+                        className="flex min-w-0 flex-1 items-center justify-between rounded-lg border px-3 py-2 text-sm transition hover:bg-muted"
                       >
                         <span className="truncate font-medium">{p.name}</span>
                         <span className="shrink-0 text-xs text-muted-foreground" dir="ltr">
                           {p.number}
                         </span>
                       </button>
+                      {p.method !== 'bank' && (
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-lg border border-primary/30 bg-primary/5 px-2 py-2 text-xs font-semibold text-primary"
+                          onClick={() => {
+                            applySaved(p);
+                            setStep('ussd-amount');
+                          }}
+                        >
+                          USSD
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>

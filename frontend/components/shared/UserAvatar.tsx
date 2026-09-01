@@ -1,10 +1,5 @@
 'use client';
 
-/**
- * UserAvatar — عرض موحّد لصورة المستخدم في القوائم والهيدر.
- * إن وُجدت avatarUrl تُعرض الصورة؛ وإلا الحرف الأول من الاسم.
- */
-
 import { cn } from '@/lib/utils';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -17,16 +12,9 @@ interface UserAvatarProps {
   alt?: string;
 }
 
-export function UserAvatar({
-  name,
-  avatarUrl,
-  size = 40,
-  className,
-  alt,
-}: UserAvatarProps) {
+export function UserAvatar({ name, avatarUrl, size = 40, className, alt }: UserAvatarProps) {
   const src = avatarUrl ? getAvatarUrl(avatarUrl, size * 2) : '';
   const initial = (name?.trim()?.charAt(0) || '?').toUpperCase();
-
   return (
     <span
       className={cn(
@@ -34,17 +22,9 @@ export function UserAvatar({
         className,
       )}
       style={{ width: size, height: size }}
-      aria-hidden={alt ? undefined : true}
     >
       {src ? (
-        <SafeImage
-          variant="avatar"
-          src={src}
-          alt={alt ?? name}
-          fill
-          className="object-cover"
-          sizes={`${size}px`}
-        />
+        <SafeImage variant="avatar" src={src} alt={alt ?? name} fill className="object-cover" sizes={`${size}px`} />
       ) : (
         <span className="select-none">{initial}</span>
       )}

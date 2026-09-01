@@ -21,12 +21,12 @@ export default function HomePage() {
     <div className="pb-10">
       <HeroBanner />
       <div className="pt-3 sm:pt-4">
+        <HomeQuickActions />
+      </div>
+      <div className="pt-3 sm:pt-4">
         <HomeTrustStrip />
       </div>
       <HomeAboveFold />
-      <div className="pt-6 sm:pt-8">
-        <HomeQuickActions />
-      </div>
       <LazySection minHeight={280} rootMargin="100px 0px">
         <PromotedProductsSection />
       </LazySection>

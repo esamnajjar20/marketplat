@@ -134,19 +134,13 @@ export const PAY_METHOD_LABELS: Record<PayMethod, string> = {
 };
 
 
-/** شحن/تفعيل بطاقة إنترنت عبر USSD — الرقم المحفوظ (username). */
 export function buildNetCardUssd(username: string, password?: string): string {
   const u = username.trim();
   if (!u) return '';
-  // نمط شائع لبطاقات الإنترنت: *122*الرقم#
-  // إن وُجدت كلمة مرور تُرفق كحقل ثانٍ
-  if (password?.trim()) {
-    return `*122*${u}*${password.trim()}#`;
-  }
+  if (password?.trim()) return `*122*${u}*${password.trim()}#`;
   return `*122*${u}#`;
 }
 
-/** رابط tel: لفتح لوحة الاتصال بكود USSD (# → %23). */
 export function ussdTelHref(ussdCode: string): string {
   if (!ussdCode) return '';
   return `tel:${ussdCode.replace(/#/g, '%23')}`;

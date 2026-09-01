@@ -25,6 +25,8 @@ interface Props {
    * whichever list/detail view the user visited.
    */
   warm?: boolean;
+  /** زر بنص مثل الإعلانات */
+  showLabel?: boolean;
 }
 
 /**
@@ -35,7 +37,14 @@ interface Props {
  * requests), factored out so Product/Store/Service each get it without
  * three near-identical copies of the same button.
  */
-export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false }: Props) {
+const ENTITY_SAVE_LABEL: Record<string, { save: string; saved: string }> = {
+  AD: { save: 'حفظ الإعلان', saved: 'محفوظ' },
+  PRODUCT: { save: 'حفظ المنتج', saved: 'محفوظ' },
+  SERVICE_LISTING: { save: 'حفظ الخدمة', saved: 'محفوظ' },
+  STORE: { save: 'حفظ المتجر', saved: 'محفوظ' },
+};
+
+export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false, showLabel = false }: Props) {
   const isAuth = useAuthStore(selectIsAuthenticated);
   // Rules-of-hooks: always called, `warm` just gates the network
   // request internally (see useFavoriteEntityCheck's own doc comment).
@@ -54,17 +63,48 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
     toggleFavorite.mutate(entityId);
   }
 
+
+  const labels = ENTITY_SAVE_LABEL[entityType] ?? { save: 'حفظ', saved: 'محفوظ' };
+  const textLabel = isFavorited ? labels.saved : labels.save;
+
   const dim = size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
   const iconDim = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+
+  if (showLabel) {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={toggleFavorite.isPending}
+        aria-label={textLabel}
+        aria-pressed={isFavorited}
+        className={cn(
+          'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border bg-background px-3 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-60',
+          isFavorited && 'border-destructive/30 text-destructive',
+          className,
+        )}
+      >
+        <Heart
+          key={popKey}
+          className={cn(
+            'h-4 w-4',
+            popKey > 0 && 'motion-safe:animate-heart-pop',
+            isFavorited ? 'fill-destructive text-destructive' : 'text-foreground',
+          )}
+        />
+        {textLabel}
+      </button>
+    );
+  }
 
   return (
     <button
       type="button"
       onClick={handleClick}
       disabled={toggleFavorite.isPending}
-      aria-label={isFavorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+      aria-label={textLabel}
       aria-pressed={isFavorited}
-      title={isFavorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+      title={textLabel}
       className={cn(
         'flex items-center justify-center rounded-full bg-background/90 shadow-sm backdrop-blur-sm transition-transform active:scale-90 disabled:opacity-60',
         dim,

@@ -1,3 +1,5 @@
+'use client';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 /**
  * MobileNav — slide-out sheet navigation for small screens.
  *
@@ -35,7 +37,6 @@
  *     out of the list entirely into its own bottom-anchored block so it
  *     can never be mistaken for a normal nav link.
  */
-'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -339,7 +340,7 @@ export function MobileNav() {
           {/* Backdrop */}
           {isMobileNavOpen && (
             <div
-              className="fixed inset-0 z-[90] bg-black/50"
+              className="fixed inset-0 z-40 bg-black/40"
               onClick={closeMobileNav}
               aria-hidden="true"
             />
@@ -357,8 +358,8 @@ export function MobileNav() {
             id={NAV_ID}
             // FIX MOBILE-01: max-w-[85vw] — see identical fix in
             // ProtectedMobileNav.tsx.
-            className={`fixed inset-y-0 start-0 z-[100] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
-              isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
+            className={`fixed inset-y-0 end-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
+              isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
             aria-hidden={!isMobileNavOpen}
@@ -370,9 +371,7 @@ export function MobileNav() {
             <div className="flex items-center justify-between">
               {isAuthenticated && user ? (
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
+                  <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={40} />
                   <span className="min-w-0 truncate text-sm font-semibold">{user.name}</span>
                 </div>
               ) : (

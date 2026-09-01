@@ -14,10 +14,10 @@ import {
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { ShareButton } from '@/components/shared/ShareButton';
+import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ReportProductButton } from '@/components/stores/ReportProductButton';
-import { RelatedProducts } from '@/components/stores/RelatedProducts';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
+import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { formatPrice, formatPhone, formatRelativeTime } from '@/lib/formatters';
@@ -172,8 +172,16 @@ export function ProductDetail({ product, related = [] }: Props) {
             </p>
           </section>
 
-          {/* عنوان موحّد مع "إعلانات مشابهة" / "خدمات مشابهة" */}
-          <RelatedProducts products={related} title="منتجات مشابهة" />
+          {related.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold">منتجات من نفس المتجر</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {related.map((p) => (
+                  <ProductCard key={p.id} product={p} storeId={product.storeId} />
+                ))}
+              </div>
+            </section>
+          )}
 
           <ProductRecommendations excludeProductId={product.id} />
         </div>
@@ -312,8 +320,8 @@ function MetaRow({ product }: { product: ProductWithFullStore }) {
 function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; shareUrl: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <FavoriteButton entityType="PRODUCT" entityId={product.id} size="md" warm />
-      <ShareButton title={product.name} url={shareUrl} variant="button" />
+      <FavoriteButton entityType="PRODUCT" entityId={product.id} size="md" warm showLabel />
+      <ShareAdButton title={product.name} url={shareUrl} variant="button" />
       <ReportProductButton productId={product.id} />
     </div>
   );
