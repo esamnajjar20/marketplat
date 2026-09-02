@@ -28,7 +28,17 @@ export type StoreWeekday = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
 export type StoreDaySchedule = { open: string; close: string } | null;
 export type StoreWorkingHours = Record<StoreWeekday, StoreDaySchedule>;
 
+/** عنصر طريقة دفع محفوظة على المتجر */
+export interface StorePaymentMethodDto {
+  id: string;
+  kind: 'jawwal' | 'palpay' | 'bank' | 'custom';
+  label: string;
+  accountName: string;
+  accountNumber: string;
+}
+
 export interface StoreDetails {
+
   id: string;
   sellerProfileId: string;
   name: string;
@@ -41,6 +51,8 @@ export interface StoreDetails {
   city: string;
   address: string | null;
   phone: string;
+  /** طرق الدفع التي يعرضها المتجر — JSON array */
+  paymentMethods?: StorePaymentMethodDto[] | null;
   status: StoreStatus;
   plan: StorePlan;
   featureRequestedAt?: string | null;
@@ -115,6 +127,7 @@ export type UpdateStorePayload = Partial<{
   latitude: number | null;
   longitude: number | null;
   workingHours: StoreWorkingHours;
+  paymentMethods: StorePaymentMethodDto[] | null;
 }>;
 
 /** GET /stores/me/analytics — owner-only. No orders/revenue/conversion:

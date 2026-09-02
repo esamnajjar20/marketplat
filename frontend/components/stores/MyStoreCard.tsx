@@ -20,6 +20,8 @@ import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 import { WorkingHoursEditor } from '@/components/services/WorkingHoursEditor';
+import { StorePaymentMethodsEditor } from '@/components/stores/StorePaymentMethodsEditor';
+import { normalizePaymentMethods, type StorePaymentMethod } from '@/lib/storePaymentMethods';
 import type { WorkingHours } from '@/types/service.types';
 import type { StoreDetails } from '@/types/store.types';
 
@@ -50,6 +52,9 @@ export function MyStoreCard({ store }: Props) {
   const [city, setCity] = useState(store.city);
   const [address, setAddress] = useState(store.address ?? '');
   const [phone, setPhone] = useState(store.phone);
+  const [paymentMethods, setPaymentMethods] = useState<StorePaymentMethod[]>(
+    () => normalizePaymentMethods(store.paymentMethods),
+  );
   const [latitude, setLatitude] = useState(store.latitude ?? '');
   const [longitude, setLongitude] = useState(store.longitude ?? '');
   // STORE-HOURS (Foundation v1): store.workingHours is optional (null
@@ -111,6 +116,7 @@ export function MyStoreCard({ store }: Props) {
         city,
         address: address.trim() || null,
         phone: phone.trim(),
+        paymentMethods,
         workingHours,
         latitude: latitude.trim() === '' ? null : Number(latitude),
         longitude: longitude.trim() === '' ? null : Number(longitude),
@@ -299,6 +305,8 @@ export function MyStoreCard({ store }: Props) {
         <FormField label="ساعات العمل (اختياري)" htmlFor="my-store-hours">
           <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
         </FormField>
+
+        <StorePaymentMethodsEditor value={paymentMethods} onChange={setPaymentMethods} />
 
         <Button type="submit" disabled={isFormIncomplete || updateStore.isPending}>
           {updateStore.isPending ? 'جارٍ الحفظ…' : 'حفظ التعديلات'}

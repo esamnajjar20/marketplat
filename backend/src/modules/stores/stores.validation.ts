@@ -14,6 +14,15 @@ const dayScheduleSchema = z
   })
   .nullable();
 
+
+const storePaymentMethodSchema = z.object({
+  id: z.string().min(1).max(64),
+  kind: z.enum(['jawwal', 'palpay', 'bank', 'custom']),
+  label: z.string().min(1).max(80),
+  accountName: z.string().min(1).max(100),
+  accountNumber: z.string().min(3).max(40),
+});
+
 export const workingHoursSchema = z.object({
   sun: dayScheduleSchema,
   mon: dayScheduleSchema,
@@ -58,6 +67,7 @@ export const updateStoreSchema = z.object({
     latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
     longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
     workingHours: workingHoursSchema.optional(),
+    paymentMethods: z.array(storePaymentMethodSchema).max(20).nullable().optional(),
   }),
 });
 
