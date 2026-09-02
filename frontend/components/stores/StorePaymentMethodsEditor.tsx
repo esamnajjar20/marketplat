@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * محرر طرق الدفع لصاحب المتجر — إعدادات المتجر.
- * خيارات جاهزة: جوال بي، بال بي، بنك فلسطين + إضافة طريقة مخصصة.
+ * محرر طرق الدفع — يمكن إضافة أكثر من محفظة/بنك (نفس النوع أكثر من مرة).
  */
 
 import { useState } from 'react';
@@ -17,6 +16,7 @@ import {
   type StorePaymentMethod,
 } from '@/lib/storePaymentMethods';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Props {
   value: StorePaymentMethod[];
@@ -25,16 +25,25 @@ interface Props {
 
 export function StorePaymentMethodsEditor({ value, onChange }: Props) {
   const [kind, setKind] = useState<StorePaymentKind>('jawwal');
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState('جوال بي');
   const [accountName, setAccountName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
 
   function addMethod() {
-    if (!accountNumber.trim()) return;
-    const resolvedLabel =
+    if (!accountNumber.trim()) {
+      toast.error('أدخل رقم المحفظة أو الحساب');
+      return;
+    }
+    // يُسمح بتكرار نفس النوع (محافظ متعددة)
+    const sameKindCount = value.filter((m) => m.kind === kind).length;
+    let resolvedLabel =
       kind === 'custom'
         ? label.trim() || 'طريقة دفع'
         : label.trim() || presetLabel(kind);
+    if (kind !== 'custom' && sameKindCount > 0 && resolvedLabel === presetLabel(kind)) {
+      resolvedLabel = `${presetLabel(kind)} (${sameKindCount + 1})`;
+    }
+
     const entry: StorePaymentMethod = {
       id: newPaymentMethodId(),
       kind,
@@ -43,9 +52,9 @@ export function StorePaymentMethodsEditor({ value, onChange }: Props) {
       accountNumber: accountNumber.trim(),
     };
     onChange([...value, entry]);
-    setLabel('');
     setAccountName('');
     setAccountNumber('');
+    toast.success(`تمت إضافة «${resolvedLabel}» — احفظ تعديلات المتجر`);
   }
 
   function remove(id: string) {
@@ -58,21 +67,29 @@ export function StorePaymentMethodsEditor({ value, onChange }: Props) {
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Banknote className="h-4 w-4 text-primary" />
           طرق الدفع المعروضة للزبائن
+          {value.length > 0 && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              {value.length}
+            </span>
+          )}
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          اختر جوال بي / بال بي / بنك فلسطين أو أضف طريقة خاصة بك. الزبون يرى الاسم ثم الرقم مع خيار USSD والحفظ.
+          أضف أكثر من محفظة أو بنك. الزبون يرى كل الأسماء، وعند الضغط يظهر الرقم مع نسخ وحفظ وUSSD.
         </p>
       </div>
 
-      {value.length > 0 && (
+      {value.length > 0 ? (
         <ul className="space-y-2">
-          {value.map((m) => (
+          {value.map((m, i) => (
             <li
               key={m.id}
               className="flex items-start justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2"
             >
               <div className="min-w-0">
-                <p className="font-medium">{m.label}</p>
+                <p className="font-medium">
+                  <span className="me-1.5 text-xs text-muted-foreground">{i + 1}.</span>
+                  {m.label}
+                </p>
                 <p className="text-xs text-muted-foreground">{m.accountName}</p>
                 <p className="font-mono text-sm" dir="ltr">
                   {m.accountNumber}
@@ -91,10 +108,14 @@ export function StorePaymentMethodsEditor({ value, onChange }: Props) {
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+          لا طرق بعد — أضف جوال بي أو بال بي أو بنك أو طريقة مخصصة.
+        </p>
       )}
 
       <div className="space-y-3 border-t pt-3">
-        <p className="text-xs font-medium text-muted-foreground">إضافة طريقة</p>
+        <p className="text-xs font-medium text-muted-foreground">إضافة طريقة جديدة</p>
         <div className="flex flex-wrap gap-2">
           {PRESET_PAYMENT_KINDS.map((p) => (
             <button
@@ -135,19 +156,19 @@ export function StorePaymentMethodsEditor({ value, onChange }: Props) {
           />
         )}
         <Input
-          placeholder="اسم صاحب الحساب"
+          placeholder="اسم صاحب الحساب (يظهر للزبون)"
           value={accountName}
           onChange={(e) => setAccountName(e.target.value)}
         />
         <Input
-          placeholder="الرقم / رقم الحساب"
+          placeholder="رقم المحفظة أو الحساب"
           value={accountNumber}
           onChange={(e) => setAccountNumber(e.target.value)}
           dir="ltr"
         />
         <Button type="button" variant="outline" className="w-full gap-2" onClick={addMethod}>
           <Plus className="h-4 w-4" />
-          إضافة إلى قائمة المتجر
+          إضافة طريقة أخرى
         </Button>
       </div>
     </div>

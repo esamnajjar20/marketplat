@@ -208,6 +208,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         {/* دفع فقط (بطاقات النت في الرئيسية) */}
         <StorePaymentMethods
           paymentMethods={store.paymentMethods}
+          storeName={store.name}
           fallbackName={store.name}
           fallbackPhone={store.phone}
           className="mt-3 grid w-full max-w-sm grid-cols-2 gap-2"

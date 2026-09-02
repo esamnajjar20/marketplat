@@ -1,8 +1,11 @@
 'use client';
 
 /**
- * عرض طرق دفع المتجر للزبون:
- * قائمة بأسماء الطرق → عند الضغط: الاسم + الرقم + USSD + حفظ في المحفوظات.
+ * طرق دفع المتجر للزبون — متعددة حسب ما أضافه صاحب المتجر.
+ *
+ * 1) قائمة بأسماء كل الطرق
+ * 2) عند الضغط: اسم المتجر + اسم الحساب + الرقم
+ *    → نسخ | حفظ بالمحفوظات | USSD (جوال بي / بال بي)
  */
 
 import { useMemo, useState } from 'react';
@@ -28,9 +31,9 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 interface Props {
-  /** JSON من المتجر أو مصفوفة */
   paymentMethods?: unknown;
-  /** احتياطي إن لم يضبط المتجر طرقاً بعد */
+  /** اسم المتجر يظهر داخل تفاصيل كل طريقة */
+  storeName?: string;
   fallbackName?: string;
   fallbackPhone?: string;
   className?: string;
@@ -38,27 +41,30 @@ interface Props {
 
 export function StorePaymentMethods({
   paymentMethods,
+  storeName,
   fallbackName,
   fallbackPhone,
   className,
 }: Props) {
+  const displayStoreName = (storeName || fallbackName || 'المتجر').trim();
+
   const methods = useMemo(() => {
     const list = normalizePaymentMethods(paymentMethods);
     if (list.length > 0) return list;
-    // احتياطي: رقم هاتف المتجر كجوال بي إن وُجد
+    // احتياطي فقط إذا لم يُضبط شيء بعد
     if (fallbackPhone?.trim()) {
       return [
         {
           id: 'fallback-phone',
           kind: 'jawwal' as const,
           label: 'دفع عبر الهاتف',
-          accountName: fallbackName?.trim() || 'المتجر',
+          accountName: displayStoreName,
           accountNumber: fallbackPhone.trim(),
         },
       ];
     }
     return [];
-  }, [paymentMethods, fallbackName, fallbackPhone]);
+  }, [paymentMethods, fallbackPhone, displayStoreName]);
 
   const [selected, setSelected] = useState<StorePaymentMethod | null>(null);
   const [amount, setAmount] = useState('');
@@ -81,7 +87,7 @@ export function StorePaymentMethods({
   function handleSave() {
     if (!selected) return;
     savePayee({
-      name: selected.accountName || selected.label,
+      name: selected.accountName || displayStoreName || selected.label,
       number: selected.accountNumber,
       method: toLocalPayMethod(selected.kind),
     });
@@ -100,45 +106,64 @@ export function StorePaymentMethods({
   return (
     <>
       <div className={cn('w-full max-w-sm space-y-2', className)}>
-        <p className="text-xs font-medium text-muted-foreground">طرق الدفع</p>
-        <div className="flex flex-col gap-2">
-          {methods.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => {
-                setSelected(m);
-                setAmount('');
-                setCopied(false);
-              }}
-              className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5 text-start text-sm font-semibold transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.99]"
-            >
-              <span className="inline-flex items-center gap-2">
-                <Banknote className="h-4 w-4 text-primary" aria-hidden />
-                {m.label}
-              </span>
-              <ChevronLeft className="h-4 w-4 text-muted-foreground" aria-hidden />
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium text-muted-foreground">طرق الدفع</p>
+          {methods.length > 1 && (
+            <span className="text-[11px] text-muted-foreground">{methods.length} خيارات</span>
+          )}
         </div>
+
+        {/* كل الطرق — ليست خياراً واحداً */}
+        <ul className="flex flex-col gap-2" role="list">
+          {methods.map((m) => (
+            <li key={m.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelected(m);
+                  setAmount('');
+                  setCopied(false);
+                }}
+                className="flex w-full items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5 text-start transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.99]"
+              >
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    <Banknote className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <span className="truncate">{m.label}</span>
+                  </span>
+                  {m.accountName && m.accountName !== m.label && (
+                    <span className="mt-0.5 block truncate pe-6 text-[11px] text-muted-foreground">
+                      {m.accountName}
+                    </span>
+                  )}
+                </span>
+                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{selected?.label}</DialogTitle>
-            <DialogDescription>بيانات التحويل لهذا المتجر</DialogDescription>
+            <DialogDescription>بيانات الدفع — {displayStoreName}</DialogDescription>
           </DialogHeader>
 
           {selected && (
             <div className="space-y-4">
-              <div className="rounded-xl border bg-muted/40 p-4 space-y-2">
+              <div className="space-y-3 rounded-xl border bg-muted/40 p-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">الاسم</p>
-                  <p className="font-semibold">{selected.accountName}</p>
+                  <p className="text-xs text-muted-foreground">المتجر</p>
+                  <p className="font-semibold">{displayStoreName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">الرقم</p>
+                  <p className="text-xs text-muted-foreground">اسم المستلم / الحساب</p>
+                  <p className="font-semibold">{selected.accountName || displayStoreName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">رقم المحفظة / البنك</p>
                   <p className="font-mono text-lg font-bold tracking-wide" dir="ltr">
                     {selected.accountNumber}
                   </p>

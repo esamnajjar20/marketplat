@@ -133,18 +133,17 @@ export const PAY_METHOD_LABELS: Record<PayMethod, string> = {
   bank: 'بنك فلسطين',
 };
 
-/** شحن/تفعيل بطاقة إنترنت عبر USSD */
-export function buildNetCardUssd(username: string, password?: string): string {
-  const u = username.trim();
-  if (!u) return '';
-  if (password?.trim()) {
-    return `*122*${u}*${password.trim()}#`;
-  }
-  return `*122*${u}#`;
-}
 
-/** رابط tel: لفتح لوحة الاتصال بكود USSD (# → %23) */
 export function ussdTelHref(ussdCode: string): string {
   if (!ussdCode) return '';
   return `tel:${ussdCode.replace(/#/g, '%23')}`;
 }
+
+
+export function buildNetCardUssd(username: string, password?: string): string {
+  const u = username.trim();
+  if (!u) return '';
+  if (password?.trim()) return `*122*${u}*${password.trim()}#`;
+  return `*122*${u}#`;
+}
+
