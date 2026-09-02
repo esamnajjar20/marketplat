@@ -59,7 +59,7 @@ export default async function StorePage({ params }: Props) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-8 max-w-4xl">
+    <div className="container mx-auto max-w-3xl space-y-8 px-4 py-6">
       <StoreHeader store={store} />
 
       <Suspense fallback={<div className="flex justify-center py-8"><LoadingSpinner /></div>}>

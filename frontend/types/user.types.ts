@@ -65,6 +65,8 @@ export interface PublicProfileStore {
   coverImageUrl: string | null;
   city:          string;
   plan:          StorePlan;
+  phone?:        string;
+  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
   _count: { followers: number; products: number };
 }
 
@@ -79,6 +81,7 @@ export interface PublicProfileServiceProvider {
   completedRequestsCount: number;
   /** Public contact — call / WhatsApp on the profile services tab. */
   contactPhone:           string;
+  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
 }
 
 export interface PublicSellerProfile {
@@ -98,6 +101,7 @@ export interface PublicSellerProfile {
   responseRate:        string | null;
   responseTimeMinutes: number | null;
   joinedSellingAt: string;
+  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
   _count: { serviceReviews: number };
   storeDetails:            PublicProfileStore | null;
   serviceProviderDetails:  PublicProfileServiceProvider | null;

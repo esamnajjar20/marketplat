@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Sparkles } from 'lucide-react';
@@ -5,6 +7,7 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { ROUTES } from '@/lib/constants';
 import type { PublicProfileStore } from '@/types/user.types';
+import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 
 interface Props {
   store: PublicProfileStore;
@@ -12,45 +15,50 @@ interface Props {
 
 /**
  * UNIFIED-PROFILE: summary card for the profile's "المتجر" tab — not a
- * replacement for StoreHeader.tsx. Per the profile/store separation this
- * page follows (Profile = "who is this person", Store = "what is this
- * store"), the full follow button, phone/call action, and cover photo
- * stay on the dedicated /stores/[id] page; this card only has the
- * public-profile-safe fields (see users.repository.ts's publicUserSelect)
- * and a link through to the real thing.
+ * replacement for StoreHeader.tsx. Includes زر دفع واحد مثل تبويب الخدمة.
  */
 export function ProfileStoreSummary({ store }: Props) {
   const logo = getAvatarUrl(store.logoUrl ?? '', 96);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 800) : null;
 
   return (
-    <Link
-      href={ROUTES.storeDetail(store.id)}
-      className="block rounded-xl border bg-card overflow-hidden shadow-sm transition-shadow hover:shadow-md"
-    >
-      {cover && (
-        <div className="relative h-28 w-full bg-muted">
-          <SafeImage src={cover} alt="" fill className="object-cover" sizes="100vw" />
-        </div>
-      )}
-      <div className="p-4 flex items-center gap-3">
-        <div className="relative w-14 h-14 rounded-full overflow-hidden bg-muted shrink-0 border">
-          <SafeImage variant="avatar" src={logo} alt={store.name} fill className="object-cover" sizes="56px" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-foreground truncate">{store.name}</h3>
-            {store.plan === 'FEATURED' && (
-              <Badge className="gap-1 bg-accent hover:bg-accent text-accent-foreground shrink-0">
-                <Sparkles className="h-3 w-3" /> مميز
-              </Badge>
-            )}
+    <div className="space-y-3">
+      <Link
+        href={ROUTES.storeDetail(store.id)}
+        className="block overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
+      >
+        {cover && (
+          <div className="relative h-28 w-full bg-muted">
+            <SafeImage src={cover} alt="" fill className="object-cover" sizes="100vw" />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {store._count.products} منتج · {store._count.followers} متابع · {store.city}
-          </p>
+        )}
+        <div className="flex items-center gap-3 p-4">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border bg-muted">
+            <SafeImage variant="avatar" src={logo} alt={store.name} fill className="object-cover" sizes="56px" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate font-semibold text-foreground">{store.name}</h3>
+              {store.plan === 'FEATURED' && (
+                <Badge className="shrink-0 gap-1 bg-accent text-accent-foreground hover:bg-accent">
+                  <Sparkles className="h-3 w-3" /> مميز
+                </Badge>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {store._count.products} منتج · {store._count.followers} متابع · {store.city}
+            </p>
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      <StorePaymentMethods
+        paymentMethods={store.paymentMethods}
+        entityName={store.name}
+        fallbackName={store.name}
+        fallbackPhone={(store as { phone?: string }).phone}
+        className="w-full max-w-sm"
+      />
+    </div>
   );
 }

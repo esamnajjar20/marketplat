@@ -9,6 +9,7 @@ import { getAvatarUrl } from '@/lib/cloudinary';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatPhone } from '@/lib/formatters';
 import type { PublicProfileServiceProvider } from '@/types/user.types';
+import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import type { ServiceAvailability } from '@/types/service.types';
 
 interface Props {
@@ -140,6 +141,14 @@ export function ProfileServiceProviderSummary({
           </Link>
         </Button>
       )}
+
+      <StorePaymentMethods
+        paymentMethods={provider.paymentMethods}
+        entityName={provider.businessName}
+        fallbackName={provider.businessName}
+        fallbackPhone={provider.contactPhone}
+        className="mt-3"
+      />
     </div>
   );
 }

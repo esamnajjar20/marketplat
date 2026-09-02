@@ -13,6 +13,7 @@ import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.st
 import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
 import type { AdAuthor } from '@/types/ad.types';
+import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 
 interface Props { seller: AdAuthor; adId: string; sellerProfileId: string | null; }
 
@@ -103,6 +104,14 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
           {startConversation.isPending ? 'جارٍ التحضير…' : 'مراسلة البائع'}
         </Button>
       )}
+
+      <StorePaymentMethods
+        paymentMethods={(sellerProfile as { paymentMethods?: unknown } | undefined)?.paymentMethods}
+        entityName={seller.name}
+        fallbackName={seller.name}
+        className="mt-2"
+      />
+
     </div>
   );
 }

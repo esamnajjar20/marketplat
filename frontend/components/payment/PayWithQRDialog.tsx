@@ -23,6 +23,8 @@ import {
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { CopyField } from '@/components/payment/CopyField';
+import { PAY_METHOD_STYLE } from '@/lib/storePaymentMethods';
+import { cn } from '@/lib/utils';
 import { QrScannerCamera } from '@/components/payment/QrScannerCamera';
 import { type PayParseResult, isValidPalMobile, normalizePalMobile } from '@/lib/smartScanParse';
 import {
@@ -34,7 +36,6 @@ import {
   type SavedPayee,
 } from '@/lib/paymentStorage';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 type Step =
   | 'method'
@@ -200,12 +201,15 @@ export function PayWithQRDialog({
                   type="button"
                   onClick={() => pickMethod(id)}
                   className={cn(
-                    'flex items-center gap-3 rounded-xl border p-3 text-start transition',
-                    'hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98]',
+                    'flex items-center gap-3 rounded-xl border p-3 text-start transition active:scale-[0.98]',
+                    PAY_METHOD_STYLE[id]?.chip ?? 'hover:border-primary/50 hover:bg-primary/5',
                   )}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
+                  <span className={cn(
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                    PAY_METHOD_STYLE[id]?.chip ?? 'bg-primary/10 text-primary',
+                  )}>
+                    <Icon className={cn('h-5 w-5', PAY_METHOD_STYLE[id]?.icon)} />
                   </span>
                   <span className="min-w-0">
                     <span className="block font-semibold">{label}</span>
@@ -274,7 +278,7 @@ export function PayWithQRDialog({
 
         {step === 'result' && method && (
           <div className="space-y-4">
-            <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <div className={cn('space-y-2 rounded-xl border p-3', method ? PAY_METHOD_STYLE[method]?.chip : 'border-primary/20 bg-primary/5')}>
               <p className="text-xs font-semibold text-primary">البيانات المكتشفة</p>
               <p className="rounded-lg bg-background/80 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">الاسم: </span>

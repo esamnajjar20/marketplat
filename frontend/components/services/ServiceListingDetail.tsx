@@ -2,16 +2,17 @@
 
 import { useState, useCallback, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, MapPin, Clock, Eye, ChevronLeft, ChevronRight, X, Phone , Star} from 'lucide-react';
+import { BadgeCheck, MapPin, Clock, Eye, ChevronLeft, ChevronRight, X, Phone } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Badge } from '@/components/shared/ui/Badge';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { Button } from '@/components/ui/button';
-import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
+import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ReportServiceButton } from '@/components/services/ReportServiceButton';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatPrice, formatRelativeTime, formatPhone } from '@/lib/formatters';
-import {getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG, getAvatarUrl} from '@/lib/cloudinary';
+import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type {
   ServiceListingWithProvider,
@@ -193,7 +194,24 @@ export function ServiceListingDetail({ listing, action }: Props) {
             </p>
           </section>
 
-          <ProviderCard listing={listing} />
+          <div className="space-y-3">
+            <ProviderLink listing={listing} />
+            {listing.provider.sellerProfile?.userId && (
+              <MessageUserButtonGate
+                targetUserId={listing.provider.sellerProfile.userId}
+                size="lg"
+                variant="default"
+                label="مراسلة مقدم الخدمة"
+                className="w-full gap-2 rounded-xl font-semibold"
+              />
+            )}
+            <StorePaymentMethods
+              paymentMethods={(listing.provider as { paymentMethods?: unknown }).paymentMethods}
+              entityName={listing.provider.businessName}
+              fallbackName={listing.provider.businessName}
+              fallbackPhone={listing.provider.contactPhone}
+            />
+          </div>
         </div>
 
         {/* Desktop sidebar */}
@@ -215,7 +233,24 @@ export function ServiceListingDetail({ listing, action }: Props) {
                 <ProviderContactRow phone={listing.provider.contactPhone} />
               )}
             </div>
-            <ProviderCard listing={listing} />
+            <div className="space-y-3">
+            <ProviderLink listing={listing} />
+            {listing.provider.sellerProfile?.userId && (
+              <MessageUserButtonGate
+                targetUserId={listing.provider.sellerProfile.userId}
+                size="lg"
+                variant="default"
+                label="مراسلة مقدم الخدمة"
+                className="w-full gap-2 rounded-xl font-semibold"
+              />
+            )}
+            <StorePaymentMethods
+              paymentMethods={(listing.provider as { paymentMethods?: unknown }).paymentMethods}
+              entityName={listing.provider.businessName}
+              fallbackName={listing.provider.businessName}
+              fallbackPhone={listing.provider.contactPhone}
+            />
+          </div>
           </div>
         </aside>
       </div>
@@ -276,82 +311,28 @@ function Meta({ listing }: { listing: ServiceListingWithProvider }) {
   );
 }
 
-function ProviderCard({ listing }: { listing: ServiceListingWithProvider }) {
-  const provider = listing.provider;
-  const userId = provider.sellerProfile?.userId;
-  const avatar = getAvatarUrl(
-    provider.logoUrl || '',
-    128,
-  );
-  const verified = Boolean(provider.sellerProfile?.verified);
-  const ratingRaw = provider.sellerProfile?.averageRating;
-  const rating = ratingRaw != null ? parseFloat(String(ratingRaw)) : null;
-  const totalRatings = (provider.sellerProfile as { totalRatings?: number })?.totalRatings ?? 0;
-  const profileHref = userId
-    ? ROUTES.userProfile(userId)
-    : ROUTES.serviceProvider(provider.id);
-
+function ProviderLink({ listing }: { listing: ServiceListingWithProvider }) {
   return (
-    <div className="space-y-5 rounded-2xl border bg-card p-6 shadow-md">
-      <h3 className="font-semibold">معلومات مقدم الخدمة</h3>
-
-      <Link href={profileHref} className="flex items-center gap-4 transition-opacity hover:opacity-80">
-        <div className="relative shrink-0">
-          <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted">
-            {avatar ? (
-              <SafeImage variant="avatar" src={avatar} alt={provider.businessName} fill className="object-cover" sizes="64px" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-lg font-bold text-muted-foreground">
-                {(provider.businessName?.charAt(0) || '?').toUpperCase()}
-              </div>
-            )}
-          </div>
-          {verified && (
-            <div
-              className="absolute -bottom-1 -end-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground"
-              title="موثّق"
-            >
-              <BadgeCheck className="h-3.5 w-3.5" />
-            </div>
+    <Link
+      href={
+        listing.provider.sellerProfile?.userId
+          ? ROUTES.userProfile(listing.provider.sellerProfile.userId)
+          : ROUTES.serviceProvider(listing.provider.id)
+      }
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold">{listing.provider.businessName}</span>
+          {listing.provider.sellerProfile?.verified && (
+            <Badge className="gap-1 text-[10px]">
+              <BadgeCheck className="h-3 w-3" /> موثّق
+            </Badge>
           )}
         </div>
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{provider.businessName}</p>
-          {provider.sellerProfile?.displayName && (
-            <p className="text-sm text-muted-foreground">{provider.sellerProfile.displayName}</p>
-          )}
-          {rating != null && !Number.isNaN(rating) && totalRatings > 0 && (
-            <span className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-              <Star className="h-3.5 w-3.5 fill-rating text-rating" />
-              {rating.toFixed(1)} ({totalRatings} تقييم)
-            </span>
-          )}
-        </div>
-      </Link>
-
-      <div className="flex flex-col gap-2">
-        {provider.contactPhone && (
-          <Button asChild variant="outline" size="lg" className="w-full gap-2 rounded-xl font-semibold">
-            <a href={`tel:${provider.contactPhone}`}>
-              اتصال · {provider.contactPhone}
-            </a>
-          </Button>
-        )}
-        {userId && (
-          <MessageUserButtonGate
-            targetUserId={userId}
-            size="lg"
-            variant="default"
-            label="مراسلة مقدم الخدمة"
-            className="w-full gap-2 rounded-xl font-semibold"
-          />
-        )}
-        {userId && (
-          <Button asChild variant="ghost" className="w-full text-muted-foreground">
-            <Link href={ROUTES.userProfile(userId)}>عرض ملف مقدم الخدمة</Link>
-          </Button>
-        )}
+        <p className="text-xs text-muted-foreground">عرض ملف مقدم الخدمة وخدماته</p>
       </div>
-    </div>
+      <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+    </Link>
   );
 }

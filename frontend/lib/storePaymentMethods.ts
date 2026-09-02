@@ -34,6 +34,12 @@ export const PAYMENT_KIND_STYLE: Record<StorePaymentKind, { chip: string; icon: 
   custom: { chip: 'border-violet-500/30 bg-violet-500/10 text-violet-800 dark:text-violet-300', icon: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
 };
 
+export const PAY_METHOD_STYLE: Record<'jawwal' | 'palpay' | 'bank', { chip: string; icon: string; dot: string }> = {
+  jawwal: PAYMENT_KIND_STYLE.jawwal,
+  palpay: PAYMENT_KIND_STYLE.palpay,
+  bank: PAYMENT_KIND_STYLE.bank,
+};
+
 export function supportsUssd(kind: StorePaymentKind): boolean {
   return kind === 'jawwal' || kind === 'palpay';
 }

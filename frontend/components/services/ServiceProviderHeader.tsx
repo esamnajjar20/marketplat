@@ -1,7 +1,6 @@
 'use client';
 
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
-import { PROFILE_SURFACE } from '@/lib/profileSurface';
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -50,8 +49,7 @@ export function ServiceProviderHeader({ provider }: Props) {
   const rating = parseFloat(provider.sellerProfile.averageRating);
 
   return (
-    <div className={`relative flex w-full flex-col items-center overflow-hidden rounded-2xl px-3 pb-4 pt-6 text-center ${PROFILE_SURFACE.service.softBg}`}>
-      <div className={`absolute inset-x-0 top-0 h-1 ${PROFILE_SURFACE.service.accentBar}`} aria-hidden />
+    <div className="flex flex-col w-full items-center text-center pt-6">
       <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
         <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
           <SafeImage variant="avatar" src={avatar} alt={provider.businessName} fill className="object-cover" sizes="96px" />

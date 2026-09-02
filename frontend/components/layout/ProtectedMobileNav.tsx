@@ -55,6 +55,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronRight, User, ExternalLink, Store } from 'lucide-react';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -253,6 +254,20 @@ export function ProtectedMobileNav() {
             </svg>
           </button>
         </div>
+
+        {user && (
+          <Link
+            href={ROUTES.userProfile(user.id)}
+            onClick={close}
+            className="mt-4 flex items-center gap-3 rounded-xl border border-border/80 bg-card/60 px-3 py-2.5 transition-colors hover:bg-muted/60"
+          >
+            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={44} className="ring-2 ring-background" />
+            <span className="min-w-0 flex-1 text-start">
+              <span className="block truncate text-sm font-semibold text-foreground">{user.name}</span>
+              <span className="block text-xs text-muted-foreground">عرض الملف الشخصي</span>
+            </span>
+          </Link>
+        )}
 
         {/* REORG-07: "تصفح" section — same content/order as public
             MobileNav's own BROWSE_LINKS, first in the drawer. */}

@@ -1,21 +1,24 @@
 'use client';
 
-/**
- * @deprecated استخدم StorePaymentMethods — الإبقاء للتوافق مع الاستيرادات القديمة.
- */
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 
-interface Props {
+/** توافق قديم — زر دفع واحد يفتح كل الطرق */
+export function StorePaymentActions({
+  storeName,
+  storePhone,
+  paymentMethods,
+  className,
+}: {
   storeName: string;
   storePhone: string;
   paymentMethods?: unknown;
   className?: string;
-}
-
-export function StorePaymentActions({ storeName, storePhone, paymentMethods, className }: Props) {
+}) {
   return (
     <StorePaymentMethods
       paymentMethods={paymentMethods}
+      entityName={storeName}
+      storeName={storeName}
       fallbackName={storeName}
       fallbackPhone={storePhone}
       className={className}

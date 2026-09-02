@@ -1,15 +1,12 @@
 'use client';
 
 /**
- * طرق دفع المتجر للزبون — متعددة حسب ما أضافه صاحب المتجر.
- *
- * 1) قائمة بأسماء كل الطرق
- * 2) عند الضغط: اسم المتجر + اسم الحساب + الرقم
- *    → نسخ | حفظ بالمحفوظات | USSD (جوال بي / بال بي)
+ * زر «دفع» واحد على الصفحة → يفتح حواراً بكل طرق الدفع.
+ * اختيار طريقة: الاسم + الرقم + نسخ + حفظ + USSD.
  */
 
 import { useMemo, useState } from 'react';
-import { Banknote, Phone, BookmarkPlus, Copy, Check, ChevronLeft } from 'lucide-react';
+import { Banknote, Phone, BookmarkPlus, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import {
@@ -33,12 +30,13 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   paymentMethods?: unknown;
-  /** اسم الحساب/المتجر/البائع يظهر داخل تفاصيل كل طريقة */
   entityName?: string;
   storeName?: string;
   fallbackName?: string;
   fallbackPhone?: string;
   className?: string;
+  buttonLabel?: string;
+  variant?: 'default' | 'outline' | 'secondary';
 }
 
 export function StorePaymentMethods({
@@ -48,32 +46,43 @@ export function StorePaymentMethods({
   fallbackName,
   fallbackPhone,
   className,
+  buttonLabel = 'دفع',
+  variant = 'default',
 }: Props) {
-  const displayStoreName = (entityName || storeName || fallbackName || 'الحساب').trim();
+  const displayName = (entityName || storeName || fallbackName || 'الحساب').trim();
 
   const methods = useMemo(() => {
     const list = normalizePaymentMethods(paymentMethods);
     if (list.length > 0) return list;
-    // احتياطي فقط إذا لم يُضبط شيء بعد
     if (fallbackPhone?.trim()) {
       return [
         {
           id: 'fallback-phone',
           kind: 'jawwal' as const,
           label: 'دفع عبر الهاتف',
-          accountName: displayStoreName,
+          accountName: displayName,
           accountNumber: fallbackPhone.trim(),
         },
       ];
     }
     return [];
-  }, [paymentMethods, fallbackPhone, displayStoreName]);
+  }, [paymentMethods, fallbackPhone, displayName]);
 
+  const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<StorePaymentMethod | null>(null);
   const [amount, setAmount] = useState('');
   const [copied, setCopied] = useState(false);
 
   if (methods.length === 0) return null;
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setSelected(null);
+      setAmount('');
+      setCopied(false);
+    }
+  }
 
   async function copyNumber() {
     if (!selected) return;
@@ -90,7 +99,7 @@ export function StorePaymentMethods({
   function handleSave() {
     if (!selected) return;
     savePayee({
-      name: selected.accountName || displayStoreName || selected.label,
+      name: selected.accountName || displayName || selected.label,
       number: selected.accountNumber,
       method: toLocalPayMethod(selected.kind),
     });
@@ -108,65 +117,92 @@ export function StorePaymentMethods({
 
   return (
     <>
-      <div className={cn('w-full max-w-sm space-y-2', className)}>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">طرق الدفع</p>
+      <div className={cn('w-full max-w-sm', className)}>
+        <Button
+          type="button"
+          variant={variant}
+          className="h-auto w-full gap-2 rounded-full py-2.5 text-sm font-semibold"
+          onClick={() => setOpen(true)}
+        >
+          <Banknote className="h-4 w-4" aria-hidden />
+          {buttonLabel}
           {methods.length > 1 && (
-            <span className="text-[11px] text-muted-foreground">{methods.length} خيارات</span>
+            <span className="rounded-full bg-background/20 px-1.5 text-[11px] font-medium tabular-nums">
+              {methods.length}
+            </span>
           )}
-        </div>
-
-        {/* كل الطرق — ليست خياراً واحداً */}
-        <ul className="flex flex-col gap-2" role="list">
-          {methods.map((m) => (
-            <li key={m.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelected(m);
-                  setAmount('');
-                  setCopied(false);
-                }}
-                className={cn('flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-start transition active:scale-[0.99]', PAYMENT_KIND_STYLE[m.kind].chip)}
-              >
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-sm font-semibold">
-                    <Banknote className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                    <span className="truncate">{m.label}</span>
-                  </span>
-                  {m.accountName && m.accountName !== m.label && (
-                    <span className="mt-0.5 block truncate pe-6 text-[11px] text-muted-foreground">
-                      {m.accountName}
-                    </span>
-                  )}
-                </span>
-                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              </button>
-            </li>
-          ))}
-        </ul>
+        </Button>
       </div>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{selected?.label}</DialogTitle>
-            <DialogDescription>بيانات الدفع — {displayStoreName}</DialogDescription>
+            <DialogTitle>{selected ? selected.label : 'طرق الدفع'}</DialogTitle>
+            <DialogDescription>
+              {selected
+                ? `بيانات الدفع — ${displayName}`
+                : `اختر طريقة الدفع لـ ${displayName}`}
+            </DialogDescription>
           </DialogHeader>
 
-          {selected && (
+          {!selected ? (
+            <ul className="flex flex-col gap-2" role="list">
+              {methods.map((m) => {
+                const style = PAYMENT_KIND_STYLE[m.kind];
+                return (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelected(m);
+                        setAmount('');
+                        setCopied(false);
+                      }}
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-start transition active:scale-[0.99]',
+                        style.chip,
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2 text-sm font-semibold">
+                          <span className={cn('h-2 w-2 shrink-0 rounded-full', style.dot)} aria-hidden />
+                          <Banknote className={cn('h-4 w-4 shrink-0', style.icon)} aria-hidden />
+                          <span className="truncate">{m.label}</span>
+                        </span>
+                        {m.accountName && m.accountName !== m.label && (
+                          <span className="mt-0.5 block truncate pe-6 text-[11px] opacity-80">
+                            {m.accountName}
+                          </span>
+                        )}
+                      </span>
+                      <ChevronLeft className="h-4 w-4 shrink-0 opacity-60" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
             <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ChevronRight className="h-4 w-4" />
+                كل الطرق
+              </button>
+
               <div className="space-y-3 rounded-xl border bg-muted/40 p-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">المتجر</p>
-                  <p className="font-semibold">{displayStoreName}</p>
+                  <p className="text-xs text-muted-foreground">الحساب</p>
+                  <p className="font-semibold">{displayName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">اسم المستلم / الحساب</p>
-                  <p className="font-semibold">{selected.accountName || displayStoreName}</p>
+                  <p className="text-xs text-muted-foreground">اسم المستلم</p>
+                  <p className="font-semibold">{selected.accountName || displayName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">رقم المحفظة / البنك</p>
+                  <p className="text-xs text-muted-foreground">الرقم</p>
                   <p className="font-mono text-lg font-bold tracking-wide" dir="ltr">
                     {selected.accountNumber}
                   </p>

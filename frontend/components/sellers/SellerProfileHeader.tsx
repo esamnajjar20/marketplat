@@ -1,7 +1,6 @@
 'use client';
 
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
-import { PROFILE_SURFACE } from '@/lib/profileSurface';
 
 import { useState } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -36,8 +35,7 @@ export function SellerProfileHeader({ seller }: Props) {
   const rating = parseFloat(seller.averageRating);
 
   return (
-    <div className={`relative flex w-full flex-col items-center overflow-hidden rounded-2xl px-3 pb-4 pt-6 text-center ${PROFILE_SURFACE.seller.softBg}`}>
-      <div className={`absolute inset-x-0 top-0 h-1 ${PROFILE_SURFACE.seller.accentBar}`} aria-hidden />
+    <div className="flex flex-col w-full items-center text-center pt-6">
       <div className="relative w-24 h-24 rounded-full bg-background p-1 shadow-md">
         <div className="relative w-full h-full rounded-full overflow-hidden bg-muted">
           <SafeImage variant="avatar" src={avatar} alt={seller.displayName} fill className="object-cover" sizes="96px" />
