@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { StorePaymentMethodsEditor } from '@/components/stores/StorePaymentMethodsEditor';
+import { normalizePaymentMethods, type StorePaymentMethod } from '@/lib/storePaymentMethods';
 import Link from 'next/link';
 import {
   BadgeCheck,
@@ -39,6 +41,7 @@ export function MySellerProfileCard({ profile }: Props) {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? '');
+  const [paymentMethods, setPaymentMethods] = useState<StorePaymentMethod[]>(() => normalizePaymentMethods((profile as { paymentMethods?: unknown }).paymentMethods));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>();
 
   function startEdit() {
@@ -57,6 +60,7 @@ export function MySellerProfileCard({ profile }: Props) {
     updateProfile.mutate(
       {
         displayName: displayName.trim(),
+        paymentMethods,
         bio: bio.trim() ? bio.trim() : null,
       },
       {
@@ -113,6 +117,9 @@ export function MySellerProfileCard({ profile }: Props) {
             />
             <p className="text-xs text-muted-foreground text-end">{bio.length}/300</p>
           </FormField>
+
+          <StorePaymentMethodsEditor value={paymentMethods} onChange={setPaymentMethods} title="طرق دفع البائع" />
+
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={updateProfile.isPending}>
               {updateProfile.isPending ? 'جارٍ الحفظ…' : 'حفظ'}

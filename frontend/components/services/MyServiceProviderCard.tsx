@@ -8,6 +8,8 @@ import { Button } from '@/components/shared/ui/Button';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
+import { StorePaymentMethodsEditor } from '@/components/stores/StorePaymentMethodsEditor';
+import { normalizePaymentMethods, type StorePaymentMethod } from '@/lib/storePaymentMethods';
 import { useUpdateServiceProvider, useUploadServiceProviderLogo } from '@/hooks/mutations/useServiceProviderMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
@@ -75,6 +77,7 @@ export function MyServiceProviderCard({ provider }: Props) {
   // existing, reusable WorkingHoursEditor to an explicit save action
   // here, same pattern as every other editable settings field.
   const [workingHours, setWorkingHours] = useState<WorkingHours>(provider.workingHours);
+  const [paymentMethods, setPaymentMethods] = useState<StorePaymentMethod[]>(() => normalizePaymentMethods((provider as { paymentMethods?: unknown }).paymentMethods));
   const [hoursError, setHoursError] = useState<string | undefined>();
 
   const hoursChanged = JSON.stringify(workingHours) !== JSON.stringify(provider.workingHours);
@@ -90,8 +93,8 @@ export function MyServiceProviderCard({ provider }: Props) {
     // `hoursChanged` correctly goes back to false and the save button
     // disappears once the save actually lands.
     updateProvider.mutate(
-      { workingHours },
-      { onSuccess: () => setWorkingHours(workingHours) }
+      { workingHours, paymentMethods },
+      { onSuccess: () => { setWorkingHours(workingHours); toast.success('تم الحفظ'); } }
     );
   }
 
@@ -183,6 +186,8 @@ export function MyServiceProviderCard({ provider }: Props) {
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium">ساعات العمل</label>
+        <StorePaymentMethodsEditor value={paymentMethods} onChange={setPaymentMethods} title="طرق دفع الخدمة" />
+
         <WorkingHoursEditor
           value={workingHours}
           onChange={(v) => { setWorkingHours(v); setHoursError(undefined); }}
@@ -199,7 +204,7 @@ export function MyServiceProviderCard({ provider }: Props) {
             onClick={saveWorkingHours}
             disabled={isSavingHours}
           >
-            {isSavingHours ? 'جارٍ الحفظ…' : 'حفظ ساعات العمل'}
+            {isSavingHours ? 'جارٍ الحفظ…' : 'حفظ الساعات وطرق الدفع'}
           </Button>
         )}
       </div>

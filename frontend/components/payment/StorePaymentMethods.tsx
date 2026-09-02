@@ -24,6 +24,7 @@ import {
   supportsUssd,
   dialStoreMethodUssd,
   toLocalPayMethod,
+  PAYMENT_KIND_STYLE,
   type StorePaymentMethod,
 } from '@/lib/storePaymentMethods';
 import { savePayee } from '@/lib/paymentStorage';
@@ -32,7 +33,8 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   paymentMethods?: unknown;
-  /** اسم المتجر يظهر داخل تفاصيل كل طريقة */
+  /** اسم الحساب/المتجر/البائع يظهر داخل تفاصيل كل طريقة */
+  entityName?: string;
   storeName?: string;
   fallbackName?: string;
   fallbackPhone?: string;
@@ -41,12 +43,13 @@ interface Props {
 
 export function StorePaymentMethods({
   paymentMethods,
+  entityName,
   storeName,
   fallbackName,
   fallbackPhone,
   className,
 }: Props) {
-  const displayStoreName = (storeName || fallbackName || 'المتجر').trim();
+  const displayStoreName = (entityName || storeName || fallbackName || 'الحساب').trim();
 
   const methods = useMemo(() => {
     const list = normalizePaymentMethods(paymentMethods);
@@ -124,7 +127,7 @@ export function StorePaymentMethods({
                   setAmount('');
                   setCopied(false);
                 }}
-                className="flex w-full items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5 text-start transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.99]"
+                className={cn('flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-start transition active:scale-[0.99]', PAYMENT_KIND_STYLE[m.kind].chip)}
               >
                 <span className="min-w-0">
                   <span className="flex items-center gap-2 text-sm font-semibold">

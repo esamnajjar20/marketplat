@@ -146,4 +146,3 @@ export function buildNetCardUssd(username: string, password?: string): string {
   if (password?.trim()) return `*122*${u}*${password.trim()}#`;
   return `*122*${u}#`;
 }
-

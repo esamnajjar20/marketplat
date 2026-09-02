@@ -415,6 +415,7 @@ model SellerProfile {
   responseRate           Decimal?                 @db.Decimal(5, 2)
   responseTimeMinutes    Int?
   joinedSellingAt        DateTime                 @default(now())
+  paymentMethods         Json?
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
   ads                    Ad[]
@@ -457,6 +458,7 @@ model ServiceProviderDetails {
   serviceAreaCities      String[]
   workingHours           Json
   contactPhone           String
+  paymentMethods         Json?
   availabilityStatus     ServiceAvailability @default(AVAILABLE)
   latitude               Decimal?            @db.Decimal(9, 6)
   longitude              Decimal?            @db.Decimal(9, 6)
@@ -688,7 +690,6 @@ model StoreDetails {
   // component. Optional: a store with no hours set just never renders
   // an open/closed badge (storesService.computeIsOpen returns null).
   workingHours    Json?
-  // طرق دفع يعرضها المتجر للزبون — [{id,kind,label,accountName,accountNumber}]
   paymentMethods  Json?
   // STORE-VIEWS (Foundation v1): lifetime counter, same convention as
   // Product.views — bumped fire-and-forget from getPublicStore, not

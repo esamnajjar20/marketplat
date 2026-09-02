@@ -1,4 +1,13 @@
 import { z } from 'zod';
+
+const storePaymentMethodSchema = z.object({
+  id: z.string().min(1).max(64),
+  kind: z.enum(['jawwal', 'palpay', 'bank', 'custom']),
+  label: z.string().min(1).max(80),
+  accountName: z.string().min(1).max(100),
+  accountNumber: z.string().min(3).max(40),
+});
+
 // FIX BUG-07: was a local mirror of admin.validation.ts's copy (EPIC
 // 1.1's comment said as much); now both import the same helper instead
 // of keeping two hand-synced copies.
@@ -49,10 +58,11 @@ export const updateSellerProfileSchema = z.object({
       avatarUrl: z
         .union([z.string().url('avatarUrl must be a valid URL'), z.null()])
         .optional(),
+      paymentMethods: z.array(storePaymentMethodSchema).max(20).nullable().optional(),
     })
     .refine(
       (body) =>
-        body.displayName !== undefined || body.bio !== undefined || body.avatarUrl !== undefined,
+        body.displayName !== undefined || body.bio !== undefined || body.avatarUrl !== undefined || body.paymentMethods !== undefined,
       { message: 'At least one field is required' }
     ),
 });

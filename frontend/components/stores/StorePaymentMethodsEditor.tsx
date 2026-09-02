@@ -21,9 +21,10 @@ import { toast } from 'sonner';
 interface Props {
   value: StorePaymentMethod[];
   onChange: (next: StorePaymentMethod[]) => void;
+  title?: string;
 }
 
-export function StorePaymentMethodsEditor({ value, onChange }: Props) {
+export function StorePaymentMethodsEditor({ value, onChange, title = 'طرق الدفع المعروضة للزبائن' }: Props) {
   const [kind, setKind] = useState<StorePaymentKind>('jawwal');
   const [label, setLabel] = useState('جوال بي');
   const [accountName, setAccountName] = useState('');
@@ -66,7 +67,7 @@ export function StorePaymentMethodsEditor({ value, onChange }: Props) {
       <div>
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Banknote className="h-4 w-4 text-primary" />
-          طرق الدفع المعروضة للزبائن
+          {title}
           {value.length > 0 && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
               {value.length}

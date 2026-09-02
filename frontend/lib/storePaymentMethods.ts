@@ -27,6 +27,13 @@ export const PRESET_PAYMENT_KINDS: {
   { kind: 'bank', label: 'بنك فلسطين', supportsUssd: false },
 ];
 
+export const PAYMENT_KIND_STYLE: Record<StorePaymentKind, { chip: string; icon: string; dot: string }> = {
+  jawwal: { chip: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300', icon: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
+  palpay: { chip: 'border-sky-500/30 bg-sky-500/10 text-sky-800 dark:text-sky-300', icon: 'text-sky-600 dark:text-sky-400', dot: 'bg-sky-500' },
+  bank: { chip: 'border-slate-500/30 bg-slate-500/10 text-slate-800 dark:text-slate-300', icon: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-500' },
+  custom: { chip: 'border-violet-500/30 bg-violet-500/10 text-violet-800 dark:text-violet-300', icon: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
+};
+
 export function supportsUssd(kind: StorePaymentKind): boolean {
   return kind === 'jawwal' || kind === 'palpay';
 }

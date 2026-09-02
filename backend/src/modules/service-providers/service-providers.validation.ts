@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+const storePaymentMethodSchema = z.object({
+  id: z.string().min(1).max(64),
+  kind: z.enum(['jawwal', 'palpay', 'bank', 'custom']),
+  label: z.string().min(1).max(80),
+  accountName: z.string().min(1).max(100),
+  accountNumber: z.string().min(3).max(40),
+});
+
+
 const dayScheduleSchema = z
   .object({
     open: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'open must be HH:mm'),
@@ -46,6 +55,7 @@ export const updateServiceProviderSchema = z.object({
     serviceAreaCities: z.array(z.string().min(1)).min(1).max(30).optional(),
     workingHours: workingHoursSchema.optional(),
     contactPhone: z.string().min(6).max(30).optional(),
+    paymentMethods: z.array(storePaymentMethodSchema).max(20).nullable().optional(),
     availabilityStatus: z.enum(['AVAILABLE', 'BUSY', 'UNAVAILABLE']).optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),

@@ -41,6 +41,7 @@ export interface ServiceProviderDetails {
   serviceAreaCities: string[];
   workingHours: WorkingHours;
   contactPhone: string;
+  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
   availabilityStatus: ServiceAvailability;
   completedRequestsCount: number;
   /** Prisma Decimal(5,2) — string in JSON, same convention as SellerProfile.averageRating. */
@@ -228,6 +229,7 @@ export interface CreateServiceProviderPayload {
   logoUrl?: string;
   latitude?: number;
   longitude?: number;
+  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
 }
 
 /** PATCH /service-providers/me. */
