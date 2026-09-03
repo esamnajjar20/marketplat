@@ -18,10 +18,17 @@ const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
+// PHASE-1 (Offline Core Bundle): كاش منفصل عن API_CACHE عمدًا. API_CACHE
+// محدود بـ MAX_API_ENTRIES=60 ويُقلَّم بترتيب FIFO تقريبي (انظر trimCache) —
+// أي تصفح عادي بعد warm-up كافٍ لإخراج طلبات الحزمة الأساسية (تصنيفات/
+// منتجات مميزة/متاجر) من الكاش قبل ما يحتاجها المستخدم فعليًا بدون نت.
+// CORE_CACHE لا يُقلَّم أبدًا تلقائيًا — يُحدَّث فقط عبر warmCoreBundle()
+// (lib/offlineCoreBundle.ts) صراحة، فيبقى ثابت المحتوى بين مرات التصفح.
+const CORE_CACHE = `market-core-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
 // كل الكاشات الحالية — أي كاش قديم غير موجود هنا يُحذف عند التفعيل.
-const CURRENT_CACHES = [STATIC_CACHE, IMAGE_CACHE, API_CACHE];
+const CURRENT_CACHES = [STATIC_CACHE, IMAGE_CACHE, API_CACHE, CORE_CACHE];
 
 // أصول App Shell الأساسية — تُخزّن مسبقًا عند التثبيت.
 // لا نضيف مسارات صفحات ديناميكية هنا (Next.js يولّد أسماء ملفات مع hash
@@ -213,6 +220,16 @@ async function networkFirst(request, cacheName, maxEntries) {
     const cached = await cache.match(request);
     if (cached) {
       return cached;
+    }
+    // PHASE-1: آخر ملاذ قبل الفشل — الحزمة الأساسية (تصنيفات/منتجات
+    // مميزة/متاجر) لا تعيش بـ cacheName (API_CACHE) العادي، فقد تكون
+    // موجودة هنا حتى لو API_CACHE ما عندها هذا الطلب (أو أُخرج منه FIFO).
+    if (cacheName !== CORE_CACHE) {
+      const core = await caches.open(CORE_CACHE);
+      const coreHit = await core.match(request);
+      if (coreHit) {
+        return coreHit;
+      }
     }
     throw err;
   }

@@ -7,6 +7,7 @@
 import { useEffect } from 'react';
 import { registerServiceWorker } from '@/lib/pwa';
 import { requestQueueReplay } from '@/lib/offlineQueue';
+import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { InstallPrompt } from './InstallPrompt';
 import { UpdatePrompt } from './UpdatePrompt';
 
@@ -22,9 +23,19 @@ export function PwaBootstrap() {
   useEffect(() => {
     void registerServiceWorker();
 
+    // PHASE-1 (Offline Core Bundle): تحديث صامت بالخلفية، محدود بمهلة
+    // WARM_INTERVAL_MS داخل الدالة نفسها فلا يعيد الجلب بكل تحميل صفحة.
+    // مقصود تشغيله هنا مو بعد نجاح تسجيل SW فقط — الحزمة لا تعتمد على SW
+    // (Cache Storage متاح للصفحة مباشرة)، وتأخيرها لحين نجاح تسجيل SW
+    // يضيف تأخير بلا داعٍ لأول زيارة.
+    void warmCoreBundle();
+
     // fallback لإعادة إرسال الطابور عند عودة الاتصال في المتصفحات التي لا
     // تدعم Background Sync (انظر تعليق requestQueueReplay).
-    const handleOnline = () => void requestQueueReplay();
+    const handleOnline = () => {
+      void requestQueueReplay();
+      void warmCoreBundle();
+    };
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
   }, []);

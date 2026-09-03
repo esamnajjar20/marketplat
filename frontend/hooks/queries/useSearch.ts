@@ -4,6 +4,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { searchApi } from '@/api/search.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import { searchOffline } from '@/lib/offlineSearchIndex';
 import type { SearchQuery } from '@/types/search.types';
 
 /**
@@ -15,11 +16,28 @@ import type { SearchQuery } from '@/types/search.types';
  * fallback" request on this endpoint (see backend's search.repository.ts
  * — rank defaults to 0 with no q, ordering falls back to recency),
  * not an error state.
+ *
+ * PHASE-2 (بحث محلي بدون نت): لو فشل طلب الشبكة، نحاول فهرس محلي مبني من
+ * حزمة المرحلة ١ (lib/offlineCoreBundle.ts) قبل الاستسلام. لو الفهرس نفسه
+ * غير متوفر (لا حزمة أساسية بعد) نرمي خطأ الشبكة الأصلي — فيبقى isError/
+ * زر "إعادة المحاولة" بـ SearchResults.tsx يعمل بشكل صحيح لأي خطأ حقيقي،
+ * لا يُخفى بصمت خلف نتيجة محلية مزيّفة.
  */
 export function useSearch(params?: SearchQuery) {
   return useQuery({
-    queryKey:        queryKeys.search.unified(params),
-    queryFn:         () => searchApi.search(params).then((r) => r.data.data),
+    queryKey: queryKeys.search.unified(params),
+    queryFn: async () => {
+      try {
+        const r = await searchApi.search(params);
+        return r.data.data;
+      } catch (err) {
+        const offline = await searchOffline(params ?? {}).catch(() => null);
+        if (offline?.hasBundle) {
+          return { items: offline.items, meta: offline.meta };
+        }
+        throw err;
+      }
+    },
     placeholderData: keepPreviousData, // prevents flash when changing tabs/pages
     staleTime:       CACHE_TTL.search,
   });
