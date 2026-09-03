@@ -102,7 +102,12 @@ export const sellersRepository = {
 
   updateMyProfile: (
     id: string,
-    data: { displayName?: string; bio?: string | null; avatarUrl?: string | null }
+    data: {
+      displayName?: string;
+      bio?: string | null;
+      avatarUrl?: string | null;
+      paymentMethods?: Prisma.InputJsonValue | null;
+    }
   ): Promise<SellerProfile> =>
     prisma.sellerProfile.update({
       where: { id },
@@ -110,6 +115,7 @@ export const sellersRepository = {
         ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
         ...(data.bio !== undefined ? { bio: data.bio } : {}),
         ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
+        ...(data.paymentMethods !== undefined ? { paymentMethods: data.paymentMethods ?? Prisma.JsonNull } : {}),
       },
     }),
 

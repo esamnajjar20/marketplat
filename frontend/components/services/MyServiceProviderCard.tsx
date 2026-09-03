@@ -60,11 +60,16 @@ export function MyServiceProviderCard({ provider }: Props) {
   const currentUser = useAuthStore(selectUser);
 
   // FIX BUG-XX: updateProvider is shared between the availability-status
-  // Select above and the working-hours save button below. Without this,
-  // saving one field disabled the other's control too (isPending is
-  // mutation-wide, not per-field) — mirrors the same fix pattern as
-  // AdminUsersTable's pendingStatusUserId/pendingRoleUserId.
+  // Select, the working-hours save button, and the payment-methods save
+  // button below. Without this, saving one field disabled the others'
+  // controls too (isPending is mutation-wide, not per-field) — mirrors
+  // the same fix pattern as AdminUsersTable's
+  // pendingStatusUserId/pendingRoleUserId.
   const isSavingHours = updateProvider.isPending && 'workingHours' in (updateProvider.variables ?? {});
+  const isSavingPaymentMethods =
+    updateProvider.isPending &&
+    'paymentMethods' in (updateProvider.variables ?? {}) &&
+    !('workingHours' in (updateProvider.variables ?? {}));
 
   // FIX BUG-XX: MyServiceProviderCard (the only post-creation settings
   // view for a service provider) never rendered WorkingHoursEditor —
@@ -81,7 +86,12 @@ export function MyServiceProviderCard({ provider }: Props) {
   const [hoursError, setHoursError] = useState<string | undefined>();
 
   const hoursChanged = JSON.stringify(workingHours) !== JSON.stringify(provider.workingHours);
+  const paymentMethodsChanged =
+    JSON.stringify(paymentMethods) !==
+    JSON.stringify(normalizePaymentMethods((provider as { paymentMethods?: unknown }).paymentMethods));
 
+  // Two independent save actions/buttons — not combined — so editing
+  // one field doesn't require touching the other to submit it.
   function saveWorkingHours() {
     const error = validateWorkingHours(workingHours);
     setHoursError(error);
@@ -93,8 +103,17 @@ export function MyServiceProviderCard({ provider }: Props) {
     // `hoursChanged` correctly goes back to false and the save button
     // disappears once the save actually lands.
     updateProvider.mutate(
-      { workingHours, paymentMethods },
+      { workingHours },
       { onSuccess: () => { setWorkingHours(workingHours); toast.success('تم الحفظ'); } }
+    );
+  }
+
+  function savePaymentMethods() {
+    // Sent alone — separate from workingHours — so this button and
+    // "حفظ ساعات العمل" above submit independently of each other.
+    updateProvider.mutate(
+      { paymentMethods },
+      { onSuccess: () => { setPaymentMethods(paymentMethods); toast.success('تم الحفظ'); } }
     );
   }
 
@@ -185,9 +204,21 @@ export function MyServiceProviderCard({ provider }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">ساعات العمل</label>
         <StorePaymentMethodsEditor value={paymentMethods} onChange={setPaymentMethods} title="طرق دفع الخدمة" />
+        {paymentMethodsChanged && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={savePaymentMethods}
+            disabled={isSavingPaymentMethods}
+          >
+            {isSavingPaymentMethods ? 'جارٍ الحفظ…' : 'حفظ طرق الدفع'}
+          </Button>
+        )}
+      </div>
 
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">ساعات العمل</label>
         <WorkingHoursEditor
           value={workingHours}
           onChange={(v) => { setWorkingHours(v); setHoursError(undefined); }}
@@ -204,7 +235,7 @@ export function MyServiceProviderCard({ provider }: Props) {
             onClick={saveWorkingHours}
             disabled={isSavingHours}
           >
-            {isSavingHours ? 'جارٍ الحفظ…' : 'حفظ الساعات وطرق الدفع'}
+            {isSavingHours ? 'جارٍ الحفظ…' : 'حفظ ساعات العمل'}
           </Button>
         )}
       </div>

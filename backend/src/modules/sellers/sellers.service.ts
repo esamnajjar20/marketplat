@@ -85,6 +85,7 @@ export const sellersService = {
       displayName: input.displayName,
       bio: input.bio,
       avatarUrl: input.avatarUrl,
+      paymentMethods: input.paymentMethods,
     });
   },
 

@@ -55,7 +55,6 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronRight, User, ExternalLink, Store } from 'lucide-react';
-import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -225,17 +224,17 @@ export function ProtectedMobileNav() {
           // from chaining to the locked body once the panel hits its
           // own top/bottom.
           'fixed inset-y-0 start-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 shadow-xl transition-transform duration-200 md:hidden',
-          // end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
-          // to left:0 — verified against the CSS spec (MDN:
-          // "with direction rtl, inset-inline-end moves the element
-          // from the right side to the left side"), not right:0 as an
-          // earlier edit here incorrectly assumed. transform is a
-          // physical property and never mirrors with dir. For a
-          // left-anchored (end-0/left:0) drawer, closing must move it
-          // LEFT (negative translate-x-full) to clear the viewport —
-          // translate-x-full (positive) instead pushes it right, onto
-          // the visible portion of the screen, which is the bug this
-          // reverts.
+          // start-0 (inset-inline-start) in this RTL app (dir="rtl") maps
+          // to right:0 — MDN: "with direction rtl, inset-inline-start
+          // moves the element from the left side to the right side".
+          // transform is a physical property and never mirrors with
+          // dir. For a right-anchored (start-0/right:0) drawer, closing
+          // must move it RIGHT (positive translate-x-full) to clear the
+          // viewport — negative translate-x-full instead pushes it
+          // left, onto the visible portion of the screen. Kept in sync
+          // with MobileNav.tsx's identical drawer so the side menu
+          // opens from the same edge across the public and protected
+          // areas.
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
         aria-label="القائمة الشخصية"
@@ -254,20 +253,6 @@ export function ProtectedMobileNav() {
             </svg>
           </button>
         </div>
-
-        {user && (
-          <Link
-            href={ROUTES.userProfile(user.id)}
-            onClick={close}
-            className="mt-4 flex items-center gap-3 rounded-xl border border-border/80 bg-card/60 px-3 py-2.5 transition-colors hover:bg-muted/60"
-          >
-            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={44} className="ring-2 ring-background" />
-            <span className="min-w-0 flex-1 text-start">
-              <span className="block truncate text-sm font-semibold text-foreground">{user.name}</span>
-              <span className="block text-xs text-muted-foreground">عرض الملف الشخصي</span>
-            </span>
-          </Link>
-        )}
 
         {/* REORG-07: "تصفح" section — same content/order as public
             MobileNav's own BROWSE_LINKS, first in the drawer. */}

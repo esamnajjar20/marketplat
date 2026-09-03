@@ -41,8 +41,17 @@ export function MySellerProfileCard({ profile }: Props) {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? '');
-  const [paymentMethods, setPaymentMethods] = useState<StorePaymentMethod[]>(() => normalizePaymentMethods((profile as { paymentMethods?: unknown }).paymentMethods));
+  // Always-visible, independent of the displayName/bio edit form below —
+  // mirrors MyServiceProviderCard's StorePaymentMethodsEditor, which is
+  // never hidden behind an edit-mode toggle either.
+  const [paymentMethods, setPaymentMethods] = useState<StorePaymentMethod[]>(
+    () => normalizePaymentMethods((profile as { paymentMethods?: unknown }).paymentMethods),
+  );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>();
+
+  const paymentMethodsChanged =
+    JSON.stringify(paymentMethods) !==
+    JSON.stringify(normalizePaymentMethods((profile as { paymentMethods?: unknown }).paymentMethods));
 
   function startEdit() {
     setDisplayName(profile.displayName);
@@ -67,6 +76,18 @@ export function MySellerProfileCard({ profile }: Props) {
         onSuccess: () => setEditing(false),
         onError: (err) => setFieldErrors(parseApiError(err).fieldErrors),
       },
+    );
+  }
+
+  // Saves payment methods on their own — lets the user update them
+  // without opening the displayName/bio edit form first. Local state is
+  // reset to what was just sent so the "unsaved changes" comparison
+  // above goes back to false immediately (same pattern as
+  // MyServiceProviderCard's saveWorkingHours).
+  function savePaymentMethods() {
+    updateProfile.mutate(
+      { paymentMethods },
+      { onSuccess: () => setPaymentMethods(paymentMethods) },
     );
   }
 
@@ -118,8 +139,6 @@ export function MySellerProfileCard({ profile }: Props) {
             <p className="text-xs text-muted-foreground text-end">{bio.length}/300</p>
           </FormField>
 
-          <StorePaymentMethodsEditor value={paymentMethods} onChange={setPaymentMethods} title="طرق دفع البائع" />
-
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={updateProfile.isPending}>
               {updateProfile.isPending ? 'جارٍ الحفظ…' : 'حفظ'}
@@ -138,6 +157,23 @@ export function MySellerProfileCard({ profile }: Props) {
       ) : (
         profile.bio && <p className="text-sm text-muted-foreground">{profile.bio}</p>
       )}
+
+      {/* Always visible — not tied to the `editing` toggle above, so
+          payment methods stay reachable/visible on this page the same
+          way they do on MyServiceProviderCard. */}
+      <div className="space-y-1.5">
+        <StorePaymentMethodsEditor value={paymentMethods} onChange={setPaymentMethods} title="طرق دفع البائع" />
+        {paymentMethodsChanged && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={savePaymentMethods}
+            disabled={updateProfile.isPending}
+          >
+            {updateProfile.isPending ? 'جارٍ الحفظ…' : 'حفظ طرق الدفع'}
+          </Button>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div className="flex items-center gap-2 rounded-md border p-3">

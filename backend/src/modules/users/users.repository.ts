@@ -90,6 +90,7 @@ const publicUserSelect = {
       responseRate: true,
       responseTimeMinutes: true,
       joinedSellingAt: true,
+      paymentMethods: true,
       suspended: true,
       // UNIFIED-PROFILE: totalRatings only counts ad-seller ratings
       // (SellerRating) — a seller with service reviews but zero ad
@@ -106,6 +107,8 @@ const publicUserSelect = {
           coverImageUrl: true,
           city: true,
           plan: true,
+          phone: true,
+          paymentMethods: true,
           _count: { select: { followers: true, products: true } },
         },
       },
@@ -121,6 +124,7 @@ const publicUserSelect = {
           completedRequestsCount: true,
           // S3: public contact for call / WhatsApp (same visibility as store phone on store page)
           contactPhone: true,
+          paymentMethods: true,
         },
       },
     },

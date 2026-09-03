@@ -6,15 +6,12 @@ import { UserAvatar } from '@/components/shared/UserAvatar';
  * UX-06 FIX: Added explicit ✕ close button inside drawer + Escape key handler.
  * UX-07 FIX: end-0 (logical) instead of right-0 — RTL-safe drawer anchor.
  *
- * CORRECTED: end-0 (inset-inline-end) in this RTL app (dir="rtl") maps
- * to left:0 — verified against spec (MDN: "with direction rtl,
- * inset-inline-end moves the element from the right side to the left
- * side"). A prior edit here wrongly assumed it mapped to right:0 and
- * flipped the closed-state transform to positive translate-x-full,
- * which pushed the drawer onto the visible right portion of the screen
- * instead of off it. transform is physical and never mirrors with
- * dir="rtl" — closing a left-anchored (end-0) drawer must move it LEFT
- * (negative translate-x-full, restored below) to clear the viewport.
+ * PRODUCT DECISION: drawer anchored to the right on every page (start-0,
+ * which in this RTL app maps to right:0 — MDN: "with direction rtl,
+ * inset-inline-start moves the element from the left side to the right
+ * side"). transform is physical and never mirrors with dir="rtl" — a
+ * right-anchored (start-0) drawer must translate RIGHT (positive
+ * translate-x-full) to clear the viewport when closed.
  *
  * FIX UX-12: the link list used to be a single hardcoded constant that
  * always showed "تسجيل الدخول" / "إنشاء حساب", even to an already
@@ -324,7 +321,7 @@ export function MobileNav() {
        * element (for the frosted sticky-nav effect) — and per the CSS
        * spec, any element with a filter/backdrop-filter other than
        * `none` becomes the containing block for its position: fixed
-       * descendants. So this drawer's `fixed inset-y-0 end-0` was
+       * descendants. So this drawer's `fixed inset-y-0 start-0` was
        * being positioned relative to the header's own box, not the
        * viewport — it opened pinned to the header's height instead of
        * covering the screen (visually: a strip trapped under the top
@@ -346,20 +343,22 @@ export function MobileNav() {
             />
           )}
 
-          {/* Drawer — end-0 is logical, and in this RTL app (dir="rtl")
-              resolves to left:0 (drawer is anchored to the LEFT edge —
-              verified against spec: inset-inline-end maps to left when
-              direction is rtl). transform is a PHYSICAL property and
-              is NEVER mirrored by dir="rtl". A left-anchored (end-0)
-              drawer must translate LEFT (negative translate-x-full) to
-              clear the viewport when closed — positive translate-x-full
-              instead pushes it right onto the visible screen area. */}
+          {/* Drawer — start-0 is logical, and in this RTL app (dir="rtl")
+              resolves to right:0 (drawer is anchored to the RIGHT edge —
+              MDN: inset-inline-start maps to right when direction is
+              rtl). transform is a PHYSICAL property and is NEVER
+              mirrored by dir="rtl". A right-anchored (start-0) drawer
+              must translate RIGHT (positive translate-x-full) to clear
+              the viewport when closed — negative translate-x-full
+              instead pushes it left onto the visible screen area. Kept
+              in sync with ProtectedMobileNav.tsx's identical drawer so
+              the side menu opens from the same edge on every page. */}
           <nav
             id={NAV_ID}
             // FIX MOBILE-01: max-w-[85vw] — see identical fix in
             // ProtectedMobileNav.tsx.
-            className={`fixed inset-y-0 end-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
-              isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+            className={`fixed inset-y-0 start-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
+              isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
             aria-hidden={!isMobileNavOpen}
