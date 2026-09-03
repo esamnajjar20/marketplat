@@ -56,12 +56,33 @@ const CDN_LANG_PATH = 'https://tessdata.projectnaptha.com/4.0.0_best';
 let resolvedPathsPromise: Promise<{ workerPath: string; corePath: string; langPath: string }> | null = null;
 
 // دالة urlExists
+// AUDIT-FIX (OCR-OFFLINE-01): كانت تستخدم fetch(url, {method:'HEAD'}) للتحقق
+// من وجود الملف محليًا. مشكلة: Cache API's match() لا يطابق طلبات HEAD مع
+// استجابات GET المخزّنة إلا بخيار {ignoreMethod:true} — وService Worker هنا
+// (sw.js) لا يستخدمه. النتيجة الفعلية بدون إنترنت: طلب HEAD يصل لـ SW، لا
+// يجد تطابقًا (لأن المخزّن GET)، فشل الشبكة (بدون نت)، فيرجع
+// Response.error() → urlExists() ترجع false حتى لو الملف موجود فعليًا في
+// الكاش. عكس الهدف تمامًا (OCR بدون نت).
+//
+// الإصلاح: نفحص Cache Storage مباشرة أولًا (caches.match يطابق GET بشكل
+// طبيعي عند تمرير string، بدون أي طلب شبكة أو انتظار). إن لم نجد شيئًا
+// (مثلاً بيئة بدون SW مسجَّل بعد) نرجع لطلب شبكة GET عادي كخط دفاع ثانٍ —
+// وليس HEAD، لتفادي نفس المشكلة إن أضيف ignoreMethod لاحقًا بشكل جزئي.
 async function urlExists(url: string, timeoutMs = 2500): Promise<boolean> {
+  if (typeof caches !== 'undefined') {
+    try {
+      const cached = await caches.match(url);
+      if (cached) return true;
+    } catch {
+      // بيئة بدون Cache Storage (نادر) — نكمل لفحص الشبكة أدناه.
+    }
+  }
+
   if (typeof fetch === 'undefined') return false;
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { method: 'HEAD', signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal });
     return res.ok;
   } catch {
     return false;

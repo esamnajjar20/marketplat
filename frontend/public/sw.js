@@ -189,7 +189,7 @@ async function cacheFirst(request, cacheName, maxEntries) {
       trimCache(cacheName, maxEntries);
     }
     return response;
-  } catch {
+  } catch (err) {
     // لا صورة مخزّنة ولا اتصال — نترك المتصفح/المكوّن يتعامل مع الفشل
     // (المكونات تعرض placeholder عند فشل تحميل الصورة).
     throw err;
@@ -209,7 +209,7 @@ async function networkFirst(request, cacheName, maxEntries) {
       trimCache(cacheName, maxEntries);
     }
     return response;
-  } catch {
+  } catch (err) {
     const cached = await cache.match(request);
     if (cached) {
       return cached;
