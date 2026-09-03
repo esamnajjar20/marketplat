@@ -458,7 +458,12 @@ model ServiceProviderDetails {
   serviceAreaCities      String[]
   workingHours           Json
   contactPhone           String
-  paymentMethods         Json?
+  // UNIFY-PAYMENTS: removed — a ServiceProviderDetails row always hangs
+  // off a SellerProfile (sellerProfileId is @unique above), so payment
+  // methods now live only on SellerProfile.paymentMethods and are read
+  // through the sellerProfile relation. Having two separate arrays that
+  // had to be merged/deduped for display (see PublicProfileHeader's old
+  // pushAll logic) was the exact duplicated-state problem this removes.
   availabilityStatus     ServiceAvailability @default(AVAILABLE)
   latitude               Decimal?            @db.Decimal(9, 6)
   longitude              Decimal?            @db.Decimal(9, 6)

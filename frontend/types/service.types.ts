@@ -41,7 +41,10 @@ export interface ServiceProviderDetails {
   serviceAreaCities: string[];
   workingHours: WorkingHours;
   contactPhone: string;
-  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
+  // UNIFY-PAYMENTS: no paymentMethods field here anymore — a provider's
+  // payment methods are its parent SellerProfile.paymentMethods (see
+  // ServiceProviderPublic.sellerProfile below). Managed only from the
+  // seller's own profile page now.
   availabilityStatus: ServiceAvailability;
   completedRequestsCount: number;
   /** Prisma Decimal(5,2) — string in JSON, same convention as SellerProfile.averageRating. */
@@ -55,7 +58,7 @@ export interface ServiceProviderDetails {
 
 /** GET /service-providers/:id — public page, includes parent seller trust data. */
 export type ServiceProviderPublic = ServiceProviderDetails & {
-  sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings'>;
+  sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings' | 'paymentMethods'>;
   listings: ServiceListing[];
 };
 
@@ -143,7 +146,9 @@ export type ServiceListingWithProvider = ServiceListing & {
   > & {
     // Epic 3.1: userId added so ServiceRequestButton can hide itself on
     // one's own listing — same self-request guard as ads/sellers already have.
-    sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'verified' | 'averageRating'>;
+    // UNIFY-PAYMENTS: paymentMethods added so ServiceListingDetail can
+    // read it here instead of the now-removed provider.paymentMethods.
+    sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'verified' | 'averageRating' | 'paymentMethods'>;
   };
 };
 
@@ -229,7 +234,6 @@ export interface CreateServiceProviderPayload {
   logoUrl?: string;
   latitude?: number;
   longitude?: number;
-  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
 }
 
 /** PATCH /service-providers/me. */

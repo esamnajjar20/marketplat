@@ -54,9 +54,14 @@ export function PublicProfileHeader({ user }: Props) {
         mergedMethods.push(m);
       }
     };
+    // UNIFY-PAYMENTS: serviceProviderDetails no longer has its own
+    // paymentMethods — a service provider's numbers are already
+    // included in seller.paymentMethods below (single source of
+    // truth). Store keeps its own separate list (a seller can run a
+    // store under a different set of numbers than their personal
+    // ones), so that source is still merged in here.
     pushAll((seller as { paymentMethods?: unknown }).paymentMethods);
     pushAll((seller.storeDetails as { paymentMethods?: unknown } | null)?.paymentMethods);
-    pushAll((seller.serviceProviderDetails as { paymentMethods?: unknown } | null)?.paymentMethods);
     return mergedMethods;
   }, [user.sellerProfile]);
 

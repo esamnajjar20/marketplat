@@ -206,7 +206,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
               />
             )}
             <StorePaymentMethods
-              paymentMethods={(listing.provider as { paymentMethods?: unknown }).paymentMethods}
+              paymentMethods={listing.provider.sellerProfile?.paymentMethods}
               entityName={listing.provider.businessName}
               fallbackName={listing.provider.businessName}
               fallbackPhone={listing.provider.contactPhone}
@@ -245,7 +245,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
               />
             )}
             <StorePaymentMethods
-              paymentMethods={(listing.provider as { paymentMethods?: unknown }).paymentMethods}
+              paymentMethods={listing.provider.sellerProfile?.paymentMethods}
               entityName={listing.provider.businessName}
               fallbackName={listing.provider.businessName}
               fallbackPhone={listing.provider.contactPhone}

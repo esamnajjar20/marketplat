@@ -146,7 +146,7 @@ export function ServiceProviderHeader({ provider }: Props) {
       </p>
 
       <StorePaymentMethods
-        paymentMethods={(provider as { paymentMethods?: unknown }).paymentMethods}
+        paymentMethods={provider.sellerProfile.paymentMethods}
         entityName={provider.businessName}
         fallbackName={provider.businessName}
         fallbackPhone={provider.contactPhone}

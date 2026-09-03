@@ -11,12 +11,18 @@ import { formatPhone } from '@/lib/formatters';
 import type { PublicProfileServiceProvider } from '@/types/user.types';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import type { ServiceAvailability } from '@/types/service.types';
+import type { StorePaymentMethodDto } from '@/types/store.types';
 
 interface Props {
   provider: PublicProfileServiceProvider;
   /** Profile owner userId — for share URL and public profile links. */
   profileUserId: string;
   isOwnProvider?: boolean;
+  // UNIFY-PAYMENTS: provider no longer carries its own paymentMethods —
+  // it's the parent seller's (PublicSellerProfile.paymentMethods),
+  // passed down from ProfileTabsSection since this component only
+  // receives the serviceProviderDetails slice, not the whole seller.
+  sellerPaymentMethods?: StorePaymentMethodDto[] | null;
 }
 
 const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
@@ -46,6 +52,7 @@ export function ProfileServiceProviderSummary({
   provider,
   profileUserId,
   isOwnProvider,
+  sellerPaymentMethods,
 }: Props) {
   const logo = getAvatarUrl(provider.logoUrl ?? '', 96);
   const shareUrl = `${APP_URL}${ROUTES.userProfile(profileUserId)}?tab=services`;
@@ -143,7 +150,7 @@ export function ProfileServiceProviderSummary({
       )}
 
       <StorePaymentMethods
-        paymentMethods={provider.paymentMethods}
+        paymentMethods={sellerPaymentMethods}
         entityName={provider.businessName}
         fallbackName={provider.businessName}
         fallbackPhone={provider.contactPhone}

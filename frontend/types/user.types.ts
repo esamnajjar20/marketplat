@@ -81,7 +81,8 @@ export interface PublicProfileServiceProvider {
   completedRequestsCount: number;
   /** Public contact — call / WhatsApp on the profile services tab. */
   contactPhone:           string;
-  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
+  // UNIFY-PAYMENTS: no paymentMethods here anymore — use the parent
+  // PublicSellerProfile.paymentMethods instead (single source of truth).
 }
 
 export interface PublicSellerProfile {

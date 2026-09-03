@@ -1,13 +1,10 @@
 import { z } from 'zod';
 
-const storePaymentMethodSchema = z.object({
-  id: z.string().min(1).max(64),
-  kind: z.enum(['jawwal', 'palpay', 'bank', 'custom']),
-  label: z.string().min(1).max(80),
-  accountName: z.string().min(1).max(100),
-  accountNumber: z.string().min(3).max(40),
-});
-
+// UNIFY-PAYMENTS: no local storePaymentMethodSchema here anymore — a
+// service provider's payment methods are now just its parent seller's
+// (sellers.validation.ts owns the one copy of this schema, since
+// sellers.service.ts is the only place paymentMethods is ever written
+// from). See ServiceProviderDetails' schema.prisma comment for why.
 
 const dayScheduleSchema = z
   .object({
@@ -55,7 +52,6 @@ export const updateServiceProviderSchema = z.object({
     serviceAreaCities: z.array(z.string().min(1)).min(1).max(30).optional(),
     workingHours: workingHoursSchema.optional(),
     contactPhone: z.string().min(6).max(30).optional(),
-    paymentMethods: z.array(storePaymentMethodSchema).max(20).nullable().optional(),
     availabilityStatus: z.enum(['AVAILABLE', 'BUSY', 'UNAVAILABLE']).optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),

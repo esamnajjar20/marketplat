@@ -94,6 +94,7 @@ export function ProfileTabsSection({ user }: Props) {
           provider={seller.serviceProviderDetails}
           profileUserId={user.id}
           isOwnProvider={isOwnProvider}
+          sellerPaymentMethods={seller.paymentMethods}
         />
       )}
 

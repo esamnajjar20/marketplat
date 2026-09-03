@@ -124,7 +124,9 @@ const publicUserSelect = {
           completedRequestsCount: true,
           // S3: public contact for call / WhatsApp (same visibility as store phone on store page)
           contactPhone: true,
-          paymentMethods: true,
+          // UNIFY-PAYMENTS: no paymentMethods here anymore — read
+          // sellerProfile.paymentMethods above instead (the single
+          // source of truth for both seller and service-provider).
         },
       },
     },

@@ -8,8 +8,6 @@ import { Button } from '@/components/shared/ui/Button';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
-import { StorePaymentMethodsEditor } from '@/components/stores/StorePaymentMethodsEditor';
-import { normalizePaymentMethods, type StorePaymentMethod } from '@/lib/storePaymentMethods';
 import { useUpdateServiceProvider, useUploadServiceProviderLogo } from '@/hooks/mutations/useServiceProviderMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
@@ -60,16 +58,11 @@ export function MyServiceProviderCard({ provider }: Props) {
   const currentUser = useAuthStore(selectUser);
 
   // FIX BUG-XX: updateProvider is shared between the availability-status
-  // Select, the working-hours save button, and the payment-methods save
-  // button below. Without this, saving one field disabled the others'
-  // controls too (isPending is mutation-wide, not per-field) — mirrors
-  // the same fix pattern as AdminUsersTable's
-  // pendingStatusUserId/pendingRoleUserId.
+  // Select and the working-hours save button below. Without this,
+  // saving one field disabled the other's controls too (isPending is
+  // mutation-wide, not per-field) — mirrors the same fix pattern as
+  // AdminUsersTable's pendingStatusUserId/pendingRoleUserId.
   const isSavingHours = updateProvider.isPending && 'workingHours' in (updateProvider.variables ?? {});
-  const isSavingPaymentMethods =
-    updateProvider.isPending &&
-    'paymentMethods' in (updateProvider.variables ?? {}) &&
-    !('workingHours' in (updateProvider.variables ?? {}));
 
   // FIX BUG-XX: MyServiceProviderCard (the only post-creation settings
   // view for a service provider) never rendered WorkingHoursEditor —
@@ -82,13 +75,9 @@ export function MyServiceProviderCard({ provider }: Props) {
   // existing, reusable WorkingHoursEditor to an explicit save action
   // here, same pattern as every other editable settings field.
   const [workingHours, setWorkingHours] = useState<WorkingHours>(provider.workingHours);
-  const [paymentMethods, setPaymentMethods] = useState<StorePaymentMethod[]>(() => normalizePaymentMethods((provider as { paymentMethods?: unknown }).paymentMethods));
   const [hoursError, setHoursError] = useState<string | undefined>();
 
   const hoursChanged = JSON.stringify(workingHours) !== JSON.stringify(provider.workingHours);
-  const paymentMethodsChanged =
-    JSON.stringify(paymentMethods) !==
-    JSON.stringify(normalizePaymentMethods((provider as { paymentMethods?: unknown }).paymentMethods));
 
   // Two independent save actions/buttons — not combined — so editing
   // one field doesn't require touching the other to submit it.
@@ -105,15 +94,6 @@ export function MyServiceProviderCard({ provider }: Props) {
     updateProvider.mutate(
       { workingHours },
       { onSuccess: () => { setWorkingHours(workingHours); toast.success('تم الحفظ'); } }
-    );
-  }
-
-  function savePaymentMethods() {
-    // Sent alone — separate from workingHours — so this button and
-    // "حفظ ساعات العمل" above submit independently of each other.
-    updateProvider.mutate(
-      { paymentMethods },
-      { onSuccess: () => { setPaymentMethods(paymentMethods); toast.success('تم الحفظ'); } }
     );
   }
 
@@ -203,19 +183,11 @@ export function MyServiceProviderCard({ provider }: Props) {
         </Select>
       </div>
 
-      <div className="space-y-1.5">
-        <StorePaymentMethodsEditor value={paymentMethods} onChange={setPaymentMethods} title="طرق دفع الخدمة" />
-        {paymentMethodsChanged && (
-          <Button
-            type="button"
-            size="sm"
-            onClick={savePaymentMethods}
-            disabled={isSavingPaymentMethods}
-          >
-            {isSavingPaymentMethods ? 'جارٍ الحفظ…' : 'حفظ طرق الدفع'}
-          </Button>
-        )}
-      </div>
+      {/* UNIFY-PAYMENTS: payment methods are no longer editable here —
+          they're managed once, from the seller's own profile page
+          (MySellerProfileCard), and shown read-only wherever this
+          provider is displayed publicly (ServiceProviderHeader,
+          ServiceListingDetail) via provider.sellerProfile.paymentMethods. */}
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium">ساعات العمل</label>
