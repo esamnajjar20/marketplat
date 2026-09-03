@@ -12,13 +12,21 @@
  * الوحيد أصلًا، وإعادة الاشتقاق منه بكل بحث يتجنب مشكلة تزامن نسختين من
  * نفس البيانات.
  *
- * ⚠️ حدود معروفة (نطاق المرحلة ٢ متعمّد أن يبقى صغيرًا):
- *  - يغطي فقط النوعين المخزّنين بحزمة المرحلة ١: 'products' و'stores'.
- *    بحث بـ type='ads' أو type='services' بدون نت يرجع صفر نتائج دائمًا
- *    (لا بيانات إعلانات/خدمات بالحزمة الأساسية حاليًا) — تحسين محتمل
- *    لمرحلة لاحقة لو ثبت أنه مطلوب فعليًا.
+ * ⚠️ حدود معروفة:
+ *  - PHASE-3 (تكملة): أُضيف تغطية 'ads' و'services' الآن، طالما
+ *    offlineCoreBundle.ts (المرحلة ١) يخزّن استجاباتهما ضمن CORE_CACHE —
+ *    نفس آلية products/stores بالضبط، فقط مصدر بيانات إضافي.
  *  - Product لا يحمل حقل rating بالـ API أصلًا (تحقق من types/product.types.ts)
  *    — نرجعه 0 دائمًا للمنتجات، مو تقريب أو اختراع.
+ *  - Ad لا يحمل description بقائمة /ads (AdListRow = Omit<AdWithAuthor,
+ *    'description'> — انظر ads.repository.ts's PERF FIX) — نرجعها ''
+ *    دائمًا للإعلانات بنفس منطق rating للمنتجات أعلاه، مو خطأ.
+ *  - ServiceListingWithProvider's provider Pick لا يحمل serviceAreaCities
+ *    (فقط id/businessName/logoUrl/availabilityStatus/contactPhone) —
+ *    city ترجع null دائمًا للخدمات، لأن الباك-إند وحده يعرف المدينة
+ *    الممثِّلة الصحيحة (serviceAreaCities[1] أو فلتر المدينة، انظر
+ *    search.repository.ts's serviceBranch's cityExpr) وليس لدينا بيانات
+ *    كافية لاشتقاقها محليًا بدون تخمين.
  *  - لا ترتيب صلة حقيقي (relevance ranking) — فقط: تطابق ببداية العنوان
  *    أولًا، ثم بقية التطابقات بترتيب البيانات كما وصلت من الـ API.
  */
@@ -58,6 +66,69 @@ function normalizeProduct(p: Record<string, unknown>): SearchResult | null {
   };
 }
 
+/** يحوّل صف Ad خام (من استجابة GET /ads المخزّنة) إلى SearchResult.
+ * seller id/type يطابقان تحديدًا منطق backend's search.repository.ts's
+ * adBranch (coalesce(sp.id, a.userId) + 'seller_profile' لو sellerProfileId
+ * موجود وإلا 'user') — نفس القاعدة، مطبّقة هنا على JSON الخام بدل SQL. */
+function normalizeAd(a: Record<string, unknown>): SearchResult | null {
+  if (typeof a.id !== 'string' || typeof a.title !== 'string') return null;
+  const sellerProfile = (a.sellerProfile ?? null) as Record<string, unknown> | null;
+  const user = (a.user ?? {}) as Record<string, unknown>;
+  const sellerProfileId = typeof a.sellerProfileId === 'string' ? a.sellerProfileId : null;
+  return {
+    id: a.id,
+    type: 'ad',
+    title: a.title,
+    description: '', // AdListRow يستبعد description عمدًا — انظر التعليق أعلى الملف.
+    image: Array.isArray(a.images) && typeof a.images[0] === 'string' ? a.images[0] : null,
+    city: typeof a.city === 'string' ? a.city : null,
+    rating: sellerProfile && typeof sellerProfile.averageRating === 'string'
+      ? parseFloat(sellerProfile.averageRating) || 0
+      : 0,
+    views: typeof a.views === 'number' ? a.views : 0,
+    price: typeof a.price === 'string' ? a.price : null,
+    seller: {
+      id: sellerProfileId ?? (typeof a.userId === 'string' ? a.userId : ''),
+      name: typeof user.name === 'string' ? user.name : '',
+      verified: Boolean(sellerProfile?.verified),
+      type: sellerProfileId ? 'seller_profile' : 'user',
+    },
+    url: `/ads/${a.id}`,
+    createdAt: typeof a.createdAt === 'string' ? a.createdAt : new Date(0).toISOString(),
+    distanceKm: null,
+  };
+}
+
+/** يحوّل صف ServiceListing خام (من استجابة GET /service-listings المخزّنة)
+ * إلى SearchResult. city=null دائمًا هنا — انظر التعليق أعلى الملف. */
+function normalizeService(s: Record<string, unknown>): SearchResult | null {
+  if (typeof s.id !== 'string' || typeof s.title !== 'string') return null;
+  const provider = (s.provider ?? {}) as Record<string, unknown>;
+  const providerSellerProfile = (provider.sellerProfile ?? {}) as Record<string, unknown>;
+  return {
+    id: s.id,
+    type: 'service',
+    title: s.title,
+    description: typeof s.description === 'string' ? s.description : '',
+    image: Array.isArray(s.images) && typeof s.images[0] === 'string' ? s.images[0] : null,
+    city: null, // provider Pick لا يحمل serviceAreaCities — انظر التعليق أعلى الملف.
+    rating: typeof providerSellerProfile.averageRating === 'string'
+      ? parseFloat(providerSellerProfile.averageRating) || 0
+      : 0,
+    views: typeof s.views === 'number' ? s.views : 0,
+    price: typeof s.price === 'string' ? s.price : null,
+    seller: {
+      id: typeof provider.id === 'string' ? provider.id : '',
+      name: typeof provider.businessName === 'string' ? provider.businessName : '',
+      verified: Boolean(providerSellerProfile.verified),
+      type: 'service_provider',
+    },
+    url: `/services/${s.id}`,
+    createdAt: typeof s.createdAt === 'string' ? s.createdAt : new Date(0).toISOString(),
+    distanceKm: null,
+  };
+}
+
 /** يحوّل صف Store خام (من استجابة GET /stores المخزّنة) إلى SearchResult. */
 function normalizeStore(s: Record<string, unknown>): SearchResult | null {
   if (typeof s.id !== 'string' || typeof s.name !== 'string') return null;
@@ -84,7 +155,7 @@ function normalizeStore(s: Record<string, unknown>): SearchResult | null {
   };
 }
 
-/** يقرأ استجابات products/stores المخزّنة بـ CORE_CACHE ويبني فهرسًا مسطّحًا.
+/** يقرأ استجابات products/stores/ads/services المخزّنة بـ CORE_CACHE ويبني فهرسًا مسطّحًا.
  * hasBundle=false يعني: لا توجد حزمة أساسية بعد إطلاقًا (مو أن البحث فاضي
  * لعدم تطابق) — الفرق يحدد لاحقًا هل نرمي الخطأ الأصلي أو نعرض "لا نتائج". */
 async function loadOfflineIndex(): Promise<{ entries: SearchResult[]; hasBundle: boolean }> {
@@ -92,36 +163,33 @@ async function loadOfflineIndex(): Promise<{ entries: SearchResult[]; hasBundle:
 
   const cache = await caches.open(CORE_CACHE);
   const urls = buildCoreUrls();
-  const productsUrl = urls.find((u) => u.key === 'products')?.url;
-  const storesUrl = urls.find((u) => u.key === 'stores')?.url;
+
+  // خريطة key -> دالة التطبيع الخاصة به — تستبدل أربع كتل متكررة
+  // (products/stores، والآن ads/services) بحلقة واحدة، بدل نسخ نفس منطق
+  // cache.match+json.catch+for-loop أربع مرات بشكل شبه متطابق.
+  const normalizers: Record<string, (row: Record<string, unknown>) => SearchResult | null> = {
+    products: normalizeProduct,
+    stores: normalizeStore,
+    ads: normalizeAd,
+    services: normalizeService,
+  };
 
   const entries: SearchResult[] = [];
   let hasBundle = false;
 
-  if (productsUrl) {
-    const res = await cache.match(productsUrl);
-    if (res) {
-      hasBundle = true;
-      const body = await res.json().catch(() => null) as { data?: unknown[] } | null;
-      if (body && Array.isArray(body.data)) {
-        for (const row of body.data) {
-          const normalized = normalizeProduct(row as Record<string, unknown>);
-          if (normalized) entries.push(normalized);
-        }
-      }
-    }
-  }
+  for (const { key, url } of urls) {
+    const normalize = normalizers[key];
+    if (!normalize) continue; // 'categories' مثلًا — لا يشارك بالفهرس.
 
-  if (storesUrl) {
-    const res = await cache.match(storesUrl);
-    if (res) {
-      hasBundle = true;
-      const body = await res.json().catch(() => null) as { data?: unknown[] } | null;
-      if (body && Array.isArray(body.data)) {
-        for (const row of body.data) {
-          const normalized = normalizeStore(row as Record<string, unknown>);
-          if (normalized) entries.push(normalized);
-        }
+    const res = await cache.match(url);
+    if (!res) continue;
+
+    hasBundle = true;
+    const body = await res.json().catch(() => null) as { data?: unknown[] } | null;
+    if (body && Array.isArray(body.data)) {
+      for (const row of body.data) {
+        const normalized = normalize(row as Record<string, unknown>);
+        if (normalized) entries.push(normalized);
       }
     }
   }
@@ -132,6 +200,8 @@ async function loadOfflineIndex(): Promise<{ entries: SearchResult[]; hasBundle:
 const SEARCH_TYPE_TO_RESULT_TYPE: Partial<Record<string, SearchResultType>> = {
   products: 'product',
   stores:   'store',
+  ads:      'ad',
+  services: 'service',
 };
 
 /**

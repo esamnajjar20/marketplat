@@ -20,9 +20,16 @@
  * الحل (مو تلقائي التزامن)، مو باگ.
  *
  * النطاق متعمّد أن يبقى صغيرًا وثابتًا (تصنيفات + صفحة منتجات واحدة + صفحة
- * متاجر واحدة + صورهم المصغّرة، ~25-30 طلب إجمالًا) — لا trimming ولا حد
- * أقصى مطلوب لأن الحجم صغير أصلًا ومُدار صراحة (يُستبدل بالكامل بكل
- * warmCoreBundle() جديدة، مو يتراكم).
+ * متاجر واحدة + صورهم المصغّرة) — لا trimming ولا حد أقصى مطلوب لأن الحجم
+ * صغير أصلًا ومُدار صراحة (يُستبدل بالكامل بكل warmCoreBundle() جديدة، مو
+ * يتراكم).
+ *
+ * PHASE-3 (تكملة): أُضيفت صفحتا ads وservice-listings الافتراضيتان بنفس
+ * المنطق (نفس URL اللي يفتحه المتصفح العام بدون فلتر) — الآن ~65-70 طلب
+ * إجمالًا (4 قوائم بيانات + صورها المصغّرة، لا يزال محدودًا بـ
+ * thumbnailUrls.slice(0, 24) بالأسفل). لا حاجة لتغيير extractThumbnailUrls:
+ * ads/service-listings يحملان images[] بنفس بنية products، فالفحص
+ * الموجود أصلًا (obj.images[0]) يغطيهما دون أي تعديل.
  */
 
 import { API_BASE_URL } from '@/lib/constants';
@@ -47,6 +54,19 @@ export function buildCoreUrls(): { key: string; url: string }[] {
       key: 'stores',
       // مطابق لقيم StoresGrid.tsx الافتراضية بدون أي فلتر من URL.
       url: `${API_BASE_URL}/stores?page=1&sortBy=createdAt&sortOrder=desc`,
+    },
+    {
+      key: 'ads',
+      // مطابق لقيم SearchResults.tsx الافتراضية (المتصفّح العام لـ/search
+      // بدون q) — بدون limit صريح فيُطبَّق افتراضي الباك-إند (20، انظر
+      // ads.service.ts). لا صفحة /ads عامة مخصصة منفصلة موجودة أصلًا.
+      url: `${API_BASE_URL}/ads?page=1&sortBy=createdAt&sortOrder=desc`,
+    },
+    {
+      key: 'services',
+      // مطابق لقيم ServiceListingsGrid.tsx الافتراضية بدون أي فلتر من URL
+      // (بدون limit صريح -> افتراضي الباك-إند 20، انظر service-listings.service.ts).
+      url: `${API_BASE_URL}/service-listings?page=1&sortBy=createdAt&sortOrder=desc`,
     },
   ];
 }
