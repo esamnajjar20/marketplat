@@ -86,7 +86,7 @@ export function ProfileTabsSection({ user }: Props) {
       {(value === 'overview' || value === 'ads') && <PublicProfileAds userId={user.id} />}
 
       {value === 'store' && seller?.storeDetails && (
-        <ProfileStoreSummary store={seller.storeDetails} />
+        <ProfileStoreSummary store={seller.storeDetails} sellerPaymentMethods={seller.paymentMethods} />
       )}
 
       {value === 'services' && seller?.serviceProviderDetails && (

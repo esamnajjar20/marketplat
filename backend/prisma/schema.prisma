@@ -695,7 +695,12 @@ model StoreDetails {
   // component. Optional: a store with no hours set just never renders
   // an open/closed badge (storesService.computeIsOpen returns null).
   workingHours    Json?
-  paymentMethods  Json?
+  // UNIFY-PAYMENTS-STORES: removed — a StoreDetails row always hangs
+  // off a SellerProfile (sellerProfileId is @unique above), so payment
+  // methods now live only on SellerProfile.paymentMethods and are read
+  // through the sellerProfile relation. Same exact duplicated-state
+  // problem, and same fix, as ServiceProviderDetails.paymentMethods'
+  // removal (see that field's comment / the UNIFY-PAYMENTS migration).
   // STORE-VIEWS (Foundation v1): lifetime counter, same convention as
   // Product.views — bumped fire-and-forget from getPublicStore, not
   // from the AnalyticsEvent pipeline (that table has no storeId column

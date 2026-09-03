@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { StoreStatus, StorePlan } from '@prisma/client';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
+// UNIFY-PAYMENTS-STORES: no local storePaymentMethodSchema here anymore
+// — a store's payment methods are now just its parent seller's
+// (sellers.validation.ts / shared/utils/paymentMethodSchema.ts owns the
+// one copy of this schema, since sellers.service.ts is the only place
+// paymentMethods is ever written from). See StoreDetails' schema.prisma
+// comment for why.
+
 // STORE-HOURS (Foundation v1): identical shape to
 // service-providers.validation.ts's workingHoursSchema — same
 // { sun: {open,close}|null, ... } convention deliberately reused so
@@ -13,15 +20,6 @@ const dayScheduleSchema = z
     close: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'close must be HH:mm'),
   })
   .nullable();
-
-
-const storePaymentMethodSchema = z.object({
-  id: z.string().min(1).max(64),
-  kind: z.enum(['jawwal', 'palpay', 'bank', 'custom']),
-  label: z.string().min(1).max(80),
-  accountName: z.string().min(1).max(100),
-  accountNumber: z.string().min(3).max(40),
-});
 
 export const workingHoursSchema = z.object({
   sun: dayScheduleSchema,
@@ -67,7 +65,6 @@ export const updateStoreSchema = z.object({
     latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
     longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
     workingHours: workingHoursSchema.optional(),
-    paymentMethods: z.array(storePaymentMethodSchema).max(20).nullable().optional(),
   }),
 });
 

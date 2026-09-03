@@ -66,7 +66,9 @@ export interface PublicProfileStore {
   city:          string;
   plan:          StorePlan;
   phone?:        string;
-  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
+  // UNIFY-PAYMENTS-STORES: no paymentMethods here anymore — use the
+  // parent PublicSellerProfile.paymentMethods instead (single source
+  // of truth, same as PublicProfileServiceProvider).
   _count: { followers: number; products: number };
 }
 

@@ -377,8 +377,10 @@ function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
         <Button asChild variant="ghost" className="w-full text-muted-foreground">
           <Link href={ROUTES.storeDetail(store.slug || store.id)}>عرض صفحة المتجر</Link>
         </Button>
+        {/* UNIFY-PAYMENTS-STORES: read from sellerProfile — store no
+            longer has its own paymentMethods column. */}
         <StorePaymentMethods
-          paymentMethods={(store as { paymentMethods?: unknown }).paymentMethods}
+          paymentMethods={store.sellerProfile.paymentMethods}
           entityName={store.name}
           fallbackName={store.name}
           fallbackPhone={store.phone}

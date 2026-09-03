@@ -108,8 +108,10 @@ const publicUserSelect = {
           city: true,
           plan: true,
           phone: true,
-          paymentMethods: true,
           _count: { select: { followers: true, products: true } },
+          // UNIFY-PAYMENTS-STORES: no paymentMethods here anymore —
+          // read sellerProfile.paymentMethods above instead (the same
+          // single source of truth serviceProviderDetails already uses).
         },
       },
       serviceProviderDetails: {

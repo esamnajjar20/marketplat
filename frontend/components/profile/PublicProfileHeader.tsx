@@ -44,25 +44,13 @@ export function PublicProfileHeader({ user }: Props) {
   const profilePaymentMethods = useMemo(() => {
     const seller = user.sellerProfile;
     if (!seller) return [] as StorePaymentMethod[];
-    const mergedMethods: StorePaymentMethod[] = [];
-    const seen = new Set<string>();
-    const pushAll = (raw: unknown) => {
-      for (const m of normalizePaymentMethods(raw)) {
-        const key = `${m.kind}:${m.accountNumber}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        mergedMethods.push(m);
-      }
-    };
-    // UNIFY-PAYMENTS: serviceProviderDetails no longer has its own
-    // paymentMethods — a service provider's numbers are already
-    // included in seller.paymentMethods below (single source of
-    // truth). Store keeps its own separate list (a seller can run a
-    // store under a different set of numbers than their personal
-    // ones), so that source is still merged in here.
-    pushAll((seller as { paymentMethods?: unknown }).paymentMethods);
-    pushAll((seller.storeDetails as { paymentMethods?: unknown } | null)?.paymentMethods);
-    return mergedMethods;
+    // UNIFY-PAYMENTS-STORES: storeDetails no longer has its own
+    // paymentMethods either (see ServiceProviderDetails' identical
+    // comment above from the original UNIFY-PAYMENTS pass) — both a
+    // service provider's and a store's numbers are now always just
+    // seller.paymentMethods, so the old merge/dedup across seller +
+    // storeDetails is gone; nothing left to merge.
+    return normalizePaymentMethods((seller as { paymentMethods?: unknown }).paymentMethods);
   }, [user.sellerProfile]);
 
   const fallbackPhone =

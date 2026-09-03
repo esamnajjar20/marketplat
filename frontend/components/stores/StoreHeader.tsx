@@ -214,8 +214,10 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         </div>
 
         {/* دفع فقط (بطاقات النت في الرئيسية) */}
+        {/* UNIFY-PAYMENTS-STORES: read from sellerProfile — store no
+            longer has its own paymentMethods column. */}
         <StorePaymentMethods
-          paymentMethods={(store as { paymentMethods?: unknown }).paymentMethods}
+          paymentMethods={store.sellerProfile.paymentMethods}
           entityName={store.name}
           storeName={store.name}
           fallbackName={store.name}

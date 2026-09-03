@@ -69,7 +69,15 @@ export type ProductWithStore = Product & {
  * store.sellerProfile — needed for contact/message without a second fetch). */
 export type ProductWithFullStore = Product & {
   store: StoreDetails & {
-    sellerProfile: Pick<SellerProfile, 'id' | 'userId' | 'verified' | 'averageRating' | 'totalRatings'>;
+    // UNIFY-PAYMENTS-STORES: paymentMethods added — StoreDetails no
+    // longer carries its own, so ProductDetail's StorePanel reads it
+    // from here instead (backend already includes the full
+    // sellerProfile relation, so this was already in the response —
+    // just missing from the type).
+    sellerProfile: Pick<
+      SellerProfile,
+      'id' | 'userId' | 'verified' | 'averageRating' | 'totalRatings' | 'paymentMethods'
+    >;
   };
   category: Pick<ProductCategory, 'id' | 'name' | 'nameAr' | 'slug'>;
   effectivePrice: EffectivePrice;

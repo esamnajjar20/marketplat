@@ -7,17 +7,23 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { ROUTES } from '@/lib/constants';
 import type { PublicProfileStore } from '@/types/user.types';
+import type { StorePaymentMethodDto } from '@/types/store.types';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 
 interface Props {
   store: PublicProfileStore;
+  // UNIFY-PAYMENTS-STORES: PublicProfileStore no longer carries its own
+  // paymentMethods — passed down separately from the parent seller
+  // profile, same pattern as ProfileServiceProviderSummary's
+  // sellerPaymentMethods prop.
+  sellerPaymentMethods?: StorePaymentMethodDto[] | null;
 }
 
 /**
  * UNIFIED-PROFILE: summary card for the profile's "المتجر" tab — not a
  * replacement for StoreHeader.tsx. Includes زر دفع واحد مثل تبويب الخدمة.
  */
-export function ProfileStoreSummary({ store }: Props) {
+export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
   const logo = getAvatarUrl(store.logoUrl ?? '', 96);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 800) : null;
 
@@ -53,7 +59,7 @@ export function ProfileStoreSummary({ store }: Props) {
       </Link>
 
       <StorePaymentMethods
-        paymentMethods={store.paymentMethods}
+        paymentMethods={sellerPaymentMethods}
         entityName={store.name}
         fallbackName={store.name}
         fallbackPhone={(store as { phone?: string }).phone}

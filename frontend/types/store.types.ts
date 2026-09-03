@@ -51,8 +51,10 @@ export interface StoreDetails {
   city: string;
   address: string | null;
   phone: string;
-  /** طرق الدفع التي يعرضها المتجر — JSON array */
-  paymentMethods?: StorePaymentMethodDto[] | null;
+  // UNIFY-PAYMENTS-STORES: no paymentMethods field here anymore — a
+  // store's payment methods are its parent SellerProfile.paymentMethods
+  // (see StoreWithSeller.sellerProfile below). Managed only from the
+  // seller's own profile page.
   status: StoreStatus;
   plan: StorePlan;
   featureRequestedAt?: string | null;
@@ -127,7 +129,6 @@ export type UpdateStorePayload = Partial<{
   latitude: number | null;
   longitude: number | null;
   workingHours: StoreWorkingHours;
-  paymentMethods: StorePaymentMethodDto[] | null;
 }>;
 
 /** GET /stores/me/analytics — owner-only. No orders/revenue/conversion:

@@ -93,6 +93,12 @@ export const storesRepository = {
       },
     }),
 
+  // UNIFY-PAYMENTS-STORES: paymentMethods removed from this signature —
+  // StoreDetails no longer has that column at all (see schema.prisma).
+  // The earlier fix here (routing null through Prisma.JsonNull) is now
+  // moot: there's nothing to null out on this model anymore. A store's
+  // payment methods are its parent seller's, updated only through
+  // sellersRepository.updateMyProfile.
   update: (
     id: string,
     data: Partial<{

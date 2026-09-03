@@ -173,14 +173,12 @@ export const storesService = {
     return store;
   },
 
+  // UNIFY-PAYMENTS-STORES: no paymentMethods handling here anymore —
+  // UpdateStoreInput no longer carries that field (see
+  // stores.validation.ts), so `input` forwards straight through.
   updateMyStore: async (userId: string, input: UpdateStoreInput): Promise<StoreDetails> => {
     const store = await requireOwnStore(userId);
-    const { paymentMethods, ...rest } = input;
-    const data: Record<string, unknown> = { ...rest };
-    if (paymentMethods !== undefined) {
-      data.paymentMethods = paymentMethods === null ? null : paymentMethods;
-    }
-    const updated = await storesRepository.update(store.id, data as Parameters<typeof storesRepository.update>[1]);
+    const updated = await storesRepository.update(store.id, input);
 
     // Gap #10: fire-and-forget, see createStore's own comment above.
     activityService.record({ userId, ...activityTemplates.storeUpdated(updated.id, updated.name) });

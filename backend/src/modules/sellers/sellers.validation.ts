@@ -1,17 +1,12 @@
 import { z } from 'zod';
 
-const storePaymentMethodSchema = z.object({
-  id: z.string().min(1).max(64),
-  kind: z.enum(['jawwal', 'palpay', 'bank', 'custom']),
-  label: z.string().min(1).max(80),
-  accountName: z.string().min(1).max(100),
-  accountNumber: z.string().min(3).max(40),
-});
-
 // FIX BUG-07: was a local mirror of admin.validation.ts's copy (EPIC
 // 1.1's comment said as much); now both import the same helper instead
 // of keeping two hand-synced copies.
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
+// FIX: was a local copy identical to stores.validation.ts's — see
+// paymentMethodSchema.ts's comment for the dedup rationale.
+import { storePaymentMethodSchema } from '../../shared/utils/paymentMethodSchema';
 
 export const adminGetSellersSchema = z.object({
   query: z.object({
