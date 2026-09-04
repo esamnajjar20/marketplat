@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
 import { AdCardSkeleton, AdListItemSkeleton } from '@/components/shared/skeletons';
@@ -39,6 +39,18 @@ interface Props {
 export function SearchResults({ categorySlug }: Props = {}) {
   const sp   = useSearchParams();
   const router = useRouter();
+  // FIX ADS-PAGE-01: mirrors BUG-06 below (SearchFilters.tsx/
+  // SearchSortBarWrapper.tsx already do this) — every base-URL fallback
+  // in this file used to hardcode ROUTES.search whenever categorySlug
+  // was absent, which was correct only because the sole other caller of
+  // this component with no categorySlug was /search itself. Now that
+  // app/(public)/ads/page.tsx also renders this component with no
+  // categorySlug, that assumption breaks: pagination, "load more", and
+  // the empty-state reset buttons would silently redirect a /ads user
+  // to /search instead of staying on /ads. Reading the actual current
+  // path (same convention already established here for the category
+  // case) fixes both callers at once without a new prop.
+  const pathname = usePathname();
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
@@ -170,9 +182,9 @@ export function SearchResults({ categorySlug }: Props = {}) {
                   size="sm"
                   onClick={() => {
                     if (hasActiveFilters && q) {
-                      router.push(`${ROUTES.search}?q=${encodeURIComponent(q)}`);
+                      router.push(`${pathname}?q=${encodeURIComponent(q)}`);
                     } else {
-                      router.push(ROUTES.search);
+                      router.push(pathname);
                     }
                   }}
                 >
@@ -205,7 +217,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
             onClick={() => {
               const params = new URLSearchParams(sp.toString());
               params.set('page', String(page + 1));
-              const base = categorySlug ? ROUTES.category(categorySlug) : ROUTES.search;
+              const base = categorySlug ? ROUTES.category(categorySlug) : pathname;
               router.push(`${base}?${params.toString()}`);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -217,7 +229,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl={categorySlug ? ROUTES.category(categorySlug) : ROUTES.search}
+          baseUrl={categorySlug ? ROUTES.category(categorySlug) : pathname}
           searchParams={searchParams} />
       )}
     </div>

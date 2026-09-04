@@ -23,7 +23,7 @@ describe('ExploreSheet', () => {
     render(<ExploreSheet open={true} onOpenChange={vi.fn()} />);
 
     expect(screen.getByRole('link', { name: /بحث شامل/ }).getAttribute('href')).toBe('/search');
-    expect(screen.getByRole('link', { name: /^الإعلانات/ }).getAttribute('href')).toBe('/search?type=ads');
+    expect(screen.getByRole('link', { name: /^الإعلانات/ }).getAttribute('href')).toBe('/ads');
     expect(screen.getByRole('link', { name: /المنتجات/ }).getAttribute('href')).toBe('/products');
     expect(screen.getByRole('link', { name: /الخدمات/ }).getAttribute('href')).toBe('/services');
     expect(screen.getByRole('link', { name: /^المتاجر/ }).getAttribute('href')).toBe('/stores');

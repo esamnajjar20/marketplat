@@ -15,6 +15,7 @@ export const ROUTES = {
   forgotPassword:'/forgot-password',
   resetPassword: '/reset-password',
   search:        '/search',
+  ads:           '/ads',
   adCreate:      '/ads/create',
   adDetail:      (id: string)   => `/ads/${id}`,
   productDetail: (id: string)   => `/products/${id}`,

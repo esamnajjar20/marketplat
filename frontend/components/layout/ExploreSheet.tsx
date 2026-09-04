@@ -20,20 +20,19 @@ import { ROUTES } from '@/lib/constants';
  * "بحث شامل" is added at the top of the requested list (not dropped):
  * this sheet replaces البحث's bottom-bar slot entirely, so the plain
  * "search everything" entry point still needs a home somewhere in
- * here or it regresses. الإعلانات/المنتجات route into the existing
- * unified /search tabs (?type=ads / ?type=products) since there's no
- * standalone "/ads" browse page — home already covers curated ad
- * discovery, so this is deliberately the full filterable browse view,
- * not a duplicate of Home. الخدمات/المتاجر route to their own
- * dedicated browse pages (richer than the search tabs — filters,
- * category chrome) to match how those verticals are already reached
- * from BROWSE_LINKS elsewhere. مقدمو الخدمة isn't a /search type at
- * all (it's a directory, not searchable ads/products), so it goes
- * straight to /service-providers.
+ * here or it regresses. المنتجات/الخدمات/المتاجر route to their own
+ * dedicated browse pages (filters, category chrome) to match how those
+ * verticals are already reached from BROWSE_LINKS elsewhere.
+ * ADD-ADS-PAGE: الإعلانات now does the same — app/(public)/ads/page.tsx
+ * gives ads that same dedicated-page treatment, replacing the old
+ * `${ROUTES.search}?type=ads` link this comment used to justify by
+ * "there's no standalone /ads browse page" (no longer true). مقدمو
+ * الخدمة isn't a /search type at all (it's a directory, not searchable
+ * ads/products), so it still goes straight to /service-providers.
  */
 const EXPLORE_LINKS = [
   { label: 'بحث شامل', href: ROUTES.search, icon: Search },
-  { label: 'الإعلانات', href: `${ROUTES.search}?type=ads`, icon: ListOrdered },
+  { label: 'الإعلانات', href: ROUTES.ads, icon: ListOrdered },
   { label: 'المنتجات', href: ROUTES.products, icon: Package },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },

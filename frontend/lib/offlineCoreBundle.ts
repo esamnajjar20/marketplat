@@ -97,9 +97,11 @@ export function buildCoreUrls(): { key: string; url: string }[] {
     },
     {
       key: 'ads',
-      // مطابق لقيم SearchResults.tsx الافتراضية (المتصفّح العام لـ/search
-      // بدون q) — بدون limit صريح فيُطبَّق افتراضي الباك-إند (20، انظر
-      // ads.service.ts). لا صفحة /ads عامة مخصصة منفصلة موجودة أصلًا.
+      // مطابق لقيم SearchResults.tsx الافتراضية (تصفّح عام بدون q) — بدون
+      // limit صريح فيُطبَّق افتراضي الباك-إند (20، انظر ads.service.ts).
+      // ADD-ADS-PAGE: نفس الرابط يخدم الآن أيضًا app/(public)/ads/page.tsx
+      // (تستخدم نفس ads/SearchResults.tsx بنفس القيم الافتراضية)، إضافة
+      // لتبويب /search?type=ads كما كان الحال سابقًا.
       url: `${API_BASE_URL}/ads?page=1&sortBy=createdAt&sortOrder=desc`,
     },
     {
