@@ -38,6 +38,7 @@ import { API_BASE_URL }  from '@/lib/constants';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { getCsrfToken } from '@/lib/csrf';
 import { toast } from 'sonner';
+import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 
 export const apiClient = axios.create({
   baseURL:         API_BASE_URL,
@@ -102,6 +103,14 @@ apiClient.interceptors.response.use(
     // changes needed, and no false success state anywhere in the app.
     const body = response.data as Record<string, unknown> | undefined;
     if (response.status === 202 && body?.queued === true) {
+      // FIX QUEUE-BADGE-01: هذه اللحظة الوحيدة بالصفحة التي "تعرف" أن طلبًا
+      // جديدًا دخل طابور sw.js — الطابور نفسه (IndexedDB) يُدار بالكامل
+      // داخل الـ SW ولا يبعث أي رسالة عند الإضافة (فقط عند QUEUE_REPLAYED).
+      // نطلق حدثًا مخصصًا هنا ليقرأه useQueuedRequestCount ويحدّث أي شارة
+      // "N بالانتظار" بالواجهة فورًا، بدل انتظار تنقّل المستخدم لصفحة /offline.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(QUEUE_UPDATED_EVENT));
+      }
       return Promise.reject({
         message:    typeof body.message === 'string' ? body.message : 'لا يوجد اتصال — سيُعاد إرسال العملية تلقائيًا عند عودة الاتصال.',
         statusCode: 202,

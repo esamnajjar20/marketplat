@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
 import { CreateSheet } from '@/components/layout/CreateSheet';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 
@@ -82,6 +83,12 @@ export function BottomNav() {
   // FIX PERSISTENT-OFFLINE-BADGE: تبقى ظاهرة طوال مدة الانقطاع الفعلية —
   // لا تُخفى بعد مهلة ثابتة كالشريط العلوي القديم (NetworkStatusBanner.tsx).
   const isOffline = !useOnlineStatus();
+  // FIX QUEUE-BADGE-01: عدّاد "طلبات بالانتظار" كان محصورًا بصفحة /offline —
+  // نفس نمط شارة "غير متصل" أعلاه، لكن كشارة رقم بزاوية الأيقونة بدل نص
+  // فوقها، حتى لا تتداخل مع شارة "غير متصل" حين تظهران معًا (تنقّل ناجح
+  // للطابور بعد عودة الاتصال قد يترك عناصر لم تُعَد بعد بينما isOffline
+  // أصبحت false، والعكس صحيح أيضًا أثناء انقطاع جديد).
+  const queuedCount = useQueuedRequestCount();
 
   const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
@@ -188,6 +195,15 @@ export function BottomNav() {
                 غير متصل
               </span>
             )}
+            {queuedCount > 0 && (
+              <span
+                role="status"
+                aria-label={`${queuedCount} طلب بالانتظار`}
+                className="absolute -top-1 -end-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm"
+              >
+                {queuedCount > 9 ? '9+' : queuedCount}
+              </span>
+            )}
           </span>
           حسابي
         </Link>
@@ -205,6 +221,15 @@ export function BottomNav() {
                 className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-medium leading-none text-destructive-foreground shadow-sm"
               >
                 غير متصل
+              </span>
+            )}
+            {queuedCount > 0 && (
+              <span
+                role="status"
+                aria-label={`${queuedCount} طلب بالانتظار`}
+                className="absolute -top-1 -end-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm"
+              >
+                {queuedCount > 9 ? '9+' : queuedCount}
               </span>
             )}
           </span>

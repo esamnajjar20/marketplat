@@ -14,6 +14,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useSearch } from '@/hooks/queries/useSearch';
 import { useProgressiveSearchRadius } from '@/hooks/queries/useProgressiveSearchRadius';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { formatRadiusLabel } from '@/lib/progressiveRadius';
 import { ROUTES } from '@/lib/constants';
@@ -30,6 +31,7 @@ import type { SearchSort, SearchType } from '@/types/search.types';
 export function SearchResults() {
   const sp = useSearchParams();
   const router = useRouter();
+  const isOnline = useOnlineStatus();
 
   const q          = sp.get('q') ?? undefined;
   const city       = sp.get('city') ?? undefined;
@@ -136,6 +138,36 @@ export function SearchResults() {
   }
 
   if (isError) {
+    // FIX SEARCH-OFFLINE-01: useSearch already falls back to a local
+    // substring index (lib/offlineSearchIndex.ts's searchOffline) built
+    // from CORE_CACHE when the network request fails — q/city/type
+    // filters DO match offline as long as a core bundle was ever warmed
+    // (see offlineCoreBundle.ts). isError here therefore does NOT mean
+    // "this specific search has filters" — searchOffline returns a
+    // normal (possibly empty) result whenever hasBundle is true,
+    // regardless of filters, and that path never reaches this branch at
+    // all. isError only fires when either (a) it's a genuine online
+    // server error, or (b) hasBundle is false — no core bundle has ever
+    // been cached (e.g. app opened for the first time while offline, or
+    // storage was cleared) — in which case there's nothing local to
+    // fall back to no matter what the user searches for. The generic
+    // "حدث خطأ أثناء تحميل النتائج" + a "إعادة المحاولة" button that
+    // cannot succeed offline didn't distinguish this case at all.
+    if (!isOnline) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <p className="text-destructive">البحث يحتاج اتصال بالإنترنت</p>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            لا توجد بيانات محفوظة على الجهاز للبحث بدون نت بعد. افتح التطبيق
+            وأنت متصل مرة واحدة على الأقل ليتوفر بحث أساسي لاحقًا بدون اتصال.
+          </p>
+          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+            إعادة المحاولة
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <p className="text-destructive">حدث خطأ أثناء تحميل النتائج</p>
