@@ -14,7 +14,7 @@
  * بقائهم على نسخة قديمة من التطبيق (bug شائع في PWAs المبنية بسرعة).
  */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -163,6 +163,56 @@ function isApiRequest(url) {
   // يطابق نمط API_BASE_URL في lib/constants.ts (باك-إند على origin مختلف
   // عادة، لذا لا نتحقق من نفس الـ origin فقط بل من مسار /api/).
   return url.pathname.includes('/api/');
+}
+
+// ── PHASE-3-B: تنقّل SPA (soft navigation) لمسارات آمنة محددة ────
+//
+// نفس نطاق lib/offlineRouteShells.ts's CORE_ROUTES بالضبط (يجب مطابقتها
+// يدويًا — sw.js ملف خام لا يستورد من كود التطبيق، نفس القيد الموثّق هناك).
+//
+// المشكلة: تنقّل SPA (المستخدم فاتح التطبيق فعليًا، يضغط رابط لمسار لم
+// يُزَر بهذي الجلسة) لا يرسل mode:'navigate' — Next.js App Router يرسل
+// fetch عادي برأس RSC:'1' مع query param `_rsc=<hash>` مشتق من route state
+// tree *الأصل* (مو الوجهة)، واستجابة الخادم تحمل Vary: RSC/
+// Next-Router-State-Tree/... — فمطابقة Cache API's الحرفية بالـ URL (اللي
+// يعتمدها الفرع الأخير SWR أدناه) تكاد لا تصيب أبدًا لتنقّل جديد، حتى لو
+// warmRouteShells خزّنت مستند navigate عادي لنفس المسار مسبقًا (URL مختلف).
+// مصدر هذا التحليل: nextjs.org/docs/app/guides/cdn-caching + مصدر
+// fetch-server-response.ts المنشور (Next 16.3.1، مطابق لنسخة المشروع).
+//
+// الحل: مفتاح كاش ثابت منفصل عن URL الطلب الحرفي (`{path}?__offline_rsc_shell`)
+// بدل الاعتماد على تطابق URL — ونحذف رأس Vary من الاستجابة قبل التخزين
+// (وإلا Cache API's مطابقة Vary الداخلية سترفض المطابقة حتى بمفتاح مطابق).
+// طلب RSC:'1' بدون Next-Router-State-Tree يُرجع حمولة كاملة مستقلة بذاتها
+// حسب توثيق Next — فنسخة واحدة مخزّنة لكل مسار صالحة بغض النظر عن مسار
+// التنقّل الأصلي الذي أنشأها.
+//
+// عند فشل الشبكة وعدم وجود نسخة مخزّنة: نترك الطلب يُرفض (throw) بدل اختراع
+// Response — السلوك الافتراضي الموثّق لـ Next.js Router عند فشل fetch RSC هو
+// التراجع لـ full browser navigation، والتي يعالجها فرع mode:'navigate'
+// أعلاه بشكل صحيح (fallback لصفحة /offline أو نسخة HTML مخزّنة). لم يُختبَر
+// هذا فعليًا بمتصفح حقيقي (لا dev server متاح وقت الكتابة) — إن لاحظت سلوكًا
+// غير متوقع بعد نشره، افحص Network tab لتأكيد شكل طلب RSC الفعلي مطابق
+// لما افترضناه هنا.
+
+const RSC_SHELL_ROUTES = ['/products', '/stores', '/search', '/categories'];
+
+function rscShellKey(pathname) {
+  return `${pathname}?__offline_rsc_shell`;
+}
+
+function isRscShellRequest(request, url) {
+  return request.headers.get('RSC') === '1' && RSC_SHELL_ROUTES.includes(url.pathname);
+}
+
+async function stripVaryAndClone(response) {
+  const headers = new Headers(response.headers);
+  headers.delete('Vary');
+  return new Response(await response.clone().blob(), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 // ── استراتيجية: Stale-While-Revalidate (App Shell) ──────────────
@@ -457,6 +507,31 @@ self.addEventListener('fetch', (event) => {
             }),
             { status: 202, headers: { 'Content-Type': 'application/json' } },
           );
+        }
+      })(),
+    );
+    return;
+  }
+
+  // PHASE-3-B: طلب RSC لتنقّل SPA على أحد المسارات الآمنة الأربعة —
+  // معالجة بمفتاح ثابت منفصل عن URL الطلب الحرفي (انظر التعليق أعلى القسم).
+  if (isRscShellRequest(request, url)) {
+    event.respondWith(
+      (async () => {
+        try {
+          const response = await fetch(request);
+          if (response && response.ok) {
+            const cache = await caches.open(STATIC_CACHE);
+            await cache.put(rscShellKey(url.pathname), await stripVaryAndClone(response));
+          }
+          return response;
+        } catch {
+          const cache = await caches.open(STATIC_CACHE);
+          const cached = await cache.match(rscShellKey(url.pathname));
+          if (cached) return cached;
+          // لا يوجد كاش — نترك الطلب يُرفض بدل اختراع Response (انظر
+          // التعليق أعلى القسم لسبب هذا القرار).
+          throw new Error('offline: no cached RSC shell for this route');
         }
       })(),
     );

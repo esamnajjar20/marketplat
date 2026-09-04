@@ -34,7 +34,7 @@
 
 import { API_BASE_URL } from '@/lib/constants';
 
-export const CORE_CACHE = 'market-core-v3'; // يجب مطابقة CACHE_VERSION بـ public/sw.js
+export const CORE_CACHE = 'market-core-v4'; // يجب مطابقة CACHE_VERSION بـ public/sw.js
 const LAST_WARMED_KEY = 'marketplat:core-bundle:last-warmed';
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 ساعات — يكفي لبيانات "تصفح عام"
 
