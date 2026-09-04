@@ -85,7 +85,32 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // FIX QUEUE-UX-01: sw.js queues an offline mutation (POST/PUT/PATCH/
+    // DELETE it couldn't send) and answers the page with 202
+    // {queued: true, message}, precisely so the request doesn't fail
+    // silently. But axios treats any 2xx as success, so without this every
+    // mutation hook's onSuccess ran as if the operation actually reached
+    // the server: "تم نشر الإعلان بنجاح" toasts, redirects to the new
+    // resource's page, cache invalidation for data that was never written —
+    // for a request that, offline, never left the device. Centralising the
+    // fix here (the one place already responsible for cross-cutting
+    // response handling, e.g. the 401 refresh flow below) means every
+    // existing `onError: (err) => toast.error(parseApiError(err).message)`
+    // in every mutation hook picks this up automatically and shows the
+    // SW's own honest "queued, will retry" message instead — no per-hook
+    // changes needed, and no false success state anywhere in the app.
+    const body = response.data as Record<string, unknown> | undefined;
+    if (response.status === 202 && body?.queued === true) {
+      return Promise.reject({
+        message:    typeof body.message === 'string' ? body.message : 'لا يوجد اتصال — سيُعاد إرسال العملية تلقائيًا عند عودة الاتصال.',
+        statusCode: 202,
+        code:       'OFFLINE_QUEUED',
+        queued:     true,
+      });
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const isRefreshCall = original?.url?.includes('/auth/refresh');

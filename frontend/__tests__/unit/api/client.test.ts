@@ -379,4 +379,42 @@ describe('api/client.ts — silent refresh on 401', () => {
 
     expect(protectedCallCount).toBe(2);
   });
+
+  // FIX QUEUE-UX-01: sw.js answers an offline-queued mutation with
+  // 202 {queued:true, message} instead of a network error, precisely so
+  // it doesn't look like a hard failure. Axios treats any 2xx as success
+  // by default, so without the interceptor change this resolved exactly
+  // like a real created/updated resource — every mutation hook's
+  // onSuccess (toast "تم نشر الإعلان بنجاح", redirect to the new
+  // resource, cache invalidation) fired for a write that never reached
+  // the server. Asserted directly against the real interceptor (MSW,
+  // same as every other test in this file) rather than against sw.js
+  // itself, since sw.js only runs in a real browser/SW context.
+  it('rejects a 202 {queued:true} response instead of resolving it as success', async () => {
+    getMswServer()?.use(
+      http.post(`${API_BASE_URL}/ads`, () =>
+        HttpResponse.json(
+          { queued: true, message: 'لا يوجد اتصال بالإنترنت — سيُعاد إرسال الطلب تلقائيًا عند عودة الاتصال.' },
+          { status: 202 },
+        ),
+      ),
+    );
+
+    await expect(apiClient.post('/ads', {})).rejects.toMatchObject({
+      statusCode: 202,
+      code: 'OFFLINE_QUEUED',
+      queued: true,
+      message: 'لا يوجد اتصال بالإنترنت — سيُعاد إرسال الطلب تلقائيًا عند عودة الاتصال.',
+    });
+  });
+
+  it('does not reject an ordinary 202 response that is not the offline queue shape', async () => {
+    getMswServer()?.use(
+      http.post(`${API_BASE_URL}/ads`, () =>
+        HttpResponse.json({ success: true, data: { id: 'ad-1' } }, { status: 202 }),
+      ),
+    );
+
+    await expect(apiClient.post('/ads', {})).resolves.toMatchObject({ status: 202 });
+  });
 });

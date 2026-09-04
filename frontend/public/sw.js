@@ -489,10 +489,21 @@ self.addEventListener('fetch', (event) => {
     // بدل فشله بصمت وفقدان عمل المستخدم — هذا هو جوهر متطلب "إنترنت ضعيف".
     event.respondWith(
       (async () => {
+        // FIX SW-CRITICAL-04: request.clone() MUST happen before fetch(request).
+        // Passing a Request to fetch() disturbs/locks its body stream as soon
+        // as the fetch is dispatched — regardless of whether it ultimately
+        // succeeds or fails. Cloning only inside the catch block (after fetch
+        // already ran) throws "Failed to execute 'clone' on 'Request': Request
+        // body is already used", which aborts before queueFailedRequest() ever
+        // runs. Net effect: every offline POST/PUT/PATCH/DELETE silently failed
+        // to queue — the entire "queued/replayed automatically" promise was a
+        // no-op for any mutation with a body. Cloning up front avoids this
+        // regardless of outcome.
+        const queuedCopy = request.clone();
         try {
           return await fetch(request);
         } catch {
-          await queueFailedRequest(request.clone());
+          await queueFailedRequest(queuedCopy);
           if ('sync' in self.registration) {
             try {
               await self.registration.sync.register('replay-queue');

@@ -47,8 +47,15 @@ export function buildCoreUrls(): { key: string; url: string }[] {
     { key: 'categories', url: `${API_BASE_URL}/categories` },
     {
       key: 'products',
-      // مطابق لقيم ProductsGrid.tsx الافتراضية بدون أي فلتر من URL.
-      url: `${API_BASE_URL}/products?page=1&limit=12&sortBy=createdAt&sortOrder=desc`,
+      // FIX CACHE-KEY-01: ترتيب المعاملات هنا يجب يطابق حرفيًا الترتيب اللي
+      // axios يبنيه فعليًا من كائن params في ProductsGrid.tsx —
+      // { search, page, city, sortBy, sortOrder, hasPromotion, limit: 12 }
+      // — search/city/hasPromotion غير معرّفة بالتصفح الافتراضي فتُحذف،
+      // فالترتيب الفعلي يطلع page→sortBy→sortOrder→limit (limit أخيرًا،
+      // مو ثانيًا). كان limit موضوع بالمرتبة الثانية هنا فـ Cache API's
+      // مطابقة السلسلة الحرفية للـ URL كانت تفشل دائمًا لهذا الطلب تحديدًا
+      // (miss دائم) رغم إنه محفوظ فعليًا بـ CORE_CACHE.
+      url: `${API_BASE_URL}/products?page=1&sortBy=createdAt&sortOrder=desc&limit=12`,
     },
     {
       key: 'stores',

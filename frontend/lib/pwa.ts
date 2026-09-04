@@ -33,6 +33,13 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   // لا تسجيل في وضع التطوير لتفادي تعارضات HMR مع الكاش — القيمة
   // NEXT_PUBLIC_ENABLE_SW_DEV تسمح باختبار الـ SW يدويًا عند الحاجة.
   if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ENABLE_SW_DEV !== 'true') {
+    // FIX PWA-DEV-01: this guard is correct (avoids HMR/SW cache conflicts)
+    // but was previously silent — testing offline/PWA behavior under
+    // `next dev` looked broken with zero explanation. Log once so it's
+    // discoverable without reading source.
+    console.info(
+      '[PWA] Service Worker skipped in development. Set NEXT_PUBLIC_ENABLE_SW_DEV=true in .env.local to test offline/PWA behavior locally.',
+    );
     return null;
   }
 

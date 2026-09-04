@@ -39,6 +39,18 @@ export interface ParsedError {
    */
   code?: string;
   /**
+   * FIX QUEUE-UX-01: true when this "error" is actually the SW's offline
+   * queue accepting a mutation it couldn't send yet (see client.ts's
+   * response interceptor, which turns the SW's 202 {queued:true} response
+   * into a rejection carrying this shape). Every mutation hook's existing
+   * `onError: (err) => toast.error(parseApiError(err).message)` already
+   * handles this correctly with zero per-hook changes — this flag exists
+   * so any call site that wants to react differently (e.g. skip an error
+   * icon, show a neutral/offline icon instead) can opt in without parsing
+   * `code` string-by-string.
+   */
+  queued?: boolean;
+  /**
    * Field-keyed validation messages, when the failure was a Zod
    * validation error (400 with a body.errors object). Keys are the
    * bare field name (e.g. "title", "sortBy") — the "body."/"query."/
