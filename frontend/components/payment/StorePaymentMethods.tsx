@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Banknote, Phone, BookmarkPlus, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Banknote, Phone, BookmarkPlus, Copy, Check, ChevronLeft, ChevronRight, Store, User } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import {
@@ -72,6 +72,10 @@ export function StorePaymentMethods({
   const [selected, setSelected] = useState<StorePaymentMethod | null>(null);
   const [amount, setAmount] = useState('');
   const [copied, setCopied] = useState(false);
+  // FIX PAY-RECIPIENT-01: نفس خيار "تاجر / صديق" الموجود بخطوة USSD
+  // بالصفحة الرئيسية (PayWithQRDialog) — الافتراضي 'merchant' يحافظ على
+  // السلوك السابق لمن لا يغيّر الاختيار، لكنه الآن قابل للتبديل بدل ثابت.
+  const [recipient, setRecipient] = useState<'friend' | 'merchant'>('merchant');
 
   if (methods.length === 0) return null;
 
@@ -81,6 +85,7 @@ export function StorePaymentMethods({
       setSelected(null);
       setAmount('');
       setCopied(false);
+      setRecipient('merchant');
     }
   }
 
@@ -112,7 +117,7 @@ export function StorePaymentMethods({
       toast.error('أدخل المبلغ بالشيكل');
       return;
     }
-    dialStoreMethodUssd(selected, amount);
+    dialStoreMethodUssd(selected, amount, recipient);
   }
 
   return (
@@ -223,6 +228,38 @@ export function StorePaymentMethods({
               {supportsUssd(selected.kind) && (
                 <div className="space-y-2 border-t pt-3">
                   <p className="text-sm font-medium">دفع عبر USSD</p>
+
+                  <div className="grid grid-cols-2 gap-2" role="group" aria-label="الدفع لتاجر أم لصديق؟">
+                    <button
+                      type="button"
+                      onClick={() => setRecipient('merchant')}
+                      aria-pressed={recipient === 'merchant'}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition',
+                        recipient === 'merchant'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted',
+                      )}
+                    >
+                      <Store className="h-3.5 w-3.5" aria-hidden />
+                      تاجر / بائع
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRecipient('friend')}
+                      aria-pressed={recipient === 'friend'}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition',
+                        recipient === 'friend'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted',
+                      )}
+                    >
+                      <User className="h-3.5 w-3.5" aria-hidden />
+                      صديق
+                    </button>
+                  </div>
+
                   <Input
                     placeholder="المبلغ بالشيكل"
                     value={amount}

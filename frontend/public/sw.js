@@ -310,9 +310,20 @@ async function handleMutation(request) {
   try {
     return await fetch(request);
   } catch {
+    // FIX OFFLINE-ADS-01: كان الجسم يُقرأ عبر .text()، وهذا يفكّ ترميز
+    // البايتات كـ UTF-8 قبل إعادة تخزينها — عملية غير عكسية لبيانات
+    // ثنائية. طلبات إنشاء/تعديل الإعلانات (وأي رفع صور آخر) هي
+    // multipart/form-data وتحمل بايتات صور خامة ضمن نفس الجسم النصي
+    // ظاهريًا؛ .text() كان يُتلف تلك البايتات بصمت (كل بايت غير صالح
+    // UTF-8 يُستبدل بحرف ), فيصل السيرفر لاحقًا صورة تالفة أو يفشل تحليل
+    // multipart أصلاً — أي أن "طابور الأوفلاين" كان يبتلع الطلب بصمت وكأنه
+    // نجح (202 queued) بينما هو فعليًا مفقود عمليًا عند إعادة الإرسال.
+    // .blob() يحفظ البايتات كما هي تمامًا؛ IndexedDB يخزّن Blob مباشرة
+    // (structured clone) و fetch() يقبله كـ body دون أي تحويل إضافي.
     let body = null;
     try {
-      body = await requestForQueue.text();
+      const blob = await requestForQueue.blob();
+      body = blob.size > 0 ? blob : null;
     } catch {
       body = null;
     }

@@ -77,18 +77,34 @@ export function normalizePaymentMethods(raw: unknown): StorePaymentMethod[] {
   return out;
 }
 
-/** USSD لتاجر (المتجر) — يحتاج مبلغ */
+/**
+ * USSD لطريقة دفع متجر/ملف شخصي — يحتاج مبلغ ونوع المستلم.
+ *
+ * FIX PAY-RECIPIENT-01: كان النوع مثبّتًا دائمًا على 'merchant'، بافتراض
+ * أن كل رقم محفوظ بمتجر أو ملف شخصي هو حساب تاجر مسجَّل. ليس هذا صحيحًا
+ * دائمًا — كثير من المتاجر الصغيرة وأصحاب الملفات الشخصية (البائعين
+ * الأفراد) يستخدمون رقم جوال بي/بال بي شخصيًا عاديًا، وكود USSD
+ * لتحويل "لتاجر" يختلف عن كود "لصديق" (انظر buildUssd بـ
+ * lib/paymentStorage.ts) — نفس الفرق الموجود أصلاً بخطوة 'ussd-type' في
+ * PayWithQRDialog.tsx بالصفحة الرئيسية. الآن يختار المستخدم النوع
+ * الصحيح بدل افتراض خاطئ صامت قد يُرسل المبلغ بكود غير مطابق لنوع الحساب.
+ */
 export function buildStoreMethodUssd(
   method: StorePaymentMethod,
   amount: string,
+  recipient: 'friend' | 'merchant',
 ): string | null {
   if (!supportsUssd(method.kind)) return null;
   const payMethod = method.kind as 'jawwal' | 'palpay';
-  return buildUssd(payMethod, 'merchant', method.accountNumber, amount);
+  return buildUssd(payMethod, recipient, method.accountNumber, amount);
 }
 
-export function dialStoreMethodUssd(method: StorePaymentMethod, amount: string) {
-  const code = buildStoreMethodUssd(method, amount);
+export function dialStoreMethodUssd(
+  method: StorePaymentMethod,
+  amount: string,
+  recipient: 'friend' | 'merchant',
+) {
+  const code = buildStoreMethodUssd(method, amount, recipient);
   if (!code) return;
   window.location.href = ussdTelHref(code);
 }
