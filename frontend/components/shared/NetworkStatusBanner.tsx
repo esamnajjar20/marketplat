@@ -2,23 +2,24 @@
 
 /**
  * شريط حالة الشبكة — أعلى الصفحة، مؤقت، وقابل للإغلاق.
+ *
+ * FIX PERSISTENT-OFFLINE-BADGE: حالة "غير متصل" لم تعد تُعرض هنا كرسالة
+ * حمراء مؤقتة (8 ثوانٍ) تختفي رغم استمرار انقطاع الاتصال — استُبدلت بإشارة
+ * دائمة فوق زر القائمة (BottomNav.tsx) تبقى ظاهرة طوال مدة الانقطاع الفعلية
+ * لا فترة ثابتة. هذا الملف الآن يعرض فقط تأكيد "عاد الاتصال" العابر (وهو
+ * إشعار إيجابي عابر بطبيعته، لا حالة مستمرة تحتاج إشارة دائمة).
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { WifiOff, Wifi, X } from 'lucide-react';
+import { Wifi, X } from 'lucide-react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
-type BannerState = 'offline' | 'back' | null;
-
-/** مدة الظهور بالميلي ثانية */
-const DURATION_MS: Record<Exclude<BannerState, null>, number> = {
-  offline: 8000,
-  back: 3500,
-};
+const BACK_DURATION_MS = 3500;
 
 export function NetworkStatusBanner() {
-  const [state, setState] = useState<BannerState>(null);
-  /** المستخدم أغلق الشريط — لا نعيده إلا عند تغيّر حالة الشبكة */
-  const dismissedRef = useRef<BannerState | null>(null);
+  const isOnline = useOnlineStatus();
+  const [visible, setVisible] = useState(false);
+  const wasOnlineRef = useRef(isOnline);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function clearHideTimer() {
@@ -28,83 +29,37 @@ export function NetworkStatusBanner() {
     }
   }
 
-  function show(next: BannerState) {
-    if (!next) {
+  useEffect(() => {
+    // انتقال فعلي من غير-متصل إلى متصل فقط — لا نعرضها عند التركيب الأول
+    // حتى لو كان المستخدم متصلًا أصلًا (لا يوجد "عودة" لعرضها هنا).
+    if (!wasOnlineRef.current && isOnline) {
       clearHideTimer();
-      setState(null);
-      return;
+      setVisible(true);
+      hideTimerRef.current = setTimeout(() => {
+        setVisible(false);
+        hideTimerRef.current = null;
+      }, BACK_DURATION_MS);
     }
-    // إذا أغلق المستخدم نفس الحالة، لا نعيدها حتى تتغير الشبكة
-    if (dismissedRef.current === next) return;
+    wasOnlineRef.current = isOnline;
 
-    clearHideTimer();
-    setState(next);
-    hideTimerRef.current = setTimeout(() => {
-      setState(null);
-      hideTimerRef.current = null;
-    }, DURATION_MS[next]);
-  }
+    return clearHideTimer;
+  }, [isOnline]);
 
   function dismiss() {
-    dismissedRef.current = state;
     clearHideTimer();
-    setState(null);
+    setVisible(false);
   }
 
-  useEffect(() => {
-    const onOffline = () => {
-      dismissedRef.current = null;
-      show('offline');
-    };
-
-    const onOnline = () => {
-      dismissedRef.current = null;
-      show('back');
-    };
-
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      show('offline');
-    }
-
-    window.addEventListener('offline', onOffline);
-    window.addEventListener('online', onOnline);
-
-    return () => {
-      clearHideTimer();
-      window.removeEventListener('offline', onOffline);
-      window.removeEventListener('online', onOnline);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!state) return null;
-
-  const barBase =
-    'fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-2 px-3 py-2.5 text-center text-sm shadow-md pt-[max(0.5rem,env(safe-area-inset-top))]';
-
-  const styles: Record<Exclude<BannerState, null>, string> = {
-    offline: 'bg-destructive text-destructive-foreground',
-    back: 'bg-emerald-600 text-white',
-  };
-
-  const messages: Record<Exclude<BannerState, null>, { icon: typeof Wifi; text: string }> = {
-    offline: {
-      icon: WifiOff,
-      text: 'لا يوجد اتصال بالإنترنت — سيتم استئناف التحديث عند عودة الشبكة',
-    },
-    back: {
-      icon: Wifi,
-      text: 'عاد الاتصال',
-    },
-  };
-
-  const { icon: Icon, text } = messages[state];
+  if (!visible) return null;
 
   return (
-    <div role="status" className={`${barBase} ${styles[state]}`}>
+    <div
+      role="status"
+      className="fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-2 px-3 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] text-center text-sm shadow-md bg-emerald-600 text-white"
+    >
       <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 pe-8">
-        <Icon className="h-4 w-4 shrink-0" aria-hidden />
-        <span className="leading-snug">{text}</span>
+        <Wifi className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="leading-snug">عاد الاتصال</span>
       </span>
       <button
         type="button"

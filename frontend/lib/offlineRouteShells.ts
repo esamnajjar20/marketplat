@@ -38,7 +38,19 @@
  */
 
 const STATIC_CACHE = 'market-static-v4'; // يجب مطابقة CACHE_VERSION بـ public/sw.js
-const CORE_ROUTES = ['/products', '/stores', '/search', '/categories'];
+// '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
+// `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
+// 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
+// RecentProductsSection.tsx's isAuth يُقرأ من Zustand store بعد الـ
+// hydration، مو من HTML/RSC مُخصَّص بالسيرفر، فالـ shell المخزَّن نفسه
+// لكل الزوار سواء بسواء تمامًا كباقي المسارات الأربعة).
+// '/services' أُضيفت لاحقًا (نفس الفحص: لا `dynamic`، metadata ثابت،
+// ServiceListingsGrid/ServiceCategoryFilter كلاهما 'use client'). لا وجود
+// لصفحة "/ads" عامة منفصلة لإضافتها معها — تصفّح الإعلانات العام يتم عبر
+// /search نفسها (موجودة أصلًا بالأسفل)؛ المسار الوحيد المسمّى "ads" بـ
+// lib/constants.ts هو /admin/ads وهو محمي ولا يجوز تخزينه إطلاقًا (انظر
+// isProtectedPage بـ public/sw.js).
+const CORE_ROUTES = ['/', '/products', '/stores', '/search', '/categories', '/services'];
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`

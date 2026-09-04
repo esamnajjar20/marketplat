@@ -354,7 +354,25 @@ async function handleMutation(request) {
 
 // ── دورة حياة الـ Service Worker ────────────────────────────────
 
-self.addEventListener('install', () => {
+self.addEventListener('install', (event) => {
+  // FIX OFFLINE-PRECACHE: بدون هذا، cache.match(OFFLINE_URL) بـ
+  // staleWhileRevalidate/handleProtectedPage يفشل دائمًا حتى يزور المستخدم
+  // /offline بنفسه وهو أونلاين ولو مرة — يعني أول انقطاع اتصال فعلي
+  // (بالضبط اللحظة اللي الصفحة مصمَّمة لأجلها) يُظهر خطأ شبكة خام بدل
+  // الصفحة المصمَّمة. لا self.skipWaiting() هنا رغم ذلك — التفعيل يبقى
+  // بإذن المستخدم فقط، انظر التعليق أسفل.
+  event.waitUntil(
+    (async () => {
+      try {
+        const cache = await caches.open(STATIC_CACHE);
+        await cache.add(OFFLINE_URL);
+      } catch {
+        // فشل التخزين المسبق (مثلًا لا اتصال أصلًا وقت التثبيت، حالة نادرة)
+        // لا يجب أن يوقف تثبيت الـ SW — ستُخزَّن لاحقًا بأول زيارة عادية
+        // لها إن حدثت.
+      }
+    })(),
+  );
   // عمدًا: لا self.skipWaiting() هنا. التفعيل يتم فقط بإذن المستخدم عبر
   // رسالة SKIP_WAITING (زر "تحديث الآن" بـ UpdatePrompt.tsx) — لا نريد
   // تحديثًا قسريًا وإعادة تحميل مفاجئة أثناء تعبئة نموذج. انظر lib/pwa.ts

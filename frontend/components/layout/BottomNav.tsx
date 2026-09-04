@@ -11,6 +11,7 @@ import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
 import { CreateSheet } from '@/components/layout/CreateSheet';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 
@@ -78,6 +79,9 @@ export function BottomNav() {
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  // FIX PERSISTENT-OFFLINE-BADGE: تبقى ظاهرة طوال مدة الانقطاع الفعلية —
+  // لا تُخفى بعد مهلة ثابتة كالشريط العلوي القديم (NetworkStatusBanner.tsx).
+  const isOffline = !useOnlineStatus();
 
   const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
@@ -170,20 +174,40 @@ export function BottomNav() {
           href={ROUTES.userProfile(user.id)}
           aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) || pathname.startsWith('/profile/') ? 'page' : undefined}
           className={cn(
-            'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
+            'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
             pathname.startsWith('/profile/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-[10px]" />
+          <span className="relative inline-flex">
+            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-[10px]" />
+            {isOffline && (
+              <span
+                role="status"
+                className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-medium leading-none text-destructive-foreground shadow-sm"
+              >
+                غير متصل
+              </span>
+            )}
+          </span>
           حسابي
         </Link>
       ) : (
         <button
           type="button"
           onClick={toggleMobileNav}
-          className="flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          <Menu className="h-5 w-5" aria-hidden={true} />
+          <span className="relative inline-flex">
+            <Menu className="h-5 w-5" aria-hidden={true} />
+            {isOffline && (
+              <span
+                role="status"
+                className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-medium leading-none text-destructive-foreground shadow-sm"
+              >
+                غير متصل
+              </span>
+            )}
+          </span>
           القائمة
         </button>
       )}
