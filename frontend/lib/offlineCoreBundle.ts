@@ -38,6 +38,39 @@ export const CORE_CACHE = 'market-core-v4'; // يجب مطابقة CACHE_VERSION
 const LAST_WARMED_KEY = 'marketplat:core-bundle:last-warmed';
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 ساعات — يكفي لبيانات "تصفح عام"
 
+// FEAT-WARMUP-UI: حالة تقدّم مشتركة يشترك بها WarmupIndicator.tsx — نفس
+// نمط sharedRegistration/sharedListeners المستخدم أصلًا بـ UpdatePrompt.tsx
+// لمشاركة حالة عابرة للمكوّنات بدون تمرير props أو state management خارجي.
+// الواجهة تبقى مستقلة تمامًا عن التحميل نفسه: إغلاقها (X) لا يوقف
+// warmCoreBundle، فقط يُخفي الشريط محليًا (انظر WarmupIndicator.tsx).
+export interface WarmupProgress {
+  active: boolean;
+  completed: number;
+  total: number;
+}
+
+let sharedWarmupProgress: WarmupProgress = { active: false, completed: 0, total: 0 };
+const warmupListeners = new Set<(progress: WarmupProgress) => void>();
+let isWarming = false;
+
+function notifyWarmup(progress: WarmupProgress) {
+  sharedWarmupProgress = progress;
+  warmupListeners.forEach((cb) => cb(progress));
+}
+
+/** يستمع WarmupIndicator.tsx لهذه الحالة لعرض/تحديث/إخفاء شريط التقدّم. */
+export function onWarmupProgress(listener: (progress: WarmupProgress) => void): () => void {
+  warmupListeners.add(listener);
+  listener(sharedWarmupProgress); // أبلغ فورًا بالحالة الحالية (مثل onServiceWorkerUpdate)
+  return () => {
+    warmupListeners.delete(listener);
+  };
+}
+
+export function getWarmupProgress(): WarmupProgress {
+  return sharedWarmupProgress;
+}
+
 /** نفس بناء URL اللي productsApi.getAll/categoriesApi.getAll/storesApi.getAll
  * يبنونه عبر axios — يُعاد هنا يدويًا لأننا نحتاج Response خام (fetch) قابل
  * للتخزين في Cache Storage، مو JSON مُحلَّل (اللي axios يرجعه).
@@ -109,29 +142,49 @@ async function cachePut(cache: Cache, url: string, response: Response): Promise<
  *  - المتصفح غير متصل (لا فائدة، ولا داعي لإفشال طلبات بلا سبب)
  *  - Cache Storage API غير متوفرة (متصفحات قديمة/خاصة)
  *  - تم التحديث خلال آخر WARM_INTERVAL_MS (يُخزَّن بـ localStorage)
+ *  - دورة تحميل سابقة ما زالت شغّالة (isWarming) — يمنع تشابك دورتين
+ *    متزامنتين (مثلًا PwaBootstrap's mount + 'online' event بفارق ميلي ثانية)
+ *    من إرباك شريط التقدّم بحالتين متداخلتين.
  *
  * لا يرمي استثناءات للمستدعي — فشل الحزمة الأساسية لا يجب يكسر أي شي
  * بالواجهة، هي تحسين صامت بالخلفية فقط.
+ *
+ * FEAT-WARMUP-UI: يبعث تقدّم الدورة عبر onWarmupProgress أثناء التنفيذ
+ * (WarmupIndicator.tsx يعرضه كشريط مؤقت يختفي تلقائيًا عند total===completed).
+ * هذا البث مستقل تمامًا عن التحميل نفسه — لا مستمعين مسجَّلين (لا يوجد
+ * مكوّن UI مركّب أصلًا) لا يوقف أو يبطئ أي شيء، مجرد استدعاءات Set.forEach
+ * على مجموعة فارغة.
  */
 export async function warmCoreBundle(options?: { force?: boolean }): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!navigator.onLine) return;
   if (typeof caches === 'undefined') return;
+  if (isWarming) return;
 
   if (!options?.force) {
     const last = Number(localStorage.getItem(LAST_WARMED_KEY) ?? 0);
     if (Date.now() - last < WARM_INTERVAL_MS) return;
   }
 
+  isWarming = true;
+  const urls = buildCoreUrls();
+  let completed = 0;
+  let total = urls.length; // يُحدَّث لاحقًا ليشمل الصور المصغّرة بعد معرفة عددها الفعلي.
+  notifyWarmup({ active: true, completed, total });
+
   try {
     const cache = await caches.open(CORE_CACHE);
-    const urls = buildCoreUrls();
 
     const results = await Promise.allSettled(
       urls.map(async ({ url }) => {
-        const response = await fetch(url); // بدون credentials — نقاط عامة (public browse)
-        await cachePut(cache, url, response.clone());
-        return response.ok ? response.json() : null;
+        try {
+          const response = await fetch(url); // بدون credentials — نقاط عامة (public browse)
+          await cachePut(cache, url, response.clone());
+          return response.ok ? response.json() : null;
+        } finally {
+          completed += 1;
+          notifyWarmup({ active: true, completed, total });
+        }
       }),
     );
 
@@ -147,13 +200,20 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
       }
     }
 
+    const thumbnails = thumbnailUrls.slice(0, 24);
+    total = urls.length + thumbnails.length;
+    notifyWarmup({ active: true, completed, total });
+
     await Promise.allSettled(
-      thumbnailUrls.slice(0, 24).map(async (url) => {
+      thumbnails.map(async (url) => {
         try {
           const response = await fetch(url);
           await cachePut(cache, url, response);
         } catch {
           // صورة واحدة فاشلة لا توقف الباقي.
+        } finally {
+          completed += 1;
+          notifyWarmup({ active: true, completed, total });
         }
       }),
     );
@@ -162,5 +222,11 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
   } catch {
     // فشل الحزمة كاملة (مثلًا الشبكة انقطعت أثناء الجلب) — لا مشكلة،
     // سيُعاد المحاولة بأول فتح تطبيق أونلاين تالي (لم نحدّث LAST_WARMED_KEY).
+  } finally {
+    isWarming = false;
+    // active:false هو إشارة الإخفاء التلقائي اللي WarmupIndicator.tsx يعتمدها —
+    // تُبعَث دائمًا هنا (نجاح أو فشل جزئي) فلا يبقى الشريط عالقًا لو انقطع
+    // الاتصال أثناء التحميل.
+    notifyWarmup({ active: false, completed, total });
   }
 }

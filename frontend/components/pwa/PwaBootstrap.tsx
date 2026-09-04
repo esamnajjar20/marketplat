@@ -11,6 +11,7 @@ import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { warmRouteShells } from '@/lib/offlineRouteShells';
 import { InstallPrompt } from './InstallPrompt';
 import { UpdatePrompt } from './UpdatePrompt';
+import { WarmupIndicator } from './WarmupIndicator';
 
 export function PwaBootstrap() {
   // ⚠️ يعتمد على ترتيب تنفيذ useEffect في React: التأثيرات (effects) تُنفَّذ
@@ -47,6 +48,7 @@ export function PwaBootstrap() {
     <>
       <InstallPrompt />
       <UpdatePrompt />
+      <WarmupIndicator />
     </>
   );
 }
