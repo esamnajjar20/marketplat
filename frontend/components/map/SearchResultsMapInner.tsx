@@ -37,10 +37,7 @@ function FitBounds({
     if (userLocation) latLngs.push([userLocation.lat, userLocation.lng]);
     if (latLngs.length === 0) return;
     if (latLngs.length === 1) {
-      const firstLatLng = latLngs[0];
-      if (firstLatLng) {
-        map.setView(firstLatLng, 14);
-      }
+      const firstLatLng = latLngs[0]; if (firstLatLng) map.setView(firstLatLng, 14);
       return;
     }
     map.fitBounds(L.latLngBounds(latLngs), { padding: [40, 40], maxZoom: 15 });
