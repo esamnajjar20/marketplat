@@ -68,6 +68,28 @@ import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 
+/**
+ * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
+ * HTTP response — i.e. the backend genuinely answered (401, 500,
+ * whatever). false for a pure network failure (device offline, DNS/
+ * timeout, or this component's own AbortController firing) — axios
+ * always produces a `.response` of `undefined` in that case, never a
+ * thrown value with no `.response` property at all.
+ *
+ * Deliberately NOT using lib/errorParser.ts's parseApiError here: it
+ * gates its "real HTTP status" branch on axios.isAxiosError(), which
+ * checks the internal `isAxiosError: true` marker axios stamps onto
+ * its own error instances — a marker that (correctly) isn't present on
+ * a hand-built `{ response: { status: 401 } }` test double, so
+ * parseApiError would misclassify every such mock as "network failure"
+ * too. This check only cares whether *some* `.response` is present,
+ * which matches both a real AxiosError's shape and how this file's own
+ * tests already model a genuine server rejection.
+ */
+function hasServerResponse(err: unknown): boolean {
+  return !!(err && typeof err === 'object' && 'response' in err && (err as { response?: unknown }).response != null);
+}
+
 // FIX BUG-06: was a fixed re-export of AUTH_COOKIE_MAX_AGE — the
 // refresh response's own tokens.expiresIn (captured below, right
 // before this constant would previously have been used) now drives
@@ -186,16 +208,45 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           // behavior for this session.
         }
 
-      } catch {
-        // Refresh or /me failed (or timed out) — no valid session
-        // (this is the normal, expected path for a logged-out
-        // visitor now that there's no client-readable token to check
-        // first — see this component's own header comment). Sign out
-        // cleanly either way.
-        logout();
-        deleteCookie('app_access_token');
-        deleteCookie('app_user_role');
-        deleteCookie('app_has_session'); // AUDIT-FIX C-1
+      } catch (err) {
+        // FIX AUTH-OFFLINE-01: this used to call logout() unconditionally
+        // on ANY failure here — including a bare network error (device
+        // offline, DNS down, server unreachable), which is NOT the same
+        // thing as the backend confirming "this session is invalid."
+        // hasServerResponse() (defined above) is true only when the
+        // backend actually answered (401, 500, whatever); a pure network
+        // failure never carries a `.response`.
+        //
+        // Before this fix: disconnecting the internet and then loading
+        // (or reloading) the app — which is exactly when this effect
+        // runs, since it always fires once on mount per PROD-FIX-15 above
+        // — looked identical to a truly expired session. logout() wiped
+        // the persisted `user` (so even the header/avatar vanished) and
+        // deleted app_access_token/app_user_role/app_has_session, then
+        // ProtectedLayout (isAuthenticated now false) redirected straight
+        // to /login. That redirect is also *why* offline-cached content
+        // (conversations, notifications — anything behind that layout)
+        // never had a chance to render: the user was bounced away from
+        // the page before ever reaching the cached shell/data this app
+        // otherwise keeps for exactly this situation.
+        //
+        // Fix: on a network failure specifically, don't touch anything —
+        // leave the persisted `user` and session cookies exactly as they
+        // were. isAuthenticated stays false (it was never proven true
+        // this load either way), but ProtectedLayout now treats "offline
+        // + a persisted user" as reason enough to render its cached
+        // children instead of redirecting (see that file). The very next
+        // successful refresh (automatic retry, or simply coming back
+        // online and reloading) resolves this for real in either
+        // direction — confirms the session and flips isAuthenticated
+        // true, or genuinely rejects it and logs out then, once that's
+        // an actual answer from the server instead of a guess.
+        if (hasServerResponse(err)) {
+          logout();
+          deleteCookie('app_access_token');
+          deleteCookie('app_user_role');
+          deleteCookie('app_has_session'); // AUDIT-FIX C-1
+        }
       } finally {
         clearTimeout(timeout);
         // FIX AUTH-04: always mark the restore flow as settled, success

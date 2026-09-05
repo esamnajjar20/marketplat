@@ -29,10 +29,12 @@ import { useEffect }    from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   useAuthStore,
+  selectUser,
   selectIsAuthenticated,
   selectIsHydrated,
   selectIsAuthResolving,
 } from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ProtectedHeader }  from '@/components/layout/ProtectedHeader';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
 import { BottomNav }        from '@/components/layout/BottomNav';
@@ -40,8 +42,10 @@ import { PageTransition }   from '@/components/shared/PageTransition';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const user             = useAuthStore(selectUser);
   const isHydrated      = useAuthStore(selectIsHydrated);
   const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  const isOnline        = useOnlineStatus();
   const router          = useRouter();
   const pathname        = usePathname();
 
@@ -49,12 +53,30 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   // (if applicable) the async session-restore flow have completed.
   const isResolved = isHydrated && !isAuthResolving;
 
+  // FIX AUTH-OFFLINE-01: isAuthenticated can be false for two very
+  // different reasons — (a) the backend genuinely rejected the session
+  // (AuthHydrationProvider's logout() ran, which also clears the
+  // persisted `user`), or (b) the device is offline and the session was
+  // simply never re-verified this load (AuthHydrationProvider now
+  // deliberately leaves `user` and isAuthenticated untouched on a
+  // network failure — see that file). Only (a) should send someone to
+  // /login; (b) has a perfectly good previously-authenticated user and
+  // should render the cached shell instead, so a person who opens or
+  // reloads /messages or /notifications while offline actually sees
+  // their cached conversations/alerts instead of being bounced to a
+  // login screen before the offline-cached content ever gets a chance
+  // to render. The moment connectivity returns, the normal refresh flow
+  // either confirms the session (isAuthenticated flips true, nothing
+  // visibly changes) or genuinely rejects it (user is cleared, and this
+  // same effect below redirects then — for real this time).
+  const canRenderOffline = !isOnline && user != null;
+
   useEffect(() => {
     if (!isResolved) return;
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !canRenderOffline) {
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
     }
-  }, [isAuthenticated, isResolved, router, pathname]);
+  }, [isAuthenticated, canRenderOffline, isResolved, router, pathname]);
 
   // Show skeleton while waiting for hydration or session restoration.
   if (!isResolved) {
@@ -66,7 +88,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   }
 
   // Don't flash protected content before redirect fires.
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated && !canRenderOffline) return null;
 
   return (
     // FIX OVERFLOW-01: this container and every flex child in the

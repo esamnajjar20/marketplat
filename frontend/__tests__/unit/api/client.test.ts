@@ -380,6 +380,38 @@ describe('api/client.ts — silent refresh on 401', () => {
     expect(protectedCallCount).toBe(2);
   });
 
+  // FIX AUTH-OFFLINE-01: the refresh call failing because the device is
+  // offline (a genuine network error — no HTTP response at all, unlike
+  // every other test in this block which mocks a real 401 response
+  // body) is NOT the same thing as the backend rejecting the session.
+  // Before this fix, ANY refresh failure here — network error included —
+  // logged the user out and hard-redirected to /login. That meant a
+  // perfectly valid session could get torn down by nothing more than a
+  // momentary connectivity blip on the original 401 that kicked off this
+  // flow (e.g. a normal access-token expiry that happens to coincide
+  // with the wifi dropping for a second). HttpResponse.error() makes
+  // MSW simulate exactly that: the request never gets an HTTP response.
+  it('REGRESSION (offline false-logout): a network error on /auth/refresh itself does not log out or redirect', async () => {
+    setAuthenticatedState('expired-access-token');
+
+    getMswServer()?.use(
+      http.post(REFRESH_URL, () => HttpResponse.error()),
+      http.get(PROTECTED_URL, () =>
+        HttpResponse.json({ success: false }, { status: 401 }),
+      ),
+    );
+
+    await expect(apiClient.get('/users/me')).rejects.toBeDefined();
+
+    // The original request's own rejection is still surfaced to the
+    // caller (the calling mutation/query hook still sees a failure and
+    // can show its own message) — what must NOT happen is the session
+    // being torn down over it.
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().accessToken).toBe('expired-access-token');
+    expect(window.location.href).not.toContain('reason=session_expired');
+  });
+
   // FIX QUEUE-UX-01: sw.js answers an offline-queued mutation with
   // 202 {queued:true, message} instead of a network error, precisely so
   // it doesn't look like a hard failure. Axios treats any 2xx as success

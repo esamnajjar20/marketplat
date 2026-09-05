@@ -234,7 +234,35 @@ describe('AuthHydrationProvider', () => {
     expect(usersApi.getMe).not.toHaveBeenCalled();
   });
 
-  it('on /users/me failure (after a successful refresh): still logs out cleanly', async () => {
+  it('on /users/me failure due to a genuine rejection (after a successful refresh): still logs out cleanly', async () => {
+    resetStoreToHydrated();
+    (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
+    });
+    // A real rejection shape (has a `.response`) — distinct from the
+    // network-failure test below. See FIX AUTH-OFFLINE-01.
+    (usersApi.getMe as ReturnType<typeof vi.fn>).mockRejectedValue({ response: { status: 401 } });
+
+    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
+
+    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  // FIX AUTH-OFFLINE-01 (the actual bug this test file previously
+  // encoded as "correct"): a successful /auth/refresh already proves
+  // the session is valid — a freshly issued access token is real
+  // cryptographic proof, not a guess. If the *next* call (/users/me)
+  // then fails only because the network dropped (no `.response` at
+  // all, exactly what a real axios network error looks like), that is
+  // NOT evidence the session is invalid — it's evidence the device is
+  // briefly offline, which is a completely ordinary thing to happen
+  // mid-page-load. The old code called logout() unconditionally here,
+  // which is precisely what "get logged out instantly by turning off
+  // wifi" looked like in practice: refresh succeeds fast, then the
+  // profile-detail fetch trips over the exact same connectivity blip
+  // and wipes the session it just confirmed was valid.
+  it('REGRESSION (offline false-logout): a network error on /users/me (after a successful refresh) keeps the session valid', async () => {
     resetStoreToHydrated();
     (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
@@ -244,7 +272,41 @@ describe('AuthHydrationProvider', () => {
     renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
 
     await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().accessToken).toBe('new-access');
+  });
+
+  // FIX AUTH-OFFLINE-01: the actual root-cause scenario from the user
+  // report this fix addresses — opening/reloading the app while
+  // offline. The refresh call never gets an HTTP response at all
+  // (matches how a real axios network error looks: no `.response`).
+  // Previously this cleared the persisted `user` and every session
+  // cookie exactly as if the backend had confirmed the session was
+  // dead — which is what made ProtectedLayout redirect to /login
+  // before any offline-cached content (messages, notifications) ever
+  // got a chance to render. Now: isAuthenticated correctly stays false
+  // (never proven this load either way), but the persisted user and
+  // cookies are left alone so a plain reconnect+reload — not a fresh
+  // login — is enough to resolve it.
+  it('REGRESSION (offline false-logout): a network error on the initial /auth/refresh leaves the persisted user and cookies untouched', async () => {
+    useAuthStore.setState({
+      user: mockUser,
+      accessToken: null,
+      isAuthenticated: false,
+      isHydrated: true,
+      isAuthResolving: true,
+    });
+    document.cookie = 'app_has_session=1';
+    (authApi.refresh as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+
+    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
+
+    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().user).toEqual(mockUser);
+    expect(document.cookie).toContain('app_has_session=1');
   });
 
   it('REGRESSION (dead AbortController): passes a real AbortSignal through to authApi.refresh, usersApi.getMe, and favoritesApi.getAll', async () => {
