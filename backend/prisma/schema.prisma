@@ -146,6 +146,9 @@ model User {
 
   @@index([isActive, createdAt])
   @@map("users")
+
+  storeMemberships   StoreMember[] @relation("StoreMemberships")
+  storeMemberInvites StoreMember[] @relation("StoreMemberInvites")
 }
 
 model Category {
@@ -715,11 +718,36 @@ model StoreDetails {
   promotions      Promotion[]
   followers       StoreFollower[]
   collections     StoreCollection[]
+  members         StoreMember[]
 
   @@index([status, city])
   @@index([status, plan])
   @@map("store_details")
 }
+
+model StoreMember {
+  id          String            @id @default(cuid())
+  storeId     String
+  userId      String
+  role        StoreMemberRole
+  status      StoreMemberStatus @default(PENDING)
+  invitedById String
+  invitedAt   DateTime          @default(now())
+  acceptedAt  DateTime?
+  removedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  store       StoreDetails      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user        User              @relation("StoreMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy   User              @relation("StoreMemberInvites", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([storeId, status])
+  @@index([userId, status])
+  @@map("store_members")
+}
+
+
 
 model ProductCategory {
   id        String            @id @default(cuid())
@@ -1398,6 +1426,18 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum StoreMemberRole {
+  MANAGER
+  STAFF
+  EDITOR
+}
+
+enum StoreMemberStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
 enum StoreStatus {
   PENDING
   ACTIVE
@@ -1479,6 +1519,8 @@ enum AuditEventType {
   // ADMIN_SELLER_VERIFIED/SUSPENDED etc. already follow above.
   ADMIN_FRAUD_SIGNAL_REVIEWED
   ADMIN_FRAUD_MANUAL_FLAG
+  STORE_MEMBER_INVITED
+  STORE_MEMBER_REMOVED
 }
 
 // Gap #7 (product analytics): event vocabulary kept deliberately small

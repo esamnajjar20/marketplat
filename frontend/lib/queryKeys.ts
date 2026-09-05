@@ -97,6 +97,8 @@ export const queryKeys = {
     followedIds: ()              => ['stores', 'followed-ids'] as const,
     // STORE-ANALYTICS (Foundation v1)
     analytics: ()                => ['stores', 'me', 'analytics'] as const,
+    members: (storeId: string, params?: object) => ['stores', 'members', storeId, params ?? {}] as const,
+    memberInvites: () => ['stores', 'member-invites'] as const,
   },
 
   // ── Store reviews ──────────────────────────────────────────────
