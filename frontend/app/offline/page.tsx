@@ -105,6 +105,10 @@ export default function OfflinePage() {
             <Button variant="outline" size="sm" asChild>
               <Link href="/saved-payments">دفع وبطاقات محفوظة</Link>
             </Button>
+            {/* PHASE-OFFLINE-AD-DETAIL */}
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/saved-ads">إعلانات محفوظة دون اتصال</Link>
+            </Button>
           </div>
         </div>
       )}

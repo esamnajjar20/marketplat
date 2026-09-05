@@ -48,10 +48,19 @@ export function useToggleFavorite() {
     },
 
     onError: (err, _adId, context) => {
-      if (context?.previousIds !== undefined) {
+      const parsed = parseApiError(err);
+      // FEAT-OFFLINE-FAVORITES: a queued mutation (sw.js's offline
+      // mutation queue — see client.ts's OFFLINE_QUEUED rejection) is
+      // not a real failure, it's the SW faithfully promising to send
+      // this exact toggle once connectivity returns. Rolling back the
+      // optimistic Set here would visually undo the user's tap while
+      // the request is still pending, not failed — exactly the
+      // "toggle offline, sync later" behaviour the app is supposed to
+      // give (❤️ → محليًا فورًا → Offline: يدخل Queue، لا يُلغى).
+      if (!parsed.queued && context?.previousIds !== undefined) {
         queryClient.setQueryData(queryKeys.favorites.ids(), context.previousIds);
       }
-      toast.error(parseApiError(err).message);
+      toast.error(parsed.message);
     },
 
     onSettled: () => {
@@ -99,10 +108,14 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
     },
 
     onError: (err, _entityId, context) => {
-      if (context?.previousIds !== undefined) {
+      const parsed = parseApiError(err);
+      // FEAT-OFFLINE-FAVORITES: same reasoning as useToggleFavorite's
+      // onError above — a queued offline mutation isn't a real
+      // failure, so don't undo the optimistic toggle for it.
+      if (!parsed.queued && context?.previousIds !== undefined) {
         queryClient.setQueryData(queryKeys.favorites.entityIds(type), context.previousIds);
       }
-      toast.error(parseApiError(err).message);
+      toast.error(parsed.message);
     },
 
     onSettled: (_data, _err, entityId) => {

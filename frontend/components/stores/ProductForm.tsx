@@ -8,6 +8,7 @@ import { FormSteps } from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
+import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import {
   useCreateProduct,
   useUpdateProduct,
@@ -42,6 +43,11 @@ const AVAILABILITY_LABELS: Record<ProductAvailability, string> = {
   LIMITED: 'كمية محدودة',
   OUT_OF_STOCK: 'غير متوفر',
 };
+
+// PHASE-OFFLINE-DRAFTS: نفس نمط AdForm.tsx's DraftValues بالضبط — كل
+// شيء عدا images/existingImages (ملفات File حية غير قابلة لـ JSON، أو
+// بيانات سيرفر بوضع التعديل لا داعي لمسودة عنها).
+type ProductDraftValues = Omit<ProductFormValues, 'images' | 'existingImages'>;
 
 export function ProductForm({ mode, product }: Props) {
   const { data: categories } = useProductCategories();
@@ -80,21 +86,46 @@ export function ProductForm({ mode, product }: Props) {
           existingImages: product.images,
         }
       : {
-          categoryId: '',
-          name: '',
-          description: '',
-          price: '',
-          discountPrice: '',
-          wholesalePrice: '',
-          wholesaleMinQty: '',
-          availability: 'IN_STOCK',
-          stockQuantity: '',
+          // PHASE-OFFLINE-DRAFTS: بذر الحالة الابتدائية من مسودة محفوظة
+          // إن وُجدت — نفس منطق AdForm.tsx بالضبط.
+          ...{
+            categoryId: '',
+            name: '',
+            description: '',
+            price: '',
+            discountPrice: '',
+            wholesalePrice: '',
+            wholesaleMinQty: '',
+            availability: 'IN_STOCK' as ProductAvailability,
+            stockQuantity: '',
+          },
+          ...(readFormDraft<ProductDraftValues>('product:create') ?? {}),
           images: [],
           existingImages: [],
         }
   );
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  // PHASE-OFFLINE-DRAFTS: يحفظ الحقول النصية دوريًا بينما المستخدم
+  // يملأ نموذج منتج *جديد* — بوضع create فقط (نفس استثناء AdForm.tsx:
+  // بوضع edit توجد بيانات منتج حقيقية بالسيرفر، فاستعادة مسودة قديمة
+  // فوقها سيكون مربكًا لا مفيدًا).
+  const { clearDraft, lastSavedAt } = useFormDraft<ProductDraftValues>(
+    'product:create',
+    {
+      categoryId: values.categoryId,
+      name: values.name,
+      description: values.description,
+      price: values.price,
+      discountPrice: values.discountPrice,
+      wholesalePrice: values.wholesalePrice,
+      wholesaleMinQty: values.wholesaleMinQty,
+      availability: values.availability,
+      stockQuantity: values.stockQuantity,
+    },
+    { enabled: mode === 'create' },
+  );
 
   function fieldError(field: keyof Errors): string | undefined {
     return errors[field] ?? serverErrors?.[field]?.[0];
@@ -176,6 +207,9 @@ export function ProductForm({ mode, product }: Props) {
             setServerErrors(parseApiError(err).fieldErrors);
             isSubmittingRef.current = false;
           },
+          // PHASE-OFFLINE-DRAFTS: نفس منطق AdForm.tsx — لا داعي لمسودة
+          // بعد نجاح النشر الفعلي.
+          onSuccess: () => clearDraft(),
           onSettled: () => setUploadProgress(null),
         }
       );
@@ -292,6 +326,16 @@ export function ProductForm({ mode, product }: Props) {
 
   const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {mode === 'create' && lastSavedAt && (
+        <p
+          className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+          مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
+        </p>
+      )}
       {isWizard && (
         <div className="sticky top-0 z-20 -mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps
@@ -478,7 +522,18 @@ export function ProductForm({ mode, product }: Props) {
 
       <div className="sticky bottom-0 z-20 -mx-1 border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              // PHASE-OFFLINE-DRAFTS: إلغاء صريح بوضع الإنشاء = المستخدم
+              // لا يريد هذه المسودة بعد الآن.
+              if (mode === 'create') clearDraft();
+              history.back();
+            }}
+          >
+            إلغاء
+          </Button>
           <div className="flex flex-wrap gap-2">
             {isWizard && step > 1 && (
               <Button type="button" variant="outline" onClick={goPrevStep}>السابق</Button>

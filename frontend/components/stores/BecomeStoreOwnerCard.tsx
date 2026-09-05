@@ -9,6 +9,7 @@ import { FormField } from '@/components/shared/forms/FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useCreateStore } from '@/hooks/mutations/useStoreMutations';
+import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES, CITIES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -19,6 +20,18 @@ interface Errors {
   description?: string;
   city?: string;
   phone?: string;
+}
+
+// PHASE-OFFLINE-DRAFTS: هذا النموذج بلا images أصلاً (متجر لا يحمل
+// صورًا هنا)، فكل حقوله قابلة للمسودة مباشرة بلا استثناء.
+interface StoreDraftValues {
+  name: string;
+  description: string;
+  city: string;
+  address: string;
+  phone: string;
+  latitude: string;
+  longitude: string;
 }
 
 /**
@@ -38,15 +51,25 @@ export function BecomeStoreOwnerCard() {
   // created instead of stranding them on /my-store.
   const from = searchParams.get('from');
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [city, setCity] = useState('');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
+  // PHASE-OFFLINE-DRAFTS: بذر الحقول من مسودة محفوظة إن وُجدت — هذا
+  // النموذج بلا وضع "تعديل" أصلاً (متجر واحد يُنشأ مرة)، فلا استثناء
+  // لازم هنا خلافًا لـ AdForm/ProductForm/ServiceListingForm.
+  const [draftSeed] = useState(() => readFormDraft<StoreDraftValues>('store:create'));
+
+  const [name, setName] = useState(() => draftSeed?.name ?? '');
+  const [description, setDescription] = useState(() => draftSeed?.description ?? '');
+  const [city, setCity] = useState(() => draftSeed?.city ?? '');
+  const [address, setAddress] = useState(() => draftSeed?.address ?? '');
+  const [phone, setPhone] = useState(() => draftSeed?.phone ?? '');
+  const [latitude, setLatitude] = useState(() => draftSeed?.latitude ?? '');
+  const [longitude, setLongitude] = useState(() => draftSeed?.longitude ?? '');
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  const { clearDraft, lastSavedAt } = useFormDraft<StoreDraftValues>(
+    'store:create',
+    { name, description, city, address, phone, latitude, longitude },
+  );
 
   function fieldError(field: keyof Errors): string | undefined {
     return errors[field] ?? serverErrors?.[field]?.[0];
@@ -56,6 +79,7 @@ export function BecomeStoreOwnerCard() {
     return (
       <div className="flex justify-center py-8">
         <LoadingSpinner />
+
       </div>
     );
   }
@@ -114,6 +138,8 @@ export function BecomeStoreOwnerCard() {
       },
       {
         onSuccess: () => {
+          // PHASE-OFFLINE-DRAFTS: لا داعي لمسودة بعد إنشاء المتجر فعليًا.
+          clearDraft();
           if (from) router.push(getSafeRedirectPath(from));
         },
         onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
@@ -131,6 +157,16 @@ export function BecomeStoreOwnerCard() {
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {lastSavedAt && (
+          <p
+            className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+            مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
+          </p>
+        )}
         <FormField label="اسم المتجر" htmlFor="store-name" required error={fieldError('name')}>
           <Input
             id="store-name"

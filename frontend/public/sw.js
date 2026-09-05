@@ -36,6 +36,14 @@ const API_CACHE = `market-api-${CACHE_VERSION}`;
 // (lib/offlineCoreBundle.ts) صراحة، فيبقى ثابت المحتوى بين مرات التصفح.
 const CORE_CACHE = `market-core-${CACHE_VERSION}`; // يجب مطابقة lib/offlineCoreBundle.ts's CORE_CACHE حرفيًا
 
+// PHASE-OFFLINE-AD-DETAIL: كاش "الإعلانات المحفوظة يدويًا للعمل بدون
+// اتصال" (زر بـ AdDetail.tsx، يديره lib/offlineSavedAds.ts). بدون رقم
+// إصدار عمدًا — خلافًا لبقية الكاشات أعلاه، هذا اختيار صريح من المستخدم
+// ولا يجب أن يُمسح تلقائيًا مع كل ترقية CACHE_VERSION عادية. يجب مطابقة
+// lib/offlineSavedAds.ts's SAVED_ADS_CACHE حرفيًا، ويجب إضافته لقائمة
+// currentCaches بـ 'activate' أدناه وإلا سيُحذف كأي كاش market-* غير معروف.
+const SAVED_ADS_CACHE = 'market-saved-ads';
+
 const MAX_API_ENTRIES = 60;
 const OFFLINE_URL = '/offline';
 
@@ -165,10 +173,38 @@ async function handlePageRequest(event, request, url) {
 
 /** Cache First للصور — تُخزَّن لأجل غير مسمى (لا تنتهي صلاحيتها تلقائيًا هنا؛
  * حجم كاش الصور محدود عمليًا بعدد الصور المعروضة فعليًا للمستخدم). */
-async function cacheFirstImage(event, request) {
+async function cacheFirstImage(event, request, url) {
   const cache = await caches.open(IMAGE_CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
+
+  // PHASE-OFFLINE-AD-DETAIL: صورة إعلان محفوظ يدويًا قد لا تكون مرّت
+  // بعد بـ IMAGE_CACHE (مثلًا thumbnail بالأسفل بـ loading="lazy" لم
+  // يُعرض فعليًا بعد) لكنها مخزَّنة صراحة بـ SAVED_ADS_CACHE عبر
+  // lib/offlineSavedAds.ts's saveAdOffline — تحقّق منه قبل الشبكة.
+  const savedCache = await caches.open(SAVED_ADS_CACHE);
+  const savedHit = await savedCache.match(request);
+  if (savedHit) return savedHit;
+
+  // PHASE-OFFLINE-AD-DETAIL (fallback ثانٍ): Next.js Image Optimization
+  // مفعّل (next.config.ts's images.remotePatterns)، فالطلب الفعلي اللي
+  // المتصفح يرسله عبر <SafeImage>/next-image ليس رابط Cloudinary الخام
+  // اللي saveAdOffline حفظه صراحة، بل /_next/image?url=<مُرمَّز>&w=...
+  // بمقاس يختاره Next وقت العرض (يعتمد على حجم الشاشة/DPR — غير قابل
+  // للتنبؤ به مسبقًا). فك ترميز ?url= هنا ومطابقته بالرابط الخام
+  // المحفوظ يعطي أقله نسخة غير محسَّنة من نفس الصورة بدل فشل تحميل
+  // كامل — تدهور مقبول لا صورة مكسورة تمامًا.
+  if (url.pathname === '/_next/image') {
+    const inner = url.searchParams.get('url');
+    if (inner) {
+      try {
+        const rawHit = await savedCache.match(decodeURIComponent(inner));
+        if (rawHit) return rawHit;
+      } catch {
+        // رابط ?url= مُرمَّز بشكل غير صالح — تجاهل والمتابعة للشبكة.
+      }
+    }
+  }
 
   try {
     const response = await fetch(request);
@@ -214,6 +250,13 @@ async function networkFirstApi(event, request, url) {
     const coreCache = await caches.open(CORE_CACHE);
     const cachedCore = await coreCache.match(request.url);
     if (cachedCore) return cachedCore;
+
+    // PHASE-OFFLINE-AD-DETAIL: GET /ads/:id لإعلان محفوظ يدويًا — آخر
+    // طبقة fallback، بعد API_CACHE (تصفح عادي حديث) وCORE_CACHE (حزمة
+    // استباقية عامة). انظر تعليق lib/offlineSavedAds.ts للسياق الكامل.
+    const savedCache = await caches.open(SAVED_ADS_CACHE);
+    const cachedSaved = await savedCache.match(request.url);
+    if (cachedSaved) return cachedSaved;
 
     return Response.error();
   }
@@ -391,7 +434,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  const currentCaches = [STATIC_CACHE, IMAGE_CACHE, API_CACHE, CORE_CACHE];
+  const currentCaches = [STATIC_CACHE, IMAGE_CACHE, API_CACHE, CORE_CACHE, SAVED_ADS_CACHE];
   event.waitUntil(
     (async () => {
       const cacheNames = await caches.keys();
@@ -489,7 +532,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isImageRequest(request, url)) {
-    event.respondWith(cacheFirstImage(event, request));
+    event.respondWith(cacheFirstImage(event, request, url));
     return;
   }
 

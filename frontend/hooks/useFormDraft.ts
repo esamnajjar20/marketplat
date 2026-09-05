@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
  * Debounced localStorage draft for long forms (ads, products).
  * Returns clearDraft + lastSavedAt so the UI can show "مسودة محفوظة".
  */
-export function useFormDraft<T extends Record<string, unknown>>(
+export function useFormDraft<T extends object>(
   key: string,
   values: T,
   options: { enabled?: boolean; debounceMs?: number } = {},

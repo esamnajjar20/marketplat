@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, ShieldCheck, Hash, X } from 'lucide-react';
+import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, ShieldCheck, Hash, X, Download, Check as CheckIcon } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
@@ -19,6 +19,7 @@ import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
+import { isAdSavedOffline, saveAdOffline, unsaveAdOffline } from '@/lib/offlineSavedAds';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -120,6 +121,42 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   function handleFavorite() {
     if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
     toggleFavorite.mutate(ad.id);
+  }
+
+  // PHASE-OFFLINE-AD-DETAIL: "حفظ للعمل دون اتصال" — منفصل تمامًا عن
+  // المفضلة (الفضلات لا تخزّن أي بيانات محليًا، فقط علاقة بالسيرفر).
+  // isSavedOffline يُقرأ من localStorage مباشرة (متزامن)، فلا يحتاج حالة
+  // تحميل أولية — لكن يُهيَّأ بـ false على السيرفر (SSR) ويُصحَّح بـ
+  // useEffect بعد التركيب، لأن localStorage غير متاح إلا بالمتصفح.
+  const [isSavedOffline, setIsSavedOffline] = useState(false);
+  const [isSavingOffline, setIsSavingOffline] = useState(false);
+
+  useEffect(() => {
+    setIsSavedOffline(isAdSavedOffline(ad.id));
+  }, [ad.id]);
+
+  async function handleSaveOffline() {
+    if (isSavingOffline) return;
+    if (isSavedOffline) {
+      await unsaveAdOffline(ad.id);
+      setIsSavedOffline(false);
+      toast.success('أُزيل من المحفوظات دون اتصال');
+      return;
+    }
+    setIsSavingOffline(true);
+    try {
+      const ok = await saveAdOffline(ad);
+      if (ok) {
+        setIsSavedOffline(true);
+        toast.success('تم حفظ الإعلان', {
+          description: 'يمكنك فتحه لاحقًا حتى بدون اتصال بالإنترنت.',
+        });
+      } else {
+        toast.error('تعذّر الحفظ — تحقق من اتصالك وحاول مجددًا');
+      }
+    } finally {
+      setIsSavingOffline(false);
+    }
   }
 
   return (
@@ -249,6 +286,23 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               >
                 <Heart className={cn('h-4 w-4', favorited && 'fill-current')} />
                 {favorited ? 'محفوظ' : 'حفظ الإعلان'}
+              </Button>
+              {/* PHASE-OFFLINE-AD-DETAIL: زر منفصل عن المفضلة أعلاه —
+                  هذا يحفظ بيانات الإعلان وصوره فعليًا على الجهاز (Cache
+                  Storage) لفتحها لاحقًا بدون إنترنت، لا مجرد علاقة
+                  بالسيرفر. متاح بدون تسجيل دخول (خلافًا للمفضلة) لأنه
+                  تخزين محلي بحت. */}
+              <Button
+                variant={isSavedOffline ? 'default' : 'outline'}
+                size="sm"
+                onClick={handleSaveOffline}
+                disabled={isSavingOffline}
+                aria-label={isSavedOffline ? 'إزالة من المحفوظات دون اتصال' : 'حفظ للعمل دون اتصال'}
+                aria-pressed={isSavedOffline}
+                className="gap-1.5"
+              >
+                {isSavedOffline ? <CheckIcon className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                {isSavingOffline ? 'جارٍ الحفظ…' : isSavedOffline ? 'محفوظ دون اتصال' : 'حفظ دون اتصال'}
               </Button>
               <ShareAdButton title={ad.title} />
             </div>

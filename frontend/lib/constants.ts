@@ -30,6 +30,8 @@ export const ROUTES = {
   savedSearches: '/saved-searches',
   downloads:     '/downloads',
   savedPayments: '/saved-payments',
+  // PHASE-OFFLINE-AD-DETAIL: إعلانات محفوظة يدويًا للعمل بدون اتصال.
+  savedAds:      '/saved-ads',
   activity:      '/activity',
   // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter's own filed reports.
   myReports:     '/my-reports',

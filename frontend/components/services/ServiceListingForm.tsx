@@ -8,6 +8,7 @@ import { FormSteps } from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import {
   useCreateServiceListing,
   useUpdateServiceListing,
@@ -53,6 +54,9 @@ const LOCATION_LABELS: Record<ServiceLocationType, string> = {
   REMOTE: 'عن بُعد',
 };
 
+// PHASE-OFFLINE-DRAFTS: نفس نمط AdForm.tsx's DraftValues بالضبط.
+type ServiceDraftValues = Omit<ServiceListingFormValues, 'images' | 'existingImages'>;
+
 export function ServiceListingForm({ mode, listing }: Props) {
   const { data: categories } = useServiceCategories();
   // UX-FIX P3-10b: same real upload-progress pattern as AdForm — 0-100
@@ -90,19 +94,40 @@ export function ServiceListingForm({ mode, listing }: Props) {
           existingImages: listing.images,
         }
       : {
-          categoryId: '',
-          title: '',
-          description: '',
-          pricingType: 'NEGOTIABLE',
-          price: '',
-          durationEstimate: '',
-          serviceLocation: 'AT_PROVIDER',
+          // PHASE-OFFLINE-DRAFTS: بذر الحالة الابتدائية من مسودة محفوظة
+          // إن وُجدت — نفس منطق AdForm.tsx بالضبط.
+          ...{
+            categoryId: '',
+            title: '',
+            description: '',
+            pricingType: 'NEGOTIABLE' as ServicePricingType,
+            price: '',
+            durationEstimate: '',
+            serviceLocation: 'AT_PROVIDER' as ServiceLocationType,
+          },
+          ...(readFormDraft<ServiceDraftValues>('service:create') ?? {}),
           images: [],
           existingImages: [],
         }
   );
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  // PHASE-OFFLINE-DRAFTS: بوضع create فقط — نفس استثناء AdForm.tsx
+  // لوضع edit (بيانات سيرفر حقيقية موجودة أصلاً، لا داعي لمسودة).
+  const { clearDraft, lastSavedAt } = useFormDraft<ServiceDraftValues>(
+    'service:create',
+    {
+      categoryId: values.categoryId,
+      title: values.title,
+      description: values.description,
+      pricingType: values.pricingType,
+      price: values.price,
+      durationEstimate: values.durationEstimate,
+      serviceLocation: values.serviceLocation,
+    },
+    { enabled: mode === 'create' },
+  );
 
   function fieldError(field: keyof Errors): string | undefined {
     return errors[field] ?? serverErrors?.[field]?.[0];
@@ -177,6 +202,8 @@ export function ServiceListingForm({ mode, listing }: Props) {
             setServerErrors(parseApiError(err).fieldErrors);
             isSubmittingRef.current = false;
           },
+          // PHASE-OFFLINE-DRAFTS: لا داعي لمسودة بعد نجاح النشر الفعلي.
+          onSuccess: () => clearDraft(),
           onSettled: () => setUploadProgress(null),
         }
       );
@@ -289,6 +316,16 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {mode === 'create' && lastSavedAt && (
+        <p
+          className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+          مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
+        </p>
+      )}
       {isWizard && (
         <div className="sticky top-0 z-20 -mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps
@@ -457,7 +494,16 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
       <div className="sticky bottom-0 z-20 -mx-1 border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (mode === 'create') clearDraft();
+              history.back();
+            }}
+          >
+            إلغاء
+          </Button>
           <div className="flex flex-wrap gap-2">
             {isWizard && step > 1 && (
               <Button type="button" variant="outline" onClick={goPrevStep}>السابق</Button>
