@@ -24,10 +24,18 @@
  * يُشغَّل فعليًا بمتصفح حقيقي في هذه الجلسة (لا شبكة/build متاح هنا).
  */
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
+// FEAT-OFFLINE-MSG: كاش شكل الصفحة (page shell) لمسارات الرسائل تحديدًا
+// (/messages, /messages/:id) فقط — بقية الصفحات المحمية (isProtectedPage)
+// تبقى "شبكة فقط" كما كانت (audit #7: محتوى شخصي، لا يجوز تخزينه بجانب
+// STATIC_CACHE العام). هذا الكاش مسموح استثناءً لأنه يُعامَل بنفس الحماية
+// اللي API_CACHE أصلاً يُعامَل بها (وAPI_CACHE فعليًا يخزّن نفس درجة
+// الحساسية — محتوى الرسائل نفسه) — يُمسح بالكامل عند تسجيل الخروج
+// (CLEAR_API_CACHE أدناه) بدل تركه محفوظًا لمستخدم تالٍ على جهاز مشترك.
+const MESSAGES_SHELL_CACHE = `market-messages-shell-${CACHE_VERSION}`;
 // PHASE-1 (Offline Core Bundle): كاش منفصل عن API_CACHE عمدًا. API_CACHE
 // محدود بـ MAX_API_ENTRIES=60 ويُقلَّم بترتيب FIFO تقريبي (انظر trimCache) —
 // أي تصفح عادي بعد warm-up كافٍ لإخراج طلبات الحزمة الأساسية (تصنيفات/
@@ -104,6 +112,14 @@ function rscShellKey(pathname) {
   return `${pathname}?__offline_rsc_shell`;
 }
 
+/** FEAT-OFFLINE-MSG: نطاق ضيّق عمدًا — فقط /messages و/messages/:id، وليس
+ * كل isProtectedPage. هذا هو المسار الوحيد اللي طُلب دعمه أوفلاين صراحة؛
+ * توسيعه لبقية الصفحات المحمية (dashboard/settings/admin...) قرار منفصل
+ * يستأهل مراجعة حساسية بيانات خاصة به. */
+function isMessagesRoute(url) {
+  return url.pathname === '/messages' || url.pathname.startsWith('/messages/');
+}
+
 // ── استراتيجيات التخزين ─────────────────────────────────────────
 
 /** يحذف رأس Vary قبل التخزين — نفس منطق offlineRouteShells.ts's
@@ -150,13 +166,38 @@ async function staleWhileRevalidate(event, request, cacheKey) {
   return offlineFallback || Response.error();
 }
 
-/** تنقّل/RSC لصفحة محمية: شبكة فقط، بدون أي قراءة أو كتابة على STATIC_CACHE
- * (audit #7). عند فشل الشبكة، أقصى ما نقدّمه صفحة /offline العامة نفسها —
- * وليس أي نسخة مخزَّنة من الصفحة المحمية (لا توجد أصلًا). */
-async function handleProtectedPage(request) {
+/** تنقّل/RSC لصفحة محمية: شبكة أولًا، بدون أي قراءة أو كتابة على STATIC_CACHE
+ * العام (audit #7 — يبقى ساريًا لكل الصفحات المحمية الأخرى). عند فشل
+ * الشبكة، أقصى ما نقدّمه لغالبية الصفحات المحمية هو /offline نفسها —
+ * لا نسخة مخزَّنة من الصفحة المحمية (لا توجد أصلًا).
+ *
+ * FEAT-OFFLINE-MSG: استثناء ضيّق لمسارات الرسائل فقط (isMessagesRoute) —
+ * "قراءة المحادثات المحفوظة أوفلاين" يتطلب أن يصل المستخدم أصلًا لصفحة
+ * /messages أو /messages/:id (شكلها/JS) حتى تقدر بياناتها (المخزَّنة أصلاً
+ * بـ API_CACHE عبر networkFirstApi) تُعرض؛ بدون هذا، أي تنقّل (حتى soft-nav
+ * RSC) وهو أوفلاين كان يفشل عند طلب شكل الصفحة نفسه ويعرض /offline العامة
+ * بدل المحادثة المخزَّنة. مخزَّن بـ MESSAGES_SHELL_CACHE (كاش منفصل، يُمسح
+ * كاملًا عند تسجيل الخروج تمامًا مثل API_CACHE — انظر تعليق تعريفه أعلاه). */
+async function handleProtectedPage(request, url) {
+  const useMessagesShell = isMessagesRoute(url);
+  const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
+
   try {
-    return await fetch(request);
+    const response = await fetch(request);
+    if (useMessagesShell && response && response.ok) {
+      const cache = await caches.open(MESSAGES_SHELL_CACHE);
+      const toStore = isRscShellRequest(request)
+        ? await stripVaryAndClone(response.clone())
+        : response.clone();
+      await cache.put(cacheKey, toStore);
+    }
+    return response;
   } catch {
+    if (useMessagesShell) {
+      const shellCache = await caches.open(MESSAGES_SHELL_CACHE);
+      const cachedShell = await shellCache.match(cacheKey);
+      if (cachedShell) return cachedShell;
+    }
     const cache = await caches.open(STATIC_CACHE);
     const offlineFallback = await cache.match(OFFLINE_URL);
     return offlineFallback || Response.error();
@@ -165,7 +206,7 @@ async function handleProtectedPage(request) {
 
 async function handlePageRequest(event, request, url) {
   if (isProtectedPage(url)) {
-    return handleProtectedPage(request);
+    return handleProtectedPage(request, url);
   }
   const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
   return staleWhileRevalidate(event, request, cacheKey);
@@ -279,11 +320,15 @@ function openQueueDb() {
   });
 }
 
+/** status افتراضيًا 'pending' — أُضيف صراحة مع FEAT-OFFLINE-MSG (كان
+ * ضمنيًا/غير موجود سابقًا: كل عنصر بالطابور كان "معلّقًا" حتى يُحذف عند
+ * نجاح أو فشل نهائي، بلا تمييز). لا يُكسر أي مستهلك قديم للطابور — عنصر
+ * بلا status يُعامَل كـ pending أيضًا (انظر الفحص أدناه). */
 async function queueRequestEntry(entry) {
   const db = await openQueueDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
-    tx.objectStore(QUEUE_STORE_NAME).add(entry);
+    tx.objectStore(QUEUE_STORE_NAME).add({ status: 'pending', ...entry });
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -299,6 +344,16 @@ async function getAllQueuedEntries() {
   });
 }
 
+async function getQueuedEntry(id) {
+  const db = await openQueueDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(QUEUE_STORE_NAME, 'readonly');
+    const req = tx.objectStore(QUEUE_STORE_NAME).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 async function deleteQueuedEntry(id) {
   const db = await openQueueDb();
   return new Promise((resolve, reject) => {
@@ -309,12 +364,101 @@ async function deleteQueuedEntry(id) {
   });
 }
 
+/** FEAT-OFFLINE-MSG: يستبدل حذف العنصر بتحديثه (put بنفس الـ id — keyPath
+ * صريح بالكائن، لا حاجة لتمريره منفصلًا) — يبقيه بالطابور بحالة 'failed'
+ * بدل اختفائه بصمت، وهذا بالضبط ما يسمح لواجهة المحادثة بعرض "فشل
+ * الإرسال" مع خيار إعادة المحاولة/الحذف بدل أن تُسقِط الرسالة بلا أثر. */
+async function markQueuedEntry(id, patch) {
+  const db = await openQueueDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(QUEUE_STORE_NAME);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const current = getReq.result;
+      if (!current) {
+        resolve(null);
+        return;
+      }
+      const updated = { ...current, ...patch };
+      store.put(updated);
+      tx.oncomplete = () => resolve(updated);
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
+
+async function notifyClients(message) {
+  const clientsList = await self.clients.matchAll();
+  clientsList.forEach((client) => client.postMessage(message));
+}
+
+/**
+ * FIX CONFLICT-01 (كان جزءًا من replayQueue حرفيًا قبل هذا التعديل):
+ * محاولة إرسال عنصر واحد من الطابور. الفرق عن السلوك القديم —
+ * خطأ عميل نهائي (4xx، مثلًا 403 USER_BLOCKED لو حظر الطرف الآخر أثناء
+ * الانقطاع، أو 404 لو حُذفت المحادثة) كان يُحذف من الطابور بصمت تمامًا
+ * كنجاح — أي أن رسالة "فشلت" فعليًا تختفي بلا أي أثر للمستخدم، فيظن أنها
+ * وصلت. الآن: 4xx يُبقي العنصر بالطابور بحالة 'failed' (مع تفاصيل الخطأ)
+ * بدل حذفه، ويُخطر الواجهة بعنصر بعينه فشل — القرار (إعادة محاولة يدويًا/
+ * حذف) يُترك للمستخدم بدل أن يُتخذ صامتًا نيابة عنه. 5xx/انقطاع فعلي يبقيان
+ * كما كانا: العنصر يبقى pending ولا يُخطَر بفشل (قد ينجح لاحقًا بلا تدخل).
+ * يُرجع 'sent' | 'failed' | 'still-offline' — يستخدمها replayQueue لمعرفة
+ * متى تتوقف عن باقي الطابور (فقط عند 'still-offline').
+ */
+async function replayOne(entry) {
+  try {
+    const response = await fetch(entry.url, {
+      method: entry.method,
+      headers: entry.headers,
+      body: entry.body ?? undefined,
+      credentials: 'same-origin',
+    });
+
+    if (response.ok) {
+      await deleteQueuedEntry(entry.id);
+      await notifyClients({ type: 'QUEUE_ITEM_SENT', id: entry.id, url: entry.url });
+      return 'sent';
+    }
+
+    if (response.status >= 400 && response.status < 500) {
+      let message;
+      try {
+        const data = await response.clone().json();
+        message = typeof data?.message === 'string' ? data.message : undefined;
+      } catch {
+        message = undefined;
+      }
+      await markQueuedEntry(entry.id, {
+        status: 'failed',
+        lastError: { status: response.status, message },
+      });
+      await notifyClients({
+        type: 'QUEUE_ITEM_FAILED',
+        id: entry.id,
+        url: entry.url,
+        status: response.status,
+        message,
+      });
+      return 'failed';
+    }
+
+    // 5xx أو حالة غير متوقعة أخرى — مشكلة خادم مؤقتة على الأرجح، اترك
+    // العنصر pending وأعد المحاولة لاحقًا بلا تغيير حالته.
+    return 'still-offline';
+  } catch {
+    return 'still-offline';
+  }
+}
+
 /** تُستدعى من حدث 'sync' (Background Sync) ومن رسالة REPLAY_QUEUE_NOW
  * (fallback يدوي للمتصفحات بلا Background Sync، خاصة iOS Safari — انظر
- * lib/offlineQueue.ts's requestQueueReplay). تُعيد المحاولة بترتيب الإدخال
- * وتتوقف عند أول فشل شبكي (لا يزال أوفلاين) لتحافظ على الترتيب وتتجنب
- * محاولات فاشلة متكررة بلا فائدة؛ خطأ خادم (4xx/5xx) يُسقط الطلب من الطابور
- * لأن إعادته لاحقًا لن تُغيّر النتيجة. */
+ * lib/offlineQueue.ts's requestQueueReplay). تُعيد المحاولة بترتيب الإدخال؛
+ * تتخطى العناصر 'failed' (فشل نهائي مُعلَن — لا تُعاد تلقائيًا، فقط عبر
+ * RETRY_QUEUE_ITEM الصريح)، وتتوقف عند أول عنصر لا يزال "أوفلاين فعليًا"
+ * (still-offline) لتحافظ على الترتيب — لكنها لا تتوقف عند 4xx نهائي بعد
+ * الآن (FIX CONFLICT-01)، فرسالة فشلت لسبب لا علاقة له بالاتصال لا يجب أن
+ * تحجب باقي عناصر الطابور (لمحادثات/عمليات أخرى قد تنجح بلا مشكلة). */
 async function replayQueue() {
   let entries;
   try {
@@ -324,25 +468,12 @@ async function replayQueue() {
   }
 
   for (const entry of entries) {
-    try {
-      const response = await fetch(entry.url, {
-        method: entry.method,
-        headers: entry.headers,
-        body: entry.body ?? undefined,
-        credentials: 'same-origin',
-      });
-      if (response.ok || response.status < 500) {
-        await deleteQueuedEntry(entry.id);
-      } else {
-        break;
-      }
-    } catch {
-      break;
-    }
+    if (entry.status === 'failed') continue;
+    const result = await replayOne(entry);
+    if (result === 'still-offline') break;
   }
 
-  const clientsList = await self.clients.matchAll();
-  clientsList.forEach((client) => client.postMessage({ type: 'QUEUE_REPLAYED' }));
+  await notifyClients({ type: 'QUEUE_REPLAYED' });
 }
 
 /** طلبات API غير GET (POST/PUT/PATCH/DELETE) — عند فشل الشبكة تُحفظ بالطابور
@@ -434,7 +565,14 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  const currentCaches = [STATIC_CACHE, IMAGE_CACHE, API_CACHE, CORE_CACHE, SAVED_ADS_CACHE];
+  const currentCaches = [
+    STATIC_CACHE,
+    IMAGE_CACHE,
+    API_CACHE,
+    CORE_CACHE,
+    SAVED_ADS_CACHE,
+    MESSAGES_SHELL_CACHE,
+  ];
   event.waitUntil(
     (async () => {
       const cacheNames = await caches.keys();
@@ -460,12 +598,45 @@ self.addEventListener('message', (event) => {
     // SECURITY FIX (audit #2): تُستدعى عند تسجيل الخروج (useAuthMutations.ts's
     // clearServiceWorkerApiCache) — تمنع تسريب استجابات API مخزَّنة لمستخدم
     // سابق على جهاز مشترك للمستخدم التالي الذي يسجّل دخوله.
-    event.waitUntil(caches.delete(API_CACHE));
+    // FEAT-OFFLINE-MSG: MESSAGES_SHELL_CACHE يحمل نفس درجة الحساسية (شكل
+    // صفحة محادثة قد يتضمن أسماء/معاينة رسائل) — يُمسح هنا معه لنفس السبب.
+    event.waitUntil(Promise.all([caches.delete(API_CACHE), caches.delete(MESSAGES_SHELL_CACHE)]));
     return;
   }
 
   if (type === 'REPLAY_QUEUE_NOW') {
     event.waitUntil(replayQueue());
+  }
+
+  // FEAT-OFFLINE-MSG: إعادة محاولة عنصر فاشل بعينه (زر "إعادة المحاولة"
+  // على فقاعة رسالة فشلت — انظر lib/offlineMessagesQueue.ts). يعيد الحالة
+  // إلى pending فقط لو نجحت المحاولة فورًا فشلت مجددًا بـ 4xx (replayOne
+  // يحدّثها هو نفسه)؛ لو لا يزال أوفلاين فعليًا تبقى الحالة كما أعادها
+  // المستخدم ضمنيًا (still-offline لا يغيّر status هنا عمدًا — ستُلتقط
+  // بأول replayQueue تلقائي لاحقًا بما أنها لم تعد 'failed').
+  if (type === 'RETRY_QUEUE_ITEM' && event.data.id != null) {
+    event.waitUntil(
+      (async () => {
+        const entry = await getQueuedEntry(event.data.id);
+        if (!entry) return;
+        if (entry.status === 'failed') {
+          await markQueuedEntry(entry.id, { status: 'pending' });
+        }
+        await replayOne({ ...entry, status: 'pending' });
+        await notifyClients({ type: 'QUEUE_REPLAYED' });
+      })(),
+    );
+  }
+
+  // FEAT-OFFLINE-MSG: تجاهل نهائي لعنصر فاشل بعينه (زر "حذف" على فقاعة
+  // رسالة فشلت) — يُسقطه من الطابور دون أي محاولة إرسال أخرى.
+  if (type === 'DISCARD_QUEUE_ITEM' && event.data.id != null) {
+    event.waitUntil(
+      (async () => {
+        await deleteQueuedEntry(event.data.id);
+        await notifyClients({ type: 'QUEUE_ITEM_DISCARDED', id: event.data.id });
+      })(),
+    );
   }
 });
 

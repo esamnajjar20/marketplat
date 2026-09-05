@@ -54,6 +54,22 @@ export function useStartConversation() {
  * replaces the temporary id with the server's real one (and a real
  * readAt/deliveredAt going forward), so this is purely additive to the
  * existing flow, not a replacement for it.
+ *
+ * FEAT-OFFLINE-MSG: offline sends used to hit this exact onError path
+ * too — sw.js's 202 {queued:true} becomes a rejected promise with
+ * code:'OFFLINE_QUEUED' (client.ts's interceptor) — which rolled the
+ * optimistic bubble straight back out of the UI and toasted an error,
+ * even though the message genuinely was saved (to the SW's IndexedDB
+ * queue) and will send automatically once back online. The bubble
+ * disappearing while a "queued" toast played was actively misleading —
+ * looked exactly like a failed send. Now: a queued rejection still
+ * rolls back this hook's own ephemeral optimistic entry (no toast) —
+ * but only because ChatWindow renders a durable replacement instead,
+ * sourced from the SW's own queue via usePendingMessages(), which
+ * survives page reloads and app restarts (the in-memory optimistic
+ * entry here never would). A real failure (wrong network entirely,
+ * validation, blocked user while still online) keeps the original
+ * rollback + error toast behaviour unchanged.
  */
 export function useSendMessage(conversationId: string) {
   const queryClient = useQueryClient();
@@ -107,7 +123,13 @@ export function useSendMessage(conversationId: string) {
       context?.previous.forEach(([key, data]) => {
         queryClient.setQueryData(key, data);
       });
-      toast.error(parseApiError(err).message);
+      // FEAT-OFFLINE-MSG: a queued-offline rejection isn't a real failure —
+      // see this hook's doc comment above. Skip the error toast; the
+      // pending-send indicator ChatWindow now renders from the SW queue
+      // (usePendingMessages) already communicates the state honestly.
+      const parsed = parseApiError(err);
+      if (parsed.queued) return;
+      toast.error(parsed.message);
     },
 
     onSettled: () => {

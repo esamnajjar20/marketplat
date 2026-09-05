@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Send, Ban } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
+import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -41,7 +42,19 @@ export function MessageInput({ conversationId, disabled }: Props) {
     const trimmed = body.trim();
     if (!trimmed || sendMessage.isPending || disabled) return;
     setBody('');
-    sendMessage.mutate({ body: trimmed }, { onError: () => setBody(trimmed) });
+    sendMessage.mutate(
+      { body: trimmed },
+      {
+        // FEAT-OFFLINE-MSG: a queued-offline "failure" already saved the
+        // message (SW's IndexedDB queue) and ChatWindow now shows it as a
+        // pending bubble — putting the text back in the composer here too
+        // would make it look both sent (bubble) and not sent (input box)
+        // at once. Only restore the draft for a genuine failure.
+        onError: (err) => {
+          if (!parseApiError(err).queued) setBody(trimmed);
+        },
+      },
+    );
     // Keep focus for rapid back-and-forth
     requestAnimationFrame(() => textareaRef.current?.focus());
   }

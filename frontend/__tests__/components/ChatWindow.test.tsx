@@ -23,6 +23,7 @@ import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
 import { useIsUserOnline } from '@/hooks/queries/usePresence';
+import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/hooks/queries/useConversations', () => ({
@@ -44,6 +45,13 @@ vi.mock('@/hooks/mutations/useConversationMutations', () => ({
 
 vi.mock('@/hooks/queries/usePresence', () => ({
   useIsUserOnline: vi.fn(),
+}));
+
+// FEAT-OFFLINE-MSG: mocked to an empty array like every other query hook
+// here — its own IndexedDB/SW-message logic is exercised by
+// lib/offlineMessagesQueue's own unit coverage, not this component test.
+vi.mock('@/hooks/queries/usePendingMessages', () => ({
+  usePendingMessages: vi.fn(),
 }));
 
 vi.mock('@/store/auth.store', () => ({

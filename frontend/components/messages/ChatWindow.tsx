@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -17,6 +17,8 @@ import {
 import { MessageInput } from './MessageInput';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
+import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
+import { retryQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
@@ -37,6 +39,21 @@ interface Props {
 function otherParty(conversation: Conversation, userId: string | undefined) {
   return conversation.buyerId === userId ? conversation.seller : conversation.buyer;
 }
+
+/**
+ * FEAT-OFFLINE-MSG: رسالة معروضة قد تكون حقيقية (من useMessages) أو
+ * محلية بحتة — إما تفاؤلية (useSendMessage's onMutate، id بادئتها
+ * `optimistic-`) أو مُصفّفة أوفلاين حقًا (usePendingMessages، id بادئتها
+ * `queued-`، مصدرها IndexedDB عبر sw.js لا الذاكرة، فتنجو من إعادة تحميل
+ * الصفحة). clientStatus يميّز الحالة الثانية عن رسالة حقيقية مؤكَّدة؛
+ * queueId/lastError لا يُستخدَمان إلا لحالتَي queued/failed لتفعيل زر
+ * إعادة المحاولة/الحذف.
+ */
+type DisplayMessage = Message & {
+  clientStatus?: 'sending' | 'queued' | 'failed';
+  queueId?: number;
+  lastError?: { status: number; message?: string };
+};
 
 /**
  * ChatWindow — Epic 5, the thread view at /messages/:id. Replaces the
@@ -96,6 +113,8 @@ export function ChatWindow({ conversationId }: Props) {
   const { mutate: toggleBlock, isPending: togglingBlock } = useToggleUserBlock();
   const { mutate: deleteMessage, isPending: deletingMessage } = useDeleteMessage(conversationId);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
+  const pendingQueued = usePendingMessages(conversationId);
+  const [retryingQueueId, setRetryingQueueId] = useState<number | null>(null);
 
   // FIX UX-GAP-03: `page` starts at null (unused — the live query above
   // already covers page 1) and only becomes a real second fetch once
@@ -128,7 +147,36 @@ export function ChatWindow({ conversationId }: Props) {
   // olderMessages against the live set here, where both are actually
   // known together, rather than trying to guess it inside the effect.
   const liveIds = new Set(liveMessages.map((m) => m.id));
-  const messages = [...olderMessages.filter((m) => !liveIds.has(m.id)), ...liveMessages];
+  // FEAT-OFFLINE-MSG: rسائل مُصفّفة أوفلاين (pending/failed) تُلحَق دائمًا
+  // بالنهاية — قوائم الطابور مرتّبة أصلاً بـ queuedAt تصاعديًا (انظر
+  // listQueuedMessages)، وهي بالضرورة أحدث من أي رسالة حقيقية مؤكَّدة
+  // وصلت السيرفر فعلاً.
+  const queuedMessages: DisplayMessage[] = pendingQueued.map((q) => ({
+    id: `queued-${q.queueId}`,
+    conversationId,
+    senderId: user?.id ?? '',
+    body: q.body,
+    readAt: null,
+    deletedAt: null,
+    createdAt: new Date(q.queuedAt).toISOString(),
+    clientStatus: q.status === "pending" ? "queued" : q.status,
+    queueId: q.queueId,
+    lastError: q.lastError,
+  }));
+  const messages: DisplayMessage[] = [
+    ...olderMessages.filter((m) => !liveIds.has(m.id)),
+    ...liveMessages,
+    ...queuedMessages,
+  ];
+
+  function handleRetryQueued(queueId: number) {
+    setRetryingQueueId(queueId);
+    retryQueuedMessage(queueId).finally(() => setRetryingQueueId(null));
+  }
+
+  function handleDiscardQueued(queueId: number) {
+    discardQueuedMessage(queueId);
+  }
   // Whether an older page beyond whichever page was fetched last is
   // still available: before any click, that's the live page-1 fetch's
   // own hasNextPage; after a click, it's the latest older-page fetch's
@@ -157,7 +205,9 @@ export function ChatWindow({ conversationId }: Props) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [liveMessages.length]);
+    // FEAT-OFFLINE-MSG: a message queued while offline (usePendingMessages)
+    // should scroll into view the same way a normally-sent one does.
+  }, [liveMessages.length, queuedMessages.length]);
 
   if (conversationLoading) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
@@ -335,13 +385,19 @@ export function ChatWindow({ conversationId }: Props) {
               // confirmed sent/read message until the real one replaces
               // it on refetch.
               const isOptimistic = message.id.startsWith('optimistic-');
+              // FEAT-OFFLINE-MSG: a message sourced from usePendingMessages
+              // (id `queued-...`) has no real server id — same "not a real,
+              // persisted message yet" bucket as isOptimistic for the
+              // purposes of the delete-message menu below.
+              const clientStatus = message.clientStatus;
+              const isLocalOnly = isOptimistic || clientStatus === 'queued' || clientStatus === 'failed';
               return (
                 <div
                   key={message.id}
                   className={cn('group flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
                 >
                   <div className="flex items-center gap-1">
-                    {isMine && !isDeleted && !isOptimistic && (
+                    {isMine && !isDeleted && !isLocalOnly && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
@@ -377,7 +433,8 @@ export function ChatWindow({ conversationId }: Props) {
                           : isMine
                             ? 'rounded-ee-sm bg-primary text-primary-foreground shadow-xs'
                             : 'rounded-es-sm border border-border/80 bg-card text-foreground shadow-xs',
-                        isOptimistic && 'opacity-60'
+                        (isOptimistic || clientStatus === 'queued') && 'opacity-60',
+                        clientStatus === 'failed' && 'opacity-80 ring-1 ring-destructive/40'
                       )}
                     >
                       <p className="whitespace-pre-wrap break-words">
@@ -387,16 +444,46 @@ export function ChatWindow({ conversationId }: Props) {
                   </div>
                   <div className="flex items-center gap-1 px-1">
                     <span className="text-[10px] text-muted-foreground">
-                      {formatTime(message.createdAt)}
+                      {clientStatus === 'failed' ? 'فشل الإرسال' : formatTime(message.createdAt)}
                     </span>
                     {isMine && !isDeleted && (
-                      isOptimistic
-                        ? <Clock className="h-3 w-3 text-muted-foreground" aria-label="جارٍ الإرسال" />
-                        : message.readAt
-                          ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
-                          : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
+                      isOptimistic || clientStatus === 'queued'
+                        ? <Clock className="h-3 w-3 text-muted-foreground" aria-label={clientStatus === 'queued' ? 'بانتظار الاتصال' : 'جارٍ الإرسال'} />
+                        : clientStatus === 'failed'
+                          ? <AlertTriangle className="h-3.5 w-3.5 text-destructive" aria-label="فشل الإرسال" />
+                          : message.readAt
+                            ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
+                            : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
+                    )}
+                    {/* FEAT-OFFLINE-MSG: رسالة فشلت نهائيًا (4xx عند إعادة
+                        المحاولة، مثلًا حظر الطرف الآخر أثناء الانقطاع) —
+                        القرار (إعادة محاولة/حذف) يُترك للمستخدم صراحة بدل
+                        إسقاطها بصمت (انظر FIX CONFLICT-01 بـ sw.js). */}
+                    {clientStatus === 'failed' && message.queueId != null && (
+                      <div className="flex items-center gap-2 ms-1">
+                        <button
+                          type="button"
+                          onClick={() => handleRetryQueued(message.queueId!)}
+                          disabled={retryingQueueId === message.queueId}
+                          className="flex items-center gap-0.5 text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
+                        >
+                          <RotateCw className={cn('h-3 w-3', retryingQueueId === message.queueId && 'animate-spin')} />
+                          إعادة المحاولة
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDiscardQueued(message.queueId!)}
+                          className="flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-destructive"
+                        >
+                          <XIcon className="h-3 w-3" />
+                          حذف
+                        </button>
+                      </div>
                     )}
                   </div>
+                  {clientStatus === 'failed' && message.lastError?.message && (
+                    <p className="px-1 text-[10px] text-destructive/80">{message.lastError.message}</p>
+                  )}
                 </div>
               );
             })}
