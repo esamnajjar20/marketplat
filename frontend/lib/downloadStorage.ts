@@ -17,9 +17,22 @@ export interface CatalogDownloadRecord {
   storeName: string;
   productCount: number;
   fileName: string;
+  /** وقت آخر حفظ/تحديث لهذه النسخة المحلية */
   downloadedAt: string;
   /** هل المحتوى محفوظ في IndexedDB للفتح دون نت */
   hasOfflineBody?: boolean;
+  /** حجم النسخة المحفوظة (بايت) — لعرضه للمستخدم في قائمة المحفوظات */
+  sizeBytes?: number;
+}
+
+/** تحويل حجم بالبايت إلى نص مقروء (كيلوبايت/ميجابايت) بالعربية. */
+export function formatCatalogSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '—';
+  if (bytes < 1024) return `${bytes} بايت`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(kb < 10 ? 1 : 0)} كيلوبايت`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(mb < 10 ? 1 : 0)} ميجابايت`;
 }
 
 function readList(): CatalogDownloadRecord[] {
@@ -52,6 +65,7 @@ export async function recordCatalogDownload(input: {
     fileName: input.fileName,
     downloadedAt: new Date().toISOString(),
     hasOfflineBody: Boolean(input.html),
+    sizeBytes: input.html ? new Blob([input.html]).size : undefined,
   };
 
   if (input.html) {

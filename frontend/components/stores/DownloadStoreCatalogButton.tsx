@@ -4,8 +4,12 @@ import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { productsApi } from '@/api/products.api';
+import { storesApi } from '@/api/stores.api';
 import type { ProductWithStore } from '@/types/product.types';
+import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 import { recordCatalogDownload } from '@/lib/downloadStorage';
+import { getAvatarUrl, getDetailImageUrl, getThumbnailUrl } from '@/lib/cloudinary';
+import { normalizePaymentMethods } from '@/lib/storePaymentMethods';
 
 interface Props {
   storeId: string;
@@ -15,9 +19,65 @@ interface Props {
   size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
+/** نفس ترتيب أيام STORE_HOURS_DAYS في StoreHeader.tsx (السبت أولًا). */
+const HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
+  { key: 'sat', label: 'السبت' },
+  { key: 'sun', label: 'الأحد' },
+  { key: 'mon', label: 'الاثنين' },
+  { key: 'tue', label: 'الثلاثاء' },
+  { key: 'wed', label: 'الأربعاء' },
+  { key: 'thu', label: 'الخميس' },
+  { key: 'fri', label: 'الجمعة' },
+];
+
+/** تحويل رابط صورة إلى data URL (Base64) لتضمينه داخل الملف — يعمل بدون نت بعد الحفظ. */
+async function toDataUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** تضمين صورة أساسية واحدة لكل منتج (بحجم مصغّر) بدرجة تزامن محدودة. */
+async function embedProductImages(
+  products: ProductWithStore[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  let cursor = 0;
+  const CONCURRENCY = 6;
+
+  async function worker() {
+    for (;;) {
+      const i = cursor++;
+      if (i >= products.length) return;
+      const p = products[i]; if (!p) continue;
+      const src = p.images?.[0];
+      if (!src) continue;
+      const dataUrl = await toDataUrl(getThumbnailUrl(src, 280, 280));
+      if (dataUrl) map.set(p.id, dataUrl);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, products.length) }, () => worker()),
+  );
+  return map;
+}
+
 /**
  * زر تحميل كتالوج المتجر كاملًا كملف HTML مستقل يمكن فتحه ومشاهدته
- * بدون اتصال بالإنترنت (النصوص والأسعار والأوصاف؛ الصور تحتاج نت إن وُجدت).
+ * بدون اتصال بالإنترنت: بيانات المتجر، الصور الأساسية (مضمّنة داخل
+ * الملف نفسه)، المنتجات بأسعارها وأوصافها، ساعات العمل، ووسائل الدفع.
  */
 export function DownloadStoreCatalogButton({
   storeId,
@@ -69,7 +129,16 @@ export function DownloadStoreCatalogButton({
     return n.toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
 
-  function buildHtml(products: ProductWithStore[]): string {
+  function buildHtml(
+    products: ProductWithStore[],
+    ctx: {
+      store: StoreWithSellerAndCounts | null;
+      logoDataUrl: string | null;
+      coverDataUrl: string | null;
+      imageMap: Map<string, string>;
+    },
+  ): string {
+    const { store, logoDataUrl, coverDataUrl, imageMap } = ctx;
     const generatedAt = new Date().toLocaleString('ar-EG', {
       dateStyle: 'full',
       timeStyle: 'short',
@@ -88,8 +157,9 @@ export function DownloadStoreCatalogButton({
             : p.availability === 'LIMITED'
               ? 'كمية محدودة'
               : 'غير متوفر';
-        const img = p.images?.[0]
-          ? `<img src="${escapeHtml(p.images[0])}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.style.display='none'" />`
+        const embedded = imageMap.get(p.id);
+        const img = embedded
+          ? `<img src="${embedded}" alt="${escapeHtml(p.name)}" loading="lazy" />`
           : `<div class="no-img">لا توجد صورة</div>`;
 
         return `
@@ -109,6 +179,73 @@ export function DownloadStoreCatalogButton({
 </article>`;
       })
       .join('\n');
+
+    // بيانات المتجر: العنوان/المدينة/الهاتف/الوصف
+    const infoRows: string[] = [];
+    if (store?.city) {
+      infoRows.push(
+        `<div class="info-row"><span class="info-label">المدينة</span><span>${escapeHtml(store.city)}</span></div>`,
+      );
+    }
+    if (store?.address) {
+      infoRows.push(
+        `<div class="info-row"><span class="info-label">العنوان</span><span>${escapeHtml(store.address)}</span></div>`,
+      );
+    }
+    if (store?.phone) {
+      infoRows.push(
+        `<div class="info-row"><span class="info-label">الهاتف</span><span dir="ltr">${escapeHtml(store.phone)}</span></div>`,
+      );
+    }
+    const storeInfoSection = store
+      ? `
+<section class="store-card">
+  <div class="store-card-top">
+    ${logoDataUrl ? `<img class="store-logo" src="${logoDataUrl}" alt="${escapeHtml(storeName)}" />` : ''}
+    <div class="store-card-meta">
+      <h2>${escapeHtml(store.name)}</h2>
+      ${infoRows.join('\n')}
+    </div>
+  </div>
+  ${store.description ? `<p class="store-desc">${escapeHtml(store.description)}</p>` : ''}
+</section>`
+      : '';
+
+    // ساعات العمل
+    const workingHours = store?.workingHours;
+    const hoursRows = workingHours
+      ? HOURS_DAYS.map(({ key, label }) => {
+          const schedule = workingHours[key];
+          return `<tr><td>${label}</td><td>${schedule ? `${escapeHtml(schedule.open)} - ${escapeHtml(schedule.close)}` : 'مغلق'}</td></tr>`;
+        }).join('')
+      : '';
+    const hoursSection = hoursRows
+      ? `
+<section class="hours-card">
+  <h3>ساعات العمل</h3>
+  <table class="hours-table">${hoursRows}</table>
+</section>`
+      : '';
+
+    // وسائل الدفع
+    const paymentMethods = normalizePaymentMethods(store?.sellerProfile?.paymentMethods);
+    const paymentItems = paymentMethods
+      .map(
+        (m) => `
+<li class="pm-item">
+  <span class="pm-label">${escapeHtml(m.label)}</span>
+  <span class="pm-num" dir="ltr">${escapeHtml(m.accountNumber)}</span>
+  <span class="pm-name">${escapeHtml(m.accountName)}</span>
+</li>`,
+      )
+      .join('');
+    const paymentSection = paymentItems
+      ? `
+<section class="payment-card">
+  <h3>وسائل الدفع</h3>
+  <ul class="pm-list">${paymentItems}</ul>
+</section>`
+      : '';
 
     return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -206,6 +343,54 @@ export function DownloadStoreCatalogButton({
     .price.discounted { color: #dc2626; }
     .price s { color: var(--muted); font-weight: 400; font-size: 0.8rem; margin-right: 0.35rem; }
     .stock { font-size: 0.75rem; color: var(--success); }
+    .cover-wrap { max-width: 1100px; margin: 0 auto; padding: 0 1rem; }
+    .cover-wrap img {
+      width: 100%;
+      max-height: 260px;
+      object-fit: cover;
+      border-radius: 0 0 1rem 1rem;
+      display: block;
+    }
+    .store-card, .hours-card, .payment-card {
+      max-width: 960px;
+      margin: 1rem auto;
+      padding: 1rem 1.25rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+    }
+    .store-card-top { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .store-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .store-card-meta h2 { margin: 0 0 0.35rem; font-size: 1.1rem; }
+    .info-row { display: flex; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
+    .info-row .info-label { color: var(--text); font-weight: 600; }
+    .store-desc { margin: 0.85rem 0 0; font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+    .hours-card h3, .payment-card h3 { margin: 0 0 0.75rem; font-size: 1rem; }
+    .hours-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .hours-table td { padding: 0.35rem 0.25rem; border-bottom: 1px solid var(--border); }
+    .hours-table td:last-child { text-align: left; color: var(--muted); }
+    .pm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+    .pm-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 0.6rem;
+      font-size: 0.85rem;
+    }
+    .pm-label { font-weight: 700; color: var(--primary); }
+    .pm-num { font-weight: 600; }
+    .pm-name { color: var(--muted); font-size: 0.8rem; }
     footer {
       text-align: center;
       padding: 1.5rem 1rem;
@@ -222,12 +407,16 @@ export function DownloadStoreCatalogButton({
 <body>
   <header>
     <h1>${escapeHtml(storeName)}</h1>
-    <p>كتالوج المنتجات — ${products.length} منتج · تم التحميل ${escapeHtml(generatedAt)}</p>
+    <p>كتالوج كامل — ${products.length} منتج · آخر تحديث ${escapeHtml(generatedAt)}</p>
   </header>
+  ${coverDataUrl ? `<div class="cover-wrap"><img src="${coverDataUrl}" alt="" /></div>` : ''}
   <p class="note">
-    يمكنك فتح هذا الملف ومشاهدة أسماء المنتجات وأسعارها وأوصافها بدون إنترنت.
-    الصور تظهر فقط عند وجود اتصال بالإنترنت (لأنها مخزّنة على السحابة).
+    هذا الملف محفوظ بالكامل على جهازك — بيانات المتجر، الصور الأساسية، المنتجات
+    وأسعارها وأوصافها، ساعات العمل، ووسائل الدفع، كلها متاحة للمشاهدة بدون إنترنت.
   </p>
+  ${storeInfoSection}
+  ${hoursSection}
+  ${paymentSection}
   <div class="grid">
     ${cards || '<p style="grid-column:1/-1;text-align:center;color:#64748b">لا توجد منتجات في هذا المتجر.</p>'}
   </div>
@@ -242,8 +431,19 @@ export function DownloadStoreCatalogButton({
     if (loading) return;
     setLoading(true);
     try {
-      const products = await fetchAllProducts();
-      const html = buildHtml(products);
+      const [products, storeRes] = await Promise.all([
+        fetchAllProducts(),
+        storesApi.getById(storeId).catch(() => null),
+      ]);
+      const store = storeRes?.data.data ?? null;
+
+      const [logoDataUrl, coverDataUrl, imageMap] = await Promise.all([
+        toDataUrl(store?.logoUrl ? getAvatarUrl(store.logoUrl, 160) : null),
+        toDataUrl(store?.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 800) : null),
+        embedProductImages(products),
+      ]);
+
+      const html = buildHtml(products, { store, logoDataUrl, coverDataUrl, imageMap });
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -284,7 +484,7 @@ export function DownloadStoreCatalogButton({
       ) : (
         <Download className="h-4 w-4" aria-hidden />
       )}
-      {loading ? 'جاري التحميل…' : 'تحميل المنتجات (بدون نت)'}
+      {loading ? 'جاري الحفظ…' : 'حفظ المتجر (بدون نت)'}
     </Button>
   );
 }

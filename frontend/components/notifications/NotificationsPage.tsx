@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Bell, CheckCheck, Loader2, Settings, Trash2, RefreshCw } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, Settings, Trash2, RefreshCw, WifiOff } from 'lucide-react';
 import { useMyNotifications, useUnreadNotificationCount } from '@/hooks/queries/useNotifications';
 import {
   useMarkNotificationRead,
@@ -15,6 +15,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { TYPE_ICON, TYPE_LABEL, hrefFor } from '@/components/layout/NotificationBell';
 import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import type { Notification } from '@/types/notification.types';
 import { onPwaUpdateAvailable, activateWaitingServiceWorker } from '@/components/pwa/UpdatePrompt';
@@ -27,16 +28,20 @@ export function NotificationsPage() {
   const [tab, setTab] = useState<Tab>('all');
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     return onPwaUpdateAvailable(setPwaReg);
   }, []);
 
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
-  const { data, isLoading, isFetching, isError, refetch } = useMyNotifications({
+  // OFFLINE: طلب واحد غير مُصفّى فقط — هو ما يُبذَر من notificationsCache.ts
+  // ويُحفظ فيه (useMyNotifications). تبويب "غير مقروء" يُصفَّى من نفس
+  // القائمة محليًا أدناه بدل طلب خادم منفصل، حتى يعمل التبويبان معًا بدون
+  // اتصال من نسخة محفوظة واحدة.
+  const { data, isLoading, isFetching, isError, refetch, dataUpdatedAt } = useMyNotifications({
     page: 1,
     limit,
-    unreadOnly: tab === 'unread',
   });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
@@ -44,8 +49,13 @@ export function NotificationsPage() {
   const deleteAllRead = useDeleteAllReadNotifications();
 
   const items = data?.items ?? [];
+  const visibleItems = tab === 'unread' ? items.filter((n) => !n.readAt) : items;
   const hasMore = Boolean(data?.meta?.hasNextPage);
   const loadingMore = isFetching && !isLoading;
+  // نعرض المحتوى المحفوظ محليًا طالما توفّرت بيانات، حتى لو فشل آخر تحديث
+  // فعليًا (isError) — الخطأ الكامل يظهر فقط إن لم تكن هناك أي نسخة أصلًا.
+  const showHardError = isError && items.length === 0;
+  const showStaleNotice = !online && items.length > 0;
 
   const tabs = useMemo(
     () =>
@@ -109,6 +119,17 @@ export function NotificationsPage() {
         </div>
       </div>
 
+      {showStaleNotice && (
+        <p className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+          <WifiOff className="h-3.5 w-3.5 shrink-0" />
+          أنت دون اتصال — تُعرض آخر الإشعارات المحفوظة على جهازك
+          {dataUpdatedAt
+            ? ` (آخر تحديث: ${new Date(dataUpdatedAt).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })})`
+            : ''}
+          .
+        </p>
+      )}
+
       <div className="flex gap-1 rounded-xl border bg-muted/40 p-1">
         {tabs.map((t) => (
           <button
@@ -143,14 +164,14 @@ export function NotificationsPage() {
               </div>
             ))}
           </div>
-        ) : isError ? (
+        ) : showHardError ? (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <p className="text-sm text-destructive">تعذّر تحميل الإشعارات</p>
             <Button type="button" size="sm" variant="outline" onClick={() => refetch()}>
               إعادة المحاولة
             </Button>
           </div>
-        ) : items.length === 0 && !pwaReg ? (
+        ) : visibleItems.length === 0 && !pwaReg ? (
           <EmptyState
             className="py-12"
             icon={<Bell className="h-10 w-10" />}
@@ -188,7 +209,7 @@ export function NotificationsPage() {
                 </button>
               </li>
             )}
-            {items.map((n) => {
+            {visibleItems.map((n) => {
               const Icon = TYPE_ICON[n.type] ?? Bell;
               const href = hrefFor(n);
               const unread = !n.readAt;
@@ -261,7 +282,7 @@ export function NotificationsPage() {
           </ul>
         )}
 
-        {hasMore && items.length > 0 && (
+        {hasMore && visibleItems.length > 0 && (
           <div className="flex justify-center border-t p-3">
             <Button
               type="button"

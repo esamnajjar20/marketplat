@@ -10,6 +10,7 @@ import {
   removeCatalogDownload,
   clearCatalogDownloads,
   openCatalogOffline,
+  formatCatalogSize,
   type CatalogDownloadRecord,
 } from '@/lib/downloadStorage';
 import { ROUTES } from '@/lib/constants';
@@ -104,8 +105,11 @@ export function DownloadsPageClient() {
               <p className="text-xs text-muted-foreground">
                 {item.productCount} منتج · {item.fileName}
                 {item.hasOfflineBody ? ' · متاح دون نت' : ''}
+                {item.sizeBytes ? ` · ${formatCatalogSize(item.sizeBytes)}` : ''}
               </p>
-              <p className="text-xs text-muted-foreground">{formatDate(item.downloadedAt)}</p>
+              <p className="text-xs text-muted-foreground">
+                آخر تحديث: {formatDate(item.downloadedAt)}
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               {item.hasOfflineBody && (
@@ -142,7 +146,7 @@ export function DownloadsPageClient() {
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                حذف
+                إزالة من المحفوظات
               </Button>
             </div>
           </li>

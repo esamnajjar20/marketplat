@@ -29,6 +29,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import { useAuthStore, selectPatchUser, selectLogout } from '@/store/auth.store';
 import { clearAuthCookies, clearServiceWorkerApiCache } from './useAuthMutations';
+import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { unwrapData } from '@/lib/apiPagination';
 import type { UpdateProfilePayload, NotificationPreferences } from '@/types/user.types';
 
@@ -91,6 +92,7 @@ export function useDeleteAccount() {
       logout();
       clearAuthCookies();
       clearServiceWorkerApiCache();
+      clearNotificationsCache();
       queryClient.clear();
       toast.success('تم حذف حسابك بنجاح');
       router.push(ROUTES.home);
