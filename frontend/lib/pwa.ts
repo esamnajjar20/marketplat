@@ -100,9 +100,32 @@ export function onServiceWorkerUpdate(listener: SwUpdateListener): () => void {
   };
 }
 
-/** يطلب من الـ SW الجديد (الموجود في حالة "waiting") تولي السيطرة فورًا. */
+/**
+ * يطلب من الـ SW الجديد (الموجود في حالة "waiting") تولي السيطرة فورًا.
+ *
+ * FIX PWA-UPDATE-01: كانت `registration.waiting?.postMessage(...)` — لو
+ * كان `waiting` قد أصبح null بحلول لحظة الضغط (مثلًا: نافذة/تبويب آخر لنفس
+ * التطبيق فعّل نفس التحديث أولًا، فتحوّل الـ SW من waiting إلى active قبل
+ * أن يضغط المستخدم هنا)، فإن الـ postMessage يُطوى بصمت بفضل `?.` — لا
+ * خطأ، لا رد فعل، لا تحديث. هذا يطابق تمامًا الأعراض المُبلَّغ عنها: ضغطة
+ * الزر تُسجَّل بصريًا لكن لا شيء يتحمّل بعدها فعليًا.
+ * أيضًا: حتى مع وجود waiting فعليًا، لو تأخّر حدث controllerchange لأي سبب
+ * (بما فيها قيود دورة حياة SW المعروفة على iOS Safari للتطبيقات المثبتة
+ * على الشاشة الرئيسية)، كان المستخدم يبقى عالقًا على الشاشة القديمة دون
+ * أي مسار احتياطي.
+ * الإصلاح: لو لا يوجد waiting، أعد التحميل مباشرة (التحديث غالبًا مُفعَّل
+ * فعليًا). ولو يوجد، أرسل الرسالة كالمعتاد مع مؤقت احتياطي (3 ثوانٍ) يفرض
+ * إعادة التحميل يدويًا إن لم ينطلق controllerchange بحلول ذلك الوقت.
+ */
 export function activateWaitingServiceWorker(registration: ServiceWorkerRegistration): void {
-  registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+  if (!registration.waiting) {
+    window.location.reload();
+    return;
+  }
+  registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  window.setTimeout(() => {
+    window.location.reload();
+  }, 3000);
 }
 
 // ── Push Notifications ──────────────────────────────────────────

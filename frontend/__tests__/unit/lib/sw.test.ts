@@ -85,9 +85,11 @@ function loadServiceWorker() {
   // assert against (API_CACHE) onto `self` with a follow-up statement
   // appended to the same execution, since sw.js itself is read-only
   // source we don't want to modify just for testability.
-  vm.runInContext(`${SW_SOURCE}\nself.__API_CACHE = API_CACHE;`, sandbox, {
-    filename: 'sw.js',
-  });
+  vm.runInContext(
+    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;`,
+    sandbox,
+    { filename: 'sw.js' },
+  );
 
   return { sandbox, listeners, storesByName, fakeCaches };
 }
@@ -102,7 +104,7 @@ describe('sw.js — service worker logic', () => {
   describe('isProtectedPage (audit #7 — protected/admin navigate exclusion)', () => {
     const isProtectedPage = () => ctx.sandbox.isProtectedPage;
 
-    it('flags dashboard, settings, my-ads, my-services, favorites, messages, ads/create, and admin as protected', () => {
+    it('flags dashboard, settings, my-ads, my-services, favorites, messages, notifications, ads/create, and admin as protected', () => {
       const paths = [
         '/dashboard',
         '/settings',
@@ -112,6 +114,11 @@ describe('sw.js — service worker logic', () => {
         '/my-services/123/edit',
         '/favorites',
         '/messages',
+        // FIX PWA-NOTIF-01: previously missing from protectedPrefixes,
+        // which let this personal page fall through to the general
+        // public-page STATIC_CACHE path instead of being excluded per
+        // audit #7 like every other route in this list.
+        '/notifications',
         '/ads/create',
         '/admin',
         '/admin/sellers',
@@ -138,6 +145,23 @@ describe('sw.js — service worker logic', () => {
     });
   });
 
+  describe('isPersonalShellRoute (FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01 — narrow shell-cache exception)', () => {
+    it('matches /messages, /messages/:id, and /notifications only', () => {
+      const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
+      expect(isPersonalShellRoute(new URL('https://example.com/messages'))).toBe(true);
+      expect(isPersonalShellRoute(new URL('https://example.com/messages/abc123'))).toBe(true);
+      expect(isPersonalShellRoute(new URL('https://example.com/notifications'))).toBe(true);
+    });
+
+    it('does not match other protected pages (deliberately not extended app-wide)', () => {
+      const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
+      expect(isPersonalShellRoute(new URL('https://example.com/dashboard'))).toBe(false);
+      expect(isPersonalShellRoute(new URL('https://example.com/settings'))).toBe(false);
+      expect(isPersonalShellRoute(new URL('https://example.com/my-ads'))).toBe(false);
+      expect(isPersonalShellRoute(new URL('https://example.com/admin'))).toBe(false);
+    });
+  });
+
   describe('isApiRequest', () => {
     it('matches any /api/ path regardless of origin', () => {
       const isApiRequest = ctx.sandbox.isApiRequest;
@@ -147,15 +171,21 @@ describe('sw.js — service worker logic', () => {
   });
 
   describe('CLEAR_API_CACHE message listener (audit #2 — logout cache leak fix)', () => {
-    it('registers a message listener that deletes API_CACHE on CLEAR_API_CACHE', async () => {
+    it('registers a message listener that deletes API_CACHE and PERSONAL_SHELL_CACHE on CLEAR_API_CACHE', async () => {
       const messageHandlers = ctx.listeners['message'] ?? [];
       expect(messageHandlers.length).toBeGreaterThan(0);
 
-      // Seed the API cache so we can prove it actually gets removed.
+      // Seed both caches so we can prove they actually get removed.
       const apiCacheName = ctx.sandbox.self.__API_CACHE;
+      const shellCacheName = ctx.sandbox.self.__PERSONAL_SHELL_CACHE;
       expect(apiCacheName).toMatch(/market-api-/);
+      // FIX PWA-NOTIF-01: this cache now backs both /messages and
+      // /notifications shells, not just messages — name updated accordingly.
+      expect(shellCacheName).toMatch(/market-personal-shell-/);
       await ctx.fakeCaches.open(apiCacheName);
+      await ctx.fakeCaches.open(shellCacheName);
       expect(await ctx.fakeCaches.keys()).toContain(apiCacheName);
+      expect(await ctx.fakeCaches.keys()).toContain(shellCacheName);
 
       const waitUntilCalls: Promise<unknown>[] = [];
       const fakeEvent = {
@@ -167,6 +197,7 @@ describe('sw.js — service worker logic', () => {
       await Promise.all(waitUntilCalls);
 
       expect(await ctx.fakeCaches.keys()).not.toContain(apiCacheName);
+      expect(await ctx.fakeCaches.keys()).not.toContain(shellCacheName);
     });
 
     it('ignores unrelated message types without touching any cache', async () => {

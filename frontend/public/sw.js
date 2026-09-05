@@ -24,18 +24,32 @@
  * يُشغَّل فعليًا بمتصفح حقيقي في هذه الجلسة (لا شبكة/build متاح هنا).
  */
 
-const CACHE_VERSION = 'v5';
+// FIX PWA-VER-01: كان CACHE_VERSION هنا 'v5' بينما lib/offlineRouteShells.ts
+// وlib/offlineCoreBundle.ts (اللذان يفترض أن يطابقا هذه القيمة "حرفيًا" حسب
+// تعليقاتهما الخاصة) كانا لا يزالان مثبَّتين على 'v4' — عدم تطابق حقيقي كان
+// يعني: (1) warmRouteShells() تكتب شِلال الصفحات العامة المُسخَّنة مسبقًا
+// (/, /products, /stores...) في كاش 'market-static-v4' الذي لا يقرأ منه
+// معالج fetch هنا أبدًا (يقرأ من STATIC_CACHE = market-static-v5)، و(2)
+// 'activate' أدناه يحذف أي كاش يبدأ بـ market- وليس ضمن currentCaches —
+// فكاش v4 كان يُمسح فورًا بعد كل تفعيل SW جديد. نفس المشكلة بالضبط
+// لـ CORE_CACHE (PHASE-1 Offline Core Bundle). النتيجة العملية: ميزتا
+// "تصفّح المسارات العامة بدون نت" و"الحزمة الأساسية بدون نت" كانتا معطَّلتين
+// فعليًا رغم وجود الكود بالكامل. رُفع CACHE_VERSION هنا إلى 'v6' وطُبِّق نفس
+// الرقم بالملفين الآخرين لإعادة المزامنة (انظر تعليقيهما).
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
-// FEAT-OFFLINE-MSG: كاش شكل الصفحة (page shell) لمسارات الرسائل تحديدًا
-// (/messages, /messages/:id) فقط — بقية الصفحات المحمية (isProtectedPage)
-// تبقى "شبكة فقط" كما كانت (audit #7: محتوى شخصي، لا يجوز تخزينه بجانب
-// STATIC_CACHE العام). هذا الكاش مسموح استثناءً لأنه يُعامَل بنفس الحماية
-// اللي API_CACHE أصلاً يُعامَل بها (وAPI_CACHE فعليًا يخزّن نفس درجة
-// الحساسية — محتوى الرسائل نفسه) — يُمسح بالكامل عند تسجيل الخروج
-// (CLEAR_API_CACHE أدناه) بدل تركه محفوظًا لمستخدم تالٍ على جهاز مشترك.
-const MESSAGES_SHELL_CACHE = `market-messages-shell-${CACHE_VERSION}`;
+// FEAT-OFFLINE-MSG (وسِّع لاحقًا ليشمل /notifications، انظر
+// isPersonalShellRoute أدناه): كاش شكل الصفحة (page shell) لمسارات محمية
+// "شخصية لكن بلا محتوى مُخصَّص فعليًا بالـ HTML/RSC" تحديدًا — بقية الصفحات
+// المحمية (isProtectedPage) تبقى "شبكة فقط" كما كانت (audit #7: محتوى شخصي،
+// لا يجوز تخزينه بجانب STATIC_CACHE العام). هذا الكاش مسموح استثناءً لأنه
+// يُعامَل بنفس الحماية اللي API_CACHE أصلاً يُعامَل بها (وAPI_CACHE فعليًا
+// يخزّن نفس درجة الحساسية — بيانات الرسائل/الإشعارات نفسها) — يُمسح بالكامل
+// عند تسجيل الخروج (CLEAR_API_CACHE أدناه) بدل تركه محفوظًا لمستخدم تالٍ
+// على جهاز مشترك.
+const PERSONAL_SHELL_CACHE = `market-personal-shell-${CACHE_VERSION}`;
 // PHASE-1 (Offline Core Bundle): كاش منفصل عن API_CACHE عمدًا. API_CACHE
 // محدود بـ MAX_API_ENTRIES=60 ويُقلَّم بترتيب FIFO تقريبي (انظر trimCache) —
 // أي تصفح عادي بعد warm-up كافٍ لإخراج طلبات الحزمة الأساسية (تصنيفات/
@@ -76,6 +90,17 @@ function isProtectedPage(url) {
     '/my-services',
     '/favorites',
     '/messages',
+    // FIX PWA-NOTIF-01: كانت /notifications غائبة عن هذه القائمة رغم كونها
+    // صفحة محمية شخصية بالكامل (تحت (protected) وتتطلب تسجيل دخول) — يعني
+    // كانت تمر من handlePageRequest كصفحة "عامة" وتُخزَّن شكلها في
+    // STATIC_CACHE العام (لا يُمسح عند تسجيل الخروج)، خلافًا لسياسة audit #7
+    // الموثّقة أعلاه لبقية هذه القائمة بالضبط. لم يكن هذا يسرّب بيانات فعلية
+    // (الصفحة 'use client' بالكامل ومحتوى الإشعارات يُجلب عبر React Query،
+    // لا يُخبَز داخل HTML/RSC المخزَّن) لكنه تصنيف غير متسق وغير آمن
+    // بالتصميم لأي تغيير مستقبلي بالصفحة. أُضيفت هنا والآن تُعامَل كصفحة
+    // محمية بشِل مخزَّن آمن (انظر isPersonalShellRoute) بدل الاعتماد
+    // بالصدفة على السلوك العام.
+    '/notifications',
     '/ads/create',
     '/admin',
   ];
@@ -112,12 +137,19 @@ function rscShellKey(pathname) {
   return `${pathname}?__offline_rsc_shell`;
 }
 
-/** FEAT-OFFLINE-MSG: نطاق ضيّق عمدًا — فقط /messages و/messages/:id، وليس
- * كل isProtectedPage. هذا هو المسار الوحيد اللي طُلب دعمه أوفلاين صراحة؛
- * توسيعه لبقية الصفحات المحمية (dashboard/settings/admin...) قرار منفصل
- * يستأهل مراجعة حساسية بيانات خاصة به. */
-function isMessagesRoute(url) {
-  return url.pathname === '/messages' || url.pathname.startsWith('/messages/');
+/** FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01: نطاق محدود عمدًا — /messages،
+ * /messages/:id، و/notifications فقط، وليس كل isProtectedPage. هذه هي
+ * المسارات المحمية الوحيدة التي رُوجعت وتحقّقنا أنها آمنة لتخزين شكلها
+ * (لا بيانات مستخدم مخبوزة داخل HTML/RSC نفسه — كلتاهما 'use client' بالكامل
+ * وتجلبان بياناتهما عبر React Query بعد الـ hydration). توسيعه لبقية
+ * الصفحات المحمية (dashboard/settings/admin...) قرار منفصل يستأهل مراجعة
+ * حساسية بيانات خاصة به لكل صفحة على حدة. */
+function isPersonalShellRoute(url) {
+  return (
+    url.pathname === '/messages' ||
+    url.pathname.startsWith('/messages/') ||
+    url.pathname === '/notifications'
+  );
 }
 
 // ── استراتيجيات التخزين ─────────────────────────────────────────
@@ -171,21 +203,24 @@ async function staleWhileRevalidate(event, request, cacheKey) {
  * الشبكة، أقصى ما نقدّمه لغالبية الصفحات المحمية هو /offline نفسها —
  * لا نسخة مخزَّنة من الصفحة المحمية (لا توجد أصلًا).
  *
- * FEAT-OFFLINE-MSG: استثناء ضيّق لمسارات الرسائل فقط (isMessagesRoute) —
- * "قراءة المحادثات المحفوظة أوفلاين" يتطلب أن يصل المستخدم أصلًا لصفحة
- * /messages أو /messages/:id (شكلها/JS) حتى تقدر بياناتها (المخزَّنة أصلاً
- * بـ API_CACHE عبر networkFirstApi) تُعرض؛ بدون هذا، أي تنقّل (حتى soft-nav
- * RSC) وهو أوفلاين كان يفشل عند طلب شكل الصفحة نفسه ويعرض /offline العامة
- * بدل المحادثة المخزَّنة. مخزَّن بـ MESSAGES_SHELL_CACHE (كاش منفصل، يُمسح
- * كاملًا عند تسجيل الخروج تمامًا مثل API_CACHE — انظر تعليق تعريفه أعلاه). */
+ * FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01: استثناء محدود لمسارات الرسائل
+ * والإشعارات فقط (isPersonalShellRoute) — "قراءة المحادثات/الإشعارات
+ * المحفوظة أوفلاين" يتطلب أن يصل المستخدم أصلًا لشكل الصفحة (/messages،
+ * /messages/:id، أو /notifications) حتى تقدر بياناتها (المخزَّنة أصلاً
+ * بـ API_CACHE عبر networkFirstApi لطلبات API، وبـ localStorage عبر
+ * lib/notificationsCache.ts للإشعارات تحديدًا) تُعرض؛ بدون هذا، أي تنقّل
+ * (حتى soft-nav RSC) وهو أوفلاين كان يفشل عند طلب شكل الصفحة نفسه ويعرض
+ * /offline العامة بدل المحتوى المخزَّن فعليًا. مخزَّن بـ PERSONAL_SHELL_CACHE
+ * (كاش منفصل، يُمسح كاملًا عند تسجيل الخروج تمامًا مثل API_CACHE — انظر
+ * تعليق تعريفه أعلاه). */
 async function handleProtectedPage(request, url) {
-  const useMessagesShell = isMessagesRoute(url);
+  const useShellCache = isPersonalShellRoute(url);
   const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
 
   try {
     const response = await fetch(request);
-    if (useMessagesShell && response && response.ok) {
-      const cache = await caches.open(MESSAGES_SHELL_CACHE);
+    if (useShellCache && response && response.ok) {
+      const cache = await caches.open(PERSONAL_SHELL_CACHE);
       const toStore = isRscShellRequest(request)
         ? await stripVaryAndClone(response.clone())
         : response.clone();
@@ -193,8 +228,8 @@ async function handleProtectedPage(request, url) {
     }
     return response;
   } catch {
-    if (useMessagesShell) {
-      const shellCache = await caches.open(MESSAGES_SHELL_CACHE);
+    if (useShellCache) {
+      const shellCache = await caches.open(PERSONAL_SHELL_CACHE);
       const cachedShell = await shellCache.match(cacheKey);
       if (cachedShell) return cachedShell;
     }
@@ -571,7 +606,7 @@ self.addEventListener('activate', (event) => {
     API_CACHE,
     CORE_CACHE,
     SAVED_ADS_CACHE,
-    MESSAGES_SHELL_CACHE,
+    PERSONAL_SHELL_CACHE,
   ];
   event.waitUntil(
     (async () => {
@@ -598,9 +633,10 @@ self.addEventListener('message', (event) => {
     // SECURITY FIX (audit #2): تُستدعى عند تسجيل الخروج (useAuthMutations.ts's
     // clearServiceWorkerApiCache) — تمنع تسريب استجابات API مخزَّنة لمستخدم
     // سابق على جهاز مشترك للمستخدم التالي الذي يسجّل دخوله.
-    // FEAT-OFFLINE-MSG: MESSAGES_SHELL_CACHE يحمل نفس درجة الحساسية (شكل
-    // صفحة محادثة قد يتضمن أسماء/معاينة رسائل) — يُمسح هنا معه لنفس السبب.
-    event.waitUntil(Promise.all([caches.delete(API_CACHE), caches.delete(MESSAGES_SHELL_CACHE)]));
+    // FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01: PERSONAL_SHELL_CACHE يحمل نفس
+    // درجة الحساسية (شكل صفحة محادثة قد يتضمن أسماء/معاينة رسائل، أو شكل
+    // صفحة إشعارات) — يُمسح هنا معه لنفس السبب.
+    event.waitUntil(Promise.all([caches.delete(API_CACHE), caches.delete(PERSONAL_SHELL_CACHE)]));
     return;
   }
 

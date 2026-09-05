@@ -37,7 +37,12 @@
  * انظر القيد بالأسفل.
  */
 
-const STATIC_CACHE = 'market-static-v4'; // يجب مطابقة CACHE_VERSION بـ public/sw.js
+// FIX PWA-VER-01: كانت هذه القيمة عالقة على 'v4' بينما public/sw.js تجاوزها
+// إلى 'v5' بجلسة سابقة — عدم تطابق حقيقي كان يعني أن warmRouteShells() تكتب
+// بكاش لا يقرأ منه sw.js أبدًا، وأن 'activate' هناك يحذف هذا الكاش (v4) فورًا
+// بعد كل تفعيل لأنه غير مدرَج بـ currentCaches. رُفعت هنا إلى 'v6' لتطابق
+// public/sw.js's CACHE_VERSION الحالية — راجع تعليق CACHE_VERSION هناك.
+const STATIC_CACHE = 'market-static-v6'; // يجب مطابقة CACHE_VERSION بـ public/sw.js
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
