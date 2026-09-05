@@ -1,17 +1,17 @@
 /**
  * __tests__/components/UpdatePrompt.test.tsx
  *
- * Real logic under test: renders nothing until
- * onServiceWorkerUpdate's callback fires with a registration, then
- * renders the update banner; clicking "تحديث الآن" calls
- * activateWaitingServiceWorker with that exact registration; dismiss
- * hides the banner; and the subscription is cleaned up on unmount.
+ * Real logic under test: renders nothing until onServiceWorkerUpdate's
+ * callback fires with a registration, then renders the update banner;
+ * "تحديث الآن" now links to /update (the update page owns activation +
+ * progress) instead of activating instantly; dismiss hides the banner;
+ * and the subscription is cleaned up on unmount.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { UpdatePrompt } from '@/components/pwa/UpdatePrompt';
-import { onServiceWorkerUpdate, activateWaitingServiceWorker } from '@/lib/pwa';
+import { onServiceWorkerUpdate } from '@/lib/pwa';
 
 vi.mock('@/lib/pwa', () => ({
   onServiceWorkerUpdate: vi.fn(),
@@ -19,7 +19,6 @@ vi.mock('@/lib/pwa', () => ({
 }));
 
 const mockOnServiceWorkerUpdate = vi.mocked(onServiceWorkerUpdate);
-const mockActivate = vi.mocked(activateWaitingServiceWorker);
 const mockUnsubscribe = vi.fn();
 
 const fakeRegistration = { waiting: {} } as unknown as ServiceWorkerRegistration;
@@ -50,26 +49,24 @@ describe('UpdatePrompt', () => {
       capturedListener(fakeRegistration);
     });
     expect(screen.getByText('يتوفر تحديث جديد للتطبيق')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'تحديث الآن' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'تحديث الآن' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'إخفاء الإشعار' })).toBeInTheDocument();
   });
 
-  it('calls activateWaitingServiceWorker with the exact registration on click', async () => {
+  it('links "تحديث الآن" to the /update page instead of activating instantly', () => {
     let capturedListener: (reg: ServiceWorkerRegistration) => void = () => {};
     mockOnServiceWorkerUpdate.mockImplementation((listener) => {
       capturedListener = listener;
       return mockUnsubscribe;
     });
 
-    const user = setupUser();
     render(<UpdatePrompt />);
     act(() => {
       capturedListener(fakeRegistration);
     });
 
-    await user.click(await screen.findByRole('button', { name: 'تحديث الآن' }));
-
-    expect(mockActivate).toHaveBeenCalledWith(fakeRegistration);
+    const link = screen.getByRole('link', { name: 'تحديث الآن' });
+    expect(link).toHaveAttribute('href', '/update');
   });
 
   it('hides the banner when dismiss is clicked', async () => {
@@ -96,4 +93,3 @@ describe('UpdatePrompt', () => {
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
   });
 });
-

@@ -18,7 +18,7 @@ import { formatRelativeTime } from '@/lib/formatters';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import type { Notification } from '@/types/notification.types';
-import { onPwaUpdateAvailable, activateWaitingServiceWorker } from '@/components/pwa/UpdatePrompt';
+import { onPwaUpdateAvailable } from '@/components/pwa/UpdatePrompt';
 
 const PAGE_SIZE = 20;
 
@@ -186,9 +186,8 @@ export function NotificationsPage() {
           <ul className="divide-y">
             {pwaReg && (
               <li>
-                <button
-                  type="button"
-                  onClick={() => activateWaitingServiceWorker(pwaReg)}
+                <Link
+                  href="/update"
                   className="flex w-full items-start gap-3 bg-primary/[0.04] p-4 text-start transition-colors hover:bg-primary/10"
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -203,10 +202,10 @@ export function NotificationsPage() {
                       <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      اضغط لتحديث التطبيق الآن والحصول على آخر الميزات والإصلاحات
+                      اضغط لعرض تفاصيل التحديث وتفعيله
                     </p>
                   </div>
-                </button>
+                </Link>
               </li>
             )}
             {visibleItems.map((n) => {

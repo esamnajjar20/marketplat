@@ -12,6 +12,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { onServiceWorkerUpdate, activateWaitingServiceWorker } from '@/lib/pwa';
@@ -69,14 +70,6 @@ function markDismissed() {
   }
 }
 
-function clearDismissed() {
-  try {
-    localStorage.removeItem(DISMISS_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 export function UpdatePrompt() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [visible, setVisible] = useState(false);
@@ -118,13 +111,6 @@ export function UpdatePrompt() {
     };
   }, [registration]);
 
-  const handleUpdate = () => {
-    if (!registration) return;
-    clearDismissed();
-    notifyShared(null);
-    activateWaitingServiceWorker(registration);
-  };
-
   const handleDismiss = () => {
     markDismissed();
     setVisible(false);
@@ -142,8 +128,8 @@ export function UpdatePrompt() {
     >
       <RefreshCw className="h-5 w-5 shrink-0 text-primary" />
       <p className="flex-1 text-sm">يتوفر تحديث جديد للتطبيق</p>
-      <Button size="sm" onClick={handleUpdate}>
-        تحديث الآن
+      <Button size="sm" asChild>
+        <Link href="/update">تحديث الآن</Link>
       </Button>
       <button
         type="button"

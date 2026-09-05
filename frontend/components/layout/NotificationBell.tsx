@@ -34,7 +34,7 @@ import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/types/notification.types';
-import { onPwaUpdateAvailable, activateWaitingServiceWorker } from '@/components/pwa/UpdatePrompt';
+import { onPwaUpdateAvailable } from '@/components/pwa/UpdatePrompt';
 
 const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   NEW_MESSAGE: MessageSquare,
@@ -323,9 +323,8 @@ export function NotificationBell() {
 
         <div className="max-h-96 overflow-y-auto">
           {pwaReg && (
-            <button
-              type="button"
-              onClick={() => activateWaitingServiceWorker(pwaReg)}
+            <Link
+              href="/update"
               className="flex w-full items-start gap-2.5 border-b bg-primary/5 p-3 text-start transition-colors hover:bg-primary/10"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -337,10 +336,10 @@ export function NotificationBell() {
                   <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  اضغط لتحديث التطبيق الآن والحصول على آخر الميزات والإصلاحات
+                  اضغط لعرض تفاصيل التحديث وتفعيله
                 </p>
               </div>
-            </button>
+            </Link>
           )}
           {isLoading ? (
             <div className="flex flex-col gap-0 divide-y" role="status" aria-label="جارٍ التحميل">

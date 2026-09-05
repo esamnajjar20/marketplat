@@ -117,12 +117,29 @@ export function onServiceWorkerUpdate(listener: SwUpdateListener): () => void {
  * فعليًا). ولو يوجد، أرسل الرسالة كالمعتاد مع مؤقت احتياطي (3 ثوانٍ) يفرض
  * إعادة التحميل يدويًا إن لم ينطلق controllerchange بحلول ذلك الوقت.
  */
-export function activateWaitingServiceWorker(registration: ServiceWorkerRegistration): void {
+export type UpdateStage = 'activating' | 'reloading';
+
+/**
+ * onStage اختياري: يُستخدم من صفحة /update لعرض تقدّم التحديث للمستخدم
+ * (انظر app/update/page.tsx). لا يغيّر أي سلوك فعلي — مجرد نداءات إضافية
+ * عند كل مرحلة حقيقية من العملية الموجودة أصلًا.
+ */
+export function activateWaitingServiceWorker(
+  registration: ServiceWorkerRegistration,
+  onStage?: (stage: UpdateStage) => void,
+): void {
   if (!registration.waiting) {
+    onStage?.('reloading');
     window.location.reload();
     return;
   }
+  onStage?.('activating');
   registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  // إعادة التحميل الفعلية تحدث إما فورًا عبر controllerchange (مسجَّل في
+  // registerServiceWorker أعلاه) أو عبر المهلة الاحتياطية بعد 3 ثوانٍ إن
+  // لم ينطلق ذلك الحدث. نُبلّغ بمرحلة "إعادة التحميل" بعد فاصل قصير حتى لا
+  // تُعرض للمستخدم كخطوتين متزامنتين.
+  window.setTimeout(() => onStage?.('reloading'), 300);
   window.setTimeout(() => {
     window.location.reload();
   }, 3000);
