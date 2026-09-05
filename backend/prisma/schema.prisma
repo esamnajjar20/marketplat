@@ -9,23 +9,23 @@ datasource db {
 }
 
 model SavedSearch {
-  id        String   @id @default(cuid())
-  userId    String
-  label     String
+  id             String    @id @default(cuid())
+  userId         String
+  label          String
   // Search filters, same shape as GET /ads's query params (q/city/
   // categoryId/condition/minPrice/maxPrice) — stored as-is rather than
   // as separate columns so this stays in lockstep with getAdsSchema
   // without a migration every time a new filter is added. Matching
   // logic (savedSearches.service.ts) reads known keys back out of this
   // JSON defensively.
-  filters   Json
-  createdAt DateTime @default(now())
+  filters        Json
+  createdAt      DateTime  @default(now())
   // Bumped every time this search matches a newly created ad, so a
   // user isn't re-notified for the exact same ad if matching logic
   // ever runs more than once for it (defensive; matching currently only
   // runs once, at ad-creation time).
   lastNotifiedAt DateTime?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@map("saved_searches")
@@ -50,7 +50,7 @@ model SavedSearch {
 // existing table indexes for cheaply. See activity.service.ts's
 // record() for the single write path every module calls through.
 model UserActivity {
-  id          String           @id @default(cuid())
+  id          String              @id @default(cuid())
   userId      String
   type        UserActivityType
   // Pre-rendered Arabic title/description at write time (e.g. "تم نشر
@@ -77,8 +77,8 @@ model UserActivity {
   // needing a schema change per type — same convention as
   // AuditLog.details / AnalyticsEvent.metadata.
   metadata    Json?
-  createdAt   DateTime         @default(now())
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime            @default(now())
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Powers the two real query shapes activity.repository.ts runs:
   // "my timeline, newest first" and "my timeline filtered to one type,
@@ -91,64 +91,65 @@ model UserActivity {
 }
 
 model User {
-  id                        String               @id @default(cuid())
-  name                      String
-  email                     String               @unique
-  phone                     String?              @unique
+  id                          String                    @id @default(cuid())
+  name                        String
+  email                       String                    @unique
+  phone                       String?                   @unique
   // FIX OAUTH-01: nullable now — a user created via Google OAuth (see
   // modules/auth/google.strategy.ts) never sets a local password and
   // has nothing to hash. authService.login() now additionally guards
   // on passwordHash being present before comparing (an OAuth-only
   // account has none to compare against).
-  passwordHash              String?
+  passwordHash                String?
   // FIX OAUTH-01: which identity provider created this account.
   // 'local' (default) = registered via email/password. 'google' = the
   // account either originated from Google Sign-In or had a Google
   // identity linked to an existing local account (see
   // google.strategy.ts's link-by-email path).
-  provider                  String               @default("local")
+  provider                    String                    @default("local")
   // FIX OAUTH-01: the stable Google account identifier (OIDC `sub` /
   // Google profile `id`). Optional + unique — null for every
   // local-only user; Prisma/Postgres treat multiple NULLs in a unique
   // column as non-conflicting, so this never collides across local
   // accounts.
-  googleId                  String?              @unique
-  role                      Role                 @default(USER)
-  city                      String?
-  bio                       String?
-  avatarUrl                 String?
-  isActive                  Boolean              @default(true)
-  notificationPreferences   Json                 @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true}")
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
-  ads                       Ad[]
-  auditLogs                 AuditLog[]
-  conversationsAsBuyer      Conversation[]       @relation("ConversationsAsBuyer")
-  conversationsAsSeller     Conversation[]       @relation("ConversationsAsSeller")
-  favorites                 Favorite[]
-  messagesSent              Message[]            @relation("MessagesSent")
-  notifications             Notification[]
-  pushSubscriptions         PushSubscription[]
-  passwordResetTokens       PasswordResetToken[]
-  reports                   Report[]
-  sellerProfile             SellerProfile?
-  sellerRatingsGiven        SellerRating[]
-  savedSearches             SavedSearch[]
-  serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
-  serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
+  googleId                    String?                   @unique
+  role                        Role                      @default(USER)
+  city                        String?
+  bio                         String?
+  avatarUrl                   String?
+  isActive                    Boolean                   @default(true)
+  notificationPreferences     Json                      @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true}")
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
+  ads                         Ad[]
+  auditLogs                   AuditLog[]
+  conversationsAsBuyer        Conversation[]            @relation("ConversationsAsBuyer")
+  conversationsAsSeller       Conversation[]            @relation("ConversationsAsSeller")
+  favorites                   Favorite[]
+  messagesSent                Message[]                 @relation("MessagesSent")
+  notifications               Notification[]
+  pushSubscriptions           PushSubscription[]
+  passwordResetTokens         PasswordResetToken[]
+  reports                     Report[]
+  sellerProfile               SellerProfile?
+  sellerRatingsGiven          SellerRating[]
+  savedSearches               SavedSearch[]
+  serviceRequestsAsCustomer   ServiceRequest[]          @relation("ServiceRequestsAsCustomer")
+  serviceReviewsGiven         ServiceReview[]           @relation("ServiceReviewsGiven")
   serviceBroadcastsAsCustomer ServiceRequestBroadcast[] @relation("ServiceBroadcastsAsCustomer")
-  storeFollows              StoreFollower[]
-  storeReviewsGiven         StoreReview[]        @relation("StoreReviewsGiven")
-  blocksMade                UserBlock[]          @relation("BlocksMade")
-  blocksReceived            UserBlock[]          @relation("BlocksReceived")
-  activities                UserActivity[]
-  fraudSignals              FraudSignal[]
+  storeFollows                StoreFollower[]
+  storeReviewsGiven           StoreReview[]             @relation("StoreReviewsGiven")
+  blocksMade                  UserBlock[]               @relation("BlocksMade")
+  blocksReceived              UserBlock[]               @relation("BlocksReceived")
+  activities                  UserActivity[]
+  fraudSignals                FraudSignal[]
+
+  storeMemberships   StoreMember[]  @relation("StoreMemberships")
+  storeMemberInvites StoreMember[]  @relation("StoreMemberInvites")
+  FavoriteList       FavoriteList[]
 
   @@index([isActive, createdAt])
   @@map("users")
-
-  storeMemberships   StoreMember[] @relation("StoreMemberships")
-  storeMemberInvites StoreMember[] @relation("StoreMemberInvites")
 }
 
 model Category {
@@ -167,12 +168,12 @@ model Category {
 }
 
 model Ad {
-  id              String         @id @default(cuid())
-  title           String
-  description     String
-  price           Decimal?       @db.Decimal(10, 2)
-  images          String[]
-  city            String
+  id                String         @id @default(cuid())
+  title             String
+  description       String
+  price             Decimal?       @db.Decimal(10, 2)
+  images            String[]
+  city              String
   // TRACK-NEARBY-SEARCH: optional precise pin, same shape/precision as
   // StoreDetails.latitude/longitude and ServiceProviderDetails's own
   // pair — city (above) stays the required/primary location signal for
@@ -180,12 +181,12 @@ model Ad {
   // shares a precise location, enabling GET /search's lat/lng-based
   // nearby sort/filter (search.repository.ts) the same way
   // ServiceProviderDetails already enables GET /service-providers/nearby.
-  latitude        Decimal?       @db.Decimal(9, 6)
-  longitude       Decimal?       @db.Decimal(9, 6)
-  condition       AdCondition?
-  isNegotiable    Boolean        @default(false)
-  status          AdStatus       @default(ACTIVE)
-  views           Int            @default(0)
+  latitude          Decimal?       @db.Decimal(9, 6)
+  longitude         Decimal?       @db.Decimal(9, 6)
+  condition         AdCondition?
+  isNegotiable      Boolean        @default(false)
+  status            AdStatus       @default(ACTIVE)
+  views             Int            @default(0)
   // Snapshot of `views` at the moment the last WEEKLY_AD_VIEWS_REPORT
   // notification was generated for this ad's owner. The weekly report
   // job (src/scripts/weeklyAdViewsReport.ts) needs a *delta* ("+42
@@ -195,9 +196,9 @@ model Ad {
   // views value back here, so the next run's delta starts clean.
   // Nullable/defaulted to 0 so existing ads before this migration are
   // treated as "everything so far is new" on their first report.
-  viewsAtLastReport Int          @default(0)
-  isFeatured      Boolean        @default(false)
-  isPinned        Boolean        @default(false)
+  viewsAtLastReport Int            @default(0)
+  isFeatured        Boolean        @default(false)
+  isPinned          Boolean        @default(false)
   // Fraud-detection (item 12): 0-100 heuristic score computed at
   // creation/update time by fraudService.scoreAd (see
   // modules/fraud/fraud.service.ts). Not a Prisma relation target
@@ -206,24 +207,24 @@ model Ad {
   // (an admin reviewing a flagged ad can see *why*, not just the
   // number) and so re-scoring logic can evolve without needing to
   // migrate historical rows.
-  riskScore         Int          @default(0)
+  riskScore         Int            @default(0)
   // True once riskScore crosses env.fraud.autoFlagThreshold (or a
   // manual admin flag). Indexed on its own below because the admin
   // fraud queue's primary query is "give me every flagged ad",
   // independent of status/city/etc — the same reasoning as
   // isFeatured/isPinned already getting their own composite index.
-  flaggedForReview  Boolean      @default(false)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  userId          String
-  categoryId      String?
-  sellerProfileId String?
-  category        Category?      @relation(fields: [categoryId], references: [id])
-  sellerProfile   SellerProfile? @relation(fields: [sellerProfileId], references: [id])
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversations   Conversation[]
-  reports         Report[]
-  ratings         SellerRating[]
+  flaggedForReview  Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  userId            String
+  categoryId        String?
+  sellerProfileId   String?
+  category          Category?      @relation(fields: [categoryId], references: [id])
+  sellerProfile     SellerProfile? @relation(fields: [sellerProfileId], references: [id])
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations     Conversation[]
+  reports           Report[]
+  ratings           SellerRating[]
   fraudSignals      FraudSignal[]
 
   @@index([userId])
@@ -269,8 +270,8 @@ enum FavoriteEntityType {
 }
 
 model Favorite {
-  id         String              @id @default(cuid())
-  createdAt  DateTime            @default(now())
+  id         String             @id @default(cuid())
+  createdAt  DateTime           @default(now())
   userId     String
   entityType FavoriteEntityType
   entityId   String
@@ -280,12 +281,30 @@ model Favorite {
   // carry is now resolved manually by favorites.repository.ts via
   // entityType/entityId, same pattern as UserActivity's own entityId.
   adId       String?
-  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listId     String?
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list       FavoriteList?      @relation(fields: [listId], references: [id], onDelete: SetNull)
 
   @@unique([userId, entityType, entityId])
   @@index([userId])
   @@index([entityType, entityId])
   @@map("favorites")
+}
+
+model FavoriteList {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites Favorite[]
+
+  @@unique([userId, name])
+  @@index([userId, sortOrder])
+  @@map("favorite_lists")
 }
 
 // FEAT-REPORT-USER-STORE: Report used to be AD-only (a required adId FK
@@ -301,11 +320,11 @@ model Favorite {
 // don't lose their ad reference; the migration backfills targetType=AD,
 // targetId=adId for every pre-existing row, so no data is lost.
 model Report {
-  id         String       @id @default(cuid())
+  id         String           @id @default(cuid())
   reason     ReportReason
-  notes      String?      @db.VarChar(500)
-  status     ReportStatus @default(PENDING)
-  createdAt  DateTime     @default(now())
+  notes      String?          @db.VarChar(500)
+  status     ReportStatus     @default(PENDING)
+  createdAt  DateTime         @default(now())
   targetType ReportTargetType
   targetId   String
   userId     String
@@ -313,8 +332,8 @@ model Report {
   // that expect ad.title etc. keep working without a query-time branch.
   // Nullable because USER/STORE reports have no Ad row at all.
   adId       String?
-  ad         Ad?          @relation(fields: [adId], references: [id], onDelete: Cascade)
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ad         Ad?              @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([targetType, targetId, userId])
   @@index([status])
@@ -331,7 +350,7 @@ model Report {
 // SUSPICIOUS_PRICE gets two rows — same "explainable, not just a
 // number" reasoning as the doc comment on Ad.riskScore.
 model FraudSignal {
-  id         String            @id @default(cuid())
+  id         String          @id @default(cuid())
   type       FraudSignalType
   // Points this single signal contributed toward the subject's
   // riskScore at the time it fired. Kept alongside `type` (rather than
@@ -354,12 +373,12 @@ model FraudSignal {
   // sellerProfileId rather than forcing a join.
   userId     String?
   adId       String?
-  reviewed   Boolean           @default(false)
+  reviewed   Boolean         @default(false)
   reviewedAt DateTime?
   reviewedBy String?
-  createdAt  DateTime          @default(now())
-  user       User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ad         Ad?               @relation(fields: [adId], references: [id], onDelete: Cascade)
+  createdAt  DateTime        @default(now())
+  user       User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ad         Ad?             @relation(fields: [adId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([adId, createdAt])
@@ -491,17 +510,17 @@ model ServiceProviderDetails {
 }
 
 model ServiceCategory {
-  id        String            @id @default(cuid())
-  name      String            @unique
-  nameAr    String            @unique
-  slug      String            @unique
-  icon      String?
-  parentId  String?
-  isActive  Boolean           @default(true)
-  createdAt DateTime          @default(now())
-  parent    ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id])
-  children  ServiceCategory[] @relation("ServiceCategoryParent")
-  listings  ServiceListing[]
+  id         String                    @id @default(cuid())
+  name       String                    @unique
+  nameAr     String                    @unique
+  slug       String                    @unique
+  icon       String?
+  parentId   String?
+  isActive   Boolean                   @default(true)
+  createdAt  DateTime                  @default(now())
+  parent     ServiceCategory?          @relation("ServiceCategoryParent", fields: [parentId], references: [id])
+  children   ServiceCategory[]         @relation("ServiceCategoryParent")
+  listings   ServiceListing[]
   broadcasts ServiceRequestBroadcast[]
 
   @@index([parentId])
@@ -509,25 +528,25 @@ model ServiceCategory {
 }
 
 model ServiceListing {
-  id               String                 @id @default(cuid())
-  providerId       String
-  categoryId       String
-  title            String
-  description      String                 @db.VarChar(2000)
-  images           String[]
-  pricingType      ServicePricingType     @default(NEGOTIABLE)
-  price            Decimal?               @db.Decimal(10, 2)
-  durationEstimate String?
-  serviceLocation  ServiceLocationType    @default(AT_PROVIDER)
-  status           ServiceListingStatus   @default(ACTIVE)
-  views            Int                    @default(0)
+  id                String                 @id @default(cuid())
+  providerId        String
+  categoryId        String
+  title             String
+  description       String                 @db.VarChar(2000)
+  images            String[]
+  pricingType       ServicePricingType     @default(NEGOTIABLE)
+  price             Decimal?               @db.Decimal(10, 2)
+  durationEstimate  String?
+  serviceLocation   ServiceLocationType    @default(AT_PROVIDER)
+  status            ServiceListingStatus   @default(ACTIVE)
+  views             Int                    @default(0)
   /// Baseline for weekly provider views report deltas.
-  viewsAtLastReport Int                   @default(0)
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  category         ServiceCategory        @relation(fields: [categoryId], references: [id])
-  provider         ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  requests         ServiceRequest[]
+  viewsAtLastReport Int                    @default(0)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  category          ServiceCategory        @relation(fields: [categoryId], references: [id])
+  provider          ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  requests          ServiceRequest[]
 
   @@index([categoryId, status])
   @@index([providerId, status])
@@ -644,17 +663,17 @@ model ServiceRequestBroadcast {
 }
 
 model ServiceQuote {
-  id               String                  @id @default(cuid())
+  id               String                   @id @default(cuid())
   broadcastId      String
   providerId       String
-  price            Decimal                 @db.Decimal(10, 2)
-  message          String?                 @db.VarChar(1000)
+  price            Decimal                  @db.Decimal(10, 2)
+  message          String?                  @db.VarChar(1000)
   durationEstimate String?
-  status           ServiceQuoteStatus      @default(PENDING)
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  broadcast        ServiceRequestBroadcast @relation("BroadcastQuotes", fields: [broadcastId], references: [id], onDelete: Cascade)
-  provider         ServiceProviderDetails  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  status           ServiceQuoteStatus       @default(PENDING)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  broadcast        ServiceRequestBroadcast  @relation("BroadcastQuotes", fields: [broadcastId], references: [id], onDelete: Cascade)
+  provider         ServiceProviderDetails   @relation(fields: [providerId], references: [id], onDelete: Cascade)
   acceptedFor      ServiceRequestBroadcast? @relation("AcceptedQuote")
 
   // One quote per provider per broadcast — a provider revises their
@@ -672,32 +691,32 @@ model ServiceQuote {
 // verification/suspension/trust-score gate on SellerProfile.
 // ---------------------------------------------------------------------
 model StoreDetails {
-  id              String          @id @default(cuid())
-  sellerProfileId String          @unique
-  name            String
+  id                 String            @id @default(cuid())
+  sellerProfileId    String            @unique
+  name               String
   // STORE-SLUG (Foundation v1): URL-safe, shareable identifier —
   // /stores/:idOrSlug resolves this before falling back to the cuid
   // `id`. Generated once at createStore time from `name` (see
   // shared/utils/slugify.ts) and left immutable on rename, same
   // reasoning as most marketplaces keep slugs stable so a shared link
   // never 404s just because the owner edited their store name.
-  slug            String          @unique
-  description     String          @db.VarChar(1000)
-  logoUrl         String?
-  coverImageUrl   String?
-  city            String
-  address         String?
-  phone           String
-  status          StoreStatus     @default(PENDING)
-  plan            StorePlan       @default(FREE)
-  latitude        Decimal?        @db.Decimal(9, 6)
-  longitude       Decimal?        @db.Decimal(9, 6)
+  slug               String            @unique
+  description        String            @db.VarChar(1000)
+  logoUrl            String?
+  coverImageUrl      String?
+  city               String
+  address            String?
+  phone              String
+  status             StoreStatus       @default(PENDING)
+  plan               StorePlan         @default(FREE)
+  latitude           Decimal?          @db.Decimal(9, 6)
+  longitude          Decimal?          @db.Decimal(9, 6)
   // STORE-HOURS (Foundation v1): same { sun: {open,close}|null, ... }
   // shape as ServiceProviderDetails.workingHours — copied deliberately
   // so both modules share one mental model and (later) one frontend
   // component. Optional: a store with no hours set just never renders
   // an open/closed badge (storesService.computeIsOpen returns null).
-  workingHours    Json?
+  workingHours       Json?
   // UNIFY-PAYMENTS-STORES: removed — a StoreDetails row always hangs
   // off a SellerProfile (sellerProfileId is @unique above), so payment
   // methods now live only on SellerProfile.paymentMethods and are read
@@ -708,17 +727,17 @@ model StoreDetails {
   // Product.views — bumped fire-and-forget from getPublicStore, not
   // from the AnalyticsEvent pipeline (that table has no storeId column
   // today; adding one is a separate, bigger migration).
-  views           Int             @default(0)
-  viewsAtLastReport Int           @default(0)
+  views              Int               @default(0)
+  viewsAtLastReport  Int               @default(0)
   featureRequestedAt DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  sellerProfile   SellerProfile   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-  products        Product[]
-  promotions      Promotion[]
-  followers       StoreFollower[]
-  collections     StoreCollection[]
-  members         StoreMember[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  sellerProfile      SellerProfile     @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  products           Product[]
+  promotions         Promotion[]
+  followers          StoreFollower[]
+  collections        StoreCollection[]
+  members            StoreMember[]
 
   @@index([status, city])
   @@index([status, plan])
@@ -738,16 +757,14 @@ model StoreMember {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  store       StoreDetails      @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  user        User              @relation("StoreMemberships", fields: [userId], references: [id], onDelete: Cascade)
-  invitedBy   User              @relation("StoreMemberInvites", fields: [invitedById], references: [id], onDelete: Restrict)
+  store     StoreDetails @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user      User         @relation("StoreMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User         @relation("StoreMemberInvites", fields: [invitedById], references: [id], onDelete: Restrict)
 
   @@index([storeId, status])
   @@index([userId, status])
   @@map("store_members")
 }
-
-
 
 model ProductCategory {
   id        String            @id @default(cuid())
@@ -767,24 +784,24 @@ model ProductCategory {
 }
 
 model Product {
-  id              String              @id @default(cuid())
+  id              String                   @id @default(cuid())
   storeId         String
   categoryId      String
   name            String
-  description     String              @db.VarChar(2000)
+  description     String                   @db.VarChar(2000)
   images          String[]
-  price           Decimal             @db.Decimal(10, 2)
-  wholesalePrice  Decimal?            @db.Decimal(10, 2)
+  price           Decimal                  @db.Decimal(10, 2)
+  wholesalePrice  Decimal?                 @db.Decimal(10, 2)
   wholesaleMinQty Int?
-  discountPrice   Decimal?            @db.Decimal(10, 2)
-  availability    ProductAvailability @default(IN_STOCK)
+  discountPrice   Decimal?                 @db.Decimal(10, 2)
+  availability    ProductAvailability      @default(IN_STOCK)
   stockQuantity   Int?
-  status          ProductStatus       @default(ACTIVE)
-  views           Int                 @default(0)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  store           StoreDetails        @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  category        ProductCategory     @relation(fields: [categoryId], references: [id])
+  status          ProductStatus            @default(ACTIVE)
+  views           Int                      @default(0)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  store           StoreDetails             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category        ProductCategory          @relation(fields: [categoryId], references: [id])
   promotions      Promotion[]
   collections     StoreCollectionProduct[]
 
@@ -804,18 +821,18 @@ model Product {
 // optional Ad.promotionId, keeping "what's for sale / what's discounted
 // / what's advertised" as three independent concerns.
 model Promotion {
-  id            String          @id @default(cuid())
-  storeId       String
-  productId     String
-  title         String
-  description   String?         @db.VarChar(500)
-  discountType  DiscountType
-  discountValue Decimal         @db.Decimal(10, 2)
-  startsAt      DateTime
-  endsAt        DateTime
-  status        PromotionStatus @default(SCHEDULED)
-  maxUses       Int?
-  usageCount    Int             @default(0)
+  id             String          @id @default(cuid())
+  storeId        String
+  productId      String
+  title          String
+  description    String?         @db.VarChar(500)
+  discountType   DiscountType
+  discountValue  Decimal         @db.Decimal(10, 2)
+  startsAt       DateTime
+  endsAt         DateTime
+  status         PromotionStatus @default(SCHEDULED)
+  maxUses        Int?
+  usageCount     Int             @default(0)
   // PROMO-1 (Phase 14): set the moment myPromotionsExpiring.ts sends
   // the "about to expire" notification for this row — the idempotency
   // guard so a promotion still within the warning window on the next
@@ -826,10 +843,10 @@ model Promotion {
   // DIFFERENT promotion on the same product later still gets its own
   // warning independently.
   expiryWarnedAt DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  store         StoreDetails    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  store          StoreDetails    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([storeId, status])
   @@index([productId, startsAt, endsAt])
@@ -924,11 +941,11 @@ model StoreReview {
 }
 
 model Conversation {
-  id        String    @id @default(cuid())
+  id               String          @id @default(cuid())
   // FEAT-CONV-DEDUP: adId is initial-context only — which ad/listing
   // the thread happened to start from — and is deliberately NOT part
   // of the identity key below anymore. See @@unique([buyerId, sellerId]).
-  adId      String?
+  adId             String?
   // CHAT-LINK: lets a service request's own detail page offer a
   // "تواصل" entry point into a real thread instead of only a phone
   // number, same as an ad already does via adId. Still its own
@@ -937,16 +954,16 @@ model Conversation {
   // no longer part of the conversation's identity key either — see
   // @@unique([buyerId, sellerId]) below, which is now the sole
   // identity for a thread between two users.
-  serviceRequestId String?        @unique
-  buyerId   String
-  sellerId  String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  ad        Ad?       @relation(fields: [adId], references: [id])
-  serviceRequest ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
-  buyer     User      @relation("ConversationsAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
-  seller    User      @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
-  messages  Message[]
+  serviceRequestId String?         @unique
+  buyerId          String
+  sellerId         String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  ad               Ad?             @relation(fields: [adId], references: [id])
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  buyer            User            @relation("ConversationsAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller           User            @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages         Message[]
 
   // FEAT-CONV-DEDUP: was @@unique([adId, buyerId, sellerId]) — that let
   // the same two users accumulate a separate conversation per ad. The
@@ -1086,25 +1103,25 @@ model AuditLog {
 // table nothing else ever needs to join through Prisma — reads here
 // always start from AnalyticsEvent, not from User.
 model AnalyticsEvent {
-  id         String             @id @default(cuid())
-  event      AnalyticsEventType
+  id        String             @id @default(cuid())
+  event     AnalyticsEventType
   // Null for anonymous visitors. Deliberately not a foreign key — see
   // model-level comment above.
-  userId     String?
+  userId    String?
   // Groups events from the same browser session without requiring
   // login — generated client-side (crypto.randomUUID(), persisted in
   // sessionStorage-equivalent) so a single visit's page views/searches
   // can be strung into a funnel even for anonymous traffic.
-  sessionId  String
+  sessionId String
   // Free-form event payload: adId for AD_VIEW, query text for SEARCH,
   // categoryId for CATEGORY_BROWSE, step name for SIGNUP_STEP, etc.
   // Shape intentionally varies by `event` — consumers switch on `event`
   // before reading known keys out of this, same convention as
   // AuditLog.details.
-  metadata   Json?
-  path       String?
-  referrer   String?
-  createdAt  DateTime           @default(now())
+  metadata  Json?
+  path      String?
+  referrer  String?
+  createdAt DateTime           @default(now())
 
   // createdAt alone covers "events in the last N days" scans; the
   // composite covers "trend for event X over time" without a second
