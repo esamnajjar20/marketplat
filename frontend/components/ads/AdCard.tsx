@@ -3,14 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Heart, Star, BadgeCheck, Building2 } from 'lucide-react';
+import { MapPin, Heart, Star, BadgeCheck } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import { AssignFavoriteToListDialog } from '@/components/favorites/AssignFavoriteToListDialog';
 import { toast } from 'sonner';
 import type { AdListItem } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
@@ -80,22 +79,13 @@ export function AdCard({ ad, className, priority = false }: Props) {
   // original static mock's vanilla-JS pop handled. motion-safe: below
   // keeps this off for prefers-reduced-motion users.
   const [popKey, setPopKey] = useState(0);
-  const [listPickerAdId, setListPickerAdId] = useState<string | null>(null);
 
   function handleFavoriteClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
-    const wasFavorited = isFavorited;
-    if (!wasFavorited) setPopKey((k) => k + 1);
-    toggleFavorite.mutate(ad.id, {
-      onSuccess: (res) => {
-        // بعد الإضافة فقط: اسأل عن القائمة (اختياري)
-        if (!wasFavorited && (res as { action?: string })?.action === 'added') {
-          setListPickerAdId(ad.id);
-        }
-      },
-    });
+    if (!isFavorited) setPopKey((k) => k + 1);
+    toggleFavorite.mutate(ad.id);
   }
   // FIX PERF-06: lib/cloudinary.ts already ships a getPlaceholderUrl
   // (tiny, heavily blurred, ~1-2KB) meant to pair with next/image's
@@ -106,13 +96,13 @@ export function AdCard({ ad, className, priority = false }: Props) {
   // of its own.
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
 
-  // Store publisher: show store name/logo when ad.store is present
-  // (backend adListSelect must include store — see ads.repository fix).
-  const store = (ad as { store?: { id: string; name: string; logoUrl?: string | null } | null }).store;
+  // نفس شكل البطاقة — إن وُجد ad.store تظهر هوية المتجر بدل البائع
+  const store = ad.store;
   const isStoreAd = Boolean(store?.id);
-  const sellerAvatar = isStoreAd && store?.logoUrl
-    ? store.logoUrl
-    : getAvatarUrl(ad.user.avatarUrl ?? '', 32);
+  const sellerAvatar =
+    isStoreAd && store?.logoUrl
+      ? store.logoUrl
+      : getAvatarUrl(ad.user.avatarUrl ?? '', 32);
   const publisherName = isStoreAd ? store!.name : ad.user.name;
 
   return (
@@ -222,14 +212,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
                 />
               </div>
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                {isStoreAd ? (
-                  <span className="inline-flex items-center gap-1 truncate font-medium text-foreground">
-                    <Building2 className="h-3 w-3 shrink-0 text-primary" aria-hidden />
-                    {publisherName}
-                  </span>
-                ) : (
-                  publisherName
-                )}
+                {publisherName}
               </span>
               {!isStoreAd && ad.sellerProfile?.verified && (
                 <BadgeCheck
@@ -276,11 +259,6 @@ export function AdCard({ ad, className, priority = false }: Props) {
           <Heart key={popKey} className={cn('h-4 w-4', popKey > 0 && 'motion-safe:animate-heart-pop', isFavorited ? 'fill-destructive text-destructive' : 'text-foreground')} />
         </button>
       )}
-          <AssignFavoriteToListDialog
-        adId={listPickerAdId}
-        open={listPickerAdId != null}
-        onOpenChange={(open) => { if (!open) setListPickerAdId(null); }}
-      />
-</div>
+    </div>
   );
 }

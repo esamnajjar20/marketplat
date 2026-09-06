@@ -384,6 +384,7 @@ export const adsService = {
       page: query.page,
       limit: query.limit,
       statusFilter: 'ACTIVE',
+      personalOnly: true, // store ads belong on the store page, not seller profile
     });
   },
 

@@ -370,29 +370,8 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
         {/* Mobile-only seller card, right after the main details block —
             desktop keeps it in the sticky right column below. */}
-        <div className="md:hidden space-y-3">
-          {ad.store?.id ? (
-            <a
-              href={`/stores/${ad.store.slug || ad.store.id}`}
-              className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40"
-            >
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
-                {ad.store.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={ad.store.logoUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-muted-foreground">
-                    {ad.store.name.slice(0, 1)}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{ad.store.name}</p>
-              </div>
-            </a>
-          ) : (
-            <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
-          )}
+        <div className="md:hidden">
+          <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
         </div>
 
         {/* Report link */}
@@ -415,28 +394,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             )}
           </div>
 
-          {ad.store?.id ? (
-            <a
-              href={`/stores/${ad.store.slug || ad.store.id}`}
-              className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40"
-            >
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
-                {ad.store.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={ad.store.logoUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-muted-foreground">
-                    {ad.store.name.slice(0, 1)}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{ad.store.name}</p>
-              </div>
-            </a>
-          ) : (
-            <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} />
-          )}
+          <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
 
           <div className="rounded-2xl bg-muted/60 p-5 space-y-3">
             <h4 className="flex items-center gap-2 text-primary font-semibold text-sm">

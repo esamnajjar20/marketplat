@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Package, Tag, Layers, Star } from 'lucide-react';
+import { Package, Tag, Layers, Star, Megaphone } from 'lucide-react';
+import { StoreAds } from '@/components/stores/StoreAds';
 import { StoreProducts } from '@/components/stores/StoreProducts';
 import { StoreCollections } from '@/components/stores/StoreCollections';
 import { StoreReviewsList } from '@/components/stores/StoreReviewsList';
@@ -9,10 +10,11 @@ import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
 
-type Tab = 'products' | 'offers' | 'collections';
+type Tab = 'products' | 'offers' | 'collections' | 'ads';
 
 const TABS: { id: Tab; label: string; icon: typeof Package }[] = [
-  { id: 'products', label: 'الكل', icon: Package },
+  { id: 'products', label: 'المنتجات', icon: Package },
+  { id: 'ads', label: 'الإعلانات', icon: Megaphone },
   { id: 'offers', label: 'العروض', icon: Tag },
   { id: 'collections', label: 'المجموعات', icon: Layers },
 ];
@@ -63,6 +65,12 @@ export function StoreStorefront({ storeId, storeName, ownerUserId }: Props) {
       {active === 'products' && (
         <section className="space-y-3" role="tabpanel">
           <StoreProducts storeId={storeId} storeName={storeName} />
+        </section>
+      )}
+
+      {active === 'ads' && (
+        <section className="space-y-3" role="tabpanel">
+          <StoreAds storeId={storeId} storeName={storeName} />
         </section>
       )}
 

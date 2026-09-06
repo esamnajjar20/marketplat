@@ -156,9 +156,10 @@ export const adsRepository = {
       maxPrice,
       condition,
       isFeatured,
+      storeId,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-    } = query;
+    } = query as typeof query & { storeId?: string };
     const { skip, take } = getPaginationParams(page, limit);
 
     if (search) {
@@ -201,6 +202,7 @@ export const adsRepository = {
       // that cost — an exact match hits the index directly.
       if (city) whereParts.push(Prisma.sql`"city" = ${city}`);
       if (categoryId) whereParts.push(Prisma.sql`"categoryId" = ${categoryId}`);
+      if (storeId) whereParts.push(Prisma.sql`"storeId" = ${storeId}`);
       if (condition) whereParts.push(Prisma.sql`"condition" = ${condition}::"AdCondition"`);
       if (minPrice !== undefined) whereParts.push(Prisma.sql`"price" >= ${minPrice}`);
       if (maxPrice !== undefined) whereParts.push(Prisma.sql`"price" <= ${maxPrice}`);
@@ -259,6 +261,7 @@ export const adsRepository = {
 
     const where: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
+      ...(storeId ? { storeId } : {}),
       // SEC-FIX: same gap as products.repository.ts's findMany — an
       // admin suspending a seller only ever blocked that seller from
       // *creating* new ads (see ads.service.ts's ForbiddenError check
@@ -353,13 +356,19 @@ export const adsRepository = {
 
   findManyByUserId: async (
     userId: string,
-    query: GetAdsQuery & { statusFilter?: AdStatus }
+    query: GetAdsQuery & { statusFilter?: AdStatus; personalOnly?: boolean; storeId?: string }
   ): Promise<{ ads: AdListRow[]; total: number }> => {
-    const { page = 1, limit = 20, statusFilter } = query;
+    const { page = 1, limit = 20, statusFilter, personalOnly, storeId } = query as GetAdsQuery & {
+      statusFilter?: AdStatus;
+      personalOnly?: boolean;
+      storeId?: string;
+    };
     const { skip, take } = getPaginationParams(page, limit); // A-06
-    // S-05: statusFilter='ACTIVE' for public profiles — prevents total from leaking SOLD count
+    // personalOnly: public seller profile — hide store-published ads
+    // storeId: ads belonging to a store storefront
     const where: Prisma.AdWhereInput = {
-      userId,
+      ...(storeId ? { storeId } : { userId }),
+      ...(personalOnly && !storeId ? { storeId: null } : {}),
       status: statusFilter ? statusFilter : { not: AdStatus.DELETED },
     };
 

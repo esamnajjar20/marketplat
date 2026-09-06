@@ -146,6 +146,7 @@ export interface AdSearchParams {
   limit?:      number;
   status?:     AdStatus;  // used by my-ads + admin
   userId?:     string;    // used by admin
+  storeId?:     string;    // filter ads published by a store
   isFeatured?: boolean;   // FIX FEAT-06: server-side featured filter
 }
 
