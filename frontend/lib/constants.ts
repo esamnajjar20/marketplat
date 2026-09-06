@@ -28,6 +28,7 @@ export const ROUTES = {
   myAds:         '/my-ads',
   sellersRanking: '/sellers/ranking',
   myStoreMembers: '/my-store/members',
+    myStoreInventory: '/my-store/inventory',
   favorites:     '/favorites',
   savedSearches: '/saved-searches',
   downloads:     '/downloads',

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { productsController } from './products.controller';
+import { productsStockController } from './products-stock.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { uploadMultipleMiddleware } from '../../middlewares/upload.middleware';
 import {
@@ -25,6 +26,8 @@ productsRouter.post(
   productsController.createProduct
 );
 productsRouter.patch('/:id', authenticate, productsController.updateProduct);
+// TRACK-INVENTORY: quick stock adjust (absolute quantity)
+productsRouter.patch('/:id/stock', authenticate, productsStockController.adjustStock);
 // Gap #3 fix: closes the audit finding — mirrors ads.routes.ts's
 // POST/DELETE /:id/images exactly (same middleware order: auth, rate
 // limit, multer, then controller).
