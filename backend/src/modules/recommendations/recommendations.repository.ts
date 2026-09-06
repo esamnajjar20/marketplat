@@ -51,6 +51,7 @@ const recommendationAdSelect = {
   userId: true,
   categoryId: true,
   sellerProfileId: true,
+  storeId: true,
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;

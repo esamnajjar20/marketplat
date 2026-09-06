@@ -136,7 +136,29 @@ export const adsService = {
       // Authoritative check-and-insert, serialized per-user so no two
       // concurrent createAd calls for the same user can both pass the
       // count check before either has committed its insert.
-      const ad = await withUserAdCreationLock(userId, async () => {
+      // TRACK-AD-STORE: optional store as visible publisher
+    let resolvedStoreId: string | null = null;
+    if (input.storeId) {
+      const store = await prisma.storeDetails.findUnique({
+        where: { id: input.storeId },
+        include: { sellerProfile: { select: { userId: true } } },
+      });
+      if (!store) {
+        throw new BadRequestError('Store not found.', 'STORE_NOT_FOUND');
+      }
+      if (store.sellerProfile.userId !== userId) {
+        throw new ForbiddenError('You can only publish under your own store.', 'NOT_YOUR_STORE');
+      }
+      if (store.status !== 'ACTIVE') {
+        throw new ForbiddenError(
+          'Your store must be approved before publishing ads under it.',
+          'STORE_NOT_ACTIVE',
+        );
+      }
+      resolvedStoreId = store.id;
+    }
+
+    const ad = await withUserAdCreationLock(userId, async () => {
         const activeCount = await adsRepository.countActiveByUserId(userId);
         if (activeCount >= env.ads.maxPerUser) {
           throw new BadRequestError(
@@ -152,10 +174,19 @@ export const adsService = {
         return prisma.$transaction(async tx => {
           const created = await tx.ad.create({
             data: {
-              ...input,
+              title: input.title,
+              description: input.description,
+              price: input.price,
+              city: input.city,
+              categoryId: input.categoryId,
+              condition: input.condition,
+              isNegotiable: input.isNegotiable,
+              latitude: input.latitude,
+              longitude: input.longitude,
               userId,
               images: uploads.map(upload => upload.url),
               sellerProfileId: sellerProfile.id,
+              storeId: resolvedStoreId,
             },
             include: {
               user: { select: { id: true, name: true, city: true, avatarUrl: true } },

@@ -219,8 +219,12 @@ model Ad {
   userId            String
   categoryId        String?
   sellerProfileId   String?
+  // Optional store as the *visible* publisher. userId remains the
+  // owner for permissions/audit. null = personal ad; set = store ad.
+  storeId           String?
   category          Category?      @relation(fields: [categoryId], references: [id])
   sellerProfile     SellerProfile? @relation(fields: [sellerProfileId], references: [id])
+  store             StoreDetails?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversations     Conversation[]
   reports           Report[]
@@ -230,6 +234,8 @@ model Ad {
   @@index([userId])
   @@index([categoryId])
   @@index([sellerProfileId])
+  @@index([storeId])
+  @@index([storeId, status, createdAt])
   @@index([status, userId, createdAt])
   @@index([status, createdAt])
   @@index([status, city])
@@ -738,6 +744,7 @@ model StoreDetails {
   followers          StoreFollower[]
   collections        StoreCollection[]
   members            StoreMember[]
+  ads                Ad[]
 
   @@index([status, city])
   @@index([status, plan])
@@ -1563,3 +1570,4 @@ enum AnalyticsEventType {
   PRODUCT_VIEW
   SERVICE_VIEW
 }
+

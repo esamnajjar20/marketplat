@@ -57,6 +57,14 @@ export interface Ad {
    * system existed may have this as null.
    */
   sellerProfileId: string | null;
+  /** null = personal ad; set = published under this store */
+  storeId?: string | null;
+  store?: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    logoUrl?: string | null;
+  } | null;
   /** Present on list/detail when the ad is linked to a seller profile */
   sellerProfile?: SellerTrustSummary | null;
   categoryId:   string | null;
@@ -108,6 +116,8 @@ export interface CreateAdPayload {
   longitude?:    number;
   categoryId?:   string;
   images?:       File[];
+  /** Publish under caller's store (visible publisher). Omit = personal ad. */
+  storeId?:      string;
 }
 
 /**

@@ -41,6 +41,12 @@ export const createAdSchema = z.object({
     // handles that the same way `price` above does.
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
+    // Optional store publisher — empty string from FormData → undefined
+    storeId: z
+      .preprocess(
+        (v) => (v === '' || v === null || v === undefined ? undefined : v),
+        z.string().cuid().optional()
+      ),
   }),
 });
 

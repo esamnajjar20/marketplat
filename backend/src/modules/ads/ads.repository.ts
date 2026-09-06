@@ -21,6 +21,15 @@ const adWithRelations = {
       totalRatings: true,
     },
   },
+  store: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logoUrl: true,
+      status: true,
+    },
+  },
 } as const;
 
 // PERF FIX (audit finding #3): list endpoints (findMany, findManyByUserId,
@@ -72,6 +81,7 @@ const adListSelect = {
   userId: true,
   categoryId: true,
   sellerProfileId: true,
+  storeId: true,
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
   // UX trust-on-card: lightweight seller signals for AdCard (not full profile).
@@ -80,6 +90,15 @@ const adListSelect = {
       verified: true,
       averageRating: true,
       totalRatings: true,
+    },
+  },
+  store: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logoUrl: true,
+      status: true,
     },
   },
 } as const;

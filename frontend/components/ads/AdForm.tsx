@@ -14,6 +14,7 @@ import { PriceInput }  from '@/components/shared/forms/PriceInput';
 import { CITIES, CONDITION_LABELS, MAX_IMAGES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
+import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { AdFormPreview } from '@/components/ads/AdFormPreview';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
@@ -92,6 +93,10 @@ export function AdForm({ mode, ad }: Props) {
   // just as reliable as a deep-equal here since `images` holds live
   // File objects that aren't meaningfully comparable by value anyway.
   const [initialValues] = useState<AdFormValues>(() => values);
+
+  // TRACK-AD-STORE: personal vs store publisher (create mode only)
+  const [publisherMode, setPublisherMode] = useState<PublisherMode>('personal');
+  const [publisherStoreId, setPublisherStoreId] = useState<string | null>(null);
   const isDirty =
     values.title !== initialValues.title ||
     values.description !== initialValues.description ||
@@ -247,6 +252,9 @@ export function AdForm({ mode, ad }: Props) {
         city:         values.city,
         categoryId:   values.categoryId || undefined,
         images:       values.images,
+        ...(publisherMode === 'store' && publisherStoreId
+          ? { storeId: publisherStoreId }
+          : {}),
       };
       // UX-FIX P3-10b: reset the bar once the request settles either way —
       // onSuccess already navigates away, but onError leaves the user on
@@ -407,6 +415,17 @@ export function AdForm({ mode, ad }: Props) {
 
   const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {mode === 'create' && (
+        <AdPublisherPicker
+          mode={publisherMode}
+          storeId={publisherStoreId}
+          onChange={(m, id) => {
+            setPublisherMode(m);
+            setPublisherStoreId(id);
+          }}
+        />
+      )}
+
       {mode === 'create' && lastSavedAt && (
         <p
           className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
