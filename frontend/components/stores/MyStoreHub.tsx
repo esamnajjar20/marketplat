@@ -12,13 +12,14 @@ import {
   PackagePlus,
   Package,
   BarChart3,
-  Tag, Users,
+  Tag,
   Layers,
   Settings2,
   AlertTriangle,
   Clock,
   Ban,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -138,15 +139,21 @@ function HubBody({ store }: { store: StoreDetails }) {
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStorePromotions}>
-              <Tag className="h-4 w-4" />
-              العروض
+            <Link href={ROUTES.myStoreInventory}>
+              <Package className="h-4 w-4" />
+              المخزون
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
             <Link href={ROUTES.myStoreMembers}>
               <Users className="h-4 w-4" />
               الأعضاء
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+            <Link href={ROUTES.myStorePromotions}>
+              <Tag className="h-4 w-4" />
+              العروض
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">

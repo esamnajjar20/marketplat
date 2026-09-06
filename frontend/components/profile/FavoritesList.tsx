@@ -117,7 +117,7 @@ function DeletedFavoriteCard({ adId, title }: { adId: string; title: string }) {
         <h3 className="line-clamp-2 text-sm font-medium leading-snug text-muted-foreground">
           {title}
         </h3>
-        <Button
+          <Button
           variant="outline"
           size="sm"
           className="w-full"

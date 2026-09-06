@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * شريط قوائم المفضلة — الكل + قوائم المستخدم + إنشاء قائمة جديدة.
- * يُربَط عبر ?list=listId في URL (list فارغ = الكل).
+ * شريط قوائم المفضلة — أزرار التعديل/الحذف في نهاية الصف (لا تغطي الاسم).
  */
 
 import { useState } from 'react';
@@ -93,6 +92,10 @@ export function FavoriteListsSidebar() {
         </Button>
       </div>
 
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        من صفحة المفضلة: استخدم «نقل إلى قائمة» على أي عنصر. أو أنشئ قائمة ثم انقل العناصر إليها.
+      </p>
+
       {showCreate && (
         <form onSubmit={onCreate} className="flex gap-2">
           <Input
@@ -125,9 +128,9 @@ export function FavoriteListsSidebar() {
         </button>
 
         {items.map((list) => (
-          <div key={list.id} className="group relative">
+          <div key={list.id} className="rounded-md">
             {renameId === list.id ? (
-              <form onSubmit={onRename} className="flex gap-1 px-1">
+              <form onSubmit={onRename} className="flex gap-1 px-1 py-1">
                 <Input
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
@@ -135,51 +138,63 @@ export function FavoriteListsSidebar() {
                   maxLength={40}
                   autoFocus
                 />
-                <Button type="submit" size="sm" className="h-8 px-2" disabled={renameList.isPending}>
+                <Button type="submit" size="sm" className="h-8 shrink-0 px-2" disabled={renameList.isPending}>
                   حفظ
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 shrink-0 px-2"
+                  onClick={() => setRenameId(null)}
+                >
+                  إلغاء
                 </Button>
               </form>
             ) : (
-              <button
-                type="button"
-                onClick={() => selectList(list.id)}
+              <div
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors',
-                  activeListId === list.id
-                    ? 'bg-primary/10 font-medium text-primary'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  'flex items-center gap-1 rounded-md px-1 py-0.5',
+                  activeListId === list.id ? 'bg-primary/10' : 'hover:bg-muted/80'
                 )}
               >
-                <span className="min-w-0 flex-1 truncate text-start">{list.name}</span>
-                <span className="tabular-nums text-xs opacity-70">{list.itemsCount}</span>
-              </button>
-            )}
-
-            {renameId !== list.id && (
-              <div className="absolute start-1 top-1/2 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                 <button
                   type="button"
-                  className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-                  aria-label="إعادة تسمية"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setRenameId(list.id);
-                    setRenameValue(list.name);
-                  }}
+                  onClick={() => selectList(list.id)}
+                  className={cn(
+                    'min-w-0 flex-1 truncate rounded-md px-2 py-2 text-start text-sm',
+                    activeListId === list.id
+                      ? 'font-medium text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
                 >
-                  <Pencil className="h-3 w-3" />
+                  {list.name}
+                  <span className="ms-1 tabular-nums text-xs opacity-70">({list.itemsCount})</span>
                 </button>
-                <button
-                  type="button"
-                  className="rounded p-1 text-muted-foreground hover:bg-background hover:text-destructive"
-                  aria-label="حذف القائمة"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteTarget({ id: list.id, name: list.name });
-                  }}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
+                {/* أزرار في نهاية الصف — لا تغطي الاسم */}
+                <div className="flex shrink-0 items-center gap-0.5 pe-1">
+                  <button
+                    type="button"
+                    className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
+                    aria-label={`إعادة تسمية ${list.name}`}
+                    title="إعادة تسمية"
+                    onClick={() => {
+                      setRenameId(list.id);
+                      setRenameValue(list.name);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-destructive"
+                    aria-label={`حذف ${list.name}`}
+                    title="حذف القائمة"
+                    onClick={() => setDeleteTarget({ id: list.id, name: list.name })}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -188,7 +203,7 @@ export function FavoriteListsSidebar() {
 
       {items.length === 0 && !showCreate && (
         <p className="text-xs text-muted-foreground">
-          أنشئ قوائم مثل «هواتف» أو «عقارات» لتنظيم المفضلة.
+          أنشئ قائمة (مثل «هواتف») ثم من شبكة المفضلة اضغط «نقل إلى قائمة».
         </p>
       )}
 

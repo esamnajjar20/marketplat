@@ -25,7 +25,7 @@
  */
 import {
   Home, Search, Store, Wrench, Users, Settings,
-  History, ListOrdered, Package,
+  History, ListOrdered, Package, Trophy,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -48,6 +48,7 @@ export const BROWSE_LINKS = [
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
+  { label: 'أفضل البائعين', href: ROUTES.sellersRanking, icon: Trophy },
 ] as const;
 
 // "نشاطي" group — secondary account destinations that were flat top-level
@@ -90,6 +91,8 @@ export const STORE_GROUP = {
   children: [
     { label: 'لوحة المتجر', href: ROUTES.myStore },
     { label: 'منتجاتي', href: ROUTES.myStoreProducts },
+    { label: 'المخزون', href: ROUTES.myStoreInventory },
+    { label: 'الأعضاء', href: ROUTES.myStoreMembers },
     { label: 'العروض', href: ROUTES.myStorePromotions },
     { label: 'المجموعات', href: ROUTES.myStoreCollections },
     { label: 'الإحصائيات', href: ROUTES.myStoreAnalytics },
