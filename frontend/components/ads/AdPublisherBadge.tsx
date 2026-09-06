@@ -1,7 +1,11 @@
 'use client';
 
+/**
+ * مظهر الناشر فقط — بدون «إعلان من المتجر» / «إعلان شخصي».
+ * متجر → اسم المتجر. وإلا → اسم البائع.
+ */
+
 import Link from 'next/link';
-import { Building2, User } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -17,43 +21,44 @@ interface Props {
   sellerName?: string | null;
   sellerUserId?: string | null;
   className?: string;
+  plain?: boolean;
 }
 
-/**
- * شارة الناشر الظاهرة للزوّار: متجر أو حساب شخصي.
- */
-export function AdPublisherBadge({ store, sellerName, sellerUserId, className }: Props) {
+export function AdPublisherBadge({
+  store,
+  sellerName,
+  sellerUserId,
+  className,
+  plain,
+}: Props) {
   if (store?.id) {
-    const href = store.slug
-      ? ROUTES.storeDetail?.(store.slug) ?? `/stores/${store.slug}`
-      : `/stores/${store.id}`;
+    const href = `/stores/${store.slug || store.id}`;
+    if (plain) {
+      return <span className={cn('truncate', className)}>{store.name}</span>;
+    }
     return (
       <Link
         href={href}
-        className={cn(
-          'inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline',
-          className
-        )}
+        className={cn('truncate font-medium hover:underline', className)}
+        onClick={(e) => e.stopPropagation()}
       >
-        <Building2 className="h-3.5 w-3.5 text-primary" />
-        <span>🏪 {store.name}</span>
-        <span className="text-xs font-normal text-muted-foreground">إعلان من المتجر</span>
+        {store.name}
       </Link>
     );
   }
 
   if (sellerUserId || sellerName) {
+    const text = sellerName ?? 'بائع';
+    if (plain || !sellerUserId) {
+      return <span className={cn('truncate', className)}>{text}</span>;
+    }
     return (
       <Link
-        href={sellerUserId ? ROUTES.userProfile(sellerUserId) : '#'}
-        className={cn(
-          'inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline',
-          className
-        )}
+        href={ROUTES.userProfile(sellerUserId)}
+        className={cn('truncate hover:underline', className)}
+        onClick={(e) => e.stopPropagation()}
       >
-        <User className="h-3.5 w-3.5 text-muted-foreground" />
-        <span>{sellerName ?? 'بائع'}</span>
-        <span className="text-xs font-normal text-muted-foreground">إعلان شخصي</span>
+        {text}
       </Link>
     );
   }

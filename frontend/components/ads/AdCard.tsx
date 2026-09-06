@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Heart, Star, BadgeCheck } from 'lucide-react';
+import { MapPin, Heart, Star, BadgeCheck, Building2 } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { AssignFavoriteToListDialog } from '@/components/favorites/AssignFavoriteToListDialog';
 import { toast } from 'sonner';
 import type { AdListItem } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
@@ -79,13 +80,22 @@ export function AdCard({ ad, className, priority = false }: Props) {
   // original static mock's vanilla-JS pop handled. motion-safe: below
   // keeps this off for prefers-reduced-motion users.
   const [popKey, setPopKey] = useState(0);
+  const [listPickerAdId, setListPickerAdId] = useState<string | null>(null);
 
   function handleFavoriteClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
-    if (!isFavorited) setPopKey((k) => k + 1);
-    toggleFavorite.mutate(ad.id);
+    const wasFavorited = isFavorited;
+    if (!wasFavorited) setPopKey((k) => k + 1);
+    toggleFavorite.mutate(ad.id, {
+      onSuccess: (res) => {
+        // بعد الإضافة فقط: اسأل عن القائمة (اختياري)
+        if (!wasFavorited && (res as { action?: string })?.action === 'added') {
+          setListPickerAdId(ad.id);
+        }
+      },
+    });
   }
   // FIX PERF-06: lib/cloudinary.ts already ships a getPlaceholderUrl
   // (tiny, heavily blurred, ~1-2KB) meant to pair with next/image's
@@ -96,13 +106,14 @@ export function AdCard({ ad, className, priority = false }: Props) {
   // of its own.
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
 
-  // NOTE: AdListItem's user relation (AdAuthor) has no nested store
-  // fields in the current API response (ads.repository.ts's
-  // adListSelect only selects id/name/city/avatarUrl on user) — a
-  // store-badge variant here would need a backend select change,
-  // which is out of scope for this pass. Seller identity only, using
-  // data already present on the ad.
-  const sellerAvatar = getAvatarUrl(ad.user.avatarUrl ?? '', 32);
+  // Store publisher: show store name/logo when ad.store is present
+  // (backend adListSelect must include store — see ads.repository fix).
+  const store = (ad as { store?: { id: string; name: string; logoUrl?: string | null } | null }).store;
+  const isStoreAd = Boolean(store?.id);
+  const sellerAvatar = isStoreAd && store?.logoUrl
+    ? store.logoUrl
+    : getAvatarUrl(ad.user.avatarUrl ?? '', 32);
+  const publisherName = isStoreAd ? store!.name : ad.user.name;
 
   return (
     <div className="relative">
@@ -204,16 +215,23 @@ export function AdCard({ ad, className, priority = false }: Props) {
                 <SafeImage
                   variant="avatar"
                   src={sellerAvatar}
-                  alt={ad.user.name}
+                  alt={publisherName}
                   fill
                   className="object-cover"
                   sizes="20px"
                 />
               </div>
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                {ad.user.name}
+                {isStoreAd ? (
+                  <span className="inline-flex items-center gap-1 truncate font-medium text-foreground">
+                    <Building2 className="h-3 w-3 shrink-0 text-primary" aria-hidden />
+                    {publisherName}
+                  </span>
+                ) : (
+                  publisherName
+                )}
               </span>
-              {ad.sellerProfile?.verified && (
+              {!isStoreAd && ad.sellerProfile?.verified && (
                 <BadgeCheck
                   className="h-3.5 w-3.5 shrink-0 text-primary"
                   aria-label="بائع موثّق"
@@ -222,13 +240,13 @@ export function AdCard({ ad, className, priority = false }: Props) {
             </div>
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-1">
-                {ad.sellerProfile && ad.sellerProfile.totalRatings > 0 && (
+                {!isStoreAd && ad.sellerProfile && ad.sellerProfile.totalRatings > 0 && (
                   <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted-foreground">
                     <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
                     {parseFloat(ad.sellerProfile.averageRating).toFixed(1)}
                   </span>
                 )}
-                {ad.sellerProfile && ad.sellerProfile.totalRatings === 0 && (
+                {!isStoreAd && ad.sellerProfile && ad.sellerProfile.totalRatings === 0 && (
                   <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
                     بائع جديد
                   </span>
@@ -258,6 +276,11 @@ export function AdCard({ ad, className, priority = false }: Props) {
           <Heart key={popKey} className={cn('h-4 w-4', popKey > 0 && 'motion-safe:animate-heart-pop', isFavorited ? 'fill-destructive text-destructive' : 'text-foreground')} />
         </button>
       )}
-    </div>
+          <AssignFavoriteToListDialog
+        adId={listPickerAdId}
+        open={listPickerAdId != null}
+        onOpenChange={(open) => { if (!open) setListPickerAdId(null); }}
+      />
+</div>
   );
 }

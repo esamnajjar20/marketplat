@@ -9,6 +9,7 @@ import { useFavorites }  from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useSearchParams } from 'next/navigation';
 import { Heart, AlertTriangle } from 'lucide-react';
+import { MoveToListMenu } from '@/components/favorites/MoveToListMenu';
 import { Button }        from '@/components/shared/ui/Button';
 import { ROUTES }        from '@/lib/constants';
 
@@ -85,7 +86,16 @@ export function FavoritesList() {
           // favorites" action instead of a live link.
           fav.ad.status === 'DELETED'
             ? <DeletedFavoriteCard key={fav.ad.id} adId={fav.ad.id} title={fav.ad.title} />
-            : <AdCard key={fav.ad.id} ad={fav.ad} />
+            : (
+              <div key={fav.id ?? fav.ad.id} className="flex flex-col gap-2">
+                <AdCard ad={fav.ad} />
+                <MoveToListMenu
+                  favoriteId={fav.id}
+                  currentListId={(fav as { listId?: string | null }).listId ?? null}
+                  className="self-stretch"
+                />
+              </div>
+            )
         ))}
       </div>
       {totalPages > 1 && (
@@ -117,7 +127,7 @@ function DeletedFavoriteCard({ adId, title }: { adId: string; title: string }) {
         <h3 className="line-clamp-2 text-sm font-medium leading-snug text-muted-foreground">
           {title}
         </h3>
-          <Button
+        <Button
           variant="outline"
           size="sm"
           className="w-full"
