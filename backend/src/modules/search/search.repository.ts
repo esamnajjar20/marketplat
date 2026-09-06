@@ -293,6 +293,8 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
       (CASE WHEN sp."id" IS NULL THEN 'user' ELSE 'seller_profile' END)::text AS seller_type,
       a."id" AS url_id, a."createdAt" AS created_at,
       (${rankExpr})::float AS rank,
+      a."latitude"::float AS latitude,
+      a."longitude"::float AS longitude,
       (${distanceExpr})::float AS distance_km
     FROM "ads" a
     LEFT JOIN "seller_profiles" sp ON sp."id" = a."sellerProfileId"
@@ -362,6 +364,8 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
       'store'::text AS seller_type,
       p."id" AS url_id, p."createdAt" AS created_at,
       (${rankExpr})::float AS rank,
+      st."latitude"::float AS latitude,
+      st."longitude"::float AS longitude,
       (${distanceExpr})::float AS distance_km
     FROM "products" p
     JOIN "store_details" st ON st."id" = p."storeId"
@@ -428,6 +432,8 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
       'store'::text AS seller_type,
       st."id" AS url_id, st."createdAt" AS created_at,
       (${rankExpr})::float AS rank,
+      st."latitude"::float AS latitude,
+      st."longitude"::float AS longitude,
       (${distanceExpr})::float AS distance_km
     FROM "store_details" st
     LEFT JOIN "seller_profiles" sp ON sp."id" = st."sellerProfileId"
@@ -505,6 +511,8 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
       'service_provider'::text AS seller_type,
       sl."id" AS url_id, sl."createdAt" AS created_at,
       (${rankExpr})::float AS rank,
+      pr."latitude"::float AS latitude,
+      pr."longitude"::float AS longitude,
       (${distanceExpr})::float AS distance_km
     FROM "service_listings" sl
     JOIN "service_provider_details" pr ON pr."id" = sl."providerId"

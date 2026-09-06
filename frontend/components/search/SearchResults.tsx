@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
@@ -20,6 +20,8 @@ import { formatRadiusLabel } from '@/lib/progressiveRadius';
 import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
 import type { SearchSort, SearchType } from '@/types/search.types';
+import { SearchViewToggle, type SearchViewMode } from '@/components/search/SearchViewToggle';
+import { SearchResultsMap } from '@/components/map/SearchResultsMap';
 
 /**
  * Unified results grid — reads q/city/type/categoryId/sort/page
@@ -97,6 +99,26 @@ export function SearchResults() {
   const isLoading = searchLoading || (Boolean(lat !== undefined && lng !== undefined) && !progressive.resolved);
 
   const items      = data?.items ?? [];
+
+  const [viewMode, setViewMode] = useState<SearchViewMode>('list');
+  const userLocation =
+    lat !== undefined && lng !== undefined
+      ? { lat: Number(lat), lng: Number(lng) }
+      : null;
+  const mapPoints = useMemo(
+    () =>
+      items
+        .filter((r) => r.latitude != null && r.longitude != null)
+        .map((r) => ({
+          id: `${r.type}-${r.id}`,
+          title: r.title,
+          lat: Number(r.latitude),
+          lng: Number(r.longitude),
+          href: r.url,
+          subtitle: r.city ?? undefined,
+        })),
+    [items]
+  );
   const totalPages = data?.meta?.totalPages ?? 1;
   const total      = data?.meta?.total ?? 0;
 
@@ -206,7 +228,7 @@ export function SearchResults() {
           call savedSearchEvents, unlike ads/products/services, so
           there is no matcher a stores-typed SavedSearch could ever
           fire against. */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">
           {total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}
           {q && (
@@ -216,9 +238,12 @@ export function SearchResults() {
             </>
           )}
         </p>
-        {type !== 'stores' && (
-          <SaveSearchButton type={type === 'all' ? undefined : type} queryParamKey="q" />
-        )}
+        <div className="flex items-center gap-2">
+          <SearchViewToggle value={viewMode} onChange={setViewMode} />
+          {type !== 'stores' && (
+            <SaveSearchButton type={type === 'all' ? undefined : type} queryParamKey="q" />
+          )}
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -260,9 +285,15 @@ export function SearchResults() {
         </>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 stagger-fade-in">
-          {items.map((result) => (
-            <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} />
-          ))}
+          {viewMode === 'map' ? (
+            <div className="col-span-full">
+              <SearchResultsMap points={mapPoints} userLocation={userLocation} />
+            </div>
+          ) : (
+            items.map((result) => (
+              <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} />
+            ))
+          )}
         </div>
       )}
 

@@ -12,7 +12,7 @@ import {
   PackagePlus,
   Package,
   BarChart3,
-  Tag,
+  Tag, Users,
   Layers,
   Settings2,
   AlertTriangle,
@@ -141,6 +141,12 @@ function HubBody({ store }: { store: StoreDetails }) {
             <Link href={ROUTES.myStorePromotions}>
               <Tag className="h-4 w-4" />
               العروض
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+            <Link href={ROUTES.myStoreMembers}>
+              <Users className="h-4 w-4" />
+              الأعضاء
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">

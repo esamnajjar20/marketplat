@@ -65,6 +65,8 @@ export interface SearchResult {
    * UI when it's actually there.
    */
   distanceKm: number | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 /** GET /search query params. */

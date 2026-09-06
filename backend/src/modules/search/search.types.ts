@@ -71,6 +71,9 @@ export interface SearchResult {
    * mandatory field to read; UnifiedResultCard/SearchResults only
    * render it when non-null.
    */
+  /** Opt-in map pin — null when the entity has no coordinates. */
+  latitude: number | null;
+  longitude: number | null;
   distanceKm: number | null;
 }
 
@@ -108,4 +111,6 @@ export interface RawSearchRow {
   rank: number;
   /** TRACK-NEARBY-SEARCH: see SearchResult.distanceKm's own comment — null when the request had no lat/lng, or the entity/row couldn't resolve one. */
   distance_km: number | null;
+  latitude: number | null;
+  longitude: number | null;
 }

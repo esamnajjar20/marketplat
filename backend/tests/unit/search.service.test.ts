@@ -24,6 +24,8 @@ const mockRow: RawSearchRow = {
   rank: 0.5,
   seller_type: 'user',
   distance_km: null,
+  latitude: null,
+  longitude: null,
 };
 
 const baseQuery: SearchQuery = { type: 'all', sort: 'relevance', radius: 10 };

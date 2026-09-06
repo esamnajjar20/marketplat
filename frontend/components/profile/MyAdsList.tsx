@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Pencil, Trash2, Eye, CheckCircle } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
+import { PinAdButton } from '@/components/ads/PinAdButton';
+import { RepublishAdButton } from '@/components/ads/RepublishAdButton';
 import { Badge }        from '@/components/shared/ui/Badge';
 import { Pagination }   from '@/components/shared/ui/Pagination';
 import { EmptyState }   from '@/components/shared/feedback/EmptyState';
@@ -166,6 +168,10 @@ export function MyAdsList() {
                       <CheckCircle className="h-3.5 w-3.5" />
                     </Button>
                   )}
+                  {ad.status === 'ACTIVE' && (
+                    <PinAdButton adId={ad.id} isPinned={Boolean(ad.isPinned)} />
+                  )}
+                  <RepublishAdButton adId={ad.id} status={ad.status} />
                   <Link href={ROUTES.adEdit(ad.id)}>
                     <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${ad.title}`}>
                       <Pencil className="h-3.5 w-3.5" />

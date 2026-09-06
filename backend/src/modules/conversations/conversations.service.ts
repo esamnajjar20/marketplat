@@ -13,6 +13,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { logger } from '../../shared/utils/logger';
+import { sellerResponseTimeService } from '../sellers/seller-response-time.service';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
   if (conversation.buyerId !== userId && conversation.sellerId !== userId) {
@@ -242,6 +243,14 @@ export const conversationsService = {
     // sends, same order of magnitude as their own Message rows already
     // in the DB), unlike AnalyticsEvent's anonymous-traffic volume.
     activityService.record({ userId, ...activityTemplates.messageSent(conversationId, recipient.name) });
+
+    // TRACK-RESPONSE-TIME: first seller reply updates EMA on SellerProfile
+    void sellerResponseTimeService.recordSellerFirstReply(
+      conversationId,
+      userId,
+      conversation.sellerId,
+      message.createdAt
+    );
 
     return message;
   },

@@ -1,5 +1,6 @@
 'use client';
 
+import { ResponseTimeBadge } from '@/components/sellers/ResponseTimeBadge';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useRouter } from 'next/navigation';
@@ -87,6 +88,11 @@ export function SellerCard({ seller, adId, sellerProfileId }: Props) {
             <span className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
               <Star className="h-3.5 w-3.5 fill-rating text-rating" />
               {parseFloat(sellerProfile.averageRating).toFixed(1)} ({sellerProfile.totalRatings} تقييم)
+              <ResponseTimeBadge
+                responseTimeMinutes={sellerProfile.responseTimeMinutes}
+                responseRate={sellerProfile.responseRate != null ? Number(sellerProfile.responseRate) : null}
+                className="mt-1 block"
+              />
             </span>
           )}
         </div>

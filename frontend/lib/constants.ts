@@ -26,6 +26,8 @@ export const ROUTES = {
   userProfile:   (id: string)   => `/profile/${id}`,
   sellerProfile: (id: string)   => `/sellers/${id}`,
   myAds:         '/my-ads',
+  sellersRanking: '/sellers/ranking',
+  myStoreMembers: '/my-store/members',
   favorites:     '/favorites',
   savedSearches: '/saved-searches',
   downloads:     '/downloads',

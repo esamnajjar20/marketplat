@@ -1,20 +1,27 @@
 import { Router } from 'express';
 import { favoritesController } from './favorites.controller';
+import { favoriteListsController } from './favorite-lists.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { favoritesRateLimit } from '../../middlewares/rateLimit.middleware';
 
 export const favoritesRouter = Router();
 
+// Named lists — MUST register before /:adId so "lists" is not an adId
+favoritesRouter.get('/lists', authenticate, favoriteListsController.list);
+favoritesRouter.post('/lists', authenticate, favoriteListsController.create);
+favoritesRouter.patch('/lists/:listId', authenticate, favoriteListsController.rename);
+favoritesRouter.delete('/lists/:listId', authenticate, favoriteListsController.remove);
+favoritesRouter.patch(
+  '/items/:favoriteId/list',
+  authenticate,
+  favoriteListsController.moveFavorite
+);
+
 favoritesRouter.get('/', authenticate, favoritesController.getMyFavorites);
 favoritesRouter.get('/:adId/check', authenticate, favoritesController.checkFavorited);
 favoritesRouter.post('/:adId', authenticate, favoritesRateLimit, favoritesController.toggleFavorite);
 
-// FEAT-FAVORITE-POLYMORPHIC PR2: generic routes for ads/products/
-// stores/services (see favorites.validation.ts's
-// ENTITY_TYPE_PARAM_MAP for the accepted :entityType values).
-// Different path arity from the legacy AD-only routes above (2/3
-// segments vs 1/2), so there's no routing ambiguity between them —
-// both sets can register in either order.
+// FEAT-FAVORITE-POLYMORPHIC PR2
 favoritesRouter.get(
   '/:entityType/:entityId/check',
   authenticate,

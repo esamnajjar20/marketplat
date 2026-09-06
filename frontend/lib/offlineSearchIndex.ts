@@ -63,6 +63,8 @@ function normalizeProduct(p: Record<string, unknown>): SearchResult | null {
     url: `/products/${p.id}`,
     createdAt: typeof p.createdAt === 'string' ? p.createdAt : new Date(0).toISOString(),
     distanceKm: null,
+    latitude: null,
+    longitude: null,
   };
 }
 
@@ -96,6 +98,8 @@ function normalizeAd(a: Record<string, unknown>): SearchResult | null {
     url: `/ads/${a.id}`,
     createdAt: typeof a.createdAt === 'string' ? a.createdAt : new Date(0).toISOString(),
     distanceKm: null,
+    latitude: null,
+    longitude: null,
   };
 }
 
@@ -126,6 +130,8 @@ function normalizeService(s: Record<string, unknown>): SearchResult | null {
     url: `/services/${s.id}`,
     createdAt: typeof s.createdAt === 'string' ? s.createdAt : new Date(0).toISOString(),
     distanceKm: null,
+    latitude: null,
+    longitude: null,
   };
 }
 
@@ -152,6 +158,8 @@ function normalizeStore(s: Record<string, unknown>): SearchResult | null {
     url: `/stores/${s.id}`,
     createdAt: typeof s.createdAt === 'string' ? s.createdAt : new Date(0).toISOString(),
     distanceKm: null,
+    latitude: null,
+    longitude: null,
   };
 }
 

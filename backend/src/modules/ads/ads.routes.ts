@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { adsController } from './ads.controller';
+import { adsPinController } from './ads-pin.controller';
+import { adsRepublishController } from './ads-republish.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { uploadMultipleMiddleware } from '../../middlewares/upload.middleware';
 import { createAdRateLimit, addAdImagesRateLimit } from '../../middlewares/rateLimit.middleware';
@@ -34,3 +36,14 @@ adsRouter.delete('/:id/images', authenticate, adsController.removeImage);
 // just auth, same as PATCH /:id above.
 adsRouter.put('/:id/images/reorder', authenticate, adsController.reorderImages);
 adsRouter.delete('/:id', authenticate, adsController.deleteAd);
+
+// TRACK-SELLER-PIN — body: { isPinned: boolean }
+adsRouter.patch('/:id/pin', authenticate, adsPinController.setPinned);
+
+// TRACK-REPUBLISH — clone SOLD/DELETED into a new ACTIVE ad
+adsRouter.post(
+  '/:id/republish',
+  authenticate,
+  createAdRateLimit,
+  adsRepublishController.republish
+);

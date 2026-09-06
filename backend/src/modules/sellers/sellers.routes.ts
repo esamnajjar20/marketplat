@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { sellersController } from './sellers.controller';
+import { sellersRankingController } from './sellers-ranking.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import {
@@ -32,6 +33,9 @@ sellersRouter.post(
   requestVerificationRateLimit,
   sellersController.requestVerification
 );
+
+// TRACK-SELLER-RANKING — before /:id so "ranking" is never an :id
+sellersRouter.get('/ranking', CACHE.SHORT, sellersRankingController.getTop);
 
 // Public — anyone can view a seller's page, no authentication required.
 sellersRouter.get('/:id', CACHE.MEDIUM, sellersController.getPublicSellerProfile);

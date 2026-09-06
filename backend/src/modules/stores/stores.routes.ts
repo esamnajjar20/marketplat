@@ -4,6 +4,7 @@ import { authenticate } from '../../middlewares/auth.middleware';
 import { requireAdmin } from '../../middlewares/admin.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import { uploadMiddleware } from '../../middlewares/upload.middleware';
+import { storeMembersController } from './store-members.controller';
 import {
   createStoreRateLimit,
   storeFollowRateLimit,
@@ -45,7 +46,47 @@ storesRouter.post(
   storesController.uploadCover
 );
 
+
+// ─── Store members (staff permissions) ───────────────────────────────────────
+// Before /:id so "me/member-invites" is never swallowed as an :id.
+storesRouter.get(
+  '/me/member-invites',
+  authenticate,
+  CACHE.NONE,
+  storeMembersController.listMyPendingInvites
+);
+storesRouter.post(
+  '/me/member-invites/:memberId/accept',
+  authenticate,
+  storeMembersController.acceptInvite
+);
+
 storesRouter.post('/', authenticate, createStoreRateLimit, storesController.createStore);
+
+// Members of a store — before generic /:id sub-routes that might conflict is fine;
+// path is /:id/members so must stay after /me/* only.
+storesRouter.get(
+  '/:id/members',
+  authenticate,
+  CACHE.NONE,
+  storeMembersController.listMembers
+);
+storesRouter.post(
+  '/:id/members',
+  authenticate,
+  storeMembersController.inviteMember
+);
+storesRouter.patch(
+  '/:id/members/:memberId',
+  authenticate,
+  storeMembersController.updateMemberRole
+);
+storesRouter.delete(
+  '/:id/members/:memberId',
+  authenticate,
+  storeMembersController.removeMember
+);
+
 
 // Public store page
 storesRouter.get('/:id', CACHE.MEDIUM, storesController.getPublicStore);

@@ -51,6 +51,8 @@ const normalizeRow = (row: RawSearchRow): SearchResult => ({
   url: searchRepository.buildUrl(row.type, row.url_id),
   createdAt: row.created_at.toISOString(),
   distanceKm: sanitizeDistanceKm(row.distance_km),
+  latitude: row.latitude != null ? Number(row.latitude) : null,
+  longitude: row.longitude != null ? Number(row.longitude) : null,
 });
 
 export const searchService = {
