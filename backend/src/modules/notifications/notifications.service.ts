@@ -1,5 +1,5 @@
 import { Notification, NotificationType, Prisma } from '@prisma/client';
-import { notificationsRepository, PushSubscriptionInput } from './notifications.repository';
+import { notificationsRepository, PushSubscriptionInput, RegisterFcmTokenInput } from './notifications.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
@@ -112,6 +112,16 @@ export const notificationsService = {
    * 0-row result isn't treated as NotFound here (unlike markRead). */
   unsubscribeFromPush: (userId: string, endpoint: string): Promise<void> =>
     notificationsRepository.deletePushSubscription(userId, endpoint).then(() => undefined),
+
+  /** NEW — called from POST /notifications/fcm-tokens (Capacitor native
+   * push registration). Mirrors subscribeToPush above. */
+  registerFcmToken: (userId: string, input: RegisterFcmTokenInput): Promise<void> =>
+    notificationsRepository.upsertFcmDeviceToken(userId, input).then(() => undefined),
+
+  /** NEW — called from DELETE /notifications/fcm-tokens. Mirrors
+   * unsubscribeFromPush above (best-effort, 0-row result not treated as error). */
+  unregisterFcmToken: (userId: string, token: string): Promise<void> =>
+    notificationsRepository.deleteFcmDeviceToken(userId, token).then(() => undefined),
 
   /** Opens a chat thread → clear NEW_MESSAGE bell rows for that conversation. */
   markConversationNotificationsRead: (userId: string, conversationId: string) =>

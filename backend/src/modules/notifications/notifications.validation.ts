@@ -68,3 +68,26 @@ export const deletePushSubscriptionSchema = z.object({
 });
 
 export type DeletePushSubscriptionInput = z.infer<typeof deletePushSubscriptionSchema>['body'];
+
+// NEW — native (Capacitor/FCM) device-token registration, counterpart
+// to createPushSubscriptionSchema/deletePushSubscriptionSchema above
+// (those are Web Push; this is the native-app path). `token` is FCM's
+// own opaque device token — no fixed format is documented by Google,
+// so like `endpoint` above it's only length-capped to match the
+// schema column (@db.VarChar(500)), not pattern-matched.
+export const registerFcmTokenSchema = z.object({
+  body: z.object({
+    token: z.string().min(1).max(500),
+    platform: z.enum(['android', 'ios']),
+  }),
+});
+
+export type RegisterFcmTokenInput = z.infer<typeof registerFcmTokenSchema>['body'];
+
+export const deleteFcmTokenSchema = z.object({
+  body: z.object({
+    token: z.string().min(1).max(500),
+  }),
+});
+
+export type DeleteFcmTokenInput = z.infer<typeof deleteFcmTokenSchema>['body'];

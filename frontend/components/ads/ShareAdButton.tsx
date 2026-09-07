@@ -15,7 +15,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Share2, MessageCircle, Send, Link2, Check } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
@@ -26,6 +26,7 @@ import {
 } from '@/components/shared/ui/DropdownMenu';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { nativeShare, canNativeShare } from '@/lib/capacitor/nativeShare';
 
 interface Props {
   title: string;
@@ -67,15 +68,21 @@ export function ShareAdButton({ title, url, variant = 'icon', className }: Props
   }
 
   async function handleNativeShare() {
-    const shareUrl = getUrl();
-    try {
-      await navigator.share({ title, url: shareUrl });
-    } catch {
-      // User cancelled the native share sheet — no error toast needed.
-    }
+    // NEW: goes through @capacitor/share inside the native shell (see
+    // lib/capacitor/nativeShare.ts's header for why navigator.share
+    // alone isn't reliable in an Android WebView), falls back to
+    // navigator.share on plain web — same silent-cancel behavior as
+    // before either way.
+    await nativeShare({ title, url: getUrl() });
   }
 
-  const hasNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+  // NEW: async because it now also checks Capacitor.isNativePlatform();
+  // starts hidden and reveals itself once resolved, instead of the
+  // previous synchronous navigator.share check.
+  const [hasNativeShare, setHasNativeShare] = useState(false);
+  useEffect(() => {
+    void canNativeShare().then(setHasNativeShare);
+  }, []);
 
   return (
     <DropdownMenu>

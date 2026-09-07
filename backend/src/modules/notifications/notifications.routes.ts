@@ -39,3 +39,16 @@ notificationsRouter.delete(
   authenticate,
   notificationsController.unsubscribeFromPush
 );
+
+// NEW — native (Capacitor/FCM) device-token registration, counterpart
+// to the push-subscriptions pair above. See lib/capacitor/nativePush.ts.
+notificationsRouter.post(
+  '/fcm-tokens',
+  authenticate,
+  notificationsController.registerFcmToken
+);
+notificationsRouter.delete(
+  '/fcm-tokens',
+  authenticate,
+  notificationsController.unregisterFcmToken
+);

@@ -5,6 +5,8 @@ import {
   notificationIdSchema,
   createPushSubscriptionSchema,
   deletePushSubscriptionSchema,
+  registerFcmTokenSchema,
+  deleteFcmTokenSchema,
 } from './notifications.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -80,6 +82,32 @@ export const notificationsController = {
       const { body } = deletePushSubscriptionSchema.parse({ body: req.body });
       await notificationsService.unsubscribeFromPush(user.userId, body.endpoint);
       res.status(200).json(successResponse('Push subscription removed'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** NEW — POST /notifications/fcm-tokens, called from the Capacitor
+   * shell's lib/capacitor/nativePush.ts registerNativePush() right
+   * after PushNotifications.register() resolves a device token. */
+  registerFcmToken: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { body } = registerFcmTokenSchema.parse({ body: req.body });
+      await notificationsService.registerFcmToken(user.userId, body);
+      res.status(201).json(successResponse('Device registered for push'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** NEW — DELETE /notifications/fcm-tokens, mirrors unsubscribeFromPush above. */
+  unregisterFcmToken: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { body } = deleteFcmTokenSchema.parse({ body: req.body });
+      await notificationsService.unregisterFcmToken(user.userId, body.token);
+      res.status(200).json(successResponse('Device unregistered from push'));
     } catch (error) {
       next(error);
     }

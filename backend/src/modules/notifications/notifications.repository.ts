@@ -1,9 +1,11 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, Notification, NotificationType, PushSubscription } from '@prisma/client';
+import { Prisma, Notification, NotificationType, PushSubscription, FcmDeviceToken } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
 import { publishNotificationEvent, publishNotificationEventToMany } from '../../shared/utils/notificationStream';
 import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
+// NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
+import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -22,6 +24,12 @@ export interface CreateNotificationInput {
 export interface PushSubscriptionInput {
   endpoint: string;
   keys: { p256dh: string; auth: string };
+}
+
+// NEW — native-app counterpart to PushSubscriptionInput above.
+export interface RegisterFcmTokenInput {
+  token: string;
+  platform: string;
 }
 
 export const notificationsRepository = {
@@ -262,4 +270,21 @@ export const notificationsRepository = {
   // upsertPushSubscription above, for the same one-source-of-truth reason.
   deletePushSubscription: (userId: string, endpoint: string): Promise<Prisma.BatchPayload> =>
     pushSubscriptionsRepository.deleteForUser(userId, endpoint),
+
+  // NEW — same module-facing-wrapper-around-the-shared-repository shape
+  // as upsertPushSubscription/deletePushSubscription above, for
+  // FcmDeviceToken (native app push) instead of PushSubscription (web
+  // push). See fcmDeviceTokensRepository.ts's own header.
+  upsertFcmDeviceToken: (
+    userId: string,
+    input: RegisterFcmTokenInput
+  ): Promise<FcmDeviceToken> =>
+    fcmDeviceTokensRepository.upsert({
+      userId,
+      token: input.token,
+      platform: input.platform,
+    }),
+
+  deleteFcmDeviceToken: (userId: string, token: string): Promise<Prisma.BatchPayload> =>
+    fcmDeviceTokensRepository.deleteForUser(userId, token),
 };

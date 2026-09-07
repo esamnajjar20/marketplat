@@ -129,6 +129,7 @@ model User {
   messagesSent                Message[]                 @relation("MessagesSent")
   notifications               Notification[]
   pushSubscriptions           PushSubscription[]
+  fcmDeviceTokens              FcmDeviceToken[]
   passwordResetTokens         PasswordResetToken[]
   reports                     Report[]
   sellerProfile               SellerProfile?
@@ -1074,6 +1075,27 @@ model PushSubscription {
   // this is the only lookup pushService.ts's notifyUser needs.
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+// NEW — device tokens for native push (Capacitor + Firebase Cloud
+// Messaging), the Android/iOS-app counterpart to PushSubscription
+// above (which is Web Push / VAPID, browser-only). See
+// backend/src/shared/utils/fcmPushService.ts's header for why
+// standard Web Push isn't reused for the native app instead of adding
+// a second table. Same upsert-on-natural-key shape as
+// PushSubscription: `token` is FCM's own opaque device token, unique
+// per installation, so re-registering the same device (app reopen,
+// token refresh) updates the existing row rather than duplicating it.
+model FcmDeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique @db.VarChar(500)
+  platform  String   @db.VarChar(20) // 'android' | 'ios'
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("fcm_device_tokens")
 }
 
 model AuditLog {

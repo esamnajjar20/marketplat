@@ -117,6 +117,15 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
+  // NEW — Firebase Admin SDK credentials for native (Capacitor) push,
+  // separate from the VAPID keys above (those are Web Push only). Get
+  // these three from Firebase Console → Project Settings → Service
+  // Accounts → Generate new private key. FIREBASE_PRIVATE_KEY's
+  // newlines must be escaped as \n in the .env file (standard for this
+  // key format); fcmPushService.ts un-escapes them before use.
+  FIREBASE_PROJECT_ID: z.string().optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().optional(),
+  FIREBASE_PRIVATE_KEY: z.string().optional(),
   // FIX SEC-ALERT-01: separate, optional webhook for security alerts
   // (account lockouts, refresh-token reuse detection). Distinct from the
   // generic ERROR_REPORTER_WEBHOOK_URL in logger.ts — that one is for
@@ -388,6 +397,17 @@ export const env = {
     privateKey: _env.VAPID_PRIVATE_KEY || "",
     subject: _env.VAPID_SUBJECT || "mailto:admin@example.com",
     isConfigured: Boolean(_env.VAPID_PUBLIC_KEY && _env.VAPID_PRIVATE_KEY),
+  },
+  // NEW — see FIREBASE_* doc comment above. Same graceful-degradation
+  // convention as webPush: fcmPushService.ts logs instead of throwing
+  // when unconfigured.
+  fcm: {
+    projectId: _env.FIREBASE_PROJECT_ID || "",
+    clientEmail: _env.FIREBASE_CLIENT_EMAIL || "",
+    privateKey: (_env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+    isConfigured: Boolean(
+      _env.FIREBASE_PROJECT_ID && _env.FIREBASE_CLIENT_EMAIL && _env.FIREBASE_PRIVATE_KEY
+    ),
   },
   securityAlert: {
     webhookUrl: _env.SECURITY_ALERT_WEBHOOK_URL || "",

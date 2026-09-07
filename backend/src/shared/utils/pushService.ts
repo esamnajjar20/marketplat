@@ -2,6 +2,13 @@ import webpush from 'web-push';
 import { env } from '../../config/env';
 import { logger } from './logger';
 import { pushSubscriptionsRepository } from './pushSubscriptionsRepository';
+// NEW: fans out to the Capacitor native app's FCM channel alongside
+// Web Push below — see fcmPushService.ts's header for why both exist.
+// Kept as a fully separate call (not merged logic) so a Web Push
+// failure/misconfiguration can never affect native delivery or vice
+// versa — same isolation pushService.notifyUser already gives each
+// individual browser subscription.
+import { fcmPushService } from './fcmPushService';
 
 /**
  * FIX PWA-PUSH-01: this is the missing backend half of the frontend's
@@ -82,6 +89,12 @@ export const pushService = {
    * notificationsRepository.create.
    */
   notifyUser: async (userId: string, payload: PushPayload): Promise<void> => {
+    // NEW: native app push, fully independent of the Web Push send
+    // below (own try/catch, own graceful-degradation, see
+    // fcmPushService.ts). Fire-and-forget here too, matching this
+    // whole function's own contract with ITS callers.
+    void fcmPushService.notifyUser(userId, payload).catch(() => undefined);
+
     // AUDIT-FIX 2.1: wraps the whole body (not just the per-subscription
     // sendNotification below, which already had its own try/catch) so
     // an unexpected failure anywhere in this function — most notably

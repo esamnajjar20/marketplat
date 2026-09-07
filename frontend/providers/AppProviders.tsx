@@ -16,6 +16,7 @@ import { makeQueryClient }     from '@/lib/queryClient';
 import { AuthHydrationProvider } from './AuthHydrationProvider';
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
+import { CapacitorBootstrap }  from '@/components/pwa/CapacitorBootstrap';
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
@@ -84,6 +85,8 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         <ThemedToaster />
 
         <PwaBootstrap />
+        {/* NEW — no-op outside the Capacitor native shell, see its own header. */}
+        <CapacitorBootstrap />
 
         {/* Gap #7 (product analytics): see PageViewTracker.tsx's own
             header for why this is mounted here rather than per-page. */}
