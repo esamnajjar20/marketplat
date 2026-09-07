@@ -35,8 +35,8 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
   const isStoreAd = Boolean(store?.id);
-  const avatar = isStoreAd && store?.logoUrl
-    ? store.logoUrl
+  const avatar = isStoreAd
+    ? getAvatarUrl(store?.logoUrl ?? '', 64)
     : getAvatarUrl(seller.avatarUrl ?? '', 64);
   const displayName = isStoreAd ? store!.name : seller.name;
   // ثقة البائع فقط للإعلان الشخصي

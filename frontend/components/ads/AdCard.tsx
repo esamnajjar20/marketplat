@@ -99,10 +99,9 @@ export function AdCard({ ad, className, priority = false }: Props) {
   // نفس شكل البطاقة — إن وُجد ad.store تظهر هوية المتجر بدل البائع
   const store = ad.store;
   const isStoreAd = Boolean(store?.id);
-  const sellerAvatar =
-    isStoreAd && store?.logoUrl
-      ? store.logoUrl
-      : getAvatarUrl(ad.user.avatarUrl ?? '', 32);
+  const sellerAvatar = isStoreAd
+    ? getAvatarUrl(store?.logoUrl ?? '', 32)
+    : getAvatarUrl(ad.user.avatarUrl ?? '', 32);
   const publisherName = isStoreAd ? store!.name : ad.user.name;
 
   return (

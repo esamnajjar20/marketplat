@@ -73,7 +73,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
     : waDigits.startsWith('0')
       ? `970${waDigits.slice(1)}`
       : waDigits;
-  const avatar = getAvatarUrl(store.logoUrl ?? store.sellerProfile.avatarUrl ?? '', 128);
+  const avatar = getAvatarUrl(store.logoUrl ?? '', 128);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;
   const rating = parseFloat(store.sellerProfile.averageRating);
 

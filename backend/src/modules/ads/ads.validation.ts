@@ -99,16 +99,36 @@ const adsQueryBaseSchema = z.object({
   isFeatured: z.preprocess(preprocessFormBoolean, z.boolean()).optional(),
 });
 
-const adsQuerySchema = adsQueryBaseSchema.refine(
-  (q) =>
-    q.minPrice === undefined ||
-    q.maxPrice === undefined ||
-    q.minPrice <= q.maxPrice,
-  {
-    message: 'minPrice must not exceed maxPrice',
-    path: ['minPrice'],
-  },
-);
+// FIX AD-STORE-02: ads.repository.ts's findMany already branches on
+// storeId (both the raw-SQL search path and the plain where-clause
+// path), but no query schema declared the field — z.object() by
+// default strips unrecognized query keys, so GET /ads?storeId=...
+// silently lost the filter before it ever reached the repository, and
+// StoreAds.tsx ended up rendering every ad in the app (same as the
+// homepage) instead of just this store's.
+//
+// Added only here (getAdsSchema), NOT on adsQueryBaseSchema itself:
+// getMyAdsSchema below extends that same base for GET /ads/me, and
+// ads.repository.ts's findManyByUserId (used by /ads/me) replaces its
+// `{ userId }` filter with `{ storeId }` whenever storeId is present
+// (see its "storeId ? { storeId } : { userId }" branch) — putting
+// storeId on the shared base would let an authenticated caller pass
+// ?storeId=<any store> to /ads/me and get that store's ads back
+// instead of their own "my ads" list.
+const adsQuerySchema = adsQueryBaseSchema
+  .extend({
+    storeId: z.string().cuid().optional(),
+  })
+  .refine(
+    (q) =>
+      q.minPrice === undefined ||
+      q.maxPrice === undefined ||
+      q.minPrice <= q.maxPrice,
+    {
+      message: 'minPrice must not exceed maxPrice',
+      path: ['minPrice'],
+    },
+  );
 
 export const getAdsSchema = z.object({
   query: adsQuerySchema,

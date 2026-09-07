@@ -39,6 +39,8 @@ import { EditAdForm }     from '@/components/ads/EditAdForm';
 import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useAd }          from '@/hooks/queries/useAds';
+import { useMyStore }        from '@/hooks/queries/useStores';
+import { useStoreMembers }   from '@/hooks/queries/useStoreMembers';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
 import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
 import { ROUTES } from '@/lib/constants';
@@ -53,7 +55,18 @@ export default function EditAdPage({ params }: EditAdPageProps) {
   const user    = useAuthStore(selectUser);
   const isAdmin = useAuthStore(selectIsAdmin);
 
-  const isOwner = !!ad && !!user && (ad.userId === user.id || isAdmin);
+  // TRACK-AD-STORE (phase 2): mirrors ads.service.ts's canManageAd —
+  // see my-ads/[id]/page.tsx's identical comment for the full rationale.
+  const isCreator = !!ad && !!user && ad.userId === user.id;
+  const { data: myStore } = useMyStore();
+  const isStoreOwner = !!ad?.store && myStore?.id === ad.store.id;
+  const needsMembershipCheck = !!ad?.store && !isCreator && !isAdmin && !isStoreOwner;
+  const { data: members } = useStoreMembers(needsMembershipCheck ? ad!.store!.id : undefined);
+  const myMembership = members?.items.find((m) => m.userId === user?.id && m.status === 'ACTIVE');
+  const canManageAsTeamMember =
+    !!myMembership && (myMembership.role === 'MANAGER' || myMembership.role === 'EDITOR');
+
+  const isOwner = isCreator || isAdmin || isStoreOwner || canManageAsTeamMember;
   const isRedirecting = useOwnershipGuard({ isLoading, item: ad, isOwner, redirectTo: ROUTES.myAds });
 
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;

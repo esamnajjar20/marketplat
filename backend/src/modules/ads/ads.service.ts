@@ -16,6 +16,7 @@ import { env } from '../../config/env';
 import { AdStatus } from '@prisma/client';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { sellersService } from '../sellers/sellers.service';
+import { requireStoreAccess } from '../stores/store-members.service';
 import { favoritesRepository } from '../favorites/favorites.repository';
 import { notificationEvents } from '../notifications';
 import { savedSearchEvents } from '../saved-searches';
@@ -85,6 +86,30 @@ function buildAdsListCacheKey(version: number, query: GetAdsQuery): string {
   return `ads:list:v${version}:${sorted}`;
 }
 
+// TRACK-AD-STORE (phase 2): an ad published under a store is no longer
+// manageable only by the exact account that created it — the store
+// owner, and any ACTIVE store member whose role carries the manageAds
+// capability (MANAGER/EDITOR — see store-members.service.ts's
+// ROLE_CAPABILITIES), can also update/delete it and manage its images,
+// the same way they can already manage the store's products. A
+// personal (non-store) ad is unaffected: it's still manageable only by
+// ad.userId (or an admin).
+async function canManageAd(
+  ad: { userId: string; storeId: string | null },
+  userId: string,
+  userRole: string
+): Promise<boolean> {
+  if (userRole === ROLES.ADMIN) return true;
+  if (ad.userId === userId) return true;
+  if (!ad.storeId) return false;
+  try {
+    await requireStoreAccess(userId, ad.storeId, 'manageAds');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const adsService = {
   createAd: async (
     userId: string,
@@ -146,8 +171,15 @@ export const adsService = {
       if (!store) {
         throw new BadRequestError('Store not found.', 'STORE_NOT_FOUND');
       }
+      // TRACK-AD-STORE (phase 2): owner or a store member with manageAds
+      // (MANAGER/EDITOR) may publish under the store — same gate as
+      // canManageAd applies to editing/deleting an existing store ad.
       if (store.sellerProfile.userId !== userId) {
-        throw new ForbiddenError('You can only publish under your own store.', 'NOT_YOUR_STORE');
+        try {
+          await requireStoreAccess(userId, store.id, 'manageAds');
+        } catch {
+          throw new ForbiddenError('You can only publish under a store you own or manage.', 'NOT_YOUR_STORE');
+        }
       }
       if (store.status !== 'ACTIVE') {
         throw new ForbiddenError(
@@ -406,7 +438,7 @@ export const adsService = {
   ): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
-    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+    if (!(await canManageAd(ad, userId, userRole))) {
       throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
     if (input.status && userRole !== ROLES.ADMIN && input.status !== AdStatus.SOLD) {
@@ -561,7 +593,7 @@ export const adsService = {
   ): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
-    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+    if (!(await canManageAd(ad, userId, userRole))) {
       throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
     if (ad.images.length + files.length > 10) {
@@ -612,7 +644,7 @@ export const adsService = {
   ): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
-    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+    if (!(await canManageAd(ad, userId, userRole))) {
       throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
     if (!ad.images.includes(imageUrl)) throw new BadRequestError('Image not found in this ad');
@@ -674,7 +706,7 @@ export const adsService = {
   ): Promise<AdWithAuthor> => {
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
-    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+    if (!(await canManageAd(ad, userId, userRole))) {
       throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
 
@@ -720,7 +752,7 @@ export const adsService = {
   deleteAd: async (adId: string, userId: string, userRole: string): Promise<void> => {
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
-    if (ad.userId !== userId && userRole !== ROLES.ADMIN) {
+    if (!(await canManageAd(ad, userId, userRole))) {
       throw new ForbiddenError('You do not have permission to delete this ad', 'NOT_YOUR_AD');
     }
     await adsRepository.softDelete(adId);
@@ -730,10 +762,10 @@ export const adsService = {
 
     // Gap #10: fire-and-forget, see createAd's own comment above for
     // the contract this relies on. Logged for `userId` (the acting
-    // caller) even when an admin deletes someone else's ad — see this
-    // function's own ownership check above (ad.userId !== userId &&
-    // userRole !== ADMIN) — so an admin-performed deletion shows up on
-    // the admin's own timeline, not silently on the ad owner's.
+    // caller) even when someone other than ad.userId deletes it — an
+    // admin, or (TRACK-AD-STORE phase 2) a store owner/manager/editor
+    // acting on a store-published ad — so the deletion shows up on the
+    // *actor's* own timeline, not silently on the ad owner's.
     activityService.record({ userId, ...activityTemplates.adDeleted(adId, ad.title) });
   },
 };

@@ -129,6 +129,7 @@ export const adsRepublishService = {
           userId: source.userId,
           categoryId: source.categoryId,
           sellerProfileId: sellerProfile.id,
+          storeId: source.storeId,
         },
       });
       await tx.sellerProfile.update({

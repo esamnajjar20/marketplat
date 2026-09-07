@@ -20,14 +20,15 @@ import {
  * Capability matrix — keep it simple and explicit.
  * OWNER is never in StoreMember; it is the SellerProfile owner.
  *
- * MANAGER : products, promotions, collections, members (invite/remove/role), store settings
+ * MANAGER : products, ads, promotions, collections, members (invite/remove/role), store settings
  * STAFF   : reply to messages / update order-like status (future), view products
- * EDITOR  : create/update products & images only
+ * EDITOR  : create/update products, ads & their images only
  */
 const ROLE_CAPABILITIES: Record<
   StoreMemberRole,
   {
     manageProducts: boolean;
+    manageAds: boolean;
     managePromotions: boolean;
     manageCollections: boolean;
     manageMembers: boolean;
@@ -36,6 +37,7 @@ const ROLE_CAPABILITIES: Record<
 > = {
   MANAGER: {
     manageProducts: true,
+    manageAds: true,
     managePromotions: true,
     manageCollections: true,
     manageMembers: true,
@@ -43,6 +45,7 @@ const ROLE_CAPABILITIES: Record<
   },
   STAFF: {
     manageProducts: false,
+    manageAds: false,
     managePromotions: false,
     manageCollections: false,
     manageMembers: false,
@@ -50,6 +53,7 @@ const ROLE_CAPABILITIES: Record<
   },
   EDITOR: {
     manageProducts: true,
+    manageAds: true,
     managePromotions: false,
     manageCollections: false,
     manageMembers: false,
