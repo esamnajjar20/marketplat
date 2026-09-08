@@ -43,6 +43,8 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MAX_FILE_SIZE_MB, ALLOWED_IMAGE_TYPES, MAX_IMAGES } from '@/lib/constants';
 import { formatFileSize } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { isNativePlatform } from '@/lib/capacitor/platform';
+import { takeOrPickNativePhoto } from '@/lib/capacitor/nativeCamera';
 
 interface ImageUploadProps {
   value: File[];
@@ -143,8 +145,24 @@ export function ImageUpload({
     };
   }, []);
 
+  // Wiring native camera/gallery (Capacitor shell only): additive to the
+  // existing <input type="file"> path below, never a replacement — see
+  // lib/capacitor/nativeCamera.ts's own doc comment. Detected once on
+  // mount via a dynamic import (isNativePlatform), so the web build never
+  // pays for @capacitor/core and the button simply doesn't render there.
+  const [isNative, setIsNative] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    isNativePlatform().then((native) => {
+      if (!cancelled) setIsNative(native);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const addFiles = useCallback(
-    (newFiles: FileList | null) => {
+    (newFiles: FileList | File[] | null) => {
       if (!newFiles) return;
       const incoming = Array.from(newFiles);
 
@@ -189,6 +207,19 @@ export function ImageUpload({
     [value, onChange, remainingSlots, maxBytes, maxFiles],
   );
 
+  async function handleNativeCapture() {
+    if (remainingSlots - value.length <= 0) return;
+    try {
+      const result = await takeOrPickNativePhoto();
+      // null = user cancelled the native sheet, or (defensively) not
+      // actually native — either way the existing <input type="file">
+      // path below remains available, so there's nothing to fall back to here.
+      if (result) addFiles([result.file]);
+    } catch {
+      toast.error('تعذّر فتح الكاميرا');
+    }
+  }
+
   return (
     <div className="space-y-3">
       {/* Drop zone */}
@@ -227,6 +258,19 @@ export function ImageUpload({
         className="hidden"
         onChange={(e) => addFiles(e.target.files)}
       />
+
+      {/* Native camera/gallery sheet — Capacitor shell only (Android/iOS
+          app). Additive to the drop zone above, which stays the only
+          option on the web build. */}
+      {isNative && remainingSlots - value.length > 0 && (
+        <button
+          type="button"
+          onClick={handleNativeCapture}
+          className="text-sm font-medium text-primary underline underline-offset-2"
+        >
+          التقاط صورة بالكاميرا
+        </button>
+      )}
 
       {/*
         UX-FIX P3-10b: real upload progress for the images in this

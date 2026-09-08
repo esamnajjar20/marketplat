@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
+import { isNativePlatform } from '@/lib/capacitor/platform';
+import { getNativeCoordinates } from '@/lib/capacitor/nativeGeolocation';
 
 const STORAGE_KEY = 'location:gps';
 const SAVED_GPS_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -168,36 +170,78 @@ export function useLocationResolver(): ResolvedLocation {
   }, []);
 
   // ── Explicit user action: "📍 استخدام موقعي" ──────────────────────
+  // Wiring native GPS (Capacitor shell): this is the one call site in
+  // this hook where prompting is already the intended behavior (the
+  // user just tapped the CTA), so it's the correct place to offer the
+  // native permission dialog — unlike the silent auto-check effect
+  // above, which must stay non-prompting and is deliberately left on
+  // navigator.geolocation only. On web this branch's isNativePlatform()
+  // check resolves false and falls straight through to the existing
+  // navigator.geolocation path, unchanged.
   const requestLocation = useCallback(() => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+    if (typeof window === 'undefined') {
       setPermission('unsupported');
       return;
     }
 
     setIsRequesting(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (!mountedRef.current) return;
-        const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-        if (!isUsableNearbyCoord(coords.latitude, coords.longitude)) {
+
+    isNativePlatform().then((native) => {
+      if (!mountedRef.current) return;
+
+      if (native) {
+        getNativeCoordinates()
+          .then((coords) => {
+            if (!mountedRef.current) return;
+            if (!coords || !isUsableNearbyCoord(coords.latitude, coords.longitude)) {
+              setIsRequesting(false);
+              setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
+              return;
+            }
+            const resolved = { latitude: coords.latitude, longitude: coords.longitude };
+            setCurrentCoords(resolved);
+            setPermission('granted');
+            setIsRequesting(false);
+            persistSavedGps(resolved);
+          })
+          .catch(() => {
+            if (!mountedRef.current) return;
+            setIsRequesting(false);
+            setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
+          });
+        return;
+      }
+
+      if (!('geolocation' in navigator)) {
+        setIsRequesting(false);
+        setPermission('unsupported');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!mountedRef.current) return;
+          const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          if (!isUsableNearbyCoord(coords.latitude, coords.longitude)) {
+            setIsRequesting(false);
+            setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
+            return;
+          }
+          setCurrentCoords(coords);
+          setPermission('granted');
+          setIsRequesting(false);
+          persistSavedGps(coords);
+        },
+        () => {
+          if (!mountedRef.current) return;
+          // Failure must not break Home — just stop requesting and let
+          // the resolver fall through to saved GPS / city / fallback.
           setIsRequesting(false);
           setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
-          return;
-        }
-        setCurrentCoords(coords);
-        setPermission('granted');
-        setIsRequesting(false);
-        persistSavedGps(coords);
-      },
-      () => {
-        if (!mountedRef.current) return;
-        // Failure must not break Home — just stop requesting and let
-        // the resolver fall through to saved GPS / city / fallback.
-        setIsRequesting(false);
-        setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
-      },
-      GEO_POSITION_OPTIONS,
-    );
+        },
+        GEO_POSITION_OPTIONS,
+      );
+    });
   }, []);
 
   // ── Resolve final source per the priority chain ───────────────────

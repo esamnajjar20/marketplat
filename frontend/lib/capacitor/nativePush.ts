@@ -31,12 +31,33 @@ export async function isNativePushSupported(): Promise<boolean> {
 }
 
 /**
- * Requests permission, registers with FCM, and sends the resulting
- * device token to the backend. Returns false (no throw) if the user
- * denies permission or this isn't running natively.
+ * WIRING: non-prompting permission check for the settings toggle's
+ * initial render (PushNotificationToggle.tsx) — mirrors the
+ * "checkPermissions before ever prompting" posture used everywhere
+ * else in lib/capacitor/. Returns 'unsupported' on web/SSR.
  */
-export async function registerNativePush(): Promise<boolean> {
-  if (!(await isNativePlatform())) return false;
+export async function getNativePushPermissionState(): Promise<
+  'granted' | 'denied' | 'prompt' | 'unsupported'
+> {
+  if (!(await isNativePlatform())) return 'unsupported';
+  const { PushNotifications } = await import('@capacitor/push-notifications');
+  const permission = await PushNotifications.checkPermissions();
+  if (permission.receive === 'granted') return 'granted';
+  if (permission.receive === 'denied') return 'denied';
+  return 'prompt';
+}
+
+/**
+ * Requests permission, registers with FCM, and sends the resulting
+ * device token to the backend. Returns the device token on success so
+ * the caller can persist it for a later unregisterNativePush() call
+ * (this module intentionally holds no state of its own — see
+ * platform.ts's dynamic-import rationale for why nothing here is a
+ * module-level singleton). Returns null (no throw) if the user denies
+ * permission or this isn't running natively.
+ */
+export async function registerNativePush(): Promise<string | null> {
+  if (!(await isNativePlatform())) return null;
 
   const { PushNotifications } = await import('@capacitor/push-notifications');
 
@@ -45,14 +66,14 @@ export async function registerNativePush(): Promise<boolean> {
   if (status !== 'granted') {
     status = (await PushNotifications.requestPermissions()).receive;
   }
-  if (status !== 'granted') return false;
+  if (status !== 'granted') return null;
 
-  return new Promise<boolean>((resolve, reject) => {
+  return new Promise<string | null>((resolve, reject) => {
     // 'registration' fires once FCM hands back a device token.
     PushNotifications.addListener('registration', (token) => {
       apiClient
         .post('/notifications/fcm-tokens', { token: token.value, platform: 'android' })
-        .then(() => resolve(true))
+        .then(() => resolve(token.value))
         .catch((err) => reject(err));
     });
 
