@@ -366,7 +366,17 @@ export function MobileNav() {
           {/* Header: identity context when logged in, otherwise just the
               title + close button. Kept outside the scrollable list below
               so it stays pinned while links scroll. */}
-          <div className="shrink-0 border-b p-4">
+          {/* FIX PWA-STANDALONE: in standalone/TWA display mode (viewportFit:
+              'cover' + statusBarStyle: 'black-translucent' in layout.tsx),
+              there's no browser chrome to push this fixed drawer's top:0
+              below the OS status bar — the header rendered clipped under
+              it. p-4's flat 1rem top padding wasn't enough to clear the
+              status bar height; pt-[max(...)] mirrors the same
+              env(safe-area-inset-top) pattern NetworkStatusBanner.tsx
+              already uses, so it only adds extra top space where a safe
+              area actually exists (installed app) and stays 1rem
+              everywhere else (browser tab). */}
+          <div className="shrink-0 border-b p-4 pt-[max(1rem,env(safe-area-inset-top))]">
             <div className="flex items-center justify-between">
               {isAuthenticated && user ? (
                 <div className="flex items-center gap-3 min-w-0">
