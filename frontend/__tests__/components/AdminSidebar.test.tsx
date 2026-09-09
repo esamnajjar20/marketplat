@@ -189,7 +189,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(12); // one per nav link
+    expect(hiddenIcons?.length).toBe(15); // one per nav link — NAV_LINKS now has 15 entries
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────
@@ -220,10 +220,13 @@ describe('AdminSidebar', () => {
 
   it('closes the drawer when the backdrop is clicked', async () => {
     const user = setupUser();
-    const { container } = render(<AdminSidebar />);
+    render(<AdminSidebar />);
 
     await user.click(screen.getByLabelText('فتح القائمة'));
-    const backdrop = container.querySelector('.bg-black\\/40');
+    // The drawer is rendered via createPortal(..., document.body), so
+    // query document.body rather than the RTL container — and the
+    // actual backdrop class is bg-foreground/50, not bg-black/40.
+    const backdrop = document.body.querySelector('.bg-foreground\\/50');
     expect(backdrop).toBeInTheDocument();
 
     await user.click(backdrop!);
@@ -278,11 +281,14 @@ describe('AdminSidebar', () => {
       expect(within(desktopNav).queryByText('التحليلات')).not.toBeInTheDocument();
     });
 
-    it('renders only 3 icons for a MODERATOR (one per visible link)', () => {
+    it('renders only 5 icons for a MODERATOR (one per visible link)', () => {
+      // Untiered links: الإعلانات, البلاغات, مكافحة الاحتيال, المنتجات,
+      // الخدمات — 5, not 3 (fraud/products/service-listings were added
+      // without tierRequired after this test was first written).
       const { container } = render(<AdminSidebar />);
       const desktopAside = container.querySelector('aside');
       const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-      expect(hiddenIcons?.length).toBe(3);
+      expect(hiddenIcons?.length).toBe(5);
     });
   });
 

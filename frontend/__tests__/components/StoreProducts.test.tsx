@@ -26,6 +26,7 @@ vi.mock('@/lib/analytics', () => ({
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
 vi.mock('@/components/stores/ProductCard', () => ({

@@ -116,11 +116,13 @@ describe('ProtectedMobileNav', () => {
 
   it('renders a closed drawer by default with aria-hidden="true"', () => {
     isMobileNavOpen = false;
-    const { container } = render(<ProtectedMobileNav />);
+    render(<ProtectedMobileNav />);
     // getByRole excludes aria-hidden elements from the accessibility
     // tree by design, so it can never find the nav while it's closed —
-    // query the DOM directly instead.
-    const nav = container.querySelector('nav[aria-label="القائمة الشخصية"]');
+    // query the DOM directly instead. The nav is rendered via
+    // createPortal(..., document.body), outside RTL's `container`, so
+    // query document.body rather than container.
+    const nav = document.body.querySelector('nav[aria-label="القائمة الشخصية"]');
     expect(nav).not.toBeNull();
     expect(nav?.getAttribute('aria-hidden')).toBe('true');
   });
@@ -133,8 +135,10 @@ describe('ProtectedMobileNav', () => {
 
   it('shows a backdrop when open, and clicking it closes the drawer', () => {
     isMobileNavOpen = true;
-    const { container } = render(<ProtectedMobileNav />);
-    const backdrop = container.querySelector('.fixed.inset-0.z-40');
+    render(<ProtectedMobileNav />);
+    // Portaled to document.body (see above); the actual backdrop class
+    // is z-[90], not z-40.
+    const backdrop = document.body.querySelector('.fixed.inset-0.z-\\[90\\]');
     expect(backdrop).not.toBeNull();
     fireEvent.click(backdrop as Element);
     expect(mockClose).toHaveBeenCalledTimes(1);
@@ -142,8 +146,8 @@ describe('ProtectedMobileNav', () => {
 
   it('does not render a backdrop when closed', () => {
     isMobileNavOpen = false;
-    const { container } = render(<ProtectedMobileNav />);
-    expect(container.querySelector('.fixed.inset-0.z-40')).toBeNull();
+    render(<ProtectedMobileNav />);
+    expect(document.body.querySelector('.fixed.inset-0.z-\\[90\\]')).toBeNull();
   });
 
   it('pressing Escape closes the drawer while open', () => {
@@ -252,9 +256,13 @@ describe('ProtectedMobileNav', () => {
     // "متجري") → 2 total. Settings must NOT contribute a third.
     expect(screen.getAllByText('متجري')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: /^متجري/ }));
-    // Child was renamed to "إدارة المتجر" — STORE_GROUP toggle still "متجري"
+    // STORE_GROUP toggle still "متجري"; its own first child is "لوحة
+    // المتجر" (settingsGroupFor drops "الإعدادات" → "إدارة المتجر"
+    // entirely for a seller, rather than renaming anything — see
+    // lib/navigation.ts).
     expect(screen.getAllByText('متجري')).toHaveLength(1);
-    expect(screen.getByText('إدارة المتجر')).toBeInTheDocument();
+    expect(screen.getByText('لوحة المتجر')).toBeInTheDocument();
+    expect(screen.queryByText('إدارة المتجر')).not.toBeInTheDocument();
   });
 
   // A user with no SellerProfile yet has no STORE_GROUP at all, so

@@ -29,6 +29,19 @@ vi.mock('@/hooks/queries/useAds', () => ({
   useMyAds: vi.fn(),
 }));
 
+// The component also reads useMyStore()/useMyServiceProvider() (both
+// react-query) for two checklist steps this suite doesn't target —
+// unmocked they throw for lack of a QueryClientProvider. Default to
+// "loaded, nothing yet" so those two steps render as not-done without
+// affecting the avatar/seller-profile/first-ad assertions below.
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStore: vi.fn(() => ({ data: undefined, isSuccess: true })),
+}));
+
+vi.mock('@/hooks/queries/useServiceProviders', () => ({
+  useMyServiceProvider: vi.fn(() => ({ data: undefined, isSuccess: true })),
+}));
+
 function mockUser(user: Record<string, unknown> | null) {
   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
     (selector: (s: { user: unknown }) => unknown) => selector({ user }),

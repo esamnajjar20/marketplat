@@ -431,8 +431,16 @@ describe('ServiceListingForm', () => {
       expect(screen.getByRole('button', { name: 'جارٍ الحفظ…' })).toBeDisabled();
     });
 
-    it('shows "نشر الخدمة" in create mode and "حفظ التعديلات" in edit mode when idle', () => {
+    it('shows "نشر الخدمة" in create mode and "حفظ التعديلات" in edit mode when idle', async () => {
+      const user = setupUser();
       const { rerender } = render(<ServiceListingForm mode="create" />);
+
+      // Create mode is a 3-step wizard — the submit button only renders
+      // on step 3, so step through it first (default pricingType is
+      // NEGOTIABLE, so step 2 has no required fields of its own).
+      await fillRequiredFields(user);
+      await user.click(screen.getByRole('button', { name: 'التالي' }));
+      await user.click(screen.getByRole('button', { name: 'التالي' }));
       expect(screen.getByRole('button', { name: 'نشر الخدمة' })).toBeInTheDocument();
 
       rerender(<ServiceListingForm mode="edit" listing={existingListing} />);

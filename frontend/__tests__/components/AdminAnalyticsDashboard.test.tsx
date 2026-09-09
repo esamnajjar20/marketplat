@@ -19,6 +19,14 @@ vi.mock('@/hooks/queries/useAdmin', () => ({
   useAdminAnalyticsSummary: vi.fn(),
 }));
 
+// NotificationStatsCard fetches its own data via an inline useQuery —
+// unmocked it throws for lack of a QueryClientProvider. Out of scope
+// for this file (which tests the totals/funnel/trend/categories logic
+// above it), so stub it out entirely.
+vi.mock('@/components/admin/NotificationStatsCard', () => ({
+  NotificationStatsCard: () => <div data-testid="notification-stats-card" />,
+}));
+
 const mockUseAdminAnalyticsSummary = vi.mocked(useAdminAnalyticsSummary);
 
 function formatPercent(rate: number): string {

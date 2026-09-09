@@ -31,6 +31,13 @@ vi.mock('@/components/layout/ProtectedMobileNav', () => ({
   ProtectedMobileNav: () => <div data-testid="protected-mobile-nav" />,
 }));
 
+// MessagesLink reads useUnreadConversationCount() (a useQuery hook) —
+// same QueryClientProvider issue as NotificationBell/ProtectedMobileNav
+// above, so it's stubbed the same way rather than wrapped.
+vi.mock('@/components/layout/MessagesLink', () => ({
+  MessagesLink: () => <div data-testid="messages-link" />,
+}));
+
 // SELLER-GATE: the "+ نشر إعلان"/"أنشئ حساب بائع" CTA now reads
 // useMySellerProfile() directly (ads.service.ts's createAd requires a
 // SellerProfile). Mocked rather than wrapped in a QueryClientProvider,

@@ -44,6 +44,18 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// PinAdButton (inline useMutation/useQueryClient) and RepublishAdButton
+// (useRepublishAd, react-query) both need a QueryClientProvider in the
+// tree to even construct — neither is what this file is testing, so
+// stub them like the other row actions.
+vi.mock('@/components/ads/PinAdButton', () => ({
+  PinAdButton: () => <div data-testid="pin-ad-button" />,
+}));
+
+vi.mock('@/components/ads/RepublishAdButton', () => ({
+  RepublishAdButton: () => <div data-testid="republish-ad-button" />,
+}));
+
 function makeAd(overrides: Partial<{
   id: string; title: string; status: string; price: string; views: number;
   createdAt: string; images: string[];

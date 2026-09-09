@@ -30,6 +30,13 @@ vi.mock('@/components/shared/FavoriteButton', () => ({
   FavoriteButton: () => <div data-testid="favorite-button" />,
 }));
 
+// ReportServiceButton reads useReportService() (react-query mutation) —
+// unmocked it throws for lack of a QueryClientProvider; not what this
+// file is testing, so stub it like FavoriteButton above.
+vi.mock('@/components/services/ReportServiceButton', () => ({
+  ReportServiceButton: () => <div data-testid="report-service-button" />,
+}));
+
 function makeListing(overrides: Partial<ServiceListingWithProvider> = {}): ServiceListingWithProvider {
   return {
     id: 'listing-1',

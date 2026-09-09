@@ -31,6 +31,13 @@ vi.mock('@/components/services/ServiceViewTracker', () => ({
   ServiceViewTracker: () => null,
 }));
 
+// RelatedServices reads useServiceListings() (react-query) — unmocked it
+// throws for lack of a QueryClientProvider; out of scope for this file,
+// so stub it like the other page-level children above.
+vi.mock('@/components/services/RelatedServices', () => ({
+  RelatedServices: () => <div data-testid="related-services" />,
+}));
+
 vi.mock('@/components/recommendations/ServiceRecommendations', () => ({
   ServiceRecommendations: ({ excludeServiceListingId }: { excludeServiceListingId: string }) => (
     <div data-testid="service-recommendations">{excludeServiceListingId}</div>

@@ -37,6 +37,12 @@ vi.mock('@/components/shared/ui/Pagination', () => ({
   Pagination: ({ totalPages }: { totalPages: number }) => <div data-testid="pagination">pages:{totalPages}</div>,
 }));
 
+// MoveToListMenu reads useFavoriteLists() (react-query) — unmocked it
+// throws for lack of a QueryClientProvider; out of scope here.
+vi.mock('@/components/favorites/MoveToListMenu', () => ({
+  MoveToListMenu: () => <div data-testid="move-to-list-menu" />,
+}));
+
 const mockRefetch = vi.fn();
 const mockToggleMutate = vi.fn();
 

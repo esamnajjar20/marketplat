@@ -72,7 +72,10 @@ describe('useLocationResolver', () => {
   it('does not require an explicit user action when permission is granted', async () => {
     setPermissionsApi('granted');
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 1, longitude: 2 } } as GeolocationPosition);
+      // Must fall inside isUsableNearbyCoord's Gaza-area bounding box
+      // (lat 31.0-32.0, lng 34.0-35.0) or the hook silently rejects it
+      // and never reaches 'gps-current'.
+      success({ coords: { latitude: 31.1, longitude: 34.1 } } as GeolocationPosition);
     });
     setGeolocation(getCurrentPosition);
 
@@ -112,7 +115,8 @@ describe('useLocationResolver', () => {
   it('requestLocation() succeeds and sets source to gps-current', async () => {
     setPermissionsApi('prompt');
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 10, longitude: 20 } } as GeolocationPosition);
+      // Must fall inside isUsableNearbyCoord's Gaza-area bounding box.
+      success({ coords: { latitude: 31.2, longitude: 34.2 } } as GeolocationPosition);
     });
     setGeolocation(getCurrentPosition);
 
@@ -124,8 +128,8 @@ describe('useLocationResolver', () => {
     });
 
     await waitFor(() => expect(result.current.source).toBe('gps-current'));
-    expect(result.current.latitude).toBe(10);
-    expect(result.current.longitude).toBe(20);
+    expect(result.current.latitude).toBe(31.2);
+    expect(result.current.longitude).toBe(34.2);
   });
 
   // 7. requestLocation fails → does not break Home, falls through
@@ -154,14 +158,16 @@ describe('useLocationResolver', () => {
     setGeolocation(vi.fn());
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ latitude: 5, longitude: 6, timestamp: Date.now() - 1000 }),
+      // Must fall inside isUsableNearbyCoord's Gaza-area bounding box —
+      // readSavedGps() rejects out-of-range coords same as a fresh fix.
+      JSON.stringify({ latitude: 31.3, longitude: 34.3, timestamp: Date.now() - 1000 }),
     );
 
     const { result } = renderHook(() => useLocationResolver());
 
     await waitFor(() => expect(result.current.source).toBe('gps-saved'));
-    expect(result.current.latitude).toBe(5);
-    expect(result.current.longitude).toBe(6);
+    expect(result.current.latitude).toBe(31.3);
+    expect(result.current.longitude).toBe(34.3);
   });
 
   // 9. saved GPS expired
@@ -298,7 +304,8 @@ describe('useLocationResolver', () => {
   it('only requestLocation() triggers getCurrentPosition when permission is prompt', async () => {
     setPermissionsApi('prompt');
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 7, longitude: 8 } } as GeolocationPosition);
+      // Must fall inside isUsableNearbyCoord's Gaza-area bounding box.
+      success({ coords: { latitude: 31.4, longitude: 34.4 } } as GeolocationPosition);
     });
     setGeolocation(getCurrentPosition);
 
@@ -341,7 +348,8 @@ describe('useLocationResolver', () => {
   it('a GPS fix persisted by one resolver instance reaches a second, already-mounted sibling instance', async () => {
     setPermissionsApi('prompt');
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 15, longitude: 16 } } as GeolocationPosition);
+      // Must fall inside isUsableNearbyCoord's Gaza-area bounding box.
+      success({ coords: { latitude: 31.6, longitude: 34.6 } } as GeolocationPosition);
     });
     setGeolocation(getCurrentPosition);
     mockCity('غزة');
@@ -363,7 +371,7 @@ describe('useLocationResolver', () => {
     // The second instance never had requestLocation() called on it, yet
     // must pick up the freshly-saved GPS without a remount.
     await waitFor(() => expect(second.result.current.source).toBe('gps-saved'));
-    expect(second.result.current.latitude).toBe(15);
-    expect(second.result.current.longitude).toBe(16);
+    expect(second.result.current.latitude).toBe(31.6);
+    expect(second.result.current.longitude).toBe(34.6);
   });
 });

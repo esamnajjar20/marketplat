@@ -28,6 +28,12 @@ vi.mock('@/components/shared/forms/ImageUpload', () => ({
   ImageUpload: () => <div data-testid="image-upload" />,
 }));
 
+// AdPublisherPicker (rendered in create mode) reads useMyStore() (react-
+// query) — unmocked it throws for lack of a QueryClientProvider.
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStore: vi.fn(() => ({ data: null, isLoading: false })),
+}));
+
 describe('CreateAdForm', () => {
   beforeEach(() => {
     vi.resetAllMocks();

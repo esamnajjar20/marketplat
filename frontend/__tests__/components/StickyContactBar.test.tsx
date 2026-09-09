@@ -75,7 +75,7 @@ describe('StickyContactBar', () => {
     const user = setupUser();
     render(<StickyContactBar adId="ad-1" price="100" seller={seller as any} />);
     await user.click(screen.getByRole('button', { name: /راسل البائع|مراسلة/ }));
-    expect(toast.error).toHaveBeenCalledWith('يرجى تسجيل الدخول أولاً');
+    expect(toast.error).toHaveBeenCalledWith('سجّل الدخول لتراسل البائع');
     expect(mockMutate).not.toHaveBeenCalled();
   });
 

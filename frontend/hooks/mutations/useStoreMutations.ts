@@ -38,7 +38,7 @@ export function useUpdateStore() {
       // public directory/detail queries shouldn't keep showing stale
       // data after an owner edits their store. Same reasoning as
       // useUpdateServiceListing's I-05 fix.
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
       toast.success('تم حفظ التعديلات');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -64,7 +64,9 @@ export function useUploadStoreLogo() {
       return promise;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
+      // Same as useUpdateStore — invalidate the whole ['stores'] prefix
+      // so the public store page picks up the new logo too.
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
     },
   });
 }
@@ -84,7 +86,9 @@ export function useUploadStoreCover() {
       return promise;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
+      // Same as useUpdateStore — invalidate the whole ['stores'] prefix
+      // so the public store page picks up the new cover photo too.
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
     },
   });
 }

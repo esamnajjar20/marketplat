@@ -450,8 +450,15 @@ describe('ProductForm', () => {
       expect(screen.getByRole('button', { name: 'جارٍ الحفظ…' })).toBeDisabled();
     });
 
-    it('shows "إضافة المنتج" in create mode and "حفظ التعديلات" in edit mode when idle', () => {
+    it('shows "إضافة المنتج" in create mode and "حفظ التعديلات" in edit mode when idle', async () => {
+      const user = setupUser();
       const { rerender } = render(<ProductForm mode="create" />);
+
+      // Create mode is a 3-step wizard — the submit button only renders
+      // on step 3, so step through it first.
+      await fillRequiredFields(user);
+      await user.click(screen.getByRole('button', { name: 'التالي' }));
+      await user.click(screen.getByRole('button', { name: 'التالي' }));
       expect(screen.getByRole('button', { name: 'إضافة المنتج' })).toBeInTheDocument();
 
       rerender(<ProductForm mode="edit" product={existingProduct} />);

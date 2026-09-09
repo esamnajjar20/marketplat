@@ -39,6 +39,12 @@ vi.mock('@/components/layout/NotificationBell', () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));
 
+// MessagesLink reads useUnreadConversationCount() (also react-query) —
+// same reasoning as NotificationBell above.
+vi.mock('@/components/layout/MessagesLink', () => ({
+  MessagesLink: () => <div data-testid="messages-link" />,
+}));
+
 const mockUseAuthStore = vi.mocked(useAuthStore);
 
 function mockAuthState(isAuthenticated: boolean) {

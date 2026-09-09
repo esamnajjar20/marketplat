@@ -37,6 +37,14 @@ vi.mock('@/hooks/queries/useServiceListings', () => ({
   useMyServiceListings: vi.fn(),
 }));
 
+// The component also reads useMyServiceProvider() to decide whether to
+// show the list vs. a "become a provider" prompt — default to "has a
+// provider" so the existing list/status/pause-resume/delete coverage
+// below exercises the list itself, not the gate.
+vi.mock('@/hooks/queries/useServiceProviders', () => ({
+  useMyServiceProvider: vi.fn(() => ({ data: { id: 'provider-1' }, isSuccess: true })),
+}));
+
 vi.mock('@/hooks/mutations/useServiceListingMutations', () => ({
   useDeleteServiceListing: vi.fn(),
   useToggleServiceListingStatus: vi.fn(),

@@ -41,6 +41,15 @@ vi.mock('@/hooks/mutations/useAdMutations', () => ({
   useReorderAdImages: vi.fn(),
 }));
 
+// AdPublisherPicker (create mode only) reads useMyStore() (react-query) —
+// unmocked it throws for lack of a QueryClientProvider. Not what this
+// file is testing, so mock the hook directly with a "no store" default
+// (picker falls back to personal-account mode, same as an unauthenticated
+// seller with no store yet).
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStore: vi.fn(() => ({ data: null, isLoading: false })),
+}));
+
 // ImageUpload has its own dedicated test suite (ImageUpload.test.tsx) —
 // stub it here to isolate AdForm's own validation/submit logic from
 // ImageUpload's internal file-picker behavior.

@@ -23,6 +23,7 @@ import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
 import { useIsUserOnline } from '@/hooks/queries/usePresence';
+import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/hooks/queries/useConversations', () => ({
@@ -74,6 +75,7 @@ const mockUseIsUserBlocked = vi.mocked(useIsUserBlocked);
 const mockUseToggleUserBlock = vi.mocked(useToggleUserBlock);
 const mockUseDeleteMessage = vi.mocked(useDeleteMessage);
 const mockUseIsUserOnline = vi.mocked(useIsUserOnline);
+const mockUsePendingMessages = vi.mocked(usePendingMessages);
 const mockUseAuthStore = vi.mocked(useAuthStore);
 
 const me = { id: 'user-me', name: 'أنا' };
@@ -103,6 +105,7 @@ beforeEach(() => {
   mockAuthState(me);
   mockUseIsUserBlocked.mockReturnValue(false);
   mockUseIsUserOnline.mockReturnValue(false);
+  mockUsePendingMessages.mockReturnValue([] as never);
   mockUseToggleUserBlock.mockReturnValue({ mutate: mockToggleBlockMutate, isPending: false } as never);
   mockUseDeleteMessage.mockReturnValue({ mutate: mockDeleteMessageMutate, isPending: false } as never);
   mockUseMessages.mockReturnValue({ data: { items: [] }, isLoading: false } as never);

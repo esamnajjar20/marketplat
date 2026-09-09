@@ -39,10 +39,25 @@ vi.mock('@/hooks/queries/useAds', () => ({
   useAd: vi.fn(),
 }));
 
+// The real page also calls useMyStore()/useStoreMembers() (both
+// react-query) to resolve store-team edit permissions — unmocked they
+// throw for lack of a QueryClientProvider. Ownership-permission logic
+// itself isn't this file's target (mirrors EditAdForm's own stub
+// below), so default to "no store" so isCreator/isAdmin alone decide
+// ownership in these tests.
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStore: vi.fn(() => ({ data: undefined })),
+}));
+
+vi.mock('@/hooks/queries/useStoreMembers', () => ({
+  useStoreMembers: vi.fn(() => ({ data: undefined })),
+}));
+
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
   selectUser: (s: { user: unknown }) => s.user,
   selectIsAdmin: (s: { isAdmin: boolean }) => s.isAdmin,
+  selectIsAuthenticated: (s: { user: unknown }) => Boolean(s.user),
 }));
 
 vi.mock('@/components/ads/EditAdForm', () => ({

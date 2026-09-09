@@ -18,6 +18,10 @@ import { useStores } from '@/hooks/queries/useStores';
 import { useNearbyProvidersForHome } from '@/hooks/queries/useNearbyProvidersForHome';
 
 vi.mock('@/components/home/HeroBanner', () => ({ HeroBanner: () => <div data-testid="hero" /> }));
+// HomeTrustStrip reads useAds() (react-query) — unmocked it throws for
+// lack of a QueryClientProvider; not what this file tests, so stub it
+// the same way HeroBanner/HomeAboveFold/RecommendedAds are.
+vi.mock('@/components/home/HomeTrustStrip', () => ({ HomeTrustStrip: () => <div data-testid="trust-strip" /> }));
 vi.mock('@/components/home/HomeAboveFold', () => ({ HomeAboveFold: () => <div data-testid="above-fold" /> }));
 vi.mock('@/components/home/RecommendedAds', () => ({ RecommendedAds: () => null }));
 

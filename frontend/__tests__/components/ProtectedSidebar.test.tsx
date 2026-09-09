@@ -414,10 +414,14 @@ describe('ProtectedSidebar', () => {
       fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
       fireEvent.click(screen.getByRole('button', { name: /^متجري/ }));
 
-      // STORE_GROUP toggle still labeled "متجري"; first child renamed
-      // to "إدارة المتجر". Settings must not add another store link.
+      // STORE_GROUP toggle still labeled "متجري"; its first child is
+      // "لوحة المتجر" (STORE_GROUP's own dashboard link — settingsGroupFor
+      // drops "الإعدادات" → "إدارة المتجر" entirely rather than renaming
+      // anything, per lib/navigation.ts). Settings must not add another
+      // store link.
       expect(screen.getAllByText('متجري')).toHaveLength(1);
-      expect(screen.getByText('إدارة المتجر')).toBeInTheDocument();
+      expect(screen.getByText('لوحة المتجر')).toBeInTheDocument();
+      expect(screen.queryByText('إدارة المتجر')).not.toBeInTheDocument();
     });
 
     // A user with no SellerProfile yet has no STORE_GROUP at all (it's
