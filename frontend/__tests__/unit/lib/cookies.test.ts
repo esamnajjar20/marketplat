@@ -17,7 +17,7 @@
  *    * null/undefined falls back to default
  *    * encoded malicious URLs rejected
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { setCookie, deleteCookie, getSafeRedirectPath, AUTH_COOKIE_MAX_AGE, cookieMaxAgeFromExpiresIn } from '@/lib/cookies';
 
 // ── AUTH_COOKIE_MAX_AGE constant ──────────────────────────────────

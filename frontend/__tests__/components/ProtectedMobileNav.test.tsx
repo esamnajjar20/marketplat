@@ -21,9 +21,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProtectedMobileNav } from '@/components/layout/ProtectedMobileNav';
-import { useUIStore } from '@/store/ui.store';
-import { useAuthStore } from '@/store/auth.store';
-import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useMySellerProfile, useIsSeller } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider, useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';

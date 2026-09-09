@@ -76,8 +76,6 @@ describe('ErrorBoundary', () => {
   });
 
   it('clicking "أعد المحاولة" resets the boundary so children can re-render', async () => {
-    const user = setupUser();
-
     function Wrapper() {
       // After reset, the boundary re-renders its children; switching
       // shouldThrow to false here simulates the underlying condition

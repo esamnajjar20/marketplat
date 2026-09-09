@@ -23,7 +23,6 @@ import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
 import { useIsUserOnline } from '@/hooks/queries/usePresence';
-import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/hooks/queries/useConversations', () => ({

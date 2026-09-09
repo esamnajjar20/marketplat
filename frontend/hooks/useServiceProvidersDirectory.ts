@@ -99,7 +99,7 @@ export function useServiceProvidersDirectory() {
       const items = cityQuery.data?.items ?? [];
       setDecidedSource(!cityQuery.isError && items.length > 0 ? 'city' : 'general');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [
     probing,
     resolverBucket,

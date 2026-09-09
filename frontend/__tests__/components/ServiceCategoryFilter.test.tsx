@@ -18,7 +18,7 @@
  *    deletes ?page=
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ServiceCategoryFilter } from '@/components/services/ServiceCategoryFilter';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';

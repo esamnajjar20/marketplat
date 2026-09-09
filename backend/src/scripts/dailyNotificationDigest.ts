@@ -11,25 +11,25 @@
  * Usage (external cron, daily):
  *   npm run build && npm run report:notification-digest
  */
-import { PrismaClient, NotificationType } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
+import { PrismaClient, NotificationType } from "@prisma/client";
+import { logger } from "../shared/utils/logger";
 
 const prisma = new PrismaClient();
 
 const DIGEST_TYPES: NotificationType[] = [
-  'PROMOTION',
-  'SAVED_SEARCH_MATCH',
-  'STORE_NEW_PRODUCT',
-  'STORE_PROMOTION_STARTED',
-  'STORE_PRODUCT_RESTOCKED',
+  "PROMOTION",
+  "SAVED_SEARCH_MATCH",
+  "STORE_NEW_PRODUCT",
+  "STORE_PROMOTION_STARTED",
+  "STORE_PRODUCT_RESTOCKED",
 ];
 
 const TYPE_LABEL_AR: Record<string, string> = {
-  PROMOTION: 'عروض وتخفيضات',
-  SAVED_SEARCH_MATCH: 'بحث محفوظ',
-  STORE_NEW_PRODUCT: 'منتجات متاجر',
-  STORE_PROMOTION_STARTED: 'عروض متاجر',
-  STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
+  PROMOTION: "عروض وتخفيضات",
+  SAVED_SEARCH_MATCH: "بحث محفوظ",
+  STORE_NEW_PRODUCT: "منتجات متاجر",
+  STORE_PROMOTION_STARTED: "عروض متاجر",
+  STORE_PRODUCT_RESTOCKED: "عودة للمخزون",
 };
 
 async function main(): Promise<void> {
@@ -39,10 +39,13 @@ async function main(): Promise<void> {
       type: { in: DIGEST_TYPES },
     },
     select: { id: true, userId: true, type: true },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: "asc" },
   });
 
-  const byUser = new Map<string, { ids: string[]; counts: Record<string, number> }>();
+  const byUser = new Map<
+    string,
+    { ids: string[]; counts: Record<string, number> }
+  >();
   for (const row of unread) {
     let bucket = byUser.get(row.userId);
     if (!bucket) {
@@ -60,14 +63,14 @@ async function main(): Promise<void> {
     const parts = Object.entries(counts).map(
       ([type, n]) => `${TYPE_LABEL_AR[type] ?? type}: ${n}`,
     );
-    const title = 'ملخص إشعاراتك';
-    const body = `لديك ${ids.length} إشعاراً غير مقروء: ${parts.join(' · ')}`;
+    const title = "ملخص إشعاراتك";
+    const body = `لديك ${ids.length} إشعاراً غير مقروء: ${parts.join(" · ")}`;
 
     await prisma.$transaction([
       prisma.notification.create({
         data: {
           userId,
-          type: 'PROMOTION',
+          type: "PROMOTION",
           title,
           body,
           data: { digest: true, counts, sourceIds: ids.slice(0, 50) },
@@ -81,7 +84,7 @@ async function main(): Promise<void> {
     digests += 1;
   }
 
-  logger.info('dailyNotificationDigest finished', {
+  logger.info("dailyNotificationDigest finished", {
     usersScanned: byUser.size,
     digestsCreated: digests,
     rowsConsidered: unread.length,
@@ -90,7 +93,7 @@ async function main(): Promise<void> {
 
 main()
   .catch((err) => {
-    logger.error('dailyNotificationDigest failed', { err });
+    logger.error("dailyNotificationDigest failed", { err });
     process.exitCode = 1;
   })
   .finally(async () => {

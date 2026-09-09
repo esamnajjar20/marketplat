@@ -88,7 +88,7 @@ export function useMyFollowedStores(params?: { page?: number; limit?: number }) 
       data.items.forEach((row) => idSet.add(row.storeId));
       return idSet;
     });
-  }, [query.data]);
+  }, [query.data, queryClient]);
 
   return query;
 }

@@ -134,7 +134,11 @@ export const uploadImage = async (
                 logger.error("Cloudinary upload_stream returned an error", {
                   folder,
                   cloudinaryError: error
-                    ? { message: error.message, name: error.name, http_code: (error as { http_code?: number }).http_code }
+                    ? {
+                        message: error.message,
+                        name: error.name,
+                        http_code: (error as { http_code?: number }).http_code,
+                      }
                     : "no error object, but no result either",
                 });
                 return reject(
@@ -208,7 +212,11 @@ export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
               if (error || !result) {
                 logger.error("Cloudinary avatar upload returned an error", {
                   cloudinaryError: error
-                    ? { message: error.message, name: error.name, http_code: (error as { http_code?: number }).http_code }
+                    ? {
+                        message: error.message,
+                        name: error.name,
+                        http_code: (error as { http_code?: number }).http_code,
+                      }
                     : "no error object, but no result either",
                 });
                 return reject(
@@ -259,7 +267,9 @@ export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
  * photo, so a face-aware crop would misbehave on the common case of
  * a logo with no face in it at all.
  */
-export const uploadStoreLogo = async (buffer: Buffer): Promise<UploadResult> => {
+export const uploadStoreLogo = async (
+  buffer: Buffer,
+): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
@@ -278,7 +288,11 @@ export const uploadStoreLogo = async (buffer: Buffer): Promise<UploadResult> => 
               if (error || !result) {
                 logger.error("Cloudinary store logo upload returned an error", {
                   cloudinaryError: error
-                    ? { message: error.message, name: error.name, http_code: (error as { http_code?: number }).http_code }
+                    ? {
+                        message: error.message,
+                        name: error.name,
+                        http_code: (error as { http_code?: number }).http_code,
+                      }
                     : "no error object, but no result either",
                 });
                 return reject(
@@ -325,7 +339,9 @@ export const uploadStoreLogo = async (buffer: Buffer): Promise<UploadResult> => 
  * uploadStoreCover — wide banner crop for StoreHeader's cover photo,
  * same mechanism as uploadStoreLogo/uploadAvatar otherwise.
  */
-export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> => {
+export const uploadStoreCover = async (
+  buffer: Buffer,
+): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
@@ -342,11 +358,19 @@ export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> =>
             },
             (error, result) => {
               if (error || !result) {
-                logger.error("Cloudinary store cover upload returned an error", {
-                  cloudinaryError: error
-                    ? { message: error.message, name: error.name, http_code: (error as { http_code?: number }).http_code }
-                    : "no error object, but no result either",
-                });
+                logger.error(
+                  "Cloudinary store cover upload returned an error",
+                  {
+                    cloudinaryError: error
+                      ? {
+                          message: error.message,
+                          name: error.name,
+                          http_code: (error as { http_code?: number })
+                            .http_code,
+                        }
+                      : "no error object, but no result either",
+                  },
+                );
                 return reject(
                   new Error(
                     `Store cover upload failed: ${error?.message ?? "no result from Cloudinary"}`,
@@ -391,7 +415,9 @@ export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> =>
  * uploadServiceProviderLogo — same mechanism/crop as uploadStoreLogo,
  * separate Cloudinary folder to keep the two entity types apart.
  */
-export const uploadServiceProviderLogo = async (buffer: Buffer): Promise<UploadResult> => {
+export const uploadServiceProviderLogo = async (
+  buffer: Buffer,
+): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
@@ -408,11 +434,19 @@ export const uploadServiceProviderLogo = async (buffer: Buffer): Promise<UploadR
             },
             (error, result) => {
               if (error || !result) {
-                logger.error("Cloudinary service provider logo upload returned an error", {
-                  cloudinaryError: error
-                    ? { message: error.message, name: error.name, http_code: (error as { http_code?: number }).http_code }
-                    : "no error object, but no result either",
-                });
+                logger.error(
+                  "Cloudinary service provider logo upload returned an error",
+                  {
+                    cloudinaryError: error
+                      ? {
+                          message: error.message,
+                          name: error.name,
+                          http_code: (error as { http_code?: number })
+                            .http_code,
+                        }
+                      : "no error object, but no result either",
+                  },
+                );
                 return reject(
                   new Error(
                     `Service provider logo upload failed: ${error?.message ?? "no result from Cloudinary"}`,

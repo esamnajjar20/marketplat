@@ -181,7 +181,7 @@ export function MyStoreInventory() {
     status: 'ACTIVE',
   });
 
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
 
   // Client-side extra filter for "low" if backend LIMITED is enough;

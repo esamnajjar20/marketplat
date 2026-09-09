@@ -46,9 +46,9 @@ describe('GoogleAuthButton', () => {
     const { GoogleAuthButton } = await import('@/components/auth/GoogleAuthButton');
     const hrefSpy = vi.fn();
     // jsdom location.href is often non-configurable — stub via delete+assign pattern
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     delete (window as any).location;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (window as any).location = { href: '' };
     Object.defineProperty(window.location, 'href', {
       configurable: true,

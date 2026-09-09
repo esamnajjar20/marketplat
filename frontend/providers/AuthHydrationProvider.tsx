@@ -261,7 +261,15 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     // previous one having finished). Without this, the async IIFE above
     // keeps running after unmount and can still call store setters.
     return () => controller.abort();
-  }, [isHydrated]);
+  }, [
+    isHydrated,
+    logout,
+    queryClient,
+    setAccessToken,
+    setAuthResolved,
+    setCsrfToken,
+    setUser,
+  ]);
 
   // FIX PERF-01: No blocking spinner here — render children immediately.
   // Protected/admin layouts show their own skeleton while auth resolves.

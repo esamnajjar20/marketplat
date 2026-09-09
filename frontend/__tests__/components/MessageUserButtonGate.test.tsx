@@ -14,7 +14,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
 import { useAuthStore } from '@/store/auth.store';
-import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 
 vi.mock('@/hooks/mutations/useConversationMutations', () => ({

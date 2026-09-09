@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useVisualViewportHeight } from '@/hooks/useVisualViewportHeight';
 
@@ -15,13 +15,13 @@ describe('useVisualViewportHeight', () => {
   });
 
   it('tracks visualViewport height and updates on resize', () => {
-    const listeners: Record<string, Function[]> = {};
+    const listeners: Record<string, Array<(event?: Event) => void>> = {};
     const vv = {
       height: 600,
-      addEventListener: (ev: string, fn: Function) => {
+      addEventListener: (ev: string, fn: (event?: Event) => void) => {
         (listeners[ev] ??= []).push(fn);
       },
-      removeEventListener: (ev: string, fn: Function) => {
+      removeEventListener: (ev: string, fn: (event?: Event) => void) => {
         listeners[ev] = (listeners[ev] ?? []).filter((f) => f !== fn);
       },
     };

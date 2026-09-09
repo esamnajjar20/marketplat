@@ -300,12 +300,16 @@ function parseExpiresInToSeconds(value: string): number {
     // refresh), never the actual token signing (jwt.sign gets the raw
     // env.jwt.expiresIn string directly and does its own validation),
     // so a malformed value here shouldn't be able to crash startup.
-    console.error(`⚠️  Could not parse JWT_EXPIRES_IN="${value}" — defaulting expiresInSeconds to 900 (15m)`);
+    console.error(
+      `⚠️  Could not parse JWT_EXPIRES_IN="${value}" — defaulting expiresInSeconds to 900 (15m)`,
+    );
     return 900;
   }
   const [, amountStr, unit] = match;
   const amount = Number(amountStr);
-  const multiplier = { s: 1, m: 60, h: 60 * 60, d: 60 * 60 * 24 }[unit as 's' | 'm' | 'h' | 'd'];
+  const multiplier = { s: 1, m: 60, h: 60 * 60, d: 60 * 60 * 24 }[
+    unit as "s" | "m" | "h" | "d"
+  ];
   return amount * multiplier;
 }
 
@@ -354,8 +358,8 @@ export const env = {
     // This flag lets index.ts fail loudly at startup instead.
     isConfigured: Boolean(
       _env.CLOUDINARY_CLOUD_NAME &&
-        _env.CLOUDINARY_API_KEY &&
-        _env.CLOUDINARY_API_SECRET,
+      _env.CLOUDINARY_API_KEY &&
+      _env.CLOUDINARY_API_SECRET,
     ),
   },
   // FIX OAUTH-01: same isConfigured pattern as email.isConfigured
@@ -406,7 +410,9 @@ export const env = {
     clientEmail: _env.FIREBASE_CLIENT_EMAIL || "",
     privateKey: (_env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
     isConfigured: Boolean(
-      _env.FIREBASE_PROJECT_ID && _env.FIREBASE_CLIENT_EMAIL && _env.FIREBASE_PRIVATE_KEY
+      _env.FIREBASE_PROJECT_ID &&
+      _env.FIREBASE_CLIENT_EMAIL &&
+      _env.FIREBASE_PRIVATE_KEY,
     ),
   },
   securityAlert: {

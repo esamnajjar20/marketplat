@@ -105,7 +105,7 @@ describe('FavoriteButton', () => {
     const user = setupUser();
     const parentClick = vi.fn();
     render(
-      // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+       
       <div onClick={parentClick}>
         <FavoriteButton entityType="PRODUCT" entityId="prod-1" />
       </div>,

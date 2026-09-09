@@ -309,7 +309,7 @@ async function trimCache(cacheName, maxEntries) {
 /** Network First لطلبات API (GET) — عند فشل الشبكة: API_CACHE أولًا (آخر
  * استجابة فعلية زارها المستخدم)، ثم CORE_CACHE (الحزمة الأساسية المحمَّلة
  * استباقيًا عبر warmCoreBundle لمسارات لم تُزَر من قبل). */
-async function networkFirstApi(event, request, url) {
+async function networkFirstApi(event, request, _url) {
   const cache = await caches.open(API_CACHE);
   try {
     const response = await fetch(request);

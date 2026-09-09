@@ -15,7 +15,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
-import { ROUTES } from '@/lib/constants';
 
 const mockPush = vi.fn();
 let mockSearchParams = new URLSearchParams();

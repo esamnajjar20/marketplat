@@ -6,11 +6,13 @@
  * Usage:
  *   npm run report:cleanup-failed-tasks
  */
-import { PrismaClient } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
+import { PrismaClient } from "@prisma/client";
+import { logger } from "../shared/utils/logger";
 
 const prisma = new PrismaClient();
-const RESOLVED_RETENTION_DAYS = Number(process.env.FAILED_TASK_RETENTION_DAYS ?? 30);
+const RESOLVED_RETENTION_DAYS = Number(
+  process.env.FAILED_TASK_RETENTION_DAYS ?? 30,
+);
 
 async function main(): Promise<void> {
   const olderThan = new Date(
@@ -25,7 +27,7 @@ async function main(): Promise<void> {
   });
 
   const unresolvedByType = await prisma.failedBackgroundTask.groupBy({
-    by: ['taskType'],
+    by: ["taskType"],
     where: { resolved: false },
     _count: { _all: true },
   });
@@ -35,7 +37,7 @@ async function main(): Promise<void> {
     0,
   );
 
-  logger.info('cleanupFailedBackgroundTasks finished', {
+  logger.info("cleanupFailedBackgroundTasks finished", {
     deletedResolved: deleted.count,
     resolvedRetentionDays: RESOLVED_RETENTION_DAYS,
     olderThan: olderThan.toISOString(),
@@ -48,7 +50,7 @@ async function main(): Promise<void> {
 
 main()
   .catch((err) => {
-    logger.error('cleanupFailedBackgroundTasks failed', { err });
+    logger.error("cleanupFailedBackgroundTasks failed", { err });
     process.exitCode = 1;
   })
   .finally(async () => {

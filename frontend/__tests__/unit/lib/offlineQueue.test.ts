@@ -10,7 +10,7 @@
  * fire those events on a later macrotask (setTimeout) — not microtask —
  * or the handlers are still null when the event runs.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getQueuedRequestCount, requestQueueReplay } from '@/lib/offlineQueue';
 
 interface FakeIDBRequest {

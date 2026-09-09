@@ -37,11 +37,16 @@ export function useProgressiveSearchRadius(args: Args): {
     limit = 8,
   } = args;
 
-  if (explicitRadius !== undefined && !Number.isNaN(explicitRadius)) {
-    return { isLoading: false, radiusKm: explicitRadius, resolved: true };
-  }
+  const hasExplicitRadius =
+    explicitRadius !== undefined && !Number.isNaN(explicitRadius);
 
-  const shouldProbe = Boolean(enabled && lat != null && lng != null && !city);
+  const shouldProbe = Boolean(
+    !hasExplicitRadius &&
+      enabled &&
+      lat != null &&
+      lng != null &&
+      !city,
+  );
 
   const geo = useSequentialGeoSearch({
     enabled: shouldProbe,
@@ -53,8 +58,20 @@ export function useProgressiveSearchRadius(args: Args): {
     limit,
   });
 
+  if (hasExplicitRadius) {
+    return {
+      isLoading: false,
+      radiusKm: explicitRadius,
+      resolved: true,
+    };
+  }
+
   if (!shouldProbe) {
-    return { isLoading: false, radiusKm: null, resolved: true };
+    return {
+      isLoading: false,
+      radiusKm: null,
+      resolved: true,
+    };
   }
 
   return {

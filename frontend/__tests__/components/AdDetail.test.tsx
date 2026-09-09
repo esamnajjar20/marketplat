@@ -66,7 +66,7 @@ vi.mock('@/components/ads/StickyContactBar', () => ({
 }));
 
 vi.mock('next/navigation', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('next/navigation')>();
+  const actual = await importOriginal();
   return {
     ...actual,
     useSearchParams: () => new URLSearchParams(),

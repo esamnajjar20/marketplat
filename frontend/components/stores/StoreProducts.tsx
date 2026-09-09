@@ -62,7 +62,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
         categoryId: highlightedProduct.categoryId,
       });
     }
-  }, [highlightedProduct?.id, highlightedProduct?.categoryId]);
+  }, [highlightedProduct]);
 
   useEffect(() => {
     if (highlightId && highlightRef.current) {

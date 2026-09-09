@@ -1,3 +1,4 @@
+import type { StorePaymentMethodDto } from '@/types/store.types';
 /**
  * User types.
  * Mirrors backend Prisma User model and SafeUser select.
@@ -104,7 +105,7 @@ export interface PublicSellerProfile {
   responseRate:        string | null;
   responseTimeMinutes: number | null;
   joinedSellingAt: string;
-  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
+  paymentMethods?: StorePaymentMethodDto[] | null;
   _count: { serviceReviews: number };
   storeDetails:            PublicProfileStore | null;
   serviceProviderDetails:  PublicProfileServiceProvider | null;

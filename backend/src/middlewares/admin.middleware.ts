@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ForbiddenError } from "../shared/errors/ForbiddenError";
-import { ROLES, ROLE_RANK, Role, isAdminTier } from "../shared/constants/roles";
+import { ROLE_RANK, Role, isAdminTier } from "../shared/constants/roles";
 
 /**
  * requireAdmin — unchanged behavior, kept for existing call sites that

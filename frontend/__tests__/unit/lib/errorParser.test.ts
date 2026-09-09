@@ -12,7 +12,7 @@
  *  - 401 never leaks backend message (session details)
  */
 import { describe, it, expect } from 'vitest';
-import axios, { AxiosError, AxiosHeaders } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { parseApiError, getFieldError, type ParsedError } from '@/lib/errorParser';
 
 // ── Helper ────────────────────────────────────────────────────────

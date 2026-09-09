@@ -6,9 +6,9 @@
  * notificationPreferences.adViews key as weekly ad reports (sellers who
  * want view digests).
  */
-import { PrismaClient } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
-import { pushService } from '../shared/utils/pushService';
+import { PrismaClient } from "@prisma/client";
+import { logger } from "../shared/utils/logger";
+import { pushService } from "../shared/utils/pushService";
 
 const prisma = new PrismaClient();
 
@@ -56,16 +56,16 @@ async function main(): Promise<void> {
   const deltas = await findOwnerDeltas();
 
   if (deltas.length === 0) {
-    logger.info('[weeklyStoreViewsReport] nothing to report');
+    logger.info("[weeklyStoreViewsReport] nothing to report");
     return;
   }
 
   let sent = 0;
   for (const { userId, totalDelta, storeId } of deltas) {
-    const title = 'تقرير مشاهدات متجرك الأسبوعي';
+    const title = "تقرير مشاهدات متجرك الأسبوعي";
     const body =
       totalDelta === 1
-        ? 'حصل متجرك على مشاهدة جديدة هذا الأسبوع'
+        ? "حصل متجرك على مشاهدة جديدة هذا الأسبوع"
         : `حصل متجرك على ${totalDelta} مشاهدة جديدة هذا الأسبوع`;
 
     try {
@@ -73,15 +73,15 @@ async function main(): Promise<void> {
         .notifyUser(userId, {
           title,
           body,
-          url: '/my-store/analytics',
-          tag: 'weekly-store-views-report',
+          url: "/my-store/analytics",
+          tag: "weekly-store-views-report",
         })
         .catch(() => {});
 
       await prisma.notification.create({
         data: {
           userId,
-          type: 'WEEKLY_STORE_VIEWS_REPORT',
+          type: "WEEKLY_STORE_VIEWS_REPORT",
           title,
           body,
           data: { totalDelta, storeId },
@@ -90,20 +90,24 @@ async function main(): Promise<void> {
       await advanceBaseline([storeId]);
       sent += 1;
     } catch (err) {
-      logger.error('[weeklyStoreViewsReport] failed to send report', { err, userId });
+      logger.error("[weeklyStoreViewsReport] failed to send report", {
+        err,
+        userId,
+      });
     }
   }
 
-  logger.info(`[weeklyStoreViewsReport] sent ${sent}/${deltas.length} report(s)`);
+  logger.info(
+    `[weeklyStoreViewsReport] sent ${sent}/${deltas.length} report(s)`,
+  );
 }
 
 main()
   .catch((err) => {
-    logger.error('[weeklyStoreViewsReport] run failed', err);
+    logger.error("[weeklyStoreViewsReport] run failed", err);
     process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();
     process.exit(process.exitCode ?? 0);
   });
-

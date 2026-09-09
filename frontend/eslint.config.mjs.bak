@@ -6,14 +6,6 @@ const eslintConfig = [
   ...nextTs,
 
   {
-    ignores: [
-      'public/tesseract/**',
-      'android/app/build/**',
-      'lib/vendor/jsQR.js',
-    ],
-  },
-
-  {
     rules: {
       // TypeScript
       '@typescript-eslint/no-explicit-any': 'error',
@@ -66,13 +58,6 @@ const eslintConfig = [
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
-
-  {
-    files: ['e2e/fixtures/**/*.{ts,tsx}'],
-    rules: {
-      'react-hooks/rules-of-hooks': 'off',
     },
   },
 ];

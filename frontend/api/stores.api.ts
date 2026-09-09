@@ -34,7 +34,7 @@ import type {
 export const storesApi = {
   /** POST /stores/me/feature-request — ask admin for FEATURED plan */
   requestFeature: () =>
-    apiClient.post<ApiResponse<import('@/types/store.types').StoreDetails>>(
+    apiClient.post<ApiResponse<StoreDetails>>(
       '/stores/me/feature-request',
     ),
 

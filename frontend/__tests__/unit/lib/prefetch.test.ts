@@ -45,12 +45,10 @@ function jsonResponse(body: unknown, init?: { status?: number }) {
 
 describe('prefetch helpers', () => {
   let qc: QueryClient;
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     qc = new QueryClient();
     vi.restoreAllMocks();
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   describe('prefetchCategories', () => {

@@ -37,7 +37,7 @@ export function useMyBlockedUsers(params?: BlockedUsersQuery) {
       data.items.forEach((row) => idSet.add(row.blockedId));
       return idSet;
     });
-  }, [query.data]);
+  }, [query.data, queryClient]);
 
   return query;
 }

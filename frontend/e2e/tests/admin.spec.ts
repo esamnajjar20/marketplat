@@ -14,7 +14,6 @@
  */
 import { test, expect } from '../fixtures/admin-authenticated';
 import { test as userTest, expect as userExpect } from '../fixtures/authenticated';
-import { uniqueAdTitle } from '../helpers/test-data';
 
 test.describe('Admin dashboard', () => {
   test('loads the stats grid with real numeric values', async ({ page }) => {

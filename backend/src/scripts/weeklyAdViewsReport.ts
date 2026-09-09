@@ -125,12 +125,14 @@ async function main(): Promise<void> {
       // Same fire-and-forget-push-alongside-in-app-write convention as
       // notificationEvents in notifications.service.ts — a push failing
       // to send must never block or fail the in-app notification write.
-      void pushService.notifyUser(userId, {
-        title,
-        body,
-        url: "/dashboard",
-        tag: "weekly-ad-views-report",
-      }).catch(() => {});
+      void pushService
+        .notifyUser(userId, {
+          title,
+          body,
+          url: "/dashboard",
+          tag: "weekly-ad-views-report",
+        })
+        .catch(() => {});
 
       await prisma.notification.create({
         data: {

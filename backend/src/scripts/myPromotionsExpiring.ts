@@ -55,9 +55,9 @@
  *   npm run build && npm run report:promotion-lifecycle
  * (mirrors weeklyAdViewsReport.ts's build-then-run convention.)
  */
-import { PrismaClient, Promotion } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
-import { pushService } from '../shared/utils/pushService';
+import { PrismaClient, Promotion } from "@prisma/client";
+import { logger } from "../shared/utils/logger";
+import { pushService } from "../shared/utils/pushService";
 
 const prisma = new PrismaClient();
 
@@ -75,8 +75,12 @@ interface OwnerContext {
  * reach through Promotion -> StoreDetails -> SellerProfile -> User in
  * one query rather than N+1 Prisma relation loads per promotion.
  */
-async function resolveOwnerContext(promotion: Promotion): Promise<OwnerContext | null> {
-  const rows = await prisma.$queryRaw<{ userId: string; productName: string }[]>`
+async function resolveOwnerContext(
+  promotion: Promotion,
+): Promise<OwnerContext | null> {
+  const rows = await prisma.$queryRaw<
+    { userId: string; productName: string }[]
+  >`
     SELECT u."id" AS "userId", p."name" AS "productName"
     FROM "store_details" sd
     INNER JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
@@ -95,21 +99,24 @@ async function resolveOwnerContext(promotion: Promotion): Promise<OwnerContext |
 // store *owner* has opted into their own lifecycle notifications, so
 // this can't reuse that query's product-name lookup.
 async function resolveProductName(productId: string): Promise<string | null> {
-  const product = await prisma.product.findUnique({ where: { id: productId }, select: { name: true } });
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { name: true },
+  });
   return product?.name ?? null;
 }
 
 async function notifyFollowers(
   promotion: Promotion,
-  productName: string
+  productName: string,
 ): Promise<void> {
   const followers = await prisma.storeFollower.findMany({
     where: { storeId: promotion.storeId },
     select: { userId: true },
   });
   if (followers.length === 0) return;
-  const followerIds = followers.map(f => f.userId);
-  const title = 'عرض جديد';
+  const followerIds = followers.map((f) => f.userId);
+  const title = "عرض جديد";
   const body = `عرض جديد على "${productName}": ${promotion.title}`;
 
   // Same fire-and-forget-push-then-createMany shape as
@@ -127,12 +134,16 @@ async function notifyFollowers(
     .catch(() => {});
 
   await prisma.notification.createMany({
-    data: followerIds.map(userId => ({
+    data: followerIds.map((userId) => ({
       userId,
-      type: 'STORE_PROMOTION_STARTED',
+      type: "STORE_PROMOTION_STARTED",
       title,
       body,
-      data: { storeId: promotion.storeId, promotionId: promotion.id, productId: promotion.productId },
+      data: {
+        storeId: promotion.storeId,
+        promotionId: promotion.id,
+        productId: promotion.productId,
+      },
     })),
   });
 }
@@ -142,33 +153,39 @@ async function notify(
   title: string,
   body: string,
   promotion: Promotion,
-  event: 'started' | 'expiring' | 'expired'
+  event: "started" | "expiring" | "expired",
 ): Promise<void> {
   // Fire-and-forget push alongside the in-app write, same convention
   // as every other producer in notifications.service.ts and
   // weeklyAdViewsReport.ts — a push failure must never block or fail
   // the in-app notification.
-  void pushService.notifyUser(userId, {
-    title,
-    body,
-    url: '/my-store/promotions',
-    tag: `promotion-${promotion.id}-${event}`,
-  }).catch(() => {});
+  void pushService
+    .notifyUser(userId, {
+      title,
+      body,
+      url: "/my-store/promotions",
+      tag: `promotion-${promotion.id}-${event}`,
+    })
+    .catch(() => {});
 
   await prisma.notification.create({
     data: {
       userId,
-      type: 'PROMOTION_STATUS_CHANGE',
+      type: "PROMOTION_STATUS_CHANGE",
       title,
       body,
-      data: { promotionId: promotion.id, productId: promotion.productId, event },
+      data: {
+        promotionId: promotion.id,
+        productId: promotion.productId,
+        event,
+      },
     },
   });
 }
 
 async function processStarted(now: Date): Promise<number> {
   const due = await prisma.promotion.findMany({
-    where: { status: 'SCHEDULED', startsAt: { lte: now } },
+    where: { status: "SCHEDULED", startsAt: { lte: now } },
   });
   let sent = 0;
   for (const promotion of due) {
@@ -176,14 +193,17 @@ async function processStarted(now: Date): Promise<number> {
       const owner = await resolveOwnerContext(promotion);
       // Status advances regardless of whether the owner is opted in to
       // notifications — the sweep's job (1) is independent of job (2).
-      await prisma.promotion.update({ where: { id: promotion.id }, data: { status: 'ACTIVE' } });
+      await prisma.promotion.update({
+        where: { id: promotion.id },
+        data: { status: "ACTIVE" },
+      });
       if (owner) {
         await notify(
           owner.userId,
-          'بدأ عرضك',
+          "بدأ عرضك",
           `بدأ العرض "${promotion.title}" على "${owner.productName}"`,
           promotion,
-          'started'
+          "started",
         );
         sent += 1;
       }
@@ -197,16 +217,25 @@ async function processStarted(now: Date): Promise<number> {
         await notifyFollowers(promotion, productName);
       }
     } catch (err) {
-      logger.error('[promotionLifecycle] failed processing started promotion', { err, promotionId: promotion.id });
+      logger.error("[promotionLifecycle] failed processing started promotion", {
+        err,
+        promotionId: promotion.id,
+      });
     }
   }
   return sent;
 }
 
 async function processExpiring(now: Date): Promise<number> {
-  const threshold = new Date(now.getTime() + EXPIRY_WARNING_HOURS * 60 * 60 * 1000);
+  const threshold = new Date(
+    now.getTime() + EXPIRY_WARNING_HOURS * 60 * 60 * 1000,
+  );
   const due = await prisma.promotion.findMany({
-    where: { status: 'ACTIVE', endsAt: { gt: now, lte: threshold }, expiryWarnedAt: null },
+    where: {
+      status: "ACTIVE",
+      endsAt: { gt: now, lte: threshold },
+      expiryWarnedAt: null,
+    },
   });
   let sent = 0;
   for (const promotion of due) {
@@ -215,10 +244,10 @@ async function processExpiring(now: Date): Promise<number> {
       if (owner) {
         await notify(
           owner.userId,
-          'عرضك سينتهي قريباً',
+          "عرضك سينتهي قريباً",
           `سينتهي العرض "${promotion.title}" على "${owner.productName}" خلال ${EXPIRY_WARNING_HOURS} ساعة`,
           promotion,
-          'expiring'
+          "expiring",
         );
         sent += 1;
       }
@@ -230,7 +259,10 @@ async function processExpiring(now: Date): Promise<number> {
         data: { expiryWarnedAt: now },
       });
     } catch (err) {
-      logger.error('[promotionLifecycle] failed processing expiring promotion', { err, promotionId: promotion.id });
+      logger.error(
+        "[promotionLifecycle] failed processing expiring promotion",
+        { err, promotionId: promotion.id },
+      );
     }
   }
   return sent;
@@ -238,25 +270,31 @@ async function processExpiring(now: Date): Promise<number> {
 
 async function processExpired(now: Date): Promise<number> {
   const due = await prisma.promotion.findMany({
-    where: { status: 'ACTIVE', endsAt: { lte: now } },
+    where: { status: "ACTIVE", endsAt: { lte: now } },
   });
   let sent = 0;
   for (const promotion of due) {
     try {
       const owner = await resolveOwnerContext(promotion);
-      await prisma.promotion.update({ where: { id: promotion.id }, data: { status: 'EXPIRED' } });
+      await prisma.promotion.update({
+        where: { id: promotion.id },
+        data: { status: "EXPIRED" },
+      });
       if (owner) {
         await notify(
           owner.userId,
-          'انتهى عرضك',
+          "انتهى عرضك",
           `انتهى العرض "${promotion.title}" على "${owner.productName}"`,
           promotion,
-          'expired'
+          "expired",
         );
         sent += 1;
       }
     } catch (err) {
-      logger.error('[promotionLifecycle] failed processing expired promotion', { err, promotionId: promotion.id });
+      logger.error("[promotionLifecycle] failed processing expired promotion", {
+        err,
+        promotionId: promotion.id,
+      });
     }
   }
   return sent;
@@ -270,13 +308,13 @@ async function main(): Promise<void> {
   const expiredSent = await processExpired(now);
 
   logger.info(
-    `[promotionLifecycle] started=${startedSent} expiring=${expiringSent} expired=${expiredSent}`
+    `[promotionLifecycle] started=${startedSent} expiring=${expiringSent} expired=${expiredSent}`,
   );
 }
 
 main()
   .catch((err) => {
-    logger.error('[promotionLifecycle] run failed', err);
+    logger.error("[promotionLifecycle] run failed", err);
     process.exitCode = 1;
   })
   .finally(async () => {

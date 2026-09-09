@@ -8,6 +8,7 @@
  * only if a SellerProfile with their userId exists.
  */
 import type { AdListItem } from './ad.types';
+import type { StorePaymentMethodDto } from '@/types/store.types';
 
 export type SellerVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
@@ -34,7 +35,7 @@ export interface SellerProfile {
   /** Prisma Decimal(5,2), percentage — string in JSON, or null if unset. */
   responseRate: string | null;
   responseTimeMinutes: number | null;
-  paymentMethods?: import("@/types/store.types").StorePaymentMethodDto[] | null;
+  paymentMethods?: StorePaymentMethodDto[] | null;
   joinedSellingAt: string;
   createdAt: string;
   updatedAt: string;
@@ -64,7 +65,7 @@ export interface UpdateSellerProfilePayload {
   displayName?: string;
   bio?: string | null;
   avatarUrl?: string | null;
-  paymentMethods?: import('@/types/store.types').StorePaymentMethodDto[] | null;
+  paymentMethods?: StorePaymentMethodDto[] | null;
 }
 
 /** GET /sellers/me/attention — dashboard task counters */

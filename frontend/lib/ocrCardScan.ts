@@ -799,7 +799,7 @@ const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
 const EN_DIGITS = '0123456789';
 
 export function normalizeCardDigits(raw: string): string {
-  let s = raw
+  const s = raw
     .replace(/[٠-٩]/g, (d) => EN_DIGITS[AR_DIGITS.indexOf(d)] ?? d)
     .replace(/[OoD]/g, '0')
     .replace(/[Il|]/g, '1')

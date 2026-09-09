@@ -154,7 +154,7 @@ describe('ReportAdButton', () => {
         mutate: mockMutate,
         isPending: true,
       } as never);
-      const user = await openDialog();
+      await openDialog();
       const dialog = screen.getByRole('dialog');
 
       expect(within(dialog).getByRole('button', { name: 'جارٍ الإرسال…' })).toBeDisabled();

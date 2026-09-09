@@ -15,7 +15,7 @@
  * test (spying on Object.defineProperty(document, 'cookie', ...) is the
  * usual alternative but stubbing is simpler here since we only read).
  */
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { getCsrfToken } from '@/lib/csrf';
 
 function setCookie(value: string) {

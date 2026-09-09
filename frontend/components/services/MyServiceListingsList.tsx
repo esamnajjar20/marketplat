@@ -67,16 +67,11 @@ export function MyServiceListingsList() {
     { enabled: hasProvider },
   );
 
-  // Hub shows BecomeServiceProviderCard; hide list until a provider exists.
-  if (!hasProvider) return null;
   const deleteListing = useDeleteServiceListing();
   const toggleStatus = useToggleServiceListingStatus();
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  const items = data?.items ?? [];
-  const totalPages = data?.meta?.totalPages ?? 1;
 
   const isOutOfRange = useOutOfRangeRedirect({
     baseUrl: ROUTES.myServices,
@@ -85,6 +80,12 @@ export function MyServiceListingsList() {
     hasData: !!data,
     searchParams: sp,
   });
+
+  // Hub shows BecomeServiceProviderCard; hide list until a provider exists.
+  if (!hasProvider) return null;
+
+  const items = data?.items ?? [];
+  const totalPages = data?.meta?.totalPages ?? 1;
 
   function pushParams(mutator: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(sp.toString());

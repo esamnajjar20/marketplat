@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AdDetailSection } from '@/components/ads/AdDetailSection';
 import { useAd } from '@/hooks/queries/useAds';
-import { useFavoriteCheck, useIsFavorited } from '@/hooks/queries/useFavorites';
+import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import type { Ad } from '@/types/ad.types';
 
 vi.mock('@/hooks/queries/useAds', () => ({

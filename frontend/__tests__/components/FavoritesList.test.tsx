@@ -15,7 +15,6 @@ import { setupUser } from '@/test-support/user-event';
 import { FavoritesList } from '@/components/profile/FavoritesList';
 import { useFavorites } from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
-import { useSearchParams } from 'next/navigation';
 
 vi.mock('@/hooks/queries/useFavorites', () => ({
   useFavorites: vi.fn(),

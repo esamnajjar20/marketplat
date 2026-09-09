@@ -98,7 +98,7 @@ export function SearchResults() {
 
   const isLoading = searchLoading || (Boolean(lat !== undefined && lng !== undefined) && !progressive.resolved);
 
-  const items      = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
 
   const [viewMode, setViewMode] = useState<SearchViewMode>('list');
   const userLocation =

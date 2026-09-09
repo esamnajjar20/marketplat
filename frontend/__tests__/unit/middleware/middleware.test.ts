@@ -18,7 +18,7 @@
  *    8. Role cookie validation (SEC-05): unknown role treated as null
  *    9. Request-ID header is always set on pass-through
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // We test the middleware function directly — import it from the source.

@@ -49,7 +49,7 @@ export function ConversationList({ selectedId }: Props = {}) {
   const [query, setQuery] = useState('');
   const { data, isLoading, isError, refetch, isFetching } = useMyConversations({ page: 1, limit });
 
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
   const hasMore = Boolean(data?.meta?.hasNextPage);
   const loadingMore = isFetching && !isLoading;
 
