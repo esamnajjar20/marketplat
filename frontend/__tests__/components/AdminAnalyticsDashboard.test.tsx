@@ -214,12 +214,16 @@ describe('AdminAnalyticsDashboard', () => {
     // maxCount should be 20 (the AD_VIEW max), so the 08-01 bar (count
     // 20) renders at 100% height, not compressed by the 10,000 PAGE_VIEW
     // count that used to set the scale.
-    // title is `${toLocaleDateString('ar')}: ${formatNumber(count)}` —
-    // formatNumber uses Arabic-Indic digits, and the date string itself
-    // contains "20" from the year 2026, so a bare /20/ matches every bar.
-    const tallBar = screen.getByTitle((content) =>
-      /:\s*(20|٢٠)\s*$/.test(content),
+    // title is `${date}: إعلانات ${ad} · منتجات ${product} · خدمات
+    // ${service}` — formatNumber uses Arabic-Indic digits, and the date
+    // string itself contains "20" from the year 2026 (rendered "٢٠٢٦"),
+    // so match "إعلانات" followed by 20 specifically, not a bare /20/
+    // which would also match inside the year.
+    const tallBarGroup = screen.getByTitle((content) =>
+      /إعلانات\s*(20|٢٠)(?:\s|·|$)/.test(content),
     );
-    expect(tallBar).toHaveStyle({ height: '100%' });
+    // First child is the AD_VIEW bar (product/service bars follow it).
+    const adBar = tallBarGroup.firstElementChild as HTMLElement;
+    expect(adBar).toHaveStyle({ height: '100%' });
   });
 });

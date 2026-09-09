@@ -63,7 +63,7 @@ describe('NotificationSettingsForm', () => {
     });
     render(<NotificationSettingsForm />);
 
-    expect(screen.getAllByRole('switch')).toHaveLength(5);
+    expect(screen.getAllByRole('switch')).toHaveLength(8);
   });
 
   it('reflects the server-loaded preferences via aria-checked (FEAT-02: no longer hardcoded defaults)', () => {
@@ -234,6 +234,12 @@ describe('NotificationSettingsForm', () => {
 
   describe('new preference toggles', () => {
     it('renders savedSearch, storeUpdates, and serviceQuotes switches', () => {
+      (useMe as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: { notificationPreferences: FULL_PREFS },
+        isLoading: false,
+      });
+      render(<NotificationSettingsForm />);
+
       expect(screen.getByRole('switch', { name: 'البحث المحفوظ' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'تحديثات المتاجر' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'عروض أسعار الخدمات' })).toBeInTheDocument();

@@ -92,7 +92,7 @@ describe('FavoritesList', () => {
     render(<FavoritesList />);
 
     expect(screen.getByText('لا توجد إعلانات محفوظة')).toBeInTheDocument();
-    expect(screen.getByText('تصفح الإعلانات')).toBeInTheDocument();
+    expect(screen.getByText('تصفّح الإعلانات')).toBeInTheDocument();
   });
 
   it('renders an AdCard for each active favorited ad', () => {

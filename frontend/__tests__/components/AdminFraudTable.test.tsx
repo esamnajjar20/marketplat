@@ -140,7 +140,10 @@ describe('AdminFraudTable', () => {
     expect(useAdminFraudSignals).toHaveBeenCalledWith(
       expect.objectContaining({ adId: 'ad-1' }),
     );
-    expect(screen.getByText('سعر مشبوه')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /تأكيد المراجعة/ })).toBeInTheDocument();
+    // Table renders a mobile-card view and a desktop-table view of the
+    // same data simultaneously (one hidden via responsive classes), so
+    // the signal label appears twice in the DOM.
+    expect(screen.getAllByText('سعر مشبوه').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole('button', { name: /تأكيد المراجعة/ }).length).toBeGreaterThanOrEqual(1);
   });
 });

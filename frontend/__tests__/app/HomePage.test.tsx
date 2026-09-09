@@ -24,6 +24,11 @@ vi.mock('@/components/home/HeroBanner', () => ({ HeroBanner: () => <div data-tes
 vi.mock('@/components/home/HomeTrustStrip', () => ({ HomeTrustStrip: () => <div data-testid="trust-strip" /> }));
 vi.mock('@/components/home/HomeAboveFold', () => ({ HomeAboveFold: () => <div data-testid="above-fold" /> }));
 vi.mock('@/components/home/RecommendedAds', () => ({ RecommendedAds: () => null }));
+// HomeServicesSection reads useSequentialGeoSearch() (react-query) —
+// unmocked it throws for lack of a QueryClientProvider. Not what this
+// file tests (own suite covers it), so stub it like the other
+// heavy-dependency sections above.
+vi.mock('@/components/home/HomeServicesSection', () => ({ HomeServicesSection: () => null }));
 
 vi.mock('@/hooks/queries/useProducts', () => ({ useProducts: vi.fn() }));
 vi.mock('@/hooks/queries/useStores', () => ({ useStores: vi.fn() }));

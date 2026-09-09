@@ -3,7 +3,10 @@
  *
  * PublicHeader renders on every public page (home, search, category,
  * ad detail) and had zero coverage. Focus: the isAuthenticated branch
- * (login/register buttons vs. "نشر إعلان" + UserMenu), since that's
+ * (login/register buttons vs. "أضف" + UserMenu — CREATE-SHEET: the
+ * primary conversion CTA was renamed from "نشر إعلان" to "أضف" once it
+ * started opening CreateSheet's three-destination picker instead of
+ * linking straight to /ads/create), since that's
  * the component's only real conditional logic — everything else is
  * static markup delegated to child components (Logo, SearchBar,
  * UserMenu, MobileNav), which are mocked here since each either has
@@ -64,11 +67,11 @@ describe('PublicHeader', () => {
     expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
   });
 
-  it('shows "نشر إعلان" and UserMenu when authenticated, hiding auth buttons', () => {
+  it('shows "أضف" and UserMenu when authenticated, hiding auth buttons', () => {
     mockAuthState(true);
     render(<PublicHeader />);
 
-    expect(screen.getByText('نشر إعلان')).toBeInTheDocument();
+    expect(screen.getByText('أضف')).toBeInTheDocument();
     expect(screen.getByTestId('user-menu')).toBeInTheDocument();
     expect(screen.queryByText('تسجيل الدخول')).not.toBeInTheDocument();
     expect(screen.queryByText('إنشاء حساب')).not.toBeInTheDocument();

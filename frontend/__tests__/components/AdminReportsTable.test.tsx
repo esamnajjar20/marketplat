@@ -93,9 +93,11 @@ describe('AdminReportsTable', () => {
   describe('rendering (TYPE-ERROR-01 regression coverage)', () => {
     it('renders report.notes (not the nonexistent report.details field)', () => {
       render(<AdminReportsTable />);
+      // Mobile cards and the desktop table both render (one hidden via
+      // responsive classes), so the notes text appears twice in the DOM.
       expect(
-        screen.getByText('هذا الإعلان يبدو مزيفاً، الصور منسوخة من موقع آخر'),
-      ).toBeInTheDocument();
+        screen.getAllByText('هذا الإعلان يبدو مزيفاً، الصور منسوخة من موقع آخر').length,
+      ).toBeGreaterThanOrEqual(1);
     });
 
     it("renders report.user.name (not the nonexistent report.reporter field)", () => {
@@ -217,7 +219,11 @@ describe('AdminReportsTable', () => {
       const user = setupUser();
       render(<AdminReportsTable />);
 
-      await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
+      // Mobile cards and the desktop table both render for every row
+      // (one hidden via responsive classes), so each row's checkbox
+      // exists twice in the DOM — scope to the desktop table.
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
 
       expect(screen.getByText('1 محدد')).toBeInTheDocument();
     });
@@ -227,11 +233,12 @@ describe('AdminReportsTable', () => {
       const user = setupUser();
       render(<AdminReportsTable />);
 
-      await user.click(screen.getByRole('checkbox', { name: 'تحديد كل البلاغات' }));
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('checkbox', { name: 'تحديد كل البلاغات' }));
 
       expect(screen.getByText('2 محدد')).toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` })).toBeChecked();
-      expect(screen.getByRole('checkbox', { name: `تحديد البلاغ ${secondReport.id}` })).toBeChecked();
+      expect(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` })).toBeChecked();
+      expect(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${secondReport.id}` })).toBeChecked();
     });
 
     it('does not render a checkbox for a non-PENDING report', () => {
@@ -247,8 +254,9 @@ describe('AdminReportsTable', () => {
       const user = setupUser();
       render(<AdminReportsTable />);
 
-      await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
-      await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${secondReport.id}` }));
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
+      await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${secondReport.id}` }));
       await user.click(screen.getByRole('button', { name: 'حل المحدد' }));
 
       expect(screen.getByText('حل 2 بلاغ؟')).toBeInTheDocument();
@@ -267,7 +275,8 @@ describe('AdminReportsTable', () => {
       const user = setupUser();
       render(<AdminReportsTable />);
 
-      await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
       await user.click(screen.getByRole('button', { name: 'رفض المحدد' }));
 
       expect(screen.getByText('رفض 1 بلاغ؟')).toBeInTheDocument();
@@ -278,7 +287,8 @@ describe('AdminReportsTable', () => {
       const user = setupUser();
       render(<AdminReportsTable />);
 
-      await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
       expect(screen.getByText('1 محدد')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: /إلغاء التحديد/ }));
@@ -299,7 +309,8 @@ describe('AdminReportsTable', () => {
       const user = setupUser();
       const { rerender } = render(<AdminReportsTable />);
 
-      await user.click(screen.getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
       expect(screen.getByText('1 محدد')).toBeInTheDocument();
 
       mockSearchParams = new URLSearchParams('page=2');

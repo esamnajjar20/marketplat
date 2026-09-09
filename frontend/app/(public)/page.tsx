@@ -6,6 +6,7 @@ import { HomeAboveFold } from '@/components/home/HomeAboveFold';
 import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
 import { HomeServicesSection } from '@/components/home/HomeServicesSection';
+import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
 import { FeaturedStoresSection } from '@/components/home/FeaturedStoresSection';
 import { RecommendedAds } from '@/components/home/RecommendedAds';
 import { LazySection } from '@/components/shared/LazySection';
@@ -27,6 +28,12 @@ export default function HomePage() {
         <HomeTrustStrip />
       </div>
       <HomeAboveFold />
+      {/* FEAT-HOME-NEARBY-PROVIDERS: mounted independently below
+          HomeAboveFold, deliberately outside its coordinated-skeleton
+          logic — see HomeAboveFold's own doc comment for why. */}
+      <LazySection minHeight={280} rootMargin="100px 0px">
+        <NearbyProvidersSection />
+      </LazySection>
       <LazySection minHeight={280} rootMargin="100px 0px">
         <PromotedProductsSection />
       </LazySection>

@@ -132,7 +132,7 @@ describe('MobileNav', () => {
       const user = setupUser();
       render(<MobileNav />);
       await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
-      expect(screen.queryByRole('link', { name: 'متجري' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'إدارة المتجر' })).not.toBeInTheDocument();
     });
 
     // A user with no SellerProfile yet has no STORE_GROUP at all, so
@@ -144,7 +144,7 @@ describe('MobileNav', () => {
       const user = setupUser();
       render(<MobileNav />);
       await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
-      expect(screen.getByRole('link', { name: 'متجري' }).getAttribute('href')).toBe('/my-store');
+      expect(screen.getByRole('link', { name: 'إدارة المتجر' }).getAttribute('href')).toBe('/my-store');
     });
 
     it('does not show the admin dashboard link for a regular user', () => {

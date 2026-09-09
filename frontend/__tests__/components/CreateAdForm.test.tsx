@@ -11,6 +11,7 @@ import { render, screen } from '@testing-library/react';
 import { CreateAdForm } from '@/components/ads/CreateAdForm';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
+import { useMyStore } from '@/hooks/queries/useStores';
 
 vi.mock('@/hooks/queries/useCategories', () => ({
   useCategories: vi.fn(),
@@ -37,6 +38,7 @@ vi.mock('@/hooks/queries/useStores', () => ({
 describe('CreateAdForm', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({ data: null, isLoading: false });
     (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({ data: [] });
     (useCreateAd as ReturnType<typeof vi.fn>).mockReturnValue({ mutate: vi.fn(), isPending: false });
     (useUpdateAd as ReturnType<typeof vi.fn>).mockReturnValue({ mutate: vi.fn(), isPending: false });

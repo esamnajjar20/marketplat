@@ -7,7 +7,12 @@
  * first ad), the seller-profile-required link for the "first ad"
  * step (with and without an existing seller profile), the isError
  * treated as "not a seller yet" mirroring CreateAdGate, and the
- * singular/plural "خطوة متبقية" copy.
+ * singular/plural "خطوة أخيرة" copy.
+ *
+ * The checklist has five steps (avatar, seller profile, first ad,
+ * store, service provider) — "first ad" assertions match on a regex
+ * substring since the on-screen label carries a "(سلعة فردية)"
+ * qualifier alongside the base copy asserted here.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -15,6 +20,8 @@ import { OnboardingChecklist } from '@/components/profile/OnboardingChecklist';
 import { useAuthStore } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyAds } from '@/hooks/queries/useAds';
+import { useMyStore } from '@/hooks/queries/useStores';
+import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
@@ -91,6 +98,14 @@ describe('OnboardingChecklist', () => {
     mockUser({ avatarUrl: 'https://example.com/a.jpg' });
     mockSeller({ data: { id: 'seller-1' }, isError: false });
     mockAds({ data: { items: [{ id: 'ad-1' }] } });
+    (useMyStore as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      data: { id: 'store-1' },
+      isSuccess: true,
+    });
+    (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      data: { id: 'provider-1' },
+      isSuccess: true,
+    });
     const { container } = render(<OnboardingChecklist />);
 
     expect(container).toBeEmptyDOMElement();
@@ -101,8 +116,8 @@ describe('OnboardingChecklist', () => {
 
     expect(screen.getAllByText('أضف صورة شخصية').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('أنشئ ملف البائع')).toBeInTheDocument();
-    expect(screen.getByText('انشر إعلانك الأول')).toBeInTheDocument();
-    expect(screen.getByText(/0 من 3 خطوات مكتملة/)).toBeInTheDocument();
+    expect(screen.getByText(/^انشر إعلانك الأول/)).toBeInTheDocument();
+    expect(screen.getByText(/0 من 5 خطوات/)).toBeInTheDocument();
   });
 
   it('marks the avatar step done (struck through) when the user has an avatar', () => {
@@ -116,9 +131,14 @@ describe('OnboardingChecklist', () => {
   it('uses singular "خطوة متبقية" copy when exactly one step remains', () => {
     mockUser({ avatarUrl: 'https://example.com/a.jpg' });
     mockSeller({ data: { id: 'seller-1' }, isError: false });
+    mockAds({ data: { items: [{ id: 'ad-1' }] } });
+    (useMyStore as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      data: { id: 'store-1' },
+      isSuccess: true,
+    });
     render(<OnboardingChecklist />);
 
-    expect(screen.getByText(/2 من 3 خطوات مكتملة/)).toBeInTheDocument();
+    expect(screen.getByText(/4 من 5 خطوات/)).toBeInTheDocument();
     expect(screen.getByText(/خطوة أخيرة/)).toBeInTheDocument();
   });
 
@@ -134,14 +154,14 @@ describe('OnboardingChecklist', () => {
     mockSeller({ data: { id: 'seller-1' }, isError: false });
     render(<OnboardingChecklist />);
 
-    const link = screen.getByText('انشر إعلانك الأول').closest('a');
+    const link = screen.getByText(/^انشر إعلانك الأول/).closest('a');
     expect(link).toHaveAttribute('href', expect.not.stringContaining('from='));
   });
 
   it('routes the "first ad" step through seller setup with a ?from= redirect when not yet a seller', () => {
     render(<OnboardingChecklist />);
 
-    const link = screen.getByText('انشر إعلانك الأول').closest('a');
+    const link = screen.getByText(/^انشر إعلانك الأول/).closest('a');
     expect(link?.getAttribute('href')).toContain('from=');
   });
 
@@ -149,6 +169,6 @@ describe('OnboardingChecklist', () => {
     mockAds({ data: { items: [{ id: 'ad-1' }] } });
     render(<OnboardingChecklist />);
 
-    expect(screen.getByText('انشر إعلانك الأول').className).toMatch(/line-through/);
+    expect(screen.getByText(/^انشر إعلانك الأول/).className).toMatch(/line-through/);
   });
 });

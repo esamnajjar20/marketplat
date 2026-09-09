@@ -10,6 +10,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { setupUser } from '@/test-support/user-event';
 import { ProtectedHeader } from '@/components/layout/ProtectedHeader';
 import { ROUTES } from '@/lib/constants';
 import { useIsSeller } from '@/hooks/queries/useSellers';
@@ -38,11 +39,13 @@ vi.mock('@/components/layout/MessagesLink', () => ({
   MessagesLink: () => <div data-testid="messages-link" />,
 }));
 
-// SELLER-GATE: the "+ نشر إعلان"/"أنشئ حساب بائع" CTA now reads
-// useMySellerProfile() directly (ads.service.ts's createAd requires a
-// SellerProfile). Mocked rather than wrapped in a QueryClientProvider,
-// same reasoning as NotificationBell/ProtectedMobileNav above. Default:
-// has a profile, matching this file's existing "نشر إعلان" assertion.
+// CREATE-SHEET: the old two-state "+ نشر إعلان"/"أنشئ حساب بائع" CTA was
+// replaced by a single "أضف" button that opens CreateSheet (mirrors
+// BottomNav's own CreateSheet migration) — useIsSeller() is now read only
+// to gate a flash of the button before it resolves (sellerLoaded), not to
+// pick a label/href, so isSeller's value itself no longer changes what
+// renders. Mocked rather than wrapped in a QueryClientProvider, same
+// reasoning as NotificationBell/ProtectedMobileNav above.
 vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(() => ({ data: { id: 'seller-1' }, isSuccess: true })),
   useIsSeller: vi.fn(() => ({ isSeller: true, isLoaded: true })),
@@ -56,20 +59,24 @@ describe('ProtectedHeader', () => {
     expect(homeLink).toBeDefined();
   });
 
-  it('renders a "نشر إعلان" button linking to the real ad-create route for a seller', () => {
+  it('opens CreateSheet with the ad-create route when "أضف" is tapped', async () => {
+    const user = setupUser();
     render(<ProtectedHeader />);
 
-    const createLink = screen.getByText('+ نشر إعلان').closest('a');
-    expect(createLink).toHaveAttribute('href', ROUTES.adCreate);
+    expect(screen.queryByRole('link', { name: /إعلان جديد/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'أضف' }));
+
+    expect(screen.getByRole('link', { name: /إعلان جديد/ })).toHaveAttribute('href', ROUTES.adCreate);
   });
 
-  it('renders an "أنشئ حساب بائع" CTA instead when the user has no SellerProfile', () => {
+  it('still shows the same "أضف" CTA when the user has no SellerProfile', () => {
     vi.mocked(useIsSeller).mockReturnValueOnce({ isSeller: false, isLoaded: true });
     render(<ProtectedHeader />);
 
-    expect(screen.queryByText('+ نشر إعلان')).not.toBeInTheDocument();
-    const ctaLink = screen.getByText('أنشئ حساب بائع').closest('a');
-    expect(ctaLink).toHaveAttribute('href', ROUTES.settings.seller);
+    // CreateSheet's destinations are seller-agnostic — each target page
+    // (CreateAdGate etc.) handles the missing-profile case itself, so the
+    // header CTA no longer swaps label/href based on isSeller.
+    expect(screen.getByRole('button', { name: 'أضف' })).toBeInTheDocument();
   });
 
   it('renders the UserMenu', () => {

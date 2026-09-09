@@ -127,7 +127,7 @@ describe('MyServiceListingsList', () => {
     mockListingsState({ data: { items: [], meta: { totalPages: 1 } } });
     render(<MyServiceListingsList />);
     expect(screen.getByText('لا توجد خدمات')).toBeInTheDocument();
-    expect(screen.getByText('نشر خدمة')).toBeInTheDocument();
+    expect(screen.getByText('إضافة خدمة')).toBeInTheDocument();
   });
 
   describe('rendering listings', () => {

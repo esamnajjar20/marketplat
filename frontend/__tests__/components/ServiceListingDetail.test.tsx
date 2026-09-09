@@ -19,6 +19,12 @@
  *  renders a FavoriteButton (warm=true). Mocked out (own behavior
  *  covered by FavoriteButton.test.tsx/useFavorites.test.tsx) so these
  *  tests don't need a QueryClientProvider wrapper.
+ *
+ *  FEAT: ServiceListingDetail also renders MessageUserButtonGate (the
+ *  "مراسلة" CTA in the provider-link footer), which reads
+ *  useStartConversation() (a react-query mutation). Mocked the same
+ *  way PublicProfileHeader.test.tsx mocks it, so this file still
+ *  doesn't need a QueryClientProvider wrapper.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -35,6 +41,10 @@ vi.mock('@/components/shared/FavoriteButton', () => ({
 // file is testing, so stub it like FavoriteButton above.
 vi.mock('@/components/services/ReportServiceButton', () => ({
   ReportServiceButton: () => <div data-testid="report-service-button" />,
+}));
+
+vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+  useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 function makeListing(overrides: Partial<ServiceListingWithProvider> = {}): ServiceListingWithProvider {

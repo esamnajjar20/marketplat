@@ -163,6 +163,7 @@ export function BottomNav() {
           type="button"
           onClick={() => setCreateOpen(true)}
           aria-haspopup="dialog"
+          aria-label="أضف"
           className="-mt-5 flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105 hover:shadow-lg"
         >
           <Plus className="h-5 w-5" aria-hidden={true} />

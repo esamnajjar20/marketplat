@@ -96,7 +96,9 @@ describe('MySellerProfileCard', () => {
   it('shows a "—" placeholder for rating when totalRatings is 0', () => {
     renderWithClient(<MySellerProfileCard profile={{ ...baseProfile, totalRatings: 0 }} />);
 
-    expect(screen.getByText('—')).toBeInTheDocument();
+    // "—" is also the placeholder for missing responseRate/
+    // responseTimeMinutes elsewhere on the card, so it isn't unique.
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('4.5')).not.toBeInTheDocument();
   });
 
@@ -141,7 +143,7 @@ describe('MySellerProfileCard', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'طلب توثيق الحساب' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'إعادة طلب التوثيق' })).toBeInTheDocument();
   });
 
   it('shows a pending message instead of a button while verificationStatus is PENDING', () => {

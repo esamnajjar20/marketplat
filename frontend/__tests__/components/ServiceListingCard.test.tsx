@@ -134,8 +134,11 @@ describe('ServiceListingCard', () => {
   });
 
   it('falls back to the placeholder image when images array is empty', () => {
+    // Scoped by alt text (the listing title) — the provider footer also
+    // renders an <img> (its own logo placeholder), so an unscoped
+    // getByRole('img') matches both.
     render(<ServiceListingCard listing={makeListing({ images: [] })} />);
-    const img = screen.getByRole('img') as HTMLImageElement;
+    const img = screen.getByRole('img', { name: 'تصليح مكيفات منزلية' }) as HTMLImageElement;
     expect(img.src).toContain('data:image/svg+xml');
   });
 

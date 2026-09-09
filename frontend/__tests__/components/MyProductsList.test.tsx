@@ -183,7 +183,7 @@ describe('MyProductsList', () => {
     });
     render(<MyProductsList />);
 
-    await user.click(screen.getByTitle('إيقاف مؤقت'));
+    await user.click(screen.getByRole('button', { name: /إيقاف .+ مؤقتاً/ }));
     expect(mockToggleMutate).toHaveBeenCalledWith({ id: 'prod-9', status: 'PAUSED' });
   });
 
@@ -195,7 +195,7 @@ describe('MyProductsList', () => {
     });
     render(<MyProductsList />);
 
-    await user.click(screen.getByTitle('إعادة تفعيل'));
+    await user.click(screen.getByRole('button', { name: /إعادة تفعيل/ }));
     expect(mockToggleMutate).toHaveBeenCalledWith({ id: 'prod-9', status: 'ACTIVE' });
   });
 
@@ -205,8 +205,8 @@ describe('MyProductsList', () => {
       isLoading: false,
     });
     render(<MyProductsList />);
-    expect(screen.queryByTitle('إيقاف مؤقت')).not.toBeInTheDocument();
-    expect(screen.queryByTitle('إعادة تفعيل')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /إيقاف .+ مؤقتاً/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /إعادة تفعيل/ })).not.toBeInTheDocument();
   });
 
   it('disables the toggle button only for the product currently being toggled', () => {
@@ -222,7 +222,7 @@ describe('MyProductsList', () => {
     });
     render(<MyProductsList />);
 
-    const buttons = screen.getAllByTitle('إيقاف مؤقت');
+    const buttons = screen.getAllByRole('button', { name: /إيقاف .+ مؤقتاً/ });
     expect(buttons[0]).toBeDisabled();  // prod-1 — the one being toggled
     expect(buttons[1]).not.toBeDisabled(); // prod-2 — unaffected
   });

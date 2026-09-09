@@ -119,7 +119,12 @@ describe('StoreProducts', () => {
     mockSearchParams = new URLSearchParams('productsPage=2');
     render(<StoreProducts storeId="store-1" />);
 
-    expect(useProducts).toHaveBeenCalledWith({ storeId: 'store-1', page: 2, limit: 12 });
+    // objectContaining: the component also passes sortBy/sortOrder (and
+    // conditionally hasPromotion) alongside storeId/page/limit — this
+    // test only cares that the namespaced page param made it through.
+    expect(useProducts).toHaveBeenCalledWith(
+      expect.objectContaining({ storeId: 'store-1', page: 2, limit: 12 }),
+    );
   });
 
   it('does not render pagination for a single page', () => {
