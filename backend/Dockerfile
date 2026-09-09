@@ -31,9 +31,15 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# ملاحظة: تم حذف "npm install prisma@^5.0.0" الزائد، لأن npx prisma generate سيعمل بشكل كافٍ
-RUN npm ci --only=production && \
+# bcrypt (optionalDependencies) يحتاج ترجمة native عبر node-gyp إن لم يجد
+# prebuilt binary مطابق لِـ musl/Alpine — بدون python3/make/g++ هنا، npm
+# ci يتخطى الحزمة بصمت (optional) ويسقط تلقائيًا إلى bcryptjs الأبطأ (انظر
+# hash.ts). نثبّت أدوات البناء كـ virtual package مؤقت، ثم نحذفها فور
+# انتهاء التثبيت حتى لا تكبر صورة الإنتاج النهائية.
+RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
+    npm ci --only=production && \
     npx prisma generate && \
+    apk del .build-deps && \
     npm cache clean --force
 
 COPY --from=builder /app/dist ./dist

@@ -1,0 +1,513 @@
+name: CI
+
+# يعمل على كل Pull Request وعلى كل push لفرع main.
+# الهدف: أي كسر في lint/type-check/tests/build يظهر قبل الدمج، لا بعده.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# لو تم فتح push جديد لنفس الـ PR أثناء تشغيل نسخة سابقة، ألغِ القديمة
+# بدل تشغيل الاثنتين معًا — يوفر وقت runners بلا فائدة.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 22 هو أحدث إصدار LTS ويقع ضمن قيد backend/package.json → engines.node
+  # (">=20 <25"). ملاحظة: Node 24 غير مسموح به أصلًا بحسب هذا القيد،
+  # فأي بيئة محلية تستخدم 24 مخالفة لمتطلبات المشروع لا لإعداد الـCI.
+  # مصدر حقيقة واحد للإصدار عبر backend وfrontend وe2e في هذا الملف.
+  NODE_VERSION: '22'
+
+permissions:
+  contents: read
+  # الحد الأدنى المطلوب فعليًا: قراءة الكود فقط. لا حاجة لأي صلاحية
+  # كتابة (issues/PRs/packages) في أي job من الوظائف الثلاث أدناه.
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Backend: lint → type-check → unit tests → integration tests
+  # ─────────────────────────────────────────────────────────────
+  backend:
+    name: Backend (lint, types, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+
+    # postgres حقيقي مطلوب لاختبارات التكامل (prisma يتصل مباشرة).
+    # Redis غير مطلوب هنا: tests/setup.ts يموّهه بالكامل عبر jest.mock
+    # (in-memory mock)، فلا فائدة من تشغيل حاوية Redis إضافية تُبطئ الـjob.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: classifieds_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_test?connection_limit=5
+      # قيم اختبار فقط — لا علاقة لها بأي بيئة حقيقية. الحد الأدنى 32 حرفًا
+      # مفروض فعليًا في env.ts (Zod)، فالقيمة يجب أن تحققه.
+      JWT_SECRET: ci-test-jwt-secret-please-change-me-32chars
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-please-change-me-32c
+      FRONTEND_URL: http://localhost:3000
+      TRUST_PROXY: '0'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # npm ci هو الخيار الصحيح في CI (تثبيت حتمي من package-lock.json،
+      # أسرع من npm install ويحذف node_modules تلقائيًا قبل التثبيت).
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # يفشل مبكرًا وبوضوح إن غاب مجلد الـmigrations من الالتزام (git) —
+      # سيناريو خطير لأن "prisma migrate deploy" سينجح بصمت على مخطط
+      # قاعدة بيانات فارغ ثم تفشل كل الاختبارات لاحقًا بأخطاء SQL غامضة
+      # لا علاقة لها بالمشكلة الحقيقية (migrations مفقودة، لا كود معطوب).
+      - name: Verify migration files are committed
+        run: |
+          if [ -z "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+            echo "::error::prisma/migrations is empty or missing — commit your migrations, do not rely on 'prisma migrate dev' in CI"
+            exit 1
+          fi
+
+      - name: Run migrations against test database
+        run: npx prisma migrate deploy
+
+      # فحص ثغرات أمنية معروفة في التبعيات. لا يوقف البناء حاليًا
+      # (continue-on-error) لتجنب false positives من تبعيات فرعية لا
+      # سيطرة مباشرة عليها؛ الهدف رؤية التحذير في سجل الـjob، لا حجب
+      # الدمج. ارفعه لبوابة فاشلة (احذف continue-on-error) بعد تنظيف
+      # القائمة الحالية من التحذيرات المعروفة وغير القابلة للإصلاح فورًا.
+      - name: Security audit (high severity)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      # test:coverage يشغّل نفس Jest مع --coverage فوق نفس الاختبارات
+      # التي مرّت للتو، بدون قيمة إضافية حقيقية على unit+integration
+      # المنفصلين أعلاه؛ لذلك نولّد التقرير هنا فقط للرفع كـ artifact
+      # وليس كبوابة فشل مستقلة (الفشل الفعلي يحدث أصلاً في الخطوتين أعلاه).
+      - name: Generate coverage report
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Build
+        run: npm run build
+
+      # سجلات npm عند فشل أي خطوة سابقة (بدل الاكتفاء برسالة الخطأ
+      # المختصرة في الـlog الرئيسي) — يفيد عند تشخيص فشل بيئي غير واضح
+      # (مثل تعارض إصدارات أو timeout في تثبيت الحزم).
+      - name: Upload npm debug logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-npm-logs
+          path: |
+            ~/.npm/_logs/
+            backend/npm-debug.log*
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ─────────────────────────────────────────────────────────────
+  # Frontend: lint → type-check → unit tests → build
+  # لا يحتاج backend حي: vitest يعمل بمعزل تام عبر jsdom + mocks.
+  # ─────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend (lint, types, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+
+    env:
+      # قيم بناء فقط — NEXT_PUBLIC_* تُضمَّن في الحزمة عند البناء،
+      # لذا يجب أن تكون موجودة حتى لو لم يتصل أي شيء بها فعليًا هنا.
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ci-placeholder
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Security audit (high severity)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      # test بالفعل يعادل "vitest run" في package.json (يعمل مرة واحدة
+      # ويخرج، بلا watch-mode)، فـ "-- --run" زائد عن الحاجة ويُحذف.
+      - name: Unit tests
+        run: npm run test
+
+      - name: Generate coverage report
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload npm debug logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-npm-logs
+          path: |
+            ~/.npm/_logs/
+            frontend/npm-debug.log*
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ─────────────────────────────────────────────────────────────
+  # E2E: Playwright ضد الـ stack الكامل (backend + frontend + db + redis).
+  # مستقل عن backend/frontend jobs أعلاه (لا ينتظرهما) لكنه لا يمنع
+  # الدمج عند الفشل — continue-on-error: true — لأن E2E أبطأ وأكثر
+  # هشاشة (flaky) من طبيعته؛ الهدف رؤية النتيجة لا حجب الـ PR بسببها
+  # حتى تثبت موثوقيته بمرور الوقت. أزل continue-on-error متى ما وثقت به.
+  # ─────────────────────────────────────────────────────────────
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # TODO(pre-launch): احذف continue-on-error عند اقتراب إطلاق المنصة.
+    # مقبول مؤقتًا أثناء التطوير لأن E2E لا يزال يثبت موثوقيته؛ إبقاؤه بعد
+    # الإطلاق يعني أن PR يمكن أن يُدمج حتى لو فشلت كل اختبارات E2E.
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: classifieds_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_e2e?connection_limit=5
+      JWT_SECRET: ci-test-jwt-secret-please-change-me-32chars
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-please-change-me-32c
+      FRONTEND_URL: http://localhost:3000
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      TRUST_PROXY: '0'
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # يوقف webServer الخاص بـ playwright.config.ts عن محاولة بناء/تشغيل
+      # فرونت اند إضافي بنفسه: هذا الـjob يبني ويشغّل الفرونت اند صراحةً
+      # في الخطوات أدناه، وE2E_BASE_URL يشير إليه مباشرة. بدون هذا
+      # المتغيّر يحدث تشغيل مزدوج (بناء مكرر + تعارض منفذ 3000).
+      E2E_SKIP_WEBSERVER: '1'
+      E2E_BASE_URL: http://localhost:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          # قائمة صريحة بالمسارين بدل الاعتماد على الافتراضي التلقائي —
+          # يضمن أن كاش npm يغطي backend وfrontend معًا بشكل صحيح
+          # (الإعداد السابق ترك cache-dependency-path بلا تحديد).
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # ── تجهيز الباك اند ──
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Verify migration files are committed
+        working-directory: backend
+        run: |
+          if [ -z "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+            echo "::error::prisma/migrations is empty or missing — commit your migrations, do not rely on 'prisma migrate dev' in CI"
+            exit 1
+          fi
+
+      - name: Run migrations
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Seed E2E data
+        working-directory: backend
+        run: npm run seed:e2e
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      # يعمل في الخلفية مع توجيه stdout/stderr إلى ملف بدل التوريث
+      # المباشر من الـshell — بدون هذا، إغلاق الخطوة يقتل عملية الخلفية
+      # ويضيع أي سجل مفيد عند فشل لاحق. $GITHUB_ENV يمرر الـPID للخطوات
+      # التالية كي يمكن التحقق من حالة العملية عند التشخيص.
+      - name: Start backend
+        working-directory: backend
+        run: |
+          npm start > /tmp/backend.log 2>&1 &
+          echo "BACKEND_PID=$!" >> "$GITHUB_ENV"
+
+      # فحص فوري: إن انهارت العملية خلال أول 3 ثوانٍ (env ناقص، build
+      # تالف، منفذ مشغول...) فإن kill -0 يفشل هنا مباشرة بدل أن يفشل
+      # لاحقًا وبشكل غامض في خطوة "Wait for backend readiness" بعد
+      # دقيقة انتظار كاملة. cat للسجل فورًا يجعل سبب الانهيار واضحًا.
+      - name: Verify backend process started
+        run: |
+          sleep 3
+          if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+            echo "::error::Backend process exited immediately after start"
+            cat /tmp/backend.log || true
+            exit 1
+          fi
+
+      # ── تجهيز الفرونت اند ──
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      # كاش متصفحات Playwright مفتاحه إصدار الحزمة في package-lock.json؛
+      # يوفر دقيقة أو أكثر من التنزيل في كل تشغيل بدل إعادة تنزيل Chromium
+      # من الصفر في كل مرة. cache-hit يُستخدم فعليًا أدناه لتخطي إعادة
+      # تنزيل المتصفح نفسه عند إصابة الكاش، مع إبقاء تثبيت تبعيات النظام
+      # (--with-deps) في كل مرة لأنها أخف بكثير من تنزيل المتصفح ولضمان
+      # توافقها مع صورة الـrunner الحالية حتى لو تغيّرت بصمت.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright browser binary
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: frontend
+        run: npx playwright install chromium
+
+      - name: Install Playwright system dependencies
+        working-directory: frontend
+        run: npx playwright install-deps chromium
+
+      # انتظار جاهزية الباك اند عبر /ready بدل /health: /ready يتحقق
+      # فعليًا من اتصال قاعدة البيانات وRedis (انظر healthCache.ts)،
+      # بينما /health يؤكد فقط أن العملية حية بلا فحص تبعيات — وE2E
+      # يحتاج كلا الاتصالين جاهزين قبل بدء الاختبارات.
+      - name: Wait for backend readiness
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/ready > /dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            echo "Waiting for backend readiness... ($i/30)"
+            sleep 2
+          done
+          echo "::error::Backend did not become ready in time"
+          echo "----- backend.log -----"
+          cat /tmp/backend.log || true
+          exit 1
+
+      # بناء الفرونت اند صراحةً هنا (بدل تركه لـwebServer الخاص بـ
+      # Playwright) يفصل بوضوح بين مرحلتي "التجهيز" و"التشغيل"، ويمنع أي
+      # سباق حيث تبدأ الاختبارات بينما البناء لا يزال جاريًا.
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm start > /tmp/frontend.log 2>&1 &
+          echo "FRONTEND_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Verify frontend process started
+        run: |
+          sleep 3
+          if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+            echo "::error::Frontend process exited immediately after start"
+            cat /tmp/frontend.log || true
+            exit 1
+          fi
+
+      # فحص جاهزية حقيقي عبر HTTP بدل sleep ثابت: يتوقف فور استجابة
+      # الخادم بدلاً من انتظار مدة تقديرية قد تكون أطول أو أقصر من اللازم.
+      - name: Wait for frontend readiness
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 > /dev/null; then
+              echo "Frontend is ready"
+              exit 0
+            fi
+            echo "Waiting for frontend readiness... ($i/30)"
+            sleep 2
+          done
+          echo "::error::Frontend did not become ready in time"
+          echo "----- frontend.log -----"
+          cat /tmp/frontend.log || true
+          exit 1
+
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # سجلات التشغيل الفعلي للباك اند والفرونت اند — ضرورية عند فشل E2E
+      # لمعرفة هل السبب خطأ في التطبيق نفسه (500، استثناء غير متوقع) أم
+      # في الاختبار. بدون هذا، السجل الوحيد المتاح هو مخرجات Playwright.
+      - name: Upload backend & frontend runtime logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-runtime-logs
+          path: |
+            /tmp/backend.log
+            /tmp/frontend.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # إنهاء صريح للعمليات الخلفية بدل الاعتماد على تنظيف الـrunner
+      # التلقائي عند انتهاء الـjob — يمنع أي احتمال تسرب موارد إذا أُعيد
+      # استخدام نفس الـrunner لاحقًا (self-hosted runners تحديدًا).
+      - name: Stop background servers
+        if: always()
+        run: |
+          kill "$BACKEND_PID" 2>/dev/null || true
+          kill "$FRONTEND_PID" 2>/dev/null || true
+
+  # ─────────────────────────────────────────────────────────────
+  # Docker: يتحقق فقط أن Dockerfile الخاص بكل من backend وfrontend
+  # لا يزال يبني بنجاح — لا push ولا تشغيل حاويات، فقط "هل ينكسر
+  # البناء". مستقل تمامًا عن باقي الـjobs (لا يعتمد عليها ولا يُعتمد
+  # عليه)، فيعمل بالتوازي بلا أي تأثير على زمن باقي الـpipeline.
+  # يفشل بصمت خلاف ذلك: تعديل بسيط بسيط في Dockerfile أو package.json
+  # قد يكسر البناء الإنتاجي دون أن يظهر ذلك في أي مسار اختبار آخر.
+  # ─────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker (image build check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, frontend]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # يبني فقط (بدون push) مع كاش طبقات عبر GitHub Actions cache —
+      # يسرّع البناءات المتكررة بشكل كبير خصوصًا لطبقة npm ci الثقيلة،
+      # ويتحقق من نجاح البناء عبر exit code لخطوة build نفسها.
+      - name: Build ${{ matrix.service }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service }}
+          push: false
+          tags: marketplat-${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
