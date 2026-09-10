@@ -33,7 +33,7 @@ function StatCard({
           <Icon className="h-5 w-5 text-muted-foreground" />
         </div>
         <div>
-          <p className="text-2xl font-bold leading-none">{value.toLocaleString('ar')}</p>
+          <p className="text-2xl font-bold leading-none">{(value ?? 0).toLocaleString('ar')}</p>
           <p className="mt-1 text-xs text-muted-foreground">{label}</p>
         </div>
       </CardContent>

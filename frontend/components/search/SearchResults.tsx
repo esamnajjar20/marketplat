@@ -230,7 +230,7 @@ export function SearchResults() {
           fire against. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">
-          {total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}
+          <span>{total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}</span>
           {q && (
             <>
               {' '}
@@ -251,7 +251,7 @@ export function SearchResults() {
         {/* Empty state + category escape hatches */}
         <EmptyState
           icon={<Search className="h-10 w-10" />}
-          title={q ? `لا نتائج لـ «${q}»` : 'لا توجد نتائج'}
+          title={q ? `لم نجد نتائج لـ «${q}»` : 'لا توجد نتائج'}
           description={
             q
               ? 'جرّب كلمة أقصر، أو امسح الفلاتر، أو اختر تصنيفاً من الاقتراحات بالأسفل.'

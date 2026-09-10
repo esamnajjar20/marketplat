@@ -49,7 +49,7 @@ describe('SearchNearbyToggle', () => {
 
   it('renders the locate button when no lat/lng are on the URL', () => {
     render(<SearchNearbyToggle />);
-    expect(screen.getByRole('button', { name: /البحث ضمن 10 كم مني/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /البحث ضمن 7 كم مني/ })).toBeInTheDocument();
   });
 
   it('renders the clear button when lat/lng are already on the URL', () => {
@@ -63,7 +63,13 @@ describe('SearchNearbyToggle', () => {
     Object.defineProperty(global.navigator, 'geolocation', {
       value: {
         getCurrentPosition: (success: PositionCallback) =>
-          success({ coords: { latitude: 31.9, longitude: 35.2 } } as GeolocationPosition),
+          // Must be inside lib/geo.ts's isUsableNearbyCoord Gaza-box
+          // range (lng 34.0–35.0) or the component's own validity
+          // check silently routes this into the 'denied' branch
+          // instead of navigating — 35.2 (used elsewhere in this file
+          // for the denied/clear scenarios, where the coordinate
+          // itself is never validated) is outside that box.
+          success({ coords: { latitude: 31.5, longitude: 34.45 } } as GeolocationPosition),
       },
       configurable: true,
     });
@@ -71,13 +77,13 @@ describe('SearchNearbyToggle', () => {
     const user = setupUser();
     render(<SearchNearbyToggle />);
 
-    await user.click(screen.getByRole('button', { name: /البحث ضمن 10 كم مني/ }));
+    await user.click(screen.getByRole('button', { name: /البحث ضمن 7 كم مني/ }));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalled());
     const params = paramsFromPush();
-    expect(params.get('lat')).toBe('31.9');
-    expect(params.get('lng')).toBe('35.2');
-    expect(params.get('radius')).toBe('10');
+    expect(params.get('lat')).toBe('31.5');
+    expect(params.get('lng')).toBe('34.45');
+    expect(params.get('radius')).toBe('7');
     expect(params.get('sort')).toBe('distance');
     expect(params.has('page')).toBe(false);
   });
@@ -93,7 +99,7 @@ describe('SearchNearbyToggle', () => {
     const user = setupUser();
     render(<SearchNearbyToggle />);
 
-    await user.click(screen.getByRole('button', { name: /البحث ضمن 10 كم مني/ }));
+    await user.click(screen.getByRole('button', { name: /البحث ضمن 7 كم مني/ }));
 
     expect(await screen.findByText(/تعذّر الوصول إلى موقعك/)).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
@@ -109,14 +115,14 @@ describe('SearchNearbyToggle', () => {
     const user = setupUser();
     render(<SearchNearbyToggle />);
 
-    await user.click(screen.getByRole('button', { name: /البحث ضمن 10 كم مني/ }));
+    await user.click(screen.getByRole('button', { name: /البحث ضمن 7 كم مني/ }));
 
     expect(await screen.findByText('المتصفح لا يدعم تحديد الموقع.')).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('clears lat/lng/radius and the distance sort together, dropping page', async () => {
-    mockSearchParams = new URLSearchParams({ lat: '31.9', lng: '35.2', radius: '10', sort: 'distance', page: '2' });
+    mockSearchParams = new URLSearchParams({ lat: '31.9', lng: '35.2', radius: '7', sort: 'distance', page: '2' });
     const user = setupUser();
     render(<SearchNearbyToggle />);
 

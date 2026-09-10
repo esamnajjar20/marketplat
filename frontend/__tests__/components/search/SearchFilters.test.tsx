@@ -63,13 +63,13 @@ describe('SearchFilters', () => {
   describe('category filter visibility', () => {
     it('is hidden when type is "all"', () => {
       render(<SearchFilters />);
-      expect(screen.queryByText('الفئة')).not.toBeInTheDocument();
+      expect(screen.queryByText('خيارات أكثر')).not.toBeInTheDocument();
     });
 
     it('is hidden when type is "stores"', () => {
       mockSearchParams = new URLSearchParams({ type: 'stores' });
       render(<SearchFilters />);
-      expect(screen.queryByText('الفئة')).not.toBeInTheDocument();
+      expect(screen.queryByText('خيارات أكثر')).not.toBeInTheDocument();
     });
 
     it('is shown for type=ads and lists ad categories', async () => {
@@ -77,9 +77,10 @@ describe('SearchFilters', () => {
       const user = setupUser();
       render(<SearchFilters />);
 
+      await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
       expect(screen.getByText('الفئة')).toBeInTheDocument();
       const combos = screen.getAllByRole('combobox');
-      await user.click(combos[0]); // category select is first when shown
+      await user.click(combos[1]); // city is first; category select appears second once expanded
       expect(await screen.findByRole('option', { name: 'إلكترونيات' })).toBeInTheDocument();
     });
 
@@ -88,8 +89,9 @@ describe('SearchFilters', () => {
       const user = setupUser();
       render(<SearchFilters />);
 
+      await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
       const combos = screen.getAllByRole('combobox');
-      await user.click(combos[0]);
+      await user.click(combos[1]);
       expect(await screen.findByRole('option', { name: 'أثاث' })).toBeInTheDocument();
     });
 
@@ -98,8 +100,9 @@ describe('SearchFilters', () => {
       const user = setupUser();
       render(<SearchFilters />);
 
+      await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
       const combos = screen.getAllByRole('combobox');
-      await user.click(combos[0]);
+      await user.click(combos[1]);
       expect(await screen.findByRole('option', { name: 'صيانة' })).toBeInTheDocument();
     });
   });
@@ -109,8 +112,9 @@ describe('SearchFilters', () => {
     const user = setupUser();
     render(<SearchFilters />);
 
+    await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
     const combos = screen.getAllByRole('combobox');
-    await user.click(combos[0]);
+    await user.click(combos[1]);
     await user.click(await screen.findByRole('option', { name: 'أثاث' }));
 
     const params = paramsFromPush();
@@ -123,8 +127,10 @@ describe('SearchFilters', () => {
     const user = setupUser();
     render(<SearchFilters />);
 
+    // hasCategory is true -> the "خيارات أكثر" section starts expanded,
+    // no click needed to reveal the category select.
     const combos = screen.getAllByRole('combobox');
-    await user.click(combos[0]);
+    await user.click(combos[1]);
     await user.click(await screen.findByRole('option', { name: 'كل الفئات' }));
 
     const params = paramsFromPush();

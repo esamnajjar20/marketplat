@@ -37,12 +37,8 @@ interface Props {
  * requests), factored out so Product/Store/Service each get it without
  * three near-identical copies of the same button.
  */
-const ENTITY_SAVE_LABEL: Record<string, { save: string; saved: string }> = {
-  AD: { save: 'حفظ الإعلان', saved: 'محفوظ' },
-  PRODUCT: { save: 'حفظ المنتج', saved: 'محفوظ' },
-  SERVICE_LISTING: { save: 'حفظ الخدمة', saved: 'محفوظ' },
-  STORE: { save: 'حفظ المتجر', saved: 'محفوظ' },
-};
+const ADD_LABEL = 'إضافة إلى المفضلة';
+const REMOVE_LABEL = 'إزالة من المفضلة';
 
 export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false, showLabel = false }: Props) {
   const isAuth = useAuthStore(selectIsAuthenticated);
@@ -64,8 +60,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
   }
 
 
-  const labels = ENTITY_SAVE_LABEL[entityType] ?? { save: 'حفظ', saved: 'محفوظ' };
-  const textLabel = isFavorited ? labels.saved : labels.save;
+  const textLabel = isFavorited ? REMOVE_LABEL : ADD_LABEL;
 
   const dim = size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
   const iconDim = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';

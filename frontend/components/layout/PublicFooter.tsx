@@ -13,14 +13,16 @@ const FOOTER_LINKS = {
     { label: 'الخدمات', href: ROUTES.services },
     { label: 'المنتجات', href: ROUTES.products },
   ],
-  الحساب: [
+  الشركة: [
+    { label: 'من نحن', href: ROUTES.about },
+    { label: 'تواصل معنا', href: ROUTES.contact },
+  ],
+  الدعم: [
     { label: 'تسجيل الدخول', href: ROUTES.login },
     { label: 'إنشاء حساب', href: ROUTES.register },
     { label: 'لوحة التحكم', href: ROUTES.dashboard },
   ],
-  معلومات: [
-    { label: 'من نحن', href: ROUTES.about },
-    { label: 'تواصل معنا', href: ROUTES.contact },
+  قانوني: [
     { label: 'سياسة الخصوصية', href: ROUTES.privacy },
     { label: 'شروط الاستخدام', href: ROUTES.terms },
   ],
@@ -30,7 +32,7 @@ export function PublicFooter() {
   return (
     <footer className="border-t border-border/80 bg-surface-1">
       <div className="container mx-auto max-w-7xl px-4 py-12">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           <div className="col-span-2 space-y-4 md:col-span-1">
             <Link href={ROUTES.home} className="inline-block">
               <Logo />

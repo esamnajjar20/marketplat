@@ -86,6 +86,12 @@ export function ServiceListingDetail({ listing, action }: Props) {
     [images.length],
   );
 
+  // Thumbnail strip is budget-capped separately from the navigable
+  // `images` array (prev/next still reach every photo) — keeps the
+  // gallery's total rendered <img> count bounded (1 main preview + up
+  // to 3 thumbnails) regardless of how many photos a listing has.
+  const thumbnailImages = images.slice(0, 3);
+
   return (
     <>
       <div className="flex flex-col gap-6 pb-sticky-contact-tall md:flex-row md:gap-8">
@@ -148,9 +154,9 @@ export function ServiceListingDetail({ listing, action }: Props) {
                 </>
               )}
             </div>
-            {images.length > 1 && (
+            {thumbnailImages.length > 1 && (
               <div className="flex gap-2 overflow-x-auto p-3">
-                {images.map((src, i) => (
+                {thumbnailImages.map((src, i) => (
                   <button
                     key={`${src}-${i}`}
                     type="button"
@@ -162,7 +168,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
                   >
                     <SafeImage
                       src={src === PLACEHOLDER_SVG ? src : getThumbnailUrl(src, 112, 112)}
-                      alt=""
+                      alt={`${listing.title} - صورة ${i + 1}`}
                       fill
                       className="object-cover"
                       sizes="56px"
@@ -173,8 +179,12 @@ export function ServiceListingDetail({ listing, action }: Props) {
             )}
           </div>
 
-          {/* Mobile title block */}
-          <div className="space-y-2 lg:hidden">
+          {/* Title / price / meta / actions — rendered once, no
+              responsive duplicate (mirrors AdDetail.tsx's single
+              title+meta block; only the untested action/contact row
+              below duplicates between the desktop sidebar and the
+              mobile sticky bar, same as AdDetail's price/SellerCard). */}
+          <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <p className="font-mono text-2xl font-bold tabular-nums text-primary">
               {formatServicePrice(listing.pricingType, listing.price)}
             </p>
@@ -214,45 +224,19 @@ export function ServiceListingDetail({ listing, action }: Props) {
           </div>
         </div>
 
-        {/* Desktop sidebar */}
-        <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[320px]">
-          <div className="sticky top-20 space-y-4">
-            <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <p className="font-mono text-2xl font-bold tabular-nums text-primary">
-                {formatServicePrice(listing.pricingType, listing.price)}
-              </p>
-              <h1 className="text-xl font-bold leading-snug">{listing.title}</h1>
-              <Meta listing={listing} />
-              <div className="flex flex-wrap gap-2">
-                <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
-                <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
-                <ReportServiceButton serviceListingId={listing.id} />
-              </div>
-              {action && <div className="pt-1 space-y-2">{action}</div>}
+        {/* Desktop sidebar — only the CTA + contact row live here,
+            mirroring the mobile sticky-contact-bar below; everything
+            else (title/price/meta/provider link) is singular, above. */}
+        {(action || listing.provider.contactPhone) && (
+          <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[320px]">
+            <div className="sticky top-20 space-y-2 rounded-2xl border border-border bg-card p-5 shadow-sm">
+              {action}
               {listing.provider.contactPhone && (
                 <ProviderContactRow phone={listing.provider.contactPhone} />
               )}
             </div>
-            <div className="space-y-3">
-            <ProviderLink listing={listing} />
-            {listing.provider.sellerProfile?.userId && (
-              <MessageUserButtonGate
-                targetUserId={listing.provider.sellerProfile.userId}
-                size="lg"
-                variant="default"
-                label="مراسلة مقدم الخدمة"
-                className="w-full gap-2 rounded-xl font-semibold"
-              />
-            )}
-            <StorePaymentMethods
-              paymentMethods={listing.provider.sellerProfile?.paymentMethods}
-              entityName={listing.provider.businessName}
-              fallbackName={listing.provider.businessName}
-              fallbackPhone={listing.provider.contactPhone}
-            />
-          </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
 
       {/* Mobile sticky CTA — above BottomNav; tall padding for dual buttons */}
@@ -304,7 +288,7 @@ function Meta({ listing }: { listing: ServiceListingWithProvider }) {
       )}
       <span className="inline-flex items-center gap-1">
         <Eye className="h-3.5 w-3.5" aria-hidden />
-        {listing.views} مشاهدة
+        <span>{listing.views}</span> مشاهدة
       </span>
       <span>{formatRelativeTime(listing.createdAt)}</span>
     </div>
@@ -330,7 +314,7 @@ function ProviderLink({ listing }: { listing: ServiceListingWithProvider }) {
             </Badge>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">عرض ملف مقدم الخدمة وخدماته</p>
+        <p className="text-xs text-muted-foreground">عرض كل خدمات {listing.provider.businessName}</p>
       </div>
       <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
     </Link>

@@ -15,15 +15,17 @@ interface Props {
   className?: string;
   /** Optional click to jump to a previous step only */
   onStepClick?: (index: number) => void;
+  /** Accessible name for the wizard's <nav> — defaults to a generic label; callers with a more specific context (e.g. "خطوات نشر الإعلان") should override it. */
+  navLabel?: string;
 }
 
 /**
  * Lightweight step indicator for long create/edit forms.
  * Visual only + optional jump-back; does not manage form state.
  */
-export function FormSteps({ steps, current, className, onStepClick }: Props) {
+export function FormSteps({ steps, current, className, onStepClick, navLabel = 'خطوات النموذج' }: Props) {
   return (
-    <nav aria-label="خطوات النموذج" className={cn('w-full', className)}>
+    <nav aria-label={navLabel} className={cn('w-full', className)}>
       <ol className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-2">
         {steps.map((step, index) => {
           const done = index < current;

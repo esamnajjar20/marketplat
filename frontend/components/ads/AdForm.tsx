@@ -440,6 +440,7 @@ export function AdForm({ mode, ad }: Props) {
       {isWizard && (
         <div className="sticky top-0 z-20 -mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps
+            navLabel="خطوات نشر الإعلان"
             steps={[
               { id: 'basics', label: 'الأساسيات', description: 'العنوان والوصف' },
               { id: 'details', label: 'التصنيف والسعر', description: 'المدينة والفئة والسعر' },

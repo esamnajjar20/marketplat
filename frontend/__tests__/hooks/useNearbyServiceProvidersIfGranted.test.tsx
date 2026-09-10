@@ -93,7 +93,7 @@ describe('useNearbyServiceProvidersIfGranted', () => {
 
     await waitFor(() => expect(result.current.available).toBe(true));
     expect(useNearbyServiceProviders).toHaveBeenCalledWith(
-      expect.objectContaining({ lat: 31.5, lng: 34.45, radius: 10, limit: 8 }),
+      expect.objectContaining({ lat: 31.5, lng: 34.45, radius: 7, limit: 8 }),
     );
   });
 

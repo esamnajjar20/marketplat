@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Star, BadgeCheck } from 'lucide-react';
+import { MapPin, Star, BadgeCheck, Eye } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
@@ -94,13 +94,13 @@ export function UnifiedResultCard({ result, className }: Props) {
             {(result.city || distanceLabel) && (
               <span className="flex min-w-0 items-center gap-1">
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="truncate">
-                  {result.city}
-                  {result.city && distanceLabel ? ' · ' : ''}
-                  {distanceLabel ? (
-                    <span className="font-medium text-primary">{distanceLabel}</span>
-                  ) : null}
-                </span>
+                {result.city && <span className="truncate">{result.city}</span>}
+                {distanceLabel && (
+                  <span className="shrink-0 font-medium text-primary">
+                    {result.city ? '· ' : ''}
+                    {distanceLabel}
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -116,6 +116,12 @@ export function UnifiedResultCard({ result, className }: Props) {
                 <span className="flex items-center gap-0.5">
                   <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
                   {result.rating.toFixed(1)}
+                </span>
+              )}
+              {result.type !== 'store' && (
+                <span className="flex items-center gap-0.5">
+                  <Eye className="h-3 w-3" aria-hidden />
+                  <span>{result.views}</span>
                 </span>
               )}
               <span className="tabular-nums">{formatRelativeTime(result.createdAt)}</span>
