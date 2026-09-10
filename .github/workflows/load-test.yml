@@ -25,6 +25,10 @@ name: Load Test (k6, self-contained)
 # لذلك يُعطَّل عبر DISABLE_RATE_LIMIT=true لكل سيناريو ما عدا
 # auth-rate-limit (الذي يختبر الـlimiter نفسه ويحتاجه مفعّلاً). راجع
 # خطوة "Start backend" أدناه.
+#
+# مُدخَل "vus" أدناه يتحكم بذروة الـVUs مباشرة من صفحة Run workflow —
+# بلا تعديل أي ملف k6 ولا commit. راجع تعليق المُدخَل نفسه لمعرفة أي
+# سيناريوهات يطبَّق عليها وأيها له آلية تحكم مختلفة.
 on:
   workflow_dispatch:
     inputs:
@@ -43,6 +47,23 @@ on:
           - auth-rate-limit
           - ad-creation
           - max-payload-upload
+      # قيمة ذروة الـVUs، تُقرأ عبر LOAD_TEST_VUS من داخل السكربتات نفسها
+      # (browsing.js/search.js/spike.js/connection-pool-stress.js) —
+      # بلا أي تعديل أو commit على ملفات k6 لتجربة رقم مختلف، فقط اكتب
+      # الرقم هنا في نموذج Run workflow. يُتجاهل لثلاثة سيناريوهات بتصميم
+      # متعمد لا علاقة له بحجم الحمل: auth-rate-limit (VUs ثابتة عمدًا
+      # لاختبار صحة الـlimiter نفسه عند تجاوز بسيط لسقفه، لا لقياس سعة)،
+      # وad-creation (يحاكي عددًا واقعيًا صغيرًا من البائعين المتزامنين،
+      # ومُقيَّد أصلًا بسقف createAdRateLimit 20/ساعة/IP بغض النظر عن
+      # الـVUs)، وmax-payload-upload (له مُدخَل LOAD_TEST_UPLOAD_VUS
+      # الخاص به أدناه بدل هذا). stress-ramp يستخدم stress_scale تحته
+      # مباشرة بدل هذا (آلية مختلفة: نسبة تصغير للسلّم الكامل 100-5000،
+      # لا رقم ذروة واحد).
+      vus:
+        description: 'Peak concurrent VUs — used by browsing/search/spike/connection-pool-stress. Ignored by auth-rate-limit, ad-creation (see stress_scale below for stress-ramp, or the upload-specific input for max-payload-upload).'
+        required: false
+        type: string
+        default: '100'
       # stress-ramp.js's own STRESS_SCALE knob — رقم بين 0 و1 لتصغير كل
       # درجات السلّم معًا. مهم بشكل خاص هنا لأن k6 والباك اند يتقاسمان
       # نفس أنوية الـrunner — القيمة الافتراضية الكاملة (1) قد تُنتج
@@ -62,6 +83,11 @@ on:
         required: false
         type: string
         default: 'e2e-admin@example.test'
+      upload_vus:
+        description: 'max-payload-upload.js only — concurrent uploaders (its own LOAD_TEST_UPLOAD_VUS knob, separate from "vus" above since each upload request is 5x5MB, not comparable load to a GET).'
+        required: false
+        type: string
+        default: '5'
 
 concurrency:
   group: load-test-${{ github.workflow }}
@@ -223,8 +249,18 @@ jobs:
           # اند الذي شُغِّل للتو في نفس الـrunner؛ config.js يبني منه
           # API كـ `${BASE_URL}/api/v1`.
           LOAD_TEST_BASE_URL: http://127.0.0.1:5000
+          # يُقرأ في browsing.js/search.js/spike.js/connection-pool-stress.js
+          # عبر __ENV.LOAD_TEST_VUS — السكربتات التي تتجاهله (auth-rate-limit,
+          # ad-creation, stress-ramp, soak, max-payload-upload) تبقى كما هي
+          # لأن كل واحد منها له آلية تحكّم خاصة به موضّحة أعلاه.
+          LOAD_TEST_VUS: ${{ github.event.inputs.vus }}
+          # soak.js يقرأ SOAK_VUS تحديدًا (VUs ثابتة طوال مدة soak، لا
+          # سلّم تصاعدي) — نمرر نفس قيمة "vus" الواحدة إليه بدل مُدخَل
+          # منفصل، حفاظًا على واجهة تشغيل واحدة بسيطة.
+          SOAK_VUS: ${{ github.event.inputs.vus }}
           STRESS_SCALE: ${{ github.event.inputs.stress_scale }}
           SOAK_DURATION: ${{ github.event.inputs.soak_duration }}
+          LOAD_TEST_UPLOAD_VUS: ${{ github.event.inputs.upload_vus }}
           LOAD_TEST_LOGIN_EMAIL: ${{ github.event.inputs.login_email }}
           # كلمة مرور حساب seedE2E الثابت — ليست سرًّا حقيقيًا (موجودة
           # أصلًا كنص صريح في seedE2E.ts ولا تُستخدم إلا ضد قاعدة بيانات

@@ -76,6 +76,14 @@ LOAD_TEST_LOGIN_EMAIL=you@example.test LOAD_TEST_LOGIN_PASSWORD=yourpass \
 # Point at a different environment
 LOAD_TEST_BASE_URL=http://staging:5000 k6 run load-tests/scenarios/browsing.js
 
+# Override the peak VU count without editing the file — supported by
+# browsing.js, search.js, spike.js, connection-pool-stress.js (warm-up/
+# baseline stages scale proportionally). Ignored by auth-rate-limit.js
+# and ad-creation.js (fixed by design — see their own header comments),
+# stress-ramp.js (use STRESS_SCALE instead), soak.js (use SOAK_VUS
+# instead), and max-payload-upload.js (use LOAD_TEST_UPLOAD_VUS instead).
+LOAD_TEST_VUS=500 k6 run load-tests/scenarios/browsing.js
+
 # Progressive 100 -> 5000 VU staircase (see the script's own header
 # comment for the exact steps and the real caveats about generating
 # 5000 VUs of load from a single machine)
@@ -83,9 +91,11 @@ k6 run load-tests/scenarios/stress-ramp.js
 # Quick local smoke run of the same shape, scaled down to top out at 500 VUs:
 STRESS_SCALE=0.1 k6 run load-tests/scenarios/stress-ramp.js
 
-# Or trigger any scenario from GitHub Actions instead of locally —
-# see .github/workflows/load-test.yml (Actions tab -> "Load Test (k6, manual)"
-# -> Run workflow -> supply the target base_url and pick a scenario).
+# Or trigger any scenario from GitHub Actions instead of locally — the
+# workflow spins up its own Postgres/Redis/backend inside the runner,
+# so no external target or base_url is needed. See
+# .github/workflows/load-test.yml (Actions tab -> "Load Test (k6,
+# self-contained)" -> Run workflow -> pick a scenario and a VU count).
 
 ```
 

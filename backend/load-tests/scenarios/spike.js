@@ -41,17 +41,25 @@ const detailDuration = new Trend('spike_ads_detail_duration', true);
 // (which the ramp-down periods would dilute).
 const spikeErrors = new Counter('spike_errors');
 
+// LOAD_TEST_VUS overrides the spike's peak VU count without editing
+// this file (see browsing.js's comment for the mechanism). Baseline
+// stays at 2% of peak, matching the original 10-of-500 ratio — the
+// point of a spike test is the sudden jump FROM a low baseline, so
+// baseline should stay small relative to peak rather than fixed.
+const VUS = parseInt(__ENV.LOAD_TEST_VUS || '500', 10);
+const BASELINE_VUS = Math.max(1, Math.round(VUS * 0.02));
+
 export const options = {
   scenarios: {
     spike: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: 10 }, // brief, realistic baseline before the spike
-        { duration: '10s', target: 500 }, // the spike itself — sudden jump, no gradual warm-up
-        { duration: '2m', target: 500 }, // hold at peak — does the system recover/stabilize, or degrade further?
-        { duration: '20s', target: 10 }, // sudden drop-off — does recovery happen cleanly?
-        { duration: '30s', target: 10 }, // brief cool-down at baseline to observe post-spike recovery
+        { duration: '30s', target: BASELINE_VUS }, // brief, realistic baseline before the spike
+        { duration: '10s', target: VUS }, // the spike itself — sudden jump, no gradual warm-up
+        { duration: '2m', target: VUS }, // hold at peak — does the system recover/stabilize, or degrade further?
+        { duration: '20s', target: BASELINE_VUS }, // sudden drop-off — does recovery happen cleanly?
+        { duration: '30s', target: BASELINE_VUS }, // brief cool-down at baseline to observe post-spike recovery
       ],
     },
   },

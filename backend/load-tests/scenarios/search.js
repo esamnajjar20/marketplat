@@ -47,15 +47,21 @@ const SEARCH_TERMS = [
   'لن-يتطابق-هذا-البحث-مع-شيء-2099', // deliberately no matches
 ];
 
+// LOAD_TEST_VUS overrides the peak VU count without editing this file
+// (see browsing.js's comment for the mechanism). Warm-up stays at 25%
+// of peak, matching the original 15-of-60 ratio.
+const VUS = parseInt(__ENV.LOAD_TEST_VUS || '60', 10);
+const WARMUP_VUS = Math.max(1, Math.round(VUS * 0.25));
+
 export const options = {
   scenarios: {
     search_load: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '20s', target: 15 },
-        { duration: '1m', target: 60 },
-        { duration: '2m', target: 60 },
+        { duration: '20s', target: WARMUP_VUS },
+        { duration: '1m', target: VUS },
+        { duration: '2m', target: VUS },
         { duration: '20s', target: 0 },
       ],
     },

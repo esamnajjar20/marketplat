@@ -51,15 +51,25 @@ import { poolUserCredentials } from '../scripts/helpers.js';
 
 const POOL_SIZE = parseInt(__ENV.LOAD_TEST_POOL_SIZE || '10', 10);
 
+// LOAD_TEST_VUS overrides the peak VU count without editing this file
+// (see browsing.js's comment for the mechanism). Warm-up stays at 20%
+// of peak, matching the original 30-of-150 ratio. Note this is
+// independent of POOL_SIZE above (how many distinct login accounts get
+// reused across all VUs) — raising VUS without also raising
+// LOAD_TEST_POOL_SIZE just means more VUs sharing the same small
+// credential pool, which was already true at the original 150/10 ratio.
+const VUS = parseInt(__ENV.LOAD_TEST_VUS || '150', 10);
+const WARMUP_VUS = Math.max(1, Math.round(VUS * 0.2));
+
 export const options = {
   scenarios: {
     pool_pressure: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '20s', target: 30 },
-        { duration: '30s', target: 150 }, // deliberately aggressive — this IS the stress test
-        { duration: '2m', target: 150 }, // sustained peak, long enough for queueing to surface
+        { duration: '20s', target: WARMUP_VUS },
+        { duration: '30s', target: VUS }, // deliberately aggressive — this IS the stress test
+        { duration: '2m', target: VUS }, // sustained peak, long enough for queueing to surface
         { duration: '20s', target: 0 },
       ],
     },

@@ -34,6 +34,15 @@ import { API, DEFAULT_THRESHOLDS } from '../scripts/config.js';
 const listDuration = new Trend('ads_list_duration', true);
 const detailDuration = new Trend('ads_detail_duration', true);
 
+// LOAD_TEST_VUS overrides the peak VU count without editing this file —
+// e.g. from the GitHub Actions "Run workflow" form, or
+// `LOAD_TEST_VUS=500 k6 run load-tests/scenarios/browsing.js` locally.
+// Warm-up stays proportional (20% of peak, matching the original
+// 20-of-100 ratio) so a much larger peak still gets a real ramp instead
+// of jumping straight to full load.
+const VUS = parseInt(__ENV.LOAD_TEST_VUS || '100', 10);
+const WARMUP_VUS = Math.max(1, Math.round(VUS * 0.2));
+
 export const options = {
   scenarios: {
     // Ramps from a light background load up to a sustained peak,
@@ -46,9 +55,9 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: 20 }, // warm-up
-        { duration: '1m', target: 100 }, // ramp to a realistic peak
-        { duration: '3m', target: 100 }, // hold — this is where pool exhaustion would surface
+        { duration: '30s', target: WARMUP_VUS }, // warm-up
+        { duration: '1m', target: VUS }, // ramp to a realistic peak
+        { duration: '3m', target: VUS }, // hold — this is where pool exhaustion would surface
         { duration: '30s', target: 0 }, // cool down
       ],
     },
