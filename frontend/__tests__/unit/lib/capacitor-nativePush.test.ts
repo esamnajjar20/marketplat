@@ -2,42 +2,32 @@
  * __tests__/unit/lib/capacitor-nativePush.test.ts
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  getNativePushPermissionState,
+  registerNativePush,
+  unregisterNativePush,
+} from '@/lib/capacitor/nativePush';
+import { isNativePlatform } from '@/lib/capacitor/platform';
 
 vi.mock('@/lib/capacitor/platform', () => ({
   isNativePlatform: vi.fn(async () => false),
 }));
 
-vi.mock('@/api/client', () => ({
-  apiClient: {
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
-
 describe('nativePush', () => {
   beforeEach(() => {
-    vi.resetModules();
+    vi.mocked(isNativePlatform).mockResolvedValue(false);
   });
 
-  it('isNativePushSupported is false on web', async () => {
-    const { isNativePushSupported } = await import('@/lib/capacitor/nativePush');
-    await expect(isNativePushSupported()).resolves.toBe(false);
+  it('permission state is unsupported on web', async () => {
+    const state = await getNativePushPermissionState();
+    expect(state).toBe('unsupported');
   });
 
   it('registerNativePush returns null on web', async () => {
-    const { registerNativePush } = await import('@/lib/capacitor/nativePush');
-    await expect(registerNativePush()).resolves.toBeNull();
+    expect(await registerNativePush()).toBeNull();
   });
 
   it('unregisterNativePush is no-op on web', async () => {
-    const { unregisterNativePush } = await import('@/lib/capacitor/nativePush');
     await expect(unregisterNativePush('token')).resolves.toBeUndefined();
-  });
-
-  it('onNativePushTapped returns cleanup noop on web', async () => {
-    const { onNativePushTapped } = await import('@/lib/capacitor/nativePush');
-    const cleanup = await onNativePushTapped(() => {});
-    expect(typeof cleanup).toBe('function');
-    cleanup();
   });
 });
