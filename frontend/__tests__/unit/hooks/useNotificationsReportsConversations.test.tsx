@@ -44,6 +44,12 @@ function createWrapper() {
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.getState().logout();
+  // useNotifications seeds initialData from lib/notificationsCache.ts
+  // (real localStorage) and useEffect writes back to it on every
+  // successful fetch — without clearing it, a value saved by one test
+  // (e.g. unreadCount: 0) leaks in as fresh initialData for the next
+  // test and suppresses the refetch that would pick up its own mock.
+  localStorage.clear();
 });
 
 function login() {

@@ -52,6 +52,7 @@ describe('productsRepository', () => {
           wholesalePrice: data.wholesalePrice,
           wholesaleMinQty: data.wholesaleMinQty,
           availability: data.availability,
+          stockQuantity: null,
         },
       });
     });

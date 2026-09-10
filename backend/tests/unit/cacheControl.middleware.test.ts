@@ -12,7 +12,7 @@ describe('cacheControl middleware', () => {
 
     CACHE.SHORT(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=30'));
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=90'));
     expect(next).toHaveBeenCalled();
   });
 
@@ -40,6 +40,6 @@ describe('cacheControl middleware', () => {
 
     CACHE.MEDIUM(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=60'));
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=120'));
   });
 });

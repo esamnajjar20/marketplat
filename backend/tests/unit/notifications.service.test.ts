@@ -120,6 +120,10 @@ describe('notificationsService', () => {
     });
 
     it('fans out a PROMOTION notification to every given userId', async () => {
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { id: 'u1', notificationPreferences: {} },
+        { id: 'u2', notificationPreferences: {} },
+      ]);
       (notificationsRepository.createMany as jest.Mock).mockResolvedValue({ count: 2 });
 
       const result = await notificationsService.broadcastPromotion(

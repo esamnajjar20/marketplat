@@ -184,8 +184,12 @@ describe('conversationsRepository', () => {
           ...conversationWithRelationsInclude,
           _count: {
             select: {
-              messages: { where: { senderId: { not: buyerId }, readAt: null } },
+              messages: { where: { senderId: { not: buyerId }, readAt: null, deletedAt: null } },
             },
+          },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
           },
         },
         orderBy: { updatedAt: 'desc' },
@@ -211,10 +215,12 @@ describe('conversationsRepository', () => {
     // FIX UX-15: findManyForUser now maps _count.messages onto a flat
     // unreadCount field per conversation and drops _count from the
     // returned shape — this locks in that mapping.
+    // FIX UX-16: also maps the included `messages` (newest first, take 1)
+    // onto a flat lastMessage field, falling back to null when absent.
     it('maps _count.messages onto a flat unreadCount and strips _count', async () => {
       const conversations = [
-        { id: 'conv-1', _count: { messages: 3 } },
-        { id: 'conv-2', _count: { messages: 0 } },
+        { id: 'conv-1', _count: { messages: 3 }, messages: [{ id: 'msg-1', body: 'hi' }] },
+        { id: 'conv-2', _count: { messages: 0 }, messages: [] },
       ];
       (prisma.conversation.findMany as jest.Mock).mockResolvedValue(conversations);
       (prisma.conversation.count as jest.Mock).mockResolvedValue(2);
@@ -223,8 +229,8 @@ describe('conversationsRepository', () => {
 
       expect(result).toEqual({
         conversations: [
-          { id: 'conv-1', unreadCount: 3 },
-          { id: 'conv-2', unreadCount: 0 },
+          { id: 'conv-1', unreadCount: 3, lastMessage: { id: 'msg-1', body: 'hi' } },
+          { id: 'conv-2', unreadCount: 0, lastMessage: null },
         ],
         total: 2,
       });
@@ -321,7 +327,7 @@ describe('messagesRepository', () => {
       expect(prisma.conversation.count).toHaveBeenCalledWith({
         where: {
           OR: [{ buyerId }, { sellerId: buyerId }],
-          messages: { some: { senderId: { not: buyerId }, readAt: null } },
+          messages: { some: { senderId: { not: buyerId }, readAt: null, deletedAt: null } },
         },
       });
       expect(result).toBe(2);
