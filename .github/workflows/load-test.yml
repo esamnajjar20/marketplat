@@ -1,21 +1,38 @@
-name: Load Test (k6, manual)
+name: Load Test (k6, self-contained)
 
-# يعمل فقط بالتشغيل اليدوي (Actions tab -> Run workflow) — هذا الـjob
-# يولّد حركة حقيقية ومستمرة ضد رابط تحدده أنت، فلا معنى ولا أمان لتشغيله
-# تلقائيًا على كل push/PR مثل ci.yml. راجع load-tests/README.md قبل أول
-# تشغيل حقيقي — تحديدًا فقرة "What these numbers actually tell you".
+# يعمل فقط بالتشغيل اليدوي — بخلاف النسخة السابقة من هذا الملف (التي
+# كانت تضرب رابطًا خارجيًا توفّره أنت)، هذا الإصدار ذاتي الاكتفاء بالكامل:
+# يشغّل Postgres وRedis كخدمات داخل الـrunner نفسه، يبني الباك اند من
+# الكود المسحوب للتو، يشغّله محليًا على 127.0.0.1:5000، ثم يوجّه k6 ضده
+# مباشرة. لا حاجة لبيئة load-test منفصلة ولا لرابط خارجي — لكن هذا يعني
+# أيضًا أن الأرقام هنا قياس نسبي (regression) على موارد runner مشتركة
+# (نفس الأنوية تُقسَم بين التطبيق ومولّد الحمل نفسه)، وليست رقم سعة
+# حقيقي لبيئة إنتاج فعلية — لذلك استخدم النتائج لرصد التراجع بين
+# التشغيلات، لا كرقم "أقصى مستخدمين متزامنين" نهائي.
+#
+# ⚠️ قيد seed:e2e الحقيقي (راجع backend/load-tests/README.md): السكربت
+# يزرع مستخدم أدمن + تصنيفين فقط — بلا أي إعلانات (ads). سيناريوهات
+# browsing/search ستُنفَّذ ضد جدول ads شبه فارغ، فأرقام الأداء الناتجة
+# لا تعكس أداء استعلام/فهرس حقيقي تحت حمل — القيمة هنا في التحقق من
+# عدم كسر المسار نفسه (500s، تسريبات، تدهور حاد)، لا في قراءة زمن
+# استجابة كرقم سعة موثوق. لأرقام سعة حقيقية زد بيانات إعلانات بكمية
+# واقعية قبل التشغيل، أو استخدم سيناريو auth-rate-limit/connection-pool-stress
+# اللذين لا يعتمدان على حجم بيانات ads.
+#
+# ⚠️ globalRateLimit (600 طلب/15 دقيقة لكل IP على كامل /api — app.ts):
+# كل السيناريوهات هنا تُطلَق من IP واحد (الـrunner)، فأي حمل حقيقي
+# يصطدم بهذا السقف بسرعة ويُنتج 429 بكثرة يبدو كفشل أداء وهو ليس كذلك.
+# لذلك يُعطَّل عبر DISABLE_RATE_LIMIT=true لكل سيناريو ما عدا
+# auth-rate-limit (الذي يختبر الـlimiter نفسه ويحتاجه مفعّلاً). راجع
+# خطوة "Start backend" أدناه.
 on:
   workflow_dispatch:
     inputs:
-      base_url:
-        description: 'Target backend base URL (never production — a dedicated load-test environment)'
-        required: true
-        type: string
       scenario:
         description: 'Which load-tests/scenarios/*.js file to run'
         required: true
         type: choice
-        default: stress-ramp
+        default: browsing
         options:
           - browsing
           - search
@@ -27,25 +44,25 @@ on:
           - ad-creation
           - max-payload-upload
       # stress-ramp.js's own STRESS_SCALE knob — رقم بين 0 و1 لتصغير كل
-      # درجات السلّم معًا (مفيد لتجربة سريعة محليًا/في CI قبل الالتزام
-      # بتشغيل كامل يصل حتى 5000 VU). يُتجاهل لأي سيناريو آخر.
+      # درجات السلّم معًا. مهم بشكل خاص هنا لأن k6 والباك اند يتقاسمان
+      # نفس أنوية الـrunner — القيمة الافتراضية الكاملة (1) قد تُنتج
+      # نتائج مضلَّلة (اختناق مولّد الحمل نفسه لا التطبيق).
       stress_scale:
-        description: 'stress-ramp.js only: scales every VU target down together (e.g. 0.1 for a quick smoke run). Leave as 1 for the real 100..5000 staircase.'
+        description: 'stress-ramp.js only: scales every VU target down together. Recommended well below 1 here since k6 shares CPU with the app on the same runner.'
         required: false
         type: string
-        default: '1'
-      login_email:
-        description: 'Only needed for ad-creation / max-payload-upload — a real test account email'
-        required: false
-        type: string
+        default: '0.2'
       soak_duration:
-        description: 'soak.js only — overrides its default 1h run length (e.g. 10m)'
+        description: 'soak.js only — overrides its default 1h run length (e.g. 10m). Keep short here — this job shares one runner for the full duration.'
         required: false
         type: string
-        default: '1h'
+        default: '10m'
+      login_email:
+        description: 'Needed for ad-creation / max-payload-upload / connection-pool-stress. Defaults to the seedE2E admin account (safe: throwaway CI database only).'
+        required: false
+        type: string
+        default: 'e2e-admin@example.test'
 
-# نفس منطق الإلغاء في ci.yml: لا حاجة لتشغيلين متزامنين لنفس التشغيل
-# اليدوي إذا أُطلق مرتين بالخطأ.
 concurrency:
   group: load-test-${{ github.workflow }}
   cancel-in-progress: false
@@ -57,14 +74,141 @@ jobs:
   load-test:
     name: k6 — ${{ github.event.inputs.scenario }}
     runs-on: ubuntu-latest
-    # stress-ramp.js عند STRESS_SCALE=1 يمتد حتى ~24 دقيقة (17 درجة ×
-    # (رفع + ثبات) + تهدئة)، وsoak.js افتراضيًا ساعة كاملة — الحد هنا
-    # يعطي هامشًا فوق أطول سيناريو متوقع بدل قطعه في المنتصف.
-    timeout-minutes: 90
+    # stress-ramp عند STRESS_SCALE الكامل قد يمتد طويلاً، وsoak قابل
+    # للتخصيص أيضًا — الحد هنا يعطي هامشًا فوق إعداد + seed + build +
+    # أطول سيناريو متوقع بالقيم الافتراضية المصغّرة أعلاه.
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      # 22 مطابق لـci.yml — مصدر حقيقة واحد للإصدار عبر الـworkflows.
+      NODE_VERSION: '22'
+
+    # قاعدة بيانات مخصصة لهذا التشغيل فقط (اسمها يحتوي "loadtest" الذي
+    # يطابق نمط أمان seedE2E.ts — يرفض العمل إن لم يحتوِ اسم القاعدة
+    # على "test" أو "e2e"). Redis بلا كلمة مرور، مقبول هنا لأنه معزول
+    # داخل شبكة الـrunner المؤقتة نفسها.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: classifieds_loadtest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # نفس فحص ci.yml: يفشل مبكرًا وبوضوح إن غاب مجلد migrations من
+      # الالتزام بدل فشل غامض لاحقًا بأخطاء SQL لا علاقة لها بالمشكلة
+      # الحقيقية.
+      - name: Verify migration files are committed
+        run: |
+          if [ -z "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+            echo "::error::prisma/migrations is empty or missing — commit your migrations, do not rely on 'prisma migrate dev' in CI"
+            exit 1
+          fi
+
+      - name: Run migrations against load-test database
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_loadtest?connection_limit=20&pool_timeout=30
+
+      # يزرع مستخدم أدمن ثابت (e2e-admin@example.test) + تصنيفين فقط —
+      # راجع التحذير أعلى الملف حول عدم وجود إعلانات مزروعة.
+      - name: Seed test data
+        run: npm run seed:e2e
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_loadtest?connection_limit=20&pool_timeout=30
+
+      - name: Build backend
+        run: npm run build
+
+      # نفس منطق job الـe2e في ci.yml: تشغيل في الخلفية مع توجيه
+      # المخرجات لملف، وحفظ الـPID للخطوات التالية.
+      # DISABLE_RATE_LIMIT=true (مدعوم أصلاً في rateLimit.middleware.ts —
+      # bypassRateLimit) يعطّل الـglobalRateLimit (600 طلب/15 دقيقة لكل IP
+      # على /api كله — app.ts). بدون هذا، أي سيناريو يرسل أكثر من ~600
+      # طلب خلال 15 دقيقة من IP الـrunner الواحد سيصطدم بهذا السقف
+      # ويُرجع 429 بكثرة (وهذا فعليًا ما حدث في أول تشغيل: 94.86%
+      # http_req_failed رغم أن الباك اند والاستعلامات نفسها كانت سليمة
+      # تمامًا — لم تكن مشكلة أداء، كانت مشكلة سقف طلبات لا علاقة له
+      # بالمسار المُختبَر). يبقى مُفعَّلاً (false) حصرًا لسيناريو
+      # auth-rate-limit لأن ذلك السيناريو يختبر الـlimiter نفسه ويتوقع
+      # 429s كنتيجة صحيحة — تعطيله هناك يُبطل الاختبار كليًا.
+      - name: Start backend
+        run: |
+          npm start > /tmp/backend.log 2>&1 &
+          echo "BACKEND_PID=$!" >> "$GITHUB_ENV"
+        env:
+          NODE_ENV: test
+          PORT: '5000'
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_loadtest?connection_limit=20&pool_timeout=30
+          JWT_SECRET: ci-test-jwt-secret-please-change-me-32chars
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-please-change-me-32c
+          FRONTEND_URL: http://localhost:3000
+          REDIS_HOST: localhost
+          REDIS_PORT: '6379'
+          TRUST_PROXY: '0'
+          DISABLE_RATE_LIMIT: ${{ github.event.inputs.scenario != 'auth-rate-limit' && 'true' || 'false' }}
+
+      - name: Verify backend process started
+        run: |
+          sleep 3
+          if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+            echo "::error::Backend process exited immediately after start"
+            cat /tmp/backend.log || true
+            exit 1
+          fi
+
+      # /ready يتحقق فعليًا من اتصال قاعدة البيانات وRedis (healthCache.ts)
+      # بخلاف /health الذي يؤكد فقط أن العملية حية.
+      - name: Wait for backend readiness
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5000/ready > /dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            echo "Waiting for backend readiness... ($i/30)"
+            sleep 2
+          done
+          echo "::error::Backend did not become ready in time"
+          echo "----- backend.log -----"
+          cat /tmp/backend.log || true
+          exit 1
 
       - name: Install k6
         uses: grafana/setup-k6-action@v1
@@ -75,15 +219,19 @@ jobs:
           path: backend/load-tests/scenarios/${{ github.event.inputs.scenario }}.js
           flags: --summary-export=k6-summary.json
         env:
-          LOAD_TEST_BASE_URL: ${{ github.event.inputs.base_url }}
+          # ثابت عمدًا (127.0.0.1:5000) — الهدف الوحيد الممكن هو الباك
+          # اند الذي شُغِّل للتو في نفس الـrunner؛ config.js يبني منه
+          # API كـ `${BASE_URL}/api/v1`.
+          LOAD_TEST_BASE_URL: http://127.0.0.1:5000
           STRESS_SCALE: ${{ github.event.inputs.stress_scale }}
           SOAK_DURATION: ${{ github.event.inputs.soak_duration }}
           LOAD_TEST_LOGIN_EMAIL: ${{ github.event.inputs.login_email }}
-          # كلمة مرور حساب اختبار حقيقي — لا تُمرَّر كمُدخَل نصي علني في
-          # واجهة التشغيل اليدوي؛ خزّنها كـ Actions secret باسم
-          # LOAD_TEST_LOGIN_PASSWORD ثم استخدمها هنا (فارغة إن لم تُضبط،
-          # وهذا مقبول لأي سيناريو غير ad-creation/max-payload-upload).
-          LOAD_TEST_LOGIN_PASSWORD: ${{ secrets.LOAD_TEST_LOGIN_PASSWORD }}
+          # كلمة مرور حساب seedE2E الثابت — ليست سرًّا حقيقيًا (موجودة
+          # أصلًا كنص صريح في seedE2E.ts ولا تُستخدم إلا ضد قاعدة بيانات
+          # مؤقتة تُحذف مع انتهاء الـjob)، فوضعها هنا مباشرة آمن. إن
+          # ضُبط سرّ LOAD_TEST_LOGIN_PASSWORD على مستوى المستودع فسيُستخدم
+          # بدلاً منها (مثلاً لتشغيل هذا ضد حساب اختبار مختلف عمدًا).
+          LOAD_TEST_LOGIN_PASSWORD: ${{ secrets.LOAD_TEST_LOGIN_PASSWORD || 'E2eAdminPass123!' }}
           LOAD_TEST_AD_ID: ${{ secrets.LOAD_TEST_AD_ID }}
 
       - name: Upload k6 summary
@@ -91,6 +239,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: k6-summary-${{ github.event.inputs.scenario }}
-          path: k6-summary.json
+          path: backend/k6-summary.json
           retention-days: 30
           if-no-files-found: warn
+
+      # سجل الباك اند وقت التشغيل — ضروري لتشخيص أي 500s أو تعطّل يظهر
+      # في نتائج k6 دون سبب واضح من مخرجاته هو نفسه.
+      - name: Upload backend runtime log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log-${{ github.event.inputs.scenario }}
+          path: /tmp/backend.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop backend
+        if: always()
+        run: kill "$BACKEND_PID" 2>/dev/null || true
