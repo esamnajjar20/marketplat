@@ -54,6 +54,7 @@ production, and ideally not your shared dev/staging DB either** —
 | `scenarios/connection-pool-stress.js` | `GET /ads/me` | Targeted probe for the PM2-cluster × Prisma-pool-size vs. Postgres max_connections capacity question raised (but never empirically tested) in `capacityCheck.ts` |
 | `scenarios/soak.js` | `GET /ads`, `GET /ads/:id` | FIX M-028: sustained moderate load (default 1 hour) — exposes memory leaks, unbounded Redis key growth, and other problems that only accumulate over a long run, not a short peak |
 | `scenarios/spike.js` | `GET /ads`, `GET /ads/:id` | FIX M-028: sudden jump from 10 to 500 VUs in 10 seconds (no gradual ramp) — exposes how the system behaves under a traffic surge with no warm-up period, as opposed to browsing.js's gradual ramp |
+| `scenarios/stress-ramp.js` | `GET /ads`, `GET /ads/:id` | PROGRESSIVE-RAMP-01: staircase from 100 up to 5000 VUs (100/300/500/700/1000/1300/1500/1700/2000/2500/2800/3000/3300/3600/4000/4500/5000), holding briefly at each step — pinpoints roughly WHERE along the range things start to degrade, rather than only confirming a single peak holds up |
 
 ## Running
 
@@ -74,6 +75,13 @@ LOAD_TEST_LOGIN_EMAIL=you@example.test LOAD_TEST_LOGIN_PASSWORD=yourpass \
 
 # Point at a different environment
 LOAD_TEST_BASE_URL=http://staging:5000 k6 run load-tests/scenarios/browsing.js
+
+# Progressive 100 -> 5000 VU staircase (see the script's own header
+# comment for the exact steps and the real caveats about generating
+# 5000 VUs of load from a single machine)
+k6 run load-tests/scenarios/stress-ramp.js
+# Quick local smoke run of the same shape, scaled down to top out at 500 VUs:
+STRESS_SCALE=0.1 k6 run load-tests/scenarios/stress-ramp.js
 
 # Or trigger any scenario from GitHub Actions instead of locally —
 # see .github/workflows/load-test.yml (Actions tab -> "Load Test (k6, manual)"

@@ -1,0 +1,96 @@
+name: Load Test (k6, manual)
+
+# يعمل فقط بالتشغيل اليدوي (Actions tab -> Run workflow) — هذا الـjob
+# يولّد حركة حقيقية ومستمرة ضد رابط تحدده أنت، فلا معنى ولا أمان لتشغيله
+# تلقائيًا على كل push/PR مثل ci.yml. راجع load-tests/README.md قبل أول
+# تشغيل حقيقي — تحديدًا فقرة "What these numbers actually tell you".
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Target backend base URL (never production — a dedicated load-test environment)'
+        required: true
+        type: string
+      scenario:
+        description: 'Which load-tests/scenarios/*.js file to run'
+        required: true
+        type: choice
+        default: stress-ramp
+        options:
+          - browsing
+          - search
+          - stress-ramp
+          - spike
+          - soak
+          - connection-pool-stress
+          - auth-rate-limit
+          - ad-creation
+          - max-payload-upload
+      # stress-ramp.js's own STRESS_SCALE knob — رقم بين 0 و1 لتصغير كل
+      # درجات السلّم معًا (مفيد لتجربة سريعة محليًا/في CI قبل الالتزام
+      # بتشغيل كامل يصل حتى 5000 VU). يُتجاهل لأي سيناريو آخر.
+      stress_scale:
+        description: 'stress-ramp.js only: scales every VU target down together (e.g. 0.1 for a quick smoke run). Leave as 1 for the real 100..5000 staircase.'
+        required: false
+        type: string
+        default: '1'
+      login_email:
+        description: 'Only needed for ad-creation / max-payload-upload — a real test account email'
+        required: false
+        type: string
+      soak_duration:
+        description: 'soak.js only — overrides its default 1h run length (e.g. 10m)'
+        required: false
+        type: string
+        default: '1h'
+
+# نفس منطق الإلغاء في ci.yml: لا حاجة لتشغيلين متزامنين لنفس التشغيل
+# اليدوي إذا أُطلق مرتين بالخطأ.
+concurrency:
+  group: load-test-${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    name: k6 — ${{ github.event.inputs.scenario }}
+    runs-on: ubuntu-latest
+    # stress-ramp.js عند STRESS_SCALE=1 يمتد حتى ~24 دقيقة (17 درجة ×
+    # (رفع + ثبات) + تهدئة)، وsoak.js افتراضيًا ساعة كاملة — الحد هنا
+    # يعطي هامشًا فوق أطول سيناريو متوقع بدل قطعه في المنتصف.
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 scenario
+        uses: grafana/run-k6-action@v1
+        with:
+          path: backend/load-tests/scenarios/${{ github.event.inputs.scenario }}.js
+          flags: --summary-export=k6-summary.json
+        env:
+          LOAD_TEST_BASE_URL: ${{ github.event.inputs.base_url }}
+          STRESS_SCALE: ${{ github.event.inputs.stress_scale }}
+          SOAK_DURATION: ${{ github.event.inputs.soak_duration }}
+          LOAD_TEST_LOGIN_EMAIL: ${{ github.event.inputs.login_email }}
+          # كلمة مرور حساب اختبار حقيقي — لا تُمرَّر كمُدخَل نصي علني في
+          # واجهة التشغيل اليدوي؛ خزّنها كـ Actions secret باسم
+          # LOAD_TEST_LOGIN_PASSWORD ثم استخدمها هنا (فارغة إن لم تُضبط،
+          # وهذا مقبول لأي سيناريو غير ad-creation/max-payload-upload).
+          LOAD_TEST_LOGIN_PASSWORD: ${{ secrets.LOAD_TEST_LOGIN_PASSWORD }}
+          LOAD_TEST_AD_ID: ${{ secrets.LOAD_TEST_AD_ID }}
+
+      - name: Upload k6 summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-summary-${{ github.event.inputs.scenario }}
+          path: k6-summary.json
+          retention-days: 30
+          if-no-files-found: warn

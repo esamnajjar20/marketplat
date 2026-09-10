@@ -120,9 +120,13 @@ describe('notificationsService', () => {
     });
 
     it('fans out a PROMOTION notification to every given userId', async () => {
+      // promotions defaults to OFF (see DEFAULT_PREFS.promotions in
+      // notifications.service.ts) — must be explicitly true here, or
+      // filterUserIdsByPref filters both users out and createMany
+      // never gets called.
       (prisma.user.findMany as jest.Mock).mockResolvedValue([
-        { id: 'u1', notificationPreferences: {} },
-        { id: 'u2', notificationPreferences: {} },
+        { id: 'u1', notificationPreferences: { promotions: true } },
+        { id: 'u2', notificationPreferences: { promotions: true } },
       ]);
       (notificationsRepository.createMany as jest.Mock).mockResolvedValue({ count: 2 });
 
