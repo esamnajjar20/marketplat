@@ -633,7 +633,7 @@ describe('Admin API', () => {
       const res = await request(app)
         .patch('/api/v1/admin/sellers/bulk/suspend')
         .set('Authorization', `Bearer ${admin.accessToken}`)
-        .send({ sellerProfileIds: [seller.id], suspended: true });
+        .send({ sellerProfileIds: [seller.id], suspended: true, reason: 'Repeated policy violations' });
 
       expect(res.status).toBe(200);
       expect(res.body.meta.updatedCount).toBe(1);
@@ -648,7 +648,20 @@ describe('Admin API', () => {
       const res = await request(app)
         .patch('/api/v1/admin/sellers/bulk/suspend')
         .set('Authorization', `Bearer ${admin.accessToken}`)
-        .send({ sellerProfileIds: [], suspended: true });
+        .send({ sellerProfileIds: [], suspended: true, reason: 'Repeated policy violations' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 when suspending without a reason', async () => {
+      const admin = await createTestAdmin();
+      const user = await createTestUser();
+      const seller = await createTestSellerProfile(user.id);
+
+      const res = await request(app)
+        .patch('/api/v1/admin/sellers/bulk/suspend')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ sellerProfileIds: [seller.id], suspended: true });
 
       expect(res.status).toBe(400);
     });

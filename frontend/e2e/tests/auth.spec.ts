@@ -29,7 +29,9 @@ test.describe('Registration', () => {
 
     await page.getByLabel('الاسم الكامل').fill(user.name);
     await page.getByLabel('البريد الإلكتروني').fill(user.email);
-    await page.getByLabel('كلمة المرور', { exact: true }).fill(user.password);
+    // See helpers/auth.ts's registerViaUI comment on why this is an
+    // anchored regex rather than exact:true.
+    await page.getByLabel(/^كلمة المرور/).fill(user.password);
     await page.getByRole('button', { name: 'إنشاء الحساب' }).click();
 
     await expect(page.getByText('كلمة المرور 8 أحرف على الأقل')).toBeVisible();
@@ -47,7 +49,7 @@ test.describe('Registration', () => {
     await page.goto('/register');
     await page.getByLabel('الاسم الكامل').fill('اسم آخر');
     await page.getByLabel('البريد الإلكتروني').fill(user.email);
-    await page.getByLabel('كلمة المرور', { exact: true }).fill('AnotherPass123!');
+    await page.getByLabel(/^كلمة المرور/).fill('AnotherPass123!');
     await page.getByRole('button', { name: 'إنشاء الحساب' }).click();
 
     // A real 409/400 from the backend surfaces via toast — not a silent

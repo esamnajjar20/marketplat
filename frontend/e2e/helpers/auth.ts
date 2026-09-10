@@ -20,7 +20,12 @@ export async function registerViaUI(page: Page, user: TestUser): Promise<void> {
 
   await page.getByLabel('الاسم الكامل').fill(user.name);
   await page.getByLabel('البريد الإلكتروني').fill(user.email);
-  await page.getByLabel('كلمة المرور', { exact: true }).fill(user.password);
+  // Anchored regex, not exact:true — AuthField appends a visually-hidden
+  // "(required)" span to every required label's accessible name (a11y
+  // fix), so the accessible name is no longer the literal string
+  // "كلمة المرور". The regex still disambiguates from "تأكيد كلمة
+  // المرور" (confirm password), which doesn't start with this prefix.
+  await page.getByLabel(/^كلمة المرور/).fill(user.password);
   await page.getByRole('button', { name: 'إنشاء الحساب' }).click();
 
   // A successful register redirects home and the header switches from

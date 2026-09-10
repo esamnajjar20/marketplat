@@ -189,11 +189,16 @@ describe('Reports API', () => {
 
   // FEAT-REPORT-USER-STORE
   describe('POST /api/v1/reports/:targetType/:targetId — invalid target', () => {
+    // 'products' and 'services' are now valid target types (see
+    // createTargetReportSchema) — reporting one 404s on a non-existent
+    // id instead of 400ing on the type itself. Use a type the schema
+    // has never supported to actually exercise the "unsupported
+    // target" 400 path.
     it('returns 400 for an unsupported target type', async () => {
       const reporter = await createTestUser();
 
       const res = await request(app)
-        .post('/api/v1/reports/products/some-id')
+        .post('/api/v1/reports/comments/some-id')
         .set('Authorization', `Bearer ${reporter.accessToken}`)
         .send({ reason: 'SPAM' });
 
