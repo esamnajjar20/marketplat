@@ -2,13 +2,11 @@ import multer, { FileFilterCallback } from "multer";
 import { Request, Response, NextFunction } from "express";
 import { BadRequestError } from "../shared/errors/BadRequestError";
 import { isAllowedImageContent } from "../shared/utils/fileSignature";
-
-const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
+import {
+  ALLOWED_IMAGE_MIME_TYPES,
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_IMAGES_PER_ENTITY,
+} from "../config/limits";
 
 /**
  * SEC FIX (MIME-01): the multer `fileFilter` above only ever sees
@@ -69,7 +67,9 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: FileFilterCallback,
 ): void => {
-  if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+  if (
+    !(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(file.mimetype)
+  ) {
     cb(
       new BadRequestError(
         "Only JPEG, PNG and WebP images are allowed",
@@ -85,9 +85,9 @@ const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB per file
+    fileSize: MAX_IMAGE_SIZE_BYTES,
     // M-07: add explicit limits to prevent multipart DoS attacks
-    files: 10, // max 10 files per request
+    files: MAX_IMAGES_PER_ENTITY, // max files per request, same cap as per-entity image count
     fields: 20, // max 20 non-file fields
     parts: 30, // files + fields combined
     fieldSize: 10_240, // 10KB per text field
@@ -115,7 +115,11 @@ const upload = multer({
  * and falls through to multer's own per-file/per-count limits above,
  * which still apply regardless.
  */
-export const MAX_TOTAL_REQUEST_BYTES = 55 * 1024 * 1024; // 10 files × 5MB + form-field overhead headroom
+// Was a bare `55 * 1024 * 1024` literal; now derived from the same
+// per-file/per-count limits above so it can't silently drift out of
+// sync if either one changes.
+export const MAX_TOTAL_REQUEST_BYTES =
+  MAX_IMAGES_PER_ENTITY * MAX_IMAGE_SIZE_BYTES + 5 * 1024 * 1024; // files + form-field overhead headroom
 
 export const rejectOversizedContentLength = (
   req: Request,

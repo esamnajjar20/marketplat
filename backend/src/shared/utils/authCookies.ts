@@ -58,15 +58,20 @@ import { env } from '../../config/env';
  *     to auth endpoints (register/login/refresh/logout), not on every
  *     single API request — /api/v1/ads, /api/v1/categories, etc. never
  *     see this cookie at all, reducing its exposure surface.
- *   - maxAge: matches the refresh token's own 7-day JWT expiry
- *     (signRefreshToken in jwt.ts) — no reason for the cookie to
- *     outlive the token it carries.
+ *   - maxAge: matches the refresh token's own JWT expiry (env.jwt.
+ *     refreshExpiresIn, default 7d — see signRefreshToken in jwt.ts)
+ *     — no reason for the cookie to outlive the token it carries.
  */
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 const CSRF_COOKIE_NAME = 'csrfToken';
 const REFRESH_TOKEN_COOKIE_PATH = '/api/v1/auth';
-const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — matches signRefreshToken's expiresIn
+// Was hardcoded here as `7 * 24 * 60 * 60 * 1000` with a comment asking
+// whoever changes signRefreshToken's expiry to remember to update this
+// too. Now both read from env.jwt.refreshExpiresIn(Seconds) (see
+// config/env.ts), so a JWT_REFRESH_EXPIRES_IN change updates both
+// automatically and can't drift out of sync again.
+const REFRESH_TOKEN_MAX_AGE_MS = env.jwt.refreshExpiresInSeconds * 1000;
 
 const isProduction = env.nodeEnv === 'production';
 

@@ -29,6 +29,13 @@ const envSchema = z.object({
     .string()
     .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
   JWT_EXPIRES_IN: z.string().default("15m"),
+  // Refresh token TTL. Was hardcoded as '7d' directly in jwt.ts's
+  // signRefreshToken call, with authCookies.ts separately hardcoding
+  // the equivalent 7-day figure in milliseconds for the cookie's
+  // maxAge and only a comment ("matches signRefreshToken's expiresIn")
+  // keeping the two in sync. Centralizing here means both derive from
+  // one value — same pattern already used for JWT_EXPIRES_IN below.
+  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   // TERMUX/PROOT SUPPORT: '127.0.0.1' rather than 'localhost' as the
   // default — proot-distro Ubuntu's /etc/hosts and localhost resolution
   // order can behave inconsistently inside the sandbox, and the literal
@@ -328,6 +335,15 @@ export const env = {
     // actual configured TTL instead of a hardcoded constant — see
     // frontend/lib/cookies.ts's cookieMaxAgeFromExpiresIn.
     expiresInSeconds: parseExpiresInToSeconds(_env.JWT_EXPIRES_IN),
+    // Same treatment as expiresIn/expiresInSeconds above, for the
+    // refresh token: jwt.ts's signRefreshToken uses the raw string for
+    // jwt.sign, authCookies.ts uses the seconds form (×1000) for the
+    // cookie's maxAge — both now read from this single value instead
+    // of each hardcoding '7d' independently.
+    refreshExpiresIn: _env.JWT_REFRESH_EXPIRES_IN,
+    refreshExpiresInSeconds: parseExpiresInToSeconds(
+      _env.JWT_REFRESH_EXPIRES_IN,
+    ),
   },
   redis: {
     host: _env.REDIS_HOST,

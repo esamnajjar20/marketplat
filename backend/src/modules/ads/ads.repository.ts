@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { AdStatus, Prisma } from '@prisma/client';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, AdSortField } from './ads.validation';
+import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
 export type AdWithAuthor = Prisma.AdGetPayload<{
   include: {
@@ -427,7 +428,7 @@ export const adsRepository = {
   // their original order — new images fill remaining slots in upload order —
   // then re-aggregates with an explicit row number so the final array order
   // is deterministic rather than relying on unspecified aggregate behavior.
-  addImages: async (id: string, newImages: string[], maxImages = 10): Promise<AdWithAuthor> => {
+  addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<AdWithAuthor> => {
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
     await prisma.$executeRawUnsafe(

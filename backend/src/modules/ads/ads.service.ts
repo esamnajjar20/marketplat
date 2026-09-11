@@ -23,6 +23,7 @@ import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
 import { prisma } from '../../config/prisma';
+import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
 /**
@@ -596,8 +597,8 @@ export const adsService = {
     if (!(await canManageAd(ad, userId, userRole))) {
       throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
-    if (ad.images.length + files.length > 10) {
-      throw new BadRequestError('An ad can have a maximum of 10 images');
+    if (ad.images.length + files.length > MAX_IMAGES_PER_ENTITY) {
+      throw new BadRequestError(`An ad can have a maximum of ${MAX_IMAGES_PER_ENTITY} images`);
     }
 
     // FIX D-10: serialize concurrent addImages/removeImage calls for the
@@ -613,8 +614,8 @@ export const adsService = {
       // this is the authoritative check.
       const freshAd = await adsRepository.findById(adId);
       if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
-      if (freshAd.images.length + files.length > 10) {
-        throw new BadRequestError('An ad can have a maximum of 10 images');
+      if (freshAd.images.length + files.length > MAX_IMAGES_PER_ENTITY) {
+        throw new BadRequestError(`An ad can have a maximum of ${MAX_IMAGES_PER_ENTITY} images`);
       }
 
       // P-01: parallel uploads

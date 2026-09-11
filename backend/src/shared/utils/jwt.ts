@@ -37,7 +37,10 @@ export const signAccessToken = (userId: string, sessionId: string): string =>
 
 export const signRefreshToken = (userId: string, sessionId: string): string =>
   jwt.sign({ userId, sessionId, jti: generateJti() }, env.jwt.refreshSecret, {
-    expiresIn: '7d',
+    // Was hardcoded as '7d' here — now driven by env.jwt.refreshExpiresIn
+    // (JWT_REFRESH_EXPIRES_IN), which authCookies.ts's cookie maxAge also
+    // derives from, so the two can no longer drift out of sync.
+    expiresIn: env.jwt.refreshExpiresIn,
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
   } as jwt.SignOptions);

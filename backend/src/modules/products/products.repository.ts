@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma, Product, ProductStatus, ProductAvailability } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { GetProductsQuery } from './products.validation';
+import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
 export type ProductWithStore = Prisma.ProductGetPayload<{
   include: {
@@ -99,7 +100,7 @@ export const productsRepository = {
   // via raw SQL (no SELECT + UPDATE race), with existing images always
   // ordered first (source/position tagging) so overflow trims new
   // uploads rather than silently dropping existing ones.
-  addImages: async (id: string, newImages: string[], maxImages = 10): Promise<Product> => {
+  addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<Product> => {
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
     await prisma.$executeRawUnsafe(

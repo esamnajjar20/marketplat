@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma, ServiceListing, ServiceListingStatus } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { GetServiceListingsQuery } from './service-listings.validation';
+import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
 export type ServiceListingWithProvider = Prisma.ServiceListingGetPayload<{
   include: {
@@ -80,7 +81,7 @@ export const serviceListingsRepository = {
   // Gap #3 fix: mirrors ads.repository.ts's addImages exactly — atomic
   // array append via raw SQL (no SELECT + UPDATE race), existing images
   // always ordered first so overflow trims new uploads, never existing ones.
-  addImages: async (id: string, newImages: string[], maxImages = 10): Promise<ServiceListing> => {
+  addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<ServiceListing> => {
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
     await prisma.$executeRawUnsafe(

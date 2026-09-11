@@ -25,8 +25,9 @@ import { savedSearchEvents } from '../saved-searches';
 import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { logger } from '../../shared/utils/logger';
+import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
-const MAX_LISTING_IMAGES = 10; // same cap as ads.images (env.ads.maxImagesPerAd's sibling)
+const MAX_LISTING_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images — see config/limits.ts
 
 // FIX SEC-4.1: addImages/removeImage used to be ~75 lines of
 // hand-rolled logic here, near-identical to products.service.ts's copy

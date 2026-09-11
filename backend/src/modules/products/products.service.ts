@@ -21,8 +21,9 @@ import { withProductImagesLock, withStoreProductCreationLock } from '../../share
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { promotionsService, EffectivePrice } from '../promotions/promotions.service';
 import { fraudService } from '../fraud';
+import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
-const MAX_PRODUCT_IMAGES = 10; // same cap as ads.images / service-listings.images
+const MAX_PRODUCT_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images / service-listings.images — see config/limits.ts
 
 // FIX SEC-4.1: addImages/removeImage used to be ~75 lines of
 // hand-rolled logic here, near-identical to service-listings.service.ts's
