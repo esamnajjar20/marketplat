@@ -8,6 +8,7 @@
  */
 
 import { apiClient } from '@/api/client';
+import { getRawVapidPublicKey } from '@/lib/env';
 
 // FIX PWA-05: previously read once as a module-level constant
 // (`const VAPID_PUBLIC_KEY = process.env...`), which freezes the value at
@@ -19,7 +20,7 @@ import { apiClient } from '@/api/client';
 // loaded. Reading it inside a function each call fixes both without any
 // behavior change in production.
 function getVapidPublicKey(): string {
-  return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
+  return getRawVapidPublicKey() ?? '';
 }
 
 export type SwUpdateListener = (registration: ServiceWorkerRegistration) => void;

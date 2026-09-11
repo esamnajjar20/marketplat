@@ -25,6 +25,14 @@
  * (`npm run smoke-test || rollback.sh`).
  */
 
+// CENTRALIZE-04: deliberately process.env, not config/env.ts. Per this
+// file's own usage comment above, this script is run against a remote
+// deployed instance from a CI runner that has SMOKE_TEST_BASE_URL set
+// and nothing else — no DATABASE_URL, no JWT secrets, none of the
+// other vars env.ts requires. Importing env.ts here would make a
+// smoke test that's supposed to need zero backend secrets fail before
+// it even makes a request. Same class of exception as instrument.ts's
+// own documented reason for bypassing env.ts.
 const BASE_URL = process.env.SMOKE_TEST_BASE_URL || "http://localhost:5000";
 const TIMEOUT_MS = 10_000;
 

@@ -1,6 +1,7 @@
 import { redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
+import { env } from '../../config/env';
 
 const VIEWS_PREFIX = 'views_buffer:';
 const FLUSH_INTERVAL = 60_000; // flush to DB every 60 seconds
@@ -48,7 +49,7 @@ export const viewsBuffer = {
         .incr(`${VIEWS_PREFIX}${adId}`)
         .expire(`${VIEWS_PREFIX}${adId}`, VIEWS_BUFFER_TTL_SECONDS)
         .exec();
-      if (process.env.NODE_ENV === 'test') {
+      if (env.nodeEnv === 'test') {
         await prisma.ad.updateMany({
           where: { id: adId, status: { not: 'DELETED' } },
           data: { views: { increment: 1 } },

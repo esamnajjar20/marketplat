@@ -3,6 +3,7 @@ import Transport from 'winston-transport';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 import { Sentry } from '../../instrument';
+import { env } from '../../config/env';
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 
@@ -13,7 +14,7 @@ const devFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
   return log;
 });
 
-const isDev = process.env.NODE_ENV !== 'production';
+const isDev = env.nodeEnv !== 'production';
 
 const transports: winston.transport[] = [
   new winston.transports.Console({
@@ -82,7 +83,7 @@ export const logger = winston.createLogger({
  * If ERROR_REPORTER_WEBHOOK_URL is unset (the default), this transport
  * is simply never added — behavior is unchanged from before this fix.
  */
-const errorReporterUrl = process.env.ERROR_REPORTER_WEBHOOK_URL;
+const errorReporterUrl = env.observability.errorReporterWebhookUrl || undefined;
 
 if (errorReporterUrl) {
   class WebhookErrorReporterTransport extends Transport {
@@ -93,7 +94,7 @@ if (errorReporterUrl) {
         meta: { ...info, level: undefined, message: undefined },
         timestamp: new Date().toISOString(),
         service: 'classifieds-backend',
-        environment: process.env.NODE_ENV,
+        environment: env.nodeEnv,
       });
 
       // Fire-and-forget — never let error reporting itself throw or
@@ -136,7 +137,7 @@ if (errorReporterUrl) {
  * without conflict, since Winston dispatches to every added transport
  * independently.
  */
-if (process.env.SENTRY_DSN) {
+if (env.observability.sentryDsn) {
   class SentryErrorReporterTransport extends Transport {
     log(info: winston.LogEntry, callback: () => void) {
       const { level, message, stack, ...meta } = info;

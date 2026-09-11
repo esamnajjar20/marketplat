@@ -58,6 +58,14 @@ const E2E_CATEGORIES = [
 ];
 
 async function assertSafeDatabase(): Promise<void> {
+  // CENTRALIZE-04: deliberately process.env, not config/env.ts. This
+  // script's own usage comment above runs it as
+  // `DATABASE_URL=... node dist/scripts/seedE2E.js` with only
+  // DATABASE_URL set — importing env.ts would additionally require
+  // JWT_SECRET/JWT_REFRESH_SECRET (min 32 chars each, no defaults) to
+  // be present in that same shell or the script fails at import time
+  // before this safety check even runs. Same class of exception as
+  // instrument.ts's own documented reason for bypassing env.ts.
   const url = process.env.DATABASE_URL ?? "";
   const dbNameMatch = url.match(/\/([^/?]+)(\?|$)/);
   const dbName = dbNameMatch?.[1] ?? "";

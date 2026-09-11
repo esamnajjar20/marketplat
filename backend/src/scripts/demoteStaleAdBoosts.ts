@@ -11,10 +11,11 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { logger } from "../shared/utils/logger";
+import { env } from "../config/env";
 
 const prisma = new PrismaClient();
-const STALE_BOOST_DAYS = Number(process.env.STALE_BOOST_DAYS ?? 60);
-const DRY_RUN = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
+const STALE_BOOST_DAYS = env.reports.staleBoostDays;
+const DRY_RUN = env.reports.dryRun;
 
 async function main(): Promise<void> {
   const olderThan = new Date(

@@ -25,6 +25,7 @@ import {
   unregisterNativePush,
 } from '@/lib/capacitor/nativePush';
 import { toast } from 'sonner';
+import { getRawVapidPublicKey } from '@/lib/env';
 
 // WIRING: the native (FCM) path has its own backend endpoint
 // (/notifications/fcm-tokens, already implemented — see
@@ -38,7 +39,7 @@ export function PushNotificationToggle() {
     'loading',
   );
   const [isNative, setIsNative] = useState<boolean | null>(null);
-  const hasVapidKey = Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+  const hasVapidKey = Boolean(getRawVapidPublicKey());
 
   useEffect(() => {
     let cancelled = false;

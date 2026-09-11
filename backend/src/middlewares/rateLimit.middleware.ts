@@ -1,6 +1,7 @@
 import rateLimit from "express-rate-limit";
 import { RedisStore, type RedisReply } from "rate-limit-redis";
 import { redis } from "../config/redis";
+import { env } from "../config/env";
 
 const msg = (message: string, code = "RATE_LIMIT_EXCEEDED") => ({
   success: false,
@@ -8,7 +9,13 @@ const msg = (message: string, code = "RATE_LIMIT_EXCEEDED") => ({
   code,
 });
 
-const bypassRateLimit = process.env.DISABLE_RATE_LIMIT === "true";
+// CENTRALIZE-06: windowMs literals below were previously repeated as
+// bare `15 * 60 * 1000` (6x) / `60 * 60 * 1000` (3x) across this file.
+// No behavior change — same values, named once.
+const FIFTEEN_MIN_MS = 15 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+const bypassRateLimit = env.rateLimit.disabled;
 
 const noRateLimit = () => (_req: any, _res: any, next: any) => next();
 
@@ -41,7 +48,7 @@ export const createRedisStore = (prefix: string, failOpen = true) =>
 export const globalRateLimit = bypassRateLimit
   ? noRateLimit()
   : rateLimit({
-      windowMs: 15 * 60 * 1000,
+      windowMs: FIFTEEN_MIN_MS,
       // FIX AUDIT-V4-05: was 100. A single user browsing normally (ad list,
       // several ad detail views, category filters, favorites) easily fires
       // more than 100 /api/* requests in 15 minutes once you count every
@@ -63,7 +70,7 @@ export const globalRateLimit = bypassRateLimit
     });
 
 export const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -72,7 +79,7 @@ export const authRateLimit = rateLimit({
 });
 
 export const refreshRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -81,7 +88,7 @@ export const refreshRateLimit = rateLimit({
 });
 
 export const reportRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -90,7 +97,7 @@ export const reportRateLimit = rateLimit({
 });
 
 export const usersRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
@@ -109,7 +116,7 @@ export const usersRateLimit = rateLimit({
 // password-verification endpoint should NOT silently allow unlimited
 // attempts through if Redis (the rate-limit store) becomes unavailable.
 export const changePasswordRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -125,7 +132,7 @@ export const changePasswordRateLimit = rateLimit({
 // endpoint (up to 10 images per call) and it was reachable far more
 // often than the ad-creation flow.
 export const addAdImagesRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -134,7 +141,7 @@ export const addAdImagesRateLimit = rateLimit({
 });
 
 export const createAdRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
@@ -143,7 +150,7 @@ export const createAdRateLimit = rateLimit({
 });
 
 export const forgotPasswordRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: ONE_HOUR_MS, // 1 hour
   max: 3, // 3 reset requests per hour per IP
   standardHeaders: true,
   legacyHeaders: false,
@@ -152,7 +159,7 @@ export const forgotPasswordRateLimit = rateLimit({
 });
 
 export const favoritesRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
@@ -167,7 +174,7 @@ export const favoritesRateLimit = rateLimit({
 // (each one gets checked against every future ad — see
 // saved-searches.service.ts's onAdCreated scale note).
 export const savedSearchRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -179,7 +186,7 @@ export const savedSearchRateLimit = rateLimit({
 // worth guarding — see seller-profile-design.md §17: prevents scripted
 // retry storms against the create-profile lock/transaction path.
 export const createSellerProfileRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -190,7 +197,7 @@ export const createSellerProfileRateLimit = rateLimit({
 // seller-profile-design.md §17: rate-limited to prevent bulk fake
 // ratings against a seller.
 export const sellerRatingRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
@@ -203,7 +210,7 @@ export const sellerRatingRateLimit = rateLimit({
 // this more than a handful of times), guarded against retry storms
 // the same way profile creation already is.
 export const requestVerificationRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
@@ -215,7 +222,7 @@ export const requestVerificationRateLimit = rateLimit({
 // a one-time (per seller profile) write, still worth guarding against
 // scripted retry storms against the create-profile lock/transaction path.
 export const createServiceProviderRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -226,7 +233,7 @@ export const createServiceProviderRateLimit = rateLimit({
 // Service provider logo upload: mirrors storeImagesRateLimit — same
 // per-hour ceiling for the same reason.
 export const serviceProviderImagesRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -237,7 +244,7 @@ export const serviceProviderImagesRateLimit = rateLimit({
 // services-design.md §16: same rate-limit rationale as createAdRateLimit —
 // guards the upload + DB-write path from scripted retry storms.
 export const createServiceListingRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -248,7 +255,7 @@ export const createServiceListingRateLimit = rateLimit({
 // services-design.md §16: guards customers from spamming providers with
 // requests; generous enough for legitimate multi-request browsing.
 export const createServiceRequestRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
@@ -262,7 +269,7 @@ export const createServiceRequestRateLimit = rateLimit({
 // shouldn't share one quota just because the same user could
 // theoretically do both.
 export const createServiceBroadcastRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -271,7 +278,7 @@ export const createServiceBroadcastRateLimit = rateLimit({
 });
 
 export const submitServiceQuoteRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -282,7 +289,7 @@ export const submitServiceQuoteRateLimit = rateLimit({
 // services-design.md §17: same rationale as sellerRatingRateLimit —
 // prevents bulk fake reviews.
 export const serviceReviewRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
@@ -296,7 +303,7 @@ export const serviceReviewRateLimit = rateLimit({
 // createServiceRequestRateLimit: bounds scripted spam against many
 // different sellers' ads without punishing normal multi-ad browsing.
 export const startConversationRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -311,7 +318,7 @@ export const startConversationRateLimit = rateLimit({
 // involve many messages in a short burst; 60/15min still comfortably
 // covers that while bounding scripted flooding.
 export const sendMessageRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
@@ -324,7 +331,7 @@ export const sendMessageRateLimit = rateLimit({
 // write, still worth guarding against scripted retry storms against
 // the create-store lock/transaction path.
 export const createStoreRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -335,7 +342,7 @@ export const createStoreRateLimit = rateLimit({
 // Stores module: same rate-limit rationale as createServiceListingRateLimit
 // — guards the upload + DB-write path from scripted retry storms.
 export const createProductRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
@@ -347,7 +354,7 @@ export const createProductRateLimit = rateLimit({
 // /products/:id/images uploads to Cloudinary and needs its own guard
 // beyond the coarse global backstop, same as the create-time endpoint.
 export const addProductImagesRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -357,7 +364,7 @@ export const addProductImagesRateLimit = rateLimit({
 
 // Gap #3 fix: same as addProductImagesRateLimit, for service listings.
 export const addServiceListingImagesRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -370,7 +377,7 @@ export const addServiceListingImagesRateLimit = rateLimit({
 // same reason (a small number of legitimate re-uploads while a seller
 // dials in their branding, bounded against scripted abuse).
 export const storeImagesRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
@@ -381,7 +388,7 @@ export const storeImagesRateLimit = rateLimit({
 // Stores module: mirrors favoritesRateLimit — following/unfollowing a
 // store is a cheap toggle, but still bounded against scripted abuse.
 export const storeFollowRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
@@ -392,7 +399,7 @@ export const storeFollowRateLimit = rateLimit({
 // Stores module: mirrors sellerRatingRateLimit — guards against bulk
 // fake reviews against a store.
 export const storeReviewRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
@@ -420,7 +427,7 @@ export const searchSuggestionsRateLimit = rateLimit({
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: FIFTEEN_MIN_MS,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,

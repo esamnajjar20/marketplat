@@ -1,5 +1,6 @@
 import type { AdSortField, AdSortOrder } from '@/types/ad.types';
 import type { StoreSortField } from '@/types/store.types';
+import { getRawApiUrl } from './env';
 
 export const APP_NAME = 'سوق غزة';
 export const APP_URL  = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -216,7 +217,7 @@ export const PRESENCE_HEARTBEAT_INTERVAL = 45_000; // 45 s
 
 /** Base URL for the backend API, consumed by api/client.ts */
 export const API_BASE_URL =
-  (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000') + '/api/v1';
+  (getRawApiUrl() ?? 'http://localhost:5000') + '/api/v1';
 
 /**
  * TanStack Query stale times — centralised so every hook uses

@@ -68,6 +68,7 @@
  *   present, confirmed available in Edge Runtime (no change needed).
  */
 import { NextResponse, type NextRequest } from 'next/server';
+import { getRawApiUrl } from './lib/env';
 
 // ── Route classification ──────────────────────────────────────────
 
@@ -178,7 +179,7 @@ function isTokenExpired(decoded: DecodedToken): boolean {
 // static one previously in next.config.ts) so script-src's nonce value
 // matches what was just minted.
 function buildCsp(nonce: string, isDev: boolean): string {
-  const apiOrigin = process.env.NEXT_PUBLIC_API_URL?.trim() ?? '';
+  const apiOrigin = getRawApiUrl()?.trim() ?? '';
   return [
     "default-src 'self'",
     // FIX SEC-06: 'unsafe-inline' removed in production — replaced with

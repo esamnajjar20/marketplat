@@ -239,6 +239,48 @@ const envSchema = z.object({
   // allowlist is still the more robust fix) — it's a zero-infra
   // baseline for deployments that haven't set one up yet.
   METRICS_TOKEN: z.string().optional(),
+  // CENTRALIZE-04: previously read directly via process.env in
+  // rateLimit.middleware.ts with no schema entry — worked, but meant
+  // it had no validation/docs and wasn't visible alongside every other
+  // config flag in .env.example generation. Same opt-in pattern as
+  // BLACKLIST_STRICT above; dev/CI convenience switch, never intended
+  // for production.
+  DISABLE_RATE_LIMIT: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  // CENTRALIZE-04: previously read directly via process.env in
+  // capacityCheck.ts with no schema entry. Validated/documented here
+  // for .env.example generation purposes, but NOT re-exported on the
+  // `env` object below — capacityCheck.ts deliberately keeps reading
+  // process.env.PM2_INSTANCES directly at call time (see that file's
+  // own comment) because tests/unit/capacityCheck.test.ts mutates it
+  // between test cases without jest.resetModules() and expects a live
+  // read, which a value frozen at this module's first import can't
+  // provide. Not constrained to \d+ here since PM2 also accepts
+  // non-numeric values like 'max' for this var; capacityCheck.ts's own
+  // regex test is what decides whether a given value is usable as a
+  // number.
+  PM2_INSTANCES: z.string().optional(),
+  // CENTRALIZE-04: previously read directly via process.env in
+  // logger.ts with no schema entry, unlike SENTRY_DSN right above
+  // (which already had one specifically so other modules could read
+  // env.observability.sentryDsn instead of reaching into process.env).
+  // Same reasoning applies here.
+  ERROR_REPORTER_WEBHOOK_URL: z.string().url().optional(),
+  // CENTRALIZE-04: previously read directly via process.env in the
+  // report:cleanup-failed-tasks / report:demote-stale-boosts scripts,
+  // with no schema entry. These two scripts run inside the same full
+  // app environment as the server (same .env, same required secrets),
+  // unlike seedE2E.ts/smokeTest.ts which are deliberately invoked
+  // standalone with only 1-2 vars set — those two remain on direct
+  // process.env access; see their own files for why.
+  FAILED_TASK_RETENTION_DAYS: z.string().regex(/^\d+$/).default("30"),
+  STALE_BOOST_DAYS: z.string().regex(/^\d+$/).default("60"),
+  DRY_RUN: z
+    .string()
+    .default("false")
+    .transform((v) => v === "1" || v === "true"),
 });
 
 // L-2 (audit fix): superRefine (not a required-by-default field on the
@@ -467,5 +509,16 @@ export const env = {
     sentryDsn: _env.SENTRY_DSN || "",
     sentryTracesSampleRate: parseFloat(_env.SENTRY_TRACES_SAMPLE_RATE),
     metricsToken: _env.METRICS_TOKEN || "",
+    errorReporterWebhookUrl: _env.ERROR_REPORTER_WEBHOOK_URL || "",
+  },
+  // CENTRALIZE-04
+  rateLimit: {
+    disabled: _env.DISABLE_RATE_LIMIT,
+  },
+  // CENTRALIZE-04
+  reports: {
+    failedTaskRetentionDays: parseInt(_env.FAILED_TASK_RETENTION_DAYS, 10),
+    staleBoostDays: parseInt(_env.STALE_BOOST_DAYS, 10),
+    dryRun: _env.DRY_RUN,
   },
 } as const;

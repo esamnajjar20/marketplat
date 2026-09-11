@@ -8,11 +8,10 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { logger } from "../shared/utils/logger";
+import { env } from "../config/env";
 
 const prisma = new PrismaClient();
-const RESOLVED_RETENTION_DAYS = Number(
-  process.env.FAILED_TASK_RETENTION_DAYS ?? 30,
-);
+const RESOLVED_RETENTION_DAYS = env.reports.failedTaskRetentionDays;
 
 async function main(): Promise<void> {
   const olderThan = new Date(

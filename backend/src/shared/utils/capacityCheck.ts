@@ -58,6 +58,20 @@ function extractConnectionLimit(databaseUrl: string): number | null {
  * computation PM2 performs.
  */
 function estimateInstanceCount(): number {
+  // CENTRALIZE-04 correction: this was briefly routed through
+  // config/env.ts's `env.infra.pm2Instances`, but that value is a
+  // frozen snapshot taken at env.ts's first module load — tests/unit/
+  // capacityCheck.test.ts mutates process.env.PM2_INSTANCES directly
+  // between test cases (no jest.resetModules(), unlike logger.test.ts/
+  // authCookies.test.ts's oauth_state cases, which use resetModules +
+  // re-import specifically to observe such changes) and expects this
+  // function to see each new value on its very next call. Reading
+  // process.env directly here — same live-per-call-read pattern as
+  // frontend/lib/pwa.ts's getVapidPublicKey (see its own FIX PWA-05
+  // comment) — is what the existing test suite actually requires.
+  // PM2_INSTANCES is still validated/documented in config/env.ts's
+  // schema; this is the one deliberate call site that doesn't consume
+  // the parsed value.
   const raw = process.env.PM2_INSTANCES;
   if (raw && /^\d+$/.test(raw)) return parseInt(raw, 10);
   return os.cpus().length;
