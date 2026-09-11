@@ -7,7 +7,7 @@ import { idbPutCatalog } from '@/lib/catalogIdb';
 describe('catalogIdb', () => {
   it('rejects or returns null when indexedDB is unavailable', async () => {
     const original = globalThis.indexedDB;
-    // @ts-expect-error
+    // @ts-expect-error indexedDB is intentionally removed for this test
     delete (globalThis as { indexedDB?: IDBFactory }).indexedDB;
 
     await expect(

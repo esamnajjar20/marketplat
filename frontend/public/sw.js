@@ -36,7 +36,17 @@
 // "تصفّح المسارات العامة بدون نت" و"الحزمة الأساسية بدون نت" كانتا معطَّلتين
 // فعليًا رغم وجود الكود بالكامل. رُفع CACHE_VERSION هنا إلى 'v6' وطُبِّق نفس
 // الرقم بالملفين الآخرين لإعادة المزامنة (انظر تعليقيهما).
-const CACHE_VERSION = 'v6';
+// FIX SW-CAPTIVE-01: رُفع إلى v7 عمدًا (وليس مجرد تغيير منطق بلا أثر على
+// الكاش) — v6 قد يحمل بالفعل صفحات/ردود ملوَّثة كُتبت قبل هذا الإصلاح
+// (captive portal بحالة 200 خُزِّن كـ "شكل صفحة حقيقي"). رفع الرقم يفرّغ
+// تلك الكاشات القديمة عبر 'activate' أدناه بدل الاكتفاء بمنع تلوّث جديد —
+// إصلاح المنطق فقط لا يصلح حالة مستخدم متضرر بالفعل بنسخة v6.
+// FIX SW-AUTH-PAGE-01: رُفع إلى v8 لنفس سبب رفعات v7/v6 أعلاه — مستخدمون
+// حاليون عندهم بالفعل نسخة قديمة من /login أو /register محفوظة بـ
+// STATIC_CACHE v7 من قبل هذا الإصلاح (من أول زيارة لهم وهم غير مسجّلين
+// دخول). إصلاح المنطق فقط يمنع تخزين نسخ قديمة *جديدة* لكن لا يمسح
+// الموجودة أصلًا — رفع الرقم يفرّغها عبر 'activate' أدناه.
+const CACHE_VERSION = 'v8';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -114,6 +124,24 @@ function isNeverCache(url) {
   return url.pathname.includes('/auth/') || url.pathname.includes('/csrf');
 }
 
+/** FIX SW-AUTH-PAGE-01: صفحات تسجيل الدخول/إنشاء الحساب — لازم تطابق
+ * middleware.ts's AUTH_PATHS حرفيًا. هذي الصفحات كانت تمر بلا استثناء من
+ * staleWhileRevalidate العام (نفس معاملة أي صفحة عامة)، فتُخزَّن أول
+ * زيارة (وأنت غير مسجّل دخول) وتُعاد لاحقًا "فورًا من الكاش" حتى بعد ما
+ * تسجّل دخول — قبل ما يصل الطلب أصلًا للسيرفر، يعني قبل ما يحصل middleware.ts
+ * أي فرصة يشتغل تحويلته المعتادة (isLoggedIn → redirect لـ /dashboard).
+ * النتيجة: مستند HTML قديم مبني على "غير مسجّل دخول" يُهيَّأ (hydrate)
+ * فوق حالة عميل فعلية تقول "مسجّل دخول" (Zustand/localStorage) — تعارض
+ * hydration ينتج عنه صفحة فاضية بالضبط. صفحات المصادقة، خلافًا لبقية
+ * الصفحات العامة الموثّقة بـ lib/offlineRouteShells.ts (شكل ثابت لكل
+ * زائر بأي وقت)، محتواها الصحيح يعتمد على حالة تسجيل الدخول تحديدًا —
+ * فلا يجوز تخزينها إطلاقًا، شبكة فقط دائمًا، تمامًا مثل isNeverCache
+ * أعلاه لكن لصفحات لا نقاط API. */
+function isAuthPage(url) {
+  const authPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+  return authPaths.some((p) => url.pathname === p || url.pathname.startsWith(`${p}/`));
+}
+
 function isApiRequest(url) {
   return url.pathname.includes('/api/');
 }
@@ -154,6 +182,28 @@ function isPersonalShellRoute(url) {
 
 // ── استراتيجيات التخزين ─────────────────────────────────────────
 
+/** FIX SW-CAPTIVE-01: `response.ok` (200-299) لوحده لا يثبت أن هذا الرد
+ * فعلًا من سيرفر التطبيق. على نت جوال ضعيف/متقطّع، رد شائع جدًا هو صفحة
+ * captive portal لمزوّد الشبكة (أو صفحة خطأ من CDN/edge) بحالة 200 —
+ * "المتصفح" (وهنا الكود) لا يقدر يفرّق بينها وبين رد حقيقي إلا بفحص
+ * إضافي. أوضح إشارة: التحويل (redirect) لأصل مختلف عن أصل الموقع نفسه —
+ * هذا بالضبط توقيع captive portal النمطي. لو مرّ رد كهذا فات فحص
+ * response.ok وتخزّن كـ "شكل الصفحة الحقيقي" بـ STATIC_CACHE/PERSONAL_SHELL_CACHE،
+ * فسيُعاد تقديمه لاحقًا بثقة (stale-while-revalidate) لكل زيارة تالية،
+ * حتى بعد عودة النت الفعلي، لحين ما تُستبدَل بنجاح صريح لاحق — وهذا يطابق
+ * تمامًا عرض "نفس المشكلة تتكرر رغم أن النت شغّال". هذا الفحص لا يُطبَّق
+ * على الصور (cacheFirstImage) لأن Cloudinary أصل مختلف شرعي بالتصميم.
+ */
+function isSameOriginResponse(response) {
+  if (!response) return false;
+  if (!response.redirected) return true;
+  try {
+    return new URL(response.url).origin === self.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 /** يحذف رأس Vary قبل التخزين — نفس منطق offlineRouteShells.ts's
  * stripVaryAndClone، لأن Cache API يرفض المطابقة لاحقًا لو بقي Vary حاضرًا
  * حتى مع تطابق مفتاح البحث تمامًا. */
@@ -168,6 +218,42 @@ async function stripVaryAndClone(response) {
   });
 }
 
+/** FIX SW-RSC-OFFLINE-01: OFFLINE_URL was pre-cached once, at install
+ * time, via a plain `fetch('/offline')` — a full HTML document. Both
+ * fallback sites below (staleWhileRevalidate and handleProtectedPage)
+ * were returning that document unconditionally, with no check for
+ * whether the *failing* request was itself a hard navigation (expects
+ * full HTML — correct) or a soft/RSC navigation (Next.js's client
+ * router expects a React Server Components stream, sent with header
+ * `RSC: '1'`). Handing the router a full HTML document where it
+ * expected an RSC stream isn't a graceful "here's the offline page" —
+ * Next.js has no recovery path for a 200 response in the wrong shape,
+ * so the in-flight transition just breaks silently: a blank page, not
+ * even the offline screen. This reproduces exactly on the RSC fetch
+ * Next.js sends for `router.push()` right after login, or any other
+ * in-app Link navigation, whenever the network fails mid-request.
+ *
+ * There's no way to *serve* a correct fallback for an RSC request —
+ * we don't have (and can't fabricate) a valid RSC stream for an
+ * arbitrary page we never successfully rendered. The only honest fix
+ * is to stop pretending the RSC fetch can be answered at all: force
+ * the actual browser window to a real hard navigation to /offline
+ * (which *does* correctly receive the cached full-HTML document, via
+ * this same file's normal `request.mode === 'navigate'` path) and let
+ * the original RSC fetch's promise just fail — the window is about to
+ * navigate away regardless, so nothing consumes that rejection.
+ */
+async function forceHardOfflineNavigation(event) {
+  try {
+    const client = event.clientId && (await self.clients.get(event.clientId));
+    if (client && 'navigate' in client) {
+      client.navigate(OFFLINE_URL);
+    }
+  } catch {
+    // لا شيء إضافي يمكن فعله — الطلب الأصلي سيفشل بأي حال (Response.error أدناه).
+  }
+}
+
 /** Stale-While-Revalidate عام — يُستخدم لصفحات App Shell العامة (navigate +
  * RSC shells) ولأصول JS/CSS الثابتة. يرجع النسخة المخزَّنة فورًا إن وُجدت
  * (سرعة + عمل أوفلاين)، ويحدّث الكاش بالخلفية دائمًا عبر event.waitUntil. */
@@ -177,7 +263,7 @@ async function staleWhileRevalidate(event, request, cacheKey) {
 
   const networkFetch = fetch(request)
     .then(async (response) => {
-      if (response && response.ok) {
+      if (response && response.ok && isSameOriginResponse(response)) {
         const toStore = isRscShellRequest(request)
           ? await stripVaryAndClone(response.clone())
           : response.clone();
@@ -193,6 +279,12 @@ async function staleWhileRevalidate(event, request, cacheKey) {
 
   const networkResponse = await networkFetch;
   if (networkResponse) return networkResponse;
+
+  // FIX SW-RSC-OFFLINE-01: see comment above forceHardOfflineNavigation.
+  if (isRscShellRequest(request)) {
+    await forceHardOfflineNavigation(event);
+    return Response.error();
+  }
 
   const offlineFallback = await cache.match(OFFLINE_URL);
   return offlineFallback || Response.error();
@@ -213,13 +305,33 @@ async function staleWhileRevalidate(event, request, cacheKey) {
  * /offline العامة بدل المحتوى المخزَّن فعليًا. مخزَّن بـ PERSONAL_SHELL_CACHE
  * (كاش منفصل، يُمسح كاملًا عند تسجيل الخروج تمامًا مثل API_CACHE — انظر
  * تعليق تعريفه أعلاه). */
-async function handleProtectedPage(request, url) {
+// FIX SW-ABORT-02: err.name === 'AbortError' does NOT reliably mean "a
+// newer navigation superseded this one." A real connection drop/timeout
+// on a flaky mobile network can *also* surface as AbortError (mobile
+// browsers/OS abort long-running fetches on backgrounding, poor-signal
+// timeouts, etc.) with no newer request actually in flight to replace
+// it. SW-ABORT-01 re-threw every AbortError unconditionally on that
+// false assumption — when there truly was no superseding navigation,
+// re-throwing left the RSC fetch promise rejected with nothing else to
+// resolve it, and Next.js's router had no fallback UI for that: a blank
+// white page instead of /offline. This map tracks, per pathname, a
+// monotonically increasing generation counter so we can tell the two
+// cases apart: only re-throw (silently drop) when a *newer* request for
+// the same path actually started after this one — a genuine superseded
+// race. Otherwise fall through to the normal fallback path below, same
+// as any other network failure.
+const protectedNavGeneration = new Map();
+
+async function handleProtectedPage(event, request, url) {
   const useShellCache = isPersonalShellRoute(url);
   const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
 
+  const myGeneration = (protectedNavGeneration.get(url.pathname) || 0) + 1;
+  protectedNavGeneration.set(url.pathname, myGeneration);
+
   try {
     const response = await fetch(request);
-    if (useShellCache && response && response.ok) {
+    if (useShellCache && response && response.ok && isSameOriginResponse(response)) {
       const cache = await caches.open(PERSONAL_SHELL_CACHE);
       const toStore = isRscShellRequest(request)
         ? await stripVaryAndClone(response.clone())
@@ -227,11 +339,34 @@ async function handleProtectedPage(request, url) {
       await cache.put(cacheKey, toStore);
     }
     return response;
-  } catch {
+  } catch (err) {
+    // FIX SW-ABORT-01 (refined by SW-ABORT-02 above): only treat this as
+    // a superseded race — safe to re-throw and let it die quietly — when
+    // a newer request for this same pathname was actually issued after
+    // this one started. A newer generation number proves that; anything
+    // else (including AbortError with no newer request behind it) is
+    // treated as a real failure and falls through to the fallback below,
+    // so the user always lands on something (cached shell or /offline)
+    // instead of an unhandled rejection.
+    const isSupersededRace =
+      err && err.name === 'AbortError' && protectedNavGeneration.get(url.pathname) !== myGeneration;
+    if (isSupersededRace) {
+      throw err;
+    }
     if (useShellCache) {
       const shellCache = await caches.open(PERSONAL_SHELL_CACHE);
       const cachedShell = await shellCache.match(cacheKey);
       if (cachedShell) return cachedShell;
+    }
+    // FIX SW-RSC-OFFLINE-01: see comment above forceHardOfflineNavigation.
+    // This is the exact path a failed post-login router.push() to
+    // /dashboard (or any other protected soft-nav) hits — /dashboard has
+    // no shell cache (useShellCache is false for it), so previously this
+    // fell straight to returning the full-HTML OFFLINE_URL document as
+    // the "response" to what the browser expected to be an RSC stream.
+    if (isRscShellRequest(request)) {
+      await forceHardOfflineNavigation(event);
+      return Response.error();
     }
     const cache = await caches.open(STATIC_CACHE);
     const offlineFallback = await cache.match(OFFLINE_URL);
@@ -241,7 +376,25 @@ async function handleProtectedPage(request, url) {
 
 async function handlePageRequest(event, request, url) {
   if (isProtectedPage(url)) {
-    return handleProtectedPage(request, url);
+    return handleProtectedPage(event, request, url);
+  }
+  // FIX SW-AUTH-PAGE-01: see comment above isAuthPage — same "network
+  // only, no cache read/write" treatment as handleProtectedPage gets,
+  // for the same underlying reason: correct content depends on auth
+  // state decided server-side (middleware.ts), and a stale cached
+  // response bypasses that decision entirely instead of just showing
+  // outdated content. Deliberately NOT routed through
+  // handleProtectedPage itself — these are public pages navigable while
+  // logged out, and handleProtectedPage's naming/shell-cache logic is
+  // specific to actually-authenticated routes.
+  if (isAuthPage(url)) {
+    try {
+      return await fetch(request);
+    } catch {
+      const cache = await caches.open(STATIC_CACHE);
+      const offlineFallback = await cache.match(OFFLINE_URL);
+      return offlineFallback || Response.error();
+    }
   }
   const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
   return staleWhileRevalidate(event, request, cacheKey);
@@ -313,7 +466,10 @@ async function networkFirstApi(event, request, _url) {
   const cache = await caches.open(API_CACHE);
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    // FIX SW-CAPTIVE-01 (API variant): إضافة لفحص same-origin، رد API حقيقي
+    // متوقّع يكون JSON — صفحة captive portal/edge error بحالة 200 عادة HTML.
+    const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
+    if (response && response.ok && isSameOriginResponse(response) && looksLikeJson) {
       event.waitUntil(
         cache.put(request, response.clone()).then(() => trimCache(API_CACHE, MAX_API_ENTRIES)),
       );
@@ -579,8 +735,7 @@ self.addEventListener('install', (event) => {
   // staleWhileRevalidate/handleProtectedPage يفشل دائمًا حتى يزور المستخدم
   // /offline بنفسه وهو أونلاين ولو مرة — يعني أول انقطاع اتصال فعلي
   // (بالضبط اللحظة اللي الصفحة مصمَّمة لأجلها) يُظهر خطأ شبكة خام بدل
-  // الصفحة المصمَّمة. لا self.skipWaiting() هنا رغم ذلك — التفعيل يبقى
-  // بإذن المستخدم فقط، انظر التعليق أسفل.
+  // الصفحة المصمَّمة.
   event.waitUntil(
     (async () => {
       try {
@@ -593,10 +748,19 @@ self.addEventListener('install', (event) => {
       }
     })(),
   );
-  // عمدًا: لا self.skipWaiting() هنا. التفعيل يتم فقط بإذن المستخدم عبر
-  // رسالة SKIP_WAITING (زر "تحديث الآن" بـ UpdatePrompt.tsx) — لا نريد
-  // تحديثًا قسريًا وإعادة تحميل مفاجئة أثناء تعبئة نموذج. انظر lib/pwa.ts
-  // وتعليق UpdatePrompt.tsx للتفصيل الكامل.
+  // FIX SW-AUTOUPDATE-01: كان هنا عمدًا بلا self.skipWaiting() — التفعيل
+  // يتم فقط بإذن المستخدم عبر SKIP_WAITING (زر "تحديث الآن")، تفاديًا
+  // لإعادة تحميل مفاجئة أثناء تعبئة نموذج. تغيّر هذا القرار الآن: أثناء
+  // مرحلة تتبّع باگات متكرّرة بالضبط بهذا الملف، الأولوية صارت التأكد إن
+  // كل إصلاح يوصل فعليًا لكل جهاز فورًا، لا الحفاظ على استمرارية جلسة
+  // نادرة الحدوث. self.skipWaiting() هنا يعني: أي SW جديد يتفعّل بمجرد
+  // تثبيته، والمستمع أدناه بـ 'controllerchange' (مسجَّل بـ lib/pwa.ts)
+  // يعيد تحميل أي تبويب مفتوح تلقائيًا مرة واحدة — بلا انتظار ضغطة زر ولا
+  // مسح بيانات يدوي. الكلفة: أي نموذج مفتوح وقت وصول تحديث يفقد محتواه
+  // غير المحفوظ. القرار بالتراجع لهذا السلوك القديم (وإرجاع الاعتماد
+  // فقط على UpdatePrompt.tsx's "تحديث الآن") متروك بعد ما تستقر مرحلة
+  // تتبّع الباگات الحالية.
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
