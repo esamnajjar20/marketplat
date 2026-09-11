@@ -28,7 +28,7 @@ app.use(
   cors({
     origin: env.frontendUrl,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     // PROD-FIX-15: X-CSRF-Token added — the frontend must be allowed
     // to send this header for csrf.middleware.ts's double-submit
     // cookie check to work (a browser blocks a cross-origin request

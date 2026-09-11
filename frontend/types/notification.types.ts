@@ -39,7 +39,13 @@ export type NotificationType =
   | 'STORE_PROMOTION_STARTED'
   | 'STORE_PRODUCT_RESTOCKED'
   | 'NEW_SERVICE_QUOTE'
-  | 'SERVICE_QUOTE_ACCEPTED';
+  | 'SERVICE_QUOTE_ACCEPTED'
+  // FIX (audit #21): mirrors the new backend NotificationType value —
+  // see notifications.service.ts's onStoreMemberInvited. Carries
+  // storeId, memberId (below); links to /my-store/members (no
+  // per-notification target page exists, same as PROMOTION_STATUS_CHANGE
+  // linking to /my-store/promotions).
+  | 'STORE_MEMBER_INVITED';
 
 /** Per-type deep-link payload — only the keys relevant to `type` are
  * ever present. NEW_MESSAGE carries conversationId,
@@ -63,6 +69,7 @@ export interface NotificationData {
   listingId?: string;
   broadcastId?: string;
   quoteId?: string;
+  memberId?: string;
   event?: 'started' | 'expiring' | 'expired';
   /** Set by dailyNotificationDigest job */
   digest?: boolean;

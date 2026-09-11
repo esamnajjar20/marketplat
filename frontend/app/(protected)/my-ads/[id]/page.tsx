@@ -1,74 +1,31 @@
 'use client';
 
 /**
- * Edit my ad page — canonical implementation, Protected Client Component.
+ * /my-ads/[id] — legacy alias, kept only as a redirect.
  *
- * AUDIT-FIX (protected — file organization): this used to be one of two
- * independent implementations of the same page, alongside
- * /ads/[id]/edit. That route is now a redirect here; this is the single
- * canonical "edit my ad" page, grouped with the rest of the my-ads/* tree.
- *
- * FIX BUILD-02: EditAdForm only accepts `{ ad: Ad }`, not `adId` — it
- * has no data-fetching of its own, so this page fetches via useAd(id)
- * and passes the resolved ad down.
- *
- * FIX UX-14: ownership check before rendering — a user could otherwise
- * open this page for anyone's ad by guessing/pasting the URL, fill out
- * the whole edit form, and only find out on save (via the backend's
- * real 403 in ads.service.ts's updateAd) that they never had
- * permission. Not a security gap (the backend already enforces this
- * correctly), but a confusing dead end.
- *
- * AUDIT-FIX (protected #7): shares useOwnershipGuard with the other
- * three edit pages instead of hand-rolling the same redirect effect.
+ * FIX (audit #12): before REORG-03 this file *was* the canonical "edit
+ * my ad" page. REORG-03 moved the canonical implementation to
+ * /my-ads/[id]/edit/page.tsx (see that file's own comment) and updated
+ * ROUTES.adEdit to point there, but this old file was never deleted or
+ * turned into a redirect — it kept working as a second, fully live,
+ * stale implementation (old max-w-2xl layout, no EditPageHeader) with
+ * no in-app links pointing at it, reachable only via an old bookmark or
+ * shared URL from before the rename. Converted to the same
+ * redirect-only pattern already used for the other retired edit route
+ * (/ads/[id]/edit/page.tsx), so old links keep working instead of
+ * silently serving a stale form.
  */
-import { use }      from 'react';
-import { notFound } from 'next/navigation';
-import { EditAdForm }     from '@/components/ads/EditAdForm';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { useAd }          from '@/hooks/queries/useAds';
-import { useMyStore }        from '@/hooks/queries/useStores';
-import { useStoreMembers }   from '@/hooks/queries/useStoreMembers';
-import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
-import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
+import { use, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/lib/constants';
 
-interface EditAdPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function EditAdPage({ params }: EditAdPageProps) {
+export default function LegacyMyAdIdRedirectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data: ad, isLoading, isError } = useAd(id);
-  const user    = useAuthStore(selectUser);
-  const isAdmin = useAuthStore(selectIsAdmin);
+  const router = useRouter();
 
-  // TRACK-AD-STORE (phase 2): mirrors ads.service.ts's canManageAd —
-  // an ad published under a store is manageable by its creator, an
-  // admin, the store owner, or a store member with manageAds
-  // (MANAGER/EDITOR). Membership is only fetched when the cheaper
-  // checks don't already settle it, so a plain personal-ad edit never
-  // pays for the extra request.
-  const isCreator = !!ad && !!user && ad.userId === user.id;
-  const { data: myStore } = useMyStore();
-  const isStoreOwner = !!ad?.store && myStore?.id === ad.store.id;
-  const needsMembershipCheck = !!ad?.store && !isCreator && !isAdmin && !isStoreOwner;
-  const { data: members } = useStoreMembers(needsMembershipCheck ? ad!.store!.id : undefined);
-  const myMembership = members?.items.find((m) => m.userId === user?.id && m.status === 'ACTIVE');
-  const canManageAsTeamMember =
-    !!myMembership && (myMembership.role === 'MANAGER' || myMembership.role === 'EDITOR');
+  useEffect(() => {
+    router.replace(ROUTES.adEdit(id));
+  }, [id, router]);
 
-  const isOwner = isCreator || isAdmin || isStoreOwner || canManageAsTeamMember;
-  const isRedirecting = useOwnershipGuard({ isLoading, item: ad, isOwner, redirectTo: ROUTES.myAds });
-
-  if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
-  if (isError || !ad) return notFound();
-  if (isRedirecting) return null;
-
-  return (
-    <div className="container mx-auto px-4 py-6 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">تعديل الإعلان</h1>
-      <EditAdForm ad={ad} />
-    </div>
-  );
+  return null;
 }

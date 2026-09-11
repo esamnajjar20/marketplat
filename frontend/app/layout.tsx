@@ -44,6 +44,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import { headers }                    from 'next/headers';
 import { AppProviders }               from '@/providers/AppProviders';
+import { WebVitals }                  from '@/components/shared/WebVitals';
 import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
 import '@/app/globals.css';
@@ -183,6 +184,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             header/nav — see SkipLink's own doc comment. */}
         <SkipLink />
         <AppProviders nonce={nonce}>
+          <WebVitals />
           {children}
         </AppProviders>
       </body>

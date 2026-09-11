@@ -10,6 +10,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { notificationEvents } from '../notifications/notifications.service';
 import {
   InviteStoreMemberInput,
   UpdateStoreMemberRoleInput,
@@ -219,6 +220,12 @@ export const storeMembersService = {
 
     // TODO: fire NotificationType.STORE_MEMBER_INVITED to targetUser
     // (add enum value + notification template in a follow-up).
+    // FIX (audit #21): implemented — see notifications.service.ts's
+    // onStoreMemberInvited. Fire-and-forget, same as the auditLog call
+    // above, so a notification-service hiccup never blocks the invite.
+    void notificationEvents
+      .onStoreMemberInvited(targetUser.id, store.id, member.id, store.name)
+      .catch(() => undefined);
 
     return member;
   },

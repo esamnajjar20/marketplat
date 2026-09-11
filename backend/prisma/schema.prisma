@@ -1280,6 +1280,15 @@ enum NotificationType {
   // quoteId }.
   NEW_SERVICE_QUOTE
   SERVICE_QUOTE_ACCEPTED
+  // FIX (audit #21): store-members.service.ts's inviteMember has fired
+  // AuditEventType.STORE_MEMBER_INVITED (audit log) since 20260905120000
+  // but had no matching NotificationType, so the invited user was never
+  // actually notified — see notifications.service.ts's
+  // onStoreMemberInvited. `data` always includes { storeId, memberId,
+  // storeName }. Reuses the existing `storeUpdates` preference key
+  // rather than adding a new one, consistent with other store-scoped
+  // notifications above (STORE_NEW_PRODUCT etc.).
+  STORE_MEMBER_INVITED
 }
 
 // Gap #10 ("نشاطي"): every distinct event type the personal activity

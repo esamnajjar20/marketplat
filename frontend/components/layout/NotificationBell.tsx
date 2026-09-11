@@ -16,6 +16,7 @@ import {
   Store,
   ClipboardList,
   RefreshCw,
+  Users,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -49,6 +50,7 @@ const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
   STORE_PRODUCT_RESTOCKED: Package,
   NEW_SERVICE_QUOTE: ClipboardList,
   SERVICE_QUOTE_ACCEPTED: ClipboardList,
+  STORE_MEMBER_INVITED: Users,
 };
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -64,6 +66,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
   NEW_SERVICE_QUOTE: 'عروض الأسعار',
   SERVICE_QUOTE_ACCEPTED: 'عروض مقبولة',
+  STORE_MEMBER_INVITED: 'دعوات المتجر',
 };
 
 function hrefFor(notification: Notification): string | null {
@@ -101,6 +104,9 @@ function hrefFor(notification: Notification): string | null {
     d?.broadcastId
   ) {
     return `/service-broadcasts/${d.broadcastId}`;
+  }
+  if (notification.type === 'STORE_MEMBER_INVITED') {
+    return ROUTES.myStoreMembers;
   }
   return null;
 }

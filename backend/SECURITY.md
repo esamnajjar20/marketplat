@@ -5,55 +5,44 @@ decisions that were made consciously, with known risk, rather than
 oversights. If you're reviewing this project for production readiness,
 read this file alongside the code comments it references.
 
-## Refresh token storage: `localStorage`
+## Refresh token storage: `httpOnly` cookie
 
-**Decision:** the refresh token is persisted to `localStorage` (see
-`store/auth.store.ts`'s `partialize`). The access token is **not**
-persisted — it lives only in memory and is re-issued via the refresh
-token on every page load.
+**Current implementation (PROD-FIX-15):** the refresh token is set by
+the backend as an `httpOnly`, `Secure` cookie (see
+`shared/utils/authCookies.ts`) and is never touched by client JS. The
+frontend's Zustand auth store (`store/auth.store.ts`) does **not**
+persist a refresh token at all — its `partialize` excludes it entirely,
+along with the in-memory-only access token. Only non-sensitive `user`
+display data is persisted, to avoid a blank/flashing header on reload.
+On load, the frontend calls `/auth/refresh` unconditionally; the
+browser attaches the httpOnly cookie automatically, and the backend
+issues a fresh access token if the cookie is valid.
 
-**Risk:** any successful XSS in this application can read `localStorage`
-and exfiltrate the refresh token, giving an attacker a way to mint new
-access tokens for up to the refresh token's lifetime (7 days) without
-needing the user's password.
+This document previously described an earlier design (refresh token in
+`localStorage`, with CSP and rotation/reuse-detection as compensating
+controls) as a deliberate tradeoff. That design was superseded by the
+httpOnly-cookie approach below — the older text is kept out of this
+file now that the code no longer matches it, to avoid this doc
+contradicting the implementation it's meant to describe.
 
-**Why this tradeoff was accepted instead of `httpOnly` cookies:**
-- An `httpOnly` cookie can't be read by JS at all, which is strictly
-  safer against XSS token theft — but it also can't be attached to
-  cross-origin API requests as easily without `SameSite=None` (which
-  has its own CSRF implications) when the frontend and API are on
-  different origins/subdomains in some deployment topologies.
-- This project's actual mitigation against XSS is **CSP** — see
-  `middleware.ts`'s per-request nonce, which removes `'unsafe-inline'`
-  from `script-src` in production. A successful XSS attack already
-  requires bypassing that CSP; if an attacker can run arbitrary script
-  despite the nonce-based CSP, they could also act on the user's behalf
-  directly through the page's own authenticated `fetch` calls without
-  needing to steal the token at all — so the marginal risk added by
-  `localStorage` specifically, *given the CSP is intact*, is smaller
-  than it looks in isolation.
+**Cookie attributes:** `httpOnly: true`, `secure: true`,
+`sameSite: 'none'` for the refresh-token cookie (frontend and API can
+sit on different origins/subdomains; `SameSite=None` requires
+`Secure`). One documented exception: the `oauth_state` cookie uses
+`sameSite: 'lax'` deliberately, since it only needs to survive a
+same-origin OAuth redirect round-trip and doesn't need cross-site
+attachment.
 
-**What actually limits the damage if this risk materializes:**
+**What still limits the damage of a stolen refresh token** (cookie
+theft via something other than XSS-reads-localStorage — e.g. a
+network-level or device-level compromise):
 - Refresh token rotation (`atomicRefreshRotate`, `jwt.ts`) — each use
-  invalidates the previous token. A stolen-then-used token by an
-  attacker, followed by the legitimate user's own next refresh, triggers
-  **reuse detection** (`TOKEN_REUSE` in `securityAlert.ts`), which
-  revokes **all** sessions for that user and emails them a security
-  alert.
-- 7-day TTL caps the maximum exposure window even if reuse detection is
-  never triggered (e.g., attacker never lets the legitimate token rotate
-  again, just keeps re-using the stolen one within its validity window —
-  this is the actual remaining residual risk: as long as only the
-  attacker uses the stolen token and the legitimate user doesn't
-  independently refresh, no reuse signal fires).
-
-**If you need a stronger guarantee than this** (e.g., handling more
-sensitive data than a classifieds marketplace, or operating under a
-compliance regime that disallows token-in-localStorage outright), the
-correct fix is moving the refresh token to an `httpOnly`, `Secure`,
-`SameSite=Strict` cookie and adapting the silent-refresh flow in
-`api/client.ts` accordingly — this is a real architecture change, not a
-one-line fix, which is why it wasn't done as part of this audit pass.
+  invalidates the previous token. A stolen-then-used token, followed by
+  the legitimate user's own next refresh, triggers **reuse detection**
+  (`TOKEN_REUSE` in `securityAlert.ts`), which revokes **all** sessions
+  for that user and emails them a security alert.
+- 7-day TTL caps the maximum exposure window even if reuse detection
+  never fires.
 
 ## Password reset tokens: `crypto.randomUUID()`
 

@@ -100,6 +100,15 @@ const PROTECTED_PREFIXES = [
   // shows the same customer/provider-only data as those list pages.
   '/service-requests',
   '/settings',
+  // BUGFIX (audit #14): these 5 protected pages existed but were never
+  // added to this list, same gap as /my-services, /my-store, and
+  // /my-requests above — client-side guard still caught them, no auth
+  // bypass, but they missed the Edge-level redirect.
+  '/notifications',
+  '/activity',
+  '/saved-searches',
+  '/my-reports',
+  '/service-broadcasts',
 ] as const;
 
 const PROTECTED_AD_EDIT_RE = /^\/ads\/[^/]+\/edit(\/.*)?$/;

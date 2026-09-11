@@ -38,7 +38,7 @@ services:
       - NODE_ENV=production
       - PORT=5000
       - DATABASE_URL=postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-classifieds_db}?connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=30
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - JWT_EXPIRES_IN=15m
       - REDIS_HOST=redis
@@ -72,13 +72,13 @@ services:
     networks:
       - classifieds-network
 
-  # FIX D-25: the frontend, built from the sibling marketplace-ux
-  # directory. NEXT_PUBLIC_* vars are build-time (baked into the
+  # FIX D-25: the frontend, built from ./frontend in this repo
+  # (not a sibling repo). NEXT_PUBLIC_* vars are build-time (baked into the
   # JS bundle at build, per Next.js convention) — changing them requires
   # a rebuild, not just a container restart.
   web:
     build:
-      context: ../marketplace-ux
+      context: ../frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}

@@ -459,6 +459,33 @@ export const notificationEvents = {
     });
   },
 
+  /** store-members.service.ts's inviteMember calls this after a
+   * PENDING member row is created — notifies the invited user. FIX
+   * (audit #21): was TODO'd, never actually implemented. */
+  onStoreMemberInvited: async (
+    targetUserId: string,
+    storeId: string,
+    memberId: string,
+    storeName: string
+  ) => {
+    if (!(await userAllowsPref(targetUserId, 'storeUpdates'))) return null;
+    const title = 'دعوة انضمام لمتجر';
+    const body = `تمت دعوتك للانضمام إلى فريق متجر \"${storeName}\"`;
+    void pushService.notifyUser(targetUserId, {
+      title,
+      body,
+      url: `/my-store/members`,
+      tag: `store-invite-${memberId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: targetUserId,
+      type: 'STORE_MEMBER_INVITED',
+      title,
+      body,
+      data: { storeId, memberId },
+    });
+  },
+
   /** service-broadcasts.service.ts's acceptQuote calls this after a
    * quote is accepted — notifies the winning provider. */
   onServiceQuoteAccepted: async (
