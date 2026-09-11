@@ -297,6 +297,31 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
       message: "REDIS_PASSWORD is required when NODE_ENV=production",
     });
   }
+
+  // FIX PROD-AUDIT-01: CLOUDINARY_* was optional at every NODE_ENV, same
+  // as SMTP_*/GOOGLE_CLIENT_* — correct for those (fully optional
+  // features), but wrong here: .env.example's own comment on this block
+  // says "Cloudinary (required for image uploads)" while nothing
+  // actually enforced that in production. Combined with the disabled
+  // zero-image check in ads.controller.ts (see TRACK-IMG-HOSTING), a
+  // production deploy with these unset previously started cleanly and
+  // silently accepted image-less ads/products/service-listings with no
+  // working upload path at all. Dev/test still allow all three unset
+  // (placeholder-image / no-upload local workflows), matching
+  // REDIS_PASSWORD's dev-vs-prod split above. All three are required
+  // together — a partially-configured Cloudinary account is a
+  // misconfiguration, not a valid opt-out.
+  if (
+    data.NODE_ENV === "production" &&
+    (!data.CLOUDINARY_CLOUD_NAME || !data.CLOUDINARY_API_KEY || !data.CLOUDINARY_API_SECRET)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["CLOUDINARY_CLOUD_NAME"],
+      message:
+        "CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are all required when NODE_ENV=production",
+    });
+  }
 });
 
 const parsed = envSchemaWithRedisCheck.safeParse(process.env);

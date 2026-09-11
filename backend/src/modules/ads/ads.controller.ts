@@ -29,18 +29,15 @@ export const adsController = {
       // client) could publish an ad with zero images, bypassing what
       // every real user going through the UI is required to provide.
       //
-      // TODO(TRACK-IMG-HOSTING): re-enable once image hosting (e.g.
-      // Cloudinary) is configured in this environment — this check is
-      // disabled below so ads can be created and tested end-to-end
-      // (including checking indexing/appearance on Google) without a
-      // working upload service.
-      //
-      // Re-enable by: uncommenting the throw below AND un-skipping the
-      // corresponding it.skip cases in ads.controller.test.ts (search
-      // that file for TRACK-IMG-HOSTING) that assert this 400. Both
-      // sides must flip together or the tests will silently pass
-      // against dead code again.
-      // if (files.length === 0) throw new BadRequestError('At least one image is required');
+      // TRACK-IMG-HOSTING: re-enabled under FIX PROD-AUDIT-01 now that
+      // config/env.ts's superRefine fails startup in production when
+      // Cloudinary isn't configured — a working upload service is
+      // therefore guaranteed by the time this line runs in production.
+      // Dev/test can still create ads with zero images (Cloudinary
+      // stays optional there), matching the corresponding it.skip
+      // cases un-skipped in ads.controller.test.ts (search that file
+      // for TRACK-IMG-HOSTING).
+      if (files.length === 0) throw new BadRequestError('At least one image is required');
       const ad = await adsService.createAd(user.userId, body, files);
       res.status(201).json(successResponse('Ad created', ad));
     } catch (error) {

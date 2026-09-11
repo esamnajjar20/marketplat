@@ -218,8 +218,6 @@ export const storeMembersService = {
       },
     }).catch(() => undefined);
 
-    // TODO: fire NotificationType.STORE_MEMBER_INVITED to targetUser
-    // (add enum value + notification template in a follow-up).
     // FIX (audit #21): implemented — see notifications.service.ts's
     // onStoreMemberInvited. Fire-and-forget, same as the auditLog call
     // above, so a notification-service hiccup never blocks the invite.

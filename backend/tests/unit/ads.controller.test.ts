@@ -40,13 +40,11 @@ describe('adsController', () => {
       expect(adsService.createAd).toHaveBeenCalledWith('user-1', expect.any(Object), [mockFile]);
     });
 
-    // FIX LOAD-TEST-01 / TODO(TRACK-IMG-HOSTING): ads.controller.ts's
-    // zero-image check is currently commented out until image hosting
-    // is configured, so createAd no longer throws here by design.
-    // Both tests below are skipped, not deleted — re-enable together
-    // with uncommenting that throw (see the matching TRACK-IMG-HOSTING
-    // comment in ads.controller.ts).
-    it.skip('calls next(error) with BadRequestError when no files are attached', async () => {
+    // FIX LOAD-TEST-01 / TRACK-IMG-HOSTING: re-enabled under
+    // FIX PROD-AUDIT-01 alongside uncommenting the throw in
+    // ads.controller.ts, now that config/env.ts guarantees Cloudinary
+    // is configured whenever NODE_ENV=production.
+    it('calls next(error) with BadRequestError when no files are attached', async () => {
       const req = mockRequest({ body: validCreateBody });
       const res = mockResponse();
       const next = mockNext();
@@ -57,7 +55,7 @@ describe('adsController', () => {
       expect(adsService.createAd).not.toHaveBeenCalled();
     });
 
-    it.skip('calls next(error) with BadRequestError when req.files is an empty array', async () => {
+    it('calls next(error) with BadRequestError when req.files is an empty array', async () => {
       const req = mockRequest({ body: validCreateBody, files: [] as any });
       const res = mockResponse();
       const next = mockNext();

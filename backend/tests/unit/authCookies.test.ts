@@ -34,19 +34,33 @@ const mockRes = (): Partial<Response> => {
 describe('authCookies', () => {
   const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
   const ORIGINAL_REDIS_PASSWORD = process.env.REDIS_PASSWORD;
+  const ORIGINAL_CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+  const ORIGINAL_CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
+  const ORIGINAL_CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
 
   /**
-   * env.ts requires REDIS_PASSWORD when NODE_ENV=production. Several
-   * cases below temporarily flip NODE_ENV to 'production' and call
+   * env.ts requires REDIS_PASSWORD and CLOUDINARY_* when
+   * NODE_ENV=production (FIX PROD-AUDIT-01 added the Cloudinary half —
+   * previously only REDIS_PASSWORD was enforced here). Several cases
+   * below temporarily flip NODE_ENV to 'production' and call
    * jest.resetModules() so authCookies re-reads env.nodeEnv — that
-   * re-import re-runs env.ts's schema parse. Without a password set,
-   * the parse fails. We plant a dummy password only for those cases
-   * and always restore it in afterEach so other suites are not affected.
+   * re-import re-runs env.ts's schema parse. Without these set, the
+   * parse fails. We plant dummy values only for those cases and always
+   * restore them in afterEach so other suites are not affected.
    */
   function withProductionEnv() {
     process.env.NODE_ENV = 'production';
     if (!process.env.REDIS_PASSWORD) {
       process.env.REDIS_PASSWORD = 'test-only-redis-password-not-for-real-use';
+    }
+    if (!process.env.CLOUDINARY_CLOUD_NAME) {
+      process.env.CLOUDINARY_CLOUD_NAME = 'test-only-cloud-name';
+    }
+    if (!process.env.CLOUDINARY_API_KEY) {
+      process.env.CLOUDINARY_API_KEY = 'test-only-api-key';
+    }
+    if (!process.env.CLOUDINARY_API_SECRET) {
+      process.env.CLOUDINARY_API_SECRET = 'test-only-api-secret';
     }
   }
 
@@ -71,6 +85,21 @@ describe('authCookies', () => {
       delete process.env.REDIS_PASSWORD;
     } else {
       process.env.REDIS_PASSWORD = ORIGINAL_REDIS_PASSWORD;
+    }
+    if (ORIGINAL_CLOUDINARY_CLOUD_NAME === undefined) {
+      delete process.env.CLOUDINARY_CLOUD_NAME;
+    } else {
+      process.env.CLOUDINARY_CLOUD_NAME = ORIGINAL_CLOUDINARY_CLOUD_NAME;
+    }
+    if (ORIGINAL_CLOUDINARY_API_KEY === undefined) {
+      delete process.env.CLOUDINARY_API_KEY;
+    } else {
+      process.env.CLOUDINARY_API_KEY = ORIGINAL_CLOUDINARY_API_KEY;
+    }
+    if (ORIGINAL_CLOUDINARY_API_SECRET === undefined) {
+      delete process.env.CLOUDINARY_API_SECRET;
+    } else {
+      process.env.CLOUDINARY_API_SECRET = ORIGINAL_CLOUDINARY_API_SECRET;
     }
     jest.resetModules();
   });
