@@ -278,8 +278,15 @@ export function middleware(request: NextRequest) {
     role !== null && (ADMIN_TIER_ROLES as readonly string[]).includes(role);
   const isAdmin = isAdminTierRole(safeRole) && (tokenRole === null || isAdminTierRole(tokenRole));
 
-  // 1. Redirect logged-in users away from auth pages.
-  if (isAuthPage(pathname) && isLoggedIn) {
+  // 1. Redirect away from auth pages only when we have a *valid access
+  // token* — not merely app_has_session. Session-hint alone means
+  // "maybe still logged in; let AuthHydrationProvider confirm". If the
+  // client failed to restore (refresh 401/timeout) while the hint cookie
+  // is still set, treating hint as fully logged-in caused a loop:
+  //   /login → middleware → /dashboard → !isAuthenticated → "جاري التحقق"
+  //   → redirect /login → … and the user could never reach login/register.
+  // FIX AUTH-LOGIN-LOOP-01: only skip auth pages when access token is valid.
+  if (isAuthPage(pathname) && hasValidAccessToken) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

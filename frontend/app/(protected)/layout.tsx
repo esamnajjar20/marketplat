@@ -74,6 +74,15 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isResolved) return;
     if (!isAuthenticated && !canRenderOffline) {
+      // FIX AUTH-LOGIN-LOOP-01: امسح تلميح الجلسة القديم حتى لا يعيد
+      // middleware توجيه /login → /dashboard بينما العميل غير مصادق.
+      try {
+        document.cookie = 'app_has_session=; Max-Age=0; path=/';
+        document.cookie = 'app_access_token=; Max-Age=0; path=/';
+        document.cookie = 'app_user_role=; Max-Age=0; path=/';
+      } catch {
+        /* ignore */
+      }
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
     }
   }, [isAuthenticated, canRenderOffline, isResolved, router, pathname]);
@@ -87,8 +96,15 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // Don't flash protected content before redirect fires.
-  if (!isAuthenticated && !canRenderOffline) return null;
+  // لا تُرجع null (شاشة بيضاء) — اعرض رسالة قصيرة أثناء التحويل لتسجيل الدخول.
+  if (!isAuthenticated && !canRenderOffline) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">جاري التحقق من الجلسة…</p>
+      </div>
+    );
+  }
 
   return (
     // FIX OVERFLOW-01: this container and every flex child in the
