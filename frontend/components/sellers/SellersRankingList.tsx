@@ -8,6 +8,12 @@ import { Badge } from '@/components/shared/ui/Badge';
 import Link from 'next/link';
 import { ROUTES } from '@/lib/constants';
 import { ResponseTimeBadge } from '@/components/sellers/ResponseTimeBadge';
+import {
+  getOfflineList,
+  saveOfflineList,
+  OFFLINE_LIST_KEYS,
+  OFFLINE_LIST_LIMITS,
+} from '@/lib/offlineListCache';
 
 interface RankRow {
   rank: number;
@@ -27,12 +33,34 @@ interface RankRow {
 const MEDAL = { gold: '🥇', silver: '🥈', bronze: '🥉' } as const;
 
 export function SellersRankingList({ limit = 20 }: { limit?: number }) {
+  const cached = getOfflineList<RankRow>(OFFLINE_LIST_KEYS.sellersRanking);
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['sellers', 'ranking', limit],
-    queryFn: () =>
-      apiClient
-        .get<ApiResponse<RankRow[]>>('/sellers/ranking', { params: { limit } })
-        .then((r) => r.data.data ?? []),
+    queryFn: async () => {
+      try {
+        const rows =
+          (await apiClient
+            .get<ApiResponse<RankRow[]>>('/sellers/ranking', { params: { limit } })
+            .then((r) => r.data.data ?? [])) ?? [];
+        saveOfflineList(
+          OFFLINE_LIST_KEYS.sellersRanking,
+          rows,
+          OFFLINE_LIST_LIMITS.sellersRanking,
+        );
+        return rows;
+      } catch (err) {
+        const local = getOfflineList<RankRow>(OFFLINE_LIST_KEYS.sellersRanking);
+        if (local?.items.length) return local.items;
+        throw err;
+      }
+    },
+    ...(cached && cached.items.length > 0
+      ? {
+          initialData: cached.items,
+          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
+        }
+      : {}),
   });
 
   if (isLoading) {

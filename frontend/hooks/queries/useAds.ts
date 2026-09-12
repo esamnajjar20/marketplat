@@ -18,7 +18,26 @@ import { adsApi }    from '@/api/ads.api';
 import { usersApi }  from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { AdSearchParams, AdSearchQuery } from '@/types/ad.types';
+import type { AdSearchParams, AdSearchQuery, AdListItem } from '@/types/ad.types';
+import type { PaginationMeta } from '@/types/api.types';
+import {
+  getOfflineList,
+  saveOfflineList,
+  OFFLINE_LIST_KEYS,
+  OFFLINE_LIST_LIMITS,
+} from '@/lib/offlineListCache';
+
+function offlineMeta(count: number): PaginationMeta {
+  return {
+    total: count,
+    page: 1,
+    limit: count,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  };
+}
+
 
 /** GET /ads — paginated + filtered list */
 /**
@@ -35,12 +54,49 @@ import type { AdSearchParams, AdSearchQuery } from '@/types/ad.types';
  * keeps its default always-on behavior unchanged.
  */
 export function useAds(params?: AdSearchParams, options?: { enabled?: boolean }) {
+  // كاش أوفلاين للصفحة الأولى فقط بدون فلاتر معقّدة
+  const isBaseBrowse =
+    !params?.page ||
+    params.page === 1;
+  const cached = isBaseBrowse
+    ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse)
+    : null;
+
   return useQuery({
     queryKey:         queryKeys.ads.list(params),
-    queryFn:          () => adsApi.getAll(params).then((r) => r.data.data),
-    placeholderData:  keepPreviousData,      // prevents flash when changing pages
+    queryFn: async () => {
+      try {
+        const data = await adsApi.getAll(params).then((r) => r.data.data);
+        if (isBaseBrowse && data?.items) {
+          saveOfflineList(
+            OFFLINE_LIST_KEYS.adsBrowse,
+            data.items,
+            OFFLINE_LIST_LIMITS.adsBrowse,
+          );
+        }
+        return data;
+      } catch (err) {
+        if (isBaseBrowse) {
+          const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse);
+          if (local?.items.length) {
+            return { items: local.items, meta: offlineMeta(local.items.length) };
+          }
+        }
+        throw err;
+      }
+    },
+    placeholderData:  keepPreviousData,
     staleTime:        CACHE_TTL.adsList,
     enabled:          options?.enabled,
+    ...(cached && cached.items.length > 0
+      ? {
+          initialData: {
+            items: cached.items,
+            meta: offlineMeta(cached.items.length),
+          },
+          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
+        }
+      : {}),
   });
 }
 
@@ -89,11 +145,43 @@ export function useRelatedAds(id: string) {
  * FIX C-06: URL is /ads/me (was /ads/my in old code — fixed in ads.api.ts).
  */
 export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>) {
+  const isBase = !params?.page || params.page === 1;
+  const cached = isBase ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds) : null;
+
   return useQuery({
     queryKey:        queryKeys.ads.mine(params),
-    queryFn:         () => adsApi.getMyAds(params).then((r) => r.data.data),
+    queryFn: async () => {
+      try {
+        const data = await adsApi.getMyAds(params).then((r) => r.data.data);
+        if (isBase && data?.items) {
+          saveOfflineList(
+            OFFLINE_LIST_KEYS.myAds,
+            data.items,
+            OFFLINE_LIST_LIMITS.myAds,
+          );
+        }
+        return data;
+      } catch (err) {
+        if (isBase) {
+          const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds);
+          if (local?.items.length) {
+            return { items: local.items, meta: offlineMeta(local.items.length) };
+          }
+        }
+        throw err;
+      }
+    },
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.myAds,
+    ...(cached && cached.items.length > 0
+      ? {
+          initialData: {
+            items: cached.items,
+            meta: offlineMeta(cached.items.length),
+          },
+          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
+        }
+      : {}),
   });
 }
 
