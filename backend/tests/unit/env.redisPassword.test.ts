@@ -99,7 +99,7 @@ describe('config/env — REDIS_PASSWORD production requirement', () => {
 
 /**
  * FIX PROD-AUDIT-01 coverage: config/env.ts left CLOUDINARY_* optional
- * at every NODE_ENV, same as SMTP_*/GOOGLE_CLIENT_* (all genuinely
+ * at every NODE_ENV, same as the SMTP_* and GOOGLE_CLIENT_* settings (all genuinely
  * optional integrations) — but .env.example's own comment on this
  * block says "Cloudinary (required for image uploads)" while nothing
  * enforced that in production. Combined with the disabled zero-image
