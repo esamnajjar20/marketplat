@@ -245,6 +245,8 @@ function isPersonalShellRoute(url) {
   if (path.startsWith('/service-broadcasts/')) return true;
   if (path.startsWith('/my-requests/')) return true;
   if (path.startsWith('/my-ads/')) return true;
+  // صفحة حسابي /profile/:id — شكل فقط؛ يُمسَح عند logout
+  if (path.startsWith('/profile/')) return true;
   return false;
 }
 

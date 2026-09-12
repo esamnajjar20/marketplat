@@ -271,3 +271,20 @@ export async function searchOffline(
     hasBundle: true,
   };
 }
+
+
+/** نتائج بحث محلية مع تلميح «من البيانات المحفوظة». */
+export async function searchOfflineWithMeta(query: SearchQuery): Promise<{
+  items: SearchResult[];
+  meta: PaginationMeta;
+  hasBundle: boolean;
+  offlineNote: string;
+}> {
+  const result = await searchOffline(query);
+  return {
+    ...result,
+    offlineNote: result.hasBundle
+      ? 'نتائج من البيانات المحفوظة محليًا — قد تكون قديمة'
+      : 'لا توجد بيانات محفوظة كافية للبحث بدون إنترنت',
+  };
+}

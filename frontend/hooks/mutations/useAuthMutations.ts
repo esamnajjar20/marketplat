@@ -21,6 +21,7 @@ import { track }         from '@/lib/analytics';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { clearAllOfflineLists } from '@/lib/offlineListCache';
 import { clearAllAdDrafts } from '@/lib/offlineAdDrafts';
+import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
@@ -214,6 +215,7 @@ function useClearLocalSession() {
     clearNotificationsCache();
     clearAllOfflineLists();
     void clearAllAdDrafts();
+    clearAllOfflineJson();
     void clearOfflineMessagesStore();
     queryClient.clear();
     router.push(ROUTES.home);

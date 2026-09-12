@@ -4,7 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { sellersApi } from '@/api/sellers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import {
+  getOfflineJson,
+  saveOfflineJson,
+  OFFLINE_JSON_KEYS,
+} from '@/lib/offlineJsonCache';
 
 /** GET /sellers/:id — public seller page. No auth required. */
 export function useSellerProfile(id: string) {
@@ -53,12 +63,31 @@ export function useIsSeller(): { isSeller: boolean; isLoaded: boolean } {
 /** GET /sellers/me/attention — dashboard "needs attention" counters. */
 export function useMyAttention() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
+  const cached = getOfflineJson<unknown>(OFFLINE_JSON_KEYS.dashboardAttention);
 
   return useQuery({
     queryKey: queryKeys.sellers.attention(),
-    queryFn: () => sellersApi.getMyAttention().then(r => r.data.data),
+    queryFn: async () => {
+      try {
+        const data = await sellersApi.getMyAttention().then(r => r.data.data);
+        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.dashboardAttention, data);
+        return data;
+      } catch (err) {
+        const local = getOfflineJson<unknown>(OFFLINE_JSON_KEYS.dashboardAttention);
+        if (local) return local.data;
+        throw err;
+      }
+    },
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,
+    ...(cached
+      ? {
+          initialData: cached.data as never,
+          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
+        }
+      : {}),
   });
 }

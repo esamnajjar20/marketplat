@@ -1,5 +1,7 @@
-import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 'use client';
+
+import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
+import { saveLastKnownLocation, getLastKnownLocation } from '@/lib/lastKnownLocation';
 
 import { useEffect, useState } from 'react';
 import { useNearbyServiceProviders } from './useServiceProviders';
@@ -68,6 +70,7 @@ export function useNearbyServiceProvidersIfGranted() {
               return;
             }
             setCoords({ lat, lng });
+            saveLastKnownLocation({ lat, lng, accuracy: pos.coords.accuracy });
             setPermission('granted');
           },
           () => {
@@ -86,9 +89,21 @@ export function useNearbyServiceProvidersIfGranted() {
     };
   }, []);
 
+  // أوفلاين: آخر موقع معروف إن لم يتوفر GPS حي
+  const effectiveCoords =
+    coords ??
+    (typeof navigator !== 'undefined' && navigator.onLine === false
+      ? getLastKnownLocation()?.location ?? null
+      : null);
+
   const params: NearbyServiceProvidersParams | null =
-    permission === 'granted' && coords
-      ? { lat: coords.lat, lng: coords.lng, radius: RADIUS_KM, limit: DISPLAY_LIMIT }
+    effectiveCoords
+      ? {
+          lat: effectiveCoords.lat,
+          lng: effectiveCoords.lng,
+          radius: RADIUS_KM,
+          limit: DISPLAY_LIMIT,
+        }
       : null;
 
   const query = useNearbyServiceProviders(params);
@@ -100,9 +115,15 @@ export function useNearbyServiceProvidersIfGranted() {
    * should not distinguish further; that's the whole point of §6 —
    * no error, no permission-request UI, just absence.
    */
+  const offlineWithLastKnown =
+    typeof navigator !== 'undefined' &&
+    navigator.onLine === false &&
+    Boolean(effectiveCoords);
+
   return {
-    available: permission === 'granted',
-    isChecking: permission === 'checking',
+    // أونلاين: فقط بعد إذن GPS. أوفلاين: آخر موقع معروف يكفي لعرض القسم.
+    available: permission === 'granted' || offlineWithLastKnown,
+    isChecking: permission === 'checking' && !offlineWithLastKnown,
     ...query,
   };
 }
