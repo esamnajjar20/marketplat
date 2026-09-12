@@ -8,12 +8,15 @@ import { useEffect } from 'react';
 import { registerServiceWorker } from '@/lib/pwa';
 import { requestQueueReplay } from '@/lib/offlineQueue';
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
-import { warmRouteShells } from '@/lib/offlineRouteShells';
+import { warmRouteShells, warmPersonalShells } from '@/lib/offlineRouteShells';
+import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { InstallPrompt } from './InstallPrompt';
 import { UpdatePrompt } from './UpdatePrompt';
 import { WarmupIndicator } from './WarmupIndicator';
 
 export function PwaBootstrap() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+
   // ⚠️ يعتمد على ترتيب تنفيذ useEffect في React: التأثيرات (effects) تُنفَّذ
   // من الأسفل إلى الأعلى في الشجرة — أي أن useEffect داخل <UpdatePrompt/>
   // (الذي يستدعي onServiceWorkerUpdate في lib/pwa.ts ليُسجِّل مستمعًا)
@@ -27,9 +30,8 @@ export function PwaBootstrap() {
 
     // PHASE-1 (Offline Core Bundle) + PHASE-3-A (route shells): تحديث صامت
     // بالخلفية، محدود بمهلة WARM_INTERVAL_MS داخل warmCoreBundle نفسها فلا
-    // يعيد الجلب بكل تحميل صفحة. warmRouteShells خفيف (4 طلبات HTML) فلا
-    // داعي لنفس آلية التقييد — يُعاد فقط عند فتح التطبيق/رجوع الاتصال، وهو
-    // idempotent (يستبدل نفس المفاتيح، لا يتراكم).
+    // يعيد الجلب بكل تحميل صفحة. warmRouteShells خفيف فلا داعي لنفس آلية
+    // التقييد — يُعاد فقط عند فتح التطبيق/رجوع الاتصال، وهو idempotent.
     void warmCoreBundle();
     void warmRouteShells();
 
@@ -69,6 +71,18 @@ export function PwaBootstrap() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // تسخين أشكال الصفحات المحمية (رسائل/إشعارات/لوحة…) لمستخدم مسجّل فقط.
+  // PERSONAL_SHELL_CACHE يُمسَح عند تسجيل الخروج (CLEAR_API_CACHE).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void warmPersonalShells();
+    const onOnline = () => {
+      void warmPersonalShells();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [isAuthenticated]);
 
   return (
     <>

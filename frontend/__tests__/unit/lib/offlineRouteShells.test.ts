@@ -2,10 +2,11 @@
  * __tests__/unit/lib/offlineRouteShells.test.ts
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { warmRouteShells } from '@/lib/offlineRouteShells';
+import { warmRouteShells, warmPersonalShells } from '@/lib/offlineRouteShells';
 
 describe('offlineRouteShells', () => {
   beforeEach(() => {
+    vi.stubGlobal('navigator', { onLine: true });
     vi.stubGlobal(
       'caches',
       {
@@ -55,5 +56,16 @@ describe('offlineRouteShells', () => {
     for (const path of ['/saved-ads', '/downloads', '/saved-payments']) {
       expect(fetchedPaths).toContain(path);
     }
+  });
+
+  it('warmPersonalShells opens personal shell cache when online', async () => {
+    await warmPersonalShells();
+    expect(caches.open).toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalled();
+  });
+
+  it('warmPersonalShells is a no-op when offline', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    await expect(warmPersonalShells()).resolves.toBeUndefined();
   });
 });

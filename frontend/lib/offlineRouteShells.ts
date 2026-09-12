@@ -42,7 +42,7 @@
 // بكاش لا يقرأ منه sw.js أبدًا، وأن 'activate' هناك يحذف هذا الكاش (v4) فورًا
 // بعد كل تفعيل لأنه غير مدرَج بـ currentCaches. رُفعت هنا إلى 'v6' لتطابق
 // public/sw.js's CACHE_VERSION الحالية — راجع تعليق CACHE_VERSION هناك.
-const STATIC_CACHE = 'market-static-v12'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v13'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -79,10 +79,28 @@ const STATIC_CACHE = 'market-static-v12'; // يجب مطابقة CACHE_VERSION �
 // الديناميكي)، فتخزين '/categories' هنا كان يفشل بـ404 في كل مرة
 // (مؤكَّد عبر Network tab: طلبان فاشلان — html وRSC — بكل تحميل صفحة).
 // مغلَّف بـtry/catch فلا يوقف شيء، لكنه هدر طلبين بطيئين بلا فائدة.
+// صفحات عامة آمنة للـ shell (لا بيانات مستخدم في HTML).
 const CORE_ROUTES = [
   '/', '/products', '/stores', '/search', '/services', '/ads',
   '/saved-ads', '/downloads', '/saved-payments',
+  '/service-providers', '/sellers/ranking',
 ];
+
+// صفحات محمية — 'use client' + بيانات عبر RQ بعد hydration.
+// الشكل (HTML/RSC) قد يعكس حالة جلسة سابقة؛ يُمسَح PERSONAL_SHELL_CACHE
+// كاملًا عند تسجيل الخروج (CLEAR_API_CACHE في sw.js) لنفس سبب API_CACHE.
+// يجب أن تطابق isPersonalShellRoute في public/sw.js حرفيًا.
+export const PERSONAL_SHELL_ROUTES = [
+  '/messages',
+  '/notifications',
+  '/dashboard',
+  '/favorites',
+  '/my-ads',
+  '/saved-searches',
+  '/activity',
+];
+
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v13';
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
@@ -174,15 +192,77 @@ export async function warmRouteShells(): Promise<void> {
 }
 
 /**
- * ما هو غير مُغطّى، وليش — بصراحة بدل الادعاء بحل شامل:
- *
- * الافتراض الجوهري لكل هذا الملف (وفرع RSC المقابل بـ sw.js): طلب RSC:'1'
- * بدون Next-Router-State-Tree (وهو ما يرسله هذا الملف عمدًا — لا نمرر
- * الرأس الثاني) يُرجع حمولة كاملة مستقلة بذاتها حسب توثيق Next.js الرسمي
- * (nextjs.org/docs/app/guides/cdn-caching + مصدر fetch-server-response.ts
- * المنشور، Next 16.3.1). لم يُختبَر هذا فعليًا بمتصفح حقيقي — لا build/dev
- * server كان متاحًا وقت الكتابة. إن لاحظت تنقّل SPA بدون نت يفشل رغم هذا
- * الإصلاح، أول شيء تتحقق منه: افتح DevTools → Network بمتصفح حقيقي، افتح
- * `/products`، راقب شكل طلب أي تنقّل SPA تالٍ لمسار جديد (headers/query)،
- * وقارنه بما يفترضه هذا الملف وsw.js's isRscShellRequest().
+ * تسخين أشكال الصفحات المحمية (رسائل، إشعارات، لوحة، مفضلة…) في
+ * PERSONAL_SHELL_CACHE — يُستدعى فقط والمستخدم مسجّل دخول وأونلاين.
+ * HTML + JS/CSS chunks + RSC shell بنفس منطق warmRouteShells.
+ */
+export async function warmPersonalShells(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!navigator.onLine) return;
+  if (typeof caches === 'undefined') return;
+
+  try {
+    const cache = await caches.open(PERSONAL_SHELL_CACHE);
+
+    await Promise.allSettled(
+      PERSONAL_SHELL_ROUTES.map(async (path) => {
+        try {
+          const response = await fetch(path, { credentials: 'same-origin' });
+          if (!response.ok) return;
+          await cache.put(path, response.clone());
+
+          const html = await response.clone().text();
+          const assetUrls = Array.from(
+            html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+          )
+            .map((match) => match[1])
+            .filter((url): url is string => Boolean(url));
+
+          // الأصول تُخزَّن في STATIC_CACHE حتى يخدمها staleWhileRevalidate
+          const staticCache = await caches.open(STATIC_CACHE);
+          await Promise.allSettled(
+            assetUrls.map(async (assetUrl) => {
+              try {
+                const assetResponse = await fetch(assetUrl, { credentials: 'same-origin' });
+                if (assetResponse.ok) await staticCache.put(assetUrl, assetResponse.clone());
+              } catch {
+                /* ignore */
+              }
+            }),
+          );
+        } catch {
+          /* ignore single path */
+        }
+      }),
+    );
+
+    await Promise.allSettled(
+      PERSONAL_SHELL_ROUTES.map(async (path) => {
+        try {
+          const response = await fetch(path, {
+            credentials: 'same-origin',
+            headers: { RSC: '1' },
+          });
+          if (!response.ok) return;
+          const headers = new Headers(response.headers);
+          headers.delete('Vary');
+          const stored = new Response(await response.clone().blob(), {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+          });
+          await cache.put(rscShellKey(path), stored);
+        } catch {
+          /* ignore */
+        }
+      }),
+    );
+  } catch {
+    /* ignore full failure */
+  }
+}
+
+/**
+ * ما هو غير مُغطّى: افتراض RSC بدون Next-Router-State-Tree — راجع تعليق
+ * PHASE-3-B في public/sw.js. لم يُختبر كل مسار محمي بمتصفح حقيقي بعد.
  */

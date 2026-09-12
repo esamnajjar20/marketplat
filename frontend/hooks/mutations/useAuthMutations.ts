@@ -19,6 +19,7 @@ import { queryKeys }     from '@/lib/queryKeys';
 import { ROUTES }        from '@/lib/constants';
 import { track }         from '@/lib/analytics';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
+import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
@@ -209,6 +210,7 @@ function useClearLocalSession() {
     // يمنع ظهور إشعارات المستخدم السابق على جهاز مشترك بعد تسجيل الدخول
     // بحساب آخر.
     clearNotificationsCache();
+    void clearOfflineMessagesStore();
     queryClient.clear();
     router.push(ROUTES.home);
   };
