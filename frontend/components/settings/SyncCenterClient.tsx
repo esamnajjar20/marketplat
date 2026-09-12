@@ -25,6 +25,8 @@ import {
   retryFailedRequest,
   discardFailedRequest,
   requestQueueReplay,
+  isConflictFailure,
+  describeQueueFailure,
   type QueuedRequestSummary,
 } from '@/lib/offlineQueue';
 import {
@@ -212,17 +214,27 @@ export function SyncCenterClient() {
                     {item.method} {shortUrl(item.url)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {item.lastError?.message || `خطأ ${item.lastError?.status ?? ''}`}
+                    {describeQueueFailure(item)}
                   </p>
+                  {isConflictFailure(item) ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                      تعارض: لا تُعد المحاولة بنفس البيانات دون مراجعة — احذف الطلب أو عدّل المصدر ثم أعد الإرسال أونلاين.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex gap-1">
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={!isOnline}
+                    disabled={!isOnline || isConflictFailure(item)}
                     onClick={() => void handleRetry(item.id)}
+                    title={
+                      isConflictFailure(item)
+                        ? 'التعارض يحتاج مراجعة يدوية'
+                        : 'إعادة المحاولة'
+                    }
                   >
-                    إعادة
+                    {isConflictFailure(item) ? 'تعارض' : 'إعادة'}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => void handleDiscard(item.id)}>
                     حذف

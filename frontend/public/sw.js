@@ -64,7 +64,7 @@
 // ارفع CACHE_VERSION فقط عند تغيّر سياسة الكاش / الـ shells / استراتيجيات fetch
 // في هذا الملف — وليس مع كل deploy لا يمسّ SW. عند التفعيل (activate) تُمسَح
 // كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
-const CACHE_VERSION = 'v17';
+const CACHE_VERSION = 'v18';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -569,11 +569,17 @@ async function cacheFirstImage(event, request, url) {
   try {
     const response = await fetch(request);
     if (response && response.ok) {
-      event.waitUntil(
-        cache.put(request, response.clone()).then(() =>
-          trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
-        ),
-      );
+      // لا تخزّن صورًا ضخمة جدًا (توفير مساحة الهاتف)
+      const len = response.headers.get('content-length');
+      const lenNum = len ? Number(len) : 0;
+      const tooLarge = Number.isFinite(lenNum) && lenNum > 2.5 * 1024 * 1024;
+      if (!tooLarge) {
+        event.waitUntil(
+          cache.put(request, response.clone()).then(() =>
+            trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
+          ),
+        );
+      }
     }
     return response;
   } catch {

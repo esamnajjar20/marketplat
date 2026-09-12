@@ -196,3 +196,23 @@ export async function requestQueueReplay(): Promise<void> {
   const registration = await navigator.serviceWorker.ready;
   registration.active?.postMessage({ type: 'REPLAY_QUEUE_NOW' });
 }
+
+
+/** تعارض مع السيرفر (عادة 409) — يحتاج قرار مستخدم لا إعادة عمياء. */
+export function isConflictFailure(item: QueuedRequestSummary): boolean {
+  const status = item.lastError?.status;
+  return status === 409 || status === 412;
+}
+
+export function describeQueueFailure(item: QueuedRequestSummary): string {
+  if (isConflictFailure(item)) {
+    return 'تعارض مع نسخة السيرفر — راجع البيانات أو احذف الطلب';
+  }
+  if (item.lastError?.status && item.lastError.status >= 500) {
+    return 'خطأ في السيرفر — يمكن إعادة المحاولة لاحقًا';
+  }
+  if (item.lastError?.status && item.lastError.status >= 400) {
+    return item.lastError.message || `رُفض الطلب (${item.lastError.status})`;
+  }
+  return item.lastError?.message || 'فشل غير معروف';
+}

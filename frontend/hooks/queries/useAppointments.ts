@@ -10,7 +10,13 @@ import {
   selectHasAccessToken,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import type { AppointmentsQuery } from '@/types/service.types';
+import type { Appointment, AppointmentsQuery } from '@/types/service.types';
+import type { PaginationMeta } from '@/types/api.types';
+
+type MyAppointmentsData = {
+  items: Appointment[];
+  meta: PaginationMeta;
+};
 import {
   getOfflineJson,
   saveOfflineJson,
@@ -23,41 +29,50 @@ export function useMyAppointments(params?: AppointmentsQuery) {
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
   const isBase = !params?.page || params.page === 1;
+
   const cached = isBase
-    ? getOfflineJson<unknown>(OFFLINE_JSON_KEYS.appointmentsMine)
+    ? getOfflineJson<MyAppointmentsData>(
+        OFFLINE_JSON_KEYS.appointmentsMine,
+      )
     : null;
 
-  return useQuery({
+  return useQuery<MyAppointmentsData>({
     queryKey: queryKeys.appointments.mine(params),
-    queryFn: async () => {
+
+    queryFn: async (): Promise<MyAppointmentsData> => {
       try {
-        const data = await appointmentsApi.getMine(params).then((r) => r.data.data);
+        const data = await appointmentsApi
+          .getMine(params)
+          .then((r) => r.data.data);
+
         if (isBase && data) {
-          // خزّن العناصر فقط بحد معقول إن وُجدت
-          const items = (data as { items?: unknown[] }).items;
-          if (Array.isArray(items)) {
-            saveOfflineJson(OFFLINE_JSON_KEYS.appointmentsMine, {
-              ...data,
-              items: items.slice(0, 30),
-            });
-          } else {
-            saveOfflineJson(OFFLINE_JSON_KEYS.appointmentsMine, data);
-          }
+          saveOfflineJson(OFFLINE_JSON_KEYS.appointmentsMine, {
+            ...data,
+            items: data.items.slice(0, 30),
+          });
         }
+
+        if (!data) throw new Error('Appointments response is empty');
         return data;
       } catch (err) {
         if (isBase) {
-          const local = getOfflineJson<unknown>(OFFLINE_JSON_KEYS.appointmentsMine);
+          const local = getOfflineJson<MyAppointmentsData>(
+            OFFLINE_JSON_KEYS.appointmentsMine,
+          );
+
           if (local) return local.data;
         }
+
         throw err;
       }
     },
+
     staleTime: CACHE_TTL.appointments,
     enabled: isAuthenticated && (hasToken || !isOnline),
+
     ...(cached
       ? {
-          initialData: cached.data as never,
+          initialData: cached.data,
           initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
         }
       : {}),

@@ -10,6 +10,7 @@ import {
   selectHasAccessToken,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import type { SellerAttention } from '@/types/seller.types';
 import {
   getOfflineJson,
   saveOfflineJson,
@@ -65,18 +66,31 @@ export function useMyAttention() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const cached = getOfflineJson<unknown>(OFFLINE_JSON_KEYS.dashboardAttention);
+  const cached = getOfflineJson<SellerAttention>(
+    OFFLINE_JSON_KEYS.dashboardAttention,
+  );
 
-  return useQuery({
+  return useQuery<SellerAttention>({
     queryKey: queryKeys.sellers.attention(),
-    queryFn: async () => {
+    queryFn: async (): Promise<SellerAttention> => {
       try {
-        const data = await sellersApi.getMyAttention().then(r => r.data.data);
-        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.dashboardAttention, data);
+        const data = await sellersApi
+          .getMyAttention()
+          .then((r) => r.data.data);
+
+        if (data) {
+          saveOfflineJson(OFFLINE_JSON_KEYS.dashboardAttention, data);
+        }
+
+        if (!data) throw new Error('Seller attention response is empty');
         return data;
       } catch (err) {
-        const local = getOfflineJson<unknown>(OFFLINE_JSON_KEYS.dashboardAttention);
+        const local = getOfflineJson<SellerAttention>(
+          OFFLINE_JSON_KEYS.dashboardAttention,
+        );
+
         if (local) return local.data;
+
         throw err;
       }
     },
@@ -85,7 +99,7 @@ export function useMyAttention() {
     retry: false,
     ...(cached
       ? {
-          initialData: cached.data as never,
+          initialData: cached.data,
           initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
         }
       : {}),

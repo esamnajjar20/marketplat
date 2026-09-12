@@ -51,6 +51,14 @@ export function PwaBootstrap() {
     // 'still-offline' بـ sw.js).
     void requestQueueReplay();
 
+    // مزامنة دورية خفيفة أونلاين لطابور عالق (ليس بدل Background Sync)
+    const PERIODIC_QUEUE_MS = 3 * 60 * 1000;
+    const periodicId = window.setInterval(() => {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        void requestQueueReplay();
+      }
+    }, PERIODIC_QUEUE_MS);
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         void requestQueueReplay();
@@ -68,6 +76,7 @@ export function PwaBootstrap() {
     window.addEventListener('online', handleOnline);
     return () => {
       window.removeEventListener('online', handleOnline);
+      window.clearInterval(periodicId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);

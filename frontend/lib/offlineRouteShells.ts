@@ -42,7 +42,7 @@
 // بكاش لا يقرأ منه sw.js أبدًا، وأن 'activate' هناك يحذف هذا الكاش (v4) فورًا
 // بعد كل تفعيل لأنه غير مدرَج بـ currentCaches. رُفعت هنا إلى 'v6' لتطابق
 // public/sw.js's CACHE_VERSION الحالية — راجع تعليق CACHE_VERSION هناك.
-const STATIC_CACHE = 'market-static-v17'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v18'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -129,7 +129,7 @@ export const PERSONAL_SHELL_ROUTES = [
   '/my-requests',
 ];
 
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v17';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v18';
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
