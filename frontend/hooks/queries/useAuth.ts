@@ -7,33 +7,40 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { authApi }  from '@/api/auth.api';
+import { authApi } from '@/api/auth.api';
 import { usersApi } from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
 
 /** GET /users/me — authenticated user's full profile */
 export function useMe() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
 
   return useQuery({
-    queryKey:  queryKeys.auth.me(),
-    queryFn:   () => usersApi.getMe().then((r) => r.data.data),
+    queryKey: queryKeys.auth.me(),
+    queryFn: () => usersApi.getMe().then((r) => r.data.data),
     staleTime: CACHE_TTL.userProfile,
-    enabled:   isAuthenticated,
+    // FIX AUTH-401-STORM-01: لا تطلب API بلا access token حقيقي.
+    enabled: isAuthenticated && hasToken,
   });
 }
 
 /** GET /auth/sessions — all active sessions for the current user */
 export function useSessions() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
 
   return useQuery({
-    queryKey:  queryKeys.auth.sessions(),
-    queryFn:   () => authApi.getSessions().then((r) => r.data.data ?? []),
+    queryKey: queryKeys.auth.sessions(),
+    queryFn: () => authApi.getSessions().then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sessions,
-    enabled:   isAuthenticated,
+    enabled: isAuthenticated && hasToken,
   });
 }
 

@@ -5,7 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/notifications.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { pollingInterval } from '@/lib/polling';
 import {
   getNotificationsCache,
@@ -40,6 +45,8 @@ function offlineMeta(count: number): PaginationMeta {
  */
 export function useMyNotifications(params?: NotificationsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const isBaseView = !params?.unreadOnly;
   const cached = isBaseView ? getNotificationsCache() : null;
 
@@ -49,7 +56,7 @@ export function useMyNotifications(params?: NotificationsQuery) {
     staleTime: CACHE_TTL.notifications,
     // SSE updates the inbox; poll is a slow backup, paused when hidden/offline.
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 4),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
     ...(cached && cached.items.length > 0
       ? {
           initialData: { items: cached.items, meta: offlineMeta(cached.items.length) },
@@ -72,6 +79,8 @@ export function useMyNotifications(params?: NotificationsQuery) {
  * وتُحدَّث النسخة المحلية كلما نجح طلب جديد. */
 export function useUnreadNotificationCount() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const cached = getNotificationsCache();
 
   const query = useQuery({
@@ -79,7 +88,7 @@ export function useUnreadNotificationCount() {
     queryFn: () => notificationsApi.getUnreadCount().then((r) => r.data.data?.count ?? 0),
     staleTime: CACHE_TTL.notifications,
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 4),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
     ...(cached
       ? {
           initialData: cached.unreadCount,

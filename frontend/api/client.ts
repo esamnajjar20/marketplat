@@ -148,6 +148,17 @@ apiClient.interceptors.response.use(
       return Promise.reject(parseApiError(error));
     }
 
+    // FIX AUTH-401-STORM-01: بلا accessToken والجهاز أوفلاين — لا تُحاول
+    // refresh (سيفشل شبكة) ولا logout. ارفض بهدوء؛ الـ UI يعتمد على الكاش.
+    const currentToken = useAuthStore.getState().accessToken;
+    if (
+      !currentToken &&
+      typeof navigator !== 'undefined' &&
+      navigator.onLine === false
+    ) {
+      return Promise.reject(parseApiError(error));
+    }
+
     if (isRefreshing) {
       return new Promise<unknown>((resolve, reject) => {
         refreshQueue.push({

@@ -245,18 +245,18 @@ export const useAuthStore = create<AuthStore>()(
         // to-detect-client-side) "was persisted" case.
         state?._setAuthResolving(true);
 
-        // FIX AUTH-OFFLINE-SESSION-01: إذا وُجد user محفوظ من جلسة سابقة،
-        // اعتبر المستخدم مسجّلًا فورًا (isAuthenticated=true) حتى تثبت
-        // الشبكة العكس. بدون هذا: انقطاع النت عند التحميل يترك
-        // isAuthenticated=false رغم وجود user → الواجهة تظهر كضيف
-        // (BottomNav، القوائم، إلخ) وتُرفض طلبات API كـ«غير مسجّل»
-        // بينما المقصود الإبقاء على الحساب للعمل دون اتصال.
-        if (state?.user) {
+        // FIX AUTH-OFFLINE-SESSION-01 / FIX AUTH-401-STORM-01:
+        // لا تضبط isAuthenticated=true وأنت أونلاين بلا accessToken —
+        // ذلك يشغّل كل useQuery (me, unread, conversations…) فورًا فيُرسل
+        // طلبات بلا Bearer → سيل 401 قبل أن ينتهي /auth/refresh.
+        // الجلسة البصرية offline تُفعَّل فقط عند انقطاع النت فعليًا؛
+        // أونلاين ننتظر نتيجة AuthHydrationProvider (refresh).
+        if (
+          state?.user &&
+          typeof navigator !== 'undefined' &&
+          navigator.onLine === false
+        ) {
           state.setAccessToken(state.accessToken ?? '');
-          // setAccessToken يضبط isAuthenticated=true؛ accessToken الفارغ
-          // يعني «جلسة محلّية مؤقتة» إلى أن ينجح /auth/refresh أونلاين.
-          // لا نضع accessToken وهميًا في الطلبات — request interceptor
-          // يتخطى Authorization إن كان فارغًا.
         }
       },
     },
@@ -267,6 +267,8 @@ export const useAuthStore = create<AuthStore>()(
 export const selectUser            = (s: AuthStore) => s.user;
 export const selectIsAuthenticated = (s: AuthStore) => s.isAuthenticated;
 export const selectAccessToken     = (s: AuthStore) => s.accessToken;
+/** true فقط عند وجود access token فعلي (ليس جلسة offline بصرية). */
+export const selectHasAccessToken   = (s: AuthStore) => Boolean(s.accessToken);
 // CROSS-ORIGIN-CSRF-FIX: used by lib/csrf.ts's getCsrfToken() — see that
 // file and this store's csrfToken field for the full reasoning.
 export const selectCsrfToken       = (s: AuthStore) => s.csrfToken;

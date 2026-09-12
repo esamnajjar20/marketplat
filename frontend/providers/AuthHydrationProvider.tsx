@@ -246,9 +246,13 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           deleteCookie('app_access_token');
           deleteCookie('app_user_role');
           deleteCookie('app_has_session'); // AUDIT-FIX C-1
-        } else {
-          // FIX AUTH-OFFLINE-SESSION-01: فشل شبكة أثناء الاستعادة —
-          // أبقِ الحساب ظاهرًا إن وُجد user محفوظ (لا تعتبره زائرًا).
+        } else if (
+          typeof navigator !== 'undefined' &&
+          navigator.onLine === false
+        ) {
+          // FIX AUTH-OFFLINE-SESSION-01 / FIX AUTH-401-STORM-01:
+          // فقط عند أوفلاين حقيقي. لا تضبط isAuthenticated وأنت أونلاين
+          // بعد timeout/abort — ذلك يفتح سيل طلبات بلا Bearer → 401.
           const persisted = useAuthStore.getState().user;
           if (persisted) {
             useAuthStore.getState().setAccessToken(
@@ -256,6 +260,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
             );
           }
         }
+        // أونلاين + فشل بلا رد سيرفر: اترك isAuthenticated=false؛ user يبقى.
       } finally {
         clearTimeout(timeout);
         // FIX AUTH-04: always mark the restore flow as settled, success

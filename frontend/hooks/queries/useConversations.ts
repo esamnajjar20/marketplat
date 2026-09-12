@@ -4,7 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { conversationsApi } from '@/api/conversations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { pollingInterval } from '@/lib/polling';
 import type { ConversationsQuery, MessagesQuery } from '@/types/conversation.types';
 import {
@@ -31,6 +36,8 @@ function offlineMeta(count: number): PaginationMeta {
 /** GET /conversations — مع تخزين IndexedDB للقراءة دون اتصال. */
 export function useMyConversations(params?: ConversationsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: queryKeys.conversations.mine(params),
@@ -53,13 +60,16 @@ export function useMyConversations(params?: ConversationsQuery) {
     },
     staleTime: CACHE_TTL.conversations,
     refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 3),
-    enabled: isAuthenticated,
+    // أونلاين: فقط مع توكن. أوفلاين: شغّل queryFn لإرجاع الكاش المحلي.
+    enabled: isAuthenticated && (hasToken || !isOnline),
   });
 }
 
 /** GET /conversations/:id — single thread metadata (participants, ad). */
 export function useConversation(id: string) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: queryKeys.conversations.detail(id),
@@ -74,7 +84,7 @@ export function useConversation(id: string) {
       }
     },
     staleTime: CACHE_TTL.conversations,
-    enabled: isAuthenticated && Boolean(id),
+    enabled: isAuthenticated && Boolean(id) && (hasToken || !isOnline),
   });
 }
 
@@ -84,6 +94,8 @@ export function useConversation(id: string) {
  */
 export function useMessages(conversationId: string, params?: MessagesQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: queryKeys.conversations.messages(conversationId, params),
@@ -111,13 +123,15 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
     },
     staleTime: CACHE_TTL.messages,
     refetchInterval: () => pollingInterval(CACHE_TTL.messages, 6),
-    enabled: isAuthenticated && Boolean(conversationId),
+    enabled: isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
   });
 }
 
 /** GET /conversations/unread-count — badge + تخزين محلي. */
 export function useUnreadConversationCount() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: queryKeys.conversations.unreadCount(),
@@ -137,6 +151,6 @@ export function useUnreadConversationCount() {
     staleTime: CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations,
     refetchInterval: () =>
       pollingInterval(CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations, 3),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
   });
 }
