@@ -31,6 +31,10 @@ let waitingUpdateListeners: SwUpdateListener[] = [];
 const JUST_UPDATED_KEY = 'pwa-just-updated-at';
 const JUST_UPDATED_SUPPRESS_MS = 5 * 60 * 1000;
 
+/** يمنع أكثر من reload واحد لكل دورة حياة صفحة عند controllerchange. */
+let updateReloadInProgress = false;
+
+
 function markJustUpdated(): void {
   try {
     sessionStorage.setItem(JUST_UPDATED_KEY, String(Date.now()));
@@ -96,12 +100,14 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       });
     });
 
-    // عندما يتولى الـ SW الجديد السيطرة (بعد skipWaiting)، أعِد تحميل الصفحة
-    // مرة واحدة فقط حتى لا يعمل المستخدم بخليط من كود قديم/جديد.
-    let refreshing = false;
+    // سياسة التحديث (آمنة — بلا skipWaiting من install):
+    // 1) SW جديد يثبت بالخلفية → waiting
+    // 2) المستخدم يضغط «تحديث الآن» → SKIP_WAITING
+    // 3) controllerchange → reload واحد فقط
+    // 4) activate في sw.js يمسح كاشات الإصدار القديم تلقائيًا
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
+      if (updateReloadInProgress) return;
+      updateReloadInProgress = true;
       window.location.reload();
     });
 

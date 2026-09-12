@@ -61,7 +61,10 @@
 // (1) صفحات login/register ما عاد الـSW يعترضها إطلاقًا (كانت تسبب صفحة
 // بيضاء بعد كل تعديل أوفلاين حتى مسح البيانات). (2) فشل تنقّل SPA/RSC
 // بدون كاش ما عاد يفرض الانتقال لـ/offline — يبقى المستخدم على صفحته.
-const CACHE_VERSION = 'v15';
+// ارفع CACHE_VERSION فقط عند تغيّر سياسة الكاش / الـ shells / استراتيجيات fetch
+// في هذا الملف — وليس مع كل deploy لا يمسّ SW. عند التفعيل (activate) تُمسَح
+// كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
+const CACHE_VERSION = 'v16';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
