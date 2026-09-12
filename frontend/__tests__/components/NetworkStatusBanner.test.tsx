@@ -25,11 +25,16 @@ describe('NetworkStatusBanner', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows persistent offline message while offline', () => {
+  it('shows full offline message then compact badge', () => {
     vi.mocked(useOnlineStatus).mockReturnValue(false);
     render(<NetworkStatusBanner />);
     expect(screen.getByText('لا يوجد اتصال بالإنترنت')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(screen.queryByText('لا يوجد اتصال بالإنترنت')).not.toBeInTheDocument();
+    expect(screen.getByText('غير متصل')).toBeInTheDocument();
   });
 
   it('shows "عاد الاتصال" after transition offline → online', () => {
@@ -41,6 +46,7 @@ describe('NetworkStatusBanner', () => {
     rerender(<NetworkStatusBanner />);
     expect(screen.getByText('عاد الاتصال')).toBeInTheDocument();
     expect(screen.queryByText('لا يوجد اتصال بالإنترنت')).not.toBeInTheDocument();
+    expect(screen.queryByText('غير متصل')).not.toBeInTheDocument();
   });
 
   it('auto-hides back-online after timeout', () => {

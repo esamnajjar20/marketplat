@@ -57,7 +57,11 @@
 // staleWhileRevalidate، فظهرت للمستخدم «في كل طلب» تقريبًا بدل أن تظهر
 // فقط عند تنقّل حقيقي لصفحة غير مخزَّنة. تقييد الـfallback + إصلاح زر
 // إعادة المحاولة يستدعي إفراغ الكاشات القديمة.
-const CACHE_VERSION = 'v11';
+// FIX SW-AUTH-PASSTHROUGH-01 + SW-NO-FORCE-OFFLINE-RSC-01: رُفع إلى v12 —
+// (1) صفحات login/register ما عاد الـSW يعترضها إطلاقًا (كانت تسبب صفحة
+// بيضاء بعد كل تعديل أوفلاين حتى مسح البيانات). (2) فشل تنقّل SPA/RSC
+// بدون كاش ما عاد يفرض الانتقال لـ/offline — يبقى المستخدم على صفحته.
+const CACHE_VERSION = 'v12';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -307,16 +311,13 @@ async function staleWhileRevalidate(event, request, cacheKey) {
   const networkResponse = await networkFetch;
   if (networkResponse) return networkResponse;
 
-  // FIX SW-RSC-OFFLINE-01: see comment above forceHardOfflineNavigation.
+  // FIX SW-NO-FORCE-OFFLINE-RSC-01: فشل RSC بدون كاش → Response.error فقط.
+  // لا نفرض الانتقال لـ/offline (كان يُزعج المستخدم عند كل رابط).
   if (isRscShellRequest(request)) {
-    await forceHardOfflineNavigation(event);
     return Response.error();
   }
 
-  // FIX SW-OFFLINE-FALLBACK-SCOPE-01: لا تُرجِع HTML صفحة /offline كردّ على
-  // طلب أصل ثابت (JS/CSS/خط...). ذلك كان يجعل صفحة «لا يوجد اتصال» تظهر
-  // بشكل مزعج عند أي طلب فرعي فاشل، ويُفسد تحميل الـchunks (المتصفح يحاول
-  // تنفيذ HTML كجافاسكربت). الـfallback مخصّص فقط لتنقّل الصفحة الحقيقي.
+  // FIX SW-OFFLINE-FALLBACK-SCOPE-01: HTML /offline فقط لتنقّل حقيقي بلا كاش.
   if (request.mode === 'navigate') {
     const offlineFallback = await cache.match(OFFLINE_URL);
     return offlineFallback || Response.error();
@@ -367,14 +368,12 @@ async function networkFirstPage(event, request, cacheKey) {
     const cachedResponse = await cache.match(cacheKey);
     if (cachedResponse) return cachedResponse;
 
-    // FIX SW-RSC-OFFLINE-01: see comment above forceHardOfflineNavigation.
+    // FIX SW-NO-FORCE-OFFLINE-RSC-01: بلا إجبار /offline على فشل RSC.
     if (isRscShellRequest(request)) {
-      await forceHardOfflineNavigation(event);
       return Response.error();
     }
 
-    // FIX SW-OFFLINE-FALLBACK-SCOPE-01: فقط لتنقّل حقيقي (mode=navigate).
-    // طلبات أخرى وصلت هنا بالخطأ لا يجب أن تستبدل برد HTML لـ/offline.
+    // فقط تنقّل حقيقي (mode=navigate) لصفحة غير موجودة في الكاش → /offline.
     if (request.mode === 'navigate') {
       const offlineFallback = await cache.match(OFFLINE_URL);
       return offlineFallback || Response.error();
@@ -452,17 +451,12 @@ async function handleProtectedPage(event, request, url) {
       const cachedShell = await shellCache.match(cacheKey);
       if (cachedShell) return cachedShell;
     }
-    // FIX SW-RSC-OFFLINE-01: see comment above forceHardOfflineNavigation.
-    // This is the exact path a failed post-login router.push() to
-    // /dashboard (or any other protected soft-nav) hits — /dashboard has
-    // no shell cache (useShellCache is false for it), so previously this
-    // fell straight to returning the full-HTML OFFLINE_URL document as
-    // the "response" to what the browser expected to be an RSC stream.
+    // FIX SW-NO-FORCE-OFFLINE-RSC-01: فشل soft-nav لصفحة محمية بدون shell
+    // مخزَّن → لا نُجبر /offline (يبقى المستخدم على الصفحة الحالية).
     if (isRscShellRequest(request)) {
-      await forceHardOfflineNavigation(event);
       return Response.error();
     }
-    // FIX SW-OFFLINE-FALLBACK-SCOPE-01: فقط عند تنقّل حقيقي لصفحة غير مخزَّنة.
+    // تنقّل حقيقي فقط لصفحة غير مخزَّنة → /offline.
     if (request.mode === 'navigate') {
       const cache = await caches.open(STATIC_CACHE);
       const offlineFallback = await cache.match(OFFLINE_URL);
@@ -476,27 +470,10 @@ async function handlePageRequest(event, request, url) {
   if (isProtectedPage(url)) {
     return handleProtectedPage(event, request, url);
   }
-  // FIX SW-AUTH-PAGE-01: see comment above isAuthPage — same "network
-  // only, no cache read/write" treatment as handleProtectedPage gets,
-  // for the same underlying reason: correct content depends on auth
-  // state decided server-side (middleware.ts), and a stale cached
-  // response bypasses that decision entirely instead of just showing
-  // outdated content. Deliberately NOT routed through
-  // handleProtectedPage itself — these are public pages navigable while
-  // logged out, and handleProtectedPage's naming/shell-cache logic is
-  // specific to actually-authenticated routes.
+  // FIX SW-AUTH-PASSTHROUGH-01: صفحات المصادقة لا يجب أن تمر من هنا أصلًا
+  // (يُعاد مبكرًا من مستمع fetch). دفاع إضافي إن وصلت.
   if (isAuthPage(url)) {
-    try {
-      return await fetch(request);
-    } catch {
-      // FIX SW-OFFLINE-FALLBACK-SCOPE-01: صفحة أوفلاين فقط لتنقّل حقيقي.
-      if (request.mode === 'navigate') {
-        const cache = await caches.open(STATIC_CACHE);
-        const offlineFallback = await cache.match(OFFLINE_URL);
-        return offlineFallback || Response.error();
-      }
-      return Response.error();
-    }
+    return fetch(request);
   }
   // FIX SW-NAV-NETFIRST-01: كان staleWhileRevalidate — انظر تعليق
   // networkFirstPage أعلاه للسبب الكامل.
@@ -985,6 +962,29 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name.startsWith('market-') && !currentCaches.includes(name))
           .map((name) => caches.delete(name)),
       );
+
+      // FIX SW-AUTH-PASSTHROUGH-01: دفاع إضافي — امسح أي مستند مصادقة قد
+      // يكون تسرّب لكاش الإصدار الحالي (نادر، لكن يفسّر الصفحة البيضاء
+      // بعد تعديلات الأوفلاين دون مسح بيانات يدوي).
+      try {
+        const staticCache = await caches.open(STATIC_CACHE);
+        const keys = await staticCache.keys();
+        const authPathPrefixes = ['/login', '/register', '/forgot-password', '/reset-password'];
+        await Promise.all(
+          keys
+            .filter((req) => {
+              try {
+                const p = new URL(req.url).pathname;
+                return authPathPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
+              } catch {
+                return false;
+              }
+            })
+            .map((req) => staticCache.delete(req)),
+        );
+      } catch {
+        // لا تمنع التفعيل.
+      }
       await self.clients.claim();
     })(),
   );
@@ -1105,6 +1105,12 @@ self.addEventListener('fetch', (event) => {
 
   if (isNeverCache(url)) {
     return; // شبكة فقط — لا اعتراض، السلوك الافتراضي للمتصفح.
+  }
+
+  // FIX SW-AUTH-PASSTHROUGH-01: لا اعتراض إطلاقًا على /login و/register و…
+  // أي نسخة قديمة في الكاش لن تُخدم، ولن يحدث تعارض hydration → صفحة بيضاء.
+  if (isAuthPage(url)) {
+    return;
   }
 
   if (isImageRequest(request, url)) {
