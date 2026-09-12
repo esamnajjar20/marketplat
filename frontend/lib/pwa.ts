@@ -27,6 +27,28 @@ export type SwUpdateListener = (registration: ServiceWorkerRegistration) => void
 
 let waitingUpdateListeners: SwUpdateListener[] = [];
 
+/** بعد تفعيل تحديث بنجاح: لا تُظهر طلب تحديث جديد فورًا (عالق waiting أو sw.js غير مستقر). */
+const JUST_UPDATED_KEY = 'pwa-just-updated-at';
+const JUST_UPDATED_SUPPRESS_MS = 5 * 60 * 1000;
+
+function markJustUpdated(): void {
+  try {
+    sessionStorage.setItem(JUST_UPDATED_KEY, String(Date.now()));
+  } catch {
+    /* private mode */
+  }
+}
+
+function wasJustUpdated(): boolean {
+  try {
+    const ts = Number(sessionStorage.getItem(JUST_UPDATED_KEY) || 0);
+    return Boolean(ts) && Date.now() - ts < JUST_UPDATED_SUPPRESS_MS;
+  } catch {
+    return false;
+  }
+}
+
+
 /** يُسجَّل من AppProviders مرة واحدة عند إقلاع التطبيق. */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined') return null;
@@ -47,9 +69,16 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   try {
     const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
-    // نسخة جديدة تنتظر التفعيل (مستخدم فتح التطبيق أثناء وجود تحديث).
+    // نسخة جديدة تنتظر التفعيل.
+    // FIX PWA-UPDATE-LOOP-01: لو المستخدم فعّل تحديثًا للتو وما زال waiting
+    // (غالبًا SW ثانٍ ثُبِّت أثناء التفعيل لأن بايتات /sw.js اختلفت بين الطلبات)،
+    // لا نُظهر الشريط من جديد — نُكمِل التفعيل بصمت مرة واحدة.
     if (registration.waiting) {
-      waitingUpdateListeners.forEach((cb) => cb(registration));
+      if (wasJustUpdated()) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      } else {
+        waitingUpdateListeners.forEach((cb) => cb(registration));
+      }
     }
 
     registration.addEventListener('updatefound', () => {
@@ -57,6 +86,11 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       if (!newWorker) return;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          if (wasJustUpdated()) {
+            // نفس حالة العالق بعد التفعيل — فعّل بصمت بدل إزعاج المستخدم
+            registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+            return;
+          }
           waitingUpdateListeners.forEach((cb) => cb(registration));
         }
       });
@@ -75,10 +109,11 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     // فُتح التطبيق قبل نشر النسخة الجديدة.
     const UPDATE_CHECK_MS = 60 * 60 * 1000;
     const checkUpdate = () => {
+      // لا تفحص أثناء نافذة ما بعد التفعيل — يقلل حلقة waiting من sw.js غير المستقر
+      if (wasJustUpdated()) return;
       void registration.update().catch(() => undefined);
     };
     window.setInterval(checkUpdate, UPDATE_CHECK_MS);
-    // فحص إضافي عند عودة التبويب
     const onVisible = () => {
       if (document.visibilityState === 'visible') checkUpdate();
     };
@@ -130,11 +165,13 @@ export function activateWaitingServiceWorker(
   onStage?: (stage: UpdateStage) => void,
 ): void {
   if (!registration.waiting) {
+    markJustUpdated();
     onStage?.('reloading');
     window.location.reload();
     return;
   }
   onStage?.('activating');
+  markJustUpdated();
   registration.waiting.postMessage({ type: 'SKIP_WAITING' });
   // إعادة التحميل الفعلية تحدث إما فورًا عبر controllerchange (مسجَّل في
   // registerServiceWorker أعلاه) أو عبر المهلة الاحتياطية بعد 3 ثوانٍ إن

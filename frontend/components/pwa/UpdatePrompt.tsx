@@ -75,8 +75,25 @@ export function UpdatePrompt() {
   const [visible, setVisible] = useState(false);
 
   const showIfAllowed = useCallback((reg: ServiceWorkerRegistration) => {
+    // لا تُظهر الشريط إن لم يعد هناك waiting (بعد تفعيل ناجح)
+    if (!reg.waiting) {
+      setRegistration(null);
+      notifyShared(null);
+      setVisible(false);
+      return;
+    }
     setRegistration(reg);
     notifyShared(reg);
+    // كتم فوري بعد تفعيل حديث (انظر JUST_UPDATED في lib/pwa.ts)
+    try {
+      const ts = Number(sessionStorage.getItem('pwa-just-updated-at') || 0);
+      if (ts && Date.now() - ts < 5 * 60 * 1000) {
+        setVisible(false);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
     if (!isDismissedRecently()) {
       setVisible(true);
     }

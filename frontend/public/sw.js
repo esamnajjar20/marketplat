@@ -61,7 +61,7 @@
 // (1) صفحات login/register ما عاد الـSW يعترضها إطلاقًا (كانت تسبب صفحة
 // بيضاء بعد كل تعديل أوفلاين حتى مسح البيانات). (2) فشل تنقّل SPA/RSC
 // بدون كاش ما عاد يفرض الانتقال لـ/offline — يبقى المستخدم على صفحته.
-const CACHE_VERSION = 'v14';
+const CACHE_VERSION = 'v15';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -971,19 +971,12 @@ self.addEventListener('install', (event) => {
       }
     })(),
   );
-  // FIX SW-AUTOUPDATE-01: كان هنا عمدًا بلا self.skipWaiting() — التفعيل
-  // يتم فقط بإذن المستخدم عبر SKIP_WAITING (زر "تحديث الآن")، تفاديًا
-  // لإعادة تحميل مفاجئة أثناء تعبئة نموذج. تغيّر هذا القرار الآن: أثناء
-  // مرحلة تتبّع باگات متكرّرة بالضبط بهذا الملف، الأولوية صارت التأكد إن
-  // كل إصلاح يوصل فعليًا لكل جهاز فورًا، لا الحفاظ على استمرارية جلسة
-  // نادرة الحدوث. self.skipWaiting() هنا يعني: أي SW جديد يتفعّل بمجرد
-  // تثبيته، والمستمع أدناه بـ 'controllerchange' (مسجَّل بـ lib/pwa.ts)
-  // يعيد تحميل أي تبويب مفتوح تلقائيًا مرة واحدة — بلا انتظار ضغطة زر ولا
-  // مسح بيانات يدوي. الكلفة: أي نموذج مفتوح وقت وصول تحديث يفقد محتواه
-  // غير المحفوظ. القرار بالتراجع لهذا السلوك القديم (وإرجاع الاعتماد
-  // فقط على UpdatePrompt.tsx's "تحديث الآن") متروك بعد ما تستقر مرحلة
-  // تتبّع الباگات الحالية.
-  self.skipWaiting();
+  // FIX SW-AUTOUPDATE-01 (مُستعاد): لا نستدعي self.skipWaiting() هنا.
+  // التفعيل يتم فقط بإذن المستخدم عبر رسالة SKIP_WAITING من زر "تحديث الآن"
+  // (lib/pwa.ts → activateWaitingServiceWorker → UpdatePrompt).
+  // السبب: skipWaiting غير المشروط + controllerchange→reload + فحص تحديث
+  // دوري كان يسبب حلقة "تحديث لا نهائي" كلما بدا محتوى /sw.js غير مستقر
+  // بين الطلبات (deploy متداخل، edge، إلخ) — حتى لو الفرق بايتًا واحدًا.
 });
 
 self.addEventListener('activate', (event) => {

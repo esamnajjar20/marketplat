@@ -50,7 +50,8 @@ export default function UpdatePage() {
     activateWaitingServiceWorker(registration, setStatus);
   }
 
-  const hasUpdate = !!registration;
+  // يجب أن يكون هناك worker في حالة waiting فعليًا — ليس مجرد registration محفوظة.
+  const hasUpdate = Boolean(registration?.waiting);
   const isUpdating = status !== 'idle';
 
   return (
