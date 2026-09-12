@@ -19,6 +19,14 @@ import { getQueuedRequestCount } from '@/lib/offlineQueue';
  *    الوحيدة بالصفحة التي "تعرف" أن عنصرًا جديدًا انضم للطابور، لأن الطابور
  *    نفسه (IndexedDB) يُدار بالكامل داخل sw.js ولا يبعث رسالة عند الإضافة.
  *  - حدث 'online' كـ fallback احترازي (مثلًا لو فاتت رسالة QUEUE_REPLAYED).
+ *
+ * FIX QUEUE-COUNT-01: getQueuedRequestCount (lib/offlineQueue.ts) أصبحت
+ * تُرجع عدد العناصر "المعلّقة فعلًا" فقط (تستبعد status:'failed' التي لن
+ * تُعاد تلقائيًا أبدًا — انظر تعليق ذلك الملف للتفصيل الكامل)، فالرقم هنا
+ * أصبح دقيقًا فعلًا لشارة "N بالانتظار" — سابقًا كان يشمل عناصر فاشلة
+ * بصمت، فيَعِد المستخدم بإرسال تلقائي لن يحدث لتلك العناصر تحديدًا.
+ * العناصر الفاشلة (غير رسائل المحادثة) لها الآن واجهة مستقلة بصفحة
+ * /offline (listFailedRequests/retryFailedRequest/discardFailedRequest).
  */
 export const QUEUE_UPDATED_EVENT = 'offline-queue:queued';
 

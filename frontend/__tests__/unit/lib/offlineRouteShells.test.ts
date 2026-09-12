@@ -36,4 +36,24 @@ describe('offlineRouteShells', () => {
     );
     await expect(warmRouteShells()).resolves.toBeUndefined();
   });
+
+  // FIX OFFLINE-SELF-LINKS-01: /offline itself links to these three routes
+  // as "available on this device without internet" — they must actually be
+  // pre-warmed or that promise is false on a fresh offline hard navigation.
+  it('warms the routes /offline itself promises are available offline', async () => {
+    const fetchedPaths: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo) => {
+        fetchedPaths.push(typeof input === 'string' ? input : String(input));
+        return new Response('<html/>', { status: 200 });
+      }),
+    );
+
+    await warmRouteShells();
+
+    for (const path of ['/saved-ads', '/downloads', '/saved-payments']) {
+      expect(fetchedPaths).toContain(path);
+    }
+  });
 });

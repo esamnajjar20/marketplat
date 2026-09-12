@@ -45,6 +45,10 @@ import '@fontsource/ibm-plex-mono/600.css';
 import { headers }                    from 'next/headers';
 import { AppProviders }               from '@/providers/AppProviders';
 import { WebVitals }                  from '@/components/shared/WebVitals';
+// TEMP-DEBUG: أداة تصحيح مؤقتة لتشخيص مشكلة الصفحة الفاضية عند الـ refresh —
+// آمنة بالإنتاج (بوابة ?debug=1 + localStorage، انظر ErudaDebug.tsx). احذف
+// هذا الاستيراد + استدعاءه أدناه بعد انتهاء التشخيص.
+import { ErudaDebug }                 from '@/components/debug/ErudaDebug';
 import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
 import '@/app/globals.css';
@@ -185,6 +189,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SkipLink />
         <AppProviders nonce={nonce}>
           <WebVitals />
+          <ErudaDebug />
           {children}
         </AppProviders>
       </body>

@@ -11,7 +11,6 @@ import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
 import { CreateSheet } from '@/components/layout/CreateSheet';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
@@ -80,14 +79,9 @@ export function BottomNav() {
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  // FIX PERSISTENT-OFFLINE-BADGE: تبقى ظاهرة طوال مدة الانقطاع الفعلية —
-  // لا تُخفى بعد مهلة ثابتة كالشريط العلوي القديم (NetworkStatusBanner.tsx).
-  const isOffline = !useOnlineStatus();
-  // FIX QUEUE-BADGE-01: عدّاد "طلبات بالانتظار" كان محصورًا بصفحة /offline —
-  // نفس نمط شارة "غير متصل" أعلاه، لكن كشارة رقم بزاوية الأيقونة بدل نص
-  // فوقها، حتى لا تتداخل مع شارة "غير متصل" حين تظهران معًا (تنقّل ناجح
-  // للطابور بعد عودة الاتصال قد يترك عناصر لم تُعَد بعد بينما isOffline
-  // أصبحت false، والعكس صحيح أيضًا أثناء انقطاع جديد).
+  // FIX NETWORK-BANNER-UNIFY-01: شارة «غير متصل» نُقلت لـ NetworkStatusBanner
+  // (شريط سفلي موحّد وواضح). يبقى هنا فقط عدّاد طابور الطلبات.
+  // FIX QUEUE-BADGE-01: عدّاد "طلبات بالانتظار" كشارة رقم بزاوية الأيقونة.
   const queuedCount = useQueuedRequestCount();
 
   const leadingItems = [
@@ -188,14 +182,6 @@ export function BottomNav() {
         >
           <span className="relative inline-flex">
             <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-[10px]" />
-            {isOffline && (
-              <span
-                role="status"
-                className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-medium leading-none text-destructive-foreground shadow-sm"
-              >
-                غير متصل
-              </span>
-            )}
             {queuedCount > 0 && (
               <span
                 role="status"
@@ -216,14 +202,6 @@ export function BottomNav() {
         >
           <span className="relative inline-flex">
             <Menu className="h-5 w-5" aria-hidden={true} />
-            {isOffline && (
-              <span
-                role="status"
-                className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-medium leading-none text-destructive-foreground shadow-sm"
-              >
-                غير متصل
-              </span>
-            )}
             {queuedCount > 0 && (
               <span
                 role="status"

@@ -33,6 +33,29 @@ export function PwaBootstrap() {
     void warmCoreBundle();
     void warmRouteShells();
 
+    // FIX OFFLINE-REPLAY-01: قبل هذا الإصلاح، إعادة إرسال الطابور تعتمد
+    // حصرًا على حدث 'online' الحي (تحول فعلي offline→online والصفحة
+    // مفتوحة وقتها) أو Background Sync (غير مدعوم إطلاقًا بـ Safari
+    // iOS/macOS). لو المستخدم قفل التطبيق فعليًا وهو أوفلاين ثم فتحه
+    // من جديد بعد ما رجع النت (أو التطبيق تعلّق بالخلفية على iOS
+    // وعاد ظاهرًا بعد عودة الاتصال) — الصفحة تُحمَّل وهي أونلاين من
+    // البداية، فحدث 'online' لا يُطلَق أبدًا، ولا Background Sync
+    // متاح لجزء كبير من المستخدمين. النتيجة: عناصر الطابور تبقى
+    // 'pending' للأبد بلا أي محاولة، رغم أن الاتصال عاد فعليًا —
+    // بالضبط الشكوى: "العمليات تضل مخزّنة لما يجي النت". الحل: تحقّق
+    // انتهازي عند كل تحميل/عودة ظهور للتطبيق، بغض النظر عن وجود حدث
+    // تحول فعلي — requestQueueReplay() آمن حتى لو استُدعي وهو أوفلاين
+    // فعليًا (fetch يفشل بصمت، العنصر يبقى pending، انظر replayOne's
+    // 'still-offline' بـ sw.js).
+    void requestQueueReplay();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void requestQueueReplay();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // fallback لإعادة إرسال الطابور عند عودة الاتصال في المتصفحات التي لا
     // تدعم Background Sync (انظر تعليق requestQueueReplay).
     const handleOnline = () => {
@@ -41,7 +64,10 @@ export function PwaBootstrap() {
       void warmRouteShells();
     };
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   return (

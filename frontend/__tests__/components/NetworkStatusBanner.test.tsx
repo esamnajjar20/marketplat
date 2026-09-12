@@ -25,18 +25,25 @@ describe('NetworkStatusBanner', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('shows persistent offline message while offline', () => {
+    vi.mocked(useOnlineStatus).mockReturnValue(false);
+    render(<NetworkStatusBanner />);
+    expect(screen.getByText('لا يوجد اتصال بالإنترنت')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
   it('shows "عاد الاتصال" after transition offline → online', () => {
     vi.mocked(useOnlineStatus).mockReturnValue(false);
     const { rerender } = render(<NetworkStatusBanner />);
-    expect(screen.queryByText('عاد الاتصال')).not.toBeInTheDocument();
+    expect(screen.getByText('لا يوجد اتصال بالإنترنت')).toBeInTheDocument();
 
     vi.mocked(useOnlineStatus).mockReturnValue(true);
     rerender(<NetworkStatusBanner />);
     expect(screen.getByText('عاد الاتصال')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.queryByText('لا يوجد اتصال بالإنترنت')).not.toBeInTheDocument();
   });
 
-  it('auto-hides after timeout', () => {
+  it('auto-hides back-online after timeout', () => {
     vi.mocked(useOnlineStatus).mockReturnValue(false);
     const { rerender } = render(<NetworkStatusBanner />);
     vi.mocked(useOnlineStatus).mockReturnValue(true);
@@ -49,7 +56,7 @@ describe('NetworkStatusBanner', () => {
     expect(screen.queryByText('عاد الاتصال')).not.toBeInTheDocument();
   });
 
-  it('dismiss button hides the banner', async () => {
+  it('dismiss button hides the back-online banner', async () => {
     vi.useRealTimers();
     vi.mocked(useOnlineStatus).mockReturnValue(false);
     const { rerender } = render(<NetworkStatusBanner />);

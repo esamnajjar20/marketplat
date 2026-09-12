@@ -46,7 +46,18 @@
 // STATIC_CACHE v7 من قبل هذا الإصلاح (من أول زيارة لهم وهم غير مسجّلين
 // دخول). إصلاح المنطق فقط يمنع تخزين نسخ قديمة *جديدة* لكن لا يمسح
 // الموجودة أصلًا — رفع الرقم يفرّغها عبر 'activate' أدناه.
-const CACHE_VERSION = 'v8';
+// FIX SW-NAV-NETFIRST-01: رُفع إلى v9 — نفس منطق FIX SW-AUTH-PAGE-01
+// تحديدًا وسِّع الآن ليشمل *كل* صفحات App Shell العامة، وليس صفحات
+// المصادقة فقط (انظر تعليق networkFirstPage أدناه للتفصيل الكامل).
+// رفع الرقم هنا يفرّغ أي نسخة HTML/RSC قديمة كانت مخزَّنة بـ
+// STATIC_CACHE v8 عبر Stale-While-Revalidate القديم — نفس السبب: إصلاح
+// المنطق فقط يمنع تخزين نسخ قديمة *جديدة*، لا يمسح الموجودة أصلًا.
+// FIX SW-OFFLINE-FALLBACK-SCOPE-01: رُفع إلى v11 — صفحة /offline كانت تُعاد
+// كردّ حتى لطلبات أصول ثابتة (JS/CSS) عند فشل الشبكة داخل
+// staleWhileRevalidate، فظهرت للمستخدم «في كل طلب» تقريبًا بدل أن تظهر
+// فقط عند تنقّل حقيقي لصفحة غير مخزَّنة. تقييد الـfallback + إصلاح زر
+// إعادة المحاولة يستدعي إفراغ الكاشات القديمة.
+const CACHE_VERSION = 'v11';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -85,6 +96,11 @@ const QUEUE_DB_VERSION = 1;
 const QUEUE_STORE_NAME = 'requests';
 
 const SYNC_TAG = 'replay-offline-queue';
+
+// FIX OFFLINE-AUTH-01: يجب مطابقة frontend's lib/constants.ts's
+// API_BASE_URL حرفيًا (`${origin}/api/v1`) — انظر تعليق refreshAccessToken
+// أدناه لسبب وجود هذا الثابت أصلًا.
+const API_PATH_PREFIX = '/api/v1';
 
 // ── تصنيف الطلبات ───────────────────────────────────────────────
 
@@ -243,12 +259,23 @@ async function stripVaryAndClone(response) {
  * the original RSC fetch's promise just fail — the window is about to
  * navigate away regardless, so nothing consumes that rejection.
  */
+// FIX SW-OFFLINE-REBOUNCE-01: كانت تستدعي client.navigate(OFFLINE_URL) بلا
+// شرط — حتى لو كان المستخدم أصلاً واقف على /offline. فالنتيجة: أي ضغطة على
+// زر بصفحة /offline نفسها (مثلاً "التنزيلات") تطلق طلب RSC فاشل (بما إنه
+// لسا أوفلاين وما في اتصال)، فيُعاد تحميل نفس /offline من جديد — يظهر
+// للمستخدم وكأن الصفحة "ترجع" بنفسها بعد كل ضغطة. الحل: لو الـclient أصلاً
+// على /offline، ما في داعي لإعادة التنقّل لنفس الوجهة — نتجاهل الطلب
+// ونخلي الفشل يمر بصمت (Response.error أدناه)، فتظهر صفحة /offline مرة
+// واحدة فقط عند أول انقطاع فعلي، وتبقى ثابتة بعدها بدون Reload متكرر.
 async function forceHardOfflineNavigation(event) {
   try {
     const client = event.clientId && (await self.clients.get(event.clientId));
-    if (client && 'navigate' in client) {
-      client.navigate(OFFLINE_URL);
-    }
+    if (!client || !('navigate' in client)) return;
+
+    const currentPath = client.url ? new URL(client.url).pathname : '';
+    if (currentPath === OFFLINE_URL) return;
+
+    client.navigate(OFFLINE_URL);
   } catch {
     // لا شيء إضافي يمكن فعله — الطلب الأصلي سيفشل بأي حال (Response.error أدناه).
   }
@@ -286,8 +313,75 @@ async function staleWhileRevalidate(event, request, cacheKey) {
     return Response.error();
   }
 
-  const offlineFallback = await cache.match(OFFLINE_URL);
-  return offlineFallback || Response.error();
+  // FIX SW-OFFLINE-FALLBACK-SCOPE-01: لا تُرجِع HTML صفحة /offline كردّ على
+  // طلب أصل ثابت (JS/CSS/خط...). ذلك كان يجعل صفحة «لا يوجد اتصال» تظهر
+  // بشكل مزعج عند أي طلب فرعي فاشل، ويُفسد تحميل الـchunks (المتصفح يحاول
+  // تنفيذ HTML كجافاسكربت). الـfallback مخصّص فقط لتنقّل الصفحة الحقيقي.
+  if (request.mode === 'navigate') {
+    const offlineFallback = await cache.match(OFFLINE_URL);
+    return offlineFallback || Response.error();
+  }
+
+  return Response.error();
+}
+
+/** FIX SW-NAV-NETFIRST-01: شبكة أولًا لصفحات App Shell العامة (navigate +
+ * RSC shells) — كانت سابقًا Stale-While-Revalidate (انظر تلك الدالة
+ * أعلاه)، والتي تعرض النسخة المخزَّنة *فورًا* دون انتظار الشبكة، حتى لو
+ * أصبح ذلك المستند يشير لملفات JS/CSS لم تعد موجودة على السيرفر —
+ * أسماء تلك الملفات مبنية على content-hash يتغيّر مع كل نشر Next.js
+ * جديد. هذه بالضبط نفس آلية الخلل الموثّق أعلاه لصفحات المصادقة (FIX
+ * SW-AUTH-PAGE-01: "صفحة فاضية بالضبط") لكنها كانت محصورة هناك بصفحات
+ * auth فقط، وعولجت بمنع الكاش عنها كليًا (شبكة فقط) لأن محتواها يعتمد
+ * على حالة تسجيل الدخول (middleware.ts). صفحات App Shell العامة هنا
+ * شكلها ثابت لكل زائر (lib/offlineRouteShells.ts) بغض النظر عن حالة
+ * الدخول، فلا داعي لمنع الكاش عنها بالكامل كما فُعل هناك — يكفي تفضيل
+ * الشبكة دائمًا، مع الإبقاء على آخر نسخة مخزَّنة كـ fallback فقط عند
+ * انقطاع الاتصال (بدل عرضها أولًا وتحديثها بالخلفية كما كان). النتيجة:
+ * أي زائر متصل بالإنترنت يرى دائمًا آخر نسخة منشورة فعليًا — لا فرق بعد
+ * الآن بين أول تحميل بعد أي deploy والزيارات اللاحقة — يقفل هذه الفئة
+ * من الأخطاء على مستوى كل صفحات الموقع، لا صفحات المصادقة فقط.
+ *
+ * ملاحظة مهمة: أصول JS/CSS/الخطوط الثابتة (تمر من معالج fetch أدناه كـ
+ * "أصول ثابتة أخرى" في نهاية الملف) تبقى عمدًا على Stale-While-Revalidate
+ * ولم تُغيَّر — أسماء تلك الملفات نفسها content-hashed وثابتة المحتوى
+ * بشكل دائم (لا يوجد اسم ملف يُعاد استخدامه بمحتوى مختلف)، فلا يوجد خطر
+ * "نسخة قديمة" لها أصلًا وتخزينها أولًا مكسب سرعة/أوفلاين بلا أي كلفة.
+ * الخلل كان فقط بمستند الـ HTML/RSC الذي *يشير* لتلك الأسماء، وهو بالضبط
+ * ما تعالجه هذه الدالة. */
+async function networkFirstPage(event, request, cacheKey) {
+  const cache = await caches.open(STATIC_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok && isSameOriginResponse(response)) {
+      const toStore = isRscShellRequest(request)
+        ? await stripVaryAndClone(response.clone())
+        : response.clone();
+      // event.waitUntil (لا await مباشر): لا داعي لتأخير الرد للمستخدم
+      // بانتظار كتابة الكاش — نفس نمط handleProtectedPage/networkFirstApi.
+      event.waitUntil(cache.put(cacheKey, toStore));
+    }
+    return response;
+  } catch {
+    // فشل الشبكة (أوفلاين) — آخر نسخة مخزَّنة فعليًا، إن وُجدت.
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) return cachedResponse;
+
+    // FIX SW-RSC-OFFLINE-01: see comment above forceHardOfflineNavigation.
+    if (isRscShellRequest(request)) {
+      await forceHardOfflineNavigation(event);
+      return Response.error();
+    }
+
+    // FIX SW-OFFLINE-FALLBACK-SCOPE-01: فقط لتنقّل حقيقي (mode=navigate).
+    // طلبات أخرى وصلت هنا بالخطأ لا يجب أن تستبدل برد HTML لـ/offline.
+    if (request.mode === 'navigate') {
+      const offlineFallback = await cache.match(OFFLINE_URL);
+      return offlineFallback || Response.error();
+    }
+
+    return Response.error();
+  }
 }
 
 /** تنقّل/RSC لصفحة محمية: شبكة أولًا، بدون أي قراءة أو كتابة على STATIC_CACHE
@@ -368,9 +462,13 @@ async function handleProtectedPage(event, request, url) {
       await forceHardOfflineNavigation(event);
       return Response.error();
     }
-    const cache = await caches.open(STATIC_CACHE);
-    const offlineFallback = await cache.match(OFFLINE_URL);
-    return offlineFallback || Response.error();
+    // FIX SW-OFFLINE-FALLBACK-SCOPE-01: فقط عند تنقّل حقيقي لصفحة غير مخزَّنة.
+    if (request.mode === 'navigate') {
+      const cache = await caches.open(STATIC_CACHE);
+      const offlineFallback = await cache.match(OFFLINE_URL);
+      return offlineFallback || Response.error();
+    }
+    return Response.error();
   }
 }
 
@@ -391,13 +489,19 @@ async function handlePageRequest(event, request, url) {
     try {
       return await fetch(request);
     } catch {
-      const cache = await caches.open(STATIC_CACHE);
-      const offlineFallback = await cache.match(OFFLINE_URL);
-      return offlineFallback || Response.error();
+      // FIX SW-OFFLINE-FALLBACK-SCOPE-01: صفحة أوفلاين فقط لتنقّل حقيقي.
+      if (request.mode === 'navigate') {
+        const cache = await caches.open(STATIC_CACHE);
+        const offlineFallback = await cache.match(OFFLINE_URL);
+        return offlineFallback || Response.error();
+      }
+      return Response.error();
     }
   }
+  // FIX SW-NAV-NETFIRST-01: كان staleWhileRevalidate — انظر تعليق
+  // networkFirstPage أعلاه للسبب الكامل.
   const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
-  return staleWhileRevalidate(event, request, cacheKey);
+  return networkFirstPage(event, request, cacheKey);
 }
 
 /** Cache First للصور — تُخزَّن لأجل غير مسمى (لا تنتهي صلاحيتها تلقائيًا هنا؛
@@ -596,8 +700,56 @@ async function notifyClients(message) {
  * كما كانا: العنصر يبقى pending ولا يُخطَر بفشل (قد ينجح لاحقًا بلا تدخل).
  * يُرجع 'sent' | 'failed' | 'still-offline' — يستخدمها replayQueue لمعرفة
  * متى تتوقف عن باقي الطابور (فقط عند 'still-offline').
+ *
+ * FIX OFFLINE-AUTH-01: طلبات الطابور تُخزَّن بـ headers لحظة الانقطاع
+ * بالضبط (بما فيها Authorization: Bearer <accessToken>) — انظر
+ * handleMutation أدناه. JWT_EXPIRES_IN الافتراضي بالباك-إند = 15 دقيقة
+ * فقط، وميزة "طابور أوفلاين" بالتعريف مبنية لانقطاعات أطول من ذلك
+ * (نفق، منطقة ضعيفة التغطية، وضع الطيران). قبل هذا الإصلاح: أي عنصر
+ * بالطابور يُعاد إرساله بعد انتهاء صلاحية التوكن يرجع 401 من الباك-إند،
+ * وكانت تُعامَل كأي 4xx آخر أعلاه — 'failed' نهائي، والمستخدم يشوف
+ * "فشل الإرسال" بلا أي طريقة صحيحة لحله (زر "إعادة المحاولة" يعيد نفس
+ * الـ headers المنتهية بالضبط فيفشل بنفس الشكل مجددًا). حذف الرسالة
+ * وإعادة كتابتها يدويًا كان الحل الوحيد.
+ *
+ * الحل: عند 401 تحديدًا (لا أي 4xx آخر) وقبل أول محاولة تجديد لهذا
+ * العنصر، جرّب تجديد accessToken مباشرة من هنا (نفس نداء /auth/refresh
+ * اللي api/client.ts's response interceptor يسويه بالصفحة العادية —
+ * انظر تعليق refreshAccessToken أدناه) وأعد المحاولة مرة واحدة بالتوكن
+ * الجديد. لو التجديد نفسه فشل (يعني حتى refreshToken بالكوكي منتهي أو
+ * غير موجود — جلسة منتهية فعليًا لا مجرد توكن قصير الأمد) أو كانت هذه
+ * أصلًا محاولة ثانية بعد تجديد سابق، يسقط للمسار القديم: 'failed' نهائي
+ * بنفس منطق أي 4xx — هذا صحيح الآن لأنه فشل مصادقة حقيقي، لا عيب بالتصميم.
  */
-async function replayOne(entry) {
+async function refreshAccessToken(sampleUrl) {
+  let origin;
+  try {
+    origin = new URL(sampleUrl).origin;
+  } catch {
+    return null;
+  }
+  try {
+    const response = await fetch(`${origin}${API_PATH_PREFIX}/auth/refresh`, {
+      method: 'POST',
+      // لازم include لا same-origin — الباك-إند والفرونت-إند على origins
+      // مختلفة فعليًا بهذا النشر (انظر تعليق CROSS-ORIGIN-CSRF-FIX
+      // بـ backend's csrf.middleware.ts)، وrefreshToken الخاص بـ
+      // /auth/refresh كوكي httpOnly لا Authorization header — لازم يوصل
+      // عبر الكوكيز فعليًا.
+      credentials: 'include',
+    });
+    if (!response.ok) return null;
+    const body = await response.json();
+    const accessToken = body?.data?.tokens?.accessToken;
+    const csrfToken = body?.data?.csrfToken;
+    if (typeof accessToken !== 'string' || !accessToken) return null;
+    return { accessToken, csrfToken: typeof csrfToken === 'string' ? csrfToken : null };
+  } catch {
+    return null;
+  }
+}
+
+async function replayOne(entry, hasRetriedAfterRefresh) {
   try {
     const response = await fetch(entry.url, {
       method: entry.method,
@@ -610,6 +762,29 @@ async function replayOne(entry) {
       await deleteQueuedEntry(entry.id);
       await notifyClients({ type: 'QUEUE_ITEM_SENT', id: entry.id, url: entry.url });
       return 'sent';
+    }
+
+    // FIX OFFLINE-AUTH-01: انظر التعليق الطويل فوق هذه الدالة. عمدًا قبل
+    // فحص "4xx عام" أدناه — 401 وحده يستحق محاولة تجديد، لا يُعامَل
+    // كفشل نهائي فورًا.
+    if (response.status === 401 && !hasRetriedAfterRefresh) {
+      const fresh = await refreshAccessToken(entry.url);
+      if (fresh) {
+        // Headers.forEach (المستخدَم بـ handleMutation) يُرجِع أسماء
+        // الحقول بأحرف صغيرة دومًا (Fetch spec) — entry.headers هنا
+        // بنفس الصيغة، فالمطابقة المباشرة صحيحة بلا حاجة لفحص case.
+        const updatedHeaders = { ...entry.headers, authorization: `Bearer ${fresh.accessToken}` };
+        if (fresh.csrfToken && 'x-csrf-token' in updatedHeaders) {
+          updatedHeaders['x-csrf-token'] = fresh.csrfToken;
+        }
+        const updatedEntry = await markQueuedEntry(entry.id, { headers: updatedHeaders });
+        if (updatedEntry) {
+          return replayOne(updatedEntry, true);
+        }
+      }
+      // فشل التجديد نفسه (refreshToken بالكوكي منتهي/غير موجود) — جلسة
+      // منتهية فعليًا، لا عيب بالتصميم. يسقط للمنطق أدناه فيُعامَل كـ
+      // 401 عادي (يبقى بالطابور 'failed' مع رسالة الباك-إند الحقيقية).
     }
 
     if (response.status >= 400 && response.status < 500) {
@@ -660,7 +835,7 @@ async function replayQueue() {
 
   for (const entry of entries) {
     if (entry.status === 'failed') continue;
-    const result = await replayOne(entry);
+    const result = await replayOne(entry, false);
     if (result === 'still-offline') break;
   }
 
@@ -740,7 +915,37 @@ self.addEventListener('install', (event) => {
     (async () => {
       try {
         const cache = await caches.open(STATIC_CACHE);
-        await cache.add(OFFLINE_URL);
+        const response = await fetch(OFFLINE_URL, { credentials: 'same-origin' });
+        if (!response.ok) return;
+        await cache.put(OFFLINE_URL, response.clone());
+
+        // FIX OFFLINE-CHUNK-01: cache.add(OFFLINE_URL) وحده كان يخزّن مستند
+        // /offline الـHTML فقط — لا الـJS/CSS اللي الصفحة نفسها تحتاجه
+        // للـ hydration (مثلاً app/offline/page-<hash>.js). أول انقطاع نت
+        // حقيقي حيث هذا الـchunk بالذات لم يُطلب أونلاين من قبل: الشبكة
+        // تفشل، وfallback بـstaleWhileRevalidate (أسفله) يرجّع HTML صفحة
+        // /offline كردّ على طلب ملف .js — المتصفح يحاول ينفّذها كجافاسكربت
+        // فيفشل بـ"ChunkLoadError: Loading chunk X failed" — بالضبط
+        // الصفحة المصمَّمة لتظهر عند انقطاع النت هي اللي تفشل بالضبط عند
+        // انقطاع النت. الحل: نجلب HTML الصفحة، نستخرج كل مسار script/link
+        // يشير لـ_next/static، ونخزّنه بنفس STATIC_CACHE أيضًا.
+        const html = await response.clone().text();
+        const assetUrls = Array.from(
+          html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+        )
+          .map((match) => match[1])
+          .filter((url) => Boolean(url));
+
+        await Promise.allSettled(
+          assetUrls.map(async (assetUrl) => {
+            try {
+              const assetResponse = await fetch(assetUrl, { credentials: 'same-origin' });
+              if (assetResponse.ok) await cache.put(assetUrl, assetResponse.clone());
+            } catch {
+              // أصل واحد فاشل لا يوقف تخزين الباقي.
+            }
+          }),
+        );
       } catch {
         // فشل التخزين المسبق (مثلًا لا اتصال أصلًا وقت التثبيت، حالة نادرة)
         // لا يجب أن يوقف تثبيت الـ SW — ستُخزَّن لاحقًا بأول زيارة عادية
@@ -822,7 +1027,7 @@ self.addEventListener('message', (event) => {
         if (entry.status === 'failed') {
           await markQueuedEntry(entry.id, { status: 'pending' });
         }
-        await replayOne({ ...entry, status: 'pending' });
+        await replayOne({ ...entry, status: 'pending' }, false);
         await notifyClients({ type: 'QUEUE_REPLAYED' });
       })(),
     );

@@ -42,7 +42,7 @@
 // بكاش لا يقرأ منه sw.js أبدًا، وأن 'activate' هناك يحذف هذا الكاش (v4) فورًا
 // بعد كل تفعيل لأنه غير مدرَج بـ currentCaches. رُفعت هنا إلى 'v6' لتطابق
 // public/sw.js's CACHE_VERSION الحالية — راجع تعليق CACHE_VERSION هناك.
-const STATIC_CACHE = 'market-static-v8'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PAGE-01)
+const STATIC_CACHE = 'market-static-v11'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-OFFLINE-FALLBACK-SCOPE-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -59,7 +59,30 @@ const STATIC_CACHE = 'market-static-v8'; // يجب مطابقة CACHE_VERSION ب
 // الآخر المسمّى "ads" بـ lib/constants.ts هو /admin/ads وهو محمي ولا
 // يجوز تخزينه إطلاقًا (انظر isProtectedPage بـ public/sw.js) — لا علاقة
 // له بهذا.
-const CORE_ROUTES = ['/', '/products', '/stores', '/search', '/categories', '/services', '/ads'];
+//
+// FIX OFFLINE-SELF-LINKS-01: '/saved-ads', '/downloads', و'/saved-payments'
+// أُضيفت هنا — وهذا هو التعارض الفعلي المكتشف بمراجعة هذه الميزة: صفحة
+// /offline نفسها (app/offline/page.tsx) تعرض هذه الثلاثة تحديدًا كأزرار
+// تحت عنوان "متاح على هذا الجهاز دون نت"، بلا أي شرط. لكن قبل هذا الإصلاح
+// لم تكن أي منها ضمن CORE_ROUTES — أي أن أول زيارة (تنقّل قاسٍ، هو نفس
+// السيناريو الذي أظهر أصلًا صفحة /offline: فتح التطبيق من الصفر بدون نت،
+// PWA مثبّتة) لأي منها بدون أن تُزار أونلاين أولًا كانت تُقابَل بـ cache miss
+// بـ STATIC_CACHE فتُعاد نفس /offline من جديد — المستخدم يضغط الزر المكتوب
+// عليه "متاح دون نت" ويُعاد لنفس الصفحة التي كان فيها بالضبط، بلا أي تفسير.
+// الثلاثة تطابق شروط الأمان الموثّقة أعلاه بالضبط (تحقّق فعلي من الكود):
+// لا `export const dynamic`، metadata ثابت عبر buildMetadata، ومكوّن
+// المحتوى الفعلي بكل واحدة ('SavedOfflineAdsPageClient'/'DownloadsPageClient'/
+// 'SavedPaymentsPageClient') 'use client' بالكامل يقرأ من localStorage/Cache
+// Storage المحلي فقط — لا بيانات مخصّصة بالسيرفر لأي زائر (بعكس صفحة محمية).
+// FIX OFFLINE-DEAD-ROUTE-01: '/categories' أُزيلت — لا يوجد
+// app/(public)/categories/page.tsx (فقط .../categories/[slug]/page.tsx
+// الديناميكي)، فتخزين '/categories' هنا كان يفشل بـ404 في كل مرة
+// (مؤكَّد عبر Network tab: طلبان فاشلان — html وRSC — بكل تحميل صفحة).
+// مغلَّف بـtry/catch فلا يوقف شيء، لكنه هدر طلبين بطيئين بلا فائدة.
+const CORE_ROUTES = [
+  '/', '/products', '/stores', '/search', '/services', '/ads',
+  '/saved-ads', '/downloads', '/saved-payments',
+];
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
@@ -78,11 +101,39 @@ export async function warmRouteShells(): Promise<void> {
     const cache = await caches.open(STATIC_CACHE);
 
     // (أ) تنقّل قاسٍ — مستند HTML عادي، مفتاحه URL المسار كما هو.
+    // FIX OFFLINE-CHUNK-01: كانت تُخزَّن HTML فقط — نفس الخلل بالضبط
+    // الموثّق بـpublic/sw.js's install handler لـ/offline، لكنه هنا يطال
+    // كل مسار بـCORE_ROUTES: أول تنقّل حقيقي بدون نت لمسار (مثلاً
+    // /saved-ads) لم يُحمَّل chunk-ه أونلاين من قبل بهذا الجهاز تحديدًا
+    // ينتج عنه "ChunkLoadError" (مؤكَّد فعليًا: طلب مستخدم ضغط زر
+    // "التنزيلات" من صفحة /offline، فشل بـchunk 2708 لمسار
+    // app/(public)/saved-ads، وعاد تلقائيًا لصفحة /offline خلال ثانية).
+    // الحل: بعد جلب HTML كل مسار، نستخرج ونخزّن أصول _next/static
+    // الخاصة فيه أيضًا — تمامًا نفس منطق sw.js's install handler.
     await Promise.allSettled(
       CORE_ROUTES.map(async (path) => {
         try {
           const response = await fetch(path, { credentials: 'same-origin' });
-          if (response.ok) await cache.put(path, response.clone());
+          if (!response.ok) return;
+          await cache.put(path, response.clone());
+
+          const html = await response.clone().text();
+          const assetUrls = Array.from(
+            html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+          )
+            .map((match) => match[1])
+            .filter((url): url is string => Boolean(url));
+
+          await Promise.allSettled(
+            assetUrls.map(async (assetUrl) => {
+              try {
+                const assetResponse = await fetch(assetUrl, { credentials: 'same-origin' });
+                if (assetResponse.ok) await cache.put(assetUrl, assetResponse.clone());
+              } catch {
+                // أصل واحد فاشل لا يوقف تخزين الباقي.
+              }
+            }),
+          );
         } catch {
           // مسار واحد فاشل (مثلًا انقطع النت أثناء الجلب) لا يوقف الباقي.
         }

@@ -1,24 +1,27 @@
 'use client';
 
 /**
- * شريط حالة الشبكة — أعلى الصفحة، مؤقت، وقابل للإغلاق.
+ * شريط حالة الشبكة — موحّد في أسفل الشاشة.
  *
- * FIX PERSISTENT-OFFLINE-BADGE: حالة "غير متصل" لم تعد تُعرض هنا كرسالة
- * حمراء مؤقتة (8 ثوانٍ) تختفي رغم استمرار انقطاع الاتصال — استُبدلت بإشارة
- * دائمة فوق زر القائمة (BottomNav.tsx) تبقى ظاهرة طوال مدة الانقطاع الفعلية
- * لا فترة ثابتة. هذا الملف الآن يعرض فقط تأكيد "عاد الاتصال" العابر (وهو
- * إشعار إيجابي عابر بطبيعته، لا حالة مستمرة تحتاج إشارة دائمة).
+ * - أوفلاين: يبقى ظاهرًا طوال مدة الانقطاع (نص واضح وحجم مناسب).
+ * - عودة الاتصال: إشعار أخضر مؤقت ثم يختفي تلقائيًا.
+ *
+ * FIX NETWORK-BANNER-UNIFY-01: كانت «غير متصل» شارة صغيرة فوق زر القائمة
+ * في BottomNav (نص 9px)، و«عاد الاتصال» شريط أعلى الصفحة — مكانان
+ * وأحجام مختلفة. الآن الاثنان في نفس الموضع (أسفل، فوق BottomNav على
+ * الموبايل) بنفس أسلوب الشريط.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Wifi, X } from 'lucide-react';
+import { Wifi, WifiOff, X } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { cn } from '@/lib/utils';
 
-const BACK_DURATION_MS = 3500;
+const BACK_ONLINE_DURATION_MS = 3500;
 
 export function NetworkStatusBanner() {
   const isOnline = useOnlineStatus();
-  const [visible, setVisible] = useState(false);
+  const [showBackOnline, setShowBackOnline] = useState(false);
   const wasOnlineRef = useRef(isOnline);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -30,45 +33,66 @@ export function NetworkStatusBanner() {
   }
 
   useEffect(() => {
-    // انتقال فعلي من غير-متصل إلى متصل فقط — لا نعرضها عند التركيب الأول
-    // حتى لو كان المستخدم متصلًا أصلًا (لا يوجد "عودة" لعرضها هنا).
+    // انتقال فعلي من غير-متصل → متصل فقط (لا عند التركيب الأول وهو متصل).
     if (!wasOnlineRef.current && isOnline) {
       clearHideTimer();
-      setVisible(true);
+      setShowBackOnline(true);
       hideTimerRef.current = setTimeout(() => {
-        setVisible(false);
+        setShowBackOnline(false);
         hideTimerRef.current = null;
-      }, BACK_DURATION_MS);
+      }, BACK_ONLINE_DURATION_MS);
+    }
+    if (!isOnline) {
+      clearHideTimer();
+      setShowBackOnline(false);
     }
     wasOnlineRef.current = isOnline;
-
     return clearHideTimer;
   }, [isOnline]);
 
-  function dismiss() {
+  function dismissBackOnline() {
     clearHideTimer();
-    setVisible(false);
+    setShowBackOnline(false);
   }
 
+  const showOffline = !isOnline;
+  const visible = showOffline || showBackOnline;
   if (!visible) return null;
 
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-2 px-3 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] text-center text-sm shadow-md bg-emerald-600 text-white"
+      aria-live="polite"
+      className={cn(
+        // أسفل الشاشة، فوق BottomNav على الموبايل (ارتفاع الشريط ~3.5rem + safe area)
+        'fixed inset-x-0 z-[100] flex items-center justify-center gap-2 px-4 py-3 text-center text-sm font-medium shadow-lg sm:text-base',
+        'bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] md:bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))]',
+        'mx-3 mb-1 max-w-lg rounded-xl md:mx-auto',
+        showOffline
+          ? 'bg-destructive text-destructive-foreground'
+          : 'bg-emerald-600 text-white',
+      )}
     >
-      <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 pe-8">
-        <Wifi className="h-4 w-4 shrink-0" aria-hidden />
-        <span className="leading-snug">عاد الاتصال</span>
+      <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-2.5 pe-6">
+        {showOffline ? (
+          <WifiOff className="h-5 w-5 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+        ) : (
+          <Wifi className="h-5 w-5 shrink-0" aria-hidden />
+        )}
+        <span className="leading-snug">
+          {showOffline ? 'لا يوجد اتصال بالإنترنت' : 'عاد الاتصال'}
+        </span>
       </span>
-      <button
-        type="button"
-        onClick={dismiss}
-        className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 opacity-90 transition hover:bg-black/15 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-        aria-label="إغلاق الرسالة"
-      >
-        <X className="h-4 w-4" />
-      </button>
+      {showBackOnline && (
+        <button
+          type="button"
+          onClick={dismissBackOnline}
+          className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 opacity-90 transition hover:bg-black/15 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          aria-label="إغلاق الرسالة"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }

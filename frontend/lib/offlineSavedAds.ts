@@ -18,6 +18,23 @@
  *
  * SAVED_ADS_CACHE يجب أن يبقى مطابقًا حرفيًا لنفس الاسم بـ public/sw.js
  * (نفس نمط CORE_CACHE المُكرَّر بين lib/offlineCoreBundle.ts وsw.js).
+ *
+ * FIX SAVED-ADS-LEAK-01: قبل هذا الإصلاح، MAX_SAVED_ADS=30 كانت تحدّ فقط
+ * فهرس localStorage (SAVED_INDEX_KEY عبر index.slice(0, MAX_SAVED_ADS))
+ * — العنصر رقم 31 يُقصى من الفهرس المعروض بصفحة "المحفوظات"، لكن استجابة
+ * /ads/:id وكل صوره تبقى في SAVED_ADS_CACHE (Cache Storage الفعلي) للأبد،
+ * لأن لا شيء كان يحذفها فعليًا. بمرور الوقت هذا يعني نموًا غير محدود
+ * لمساحة تخزين حقيقية (صور كاملة الجودة لكل إعلان حُفظ يومًا) بلا أي حد
+ * فعلي رغم وجود MAX_SAVED_ADS بالاسم فقط — خطر حقيقي على جهاز بمساحة
+ * محدودة. بالإضافة: unsaveAdOffline نفسها (الحذف اليدوي الصريح) كانت
+ * تحذف فقط استجابة /ads/:id، لا صور الإعلان — تعليقها القديم برّر هذا
+ * بـ"بقايا غير ضارة" لكن هذا التبرير ينهار مع الاستخدام المتكرر: بلا سقف
+ * فعلي، "غير ضار" يتراكم إلى استهلاك حقيقي غير محدود لمساحة الجهاز.
+ *
+ * الحل: تخزين قائمة روابط صور كل إعلان محفوظ ضمن الفهرس نفسه
+ * (SavedOfflineAdMeta.imageUrls)، حتى يقدر أي حذف — تلقائي بالإقصاء عن
+ * السقف أو يدوي عبر الزر — تنظيف Cache Storage الفعلي بدقة (API response
+ * + كل الصور)، لا فقط تحديث الفهرس المعروض.
  */
 
 import { API_BASE_URL } from '@/lib/constants';
@@ -30,7 +47,9 @@ export const SAVED_ADS_CACHE = 'market-saved-ads';
 const SAVED_INDEX_KEY = 'saved-ads-offline';
 
 /** حد أقصى معقول لعدد الإعلانات المحفوظة يدويًا — يحمي مساحة الجهاز
- * (كل إعلان قد يحمل عدة صور كاملة الجودة) من نمو غير محدود. */
+ * (كل إعلان قد يحمل عدة صور كاملة الجودة) من نمو غير محدود. مُطبَّق الآن
+ * فعليًا على Cache Storage نفسها لا فقط على الفهرس المعروض — انظر
+ * FIX SAVED-ADS-LEAK-01 أعلاه. */
 const MAX_SAVED_ADS = 30;
 
 export interface SavedOfflineAdMeta {
@@ -40,6 +59,11 @@ export interface SavedOfflineAdMeta {
   city: string;
   thumbnail: string | null;
   savedAt: string;
+  /** كل روابط صور الإعلان (تفاصيل + مصغّرة) — تُستخدم لحذف كل ما يخص هذا
+   * الإعلان من SAVED_ADS_CACHE بدقة عند الإقصاء التلقائي أو الحذف اليدوي.
+   * قد تكون فارغة لعنصر محفوظ بنسخة سابقة من التطبيق (قبل هذا الإصلاح) —
+   * حذفه حينها يقتصر على استجابة الـ API كما كان الحال سابقًا، لا خطأ. */
+  imageUrls: string[];
 }
 
 export function listSavedOfflineAds(): SavedOfflineAdMeta[] {
@@ -72,10 +96,28 @@ async function cachePutSafe(cache: Cache, url: string, response: Response): Prom
   }
 }
 
+/** يحذف استجابة /ads/:id وكل صور الإعلان المعروفة من SAVED_ADS_CACHE —
+ * منطق الحذف المشترك بين الإقصاء التلقائي (تجاوز MAX_SAVED_ADS) والحذف
+ * اليدوي (unsaveAdOffline)، بدل تكراره بمكانين (FIX SAVED-ADS-LEAK-01). */
+async function purgeSavedAdFromCache(entry: Pick<SavedOfflineAdMeta, 'id' | 'imageUrls'>): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  try {
+    const cache = await caches.open(SAVED_ADS_CACHE);
+    await cache.delete(adDetailUrl(entry.id));
+    await Promise.allSettled(entry.imageUrls.map((url) => cache.delete(url)));
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * يحفظ الإعلان: يعيد جلب استجابة /ads/:id الخام (نفس الرابط اللي
  * adsApi.getById يبنيه عبر axios) + كل صوره، ويخزّنهم بـ SAVED_ADS_CACHE،
  * ثم يسجّل الإعلان بفهرس localStorage لعرضه بصفحة "المحفوظة بدون اتصال".
+ *
+ * FIX SAVED-ADS-LEAK-01: أي إعلان يُقصى من الفهرس بسبب تجاوز MAX_SAVED_ADS
+ * يُحذف الآن أيضًا فعليًا من SAVED_ADS_CACHE (API response + صوره) بدل
+ * البقاء فيها للأبد بصمت.
  *
  * لا يرمي استثناءات للمستدعي — إن فشل الحفظ (لا كاش متاح، لا اتصال
  * أصلًا وقت الضغط على الزر، إلخ) يُعاد false ليعرض المكوّن toast مناسب.
@@ -91,8 +133,9 @@ export async function saveAdOffline(ad: Ad): Promise<boolean> {
     if (!apiResponse.ok) return false;
     await cachePutSafe(cache, apiUrl, apiResponse);
 
+    const imageUrls = collectImageUrls(ad);
     await Promise.allSettled(
-      collectImageUrls(ad).map(async (url) => {
+      imageUrls.map(async (url) => {
         try {
           const imgResponse = await fetch(url);
           await cachePutSafe(cache, url, imgResponse);
@@ -110,8 +153,16 @@ export async function saveAdOffline(ad: Ad): Promise<boolean> {
       city: ad.city,
       thumbnail: ad.images[0] ? getThumbnailUrl(ad.images[0], 128, 128) : null,
       savedAt: new Date().toISOString(),
+      imageUrls,
     });
-    localSet(SAVED_INDEX_KEY, index.slice(0, MAX_SAVED_ADS));
+
+    const kept = index.slice(0, MAX_SAVED_ADS);
+    const evicted = index.slice(MAX_SAVED_ADS);
+    localSet(SAVED_INDEX_KEY, kept);
+    // FIX SAVED-ADS-LEAK-01: نظّف Cache Storage لكل عنصر أُقصي من الفهرس —
+    // بلا هذا، تجاوز السقف يُخفي العنصر عن الواجهة فقط بينما يبقى استهلاكه
+    // الفعلي للمساحة قائمًا للأبد.
+    await Promise.allSettled(evicted.map((a) => purgeSavedAdFromCache(a)));
 
     return true;
   } catch {
@@ -120,19 +171,13 @@ export async function saveAdOffline(ad: Ad): Promise<boolean> {
 }
 
 /**
- * يحذف الإعلان من الفهرس ومن الكاش. لا نملك هنا قائمة صور الإعلان
- * (فقط id) فنكتفي بحذف استجابة الـ API المعروفة الرابط — بقايا صور
- * بالكاش غير ضارة (ستُستبدل ببساطة عند أي حفظ لاحق لنفس الرابط) ولا
- * تمنع اعتبار الإعلان "غير محفوظ" بعد هذا الاستدعاء.
+ * يحذف الإعلان من الفهرس ومن الكاش — استجابة الـ API وكل صوره المعروفة
+ * (FIX SAVED-ADS-LEAK-01؛ سابقًا كانت تُحذف استجابة الـ API فقط وتبقى
+ * الصور "بقايا غير ضارة" بالكاش، وهو افتراض لا يصمد بلا سقف فعلي مُطبَّق).
  */
 export async function unsaveAdOffline(adId: string): Promise<void> {
-  if (typeof window !== 'undefined' && typeof caches !== 'undefined') {
-    try {
-      const cache = await caches.open(SAVED_ADS_CACHE);
-      await cache.delete(adDetailUrl(adId));
-    } catch {
-      /* ignore */
-    }
-  }
-  localSet(SAVED_INDEX_KEY, listSavedOfflineAds().filter((a) => a.id !== adId));
+  const current = listSavedOfflineAds();
+  const entry = current.find((a) => a.id === adId);
+  await purgeSavedAdFromCache({ id: adId, imageUrls: entry?.imageUrls ?? [] });
+  localSet(SAVED_INDEX_KEY, current.filter((a) => a.id !== adId));
 }
