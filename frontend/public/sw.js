@@ -64,7 +64,7 @@
 // ارفع CACHE_VERSION فقط عند تغيّر سياسة الكاش / الـ shells / استراتيجيات fetch
 // في هذا الملف — وليس مع كل deploy لا يمسّ SW. عند التفعيل (activate) تُمسَح
 // كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
-const CACHE_VERSION = 'v16';
+const CACHE_VERSION = 'v17';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -95,6 +95,9 @@ const CORE_CACHE = `market-core-${CACHE_VERSION}`; // يجب مطابقة lib/of
 const SAVED_ADS_CACHE = 'market-saved-ads';
 
 const MAX_API_ENTRIES = 60;
+/** حد صور IMAGE_CACHE — FIFO عند التجاوز (لا نترك الكاش بلا سقف). */
+const MAX_IMAGE_ENTRIES = 80;
+
 const OFFLINE_URL = '/offline';
 
 // يجب مطابقة lib/offlineQueue.ts حرفيًا — الصفحة تقرأ من نفس القاعدة/المخزن.
@@ -525,8 +528,8 @@ async function handlePageRequest(event, request, url) {
   return networkFirstPage(event, request, cacheKey);
 }
 
-/** Cache First للصور — تُخزَّن لأجل غير مسمى (لا تنتهي صلاحيتها تلقائيًا هنا؛
- * حجم كاش الصور محدود عمليًا بعدد الصور المعروضة فعليًا للمستخدم). */
+/** Cache First للصور التي رآها المستخدم — مع سقف MAX_IMAGE_ENTRIES (FIFO).
+ * الإعلانات المحفوظة يدويًا تُقرأ أيضًا من SAVED_ADS_CACHE (غير مُصدَّر). */
 async function cacheFirstImage(event, request, url) {
   const cache = await caches.open(IMAGE_CACHE);
   const cached = await cache.match(request);
@@ -563,7 +566,11 @@ async function cacheFirstImage(event, request, url) {
   try {
     const response = await fetch(request);
     if (response && response.ok) {
-      event.waitUntil(cache.put(request, response.clone()));
+      event.waitUntil(
+        cache.put(request, response.clone()).then(() =>
+          trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
+        ),
+      );
     }
     return response;
   } catch {

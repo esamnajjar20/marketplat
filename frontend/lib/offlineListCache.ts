@@ -6,6 +6,7 @@
  */
 
 import { localGet, localSet, localRemove } from '@/lib/localStore';
+import { OFFLINE_DATA_LIMITS } from '@/lib/offlineCachePolicy';
 
 export interface OfflineListEnvelope<T> {
   items: T[];
@@ -55,11 +56,11 @@ export function clearAllOfflineLists(): void {
   }
 }
 
-/** حدود التخزين — مقصودة وصريحة. */
+/** حدود التخزين — من offlineCachePolicy (مصدر واحد للمشروع). */
 export const OFFLINE_LIST_LIMITS = {
-  activity: 40,
-  savedSearches: 20,
-  sellersRanking: 30,
-  adsBrowse: 24,
-  myAds: 30,
+  activity: OFFLINE_DATA_LIMITS.activity,
+  savedSearches: OFFLINE_DATA_LIMITS.savedSearches,
+  sellersRanking: OFFLINE_DATA_LIMITS.sellersRanking,
+  adsBrowse: OFFLINE_DATA_LIMITS.adsBrowse,
+  myAds: OFFLINE_DATA_LIMITS.myAds,
 } as const;

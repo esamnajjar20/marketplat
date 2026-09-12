@@ -13,6 +13,7 @@
  */
 
 import type { ConversationListItem, Message } from '@/types/conversation.types';
+import { OFFLINE_DATA_LIMITS } from '@/lib/offlineCachePolicy';
 
 const DB_NAME = 'market-offline-messages';
 const DB_VERSION = 1;
@@ -21,8 +22,8 @@ const STORE_CONVERSATIONS = 'conversations';
 const STORE_MESSAGES = 'messages';
 const STORE_META = 'meta';
 
-const MAX_CONVERSATIONS = 50;
-const MAX_MESSAGES_PER_CONV = 100;
+const MAX_CONVERSATIONS = OFFLINE_DATA_LIMITS.conversations;
+const MAX_MESSAGES_PER_CONV = OFFLINE_DATA_LIMITS.messagesPerConversation;
 
 const META_UNREAD = 'unreadCount';
 const META_LAST_SYNC = 'lastSyncedAt';

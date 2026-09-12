@@ -127,7 +127,9 @@ export function NetworkStatusBanner() {
           <Wifi className="h-5 w-5 shrink-0" aria-hidden />
         )}
         <span className="leading-snug">
-          {showFullOffline ? 'لا يوجد اتصال بالإنترنت' : 'عاد الاتصال'}
+          {showFullOffline
+            ? 'لا يوجد اتصال — قد تظهر آخر بيانات محفوظة (قد تكون قديمة)'
+            : 'عاد الاتصال'}
         </span>
       </span>
       {showBackOnline && (
