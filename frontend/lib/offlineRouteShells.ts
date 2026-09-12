@@ -42,7 +42,7 @@
 // بكاش لا يقرأ منه sw.js أبدًا، وأن 'activate' هناك يحذف هذا الكاش (v4) فورًا
 // بعد كل تفعيل لأنه غير مدرَج بـ currentCaches. رُفعت هنا إلى 'v6' لتطابق
 // public/sw.js's CACHE_VERSION الحالية — راجع تعليق CACHE_VERSION هناك.
-const STATIC_CACHE = 'market-static-v13'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v14'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -91,6 +91,7 @@ const CORE_ROUTES = [
 // كاملًا عند تسجيل الخروج (CLEAR_API_CACHE في sw.js) لنفس سبب API_CACHE.
 // يجب أن تطابق isPersonalShellRoute في public/sw.js حرفيًا.
 export const PERSONAL_SHELL_ROUTES = [
+  // حساب / تنقّل
   '/messages',
   '/notifications',
   '/dashboard',
@@ -98,9 +99,36 @@ export const PERSONAL_SHELL_ROUTES = [
   '/my-ads',
   '/saved-searches',
   '/activity',
+  // الملف والإعدادات (قوائم فقط — لا sessions حساسة كـ HTML بيانات)
+  '/settings',
+  '/settings/profile',
+  '/settings/security',
+  '/settings/sessions',
+  '/settings/notifications',
+  '/settings/seller',
+  '/settings/service-provider',
+  '/settings/blocked-users',
+  '/settings/storage',
+  // متجري
+  '/my-store',
+  '/my-store/inventory',
+  '/my-store/members',
+  '/my-store/products',
+  '/my-store/promotions',
+  '/my-store/collections',
+  '/my-store/analytics',
+  '/my-store/settings',
+  // خدماتي + لوحة مقدّم الخدمة
+  '/my-services',
+  '/my-services/requests',
+  '/my-services/appointments',
+  '/my-services/analytics',
+  '/service-broadcasts',
+  '/service-broadcasts/quotes',
+  '/my-requests',
 ];
 
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v13';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v14';
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`

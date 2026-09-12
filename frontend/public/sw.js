@@ -61,7 +61,7 @@
 // (1) صفحات login/register ما عاد الـSW يعترضها إطلاقًا (كانت تسبب صفحة
 // بيضاء بعد كل تعديل أوفلاين حتى مسح البيانات). (2) فشل تنقّل SPA/RSC
 // بدون كاش ما عاد يفرض الانتقال لـ/offline — يبقى المستخدم على صفحته.
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v14';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -193,7 +193,10 @@ function rscShellKey(pathname) {
  * الصفحات المحمية (dashboard/settings/admin...) قرار منفصل يستأهل مراجعة
  * حساسية بيانات خاصة به لكل صفحة على حدة. */
 function isPersonalShellRoute(url) {
-  // يجب مطابقة PERSONAL_SHELL_ROUTES في lib/offlineRouteShells.ts
+  // يجب أن يغطي PERSONAL_SHELL_ROUTES في lib/offlineRouteShells.ts
+  // + بادئات للفروع (محادثة، منتج متجر، إعدادات فرعية…).
+  // لا يشمل /admin أبدًا.
+  const path = url.pathname;
   const exact = [
     '/messages',
     '/notifications',
@@ -202,9 +205,39 @@ function isPersonalShellRoute(url) {
     '/my-ads',
     '/saved-searches',
     '/activity',
+    '/settings',
+    '/settings/profile',
+    '/settings/security',
+    '/settings/sessions',
+    '/settings/notifications',
+    '/settings/seller',
+    '/settings/service-provider',
+    '/settings/blocked-users',
+    '/settings/storage',
+    '/my-store',
+    '/my-store/inventory',
+    '/my-store/members',
+    '/my-store/products',
+    '/my-store/promotions',
+    '/my-store/collections',
+    '/my-store/analytics',
+    '/my-store/settings',
+    '/my-services',
+    '/my-services/requests',
+    '/my-services/appointments',
+    '/my-services/analytics',
+    '/service-broadcasts',
+    '/service-broadcasts/quotes',
+    '/my-requests',
   ];
-  if (exact.includes(url.pathname)) return true;
-  if (url.pathname.startsWith('/messages/')) return true;
+  if (exact.includes(path)) return true;
+  if (path.startsWith('/messages/')) return true;
+  if (path.startsWith('/settings/')) return true;
+  if (path.startsWith('/my-store/')) return true;
+  if (path.startsWith('/my-services/')) return true;
+  if (path.startsWith('/service-broadcasts/')) return true;
+  if (path.startsWith('/my-requests/')) return true;
+  if (path.startsWith('/my-ads/')) return true;
   return false;
 }
 
