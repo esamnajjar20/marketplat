@@ -109,6 +109,7 @@ export const PERSONAL_SHELL_ROUTES = [
   '/settings/service-provider',
   '/settings/blocked-users',
   '/settings/storage',
+  '/settings/sync',
   // متجري
   '/my-store',
   '/my-store/inventory',

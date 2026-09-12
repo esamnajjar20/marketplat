@@ -1,0 +1,298 @@
+'use client';
+
+/**
+ * مركز المزامنة — يعرض:
+ * - طلبات الطابور العامة (pending / failed)
+ * - مسودات الإعلانات المحلية
+ * - زر مزامنة الآن
+ */
+
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import {
+  RefreshCw,
+  Trash2,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  FileText,
+} from 'lucide-react';
+import { Button } from '@/components/shared/ui/Button';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import {
+  getQueuedRequestCounts,
+  listFailedRequests,
+  retryFailedRequest,
+  discardFailedRequest,
+  requestQueueReplay,
+  type QueuedRequestSummary,
+} from '@/lib/offlineQueue';
+import {
+  listAdDrafts,
+  deleteAdDraft,
+  type AdDraft,
+} from '@/lib/offlineAdDrafts';
+import { ROUTES } from '@/lib/constants';
+import { toast } from 'sonner';
+
+export function SyncCenterClient() {
+  const isOnline = useOnlineStatus();
+  const [pending, setPending] = useState(0);
+  const [failed, setFailed] = useState(0);
+  const [failedItems, setFailedItems] = useState<QueuedRequestSummary[]>([]);
+  const [drafts, setDrafts] = useState<AdDraft[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [counts, failedList, draftList] = await Promise.all([
+        getQueuedRequestCounts().catch(() => ({ pending: 0, failed: 0 })),
+        listFailedRequests().catch(() => [] as QueuedRequestSummary[]),
+        listAdDrafts().catch(() => [] as AdDraft[]),
+      ]);
+      setPending(counts.pending);
+      setFailed(counts.failed);
+      setFailedItems(failedList);
+      setDrafts(draftList);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh, isOnline]);
+
+  async function handleSyncNow() {
+    if (!isOnline) {
+      toast.error('لا يوجد اتصال — لا يمكن المزامنة الآن');
+      return;
+    }
+    setSyncing(true);
+    try {
+      await requestQueueReplay();
+      toast.success('بدأت المزامنة — سيتم إرسال العناصر المعلّقة');
+      // أعطِ الـ SW لحظة ثم حدّث الأعداد
+      window.setTimeout(() => void refresh(), 1500);
+    } catch {
+      toast.error('تعذّر بدء المزامنة');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleRetry(id: number) {
+    try {
+      await retryFailedRequest(id);
+      toast.success('أُعيدت المحاولة');
+      await refresh();
+    } catch {
+      toast.error('تعذّرت إعادة المحاولة');
+    }
+  }
+
+  async function handleDiscard(id: number) {
+    try {
+      await discardFailedRequest(id);
+      toast.success('تم الحذف من الطابور');
+      await refresh();
+    } catch {
+      toast.error('تعذّر الحذف');
+    }
+  }
+
+  async function handleDeleteDraft(id: string) {
+    try {
+      await deleteAdDraft(id);
+      toast.success('حُذفت المسودة');
+      await refresh();
+    } catch {
+      toast.error('تعذّر حذف المسودة');
+    }
+  }
+
+  const lastLabel = isOnline ? 'متصل' : 'غير متصل';
+
+  return (
+    <div dir="rtl" className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+      <div>
+        <h1 className="text-xl font-bold">المزامنة</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          إدارة العمليات والمسودات التي تنتظر الاتصال. الحالة الآن: {lastLabel}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          label="متزامن"
+          value={loading ? '…' : String(Math.max(0, 0))}
+          hint="آخر جلسة"
+        />
+        <StatCard
+          icon={<Clock className="h-4 w-4 text-amber-600" />}
+          label="بالانتظار"
+          value={loading ? '…' : String(pending + drafts.filter((d) => d.status !== 'failed').length)}
+        />
+        <StatCard
+          icon={<AlertCircle className="h-4 w-4 text-destructive" />}
+          label="فشل"
+          value={loading ? '…' : String(failed + drafts.filter((d) => d.status === 'failed').length)}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => void handleSyncNow()} disabled={syncing || !isOnline}>
+          <RefreshCw className={`me-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+          مزامنة الآن
+        </Button>
+        <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
+          تحديث القائمة
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href={ROUTES.settings.storage}>التخزين والبيانات</Link>
+        </Button>
+      </div>
+
+      {/* مسودات الإعلانات */}
+      <section className="space-y-2">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <FileText className="h-4 w-4" />
+          مسودات الإعلانات
+        </h2>
+        {drafts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">لا توجد مسودات محفوظة محليًا.</p>
+        ) : (
+          <ul className="divide-y rounded-xl border">
+            {drafts.map((d) => (
+              <li key={d.id} className="flex items-start justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {d.payload.title?.trim() || 'مسودة بدون عنوان'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.mode === 'create' ? 'إنشاء' : 'تعديل'} · {statusLabel(d.status)} ·{' '}
+                    {formatWhen(d.updatedAt)}
+                  </p>
+                  {d.lastError ? (
+                    <p className="mt-1 text-xs text-destructive">{d.lastError}</p>
+                  ) : null}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="حذف المسودة"
+                  onClick={() => void handleDeleteDraft(d.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-muted-foreground">
+          المسودات تُحفظ عند تعذّر النشر بدون إنترنت. أكمل الرفع وأنت متصل من نموذج الإعلان
+          أو بعد استعادة الحقول من المسودة.
+        </p>
+      </section>
+
+      {/* فشل الطابور */}
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">طلبات فاشلة</h2>
+        {failedItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground">لا توجد طلبات فاشلة في الطابور.</p>
+        ) : (
+          <ul className="divide-y rounded-xl border">
+            {failedItems.map((item) => (
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
+                <div className="min-w-0 text-sm">
+                  <p className="font-medium">
+                    {item.method} {shortUrl(item.url)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.lastError?.message || `خطأ ${item.lastError?.status ?? ''}`}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!isOnline}
+                    onClick={() => void handleRetry(item.id)}
+                  >
+                    إعادة
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => void handleDiscard(item.id)}>
+                    حذف
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {pending > 0 && (
+        <p className="text-sm text-muted-foreground">
+          يوجد {pending} طلبًا معلّقًا سيُرسل تلقائيًا عند توفر الاتصال (أو عبر «مزامنة الآن»).
+        </p>
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-3 text-center">
+      <div className="mb-1 flex justify-center">{icon}</div>
+      <p className="text-lg font-bold">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      {hint ? <p className="text-[10px] text-muted-foreground">{hint}</p> : null}
+    </div>
+  );
+}
+
+function statusLabel(s: AdDraft['status']): string {
+  switch (s) {
+    case 'draft':
+      return 'مسودة';
+    case 'pending_sync':
+      return 'بانتظار الرفع';
+    case 'failed':
+      return 'فشل الرفع';
+    case 'synced':
+      return 'متزامن';
+    default:
+      return s;
+  }
+}
+
+function formatWhen(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('ar');
+  } catch {
+    return iso;
+  }
+}
+
+function shortUrl(url: string): string {
+  try {
+    const u = new URL(url, 'https://local');
+    return u.pathname;
+  } catch {
+    return url.slice(0, 48);
+  }
+}

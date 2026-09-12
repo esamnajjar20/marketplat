@@ -24,6 +24,7 @@ import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
+import { saveAdDraft } from '@/lib/offlineAdDrafts';
 
 /**
  * UX-FIX P3-10b: accepts an optional onUploadProgress callback so callers
@@ -46,7 +47,34 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       });
       if (ad) router.push(`${ROUTES.adDetail(ad.id)}?published=1`);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: async (err, payload) => {
+      const parsed = parseApiError(err);
+      const offline =
+        typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || parsed.queued) {
+        try {
+          await saveAdDraft({
+            mode: 'create',
+            payload: {
+              title: String((payload as { title?: string })?.title ?? ''),
+              description: String((payload as { description?: string })?.description ?? ''),
+              price: (payload as { price?: string | number }).price ?? null,
+              categoryId: (payload as { categoryId?: string }).categoryId ?? null,
+              city: (payload as { city?: string }).city ?? null,
+              condition: (payload as { condition?: string }).condition ?? null,
+            },
+            status: 'pending_sync',
+          });
+          toast.message('محفوظ محليًا — بانتظار الاتصال', {
+            description: 'يمكنك متابعة المسودات من الإعدادات → المزامنة',
+          });
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toast.error(parsed.message);
+    },
   });
 }
 
@@ -58,13 +86,38 @@ export function useUpdateAd(adId: string) {
     mutationFn: (payload: Parameters<typeof adsApi.update>[1]) =>
       adsApi.update(adId, payload).then((r) => r.data.data),
     onSuccess: (ad) => {
-      // FIX I-05: invalidate the whole ['ads'] prefix, not just detail+mine,
-      // so public list/search queries don't keep showing stale data.
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       toast.success('تم حفظ التعديلات');
       if (ad) router.push(ROUTES.adDetail(ad.id));
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: async (err, payload) => {
+      const parsed = parseApiError(err);
+      const offline =
+        typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || parsed.queued) {
+        try {
+          await saveAdDraft({
+            mode: 'edit',
+            remoteAdId: adId,
+            payload: {
+              title: String((payload as { title?: string })?.title ?? ''),
+              description: String((payload as { description?: string })?.description ?? ''),
+              price: (payload as { price?: string | number }).price ?? null,
+              categoryId: (payload as { categoryId?: string }).categoryId ?? null,
+              city: (payload as { city?: string }).city ?? null,
+            },
+            status: 'pending_sync',
+          });
+          toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
+            description: 'الإعدادات → المزامنة',
+          });
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toast.error(parsed.message);
+    },
   });
 }
 

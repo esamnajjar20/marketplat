@@ -220,6 +220,7 @@ function isPersonalShellRoute(url) {
     '/settings/service-provider',
     '/settings/blocked-users',
     '/settings/storage',
+    '/settings/sync',
     '/my-store',
     '/my-store/inventory',
     '/my-store/members',

@@ -93,6 +93,7 @@ export const ROUTES = {
     serviceProvider: '/settings/service-provider',
     blockedUsers:  '/settings/blocked-users',
     storage:       '/settings/storage',
+    sync:          '/settings/sync',
   },
   admin: {
     root:              '/admin',

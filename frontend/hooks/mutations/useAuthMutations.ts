@@ -20,6 +20,7 @@ import { ROUTES }        from '@/lib/constants';
 import { track }         from '@/lib/analytics';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { clearAllOfflineLists } from '@/lib/offlineListCache';
+import { clearAllAdDrafts } from '@/lib/offlineAdDrafts';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
@@ -212,6 +213,7 @@ function useClearLocalSession() {
     // بحساب آخر.
     clearNotificationsCache();
     clearAllOfflineLists();
+    void clearAllAdDrafts();
     void clearOfflineMessagesStore();
     queryClient.clear();
     router.push(ROUTES.home);
