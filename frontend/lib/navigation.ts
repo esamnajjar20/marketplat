@@ -102,8 +102,8 @@ export const STORE_GROUP = {
 } as const;
 
 // Used by ProtectedSidebar.tsx, ProtectedMobileNav.tsx, and
-// MobileNav.tsx's SettingsDisclosureRow. Same 8 destinations, same
-// order, in all three before extraction.
+// MobileNav.tsx's SettingsDisclosureRow. Same destinations and order
+// in all three (includes التخزين والبيانات → /settings/storage).
 //
 // AUDIT-FIX (nav duplication): the "متجري" child here (→ ROUTES.myStore)
 // exists so a user with no store yet can reach the become-a-store-owner
@@ -131,6 +131,7 @@ export const SETTINGS_GROUP = {
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
+    { label: 'التخزين والبيانات', href: ROUTES.settings.storage },
   ],
 } as const;
 

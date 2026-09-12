@@ -92,6 +92,7 @@ export const ROUTES = {
     seller:        '/settings/seller',
     serviceProvider: '/settings/service-provider',
     blockedUsers:  '/settings/blocked-users',
+    storage:       '/settings/storage',
   },
   admin: {
     root:              '/admin',
