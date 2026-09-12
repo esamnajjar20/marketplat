@@ -228,23 +228,18 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null);
 
-      // FIX AUTH-OFFLINE-01 (see AuthHydrationProvider.tsx for the fuller
-      // explanation of the same class of bug): the ORIGINAL request
-      // already got a real 401 (guaranteed by the check above this
-      // block), but that alone doesn't mean the session is actually
-      // dead — it's exactly what happens on a normal, healthy access-
-      // token expiry too, which is supposed to self-heal via this very
-      // refresh call. If the refresh call itself then fails because the
-      // network dropped mid-flow (statusCode:0 — no HTTP response at
-      // all, not the backend saying "no"), that's still just
-      // inconclusive, not a confirmed-invalid session. Logging out and
-      // hard-redirecting to /login over a connectivity blip would tear
-      // down a perfectly valid session for a user who happened to go
-      // offline for a moment. Only a genuine rejection from the backend
-      // (refresh cookie actually expired/revoked — a real HTTP status,
-      // whatever it is) should trigger the logout+redirect below.
+      // FIX AUTH-OFFLINE-01 / AUTH-OFFLINE-SESSION-01:
+      // فشل التجديد بدون رد من السيرفر (انقطاع نت، DNS، timeout) أو والجهاز
+      // أوفلاين صراحةً ≠ جلسة منتهية. لا نسجّل خروجًا ولا نحوّل لـ/login.
+      // فقط رفض حقيقي من الباك-إند (HTTP status) ينهي الجلسة.
       const parsedRefreshError = parseApiError(refreshError);
-      if (parsedRefreshError.statusCode === 0) {
+      const offlineOrNoResponse =
+        parsedRefreshError.statusCode === 0 ||
+        (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+        !(refreshError && typeof refreshError === 'object' && 'response' in refreshError &&
+          (refreshError as { response?: unknown }).response != null);
+
+      if (offlineOrNoResponse) {
         return Promise.reject(parseApiError(error));
       }
 

@@ -36,9 +36,12 @@ const CACHE_LABELS: Record<string, string> = {
 };
 
 function labelForCacheName(name: string): string {
-  if (name === 'market-saved-ads') return CACHE_LABELS['market-saved-ads'];
+  if (name === 'market-saved-ads') {
+    return CACHE_LABELS['market-saved-ads'] ?? name;
+  }
+
   const base = name.replace(/-v\d+$/, '');
-  return CACHE_LABELS[base] || name;
+  return CACHE_LABELS[base] ?? name;
 }
 
 function isClearable(name: string): boolean {

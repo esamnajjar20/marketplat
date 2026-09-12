@@ -246,6 +246,15 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           deleteCookie('app_access_token');
           deleteCookie('app_user_role');
           deleteCookie('app_has_session'); // AUDIT-FIX C-1
+        } else {
+          // FIX AUTH-OFFLINE-SESSION-01: فشل شبكة أثناء الاستعادة —
+          // أبقِ الحساب ظاهرًا إن وُجد user محفوظ (لا تعتبره زائرًا).
+          const persisted = useAuthStore.getState().user;
+          if (persisted) {
+            useAuthStore.getState().setAccessToken(
+              useAuthStore.getState().accessToken ?? '',
+            );
+          }
         }
       } finally {
         clearTimeout(timeout);

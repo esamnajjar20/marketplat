@@ -244,6 +244,20 @@ export const useAuthStore = create<AuthStore>()(
         // answer comes back, rather than only in the (now-impossible-
         // to-detect-client-side) "was persisted" case.
         state?._setAuthResolving(true);
+
+        // FIX AUTH-OFFLINE-SESSION-01: إذا وُجد user محفوظ من جلسة سابقة،
+        // اعتبر المستخدم مسجّلًا فورًا (isAuthenticated=true) حتى تثبت
+        // الشبكة العكس. بدون هذا: انقطاع النت عند التحميل يترك
+        // isAuthenticated=false رغم وجود user → الواجهة تظهر كضيف
+        // (BottomNav، القوائم، إلخ) وتُرفض طلبات API كـ«غير مسجّل»
+        // بينما المقصود الإبقاء على الحساب للعمل دون اتصال.
+        if (state?.user) {
+          state.setAccessToken(state.accessToken ?? '');
+          // setAccessToken يضبط isAuthenticated=true؛ accessToken الفارغ
+          // يعني «جلسة محلّية مؤقتة» إلى أن ينجح /auth/refresh أونلاين.
+          // لا نضع accessToken وهميًا في الطلبات — request interceptor
+          // يتخطى Authorization إن كان فارغًا.
+        }
       },
     },
   ),

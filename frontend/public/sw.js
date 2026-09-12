@@ -263,28 +263,6 @@ async function stripVaryAndClone(response) {
  * the original RSC fetch's promise just fail — the window is about to
  * navigate away regardless, so nothing consumes that rejection.
  */
-// FIX SW-OFFLINE-REBOUNCE-01: كانت تستدعي client.navigate(OFFLINE_URL) بلا
-// شرط — حتى لو كان المستخدم أصلاً واقف على /offline. فالنتيجة: أي ضغطة على
-// زر بصفحة /offline نفسها (مثلاً "التنزيلات") تطلق طلب RSC فاشل (بما إنه
-// لسا أوفلاين وما في اتصال)، فيُعاد تحميل نفس /offline من جديد — يظهر
-// للمستخدم وكأن الصفحة "ترجع" بنفسها بعد كل ضغطة. الحل: لو الـclient أصلاً
-// على /offline، ما في داعي لإعادة التنقّل لنفس الوجهة — نتجاهل الطلب
-// ونخلي الفشل يمر بصمت (Response.error أدناه)، فتظهر صفحة /offline مرة
-// واحدة فقط عند أول انقطاع فعلي، وتبقى ثابتة بعدها بدون Reload متكرر.
-async function forceHardOfflineNavigation(event) {
-  try {
-    const client = event.clientId && (await self.clients.get(event.clientId));
-    if (!client || !('navigate' in client)) return;
-
-    const currentPath = client.url ? new URL(client.url).pathname : '';
-    if (currentPath === OFFLINE_URL) return;
-
-    client.navigate(OFFLINE_URL);
-  } catch {
-    // لا شيء إضافي يمكن فعله — الطلب الأصلي سيفشل بأي حال (Response.error أدناه).
-  }
-}
-
 /** Stale-While-Revalidate عام — يُستخدم لصفحات App Shell العامة (navigate +
  * RSC shells) ولأصول JS/CSS الثابتة. يرجع النسخة المخزَّنة فورًا إن وُجدت
  * (سرعة + عمل أوفلاين)، ويحدّث الكاش بالخلفية دائمًا عبر event.waitUntil. */
