@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import {
   getQueuedRequestCounts,
   listFailedRequests,
@@ -39,6 +40,7 @@ import { toast } from 'sonner';
 
 export function SyncCenterClient() {
   const isOnline = useOnlineStatus();
+  const userId = useAuthStore(selectUser)?.id ?? null;
   const [pending, setPending] = useState(0);
   const [failed, setFailed] = useState(0);
   const [failedItems, setFailedItems] = useState<QueuedRequestSummary[]>([]);
@@ -52,7 +54,9 @@ export function SyncCenterClient() {
       const [counts, failedList, draftList] = await Promise.all([
         getQueuedRequestCounts().catch(() => ({ pending: 0, failed: 0 })),
         listFailedRequests().catch(() => [] as QueuedRequestSummary[]),
-        listAdDrafts().catch(() => [] as AdDraft[]),
+        // FIX AD-DRAFT-USER-SCOPE-01: مسودات صاحب الحساب الحالي فقط —
+        // بدونها، مسودة حساب سابق على نفس الجهاز تظهر لحساب جديد.
+        listAdDrafts(userId).catch(() => [] as AdDraft[]),
       ]);
       setPending(counts.pending);
       setFailed(counts.failed);
@@ -61,7 +65,7 @@ export function SyncCenterClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     void refresh();
@@ -126,6 +130,14 @@ export function SyncCenterClient() {
         </p>
       </div>
 
+      {/*
+        FIX AD-DRAFT-QUEUE-DOUBLECOUNT-01: مسودة بحالة pending_sync/failed
+        لها operationId مرتبط بعنصر طابور فعلي — pending/failed أعلاه (من
+        getQueuedRequestCounts) تحتسبها أصلًا. عدّها هنا مرة ثانية كان
+        يُظهر "عنصرين بالانتظار" لعملية نشر إعلان واحدة. فقط مسودات
+        status:'draft' (لا operationId — لم تُحاول الإرسال أصلًا بعد) تُضاف
+        هنا كعدد إضافي حقيقي غير مُحتسَب بمكان آخر.
+      */}
       <div className="grid grid-cols-3 gap-3">
         <StatCard
           icon={<CheckCircle2 className="h-4 w-4" />}
@@ -136,12 +148,20 @@ export function SyncCenterClient() {
         <StatCard
           icon={<Clock className="h-4 w-4 text-amber-600" />}
           label="بالانتظار"
-          value={loading ? '…' : String(pending + drafts.filter((d) => d.status !== 'failed').length)}
+          value={
+            loading
+              ? '…'
+              : String(pending + drafts.filter((d) => !d.operationId && d.status !== 'failed').length)
+          }
         />
         <StatCard
           icon={<AlertCircle className="h-4 w-4 text-destructive" />}
           label="فشل"
-          value={loading ? '…' : String(failed + drafts.filter((d) => d.status === 'failed').length)}
+          value={
+            loading
+              ? '…'
+              : String(failed + drafts.filter((d) => !d.operationId && d.status === 'failed').length)
+          }
         />
       </div>
 
@@ -177,6 +197,7 @@ export function SyncCenterClient() {
                   <p className="text-xs text-muted-foreground">
                     {d.mode === 'create' ? 'إنشاء' : 'تعديل'} · {statusLabel(d.status)} ·{' '}
                     {formatWhen(d.updatedAt)}
+                    {d.operationId ? ' · مرتبط بطلب بالطابور (سيُرسل مع الصور تلقائيًا)' : ''}
                   </p>
                   {d.lastError ? (
                     <p className="mt-1 text-xs text-destructive">{d.lastError}</p>

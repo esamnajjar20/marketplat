@@ -7,6 +7,7 @@
 import { useEffect } from 'react';
 import { registerServiceWorker } from '@/lib/pwa';
 import { requestQueueReplay } from '@/lib/offlineQueue';
+import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { warmRouteShells, warmPersonalShells } from '@/lib/offlineRouteShells';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
@@ -27,6 +28,9 @@ export function PwaBootstrap() {
   // قبل تركيبه دون مراعاة هذا الترتيب.
   useEffect(() => {
     void registerServiceWorker();
+    // FIX AD-DRAFT-QUEUE-LINK-01: يربط لاحقًا كل رسالة QUEUE_ITEM_* بمسودة
+    // الإعلان المطابقة (operationId) — انظر lib/offlineAdDraftSync.ts.
+    initAdDraftSync();
 
     // PHASE-1 (Offline Core Bundle) + PHASE-3-A (route shells): تحديث صامت
     // بالخلفية، محدود بمهلة WARM_INTERVAL_MS داخل warmCoreBundle نفسها فلا

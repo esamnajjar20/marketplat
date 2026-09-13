@@ -18,6 +18,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef }        from 'react';
 import { useRouter }     from 'next/navigation';
 import { adsApi }        from '@/api/ads.api';
 import { queryKeys }     from '@/lib/queryKeys';
@@ -25,6 +26,8 @@ import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 
 /**
  * UX-FIX P3-10b: accepts an optional onUploadProgress callback so callers
@@ -35,10 +38,20 @@ import { saveAdDraft } from '@/lib/offlineAdDrafts';
 export function useCreateAd(onUploadProgress?: (percent: number) => void) {
   const queryClient = useQueryClient();
   const router      = useRouter();
+  const userId      = useAuthStore(selectUser)?.id ?? null;
+  // FIX AD-DRAFT-QUEUE-LINK-01: نفس operationId يُرسَل كـ header مع
+  // الطلب (فيخزّنه sw.js مع عنصر الطابور لو قُوِّد) ويُحفَظ مع المسودة
+  // بالأسفل — بدونه لا توجد طريقة لاحقة لمعرفة أنهما نفس المحاولة.
+  // ref لا state: يُنشأ فقط لحظة استدعاء mutationFn نفسه، لا يحتاج
+  // re-render، وonError بنفس الاستدعاء يقرأه بأمان (لا نداءات متزامنة من
+  // نفس نموذج الإعلان الواحد).
+  const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (payload: Parameters<typeof adsApi.create>[0]) =>
-      adsApi.create(payload, onUploadProgress).then((r) => r.data.data),
+    mutationFn: (payload: Parameters<typeof adsApi.create>[0]) => {
+      operationIdRef.current = newOfflineOperationId();
+      return adsApi.create(payload, onUploadProgress, operationIdRef.current).then((r) => r.data.data);
+    },
     onSuccess: (ad) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       toast.success('تم نشر الإعلان بنجاح', {
@@ -64,9 +77,19 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               condition: (payload as { condition?: string }).condition ?? null,
             },
             status: 'pending_sync',
+            operationId: operationIdRef.current,
+            userId,
           });
+          // FIX OFFLINE-IMAGES-NOT-DRAFTED-01: المسودة أعلاه نصّية فقط —
+          // أي صور أُرفقت بالإعلان ما بتنحفظ بها. الصور الفعلية محفوظة
+          // ومضمونة عبر طابور الـ SW نفسه (نفس الطلب الأصلي بصوره —
+          // انظر FIX OFFLINE-ADS-01 بـ public/sw.js) اللي هيرسلها تلقائيًا
+          // عند عودة الاتصال. التنبيه هنا يوضّح للمستخدم إن المحتوى
+          // المعروض بالمسودة نص فقط، والصور محفوظة بمسار منفصل لا يحتاج
+          // تدخله، بدل الإيحاء بأن "استعادة المسودة" تستعيد كل شيء.
           toast.message('محفوظ محليًا — بانتظار الاتصال', {
-            description: 'يمكنك متابعة المسودات من الإعدادات → المزامنة',
+            description:
+              'سيُرسل تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
           });
           return;
         } catch {
@@ -81,10 +104,14 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
 export function useUpdateAd(adId: string) {
   const queryClient = useQueryClient();
   const router      = useRouter();
+  const userId      = useAuthStore(selectUser)?.id ?? null;
+  const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (payload: Parameters<typeof adsApi.update>[1]) =>
-      adsApi.update(adId, payload).then((r) => r.data.data),
+    mutationFn: (payload: Parameters<typeof adsApi.update>[1]) => {
+      operationIdRef.current = newOfflineOperationId();
+      return adsApi.update(adId, payload, operationIdRef.current).then((r) => r.data.data);
+    },
     onSuccess: (ad) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       toast.success('تم حفظ التعديلات');
@@ -107,9 +134,11 @@ export function useUpdateAd(adId: string) {
               city: (payload as { city?: string }).city ?? null,
             },
             status: 'pending_sync',
+            operationId: operationIdRef.current,
+            userId,
           });
           toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
-            description: 'الإعدادات → المزامنة',
+            description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
           });
           return;
         } catch {

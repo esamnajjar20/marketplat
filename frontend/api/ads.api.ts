@@ -12,6 +12,7 @@
  */
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
+import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type {
   Ad,
   AdListItem,
@@ -91,7 +92,19 @@ export const adsApi = {
    * large, honest improvement over a multi-second silent wait on a slow
    * connection with several photos attached.
    */
-  create: (payload: CreateAdPayload, onUploadProgress?: (percent: number) => void) => {
+  /**
+   * operationId (اختياري): FIX AD-DRAFT-QUEUE-LINK-01 — يُرسَل كـ header
+   * عادي فيُخزَّن تلقائيًا مع أي نسخة من هذا الطلب تدخل طابور الـ SW عند
+   * فشل الشبكة (handleMutation بـ sw.js يحفظ كل الـ headers أصلًا). يسمح
+   * لاحقًا بربط مسودة الإعلان (lib/offlineAdDrafts.ts) بحالة الطابور
+   * الفعلية بدل أن يكونا مصدرين منفصلين لا يتزامنان أبدًا — انظر
+   * lib/offlineAdDraftSync.ts.
+   */
+  create: (
+    payload: CreateAdPayload,
+    onUploadProgress?: (percent: number) => void,
+    operationId?: string,
+  ) => {
     const form = new FormData();
     (Object.keys(payload) as (keyof CreateAdPayload)[]).forEach((key) => {
       const value = payload[key];
@@ -103,7 +116,10 @@ export const adsApi = {
       }
     });
     return apiClient.post<ApiResponse<Ad>>('/ads', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
+      },
       onUploadProgress: onUploadProgress
         ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
         : undefined,
@@ -111,8 +127,10 @@ export const adsApi = {
   },
 
   /** PATCH /ads/:id — partial update (status, title, price, etc.) */
-  update: (id: string, payload: UpdateAdPayload) =>
-    apiClient.patch<ApiResponse<Ad>>(`/ads/${id}`, payload),
+  update: (id: string, payload: UpdateAdPayload, operationId?: string) =>
+    apiClient.patch<ApiResponse<Ad>>(`/ads/${id}`, payload, {
+      headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined,
+    }),
 
   /**
    * Mark ad as SOLD via the general update endpoint.

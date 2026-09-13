@@ -45,6 +45,8 @@ export interface QueuedRequestSummary {
   queuedAt: number;
   status: QueuedRequestStatus;
   lastError?: { status: number; message?: string };
+  /** FIX AD-DRAFT-QUEUE-LINK-01 — موجود فقط لو الطلب حمل X-Offline-Op-Id. */
+  operationId?: string | null;
 }
 
 interface RawQueueEntry {
@@ -54,6 +56,7 @@ interface RawQueueEntry {
   queuedAt: number;
   status?: QueuedRequestStatus;
   lastError?: { status: number; message?: string };
+  operationId?: string | null;
 }
 
 function openQueueDb(): Promise<IDBDatabase> {
@@ -155,6 +158,7 @@ export async function listFailedRequests(): Promise<QueuedRequestSummary[]> {
       queuedAt: e.queuedAt,
       status: 'failed' as const,
       lastError: e.lastError,
+      operationId: e.operationId ?? null,
     }))
     .sort((a, b) => a.queuedAt - b.queuedAt);
 }

@@ -18,11 +18,7 @@ import { usersApi }      from '@/api/users.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { ROUTES }        from '@/lib/constants';
 import { track }         from '@/lib/analytics';
-import { clearNotificationsCache } from '@/lib/notificationsCache';
-import { clearAllOfflineLists } from '@/lib/offlineListCache';
-import { clearAllAdDrafts } from '@/lib/offlineAdDrafts';
-import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
-import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
+import { clearSensitiveLocalData, clearServiceWorkerApiCache } from '@/lib/authCleanup';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
@@ -72,9 +68,10 @@ export function clearAuthCookies() {
  * useDeleteAccount can call it too — an account deletion is at least
  * as sensitive as a logout.
  */
-export function clearServiceWorkerApiCache() {
-  navigator.serviceWorker?.controller?.postMessage({ type: 'CLEAR_API_CACHE' });
-}
+// إعادة تصدير لتوافق الاستيرادات القديمة (components/admin/AdminHeader.tsx,
+// hooks/mutations/useUpdateProfile.ts) — التعريف الفعلي الآن بـ
+// lib/authCleanup.ts (FIX AUTH-CLEANUP-CENTRALIZE-01).
+export { clearServiceWorkerApiCache };
 
 export function useLogin() {
   // PERF-05 FIX: targeted selectors instead of full store subscription.
@@ -207,16 +204,12 @@ function useClearLocalSession() {
   return () => {
     logout();
     clearAuthCookies();
-    clearServiceWorkerApiCache();
-    // نفس منطق clearServiceWorkerApiCache أعلاه: notifications-cache
-    // مخزَّنة محليًا (localStorage) بلا ربط بهوية المستخدم — تنظيفها هنا
-    // يمنع ظهور إشعارات المستخدم السابق على جهاز مشترك بعد تسجيل الدخول
-    // بحساب آخر.
-    clearNotificationsCache();
-    clearAllOfflineLists();
-    void clearAllAdDrafts();
-    clearAllOfflineJson();
-    void clearOfflineMessagesStore();
+    // FIX AUTH-CLEANUP-CENTRALIZE-01: القائمة الكاملة موحّدة الآن بـ
+    // lib/authCleanup.ts — يستخدمها أيضًا useChangePassword أدناه، فلا
+    // يفوت أحدهما خطوة يفعلها الآخر. لا يمسح مسودات إعلانات معلّقة
+    // فعليًا (pending_sync/failed) — انظر تعليق الدالة (FIX
+    // AD-DRAFT-LOGOUT-DATALOSS-01).
+    clearSensitiveLocalData();
     queryClient.clear();
     router.push(ROUTES.home);
   };
@@ -282,9 +275,16 @@ export function useRevokeSession() {
  * this form just showed a success toast and left the user sitting on
  * the settings page believing they were still logged in — the very
  * next API call would then fail with a confusing, unexplained 401.
- * Mirrors useLogout/useLogoutAll's local-session cleanup, but redirects
- * to the login page (with a clear message) instead of home, since the
- * user specifically needs to re-authenticate with their new password.
+ *
+ * FIX AUTH-CLEANUP-CENTRALIZE-01: this used to say "Mirrors
+ * useLogout/useLogoutAll's local-session cleanup" but only actually ran
+ * 3 of the ~8 cleanup steps (logout/clearAuthCookies/queryClient.clear) —
+ * a real drift between the comment and the code, not a deliberate
+ * choice. Now genuinely mirrors it via the same clearSensitiveLocalData()
+ * used by logout — a password change is exactly the kind of "don't
+ * trust this session/device anymore" event that justifies wiping
+ * cached notifications/lists/SW caches too, same as it redirects to
+ * /login instead of home since the user must re-authenticate anyway.
  */
 export function useChangePassword() {
   const logout = useAuthStore(selectLogout);
@@ -301,6 +301,7 @@ export function useChangePassword() {
       // revoked — there is no valid session left to keep locally.
       logout();
       clearAuthCookies();
+      clearSensitiveLocalData();
       queryClient.clear();
       toast.success('تم تغيير كلمة المرور بنجاح، يرجى تسجيل الدخول من جديد');
       router.push(ROUTES.login);

@@ -797,7 +797,12 @@ async function replayOne(entry, hasRetriedAfterRefresh) {
 
     if (response.ok) {
       await deleteQueuedEntry(entry.id);
-      await notifyClients({ type: 'QUEUE_ITEM_SENT', id: entry.id, url: entry.url });
+      await notifyClients({
+        type: 'QUEUE_ITEM_SENT',
+        id: entry.id,
+        url: entry.url,
+        operationId: entry.operationId || null,
+      });
       return 'sent';
     }
 
@@ -842,6 +847,7 @@ async function replayOne(entry, hasRetriedAfterRefresh) {
         url: entry.url,
         status: response.status,
         message,
+        operationId: entry.operationId || null,
       });
       return 'failed';
     }
@@ -909,6 +915,13 @@ async function handleMutation(request) {
       headers[key] = value;
     });
 
+    // FIX AD-DRAFT-QUEUE-LINK-01: لو الطلب حمل X-Offline-Op-Id (مثلًا
+    // إنشاء/تعديل إعلان — انظر lib/offlineOperationId.ts)، خزّنه كحقل
+    // مستقل بالعنصر (لا داخل headers فقط) حتى تقدر lib/offlineAdDraftSync.ts
+    // تربط لاحقًا نجاح/فشل هذا العنصر بعينه بمسودة الإعلان المطابقة له،
+    // بدل أن يبقيا نظامين منفصلين لا يعرف أحدهما بالآخر.
+    const operationId = headers['x-offline-op-id'] || null;
+
     try {
       await queueRequestEntry({
         url: requestForQueue.url,
@@ -916,6 +929,7 @@ async function handleMutation(request) {
         headers,
         body,
         queuedAt: Date.now(),
+        operationId,
       });
     } catch {
       return Response.error();
@@ -1091,8 +1105,15 @@ self.addEventListener('message', (event) => {
   if (type === 'DISCARD_QUEUE_ITEM' && event.data.id != null) {
     event.waitUntil(
       (async () => {
+        // FIX AD-DRAFT-QUEUE-LINK-01: اقرأ operationId قبل الحذف — بعده
+        // العنصر لم يعد موجودًا لنقرأه منه.
+        const entry = await getQueuedEntry(event.data.id);
         await deleteQueuedEntry(event.data.id);
-        await notifyClients({ type: 'QUEUE_ITEM_DISCARDED', id: event.data.id });
+        await notifyClients({
+          type: 'QUEUE_ITEM_DISCARDED',
+          id: event.data.id,
+          operationId: entry?.operationId || null,
+        });
       })(),
     );
   }
