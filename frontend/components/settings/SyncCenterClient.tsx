@@ -7,7 +7,7 @@
  * - زر مزامنة الآن
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   RefreshCw,
@@ -34,6 +34,7 @@ import {
   listAdDrafts,
   deleteAdDraft,
   type AdDraft,
+  type AdDraftPreviewImage,
 } from '@/lib/offlineAdDrafts';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -199,6 +200,9 @@ export function SyncCenterClient() {
                     {formatWhen(d.updatedAt)}
                     {d.operationId ? ' · مرتبط بطلب بالطابور (سيُرسل مع الصور تلقائيًا)' : ''}
                   </p>
+                  {/* FIX IMAGEOFFLINE-WIRE-01: معاينة مضغوطة فقط — الصور
+                      الفعلية بجودتها الكاملة تُرسَل عبر طابور الـ SW. */}
+                  {d.images && d.images.length > 0 ? <DraftThumbnails images={d.images} /> : null}
                   {d.lastError ? (
                     <p className="mt-1 text-xs text-destructive">{d.lastError}</p>
                   ) : null}
@@ -272,6 +276,29 @@ export function SyncCenterClient() {
           يوجد {pending} طلبًا معلّقًا سيُرسل تلقائيًا عند توفر الاتصال (أو عبر «مزامنة الآن»).
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * FIX IMAGEOFFLINE-WIRE-01: يعرض نسخ المعاينة المضغوطة (lib/imageOffline.ts)
+ * كصور مصغّرة. object URLs تُنشأ وتُلغى محليًا لكل تغيير بقائمة الصور —
+ * بلا هذا التنظيف تتسرّب object URLs مع كل إعادة عرض.
+ */
+function DraftThumbnails({ images }: { images: AdDraftPreviewImage[] }) {
+  const urls = useMemo(() => images.map((img) => URL.createObjectURL(img.blob)), [images]);
+  useEffect(() => {
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [urls]);
+
+  return (
+    <div className="mt-1.5 flex gap-1.5">
+      {urls.map((u, i) => (
+        // eslint-disable-next-line @next/next/no-img-element -- object URL محلي، لا يستفيد من next/image
+        <img key={u} src={u} alt={images[i]?.name ?? "صورة"} className="h-10 w-10 rounded-md border object-cover" />
+      ))}
     </div>
   );
 }

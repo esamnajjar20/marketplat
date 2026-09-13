@@ -46,6 +46,7 @@ import {
   useReorderAdImages,
 } from '@/hooks/mutations/useAdMutations';
 import { adsApi } from '@/api/ads.api';
+import { saveAdDraft } from '@/lib/offlineAdDrafts';
 import { toast } from 'sonner';
 
 const mockPush = vi.fn();
@@ -66,8 +67,38 @@ vi.mock('@/api/ads.api', () => ({
   },
 }));
 
+// FIX AD-DRAFT-QUEUE-LINK-01: useCreateAd/useUpdateAd now read the
+// current user id (to scope the offline draft — FIX
+// AD-DRAFT-USER-SCOPE-01) and call saveAdDraft on the offline/queued
+// fallback path. Both need mocking so the pre-existing tests (which
+// never exercised that path — see audit note above) keep working, and
+// so the new tests below can assert on what gets saved.
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectUser: (s: { user: { id: string } | null }) => s.user,
+}));
+
+vi.mock('@/lib/offlineAdDrafts', () => ({
+  saveAdDraft: vi.fn().mockResolvedValue(undefined),
+}));
+
+// FIX IMAGEOFFLINE-WIRE-01: jsdom has no Canvas/createImageBitmap, so the
+// real compressImageForOffline can't run here — mocked per-test instead.
+vi.mock('@/lib/imageOffline', () => ({
+  compressImageForOffline: vi.fn(),
+}));
+
+import { useAuthStore } from '@/store/auth.store';
+import { compressImageForOffline } from '@/lib/imageOffline';
+
+function mockCurrentUser(id: string | null) {
+  (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    (selector: (s: { user: { id: string } | null }) => unknown) => selector({ user: id ? { id } : null }),
+  );
+}
+
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() },
 }));
 
 function createWrapper() {
@@ -82,7 +113,11 @@ function createWrapper() {
   return { wrapper, invalidateSpy, removeSpy };
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockCurrentUser('user-1');
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+});
 
 describe('useMarkAsSold', () => {
   it('calls adsApi.markAsSold with the ad ID', async () => {
@@ -212,7 +247,10 @@ describe('useCreateAd', () => {
     act(() => { result.current.mutate(payload); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(adsApi.create).toHaveBeenCalledWith(payload, undefined);
+    // FIX AD-DRAFT-QUEUE-LINK-01: 3rd arg is now a generated operationId
+    // (see lib/offlineOperationId.ts) — a real UUID, not a fixed value,
+    // so assert its shape rather than an exact match.
+    expect(adsApi.create).toHaveBeenCalledWith(payload, undefined, expect.any(String));
   });
 
   it('invalidates ads.all(), shows a success toast, and navigates to the ad detail page on success', async () => {
@@ -245,6 +283,102 @@ describe('useCreateAd', () => {
     expect(toast.error).toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  // FIX AD-DRAFT-QUEUE-LINK-01 / FIX AD-DRAFT-USER-SCOPE-01
+  it('saves an offline draft with the same operationId sent to adsApi.create, scoped to the current user', async () => {
+    (adsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    const { wrapper } = createWrapper();
+    const payload = { title: 'Offline Ad', description: 'desc', price: 50 } as unknown as Parameters<
+      typeof adsApi.create
+    >[0];
+
+    const { result } = renderHook(() => useCreateAd(), { wrapper });
+    act(() => { result.current.mutate(payload); });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+
+    const [createCall] = (adsApi.create as ReturnType<typeof vi.fn>).mock.calls;
+    const sentOperationId = createCall[2];
+    expect(typeof sentOperationId).toBe('string');
+
+    expect(saveAdDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'create',
+        status: 'pending_sync',
+        operationId: sentOperationId,
+        userId: 'user-1',
+      }),
+    );
+    // no error toast when the offline fallback succeeds
+    expect(toast.error).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+  });
+
+  it('payload stores only filenames (imageLabels) — never raw File objects', async () => {
+    (adsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    const { wrapper } = createWrapper();
+    const payload = {
+      title: 'Offline Ad',
+      description: 'desc',
+      images: [new File(['x'], 'a.png')],
+    } as unknown as Parameters<typeof adsApi.create>[0];
+
+    const { result } = renderHook(() => useCreateAd(), { wrapper });
+    act(() => { result.current.mutate(payload); });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+    const savedPayload = (saveAdDraft as ReturnType<typeof vi.fn>).mock.calls[0][0].payload;
+    // FIX IMAGEOFFLINE-WIRE-01: images (compressed previews) live as a
+    // separate top-level field on the draft — never inside `payload`,
+    // which stays plain JSON-serializable text + filenames only.
+    expect(savedPayload).not.toHaveProperty('images');
+    expect(savedPayload.imageLabels).toEqual(['a.png']);
+  });
+
+  // FIX IMAGEOFFLINE-WIRE-01
+  it('attaches a compressed preview image to the draft when compression succeeds', async () => {
+    (adsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    const fakeBlob = new Blob(['x'], { type: 'image/jpeg' });
+    vi.mocked(compressImageForOffline).mockResolvedValue(fakeBlob);
+    const { wrapper } = createWrapper();
+    const file = new File(['x'], 'photo.png', { type: 'image/png' });
+    const payload = { title: 'Offline Ad', description: 'desc', images: [file] } as unknown as Parameters<
+      typeof adsApi.create
+    >[0];
+
+    const { result } = renderHook(() => useCreateAd(), { wrapper });
+    act(() => { result.current.mutate(payload); });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+    expect(compressImageForOffline).toHaveBeenCalledWith(file);
+    const savedImages = (saveAdDraft as ReturnType<typeof vi.fn>).mock.calls[0][0].images;
+    expect(savedImages).toEqual([{ name: 'photo.png', blob: fakeBlob }]);
+  });
+
+  it('still saves the draft (without a preview) when compression fails for every image', async () => {
+    (adsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    vi.mocked(compressImageForOffline).mockRejectedValue(new Error('canvas unsupported'));
+    const { wrapper } = createWrapper();
+    const file = new File(['x'], 'photo.png', { type: 'image/png' });
+    const payload = { title: 'Offline Ad', description: 'desc', images: [file] } as unknown as Parameters<
+      typeof adsApi.create
+    >[0];
+
+    const { result } = renderHook(() => useCreateAd(), { wrapper });
+    act(() => { result.current.mutate(payload); });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+    const savedImages = (saveAdDraft as ReturnType<typeof vi.fn>).mock.calls[0][0].images;
+    expect(savedImages).toEqual([]);
+    // compression failing must never surface as an error toast — the
+    // draft (and the real SW-queued request) are unaffected by it.
+    expect(toast.error).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+  });
 });
 
 describe('useUpdateAd', () => {
@@ -259,7 +393,7 @@ describe('useUpdateAd', () => {
     act(() => { result.current.mutate(payload); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(adsApi.update).toHaveBeenCalledWith('ad-1', payload);
+    expect(adsApi.update).toHaveBeenCalledWith('ad-1', payload, expect.any(String));
   });
 
   it('invalidates ads.all(), shows a success toast, and navigates to the ad detail page on success', async () => {
@@ -287,6 +421,31 @@ describe('useUpdateAd', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  // FIX AD-DRAFT-QUEUE-LINK-01
+  it('saves an offline draft with remoteAdId and the same operationId sent to adsApi.update', async () => {
+    (adsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    const { wrapper } = createWrapper();
+    const payload = { title: 'Updated offline' } as unknown as Parameters<typeof adsApi.update>[1];
+
+    const { result } = renderHook(() => useUpdateAd('ad-1'), { wrapper });
+    act(() => { result.current.mutate(payload); });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+    const sentOperationId = (adsApi.update as ReturnType<typeof vi.fn>).mock.calls[0][2];
+    expect(typeof sentOperationId).toBe('string');
+    expect(saveAdDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'edit',
+        remoteAdId: 'ad-1',
+        status: 'pending_sync',
+        operationId: sentOperationId,
+        userId: 'user-1',
+      }),
+    );
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   });
 });
 

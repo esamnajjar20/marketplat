@@ -26,8 +26,26 @@ import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { compressImageForOffline } from '@/lib/imageOffline';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import { useAuthStore, selectUser } from '@/store/auth.store';
+
+/**
+ * FIX IMAGEOFFLINE-WIRE-01: يضغط أفضل جهد ممكن — صورة واحدة تفشل (ملف
+ * غير صورة، بيئة بلا Canvas) لا توقف البقية ولا تمنع حفظ المسودة نفسها؛
+ * فقط تُستبعَد من المعاينة. النشر الفعلي بجودة كاملة غير متأثر إطلاقًا،
+ * لأنه يمر بطابور الـ SW لا بهذا المسار.
+ */
+async function bestEffortCompressPreviews(
+  files: File[],
+): Promise<{ name: string; blob: Blob }[]> {
+  const results = await Promise.allSettled(
+    files.slice(0, 4).map(async (f) => ({ name: f.name, blob: await compressImageForOffline(f) })),
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<{ name: string; blob: Blob }> => r.status === 'fulfilled')
+    .map((r) => r.value);
+}
 
 /**
  * UX-FIX P3-10b: accepts an optional onUploadProgress callback so callers
@@ -66,6 +84,10 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
         typeof navigator !== 'undefined' && navigator.onLine === false;
       if (offline || parsed.queued) {
         try {
+          const files = (payload as { images?: File[] }).images ?? [];
+          // FIX IMAGEOFFLINE-WIRE-01: أفضل جهد — لا يوقف حفظ المسودة لو
+          // فشل الضغط (بيئة بلا Canvas، ملف غير صورة، إلخ).
+          const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
           await saveAdDraft({
             mode: 'create',
             payload: {
@@ -75,18 +97,19 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               categoryId: (payload as { categoryId?: string }).categoryId ?? null,
               city: (payload as { city?: string }).city ?? null,
               condition: (payload as { condition?: string }).condition ?? null,
+              imageLabels: files.map((f) => f.name),
             },
             status: 'pending_sync',
             operationId: operationIdRef.current,
             userId,
+            images,
           });
-          // FIX OFFLINE-IMAGES-NOT-DRAFTED-01: المسودة أعلاه نصّية فقط —
-          // أي صور أُرفقت بالإعلان ما بتنحفظ بها. الصور الفعلية محفوظة
-          // ومضمونة عبر طابور الـ SW نفسه (نفس الطلب الأصلي بصوره —
-          // انظر FIX OFFLINE-ADS-01 بـ public/sw.js) اللي هيرسلها تلقائيًا
-          // عند عودة الاتصال. التنبيه هنا يوضّح للمستخدم إن المحتوى
-          // المعروض بالمسودة نص فقط، والصور محفوظة بمسار منفصل لا يحتاج
-          // تدخله، بدل الإيحاء بأن "استعادة المسودة" تستعيد كل شيء.
+          // FIX IMAGEOFFLINE-WIRE-01 (كان FIX OFFLINE-IMAGES-NOT-DRAFTED-01):
+          // المسودة الآن تحمل معاينة مضغوطة للصور (لو الضغط نجح) —
+          // لكنها للعرض فقط بمركز المزامنة. الصور الفعلية بجودتها الكاملة
+          // محفوظة ومضمونة عبر طابور الـ SW نفسه (نفس الطلب الأصلي بصوره
+          // — انظر FIX OFFLINE-ADS-01 بـ public/sw.js) اللي هيرسلها تلقائيًا
+          // عند عودة الاتصال، بغض النظر عن نجاح الضغط هنا أو فشله.
           toast.message('محفوظ محليًا — بانتظار الاتصال', {
             description:
               'سيُرسل تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',

@@ -4,16 +4,29 @@
  * المستخدم يكتب إعلانًا بدون نت → يُحفظ محليًا بحالة draft/pending_sync
  * وليس «تم النشر». عند عودة الاتصال: الرفع من مركز المزامنة أو تلقائيًا.
  *
- * لا نخزّن ملفات صور ضخمة كـ base64 بلا حد — فقط بيانات النص + أسماء
- * ملفات اختيارية؛ رفع الصور الفعلي يتم أونلاين.
+ * لا نخزّن ملفات الصور الأصلية بجودتها الكاملة (تلك تُرسَل فعليًا عبر
+ * طابور الـ SW نفسه — نفس الطلب الأصلي). هنا فقط بيانات النص + نسخ
+ * معاينة مضغوطة صغيرة اختيارية (FIX IMAGEOFFLINE-WIRE-01، انظر
+ * AdDraftPreviewImage أدناه) لعرضها بمركز المزامنة، لا للنشر.
  */
 
 const DB_NAME = 'market-ad-drafts';
 const DB_VERSION = 1;
 const STORE = 'drafts';
 const MAX_DRAFTS = 20;
+const MAX_PREVIEW_IMAGES = 4;
 
 export type AdDraftStatus = 'draft' | 'pending_sync' | 'failed' | 'synced';
+
+/**
+ * FIX IMAGEOFFLINE-WIRE-01: نسخة معاينة مضغوطة واحدة (lib/imageOffline.ts's
+ * compressImageForOffline) — للعرض بمركز المزامنة فقط، ليست الصورة
+ * المُرسَلة فعليًا عند النشر (تلك عبر طابور الـ SW بجودتها الكاملة).
+ */
+export interface AdDraftPreviewImage {
+  name: string;
+  blob: Blob;
+}
 
 export interface AdDraftPayload {
   title: string;
@@ -54,6 +67,12 @@ export interface AdDraft {
    * (تُعامَل كغير مرتبطة بأي مستخدم معروف — انظر listAdDrafts).
    */
   userId?: string | null;
+  /**
+   * FIX IMAGEOFFLINE-WIRE-01: نسخ معاينة مضغوطة (حد MAX_PREVIEW_IMAGES) —
+   * قد تكون فارغة/غائبة لو الضغط فشل أو الملف لم يكن صورة أصلًا؛ هذا لا
+   * يمنع حفظ المسودة نفسها ولا يؤثر على النشر الفعلي.
+   */
+  images?: AdDraftPreviewImage[];
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -129,6 +148,7 @@ export async function saveAdDraft(
     lastError?: string;
     operationId?: string | null;
     userId?: string | null;
+    images?: AdDraftPreviewImage[];
   },
 ): Promise<AdDraft> {
   const existing = input.id ? await getAdDraft(input.id) : null;
@@ -144,6 +164,7 @@ export async function saveAdDraft(
     updatedAt: now,
     operationId: input.operationId ?? existing?.operationId ?? null,
     userId: input.userId ?? existing?.userId ?? null,
+    images: (input.images ?? existing?.images)?.slice(0, MAX_PREVIEW_IMAGES),
   };
 
   const db = await openDb();
@@ -154,10 +175,13 @@ export async function saveAdDraft(
     tx.onerror = () => reject(tx.error);
   });
 
-  // سقف عدد المسودات
-  const all = await listAdDrafts();
-  if (all.length > MAX_DRAFTS) {
-    const excess = all.slice(MAX_DRAFTS);
+  // سقف عدد المسودات — FIX AD-DRAFT-USER-SCOPE-01: لكل مستخدم على حدة،
+  // لا عالميًا عبر الجهاز. قبل هذا، نشاط مستخدم B الكثيف على نفس الجهاز
+  // كان يقدر يحذف مسودات المستخدم A (pending_sync/failed تشمل) بلا أي
+  // علاقة بينهما.
+  const ownDrafts = await listAdDrafts(draft.userId);
+  if (ownDrafts.length > MAX_DRAFTS) {
+    const excess = ownDrafts.slice(MAX_DRAFTS);
     for (const d of excess) {
       await deleteAdDraft(d.id);
     }
