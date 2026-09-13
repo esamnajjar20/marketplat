@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "next build --webpack && npx @opennextjs/cloudflare build",
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
@@ -26,6 +26,7 @@
     "cap:run:android": "npx cap run android"
   },
   "dependencies": {
+   "@opennextjs/cloudflare": "^1.5.0",
     "@capacitor/android": "^7.0.0",
     "@capacitor/app": "^7.0.0",
     "@capacitor/camera": "^7.0.0",
