@@ -26,7 +26,18 @@ app.set('trust proxy', env.security.trustProxy);
 app.use(helmet());
 app.use(
   cors({
-    origin: env.frontendUrl,
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        env.frontendUrl,
+        'https://marketplat.esamnajjar6.workers.dev',
+        'http://localhost:3000',
+      ];
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     // PROD-FIX-15: X-CSRF-Token added — the frontend must be allowed
