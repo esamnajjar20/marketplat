@@ -241,13 +241,16 @@ export function AdForm({ mode, ad }: Props) {
     if (!values.description.trim())  e.description = 'وصف الإعلان مطلوب';
     else if (values.description.length < 20) e.description = 'الوصف قصير جداً (20 حرفاً على الأقل)';
     if (!values.city)                e.city        = 'المدينة مطلوبة';
-    // TEMPORARY (remove once image hosting is configured — mirrors the
-    // matching disable in backend/ads.controller.ts's createAd): image
-    // is optional for now so ads can be created and tested end-to-end
-    // without a working upload service. Revert by restoring the check
-    // below in both places together.
-    // if (values.images.length === 0 && values.existingImages.length === 0)
-    //   e.images = 'أضف صورة واحدة على الأقل';
+    // FIX BUG-IMG-REQ-01: re-enabled to match backend/ads.controller.ts's
+    // createAd, which already requires at least one image unconditionally
+    // (see TRACK-IMG-HOSTING / FIX PROD-AUDIT-01 there) — this had been
+    // left disabled here from an earlier phase where the backend check
+    // was disabled too, so a user could submit with zero photos and the
+    // request would always fail server-side with a confusing generic
+    // error. Edit mode is unaffected: existingImages already covers an
+    // ad that had photos before this session's edits.
+    if (values.images.length === 0 && values.existingImages.length === 0)
+      e.images = 'أضف صورة واحدة على الأقل';
     return e;
   }
 
@@ -279,14 +282,16 @@ export function AdForm({ mode, ad }: Props) {
   }
 
   // UX-FIX: mirrors validate()'s required-field rules read-only (title/
-  // description/city). Images are deliberately excluded here too, same
-  // as in validate() above — see the TEMPORARY note there for why.
+  // description/city/images — see FIX BUG-IMG-REQ-01 above) so the
+  // submit button is disabled before the user even tries, instead of
+  // only surfacing the images error after a submit attempt.
   const isFormIncomplete =
     !values.title.trim() ||
     values.title.length < 5 ||
     !values.description.trim() ||
     values.description.length < 20 ||
-    !values.city;
+    !values.city ||
+    (values.images.length === 0 && values.existingImages.length === 0);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -632,9 +637,7 @@ export function AdForm({ mode, ad }: Props) {
       {/* Images — wizard step 3 */}
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
         <h2 className="font-semibold">الصور</h2>
-        {/* TEMPORARY: remove this note once image hosting is configured
-            and the required-image check above is restored. */}
-        <p className="text-xs text-muted-foreground">الصور اختيارية مؤقتاً</p>
+        <p className="text-xs text-muted-foreground">أضف صورة واحدة على الأقل لنشر الإعلان</p>
         {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
         <ImageUpload
           value={values.images}

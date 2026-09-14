@@ -52,6 +52,12 @@ describe('adsController', () => {
       await adsController.createAd(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      // REGRESSION (FIX BUG-IMG-REQ-01): this error must carry an
+      // explicit code — without one it falls through to
+      // error.middleware.ts's generic VALIDATION_ERROR fallback and
+      // the user sees "البيانات المرسلة غير صحيحة" with no indication
+      // the actual problem was a missing photo.
+      expect((next as jest.Mock).mock.calls[0][0]).toMatchObject({ code: 'IMAGE_REQUIRED' });
       expect(adsService.createAd).not.toHaveBeenCalled();
     });
 
@@ -63,6 +69,7 @@ describe('adsController', () => {
       await adsController.createAd(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect((next as jest.Mock).mock.calls[0][0]).toMatchObject({ code: 'IMAGE_REQUIRED' });
       expect(adsService.createAd).not.toHaveBeenCalled();
     });
 

@@ -224,22 +224,20 @@ describe('AdForm', () => {
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
-    // TEMPORARY (see AdForm's own comment on this — mirrors a matching
-    // disable in backend/ads.controller.ts's createAd): the
-    // image-required check is currently disabled until image hosting
-    // is configured, so create mode submits successfully with zero
-    // images for now. Revert this test alongside re-enabling the check
-    // in both places.
-    it('does NOT require an image in create mode while the image-required check is temporarily disabled', async () => {
+    // REGRESSION (FIX BUG-IMG-REQ-01): mirrors backend/ads.controller.ts's
+    // createAd, which unconditionally requires at least one image — this
+    // check had been left disabled here from an earlier phase where the
+    // backend check was disabled too, letting a user submit with zero
+    // photos and always get a confusing generic 400 back from the server.
+    it('requires an image in create mode and keeps the submit button disabled without one', async () => {
       const user = setupUser();
       render(<AdForm mode="create" />);
 
       await fillRequiredFields(user);
       await goToCreatePublishStep(user);
-      await user.click(screen.getByRole('button', { name: 'نشر الإعلان' }));
 
-      expect(screen.queryByText('أضف صورة واحدة على الأقل')).not.toBeInTheDocument();
-      await waitFor(() => expect(mockCreateMutate).toHaveBeenCalledTimes(1));
+      expect(screen.getByRole('button', { name: 'نشر الإعلان' })).toBeDisabled();
+      expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
     it('does NOT require an image in edit mode when the ad already has existing images', async () => {

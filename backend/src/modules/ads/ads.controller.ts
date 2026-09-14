@@ -37,7 +37,15 @@ export const adsController = {
       // stays optional there), matching the corresponding it.skip
       // cases un-skipped in ads.controller.test.ts (search that file
       // for TRACK-IMG-HOSTING).
-      if (files.length === 0) throw new BadRequestError('At least one image is required');
+      //
+      // FIX BUG-IMG-REQ-01: this threw with no explicit code, so it
+      // fell through to error.middleware.ts's generic 400 fallback
+      // (VALIDATION_ERROR) — the user saw "البيانات المرسلة غير
+      // صحيحة" with no indication the actual problem was a missing
+      // photo. Now carries its own code so the frontend (see
+      // ar/errors.ts's IMAGE_REQUIRED entry) can show a message that
+      // actually names the problem.
+      if (files.length === 0) throw new BadRequestError('At least one image is required', 'IMAGE_REQUIRED');
       const ad = await adsService.createAd(user.userId, body, files);
       res.status(201).json(successResponse('Ad created', ad));
     } catch (error) {

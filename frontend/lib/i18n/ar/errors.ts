@@ -99,6 +99,10 @@ export const errorMessages: Record<string, ErrorMessageEntry> = {
   // FIX SEC-6.5/9.10: backend code existed at 3 call sites but had no
   // Arabic translation — fell through to the generic 400 fallback.
   MIN_IMAGES_REQUIRED: 'لا يمكن حذف الصورة الأخيرة، يجب أن يحتوي العنصر على صورة واحدة على الأقل. أضف صورة بديلة أولاً',
+  // FIX BUG-IMG-REQ-01: was falling through to the generic
+  // VALIDATION_ERROR message (no code attached on the backend) —
+  // see ads.controller.ts's createAd.
+  IMAGE_REQUIRED: 'أضف صورة واحدة على الأقل لنشر الإعلان',
 
   // ── Sellers ──────────────────────────────────────────────────────
   SELLER_PROFILE_ALREADY_EXISTS: 'لديك حساب بائع بالفعل',

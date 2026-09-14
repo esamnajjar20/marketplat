@@ -129,6 +129,15 @@ export const ErrorCode = {
   // service-listings.service.ts) but never declared here, so it existed
   // outside any type-safe check on the known-code set.
   MIN_IMAGES_REQUIRED: 'MIN_IMAGES_REQUIRED',
+  // FIX BUG-IMG-REQ-01: createAd's zero-image guard threw a bare
+  // BadRequestError with no code, so it fell through to the generic
+  // 400 fallback code (VALIDATION_ERROR) in error.middleware.ts — the
+  // user saw "البيانات المرسلة غير صحيحة" with zero indication the
+  // actual problem was a missing photo. Distinct from
+  // MIN_IMAGES_REQUIRED above (that one guards removing the *last*
+  // image from an entity that already has some; this one guards
+  // creating an ad with *none* from the start).
+  IMAGE_REQUIRED: 'IMAGE_REQUIRED',
   // Gap #11: reorderImages requires the submitted array to be a
   // permutation of the entity's current images — same set, new order.
   // Anything else (a missing/extra/foreign URL) is rejected with this
