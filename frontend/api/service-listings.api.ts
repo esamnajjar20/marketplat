@@ -69,7 +69,7 @@ export const serviceListingsApi = {
 
     return apiClient.post<ApiResponse<ServiceListing>>('/service-listings', form, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        // FIX MULTIPART-BOUNDARY-01: axios+FormData sets boundary automatically
         ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
       },
       onUploadProgress: onUploadProgress
@@ -96,7 +96,7 @@ export const serviceListingsApi = {
     const form = new FormData();
     files.forEach((f) => form.append('images', f));
     return apiClient.post<ApiResponse<ServiceListing>>(`/service-listings/${id}/images`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      // FIX MULTIPART-BOUNDARY-01: axios+FormData sets boundary automatically
       onUploadProgress: onUploadProgress
         ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
         : undefined,

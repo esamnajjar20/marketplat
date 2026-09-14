@@ -115,9 +115,12 @@ export const adsApi = {
         form.append(key, String(value));
       }
     });
+    // FIX MULTIPART-BOUNDARY-01: لا تضبط Content-Type يدويًا.
+    // axios + FormData يضيفان boundary تلقائيًا. التعيين اليدوي
+    // `multipart/form-data` بدون boundary يفسد التحليل على السيرفر
+    // وقد يظهر كـ 503/فشل شبكة رغم أن الـ API يعمل على GET.
     return apiClient.post<ApiResponse<Ad>>('/ads', form, {
       headers: {
-        'Content-Type': 'multipart/form-data',
         ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
       },
       onUploadProgress: onUploadProgress
@@ -152,7 +155,8 @@ export const adsApi = {
     const form = new FormData();
     files.forEach((f) => form.append('images', f));
     return apiClient.post<ApiResponse<Ad>>(`/ads/${id}/images`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      // FIX MULTIPART-BOUNDARY-01: دع axios يضبط boundary
+      headers: {},
       onUploadProgress: onUploadProgress
         ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
         : undefined,
