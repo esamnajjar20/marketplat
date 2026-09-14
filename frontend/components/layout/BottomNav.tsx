@@ -171,49 +171,57 @@ export function BottomNav() {
 
       {trailingItems.map(renderItem)}
 
+      {/* FIX SYNC-NAV-01: شارة الطابور كانت رقم فقط بدون وجهة.
+          صارت رابطاً لـ /settings/sync (مركز المزامنة) بدل أن تبقى
+          داخل رابط الملف الشخصي (a داخل a غير صالح، وما يوصل للمزامنة).
+          الملف الشخصي/القائمة يبقيان على سلوكهما السابق. */}
       {isAuthenticated && user?.id ? (
-        <Link
-          href={ROUTES.userProfile(user.id)}
-          aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) || pathname.startsWith('/profile/') ? 'page' : undefined}
-          className={cn(
-            'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
-            pathname.startsWith('/profile/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+        <div className="relative flex flex-1 flex-col items-center justify-center min-h-[48px]">
+          <Link
+            href={ROUTES.userProfile(user.id)}
+            aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) || pathname.startsWith('/profile/') ? 'page' : undefined}
+            className={cn(
+              'flex w-full flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+              pathname.startsWith('/profile/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <span className="relative inline-flex">
+              <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-[10px]" />
+            </span>
+            حسابي
+          </Link>
+          {queuedCount > 0 && (
+            <Link
+              href={ROUTES.settings.sync}
+              aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
+              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
+            >
+              {queuedCount > 9 ? '9+' : queuedCount}
+            </Link>
           )}
-        >
-          <span className="relative inline-flex">
-            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-[10px]" />
-            {queuedCount > 0 && (
-              <span
-                role="status"
-                aria-label={`${queuedCount} طلب بالانتظار`}
-                className="absolute -top-1 -end-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm"
-              >
-                {queuedCount > 9 ? '9+' : queuedCount}
-              </span>
-            )}
-          </span>
-          حسابي
-        </Link>
+        </div>
       ) : (
-        <button
-          type="button"
-          onClick={toggleMobileNav}
-          className="relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <span className="relative inline-flex">
-            <Menu className="h-5 w-5" aria-hidden={true} />
-            {queuedCount > 0 && (
-              <span
-                role="status"
-                aria-label={`${queuedCount} طلب بالانتظار`}
-                className="absolute -top-1 -end-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm"
-              >
-                {queuedCount > 9 ? '9+' : queuedCount}
-              </span>
-            )}
-          </span>
-          القائمة
-        </button>
+        <div className="relative flex flex-1 flex-col items-center justify-center min-h-[48px]">
+          <button
+            type="button"
+            onClick={toggleMobileNav}
+            className="flex w-full flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <span className="relative inline-flex">
+              <Menu className="h-5 w-5" aria-hidden={true} />
+            </span>
+            القائمة
+          </button>
+          {queuedCount > 0 && (
+            <Link
+              href={ROUTES.settings.sync}
+              aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
+              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
+            >
+              {queuedCount > 9 ? '9+' : queuedCount}
+            </Link>
+          )}
+        </div>
       )}
 
       <ExploreSheet open={exploreOpen} onOpenChange={setExploreOpen} />

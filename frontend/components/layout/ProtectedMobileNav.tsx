@@ -60,7 +60,7 @@ import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
+import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -85,7 +85,7 @@ function DrawerDisclosureGroup({
   pathname: string;
   onNavigate: () => void;
 }) {
-  const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
+  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c));
   const [isOpen, setIsOpen] = useState(isAnyChildActive);
 
   return (
@@ -107,7 +107,7 @@ function DrawerDisclosureGroup({
       {isOpen && (
         <ul className="mt-1 flex flex-col gap-1">
           {group.children.map((child) => {
-            const isActive = pathname.startsWith(child.href);
+            const isActive = navChildIsActive(pathname, child);
             return (
               <li key={child.href}>
                 <Link

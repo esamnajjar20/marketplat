@@ -123,23 +123,40 @@ export const SETTINGS_GROUP = {
   href: ROUTES.settings.profile,
   icon: Settings,
   children: [
-    { label: 'الملف الشخصي', href: ROUTES.settings.profile },
-    { label: 'ملف البائع', href: ROUTES.settings.seller },
-    { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
+    {
+      label: 'الملف الشخصي',
+      href: ROUTES.settings.profile,
+      // يشمل تبويبات البائع ومقدم الخدمة بعد دمج الصفحات الثلاث
+      activeMatch: [ROUTES.settings.profile, ROUTES.settings.seller, ROUTES.settings.serviceProvider] as const,
+    },
     { label: 'إدارة المتجر', href: ROUTES.myStore },
     { label: 'الأمان', href: ROUTES.settings.security },
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
     { label: 'التخزين والبيانات', href: ROUTES.settings.storage },
+    { label: 'مركز المزامنة', href: ROUTES.settings.sync },
   ],
 } as const;
+
+export interface NavChildLink {
+  label: string;
+  href: string;
+  /** بادئات مسار إضافية تُعتبر نشطة (مثلاً تبويبات الملف المدمجة). */
+  activeMatch?: readonly string[];
+}
 
 export interface NavDisclosureGroup {
   label: string;
   href: string;
   icon: typeof Settings;
-  children: readonly { label: string; href: string }[];
+  children: readonly NavChildLink[];
+}
+
+/** هل المسار الحالي يطابق عنصر قائمة (href أو activeMatch). */
+export function navChildIsActive(pathname: string, child: NavChildLink): boolean {
+  const prefixes = child.activeMatch ?? [child.href];
+  return prefixes.some((p) => pathname.startsWith(p));
 }
 
 /**

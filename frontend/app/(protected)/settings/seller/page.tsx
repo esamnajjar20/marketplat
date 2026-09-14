@@ -1,21 +1,22 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
-import { SellerSettingsSection } from '@/components/sellers/SellerSettingsSection';
+import { UnifiedProfileSettings } from '@/components/settings/UnifiedProfileSettings';
+import { ViewMyProfileLink } from '@/components/profile/ViewMyProfileLink';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'ملف البائع', noIndex: true });
 
+/**
+ * يفتح نفس مركز الملف مع تبويب البائع — الروابط القديمة
+ * (BecomeSellerCard، الشريط الجانبي، إلخ) تبقى صالحة.
+ */
 export default function SellerSettingsPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">ملف البائع</h1>
-      {/* FIX P0-1: BecomeSellerCard (rendered inside
-          SellerSettingsSection) now reads useSearchParams() for ?from=
-          — Next.js requires a Suspense boundary around any client
-          component using that hook, same as LoginForm's page. */}
-      <Suspense>
-        <SellerSettingsSection />
-      </Suspense>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold">الملف الشخصي</h1>
+        <ViewMyProfileLink />
+      </div>
+      <UnifiedProfileSettings />
     </div>
   );
 }

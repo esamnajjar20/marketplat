@@ -44,9 +44,7 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
 }
 
 /**
- * Service listing card — aligned with AdCard hierarchy:
- * image + availability → price-first → title → area → provider footer
- * (logo / name / verified / rating / time).
+ * Service listing card — availability top-start, favorite top-end only.
  */
 export function ServiceListingCard({ listing, className, priority = false }: Props) {
   const rawImage = listing.images[0];
@@ -73,13 +71,25 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
           ? 'عن بُعد'
           : null;
 
+  const isAvailable = listing.provider.availabilityStatus === 'AVAILABLE';
+
   return (
-    <div className="relative">
+    <div
+      className={cn(
+        'group/card relative isolate z-0 h-full',
+        'transition-transform duration-200 ease-out',
+        'hover:z-10 hover:-translate-y-0.5',
+      )}
+    >
       <Link
         href={ROUTES.serviceDetail(listing.id)}
         className={cn(
-          'group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200',
-          'active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+          'flex h-full flex-col overflow-hidden rounded-2xl border bg-card',
+          'shadow-sm transition-[box-shadow,border-color] duration-200',
+          'active:scale-[0.98]',
+          'group-hover/card:border-primary/30 group-hover/card:shadow-md',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          isAvailable ? 'border-success/25' : 'border-border/80',
           className,
         )}
       >
@@ -88,47 +98,60 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
             src={thumb}
             alt={listing.title}
             fill
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+            className="object-cover transition-transform duration-400 ease-out group-hover/card:scale-[1.04]"
             sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
           />
-          <span className="absolute top-2 end-2 flex items-center gap-1 rounded-full bg-foreground/70 px-2.5 py-0.5 text-[10px] font-medium text-background backdrop-blur-sm">
-            <span
-              className={cn('h-1.5 w-1.5 rounded-full', AVAILABILITY_DOT[listing.provider.availabilityStatus])}
-            />
-            {AVAILABILITY_LABEL[listing.provider.availabilityStatus]}
-          </span>
+
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/20 to-transparent"
+            aria-hidden
+          />
+
+          {/* Availability top-start — never share the end corner with favorite */}
+          <div className="absolute top-2 start-2 z-[1] flex max-w-[70%] flex-col items-start gap-1">
+            <span className="flex items-center gap-1.5 rounded-full bg-foreground/75 px-2 py-0.5 text-[10px] font-medium text-background shadow-sm backdrop-blur-md">
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full ring-1 ring-white/30',
+                  AVAILABILITY_DOT[listing.provider.availabilityStatus],
+                )}
+              />
+              {AVAILABILITY_LABEL[listing.provider.availabilityStatus]}
+            </span>
+          </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-1.5 p-4">
-          {/* Price first — same hierarchy as AdCard */}
+        <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="font-mono text-xl font-bold tabular-nums text-primary">{priceLabel}</p>
+            <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-primary sm:text-xl">
+              {priceLabel}
+            </p>
             {isNegotiable && listing.pricingType === 'NEGOTIABLE' && (
-              <span className="rounded-full border border-primary/30 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              <span className="rounded-full border border-primary/25 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                 قابل للتفاوض
               </span>
             )}
           </div>
 
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-lg leading-snug text-foreground">
+          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-[15px]">
             {listing.title}
           </h3>
 
-          <div className="mt-auto flex flex-col gap-1.5 pt-2">
+          <div className="mt-auto flex flex-col gap-1.5 border-t border-border/40 pt-2">
             {(cityHint || listing.durationEstimate) && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {cityHint && (
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
                     <span className="truncate">{cityHint}</span>
                   </span>
                 )}
                 {listing.durationEstimate && (
                   <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                    <Clock className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
                     {listing.durationEstimate}
                   </span>
                 )}
@@ -136,7 +159,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
             )}
 
             <div className="flex min-w-0 items-center gap-1.5">
-              <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-muted">
+              <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/60">
                 <SafeImage
                   variant="avatar"
                   src={providerLogo}
@@ -165,12 +188,12 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
                     {rating.toFixed(1)}
                   </span>
                 ) : (
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+                  <span className="rounded-full bg-muted/80 px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
                     مقدم خدمة
                   </span>
                 )}
               </div>
-              <span className={cn('shrink-0 whitespace-nowrap text-[10px] tabular-nums', timeColorClass)}>
+              <span className={cn('shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums', timeColorClass)}>
                 {formatRelativeTime(listing.createdAt)}
               </span>
             </div>
@@ -182,7 +205,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
         entityType="SERVICE_LISTING"
         entityId={listing.id}
         size="sm"
-        className="absolute top-2 end-2"
+        className="absolute top-2 end-2 z-20 !h-9 !w-9 rounded-full bg-background/95 shadow-md backdrop-blur-md ring-1 ring-black/5"
       />
     </div>
   );

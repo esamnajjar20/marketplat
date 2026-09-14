@@ -48,7 +48,7 @@ import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
+import { BROWSE_LINKS, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useTheme } from 'next-themes';
@@ -188,7 +188,7 @@ function DisclosureGroup({
   pathname: string;
   onNavigate: () => void;
 }) {
-  const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
+  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c));
   const [isOpen, setIsOpen] = useState(isAnyChildActive);
   const Icon = group.icon;
 
@@ -212,7 +212,7 @@ function DisclosureGroup({
       {isOpen && (
         <ul className="mt-1 flex flex-col gap-1">
           {group.children.map((child) => {
-            const isActive = pathname.startsWith(child.href);
+            const isActive = navChildIsActive(pathname, child);
             return (
               <li key={child.href}>
                 <Link

@@ -1,20 +1,21 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
-import { ServiceProviderSettingsSection } from '@/components/services/ServiceProviderSettingsSection';
+import { UnifiedProfileSettings } from '@/components/settings/UnifiedProfileSettings';
+import { ViewMyProfileLink } from '@/components/profile/ViewMyProfileLink';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'ملف مقدم الخدمة', noIndex: true });
 
+/**
+ * يفتح نفس مركز الملف مع تبويب مقدم الخدمة — الروابط القديمة تبقى صالحة.
+ */
 export default function ServiceProviderSettingsPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">ملف مقدم الخدمة</h1>
-      {/* FIX P0-1: BecomeServiceProviderCard now reads useSearchParams()
-          for ?from= — same Suspense requirement as the seller/store
-          settings pages. */}
-      <Suspense>
-        <ServiceProviderSettingsSection />
-      </Suspense>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold">الملف الشخصي</h1>
+        <ViewMyProfileLink />
+      </div>
+      <UnifiedProfileSettings />
     </div>
   );
 }

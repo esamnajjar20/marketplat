@@ -125,7 +125,7 @@ export function HomeAboveFold() {
           </div>
         </section>
 
-        <section className="relative mt-6 overflow-hidden border-y border-accent/15 bg-gradient-to-b from-accent/[0.12] to-accent/[0.04] py-7 sm:mt-10 sm:py-12">
+        <section className="relative mt-6 border-y border-accent/15 bg-gradient-to-b from-accent/[0.12] to-accent/[0.04] py-7 sm:mt-10 sm:py-12">
           <div className="container relative mx-auto max-w-7xl space-y-5 px-4">
             <SectionHeader
               tone="featured"
@@ -157,7 +157,7 @@ export function HomeAboveFold() {
         <CategoryGrid />
       </section>
 
-      <section className="relative mt-6 overflow-hidden border-y border-accent/15 bg-gradient-to-b from-accent/[0.12] to-accent/[0.04] py-7 sm:mt-10 sm:py-12">
+      <section className="relative mt-6 border-y border-accent/15 bg-gradient-to-b from-accent/[0.12] to-accent/[0.04] py-7 sm:mt-10 sm:py-12">
         <div
           aria-hidden
           className="pointer-events-none absolute -end-10 top-0 h-40 w-40 rounded-full bg-accent/10 blur-3xl"

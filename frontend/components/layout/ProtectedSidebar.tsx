@@ -79,7 +79,7 @@ import {
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
-import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, type NavDisclosureGroup } from '@/lib/navigation';
+import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
@@ -135,7 +135,7 @@ function DisclosureGroup({
   group: typeof ACTIVITY_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
 }) {
-  const isAnyChildActive = group.children.some((c) => pathname.startsWith(c.href));
+  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c));
   // Starts open if the user is already somewhere inside the group, so
   // landing on e.g. /my-services/requests doesn't hide the very link
   // that got them there.
@@ -168,7 +168,7 @@ function DisclosureGroup({
               key={child.href}
               label={child.label}
               href={child.href}
-              isActive={pathname.startsWith(child.href)}
+              isActive={navChildIsActive(pathname, child)}
               indent
             />
           ))}
