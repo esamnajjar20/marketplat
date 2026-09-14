@@ -67,6 +67,8 @@
 // Same source character set/target mapping as arabic_normalize()'s
 // translate('أإآٱى', 'ااااي'): every hamza/madda/wasla alef variant
 // folds to bare alef, alef maksura folds to yeh.
+import { expandedRequiredConcepts } from './searchQueryIntelligence';
+
 const ALEF_VARIANTS = /[أإآٱ]/g;
 const ALEF_MAKSURA = /ى/g;
 
@@ -227,6 +229,20 @@ export function matchesSearchQuery(haystacks: Array<string | null | undefined>, 
   // left to anchor precision on — fall back to requiring every word,
   // same as the original behavior, rather than matching everything.
   const requiredTokens = coreTokens.length > 0 ? coreTokens : tokens;
+
+  // SEARCH-INTEL-01: synonym / dialect / morphology expansion so a
+  // saved search for "جوال" still matches an ad titled "موبايل".
+  const concepts = expandedRequiredConcepts(rawQuery);
+  if (concepts.length > 0) {
+    const coreConcepts = concepts.filter((alts) => {
+      const bases = alts.map((a) => a.replace(/^ال/, ''));
+      return !bases.every((b) => isOptionalModifier(b));
+    });
+    const required = coreConcepts.length > 0 ? coreConcepts : concepts;
+    return required.every((alts) =>
+      alts.some((token) => tokenMatches(haystackText, haystackWords, token)),
+    );
+  }
 
   return requiredTokens.every((token) => tokenMatches(haystackText, haystackWords, token));
 }

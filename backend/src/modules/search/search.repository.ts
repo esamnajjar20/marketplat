@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { SearchQuery } from './search.validation';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { RawSearchRow, SearchType } from './search.types';
 
 /**
@@ -177,14 +178,18 @@ function perBranchLimit(skip: number, take: number): number {
   return Math.min((skip + take) * PER_BRANCH_LIMIT_SAFETY_FACTOR, PER_BRANCH_LIMIT_CEILING);
 }
 
-// FIX SEARCH-AR-01: arabic_normalize() wraps the search term here so
-// every branch below (ad/product/store/service, all of which now also
-// wrap their own tsvector columns) compares like-for-like — see the
-// arabic_search_normalization migration for what's folded and why.
-// Applied once here rather than in all four branches individually,
-// since every branch calls this same function to build its tsQuery.
-const buildTsQuery = (q: string | undefined) =>
-  q ? Prisma.sql`plainto_tsquery('simple', arabic_normalize(${q}))` : null;
+// FIX SEARCH-AR-01: arabic_normalize() on both sides (index + query).
+// SEARCH-INTEL-01: plainto_tsquery was AND-of-literal-tokens only —
+// no synonyms, no ة/ه variants, no dialect (موبايل vs جوال). We now
+// analyze the raw query into OR-groups per concept and AND across
+// concepts via to_tsquery, still wrapped in arabic_normalize so
+// alef/yeh folding stays identical to the GIN expression indexes.
+const buildTsQuery = (q: string | undefined) => {
+  if (!q?.trim()) return null;
+  const { tsQueryString } = analyzeSearchQuery(q);
+  if (!tsQueryString) return null;
+  return Prisma.sql`to_tsquery('simple', arabic_normalize(${tsQueryString}))`;
+};
 
 // TRACK-NEARBY-SEARCH: threaded through every *Branch builder as one
 // param object (rather than three positional lat/lng/radius args) so

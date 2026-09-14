@@ -4,6 +4,7 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { searchRepository } from './search.repository';
 import { SearchQuery, SearchSuggestionsQuery } from './search.validation';
 import { RawSearchRow, SearchResult, UnifiedSearchResponse } from './search.types';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 
 
 /** المسافات غير المنطقية (مثل ~20015 = π×6371 من clamp لـ acos) تُعامل كـ null. */
@@ -61,8 +62,22 @@ export const searchService = {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
+    let results = rows.map(normalizeRow);
+
+    // SEARCH-INTEL-01: soft boost for entity types implied by the query
+    // (e.g. "محل …" → stores first) only under relevance sort — never
+    // overrides explicit newest/distance/rating/views ordering.
+    const sort = query.sort ?? 'relevance';
+    if (sort === 'relevance' && query.q?.trim()) {
+      const { preferredTypes } = analyzeSearchQuery(query.q);
+      if (preferredTypes.length > 0) {
+        const weight = (t: string) => (preferredTypes.includes(t as (typeof preferredTypes)[number]) ? 0 : 1);
+        results = [...results].sort((a, b) => weight(a.type) - weight(b.type));
+      }
+    }
+
     return {
-      results: rows.map(normalizeRow),
+      results,
       pagination: buildPaginationMeta(total, page, limit),
     };
   },

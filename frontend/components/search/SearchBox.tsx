@@ -59,7 +59,12 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
 
   function navigate(q: string) {
     const params = new URLSearchParams(sp.toString());
-    const trimmed = q.trim();
+    // تطبيع خفيف قبل الإرسال: مسافات زائدة، توحيد ي/ى شائع في الكتابة
+    const trimmed = q
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/[أإآٱ]/g, 'ا')
+      .replace(/ى/g, 'ي');
     if (trimmed) {
       params.set('q', trimmed);
       addRecentSearch(trimmed);

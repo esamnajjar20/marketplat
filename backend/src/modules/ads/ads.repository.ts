@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { getPaginationParams } from '../../shared/utils/pagination';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { AdStatus, Prisma } from '@prisma/client';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, AdSortField } from './ads.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
@@ -164,6 +165,10 @@ export const adsRepository = {
     const { skip, take } = getPaginationParams(page, limit);
 
     if (search) {
+      // SEARCH-INTEL-01: expand synonyms / dialect / light morphology
+      // into to_tsquery OR-groups (same helper as unified search).
+      const { tsQueryString } = analyzeSearchQuery(search);
+      const effectiveTs = tsQueryString ?? search;
       const whereParts: Prisma.Sql[] = [
         Prisma.sql`"status" = ${AdStatus.ACTIVE}::"AdStatus"`,
         // AUDIT-FIX (ads-feature review): the SEC-FIX below (see the
@@ -179,19 +184,12 @@ export const adsRepository = {
         // identical to the non-search branch rather than introducing a
         // second, slightly different definition of "hidden".
         Prisma.sql`"sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)`,
-        // FIX SEARCH-AR-01: both sides of tsvector @@ tsquery now go
-        // through arabic_normalize() — the column expression must match
-        // ads_search_idx byte-for-byte (same reasoning as the coalesce()
-        // comment above), and the search TERM must go through the same
-        // function too, or a user typing e.g. أ (hamza) would never
-        // match a listing indexed with plain ا — only one side of the
-        // comparison would be normalized otherwise. See the
-        // arabic_search_normalization migration for the full rationale
-        // on which letter-shape variants are folded together.
+        // FIX SEARCH-AR-01 + SEARCH-INTEL-01: arabic_normalize on both
+        // sides; to_tsquery carries synonym OR-groups from analyzeSearchQuery.
         Prisma.sql`(
           setweight(to_tsvector('simple', arabic_normalize(coalesce("title", ''))), 'A') ||
           setweight(to_tsvector('simple', arabic_normalize(coalesce("description", ''))), 'B')
-        ) @@ plainto_tsquery('simple', arabic_normalize(${search}))`,
+        ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))`,
       ];
 
       // FIX PERF-01: city ILIKE '%value%' can never use the existing
