@@ -23,6 +23,7 @@ import { useRouter }     from 'next/navigation';
 import { adsApi }        from '@/api/ads.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure, ONLINE_DRAFT_TOAST } from '@/lib/isNetworkLikeFailure';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
@@ -88,13 +89,13 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       const parsed = parseApiError(err);
       const offline =
         typeof navigator !== 'undefined' && navigator.onLine === false;
-      // FIX FALSE-OFFLINE-DRAFT-01: مسودة + «محفوظ محليًا» فقط عند أوفلاين حقيقي.
-      // سابقًا offline || parsed.queued كانت تُظهر الرسالة والجهاز أونلاين.
-      if (offline) {
+      // FIX FALSE-OFFLINE-DRAFT-01 + ONLINE-SILENT-DRAFT-01:
+      // أوفلاين → مسودة + رسالة انتظار النت.
+      // أونلاين + فشل شبكة → مسودة status failed بلا ادعاء انقطاع نت.
+      // 400/403/… → خطأ فقط، بلا مسودة شبكة.
+      if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = (payload as { images?: File[] }).images ?? [];
-          // FIX IMAGEOFFLINE-WIRE-01: أفضل جهد — لا يوقف حفظ المسودة لو
-          // فشل الضغط (بيئة بلا Canvas، ملف غير صورة، إلخ).
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
@@ -110,21 +111,22 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               isNegotiable: Boolean((payload as { isNegotiable?: boolean }).isNegotiable),
               imageLabels: files.map((f) => f.name),
             },
-            status: 'pending_sync',
+            status: offline ? 'pending_sync' : 'failed',
+            lastError: offline ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
             images,
           });
-          // FIX IMAGEOFFLINE-WIRE-01 (كان FIX OFFLINE-IMAGES-NOT-DRAFTED-01):
-          // المسودة الآن تحمل معاينة مضغوطة للصور (لو الضغط نجح) —
-          // لكنها للعرض فقط بمركز المزامنة. الصور الفعلية بجودتها الكاملة
-          // محفوظة ومضمونة عبر طابور الـ SW نفسه (نفس الطلب الأصلي بصوره
-          // — انظر FIX OFFLINE-ADS-01 بـ public/sw.js) اللي هيرسلها تلقائيًا
-          // عند عودة الاتصال، بغض النظر عن نجاح الضغط هنا أو فشله.
-          toast.message('محفوظ محليًا — بانتظار الاتصال', {
-            description:
-              'سيُرسل تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
-          });
+          if (offline) {
+            toast.message('محفوظ محليًا — بانتظار الاتصال', {
+              description:
+                'سيُرسل تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
+            });
+          } else {
+            toast.message(ONLINE_DRAFT_TOAST.create.title, {
+              description: ONLINE_DRAFT_TOAST.create.description,
+            });
+          }
           return;
         } catch {
           /* fall through */
@@ -156,7 +158,7 @@ export function useUpdateAd(adId: string) {
       const parsed = parseApiError(err);
       const offline =
         typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline) {
+      if (offline || isNetworkLikeFailure(parsed)) {
         try {
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
@@ -169,18 +171,23 @@ export function useUpdateAd(adId: string) {
               price: (payload as { price?: string | number }).price ?? null,
               categoryId: (payload as { categoryId?: string }).categoryId ?? null,
               city: (payload as { city?: string }).city ?? null,
-              // FIX AD-DRAFT-FIELDS-01: condition + isNegotiable كانت تُفقد
-              // عند الاستئناف من مركز المزامنة بعد تعديل أوفلاين.
               condition: (payload as { condition?: string }).condition ?? null,
               isNegotiable: Boolean((payload as { isNegotiable?: boolean }).isNegotiable),
             },
-            status: 'pending_sync',
+            status: offline ? 'pending_sync' : 'failed',
+            lastError: offline ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
           });
-          toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
-            description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
-          });
+          if (offline) {
+            toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
+              description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
+            });
+          } else {
+            toast.message(ONLINE_DRAFT_TOAST.edit.title, {
+              description: ONLINE_DRAFT_TOAST.edit.description,
+            });
+          }
           return;
         } catch {
           /* fall through */

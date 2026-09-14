@@ -42,10 +42,10 @@
 // بكاش لا يقرأ منه sw.js أبدًا، وأن 'activate' هناك يحذف هذا الكاش (v4) فورًا
 // بعد كل تفعيل لأنه غير مدرَج بـ currentCaches. رُفعت هنا إلى 'v6' لتطابق
 // public/sw.js's CACHE_VERSION الحالية — راجع تعليق CACHE_VERSION هناك.
-// FIX SW-TRIM-ORDER-01: رُفعت إلى 'v20' لنفس السبب (راجع تعليق
+// FIX SW-TRIM-ORDER-01: رُفعت إلى 'v21' لنفس السبب (راجع تعليق
 // lib/offlineCoreBundle.ts's CORE_CACHE) — __tests__/unit/lib/cacheVersionSync.test.ts
 // يفشل الآن تلقائيًا لو انحرفت هذه القيمة عن sw.js مستقبلًا.
-const STATIC_CACHE = 'market-static-v20'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v21'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -139,7 +139,7 @@ export const PERSONAL_SHELL_ROUTES = [
 ];
 
 // FIX SW-TRIM-ORDER-01: كانت هذه القيمة ثابتة على 'v18' بينما STATIC_CACHE
-// بنفس الملف رُفع لـ'v20' — نفس عائلة خلل PWA-VER-01 بالضبط، لكن بثابت
+// بنفس الملف رُفع لـ'v21' — نفس عائلة خلل PWA-VER-01 بالضبط، لكن بثابت
 // ثالث بهذا الملف لم يُكتشف بالمراجعة السابقة (رُوجعا فقط STATIC_CACHE
 // وlib/offlineCoreBundle.ts's CORE_CACHE، لا هذا). النتيجة العملية لو
 // بقي منحرفًا: warmRouteShells() (سطر caches.open أدناه) يكتب أشكال
@@ -147,7 +147,7 @@ export const PERSONAL_SHELL_ROUTES = [
 // (غير مدرَج بـ currentCaches هناك) — تمامًا نفس أثر PWA-VER-01 الأصلي.
 // يجب مطابقة CACHE_VERSION بـ public/sw.js دائمًا، وهذا الآن مغطى بـ
 // __tests__/unit/lib/cacheVersionSync.test.ts.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v20';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v21';
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`

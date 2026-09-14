@@ -268,12 +268,36 @@ export function parseApiError(error: unknown): ParsedError {
       case 500:
         // Same rule as 401: never backendMsg, even if a code happens to be
         // unrecognised — only the static dictionary or the hardcoded string.
+        // FIX SW-NETWORK-MSG-01: NETWORK_ERROR من الـ SW ليس عطل خادم.
+        if (code === 'NETWORK_ERROR') {
+          return {
+            message:
+              codeMsg ??
+              backendMsg ??
+              'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
+            statusCode: 500,
+            code,
+          };
+        }
         return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: 500, code };
       default:
         if (!error.response) {
           return { message: 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت', statusCode: 0 };
         }
         if (status >= 500) {
+          // FIX SW-NETWORK-MSG-01: 503 + NETWORK_ERROR من handleMutation
+          // (أونلاين + فشل fetch) كان يُعرض كـ «خطأ في الخادم» لأن فرع 5xx
+          // يتجاهل backendMsg. فرّق رسالة الشبكة عن عطل السيرفر الحقيقي.
+          if (code === 'NETWORK_ERROR') {
+            return {
+              message:
+                codeMsg ??
+                backendMsg ??
+                'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
+              statusCode: status,
+              code,
+            };
+          }
           return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: status, code };
         }
         // For unexpected non-5xx status codes, use backendMsg but still sanitised.

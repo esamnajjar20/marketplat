@@ -1,0 +1,38 @@
+/**
+ * FIX ONLINE-SILENT-DRAFT-01: يميّز فشل شبكة/وصول عن أخطاء التحقق (400)
+ * أو رفض أعمال (403) حتى نحفظ مسودة محلية عند فشل الإرسال *وأونلاين*
+ * دون ادعاء «لا يوجد اتصال».
+ *
+ * لا يشمل 400/401/403/409 — تلك تحتاج تصحيح بيانات أو جلسة، لا مجرد إعادة إرسال.
+ */
+import type { ParsedError } from '@/lib/errorParser';
+
+export function isNetworkLikeFailure(parsed: ParsedError): boolean {
+  if (parsed.queued) return true;
+  if (parsed.code === 'NETWORK_ERROR' || parsed.code === 'OFFLINE_QUEUED') return true;
+  // 0 = لا رد من السيرفر (انقطاع، DNS، CORS، timeout axios…)
+  if (parsed.statusCode === 0) return true;
+  // بوابات / مهلة / خدمة غير متاحة — ليست validation
+  if (
+    parsed.statusCode === 408 ||
+    parsed.statusCode === 502 ||
+    parsed.statusCode === 503 ||
+    parsed.statusCode === 504
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export const ONLINE_DRAFT_TOAST = {
+  create: {
+    title: 'تعذّر الإرسال — حُفظت نسخة محلية',
+    description:
+      'ليس بسبب انقطاع الإنترنت بالضرورة. راجع من الإعدادات → المزامنة أو عدّل وأعد المحاولة.',
+  },
+  edit: {
+    title: 'تعذّر حفظ التعديل — حُفظت نسخة محلية',
+    description:
+      'يمكنك المتابعة من الإعدادات → المزامنة أو إعادة المحاولة بعد لحظات.',
+  },
+} as const;

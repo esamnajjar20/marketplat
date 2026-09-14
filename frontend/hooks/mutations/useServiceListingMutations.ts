@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure, ONLINE_DRAFT_TOAST } from '@/lib/isNetworkLikeFailure';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
@@ -68,9 +69,10 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
       router.push(ROUTES.myServices);
     },
     onError: async (err, payload) => {
+      const parsed = parseApiError(err);
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-      // FIX FALSE-OFFLINE-DRAFT-01: مسودة + «محفوظ محليًا» فقط عند أوفلاين حقيقي.
-      if (offline) {
+      // FIX FALSE-OFFLINE-DRAFT-01 + ONLINE-SILENT-DRAFT-01
+      if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = payload.images ?? [];
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
@@ -88,15 +90,22 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
               serviceLocation: payload.serviceLocation,
               imageLabels: files.map((f) => f.name),
             },
-            status: 'pending_sync',
+            status: offline ? 'pending_sync' : 'failed',
+            lastError: offline ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
             images,
           });
-          toast.message('محفوظ محليًا — بانتظار الاتصال', {
-            description:
-              'ستُرسل الخدمة تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
-          });
+          if (offline) {
+            toast.message('محفوظ محليًا — بانتظار الاتصال', {
+              description:
+                'ستُرسل الخدمة تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
+            });
+          } else {
+            toast.message(ONLINE_DRAFT_TOAST.create.title, {
+              description: ONLINE_DRAFT_TOAST.create.description,
+            });
+          }
           return;
         } catch {
           /* fall through */
@@ -130,8 +139,9 @@ export function useUpdateServiceListing(listingId: string) {
       router.push(ROUTES.myServices);
     },
     onError: async (err, payload) => {
+      const parsed = parseApiError(err);
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline) {
+      if (offline || isNetworkLikeFailure(parsed)) {
         try {
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
@@ -148,13 +158,20 @@ export function useUpdateServiceListing(listingId: string) {
               serviceLocation: payload.serviceLocation,
               status: payload.status,
             },
-            status: 'pending_sync',
+            status: offline ? 'pending_sync' : 'failed',
+            lastError: offline ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
           });
-          toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
-            description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
-          });
+          if (offline) {
+            toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
+              description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
+            });
+          } else {
+            toast.message(ONLINE_DRAFT_TOAST.edit.title, {
+              description: ONLINE_DRAFT_TOAST.edit.description,
+            });
+          }
           return;
         } catch {
           /* fall through */

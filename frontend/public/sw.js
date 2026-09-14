@@ -85,7 +85,7 @@
 // كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
 // FIX SW-QUEUE-ONLY-OFFLINE-01: رُفع إلى v20 — تغيّر سياسة handleMutation
 // (طابور فقط عند !navigator.onLine). رفع الرقم يفعّل SW جديد عند المستخدمين.
-const CACHE_VERSION = 'v20';
+const CACHE_VERSION = 'v21';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -962,6 +962,8 @@ async function replayQueue() {
  * فشل شبكة → 503 بدون queued حتى يظهر خطأ حقيقي ويُعاد المحاولة يدويًا.
  */
 async function handleMutation(request) {
+  // نسختان: واحدة لإعادة المحاولة أونلاين، وواحدة للطابور أوفلاين (الجسم يُستهلك مرة).
+  const requestForRetry = request.clone();
   const requestForQueue = request.clone();
   try {
     return await fetch(request);
@@ -969,16 +971,22 @@ async function handleMutation(request) {
     const isOffline =
       typeof navigator !== 'undefined' && navigator.onLine === false;
 
-    // أونلاين لكن الطلب لم يصل (سيرفر/شبكة) — لا نكذب بـ«لا يوجد اتصال».
+    // أونلاين: محاولة ثانية قبل إعلان الفشل (انقطاع لحظي شائع).
+    // لا نكذب بـ«لا يوجد اتصال» ولا بـ«خطأ خادم» — code: NETWORK_ERROR
+    // يقرأه errorParser (FIX SW-NETWORK-MSG-01).
     if (!isOffline) {
-      return new Response(
-        JSON.stringify({
-          message:
-            'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
-          code: 'NETWORK_ERROR',
-        }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } },
-      );
+      try {
+        return await fetch(requestForRetry);
+      } catch {
+        return new Response(
+          JSON.stringify({
+            message:
+              'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
+            code: 'NETWORK_ERROR',
+          }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
     }
 
     // FIX OFFLINE-ADS-01: كان الجسم يُقرأ عبر .text()، وهذا يفكّ ترميز

@@ -39,11 +39,11 @@ import { API_BASE_URL } from '@/lib/constants';
 // يكتب بكاش يُحذف فورًا بـ 'activate' (غير مدرَج بـ currentCaches) ولا يقرأ
 // منه sw.js's networkFirstApi/offline-search-index أصلاً. رُفعت إلى 'v6'
 // لتطابق public/sw.js's CACHE_VERSION الحالية.
-// FIX SW-TRIM-ORDER-01: رُفعت إلى 'v20' لتطابق public/sw.js (انظر تعليق
+// FIX SW-TRIM-ORDER-01: رُفعت إلى 'v21' لتطابق public/sw.js (انظر تعليق
 // CACHE_VERSION هناك) — راجع أيضًا __tests__/unit/lib/cacheVersionSync.test.ts
 // الذي يفشل تلقائيًا الآن لو تكرر هذا النوع من الانحراف مستقبلًا بدل أن
 // ينكشف فقط بمستخدم متضرر بالإنتاج.
-export const CORE_CACHE = 'market-core-v20'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+export const CORE_CACHE = 'market-core-v21'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 const LAST_WARMED_KEY = 'marketplat:core-bundle:last-warmed';
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 ساعات — يكفي لبيانات "تصفح عام"
 
