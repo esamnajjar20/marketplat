@@ -90,7 +90,8 @@ export function useSendMessage(conversationId: string) {
         id: `optimistic-${Date.now()}`,
         conversationId,
         senderId: currentUser.id,
-        body: payload.body,
+        body: payload.body?.trim() || (payload.imageUrl ? '📷' : ''),
+        imageUrl: payload.imageUrl ?? null,
         readAt: null,
         deletedAt: null,
         createdAt: new Date().toISOString(),
@@ -159,6 +160,26 @@ export function useDeleteMessage(conversationId: string) {
       queryClient.invalidateQueries({
         queryKey: ['conversations', 'detail', conversationId, 'messages'],
       });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/** PATCH /conversations/:id/flags — pin or archive a thread. */
+export function useSetConversationFlags() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...flags
+    }: {
+      id: string;
+      pinned?: boolean;
+      archived?: boolean;
+    }) => conversationsApi.setFlags(id, flags).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });

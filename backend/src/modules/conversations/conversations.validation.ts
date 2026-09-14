@@ -31,6 +31,18 @@ export const getConversationsSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    /** include archived threads (default: exclude them) */
+    includeArchived: z
+      .preprocess(
+        (v) => (v === undefined ? undefined : v === 'true' || v === true),
+        z.boolean().optional()
+      ),
+    /** only archived */
+    archivedOnly: z
+      .preprocess(
+        (v) => (v === undefined ? undefined : v === 'true' || v === true),
+        z.boolean().optional()
+      ),
   }),
 });
 
@@ -38,9 +50,15 @@ export type GetConversationsQuery = z.infer<typeof getConversationsSchema>['quer
 
 export const sendMessageSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
-  body: z.object({
-    body: z.string().min(1, 'Message cannot be empty').max(2000),
-  }),
+  body: z
+    .object({
+      body: z.string().max(2000).optional(),
+      imageUrl: z.string().url().optional(),
+    })
+    .refine(
+      (d) => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl),
+      { message: 'Provide a non-empty body and/or imageUrl' }
+    ),
 });
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>['body'];
@@ -59,5 +77,25 @@ export const deleteMessageSchema = z.object({
   params: z.object({
     id: z.string().min(1, 'Conversation ID is required'),
     messageId: z.string().min(1, 'Message ID is required'),
+  }),
+});
+
+
+export const setConversationFlagsSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z
+    .object({
+      pinned: z.boolean().optional(),
+      archived: z.boolean().optional(),
+    })
+    .refine((d) => d.pinned !== undefined || d.archived !== undefined, {
+      message: 'Provide pinned and/or archived',
+    }),
+});
+
+export const typingSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    isTyping: z.boolean(),
   }),
 });

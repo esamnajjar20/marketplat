@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/lib/constants';
+import { emitTypingEvent } from '@/lib/typingStore';
 import { useAuthStore, selectIsAuthenticated, selectAccessToken } from '@/store/auth.store';
 import { queryKeys } from '@/lib/queryKeys';
 import type { Message } from '@/types/conversation.types';
@@ -35,10 +36,18 @@ export type LiveMessageDeletedPayload = {
   deletedAt: string;
 };
 
+export type LiveTypingPayload = {
+  type: 'typing';
+  conversationId: string;
+  userId: string;
+  isTyping: boolean;
+};
+
 export type LiveStreamPayload =
   | LiveNotificationPayload
   | LiveMessageNewPayload
-  | LiveMessageDeletedPayload;
+  | LiveMessageDeletedPayload
+  | LiveTypingPayload;
 
 type Options = {
   onEvent?: (event: LiveStreamPayload) => void;
@@ -174,6 +183,12 @@ export function useNotificationStream(options?: Options) {
                   payload.messageId,
                   payload.deletedAt,
                 );
+              } else if (payload.type === 'typing') {
+                emitTypingEvent({
+                  conversationId: payload.conversationId,
+                  userId: payload.userId,
+                  isTyping: payload.isTyping,
+                });
               } else if (payload.type === 'notification') {
                 void queryClient.invalidateQueries({ queryKey: ['notifications'] });
                 void queryClient.invalidateQueries({

@@ -7,6 +7,8 @@ import {
   sendMessageSchema,
   getMessagesSchema,
   deleteMessageSchema,
+  setConversationFlagsSchema,
+  typingSchema,
 } from './conversations.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -78,7 +80,10 @@ export const conversationsController = {
     try {
       const user = requireUser(req);
       const { params, body } = sendMessageSchema.parse({ params: req.params, body: req.body });
-      const message = await conversationsService.sendMessage(user.userId, params.id, body.body);
+      const message = await conversationsService.sendMessage(user.userId, params.id, {
+        body: body.body,
+        imageUrl: body.imageUrl,
+      });
       res.status(201).json(successResponse('Message sent', message));
     } catch (error) {
       next(error);
@@ -91,6 +96,58 @@ export const conversationsController = {
       const { params } = deleteMessageSchema.parse({ params: req.params });
       const message = await conversationsService.deleteMessage(user.userId, params.id, params.messageId);
       res.status(200).json(successResponse('Message deleted', message));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  setFlags: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params, body } = setConversationFlagsSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const conversation = await conversationsService.setConversationFlags(
+        user.userId,
+        params.id,
+        body
+      );
+      res.status(200).json(successResponse('Conversation updated', conversation));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  sendMessageImage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = conversationIdSchema.parse({ params: req.params });
+      const file = req.file;
+      if (!file) {
+        res.status(400).json({ success: false, message: 'Image required' });
+        return;
+      }
+      const { uploadImage } = await import('../../config/cloudinary');
+      const uploaded = await uploadImage(file.buffer, 'chat');
+      const caption =
+        typeof req.body?.body === 'string' ? req.body.body : undefined;
+      const message = await conversationsService.sendMessage(user.userId, params.id, {
+        body: caption,
+        imageUrl: uploaded.url,
+      });
+      res.status(201).json(successResponse('Message sent', message));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  typing: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params, body } = typingSchema.parse({ params: req.params, body: req.body });
+      await conversationsService.signalTyping(user.userId, params.id, body.isTyping);
+      res.status(200).json(successResponse('Typing signal sent'));
     } catch (error) {
       next(error);
     }

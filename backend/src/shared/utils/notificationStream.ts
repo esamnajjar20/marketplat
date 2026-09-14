@@ -39,6 +39,12 @@ export type LiveStreamEvent =
       conversationId: string;
       messageId: string;
       deletedAt: string;
+    }
+  | {
+      type: 'typing';
+      conversationId: string;
+      userId: string;
+      isTyping: boolean;
     };
 
 /** @deprecated alias — prefer LiveStreamEvent */
@@ -61,7 +67,9 @@ function deliverLocal(userId: string, payload: LiveStreamEvent): void {
   const set = localClients.get(userId);
   if (!set || set.size === 0) return;
   const eventName =
-    payload.type === 'message:new' || payload.type === 'message:deleted'
+    payload.type === 'message:new' ||
+    payload.type === 'message:deleted' ||
+    payload.type === 'typing'
       ? 'message'
       : 'notification';
   for (const client of set) {

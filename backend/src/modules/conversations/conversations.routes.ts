@@ -1,3 +1,4 @@
+import { uploadMiddleware } from '../../middlewares/upload.middleware';
 import { Router } from 'express';
 import { conversationsController } from './conversations.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
@@ -36,8 +37,25 @@ conversationsRouter.post(
   sendMessageRateLimit,
   conversationsController.sendMessage
 );
+conversationsRouter.post(
+  '/:id/messages/image',
+  authenticate,
+  sendMessageRateLimit,
+  uploadMiddleware,
+  conversationsController.sendMessageImage
+);
 conversationsRouter.delete(
   '/:id/messages/:messageId',
   authenticate,
   conversationsController.deleteMessage
+);
+conversationsRouter.patch(
+  '/:id/flags',
+  authenticate,
+  conversationsController.setFlags
+);
+conversationsRouter.post(
+  '/:id/typing',
+  authenticate,
+  conversationsController.typing
 );

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, MessageSquare, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, MessageSquare, Loader2, Search, X, Pin } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { useMyConversations } from '@/hooks/queries/useConversations';
@@ -47,7 +47,13 @@ export function ConversationList({ selectedId }: Props = {}) {
   const user = useAuthStore(selectUser);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [query, setQuery] = useState('');
-  const { data, isLoading, isError, refetch, isFetching } = useMyConversations({ page: 1, limit });
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [archivedOnly, setArchivedOnly] = useState(false);
+  const { data, isLoading, isError, refetch, isFetching } = useMyConversations({
+    page: 1,
+    limit,
+    ...(archivedOnly ? { archivedOnly: true } : {}),
+  });
 
   const items = useMemo(() => data?.items ?? [], [data?.items]);
   const hasMore = Boolean(data?.meta?.hasNextPage);
@@ -57,9 +63,11 @@ export function ConversationList({ selectedId }: Props = {}) {
   const { data: onlineMap } = usePresence(otherPartyIds);
 
   const filtered = useMemo(() => {
+    let list = items;
+    if (unreadOnly) list = list.filter((c) => c.unreadCount > 0);
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((c) => {
+    if (!q) return list;
+    return list.filter((c) => {
       const party = otherParty(c, user?.id);
       const ctx = contextLabel(c) ?? '';
       const preview = c.lastMessage?.body ?? '';
@@ -69,7 +77,7 @@ export function ConversationList({ selectedId }: Props = {}) {
         preview.toLowerCase().includes(q)
       );
     });
-  }, [items, query, user?.id]);
+  }, [items, query, unreadOnly, user?.id]);
 
   const totalUnread = useMemo(
     () => items.reduce((sum, c) => sum + (c.unreadCount > 0 ? 1 : 0), 0),
@@ -160,10 +168,54 @@ export function ConversationList({ selectedId }: Props = {}) {
             </button>
           )}
         </div>
+        <div className="flex gap-1.5 px-1">
+          <button
+            type="button"
+            onClick={() => {
+              setUnreadOnly(false);
+              setArchivedOnly(false);
+            }}
+            className={
+              !unreadOnly && !archivedOnly
+                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
+                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground'
+            }
+          >
+            الكل
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setUnreadOnly(true);
+              setArchivedOnly(false);
+            }}
+            className={
+              unreadOnly && !archivedOnly
+                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
+                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground'
+            }
+          >
+            غير مقروء{totalUnread > 0 ? ` (${totalUnread})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setArchivedOnly(true);
+              setUnreadOnly(false);
+            }}
+            className={
+              archivedOnly
+                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
+                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground'
+            }
+          >
+            الأرشيف
+          </button>
+        </div>
       </div>
 
       {/* Mobile search */}
-      <div className="md:hidden border-b px-3 py-2">
+      <div className="md:hidden space-y-2 border-b px-3 py-2">
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -175,15 +227,54 @@ export function ConversationList({ selectedId }: Props = {}) {
             aria-label="بحث في المحادثات"
           />
         </div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setUnreadOnly(false)}
+            className={
+              !unreadOnly
+                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
+                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground'
+            }
+          >
+            الكل
+          </button>
+          <button
+            type="button"
+            onClick={() => setUnreadOnly(true)}
+            className={
+              unreadOnly
+                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
+                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground'
+            }
+          >
+            غير مقروء{totalUnread > 0 ? ` (${totalUnread})` : ''}
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-12 px-4 text-center">
           <Search className="h-8 w-8 text-muted-foreground/60" />
-          <p className="text-sm font-medium">لا نتائج لـ «{query}»</p>
-          <button type="button" onClick={() => setQuery('')} className="text-sm text-primary hover:underline">
-            مسح البحث
-          </button>
+          <p className="text-sm font-medium">
+            {query.trim()
+              ? `لا نتائج لـ «${query}»`
+              : unreadOnly
+                ? 'لا محادثات غير مقروءة'
+                : 'لا نتائج'}
+          </p>
+          {(query || unreadOnly) && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('');
+                setUnreadOnly(false);
+              }}
+              className="text-sm text-primary hover:underline"
+            >
+              إظهار الكل
+            </button>
+          )}
         </div>
       ) : (
         <div className="flex flex-col md:overflow-y-auto md:flex-1">
@@ -249,10 +340,13 @@ export function ConversationList({ selectedId }: Props = {}) {
                   <div className="mb-0.5 flex items-baseline justify-between gap-2">
                     <p
                       className={cn(
-                        'text-sm line-clamp-1',
+                        'flex items-center gap-1 text-sm line-clamp-1',
                         hasUnread ? 'font-bold text-foreground' : 'font-semibold text-foreground/90',
                       )}
                     >
+                      {conversation.pinnedAt && (
+                        <Pin className="h-3 w-3 shrink-0 text-primary" aria-label="مثبّتة" />
+                      )}
                       {party.name}
                     </p>
                     <span

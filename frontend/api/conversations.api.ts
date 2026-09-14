@@ -1,14 +1,5 @@
 /**
  * Conversations API — maps to backend /api/v1/conversations/*.
- * Verified against conversations.routes.ts:
- *   - Every route requires auth — there is no public conversation view.
- *   - POST / is idempotent per (adId, caller, seller) triple: the
- *     backend reuses the existing thread instead of creating a
- *     duplicate (conversations.service.ts's startFromAd), so calling
- *     this again for the same ad just returns the same conversation.
- *   - GET /:id/messages both fetches a page of messages AND marks the
- *     caller's unread inbound messages as read as a side effect — see
- *     useMessages's own doc comment for why that's fine under polling.
  */
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
@@ -24,44 +15,36 @@ import type {
 } from '@/types/conversation.types';
 
 export const conversationsApi = {
-  /** GET /conversations — every thread the caller is a party to.
-   * FIX UX-15: now includes a per-thread unreadCount (ConversationListItem,
-   * not plain Conversation) — see conversations.repository.ts's
-   * findManyForUser doc comment on the backend for why. */
   getMine: (params?: ConversationsQuery) =>
     apiClient
       .get<ApiResponse<ConversationListItem[]>>('/conversations', { params })
       .then((r) => unwrapPaginated<ConversationListItem>(r)),
 
-  /** GET /conversations/unread-count — aggregate unread threads for nav badge. */
   getUnreadCount: () =>
     apiClient.get<ApiResponse<{ count: number }>>('/conversations/unread-count'),
 
-  /** POST /conversations — start (or reopen) a thread about an ad. */
   start: (payload: StartConversationPayload) =>
     apiClient.post<ApiResponse<Conversation>>('/conversations', payload),
 
-  /** GET /conversations/:id */
   getById: (id: string) =>
     apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`),
 
-  /** GET /conversations/:id/messages — newest-first from the backend;
-   * see useMessages for the chronological re-sort applied on top. */
   getMessages: (id: string, params?: MessagesQuery) =>
     apiClient
       .get<ApiResponse<Message[]>>(`/conversations/${id}/messages`, { params })
       .then((r) => unwrapPaginated<Message>(r)),
 
-  /** POST /conversations/:id/messages */
   sendMessage: (id: string, payload: SendMessagePayload) =>
     apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages`, payload),
 
-  /** DELETE /conversations/:id/messages/:messageId — soft-delete; only
-   * the sender may call this (backend 403s otherwise, see
-   * conversations.service.ts's deleteMessage). Returns the message with
-   * body already redacted. */
   deleteMessage: (conversationId: string, messageId: string) =>
     apiClient.delete<ApiResponse<Message>>(
       `/conversations/${conversationId}/messages/${messageId}`
     ),
+
+  setFlags: (id: string, flags: { pinned?: boolean; archived?: boolean }) =>
+    apiClient.patch<ApiResponse<Conversation>>(`/conversations/${id}/flags`, flags),
+
+  signalTyping: (id: string, isTyping: boolean) =>
+    apiClient.post<ApiResponse<void>>(`/conversations/${id}/typing`, { isTyping }),
 };

@@ -37,6 +37,8 @@ export interface Conversation {
   serviceRequestId: string | null;
   buyerId: string;
   sellerId: string;
+  pinnedAt: string | null;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
   ad: ConversationAdSummary | null;
@@ -65,6 +67,8 @@ export interface Message {
   conversationId: string;
   senderId: string;
   body: string;
+  /** Optional image attachment URL (Cloudinary). */
+  imageUrl: string | null;
   readAt: string | null;
   // Soft-delete marker — mirrors backend's Message.deletedAt. When set,
   // `body` has already been redacted to '' by the backend (see
@@ -89,12 +93,15 @@ export type StartConversationPayload =
 
 /** POST /conversations/:id/messages. */
 export interface SendMessagePayload {
-  body: string;
+  body?: string;
+  imageUrl?: string;
 }
 
 export interface ConversationsQuery {
   page?: number;
   limit?: number;
+  includeArchived?: boolean;
+  archivedOnly?: boolean;
 }
 
 export interface MessagesQuery {

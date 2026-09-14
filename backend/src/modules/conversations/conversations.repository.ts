@@ -208,11 +208,25 @@ export const conversationsRepository = {
    * row" idea as ServiceRequest.respondedAt on a status transition. */
   touchUpdatedAt: (id: string): Promise<Conversation> =>
     prisma.conversation.update({ where: { id }, data: { updatedAt: new Date() } }),
+
+  /** MSG-FEAT: pin / archive flags (null = not pinned / not archived). */
+  setFlags: (
+    id: string,
+    data: { pinnedAt?: Date | null; archivedAt?: Date | null }
+  ): Promise<Conversation> =>
+    prisma.conversation.update({ where: { id }, data }),
 };
 
 export const messagesRepository = {
-  create: (conversationId: string, senderId: string, body: string): Promise<Message> =>
-    prisma.message.create({ data: { conversationId, senderId, body } }),
+  create: (
+    conversationId: string,
+    senderId: string,
+    body: string,
+    imageUrl?: string | null
+  ): Promise<Message> =>
+    prisma.message.create({
+      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null },
+    }),
 
   findById: (id: string): Promise<Message | null> =>
     prisma.message.findUnique({ where: { id } }),

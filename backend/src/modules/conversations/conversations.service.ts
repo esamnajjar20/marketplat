@@ -29,7 +29,9 @@ const assertParty = (conversation: Conversation, userId: string): void => {
  * own response, since a message can be deleted by one party and then
  * read by the other via getMessages moments later. */
 const redactIfDeleted = (message: Message): Message =>
-  message.deletedAt ? { ...message, body: '' } : message;
+  message.deletedAt
+    ? { ...message, body: '', imageUrl: null }
+    : message;
 
 // FIX MSG-SCAN-01: same high-signal scam phrasing the ad fraud scorer
 // uses — applied here so steering payment off-platform in chat can't
@@ -174,7 +176,12 @@ export const conversationsService = {
 
   getMyConversations: async (
     userId: string,
-    query: { page?: number; limit?: number }
+    query: {
+      page?: number;
+      limit?: number;
+      includeArchived?: boolean;
+      archivedOnly?: boolean;
+    }
   ): Promise<PaginatedResult<ConversationListItem>> => {
     const { conversations, total } = await conversationsRepository.findManyForUser(userId, query);
     return {
@@ -183,7 +190,11 @@ export const conversationsService = {
     };
   },
 
-  sendMessage: async (userId: string, conversationId: string, body: string): Promise<Message> => {
+  sendMessage: async (
+    userId: string,
+    conversationId: string,
+    input: { body?: string; imageUrl?: string }
+  ): Promise<Message> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
@@ -198,10 +209,15 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    assertMessageBodySafe(body);
+    const body = (input.body ?? '').trim();
+    const imageUrl = input.imageUrl?.trim() || null;
+    if (!body && !imageUrl) {
+      throw new BadRequestError('Message cannot be empty', 'MESSAGE_EMPTY');
+    }
+    if (body) assertMessageBodySafe(body);
 
     const [message] = await Promise.all([
-      messagesRepository.create(conversationId, userId, body),
+      messagesRepository.create(conversationId, userId, body || (imageUrl ? '📷' : ''), imageUrl),
       conversationsRepository.touchUpdatedAt(conversationId),
     ]);
 
@@ -218,6 +234,7 @@ export const conversationsService = {
       conversationId: message.conversationId,
       senderId: message.senderId,
       body: message.body,
+      imageUrl: (message as { imageUrl?: string | null }).imageUrl ?? null,
       readAt: message.readAt ? message.readAt.toISOString() : null,
       deletedAt: message.deletedAt ? message.deletedAt.toISOString() : null,
       createdAt: message.createdAt.toISOString(),
@@ -312,6 +329,39 @@ export const conversationsService = {
    * itself the read receipt), rather than requiring a separate
    * mark-as-read round trip the frontend would have to remember to fire.
    */
+  setConversationFlags: async (
+    userId: string,
+    conversationId: string,
+    flags: { pinned?: boolean; archived?: boolean }
+  ): Promise<Conversation> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+    const data: { pinnedAt?: Date | null; archivedAt?: Date | null } = {};
+    if (flags.pinned !== undefined) data.pinnedAt = flags.pinned ? new Date() : null;
+    if (flags.archived !== undefined) data.archivedAt = flags.archived ? new Date() : null;
+    return conversationsRepository.setFlags(conversationId, data);
+  },
+
+  /** Ephemeral typing signal — no DB write; SSE only. */
+  signalTyping: async (
+    userId: string,
+    conversationId: string,
+    isTyping: boolean
+  ): Promise<void> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+    const otherId =
+      conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
+    void publishNotificationEvent(otherId, {
+      type: 'typing',
+      conversationId,
+      userId,
+      isTyping,
+    });
+  },
+
   getMessages: async (
     userId: string,
     conversationId: string,

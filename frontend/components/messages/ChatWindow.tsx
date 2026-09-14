@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon } from 'lucide-react';
+import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive } from 'lucide-react';
+import { toast } from 'sonner';
+import { onTypingEvent } from '@/lib/typingStore';
+import { useSetConversationFlags } from '@/hooks/mutations/useConversationMutations';
+import {
+  messageDayLabel,
+  sameCalendarDay,
+  isTightFollowUp,
+  splitMessageBody,
+} from '@/lib/messageUtils';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -113,7 +122,23 @@ export function ChatWindow({ conversationId }: Props) {
   const { mutate: toggleBlock, isPending: togglingBlock } = useToggleUserBlock();
   const { mutate: deleteMessage, isPending: deletingMessage } = useDeleteMessage(conversationId);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
+  const [partyTyping, setPartyTyping] = useState(false);
+  const { mutate: setFlags, isPending: flagsPending } = useSetConversationFlags();
   const pendingQueued = usePendingMessages(conversationId);
+  useEffect(() => {
+    setPartyTyping(false);
+    let clearTimer: ReturnType<typeof setTimeout> | null = null;
+    return onTypingEvent((ev) => {
+      if (ev.conversationId !== conversationId) return;
+      if (ev.userId === user?.id) return;
+      setPartyTyping(ev.isTyping);
+      if (clearTimer) clearTimeout(clearTimer);
+      if (ev.isTyping) {
+        clearTimer = setTimeout(() => setPartyTyping(false), 4000);
+      }
+    });
+  }, [conversationId, user?.id]);
+
   const [retryingQueueId, setRetryingQueueId] = useState<number | null>(null);
 
   // FIX UX-GAP-03: `page` starts at null (unused — the live query above
@@ -156,6 +181,7 @@ export function ChatWindow({ conversationId }: Props) {
     conversationId,
     senderId: user?.id ?? '',
     body: q.body,
+    imageUrl: null,
     readAt: null,
     deletedAt: null,
     createdAt: new Date(q.queuedAt).toISOString(),
@@ -339,6 +365,26 @@ export function ChatWindow({ conversationId }: Props) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
+              disabled={flagsPending}
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() =>
+                setFlags({ id: conversationId, pinned: !conversation.pinnedAt })
+              }
+            >
+              <Pin className="h-4 w-4" />
+              {conversation.pinnedAt ? 'إلغاء التثبيت' : 'تثبيت المحادثة'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={flagsPending}
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() =>
+                setFlags({ id: conversationId, archived: !conversation.archivedAt })
+              }
+            >
+              <Archive className="h-4 w-4" />
+              {conversation.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة المحادثة'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
               disabled={togglingBlock}
               onClick={handleToggleBlock}
               className={cn(
@@ -371,9 +417,13 @@ export function ChatWindow({ conversationId }: Props) {
                 </Button>
               </div>
             )}
-            {messages.map((message) => {
+            {messages.map((message, index) => {
               const isMine = message.senderId === user?.id;
               const isDeleted = Boolean(message.deletedAt);
+              const prev = index > 0 ? messages[index - 1] : null;
+              const showDay =
+                !prev || !sameCalendarDay(prev.createdAt, message.createdAt);
+              const tight = isTightFollowUp(prev, message);
               // UX-FIX (perceived-latency): useSendMessage's onMutate
               // (useConversationMutations.ts) writes a temporary message
               // with a client-generated `optimistic-...` id straight into
@@ -392,8 +442,15 @@ export function ChatWindow({ conversationId }: Props) {
               const clientStatus = message.clientStatus;
               const isLocalOnly = isOptimistic || clientStatus === 'queued' || clientStatus === 'failed';
               return (
+                <div key={message.id} className={cn('flex w-full flex-col', tight ? 'mt-0.5' : 'mt-0')}>
+                  {showDay && (
+                    <div className="my-3 flex justify-center">
+                      <span className="rounded-full border bg-card/90 px-3 py-0.5 text-[11px] font-medium text-muted-foreground shadow-sm">
+                        {messageDayLabel(message.createdAt)}
+                      </span>
+                    </div>
+                  )}
                 <div
-                  key={message.id}
                   className={cn('group flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
                 >
                   <div className="flex items-center gap-1">
@@ -409,6 +466,20 @@ export function ChatWindow({ conversationId }: Props) {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(message.body);
+                                toast.success('تم نسخ الرسالة');
+                              } catch {
+                                toast.error('تعذّر النسخ');
+                              }
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                            نسخ
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
                             onClick={() => setConfirmDeleteMessageId(message.id)}
@@ -437,8 +508,46 @@ export function ChatWindow({ conversationId }: Props) {
                         clientStatus === 'failed' && 'opacity-80 ring-1 ring-destructive/40'
                       )}
                     >
+                      {!isDeleted && message.imageUrl && (
+                        <a
+                          href={message.imageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mb-2 block overflow-hidden rounded-xl"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={message.imageUrl}
+                            alt=""
+                            className="max-h-56 max-w-full object-cover"
+                          />
+                        </a>
+                      )}
                       <p className="whitespace-pre-wrap break-words">
-                        {isDeleted ? 'تم حذف هذه الرسالة' : message.body}
+                        {isDeleted
+                          ? 'تم حذف هذه الرسالة'
+                          : message.body && message.body !== '📷'
+                            ? splitMessageBody(message.body).map((part, i) =>
+                                part.type === 'link' && part.href ? (
+                                  <a
+                                    key={i}
+                                    href={part.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={cn(
+                                      'underline underline-offset-2',
+                                      isMine ? 'text-primary-foreground/95' : 'text-primary',
+                                    )}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {part.value}
+                                  </a>
+                                ) : (
+                                  <span key={i}>{part.value}</span>
+                                ),
+                              )
+                            : null}
                       </p>
                     </div>
                   </div>
@@ -485,6 +594,7 @@ export function ChatWindow({ conversationId }: Props) {
                     <p className="px-1 text-[10px] text-destructive/80">{message.lastError.message}</p>
                   )}
                 </div>
+                </div>
               );
             })}
           </>
@@ -492,6 +602,11 @@ export function ChatWindow({ conversationId }: Props) {
         <div ref={bottomRef} />
       </div>
 
+      {partyTyping && (
+        <p className="border-t border-border/40 px-4 py-1.5 text-[11px] text-muted-foreground">
+          يكتب الآن…
+        </p>
+      )}
       <MessageInput conversationId={conversationId} disabled={isBlocked} />
 
       <ConfirmDialog

@@ -967,6 +967,9 @@ model Conversation {
   serviceRequestId String?         @unique
   buyerId          String
   sellerId         String
+  // MSG-FEAT: pin/archive — pinned threads float to top; archived hidden from default list
+  pinnedAt         DateTime?
+  archivedAt       DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   ad               Ad?             @relation(fields: [adId], references: [id])
@@ -995,6 +998,8 @@ model Message {
   conversationId String
   senderId       String
   body           String       @db.VarChar(2000)
+  // MSG-FEAT: optional image attachment (Cloudinary URL)
+  imageUrl       String?
   readAt         DateTime?
   // Soft-delete: set by the sender via DELETE /conversations/:id/messages/:messageId.
   // The row is kept (not physically removed) so the other party's thread

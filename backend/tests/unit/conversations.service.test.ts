@@ -351,7 +351,7 @@ describe('conversationsService', () => {
     it('throws NotFoundError when the conversation does not exist', async () => {
       (conversationsRepository.findById as jest.Mock).mockResolvedValue(null);
 
-      await expect(conversationsService.sendMessage(buyerId, 'conv-1', 'Hi')).rejects.toThrow(
+      await expect(conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' })).rejects.toThrow(
         NotFoundError
       );
     });
@@ -360,7 +360,7 @@ describe('conversationsService', () => {
       (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
 
       await expect(
-        conversationsService.sendMessage('stranger-1', 'conv-1', 'Hi')
+        conversationsService.sendMessage('stranger-1', 'conv-1', { body: 'Hi' })
       ).rejects.toThrow(ForbiddenError);
       expect(messagesRepository.create).not.toHaveBeenCalled();
     });
@@ -369,7 +369,7 @@ describe('conversationsService', () => {
       (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
 
       await expect(
-        conversationsService.sendMessage(buyerId, 'conv-1', 'Please use Western Union only')
+        conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Please use Western Union only' })
       ).rejects.toThrow(BadRequestError);
       expect(messagesRepository.create).not.toHaveBeenCalled();
     });
@@ -379,7 +379,7 @@ describe('conversationsService', () => {
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
 
-      const result = await conversationsService.sendMessage(buyerId, 'conv-1', 'Hi');
+      const result = await conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' });
 
       expect(messagesRepository.create).toHaveBeenCalledWith('conv-1', buyerId, 'Hi');
       expect(conversationsRepository.touchUpdatedAt).toHaveBeenCalledWith('conv-1');
@@ -401,7 +401,7 @@ describe('conversationsService', () => {
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
 
-      await conversationsService.sendMessage(buyerId, 'conv-1', 'Hi');
+      await conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' });
 
       expect(notificationEvents.onNewMessage).toHaveBeenCalledWith(
         sellerId,
@@ -415,7 +415,7 @@ describe('conversationsService', () => {
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
 
-      await conversationsService.sendMessage(sellerId, 'conv-1', 'Hi');
+      await conversationsService.sendMessage(sellerId, 'conv-1', { body: 'Hi' });
 
       expect(notificationEvents.onNewMessage).toHaveBeenCalledWith(
         buyerId,
@@ -430,7 +430,7 @@ describe('conversationsService', () => {
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
       (notificationEvents.onNewMessage as jest.Mock).mockRejectedValue(new Error('db down'));
 
-      const result = await conversationsService.sendMessage(buyerId, 'conv-1', 'Hi');
+      const result = await conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' });
 
       expect(result).toEqual(mockMessage);
     });
@@ -439,7 +439,7 @@ describe('conversationsService', () => {
       (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
       (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
 
-      await expect(conversationsService.sendMessage(buyerId, 'conv-1', 'Hi')).rejects.toThrow(
+      await expect(conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' })).rejects.toThrow(
         ForbiddenError
       );
       expect(blockedUsersService.isBlockedEitherDirection).toHaveBeenCalledWith(buyerId, sellerId);
