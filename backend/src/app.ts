@@ -44,7 +44,18 @@ app.use(
     // to send this header for csrf.middleware.ts's double-submit
     // cookie check to work (a browser blocks a cross-origin request
     // from setting a header not in this allowlist).
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-CSRF-Token'],
+    // FIX CORS-OFFLINE-OP-ID-01: X-Offline-Op-Id (see frontend's
+    // lib/offlineOperationId.ts) is sent on every ad/product/
+    // service-listing create & edit request so the SW's offline queue
+    // can link a queued mutation back to its local draft. Missing from
+    // this allowlist, it silently failed the browser's CORS preflight
+    // for exactly those requests — the request never left the browser,
+    // which surfaced client-side as a bare network error (axios got no
+    // response at all) indistinguishable from a real outage, even
+    // though the device was online and every other endpoint (login,
+    // GET routes, delete, markAsSold — none of which send this header)
+    // worked normally.
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-CSRF-Token', 'X-Offline-Op-Id'],
     exposedHeaders: ['X-Request-Id'],
   })
 );
