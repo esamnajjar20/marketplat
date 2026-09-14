@@ -26,6 +26,19 @@ export function useMarkNotificationRead() {
 }
 
 /** PATCH /notifications/read-all — the dropdown's "تعليم الكل كمقروء". */
+
+/** PATCH /notifications/:id/unread — إرجاع إشعار لغير مقروء. */
+export function useMarkNotificationUnread() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => notificationsApi.markUnread(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient();
 

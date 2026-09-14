@@ -24,6 +24,7 @@ notificationsRouter.get(
 notificationsRouter.patch('/read-all', authenticate, notificationsController.markAllRead);
 notificationsRouter.delete('/read', authenticate, notificationsController.deleteAllRead);
 notificationsRouter.patch('/:id/read', authenticate, notificationsController.markRead);
+notificationsRouter.patch('/:id/unread', authenticate, notificationsController.markUnread);
 notificationsRouter.delete('/:id', authenticate, notificationsController.deleteNotification);
 
 // FIX PWA-PUSH-01: matches the frontend's existing calls in lib/pwa.ts

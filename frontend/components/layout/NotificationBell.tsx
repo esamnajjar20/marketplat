@@ -4,19 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Bell,
-  MessageSquare,
-  Tag,
-  Megaphone,
-  BarChart3,
   CheckCheck,
-  Search,
   ChevronDown,
-  Flame,
-  Package,
-  Store,
-  ClipboardList,
   RefreshCw,
-  Users,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -35,81 +25,8 @@ import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/types/notification.types';
+import { TYPE_ICON, TYPE_LABEL, hrefFor } from '@/lib/notificationMeta';
 import { onPwaUpdateAvailable } from '@/components/pwa/UpdatePrompt';
-
-const TYPE_ICON: Record<NotificationType, typeof MessageSquare> = {
-  NEW_MESSAGE: MessageSquare,
-  FAV_AD_PRICE_CHANGED: Tag,
-  FAV_AD_SOLD: Tag,
-  PROMOTION: Megaphone,
-  WEEKLY_AD_VIEWS_REPORT: BarChart3,
-  SAVED_SEARCH_MATCH: Search,
-  PROMOTION_STATUS_CHANGE: Flame,
-  STORE_NEW_PRODUCT: Store,
-  STORE_PROMOTION_STARTED: Flame,
-  STORE_PRODUCT_RESTOCKED: Package,
-  NEW_SERVICE_QUOTE: ClipboardList,
-  SERVICE_QUOTE_ACCEPTED: ClipboardList,
-  STORE_MEMBER_INVITED: Users,
-};
-
-const TYPE_LABEL: Record<NotificationType, string> = {
-  NEW_MESSAGE: 'رسائل جديدة',
-  FAV_AD_PRICE_CHANGED: 'تغييرات في الأسعار',
-  FAV_AD_SOLD: 'إعلانات مُباعة',
-  PROMOTION: 'إعلانات ترويجية',
-  WEEKLY_AD_VIEWS_REPORT: 'تقارير المشاهدات',
-  SAVED_SEARCH_MATCH: 'نتائج بحث محفوظ',
-  PROMOTION_STATUS_CHANGE: 'عروضي',
-  STORE_NEW_PRODUCT: 'منتجات جديدة',
-  STORE_PROMOTION_STARTED: 'عروض المتاجر',
-  STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
-  NEW_SERVICE_QUOTE: 'عروض الأسعار',
-  SERVICE_QUOTE_ACCEPTED: 'عروض مقبولة',
-  STORE_MEMBER_INVITED: 'دعوات المتجر',
-};
-
-function hrefFor(notification: Notification): string | null {
-  const d = notification.data;
-  if (notification.type === 'NEW_MESSAGE' && d?.conversationId) {
-    return ROUTES.conversationDetail(d.conversationId);
-  }
-  if (
-    (notification.type === 'FAV_AD_PRICE_CHANGED' || notification.type === 'FAV_AD_SOLD') &&
-    d?.adId
-  ) {
-    return ROUTES.adDetail(d.adId);
-  }
-  if (notification.type === 'SAVED_SEARCH_MATCH') {
-    if (d?.adId) return ROUTES.adDetail(d.adId);
-    if (d?.productId) return ROUTES.productDetail(d.productId);
-    if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
-  }
-  if (notification.type === 'PROMOTION_STATUS_CHANGE') {
-    return ROUTES.myStorePromotions;
-  }
-  if (
-    notification.type === 'STORE_PROMOTION_STARTED' ||
-    notification.type === 'STORE_PRODUCT_RESTOCKED'
-  ) {
-    if (d?.productId) return ROUTES.productDetail(d.productId);
-    if (d?.storeId) return ROUTES.storeDetail(d.storeId);
-  }
-  if (notification.type === 'STORE_NEW_PRODUCT' && d?.storeId) {
-    return ROUTES.storeDetail(d.storeId);
-  }
-  if (
-    (notification.type === 'NEW_SERVICE_QUOTE' ||
-      notification.type === 'SERVICE_QUOTE_ACCEPTED') &&
-    d?.broadcastId
-  ) {
-    return `/service-broadcasts/${d.broadcastId}`;
-  }
-  if (notification.type === 'STORE_MEMBER_INVITED') {
-    return ROUTES.myStoreMembers;
-  }
-  return null;
-}
 
 function NotificationRow({
   notification,
@@ -406,5 +323,5 @@ export function NotificationBell() {
 }
 
 /** Shared by full notifications page. */
-export { hrefFor, TYPE_ICON, TYPE_LABEL };
+export { hrefFor, TYPE_ICON, TYPE_LABEL } from '@/lib/notificationMeta';
 

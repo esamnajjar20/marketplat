@@ -47,6 +47,17 @@ export const notificationsController = {
     }
   },
 
+  markUnread: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = notificationIdSchema.parse({ params: req.params });
+      await notificationsService.markUnread(user.userId, params.id);
+      res.status(200).json(successResponse('Notification marked as unread'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   markAllRead: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);

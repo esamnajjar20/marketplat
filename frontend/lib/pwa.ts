@@ -209,6 +209,18 @@ function urlBase64ToUint8Array(base64String: string): BufferSource {
   return outputArray as BufferSource;
 }
 
+
+/** حالة إذن Notification API في المتصفح (منفصل عن وجود اشتراك Push). */
+export function getBrowserNotificationPermission():
+  | 'granted'
+  | 'denied'
+  | 'default'
+  | 'unsupported' {
+  if (typeof window === 'undefined') return 'unsupported';
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission as 'granted' | 'denied' | 'default';
+}
+
 export function isPushSupported(): boolean {
   return (
     typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window

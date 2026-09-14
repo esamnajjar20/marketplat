@@ -24,6 +24,10 @@ export const notificationsApi = {
   markRead: (id: string) =>
     apiClient.patch<ApiResponse<void>>(`/notifications/${id}/read`),
 
+  /** PATCH /notifications/:id/unread */
+  markUnread: (id: string) =>
+    apiClient.patch<ApiResponse<void>>(`/notifications/${id}/unread`),
+
   /** PATCH /notifications/read-all */
   markAllRead: () =>
     apiClient.patch<ApiResponse<{ count: number }>>('/notifications/read-all'),

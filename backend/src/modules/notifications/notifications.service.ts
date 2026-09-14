@@ -57,9 +57,39 @@ async function userAllowsPref(userId: string, key: PrefKey): Promise<boolean> {
 export const notificationsService = {
   getMyNotifications: async (
     userId: string,
-    query: { page?: number; limit?: number; unreadOnly?: boolean }
+    query: {
+      page?: number;
+      limit?: number;
+      unreadOnly?: boolean;
+      type?: string;
+      category?: string;
+    }
   ): Promise<PaginatedResult<Notification>> => {
-    const { notifications, total } = await notificationsRepository.findManyForUser(userId, query);
+    let types: NotificationType[] | undefined;
+    if (query.type) {
+      types = [query.type as NotificationType];
+    } else if (query.category) {
+      const map: Record<string, NotificationType[]> = {
+        messages: ['NEW_MESSAGE'],
+        favorites: ['FAV_AD_PRICE_CHANGED', 'FAV_AD_SOLD', 'SAVED_SEARCH_MATCH'],
+        stores: [
+          'STORE_NEW_PRODUCT',
+          'STORE_PROMOTION_STARTED',
+          'STORE_PRODUCT_RESTOCKED',
+          'PROMOTION_STATUS_CHANGE',
+          'STORE_MEMBER_INVITED',
+        ],
+        services: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED'],
+        system: ['PROMOTION', 'WEEKLY_AD_VIEWS_REPORT'],
+      };
+      types = map[query.category];
+    }
+    const { notifications, total } = await notificationsRepository.findManyForUser(userId, {
+      page: query.page,
+      limit: query.limit,
+      unreadOnly: query.unreadOnly,
+      types,
+    });
     return {
       items: notifications,
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
@@ -71,6 +101,13 @@ export const notificationsService = {
 
   markRead: async (userId: string, id: string): Promise<void> => {
     const result = await notificationsRepository.markRead(id, userId);
+    if (result.count === 0) {
+      throw new NotFoundError('Notification not found', 'NOTIFICATION_NOT_FOUND');
+    }
+  },
+
+  markUnread: async (userId: string, id: string): Promise<void> => {
+    const result = await notificationsRepository.markUnread(id, userId);
     if (result.count === 0) {
       throw new NotFoundError('Notification not found', 'NOTIFICATION_NOT_FOUND');
     }

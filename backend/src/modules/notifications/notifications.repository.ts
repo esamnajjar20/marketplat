@@ -75,13 +75,19 @@ export const notificationsRepository = {
 
   findManyForUser: async (
     userId: string,
-    query: { page?: number; limit?: number; unreadOnly?: boolean }
+    query: {
+      page?: number;
+      limit?: number;
+      unreadOnly?: boolean;
+      types?: NotificationType[];
+    }
   ): Promise<{ notifications: Notification[]; total: number }> => {
-    const { page = 1, limit = 20, unreadOnly = false } = query;
+    const { page = 1, limit = 20, unreadOnly = false, types } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.NotificationWhereInput = {
       userId,
       ...(unreadOnly ? { readAt: null } : {}),
+      ...(types && types.length > 0 ? { type: { in: types } } : {}),
     };
 
     const [notifications, total] = await Promise.all([
@@ -117,6 +123,16 @@ export const notificationsRepository = {
     // but real race (count read stale-cached as unread between this
     // notification actually being read by another concurrent request
     // and this one landing) leaving a stale badge count uncorrected.
+    await unreadNotificationsCache.invalidate(userId);
+    return result;
+  },
+
+  /** NOTIF-UX-01: إعادة الإشعار لغير مقروء — مفيد بعد فتح بالخطأ. */
+  markUnread: async (id: string, userId: string): Promise<Prisma.BatchPayload> => {
+    const result = await prisma.notification.updateMany({
+      where: { id, userId, readAt: { not: null } },
+      data: { readAt: null },
+    });
     await unreadNotificationsCache.invalidate(userId);
     return result;
   },

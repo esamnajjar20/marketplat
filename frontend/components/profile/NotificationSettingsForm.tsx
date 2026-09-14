@@ -1,75 +1,116 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, X } from 'lucide-react';
 import { useMe } from '@/hooks/queries/useAuth';
 import { useUpdateNotificationPreferences } from '@/hooks/mutations/useUpdateProfile';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { Button } from '@/components/shared/ui/Button';
 import type { NotificationPreferences } from '@/types/user.types';
+import { cn } from '@/lib/utils';
 
-const SETTINGS = [
-  { key: 'newMessage',     label: 'رسائل جديدة',              desc: 'عند استلام رسالة من مشتري' },
-  { key: 'adViews',        label: 'مشاهدات الإعلان',           desc: 'تقرير أسبوعي بمشاهدات إعلاناتك' },
-  { key: 'favAdUpdated',   label: 'تحديثات المفضلة',           desc: 'عند تغيير سعر إعلان في المفضلة أو بيعه' },
-  { key: 'promotions',     label: 'عروض وتخفيضات',             desc: 'نشرة أخبار سوق غزة' },
-  // PROMO-1 (Phase 14): distinct from `promotions` above (marketplace
-  // newsletter) — this is about the seller's OWN Promotion rows on
-  // their own products, driven by myPromotionsExpiring.ts.
-  { key: 'myPromotions',   label: 'عروضي',                     desc: 'عند بدء أو قرب انتهاء أو انتهاء عرض على أحد منتجاتك' },
-  { key: 'savedSearch',    label: 'البحث المحفوظ',              desc: 'عند ظهور إعلان أو منتج أو خدمة تطابق بحثك' },
-  { key: 'storeUpdates',   label: 'تحديثات المتاجر',            desc: 'منتجات وعروض وإعادة توفّر من متاجر تتابعها' },
-  { key: 'serviceQuotes',  label: 'عروض أسعار الخدمات',         desc: 'عند استلام عرض سعر أو قبول عرضك' },
-] as const satisfies readonly { key: keyof NotificationPreferences; label: string; desc: string }[];
+type PrefKey = keyof NotificationPreferences;
+
+const GROUPS: {
+  title: string;
+  description: string;
+  items: { key: PrefKey; label: string; desc: string }[];
+}[] = [
+  {
+    title: 'التواصل',
+    description: 'رسائل ومحادثات المشترين',
+    items: [
+      { key: 'newMessage', label: 'رسائل جديدة', desc: 'عند استلام رسالة من مشتري أو بائع' },
+    ],
+  },
+  {
+    title: 'المفضلة والبحث',
+    description: 'تحديثات ما تتابعه',
+    items: [
+      {
+        key: 'favAdUpdated',
+        label: 'تحديثات المفضلة',
+        desc: 'عند تغيير سعر إعلان في المفضلة أو بيعه',
+      },
+      {
+        key: 'savedSearch',
+        label: 'البحث المحفوظ',
+        desc: 'عند ظهور إعلان أو منتج أو خدمة تطابق بحثك',
+      },
+    ],
+  },
+  {
+    title: 'المتاجر والعروض',
+    description: 'متاجر تتابعها وعروضك أنت',
+    items: [
+      {
+        key: 'storeUpdates',
+        label: 'تحديثات المتاجر',
+        desc: 'منتجات وعروض وإعادة توفّر من متاجر تتابعها',
+      },
+      {
+        key: 'myPromotions',
+        label: 'عروضي',
+        desc: 'عند بدء أو قرب انتهاء أو انتهاء عرض على أحد منتجاتك',
+      },
+      {
+        key: 'promotions',
+        label: 'عروض وتخفيضات المنصة',
+        desc: 'نشرة أخبار وعروض سوق غزة',
+      },
+    ],
+  },
+  {
+    title: 'الخدمات',
+    description: 'عروض الأسعار وطلبات الخدمة',
+    items: [
+      {
+        key: 'serviceQuotes',
+        label: 'عروض أسعار الخدمات',
+        desc: 'عند استلام عرض سعر أو قبول عرضك',
+      },
+    ],
+  },
+  {
+    title: 'تقارير البائع',
+    description: 'إحصائيات دورية',
+    items: [
+      {
+        key: 'adViews',
+        label: 'مشاهدات الإعلان',
+        desc: 'تقرير أسبوعي بمشاهدات إعلاناتك',
+      },
+    ],
+  },
+];
 
 const DEFAULT_PREFS: NotificationPreferences = {
-  newMessage: true, adViews: false, favAdUpdated: true, promotions: false, myPromotions: true, savedSearch: true, storeUpdates: true, serviceQuotes: true,
+  newMessage: true,
+  adViews: false,
+  favAdUpdated: true,
+  promotions: false,
+  myPromotions: true,
+  savedSearch: true,
+  storeUpdates: true,
+  serviceQuotes: true,
 };
 
-/**
- * FIX FEAT-02: previously this component used local-only useState seeded
- * with hardcoded defaults, and "save" was just a toast — nothing was
- * ever persisted, so a reload always reset to the same defaults
- * regardless of what the user had "saved" before. Now loads the user's
- * actual saved preferences via useMe() (GET /users/me) and persists each
- * toggle immediately via PATCH /users/me/notifications.
- */
 export function NotificationSettingsForm() {
   const { data: me, isLoading } = useMe();
   const updatePrefs = useUpdateNotificationPreferences();
-
-  // Local optimistic copy so toggling feels instant; reconciled from
-  // server data once it loads/refetches.
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
-
-  // UX-FIX P3-12: updatePrefs.isPending was shared across every switch —
-  // toggling one preference disabled ALL of them until that single
-  // request resolved, which looks like the whole form froze for an
-  // unrelated toggle. Track which key is actually in flight and disable
-  // only that one switch.
-  const [pendingKey, setPendingKey] = useState<keyof NotificationPreferences | null>(null);
+  const [pendingKey, setPendingKey] = useState<PrefKey | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
 
   useEffect(() => {
     if (me?.notificationPreferences) {
-      setPrefs(me.notificationPreferences);
+      setPrefs({ ...DEFAULT_PREFS, ...me.notificationPreferences });
     }
   }, [me?.notificationPreferences]);
 
-  function toggle(key: keyof NotificationPreferences) {
-    const next = !prefs[key];
+  function applyKey(key: PrefKey, next: boolean) {
     setPrefs((p) => ({ ...p, [key]: next }));
     setPendingKey(key);
-    // FIX FEAT-02: each switch saves immediately (matches the
-    // immediate-feedback feel of a toggle UI) rather than requiring a
-    // separate "save" click — the form below still allows a final
-    // explicit save for users who prefer that flow.
-    //
-    // UX-FIX P2-9: previously only toasted on error (see
-    // useUpdateNotificationPreferences's own onError) with no rollback —
-    // the switch stayed visually "on" even though the server rejected the
-    // change, so the UI silently lied about the saved state until the
-    // next full reload/refetch. Revert the optimistic flip here, on the
-    // same pattern useFavoriteMutations.ts already uses for its own
-    // optimistic toggle.
     updatePrefs.mutate(
       { [key]: next },
       {
@@ -79,50 +120,124 @@ export function NotificationSettingsForm() {
     );
   }
 
-  if (isLoading) {
-    return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
+  function toggle(key: PrefKey) {
+    applyKey(key, !prefs[key]);
   }
 
+  async function setAll(value: boolean) {
+    const patch: Partial<NotificationPreferences> = {};
+    for (const g of GROUPS) {
+      for (const item of g.items) {
+        if (prefs[item.key] !== value) patch[item.key] = value;
+      }
+    }
+    if (Object.keys(patch).length === 0) return;
+    setBulkPending(true);
+    const prev = { ...prefs };
+    setPrefs((p) => ({ ...p, ...patch }));
+    updatePrefs.mutate(patch, {
+      onError: () => setPrefs(prev),
+      onSettled: () => setBulkPending(false),
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  const enabledCount = GROUPS.flatMap((g) => g.items).filter((i) => prefs[i.key]).length;
+  const totalCount = GROUPS.flatMap((g) => g.items).length;
+
   return (
-    <div className="space-y-6 max-w-lg">
-      <h2 className="font-semibold">إعدادات الإشعارات</h2>
-      <div className="space-y-4">
-        {SETTINGS.map(({ key, label, desc }) => (
-          <div key={key} className="flex items-center justify-between p-3 rounded-lg border">
-            <div>
-              <p className="text-sm font-medium">{label}</p>
-              <p className="text-xs text-muted-foreground">{desc}</p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">أذونات وأنواع الإشعارات</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            اختر ما تريد استلامه داخل التطبيق وعلى الجهاز · {enabledCount}/{totalCount} مفعّل
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={bulkPending}
+            onClick={() => setAll(true)}
+            className="gap-1"
+          >
+            {bulkPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            تفعيل الكل
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={bulkPending}
+            onClick={() => setAll(false)}
+            className="gap-1 text-muted-foreground"
+          >
+            <X className="h-3 w-3" />
+            إيقاف الكل
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        {GROUPS.map((group) => (
+          <section key={group.title} className="space-y-2">
+            <div className="px-0.5">
+              <h3 className="text-sm font-semibold">{group.title}</h3>
+              <p className="text-[11px] text-muted-foreground">{group.description}</p>
             </div>
-            <div className="flex items-center gap-2">
-              {/* FIX P1-14: the toggle disabling + opacity dip during
-                  a save was the only feedback — easy to miss, and
-                  gave no positive confirmation that something was
-                  actually happening versus just being disabled for
-                  some other reason. A small spinner + "جارٍ الحفظ"
-                  next to the switch makes the in-flight state
-                  unambiguous. */}
-              {pendingKey === key && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" /> جارٍ الحفظ
-                </span>
-              )}
-              <button
-                role="switch" aria-checked={prefs[key] ? 'true' : 'false'} aria-label={label}
-                disabled={pendingKey === key}
-                onClick={() => toggle(key)}
-                className={`relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50
-                  ${prefs[key] ? 'bg-primary' : 'bg-input'}`}>
-                {/* DESIGN-FIX (audit): knob was bg-white (hardcoded) —
-                    washes out against the dark bg-input track in dark
-                    mode, unlike bg-primary/bg-input above which both
-                    already invert correctly via theme tokens.
-                    bg-background matches the app shell behind the
-                    switch in both themes. */}
-                <span className={`inline-block h-5 w-5 rounded-full bg-background shadow-sm transition-transform mt-0.5
-                  ${prefs[key] ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
-              </button>
+            <div className="overflow-hidden rounded-xl border divide-y">
+              {group.items.map(({ key, label, desc }) => {
+                const on = Boolean(prefs[key]);
+                const pending = pendingKey === key;
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {pending && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={on}
+                        aria-label={label}
+                        disabled={pending || bulkPending}
+                        onClick={() => toggle(key)}
+                        className={cn(
+                          'relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50',
+                          on ? 'bg-primary' : 'bg-input',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
+                            on ? 'start-[1.375rem]' : 'start-0.5',
+                          )}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          </section>
         ))}
       </div>
     </div>

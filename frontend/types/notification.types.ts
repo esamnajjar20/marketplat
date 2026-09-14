@@ -90,4 +90,8 @@ export interface NotificationsQuery {
   page?: number;
   limit?: number;
   unreadOnly?: boolean;
+  /** نوع إشعار واحد */
+  type?: NotificationType;
+  /** فئة الواجهة: messages | favorites | stores | services | system */
+  category?: 'messages' | 'favorites' | 'stores' | 'services' | 'system';
 }

@@ -6,48 +6,83 @@ const optionalQueryBoolean = z.preprocess(
   z.boolean().optional()
 );
 
+/** أنواع Prisma NotificationType — تُبقى متوافقة مع الـ enum في schema. */
+const notificationTypeEnum = z.enum([
+  'NEW_MESSAGE',
+  'FAV_AD_PRICE_CHANGED',
+  'FAV_AD_SOLD',
+  'PROMOTION',
+  'WEEKLY_AD_VIEWS_REPORT',
+  'SAVED_SEARCH_MATCH',
+  'PROMOTION_STATUS_CHANGE',
+  'STORE_NEW_PRODUCT',
+  'STORE_PROMOTION_STARTED',
+  'STORE_PRODUCT_RESTOCKED',
+  'NEW_SERVICE_QUOTE',
+  'SERVICE_QUOTE_ACCEPTED',
+  'STORE_MEMBER_INVITED',
+]);
+
+/** فئة واجهة المستخدم → مجموعة أنواع (نفس تجميع الواجهة). */
+export const NOTIFICATION_CATEGORY_TYPES = {
+  messages: ['NEW_MESSAGE'],
+  favorites: ['FAV_AD_PRICE_CHANGED', 'FAV_AD_SOLD', 'SAVED_SEARCH_MATCH'],
+  stores: [
+    'STORE_NEW_PRODUCT',
+    'STORE_PROMOTION_STARTED',
+    'STORE_PRODUCT_RESTOCKED',
+    'PROMOTION_STATUS_CHANGE',
+    'STORE_MEMBER_INVITED',
+  ],
+  services: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED'],
+  system: ['PROMOTION', 'WEEKLY_AD_VIEWS_REPORT'],
+} as const;
+
+export type NotificationCategory = keyof typeof NOTIFICATION_CATEGORY_TYPES;
+
 export const getNotificationsSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
     unreadOnly: optionalQueryBoolean,
+    /** فلتر نوع واحد */
+    type: notificationTypeEnum.optional(),
+    /**
+     * فئة واجهة: messages | favorites | stores | services | system
+     * تُحوَّل في الخدمة إلى قائمة types.
+     */
+    category: z
+      .enum(['messages', 'favorites', 'stores', 'services', 'system'])
+      .optional(),
   }),
 });
 
 export type GetNotificationsQuery = z.infer<typeof getNotificationsSchema>['query'];
 
 export const notificationIdSchema = z.object({
-  params: z.object({ id: z.string().min(1, 'Notification ID is required') }),
+  params: z.object({
+    id: z.string().min(1),
+  }),
 });
 
-// Admin-only broadcast — see notifications.service.ts's broadcastPromotion
-// doc comment for why userIds is required rather than an implicit "all".
-// allUsers is a controller-level shortcut (admin.controller.ts's
-// broadcastNotification): when true, the resolved list of every active
-// user id is used INSTEAD of userIds — userIds must still be present to
-// satisfy this schema, but the frontend can send a 1-element placeholder
-// array in that case since it's discarded.
 export const broadcastNotificationSchema = z.object({
   body: z.object({
-    userIds: z.array(z.string().min(1)).min(1, 'At least one recipient is required').max(10_000),
+    userIds: z.array(z.string().min(1)).min(1).max(10_000),
     allUsers: z.boolean().optional(),
     title: z.string().min(1).max(200),
     body: z.string().min(1).max(500),
   }),
 });
 
-export type BroadcastNotificationInput = z.infer<typeof broadcastNotificationSchema>['body'];
+export const deleteFcmTokenSchema = z.object({
+  body: z.object({
+    token: z.string().min(1),
+  }),
+});
 
-// FIX PWA-PUSH-01: mirrors the browser PushSubscription.toJSON() shape
-// exactly (endpoint + nested keys.p256dh/keys.auth) — see
-// notifications.repository.ts's PushSubscriptionInput doc comment for
-// why the nesting is kept rather than flattened. endpoint has no fixed
-// format across push services (FCM/autopush/etc. URLs vary in length
-// and structure) so it's validated as a URL and length-capped to match
-// the schema column (@db.VarChar(1000)) rather than pattern-matched.
 export const createPushSubscriptionSchema = z.object({
   body: z.object({
-    endpoint: z.string().url().max(1000),
+    endpoint: z.string().url(),
     keys: z.object({
       p256dh: z.string().min(1),
       auth: z.string().min(1),
@@ -55,39 +90,21 @@ export const createPushSubscriptionSchema = z.object({
   }),
 });
 
-export type CreatePushSubscriptionInput = z.infer<typeof createPushSubscriptionSchema>['body'];
-
-// DELETE carries its endpoint in the request body (not a URL param)
-// since the endpoint is itself a full URL — the frontend already sends
-// it this way (see lib/pwa.ts's unsubscribeFromPush, which calls
-// apiClient.delete('/notifications/push-subscriptions', { data: { endpoint } })).
 export const deletePushSubscriptionSchema = z.object({
   body: z.object({
-    endpoint: z.string().url().max(1000),
+    endpoint: z.string().min(1),
   }),
 });
 
-export type DeletePushSubscriptionInput = z.infer<typeof deletePushSubscriptionSchema>['body'];
-
-// NEW — native (Capacitor/FCM) device-token registration, counterpart
-// to createPushSubscriptionSchema/deletePushSubscriptionSchema above
-// (those are Web Push; this is the native-app path). `token` is FCM's
-// own opaque device token — no fixed format is documented by Google,
-// so like `endpoint` above it's only length-capped to match the
-// schema column (@db.VarChar(500)), not pattern-matched.
 export const registerFcmTokenSchema = z.object({
   body: z.object({
-    token: z.string().min(1).max(500),
-    platform: z.enum(['android', 'ios']),
+    token: z.string().min(1),
+    platform: z.string().min(1),
   }),
 });
 
-export type RegisterFcmTokenInput = z.infer<typeof registerFcmTokenSchema>['body'];
-
-export const deleteFcmTokenSchema = z.object({
+export const unregisterFcmTokenSchema = z.object({
   body: z.object({
-    token: z.string().min(1).max(500),
+    token: z.string().min(1),
   }),
 });
-
-export type DeleteFcmTokenInput = z.infer<typeof deleteFcmTokenSchema>['body'];
