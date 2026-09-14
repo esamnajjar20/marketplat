@@ -65,9 +65,9 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
       router.push(ROUTES.myStoreProducts);
     },
     onError: async (err, payload) => {
-      const parsed = parseApiError(err);
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline || parsed.queued) {
+      // FIX FALSE-OFFLINE-DRAFT-01: مسودة + «محفوظ محليًا» فقط عند أوفلاين حقيقي.
+      if (offline) {
         try {
           const files = payload.images ?? [];
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
@@ -128,9 +128,8 @@ export function useUpdateProduct(productId: string) {
       router.push(ROUTES.myStoreProducts);
     },
     onError: async (err, payload) => {
-      const parsed = parseApiError(err);
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline || parsed.queued) {
+      if (offline) {
         try {
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,

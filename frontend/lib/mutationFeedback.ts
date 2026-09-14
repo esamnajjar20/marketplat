@@ -38,7 +38,11 @@ import { parseApiError } from '@/lib/errorParser';
 
 export function toastMutationError(err: unknown): void {
   const parsed = parseApiError(err);
-  if (parsed.queued) {
+  const offline =
+    typeof navigator !== 'undefined' && navigator.onLine === false;
+  // FIX FALSE-OFFLINE-DRAFT-01: رسالة الطابور الهادئة فقط والجهاز أوفلاين.
+  // لو SW قديم رجّع queued وأنت أونلاين، نعرض خطأ عادي بدل «محفوظ محليًا».
+  if (parsed.queued && offline) {
     // Neutral/info toast, not the red error one — this "error" is the
     // SW's offline queue confirming it safely captured the request, not
     // a failure. See FIX QUEUE-UX-01 (client.ts) for where `.queued`

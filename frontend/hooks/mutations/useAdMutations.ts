@@ -88,7 +88,9 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       const parsed = parseApiError(err);
       const offline =
         typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline || parsed.queued) {
+      // FIX FALSE-OFFLINE-DRAFT-01: مسودة + «محفوظ محليًا» فقط عند أوفلاين حقيقي.
+      // سابقًا offline || parsed.queued كانت تُظهر الرسالة والجهاز أونلاين.
+      if (offline) {
         try {
           const files = (payload as { images?: File[] }).images ?? [];
           // FIX IMAGEOFFLINE-WIRE-01: أفضل جهد — لا يوقف حفظ المسودة لو
@@ -154,7 +156,7 @@ export function useUpdateAd(adId: string) {
       const parsed = parseApiError(err);
       const offline =
         typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline || parsed.queued) {
+      if (offline) {
         try {
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,

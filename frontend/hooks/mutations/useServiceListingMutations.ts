@@ -68,9 +68,9 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
       router.push(ROUTES.myServices);
     },
     onError: async (err, payload) => {
-      const parsed = parseApiError(err);
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline || parsed.queued) {
+      // FIX FALSE-OFFLINE-DRAFT-01: مسودة + «محفوظ محليًا» فقط عند أوفلاين حقيقي.
+      if (offline) {
         try {
           const files = payload.images ?? [];
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
@@ -130,9 +130,8 @@ export function useUpdateServiceListing(listingId: string) {
       router.push(ROUTES.myServices);
     },
     onError: async (err, payload) => {
-      const parsed = parseApiError(err);
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (offline || parsed.queued) {
+      if (offline) {
         try {
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
