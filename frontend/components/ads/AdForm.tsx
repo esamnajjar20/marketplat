@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { Button }     from '@/components/shared/ui/Button';
 import { Input }      from '@/components/shared/ui/Input';
@@ -16,6 +17,11 @@ import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { getAdDraft } from '@/lib/offlineAdDrafts';
+import {
+  setActiveOfflineDraftId,
+  adFieldsFromDraftPayload,
+} from '@/lib/offlineDraftResume';
 import { AdFormPreview } from '@/components/ads/AdFormPreview';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { parseApiError } from '@/lib/errorParser';
@@ -47,6 +53,8 @@ type DraftValues = Omit<AdFormValues, 'images' | 'existingImages'>;
 
 export function AdForm({ mode, ad }: Props) {
   const { data: categories } = useCategories();
+  const searchParams = useSearchParams();
+  const offlineDraftId = searchParams.get('draftId');
   // UX-FIX P3-10b: real upload progress (0-100) for the images actually
   // being sent in this submission, shown in ImageUpload while it's in
   // flight instead of leaving the user with only the button's static
@@ -73,6 +81,8 @@ export function AdForm({ mode, ad }: Props) {
   // there). Falls back to EMPTY exactly as before when there's no
   // draft, so this is a strict addition — nothing changes for a
   // first-time visit to the form.
+  // Offline IndexedDB resume (?draftId=) is applied async in useEffect
+  // below and takes priority over localStorage useFormDraft.
   const [values, setValues] = useState<AdFormValues>(() => {
     if (ad) {
       return {
@@ -83,6 +93,7 @@ export function AdForm({ mode, ad }: Props) {
         existingImages: ad.images,
       };
     }
+    if (offlineDraftId) return EMPTY; // wait for IndexedDB load
     const draft = readFormDraft<DraftValues>('ad:create');
     return draft ? { ...EMPTY, ...draft } : EMPTY;
   });
@@ -92,7 +103,49 @@ export function AdForm({ mode, ad }: Props) {
   // any existing image removed/reordered as dirty too — cheaper and
   // just as reliable as a deep-equal here since `images` holds live
   // File objects that aren't meaningfully comparable by value anyway.
-  const [initialValues] = useState<AdFormValues>(() => values);
+  const [initialValues, setInitialValues] = useState<AdFormValues>(() => values);
+
+  // استئناف مسودة IndexedDB من مركز المزامنة (?draftId=)
+  useEffect(() => {
+    if (!offlineDraftId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const d = await getAdDraft(offlineDraftId);
+        if (cancelled || !d) return;
+        if ((d.kind ?? 'ad') !== 'ad') return;
+        const fields = adFieldsFromDraftPayload(d.payload);
+        setValues((prev) => ({
+          ...prev,
+          ...fields,
+          images: [],
+          // keep existing server images in edit mode; offline previews
+          // are display-only and not re-uploadable as Files
+          existingImages: prev.existingImages,
+        }));
+        setInitialValues((prev) => ({
+          ...prev,
+          ...fields,
+          images: [],
+          existingImages: prev.existingImages,
+        }));
+        setActiveOfflineDraftId(d.id);
+        const labels = d.payload.imageLabels;
+        if (Array.isArray(labels) && labels.length > 0) {
+          toast.message('استُعيدت حقول المسودة', {
+            description: 'أعد اختيار الصور إن لزم — النسخ الأصلية غير محفوظة في المسودة المحلية.',
+          });
+        } else {
+          toast.message('استُعيدت المسودة المحلية');
+        }
+      } catch {
+        /* ignore — form stays empty / server-seeded */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [offlineDraftId]);
 
   // TRACK-AD-STORE: personal vs store publisher (create mode only)
   const [publisherMode, setPublisherMode] = useState<PublisherMode>('personal');

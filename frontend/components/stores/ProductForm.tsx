@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
@@ -9,6 +10,11 @@ import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { getAdDraft } from '@/lib/offlineAdDrafts';
+import {
+  setActiveOfflineDraftId,
+  productFieldsFromDraftPayload,
+} from '@/lib/offlineDraftResume';
 import {
   useCreateProduct,
   useUpdateProduct,
@@ -51,6 +57,8 @@ type ProductDraftValues = Omit<ProductFormValues, 'images' | 'existingImages'>;
 
 export function ProductForm({ mode, product }: Props) {
   const { data: categories } = useProductCategories();
+  const searchParams = useSearchParams();
+  const offlineDraftId = searchParams.get('draftId');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const create = useCreateProduct((p) => setUploadProgress(p));
   const update = useUpdateProduct(product?.id ?? '');
@@ -70,42 +78,79 @@ export function ProductForm({ mode, product }: Props) {
   // originalImages (FIX I-04).
   const [originalImages] = useState<string[]>(() => product?.images ?? []);
 
-  const [values, setValues] = useState<ProductFormValues>(() =>
-    product
-      ? {
-          categoryId: product.categoryId,
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          discountPrice: product.discountPrice ?? '',
-          wholesalePrice: product.wholesalePrice ?? '',
-          wholesaleMinQty: product.wholesaleMinQty ? String(product.wholesaleMinQty) : '',
-          availability: product.availability,
-          stockQuantity: product.stockQuantity != null ? String(product.stockQuantity) : '',
-          images: [],
-          existingImages: product.images,
-        }
-      : {
-          // PHASE-OFFLINE-DRAFTS: بذر الحالة الابتدائية من مسودة محفوظة
-          // إن وُجدت — نفس منطق AdForm.tsx بالضبط.
-          ...{
-            categoryId: '',
-            name: '',
-            description: '',
-            price: '',
-            discountPrice: '',
-            wholesalePrice: '',
-            wholesaleMinQty: '',
-            availability: 'IN_STOCK' as ProductAvailability,
-            stockQuantity: '',
-          },
-          ...(readFormDraft<ProductDraftValues>('product:create') ?? {}),
-          images: [],
-          existingImages: [],
-        }
-  );
+  const [values, setValues] = useState<ProductFormValues>(() => {
+    if (product) {
+      return {
+        categoryId: product.categoryId,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        discountPrice: product.discountPrice ?? '',
+        wholesalePrice: product.wholesalePrice ?? '',
+        wholesaleMinQty: product.wholesaleMinQty ? String(product.wholesaleMinQty) : '',
+        availability: product.availability,
+        stockQuantity: product.stockQuantity != null ? String(product.stockQuantity) : '',
+        images: [],
+        existingImages: product.images,
+      };
+    }
+    const empty = {
+      categoryId: '',
+      name: '',
+      description: '',
+      price: '',
+      discountPrice: '',
+      wholesalePrice: '',
+      wholesaleMinQty: '',
+      availability: 'IN_STOCK' as ProductAvailability,
+      stockQuantity: '',
+      images: [] as File[],
+      existingImages: [] as string[],
+    };
+    if (offlineDraftId) return empty;
+    return {
+      ...empty,
+      ...(readFormDraft<ProductDraftValues>('product:create') ?? {}),
+      images: [],
+      existingImages: [],
+    };
+  });
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  // استئناف مسودة IndexedDB من مركز المزامنة (?draftId=)
+  useEffect(() => {
+    if (!offlineDraftId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const d = await getAdDraft(offlineDraftId);
+        if (cancelled || !d || d.kind !== 'product') return;
+        const fields = productFieldsFromDraftPayload(d.payload);
+        setValues((prev) => ({
+          ...prev,
+          ...fields,
+          availability: (fields.availability as ProductAvailability) || prev.availability,
+          images: [],
+          existingImages: prev.existingImages,
+        }));
+        setActiveOfflineDraftId(d.id);
+        const labels = d.payload.imageLabels;
+        if (Array.isArray(labels) && labels.length > 0) {
+          toast.message('استُعيدت حقول المسودة', {
+            description: 'أعد اختيار الصور إن لزم — النسخ الأصلية غير محفوظة في المسودة المحلية.',
+          });
+        } else {
+          toast.message('استُعيدت المسودة المحلية');
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [offlineDraftId]);
 
   // PHASE-OFFLINE-DRAFTS: يحفظ الحقول النصية دوريًا بينما المستخدم
   // يملأ نموذج منتج *جديد* — بوضع create فقط (نفس استثناء AdForm.tsx:

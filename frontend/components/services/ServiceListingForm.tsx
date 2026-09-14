@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
@@ -9,6 +10,11 @@ import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { getAdDraft } from '@/lib/offlineAdDrafts';
+import {
+  setActiveOfflineDraftId,
+  serviceFieldsFromDraftPayload,
+} from '@/lib/offlineDraftResume';
 import {
   useCreateServiceListing,
   useUpdateServiceListing,
@@ -59,6 +65,8 @@ type ServiceDraftValues = Omit<ServiceListingFormValues, 'images' | 'existingIma
 
 export function ServiceListingForm({ mode, listing }: Props) {
   const { data: categories } = useServiceCategories();
+  const searchParams = useSearchParams();
+  const offlineDraftId = searchParams.get('draftId');
   // UX-FIX P3-10b: same real upload-progress pattern as AdForm — 0-100
   // while the create request's images are actually uploading, null the
   // rest of the time.
@@ -80,38 +88,76 @@ export function ServiceListingForm({ mode, listing }: Props) {
   // same as AdForm's originalImages (FIX I-04).
   const [originalImages] = useState<string[]>(() => listing?.images ?? []);
 
-  const [values, setValues] = useState<ServiceListingFormValues>(() =>
-    listing
-      ? {
-          categoryId: listing.categoryId,
-          title: listing.title,
-          description: listing.description,
-          pricingType: listing.pricingType,
-          price: listing.price ?? '',
-          durationEstimate: listing.durationEstimate ?? '',
-          serviceLocation: listing.serviceLocation,
-          images: [],
-          existingImages: listing.images,
-        }
-      : {
-          // PHASE-OFFLINE-DRAFTS: بذر الحالة الابتدائية من مسودة محفوظة
-          // إن وُجدت — نفس منطق AdForm.tsx بالضبط.
-          ...{
-            categoryId: '',
-            title: '',
-            description: '',
-            pricingType: 'NEGOTIABLE' as ServicePricingType,
-            price: '',
-            durationEstimate: '',
-            serviceLocation: 'AT_PROVIDER' as ServiceLocationType,
-          },
-          ...(readFormDraft<ServiceDraftValues>('service:create') ?? {}),
-          images: [],
-          existingImages: [],
-        }
-  );
+  const [values, setValues] = useState<ServiceListingFormValues>(() => {
+    if (listing) {
+      return {
+        categoryId: listing.categoryId,
+        title: listing.title,
+        description: listing.description,
+        pricingType: listing.pricingType,
+        price: listing.price ?? '',
+        durationEstimate: listing.durationEstimate ?? '',
+        serviceLocation: listing.serviceLocation,
+        images: [],
+        existingImages: listing.images,
+      };
+    }
+    const empty = {
+      categoryId: '',
+      title: '',
+      description: '',
+      pricingType: 'NEGOTIABLE' as ServicePricingType,
+      price: '',
+      durationEstimate: '',
+      serviceLocation: 'AT_PROVIDER' as ServiceLocationType,
+      images: [] as File[],
+      existingImages: [] as string[],
+    };
+    if (offlineDraftId) return empty;
+    return {
+      ...empty,
+      ...(readFormDraft<ServiceDraftValues>('service:create') ?? {}),
+      images: [],
+      existingImages: [],
+    };
+  });
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  // استئناف مسودة IndexedDB من مركز المزامنة (?draftId=)
+  useEffect(() => {
+    if (!offlineDraftId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const d = await getAdDraft(offlineDraftId);
+        if (cancelled || !d || d.kind !== 'service') return;
+        const fields = serviceFieldsFromDraftPayload(d.payload);
+        setValues((prev) => ({
+          ...prev,
+          ...fields,
+          pricingType: (fields.pricingType as ServicePricingType) || prev.pricingType,
+          serviceLocation: (fields.serviceLocation as ServiceLocationType) || prev.serviceLocation,
+          images: [],
+          existingImages: prev.existingImages,
+        }));
+        setActiveOfflineDraftId(d.id);
+        const labels = d.payload.imageLabels;
+        if (Array.isArray(labels) && labels.length > 0) {
+          toast.message('استُعيدت حقول المسودة', {
+            description: 'أعد اختيار الصور إن لزم — النسخ الأصلية غير محفوظة في المسودة المحلية.',
+          });
+        } else {
+          toast.message('استُعيدت المسودة المحلية');
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [offlineDraftId]);
 
   // PHASE-OFFLINE-DRAFTS: بوضع create فقط — نفس استثناء AdForm.tsx
   // لوضع edit (بيانات سيرفر حقيقية موجودة أصلاً، لا داعي لمسودة).

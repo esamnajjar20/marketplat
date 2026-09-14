@@ -16,6 +16,7 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -38,6 +39,7 @@ import {
   type AdDraft,
   type AdDraftPreviewImage,
 } from '@/lib/offlineAdDrafts';
+import { resumeHrefForDraft } from '@/lib/offlineDraftResume';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 
@@ -209,21 +211,30 @@ export function SyncCenterClient() {
                     <p className="mt-1 text-xs text-destructive">{d.lastError}</p>
                   ) : null}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="حذف المسودة"
-                  onClick={() => void handleDeleteDraft(d.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={resumeHrefForDraft(d)}>
+                      <Pencil className="me-1 h-3.5 w-3.5" />
+                      متابعة
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="حذف المسودة"
+                    onClick={() => void handleDeleteDraft(d.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
         )}
         <p className="text-xs text-muted-foreground">
-          المسودات تُحفظ عند تعذّر النشر بدون إنترنت (إعلان، منتج، أو خدمة). أكمل الرفع وأنت
-          متصل من النموذج المناسب أو بعد استعادة الحقول من المسودة.
+          المسودات تُحفظ عند تعذّر النشر بدون إنترنت (إعلان، منتج، أو خدمة). استخدم «متابعة»
+          لفتح النموذج معبّأً بالحقول المحفوظة وتصحيحها ثم إعادة الإرسال — الصور الأصلية
+          قد تحتاج إعادة اختيار.
         </p>
       </section>
 

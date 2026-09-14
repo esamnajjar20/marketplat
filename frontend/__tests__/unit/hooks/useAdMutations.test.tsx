@@ -429,7 +429,12 @@ describe('useUpdateAd', () => {
     (adsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     const { wrapper } = createWrapper();
-    const payload = { title: 'Updated offline' } as unknown as Parameters<typeof adsApi.update>[1];
+    // FIX AD-DRAFT-FIELDS-01: include condition + isNegotiable so resume keeps them
+    const payload = {
+      title: 'Updated offline',
+      condition: 'USED',
+      isNegotiable: true,
+    } as unknown as Parameters<typeof adsApi.update>[1];
 
     const { result } = renderHook(() => useUpdateAd('ad-1'), { wrapper });
     act(() => { result.current.mutate(payload); });
@@ -445,6 +450,11 @@ describe('useUpdateAd', () => {
         status: 'pending_sync',
         operationId: sentOperationId,
         userId: 'user-1',
+        payload: expect.objectContaining({
+          title: 'Updated offline',
+          condition: 'USED',
+          isNegotiable: true,
+        }),
       }),
     );
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });

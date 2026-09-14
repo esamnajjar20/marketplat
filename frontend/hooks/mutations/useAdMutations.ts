@@ -29,6 +29,10 @@ import { ROUTES }        from '@/lib/constants';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
 import { compressImageForOffline } from '@/lib/imageOffline';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import {
+  getActiveOfflineDraftId,
+  clearActiveOfflineDraftId,
+} from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 
 /**
@@ -72,6 +76,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       return adsApi.create(payload, onUploadProgress, operationIdRef.current).then((r) => r.data.data);
     },
     onSuccess: (ad) => {
+      clearActiveOfflineDraftId();
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       toast.success('تم نشر الإعلان بنجاح', {
         description: 'شاركه مع معارفك لزيادة المشاهدات. يمكنك تعديله لاحقاً من «إعلاناتي».',
@@ -90,6 +95,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
           // فشل الضغط (بيئة بلا Canvas، ملف غير صورة، إلخ).
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
           await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
             kind: 'ad',
             payload: {
@@ -99,6 +105,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               categoryId: (payload as { categoryId?: string }).categoryId ?? null,
               city: (payload as { city?: string }).city ?? null,
               condition: (payload as { condition?: string }).condition ?? null,
+              isNegotiable: Boolean((payload as { isNegotiable?: boolean }).isNegotiable),
               imageLabels: files.map((f) => f.name),
             },
             status: 'pending_sync',
@@ -138,6 +145,7 @@ export function useUpdateAd(adId: string) {
       return adsApi.update(adId, payload, operationIdRef.current).then((r) => r.data.data);
     },
     onSuccess: (ad) => {
+      clearActiveOfflineDraftId();
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       toast.success('تم حفظ التعديلات');
       if (ad) router.push(ROUTES.adDetail(ad.id));
@@ -149,6 +157,7 @@ export function useUpdateAd(adId: string) {
       if (offline || parsed.queued) {
         try {
           await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
             mode: 'edit',
             kind: 'ad',
             remoteAdId: adId,
@@ -158,6 +167,10 @@ export function useUpdateAd(adId: string) {
               price: (payload as { price?: string | number }).price ?? null,
               categoryId: (payload as { categoryId?: string }).categoryId ?? null,
               city: (payload as { city?: string }).city ?? null,
+              // FIX AD-DRAFT-FIELDS-01: condition + isNegotiable كانت تُفقد
+              // عند الاستئناف من مركز المزامنة بعد تعديل أوفلاين.
+              condition: (payload as { condition?: string }).condition ?? null,
+              isNegotiable: Boolean((payload as { isNegotiable?: boolean }).isNegotiable),
             },
             status: 'pending_sync',
             operationId: operationIdRef.current,

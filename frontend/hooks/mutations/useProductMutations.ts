@@ -12,6 +12,10 @@ import { ROUTES } from '@/lib/constants';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
 import { compressImageForOffline } from '@/lib/imageOffline';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import {
+  getActiveOfflineDraftId,
+  clearActiveOfflineDraftId,
+} from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { CreateProductPayload, UpdateProductPayload, Product } from '@/types/product.types';
 import type { PaginatedResponse } from '@/types/api.types';
@@ -55,6 +59,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
         .then((r) => r.data.data);
     },
     onSuccess: () => {
+      clearActiveOfflineDraftId();
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم إضافة المنتج بنجاح');
       router.push(ROUTES.myStoreProducts);
@@ -67,6 +72,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
           const files = payload.images ?? [];
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
           await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
             kind: 'product',
             payload: {
@@ -116,6 +122,7 @@ export function useUpdateProduct(productId: string) {
         .then((r) => r.data.data);
     },
     onSuccess: () => {
+      clearActiveOfflineDraftId();
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم حفظ التعديلات');
       router.push(ROUTES.myStoreProducts);
@@ -126,6 +133,7 @@ export function useUpdateProduct(productId: string) {
       if (offline || parsed.queued) {
         try {
           await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
             mode: 'edit',
             kind: 'product',
             remoteAdId: productId,

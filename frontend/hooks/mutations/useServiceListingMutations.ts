@@ -12,6 +12,10 @@ import { ROUTES } from '@/lib/constants';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
 import { compressImageForOffline } from '@/lib/imageOffline';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import {
+  getActiveOfflineDraftId,
+  clearActiveOfflineDraftId,
+} from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type {
   CreateServiceListingPayload,
@@ -58,6 +62,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
         .then((r) => r.data.data);
     },
     onSuccess: () => {
+      clearActiveOfflineDraftId();
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
       toast.success('تم نشر الخدمة بنجاح');
       router.push(ROUTES.myServices);
@@ -70,6 +75,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
           const files = payload.images ?? [];
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
           await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
             kind: 'service',
             payload: {
@@ -115,6 +121,7 @@ export function useUpdateServiceListing(listingId: string) {
         .then((r) => r.data.data);
     },
     onSuccess: () => {
+      clearActiveOfflineDraftId();
       // Same reasoning as useUpdateAd's I-05 fix: invalidate the whole
       // ['service-listings'] prefix, not just detail+mine, so public
       // browse/search queries don't keep showing stale data.
@@ -128,6 +135,7 @@ export function useUpdateServiceListing(listingId: string) {
       if (offline || parsed.queued) {
         try {
           await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
             mode: 'edit',
             kind: 'service',
             remoteAdId: listingId,
