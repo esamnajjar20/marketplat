@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Store } from 'lucide-react';
+import { AlertTriangle, Store } from 'lucide-react';
 import { CreateAdForm } from '@/components/ads/CreateAdForm';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { ROUTES } from '@/lib/constants';
+import type { ParsedError } from '@/lib/errorParser';
 
 /**
  * Gates ad creation behind having a SellerProfile — checked client-side
@@ -22,14 +23,37 @@ import { ROUTES } from '@/lib/constants';
  * the other reopens the exact mismatch this component's history has
  * already hit once (frontend blocking everyone vs. backend allowing
  * everyone).
+ *
+ * FIX OFFLINE-GATE-404-01: mirrors the same fix on the shared
+ * RequireProfileGate (store/service-provider gates) — this one is
+ * inlined rather than using that component, but had the identical bug:
+ * `isError || !profile` treated a network/offline failure the same as
+ * "no seller profile yet", wrongly sending an existing seller who's
+ * offline with no warm cache to "create a seller profile" instead of a
+ * "can't verify right now" message. Only a confirmed 404 means no
+ * profile exists.
  */
 export function CreateAdGate() {
-  const { data: profile, isLoading, isError } = useMySellerProfile();
+  const { data: profile, isLoading, isError, error, refetch } = useMySellerProfile();
 
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  const statusCode = (error as ParsedError | null)?.statusCode;
+
+  if (isError && statusCode !== 404) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-muted-foreground">
+        <AlertTriangle className="h-8 w-8" />
+        <p>تعذّر التحقق من ملف البائع. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.</p>
+        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+          إعادة المحاولة
+        </button>
       </div>
     );
   }

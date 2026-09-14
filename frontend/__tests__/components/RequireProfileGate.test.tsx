@@ -12,14 +12,18 @@
  *
  * Coverage:
  *  - Loading state shows a spinner, renders neither children nor the CTA
- *  - isError (with no data) is read as "no profile yet", not a real
- *    error — same convention the gate's own comment documents for
- *    useMyStore/useMySellerProfile/useMyServiceProvider
+ *  - A confirmed 404 error (real "no profile") shows the "create it" CTA
  *  - No data (isError false, data undefined) also falls through to the
  *    CTA — covers the "resolved successfully but nothing there" case
  *  - Data present renders children, not the CTA
  *  - The CTA link carries `from` as an encoded ?from= query param onto
  *    setupHref, so the setup page can send the user back afterward
+ *  - FIX OFFLINE-GATE-404-01: a non-404 error (network/offline failure,
+ *    5xx, etc.) shows a distinct retry state instead of the "create it"
+ *    CTA — previously any error at all was read as "no profile yet",
+ *    which wrongly told an existing store/seller/provider owner to
+ *    create a new profile just because their first-ever load of that
+ *    query happened to be offline with no warm cache yet
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -62,9 +66,12 @@ describe('RequireProfileGate', () => {
     expect(screen.queryByText(baseProps.title)).not.toBeInTheDocument();
   });
 
-  it('renders the CTA (not children) when the query errors — read as "no profile yet"', () => {
+  it('renders the CTA (not children) on a confirmed 404 — a real "no profile yet"', () => {
     render(
-      <RequireProfileGate query={{ data: undefined, isLoading: false, isError: true }} {...baseProps}>
+      <RequireProfileGate
+        query={{ data: undefined, isLoading: false, isError: true, error: { statusCode: 404 } }}
+        {...baseProps}
+      >
         <div>محتوى محمي</div>
       </RequireProfileGate>,
     );
@@ -72,6 +79,25 @@ describe('RequireProfileGate', () => {
     expect(screen.getByText(baseProps.title)).toBeInTheDocument();
     expect(screen.getByText(baseProps.description)).toBeInTheDocument();
     expect(screen.queryByText('محتوى محمي')).not.toBeInTheDocument();
+  });
+
+  it('FIX OFFLINE-GATE-404-01: renders a retry state (not the CTA) on a non-404 error, e.g. offline with no cache yet', () => {
+    const refetch = vi.fn();
+    render(
+      <RequireProfileGate
+        query={{ data: undefined, isLoading: false, isError: true, error: { statusCode: 0 }, refetch }}
+        {...baseProps}
+      >
+        <div>محتوى محمي</div>
+      </RequireProfileGate>,
+    );
+
+    expect(screen.queryByText(baseProps.title)).not.toBeInTheDocument();
+    expect(screen.queryByText('محتوى محمي')).not.toBeInTheDocument();
+    expect(screen.getByText('إعادة المحاولة')).toBeInTheDocument();
+
+    screen.getByText('إعادة المحاولة').click();
+    expect(refetch).toHaveBeenCalled();
   });
 
   it('renders the CTA when the query resolves with no data (not an error, just nothing there)', () => {

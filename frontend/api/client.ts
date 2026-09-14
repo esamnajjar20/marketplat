@@ -70,6 +70,27 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     }
   }
 
+  // FIX BUG-IMG-CONTENTTYPE-01: apiClient is created with a default
+  // 'Content-Type: application/json' header (see axios.create() above).
+  // That default is a real, explicitly-set header — not just axios's
+  // own internal placeholder — so it survives even for calls that pass
+  // a FormData body (ads.api.ts/products.api.ts/service-listings.api.ts's
+  // create/addImages, and every avatar/logo/cover upload). Axios only
+  // lets the browser generate the correct
+  // 'multipart/form-data; boundary=...' header when Content-Type is
+  // NOT already set; with the instance default present, requests were
+  // going out as 'Content-Type: application/json' with a FormData body,
+  // which the backend's multer can't parse as multipart at all — it
+  // silently sees zero files (not a parse error), so createAd's
+  // IMAGE_REQUIRED check fires even though the user did attach a
+  // photo. Deleting it here (only when the body is actually FormData)
+  // lets the browser set the real multipart Content-Type/boundary for
+  // every upload endpoint in one place, instead of patching each of
+  // the ~10 FormData call sites individually.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
+
   return config;
 });
 

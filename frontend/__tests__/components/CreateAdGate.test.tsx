@@ -16,9 +16,15 @@
  *
  * Coverage:
  *  - Loading: spinner only, no form, no CTA
- *  - isError or no profile: EmptyState CTA linking to settings/seller
- *    with ?from=/ads/create so BecomeSellerCard can send the user back
+ *  - Confirmed 404 (real "no profile") or no data: EmptyState CTA
+ *    linking to settings/seller with ?from=/ads/create so
+ *    BecomeSellerCard can send the user back
  *  - Profile present: renders CreateAdForm, not the CTA
+ *  - FIX OFFLINE-GATE-404-01: a non-404 error (offline with no cached
+ *    profile yet, 5xx, etc.) shows a retry state instead of the
+ *    "create a seller profile" CTA — previously any error was read as
+ *    "no profile", wrongly telling an existing seller to create one
+ *    just because their first-ever load of this query happened offline
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -49,7 +55,13 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-function mockProfile(state: { data?: unknown; isLoading?: boolean; isError?: boolean }) {
+function mockProfile(state: {
+  data?: unknown;
+  isLoading?: boolean;
+  isError?: boolean;
+  error?: unknown;
+  refetch?: () => void;
+}) {
   (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
     data: undefined,
     isLoading: false,
@@ -68,12 +80,21 @@ describe('CreateAdGate', () => {
     expect(screen.queryByText('أنشئ ملف البائع أولاً')).not.toBeInTheDocument();
   });
 
-  it('shows the "create seller profile" CTA when the query errors', () => {
-    mockProfile({ isError: true });
+  it('shows the "create seller profile" CTA on a confirmed 404', () => {
+    mockProfile({ isError: true, error: { statusCode: 404 } });
     render(<CreateAdGate />);
 
     expect(screen.getByText('أنشئ ملف البائع أولاً')).toBeInTheDocument();
     expect(screen.queryByText('CreateAdForm')).not.toBeInTheDocument();
+  });
+
+  it('FIX OFFLINE-GATE-404-01: shows a retry state (not the "create profile" CTA) on a non-404 error', () => {
+    mockProfile({ isError: true, error: { statusCode: 0 }, refetch: vi.fn() });
+    render(<CreateAdGate />);
+
+    expect(screen.queryByText('أنشئ ملف البائع أولاً')).not.toBeInTheDocument();
+    expect(screen.queryByText('CreateAdForm')).not.toBeInTheDocument();
+    expect(screen.getByText('إعادة المحاولة')).toBeInTheDocument();
   });
 
   it('shows the CTA when the query resolves with no profile', () => {
@@ -84,7 +105,7 @@ describe('CreateAdGate', () => {
   });
 
   it('CTA link carries ?from=/ads/create so the user returns here after setup', () => {
-    mockProfile({ isError: true });
+    mockProfile({ isError: true, error: { statusCode: 404 } });
     render(<CreateAdGate />);
 
     const link = screen.getByRole('link', { name: 'إنشاء ملف البائع' });

@@ -2,15 +2,22 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Store } from 'lucide-react';
+import { AlertTriangle, Store } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
+import type { ParsedError } from '@/lib/errorParser';
 
 interface QueryLike<T> {
   data: T | undefined;
   isLoading: boolean;
   isError: boolean;
+  /** Needed to tell a real "no profile" 404 apart from a network/offline
+   *  failure — see FIX OFFLINE-GATE-404-01 below. Optional only so any
+   *  pre-existing minimal query-like object still type-checks; every
+   *  real useQuery result already has this. */
+  error?: unknown;
+  refetch?: () => void;
 }
 
 interface Props<T> {
@@ -50,16 +57,47 @@ interface Props<T> {
  * useSearchParams() and redirecting on its own mutation's onSuccess —
  * this component only builds the link that carries the intent there.
  * See BecomeSellerCard for the reference implementation.
+ *
+ * FIX OFFLINE-GATE-404-01: this used to treat ANY query error the same
+ * as "no profile" (`isError || !data`) — unlike MyStoreHub/MyServicesHub,
+ * which already distinguish a real 404 from anything else. useMyStore/
+ * useMyServiceProvider/useMySellerProfile each fall back to a cached
+ * offline copy on a network failure (see their own comments), but that
+ * fallback only has something to return once the user has successfully
+ * loaded that profile at least once on this device. The first time any
+ * of these queries ever runs is often right here — e.g. tapping "+" →
+ * "منتج جديد" goes straight to this gate without visiting /my-store
+ * first — so a user who already has a store/profile but is offline
+ * with no warm cache yet was wrongly told to create one. Now only a
+ * confirmed 404 (profile genuinely doesn't exist) shows the "create
+ * it" CTA; any other error (network/offline, 5xx, etc.) shows a
+ * distinct retry state instead, matching MyStoreHub's own handling.
  */
 export function RequireProfileGate<T>({
   query, setupHref, from, title, description, ctaLabel, children,
 }: Props<T>) {
-  const { data, isLoading, isError } = query;
+  const { data, isLoading, isError, error, refetch } = query;
 
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  const statusCode = (error as ParsedError | null)?.statusCode;
+
+  if (isError && statusCode !== 404) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-muted-foreground">
+        <AlertTriangle className="h-8 w-8" />
+        <p>تعذّر التحقق من ملفك الشخصي. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.</p>
+        {refetch && (
+          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+            إعادة المحاولة
+          </button>
+        )}
       </div>
     );
   }

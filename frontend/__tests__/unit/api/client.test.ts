@@ -100,6 +100,47 @@ describe('api/client.ts — request interceptor', () => {
 
     expect(capturedAuthHeader).toBeNull();
   });
+
+  // FIX BUG-IMG-CONTENTTYPE-01: apiClient's instance-level default
+  // ('Content-Type: application/json', set at axios.create() above)
+  // was silently surviving FormData uploads, so the browser never got
+  // to set the real 'multipart/form-data; boundary=...' header — the
+  // exact bug behind "IMAGE_REQUIRED even though a file was attached"
+  // (backend's multer sees zero parsed files, not a parse error).
+  it('does not send Content-Type: application/json for a FormData body — lets the browser set the multipart boundary', async () => {
+    let capturedContentType: string | null | undefined = 'not-checked-yet';
+
+    getMswServer()?.use(
+      http.post(`${API_BASE_URL}/ads`, ({ request }) => {
+        capturedContentType = request.headers.get('content-type');
+        return HttpResponse.json({ success: true, data: {} }, { status: 201 });
+      }),
+    );
+
+    const form = new FormData();
+    form.append('title', 'test');
+    form.append('images', new File(['x'], 'photo.jpg', { type: 'image/jpeg' }));
+
+    await apiClient.post('/ads', form);
+
+    expect(capturedContentType).not.toBe('application/json');
+    expect(capturedContentType).toMatch(/^multipart\/form-data/);
+  });
+
+  it('still sends Content-Type: application/json for a plain JSON body', async () => {
+    let capturedContentType: string | null | undefined = 'not-checked-yet';
+
+    getMswServer()?.use(
+      http.patch(`${API_BASE_URL}/ads/ad-1`, ({ request }) => {
+        capturedContentType = request.headers.get('content-type');
+        return HttpResponse.json({ success: true, data: {} });
+      }),
+    );
+
+    await apiClient.patch('/ads/ad-1', { title: 'updated' });
+
+    expect(capturedContentType).toBe('application/json');
+  });
 });
 
 describe('api/client.ts — silent refresh on 401', () => {
