@@ -43,7 +43,9 @@ import { API_BASE_URL } from '@/lib/constants';
 // CACHE_VERSION هناك) — راجع أيضًا __tests__/unit/lib/cacheVersionSync.test.ts
 // الذي يفشل تلقائيًا الآن لو تكرر هذا النوع من الانحراف مستقبلًا بدل أن
 // ينكشف فقط بمستخدم متضرر بالإنتاج.
-export const CORE_CACHE = 'market-core-v22'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+// FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب (راجع تعليق
+// public/sw.js's CACHE_VERSION).
+export const CORE_CACHE = 'market-core-v23'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 const LAST_WARMED_KEY = 'marketplat:core-bundle:last-warmed';
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 ساعات — يكفي لبيانات "تصفح عام"
 

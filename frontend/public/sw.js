@@ -83,9 +83,13 @@
 // ارفع CACHE_VERSION فقط عند تغيّر سياسة الكاش / الـ shells / استراتيجيات fetch
 // في هذا الملف — وليس مع كل deploy لا يمسّ SW. عند التفعيل (activate) تُمسَح
 // كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
-// FIX SW-QUEUE-ONLY-OFFLINE-01: رُفع إلى v22 — SW-ONLINE-PASSTHROUGH-01 (أونلاين بلا 503 مُختلق)
-// (طابور فقط عند !navigator.onLine). رفع الرقم يفعّل SW جديد عند المستخدمين.
-const CACHE_VERSION = 'v22';
+// FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' — تصنيف '/my-store' كصفحة
+// محمية (isProtectedPage أعلاه) تغيّر للتو، فأي نسخة HTML/RSC مخزَّنة
+// سابقًا لمسارات /my-store/* بالخطأ داخل STATIC_CACHE (تحت الاسم القديم)
+// يجب ألا تبقى قابلة للقراءة بعد هذا الإصلاح — رفع الرقم يضمن أن 'activate'
+// يحذفها كأي كاش market-* غير مُدرَج، بدل أن تبقى صالحة للمطابقة لحين
+// انتهاء صلاحيتها بمحض الصدفة.
+const CACHE_VERSION = 'v23';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -159,6 +163,21 @@ function isProtectedPage(url) {
     // بالصدفة على السلوك العام.
     '/notifications',
     '/ads/create',
+    // FIX OFFLINE-CREATE-PAGES-01: نفس عائلة خلل PWA-NOTIF-01 أعلاه، لكن
+    // اكتُشف هذه المرة بمراجعة معاكسة — أثناء إضافة '/my-store/products/new'
+    // لـPERSONAL_SHELL_ROUTES (lib/offlineRouteShells.ts) تبيّن أن '/my-store'
+    // بالكامل (لوحة المتجر، المنتجات، المخزون، الأعضاء، التحليلات، الإعدادات)
+    // كانت غائبة تمامًا عن protectedPrefixes هنا — رغم أنها صفحة محمية شخصية
+    // بالكامل (تحت (protected)، بيانات المتجر عبر React Query بعد الـhydration)
+    // بالضبط مثل '/my-services' أعلاها في نفس القائمة. النتيجة العملية: كل
+    // طلبات /my-store/* كانت تمر من handlePageRequest كصفحة "عامة" وتُخزَّن
+    // شكلها في STATIC_CACHE العام عبر networkFirstPage — نفس الكاش المشترك
+    // بين كل الزوار، ولا يُمسح عند تسجيل الخروج — خلافًا مباشرًا لسياسة
+    // audit #7 الموثّقة أعلاه، وأيضًا يعني أن isPersonalShellRoute's بادئة
+    // '/my-store/' (بالأسفل) كانت فعليًا كودًا ميتًا: handleProtectedPage
+    // (المكان الوحيد الذي يقرأ isPersonalShellRoute) لم يكن يُستدعى أبدًا
+    // لأي مسار /my-store/* لأن isProtectedPage نفسها كانت تُرجع false أولًا.
+    '/my-store',
     '/admin',
   ];
   return protectedPrefixes.some(

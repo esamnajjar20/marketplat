@@ -39,6 +39,14 @@ export const OFFLINE_JSON_KEYS = {
   lastKnownLocation: 'last-known-location',
   nearbyProviders: 'nearby-providers',
   userProfileSelf: 'user-profile-self',
+  // FIX OFFLINE-SELLER-GATE-01: "do I already have this profile?" checks
+  // for the three creation gates (CreateAdGate/CreateProductGate/
+  // CreateServiceListingGate) — see useMySellerProfile/useMyStore/
+  // useMyServiceProvider for why these needed the same offline-fallback
+  // treatment useMyAttention already had.
+  sellerProfileSelf: 'seller-profile-self',
+  storeSelf: 'store-self',
+  serviceProviderSelf: 'service-provider-self',
 } as const;
 
 export function clearAllOfflineJson(): void {

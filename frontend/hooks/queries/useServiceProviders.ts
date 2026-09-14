@@ -5,7 +5,12 @@ import { serviceProvidersApi } from '@/api/service-providers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import type { NearbyServiceProvidersParams, ServiceProvidersQuery } from '@/types/service.types';
+import type { NearbyServiceProvidersParams, ServiceProvidersQuery, ServiceProviderDetails } from '@/types/service.types';
+import {
+  getOfflineJson,
+  saveOfflineJson,
+  OFFLINE_JSON_KEYS,
+} from '@/lib/offlineJsonCache';
 
 /**
  * Phase 3: GET /service-providers — public city/browse directory.
@@ -46,13 +51,34 @@ export function useServiceProvider(id: string) {
  * A 404 here just means "not a provider yet", not an error state —
  * same convention as useMySellerProfile: callers should treat
  * `isError` (with no data) as "show a become-a-provider CTA".
+ *
+ * FIX OFFLINE-SELLER-GATE-01: same fix as useMySellerProfile/useMyStore
+ * (see useMySellerProfile's comment for the full rationale) — a plain
+ * network failure was indistinguishable from a genuine 404, so a real
+ * service provider going offline was shown "فعّل ملف مقدم الخدمة أولاً"
+ * and blocked from /my-services/new. Only a real network failure
+ * (statusCode:0) falls back to the last successfully fetched profile;
+ * a confirmed 404 still blocks as before.
  */
 export function useMyServiceProvider() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   return useQuery({
     queryKey: queryKeys.serviceProviders.me(),
-    queryFn: () => serviceProvidersApi.getMyProvider().then((r) => r.data.data),
+    queryFn: async () => {
+      try {
+        const data = await serviceProvidersApi.getMyProvider().then((r) => r.data.data);
+        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data);
+        return data;
+      } catch (err) {
+        const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
+        if (isNetworkFailure) {
+          const cached = getOfflineJson<ServiceProviderDetails>(OFFLINE_JSON_KEYS.serviceProviderSelf);
+          if (cached) return cached.data;
+        }
+        throw err;
+      }
+    },
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated,
     retry: false,

@@ -6,7 +6,12 @@ import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import type { StoresQuery } from '@/types/store.types';
+import type { StoresQuery, StoreDetails } from '@/types/store.types';
+import {
+  getOfflineJson,
+  saveOfflineJson,
+  OFFLINE_JSON_KEYS,
+} from '@/lib/offlineJsonCache';
 
 /** GET /stores — public directory, paginated. */
 export function useStores(params?: StoresQuery) {
@@ -32,13 +37,35 @@ export function useStore(id: string) {
  * A 404 here just means "no store yet", not an error state — same
  * convention as useMyServiceProvider: callers should treat `isError`
  * (with no data) as "show a create-a-store CTA".
+ *
+ * FIX OFFLINE-SELLER-GATE-01: same fix as useMySellerProfile (see that
+ * hook's comment for the full rationale) — a plain network failure was
+ * indistinguishable from a genuine 404, so a real store owner going
+ * offline was shown "افتح متجرك أولاً" and blocked from
+ * /my-store/products/new. Only a real network failure (statusCode:0,
+ * the ParsedError convention client.ts's own retry logic already uses)
+ * falls back to the last successfully fetched store; a confirmed 404
+ * still blocks as before.
  */
 export function useMyStore() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   return useQuery({
     queryKey: queryKeys.stores.me(),
-    queryFn: () => storesApi.getMyStore().then((r) => r.data.data),
+    queryFn: async () => {
+      try {
+        const data = await storesApi.getMyStore().then((r) => r.data.data);
+        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data);
+        return data;
+      } catch (err) {
+        const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
+        if (isNetworkFailure) {
+          const cached = getOfflineJson<StoreDetails>(OFFLINE_JSON_KEYS.storeSelf);
+          if (cached) return cached.data;
+        }
+        throw err;
+      }
+    },
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated,
     retry: false,

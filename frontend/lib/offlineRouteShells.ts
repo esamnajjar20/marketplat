@@ -45,7 +45,9 @@
 // FIX SW-TRIM-ORDER-01: رُفعت إلى 'v22' لنفس السبب (راجع تعليق
 // lib/offlineCoreBundle.ts's CORE_CACHE) — __tests__/unit/lib/cacheVersionSync.test.ts
 // يفشل الآن تلقائيًا لو انحرفت هذه القيمة عن sw.js مستقبلًا.
-const STATIC_CACHE = 'market-static-v22'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+// FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لتطابق public/sw.js
+// (راجع تعليق CACHE_VERSION هناك — تصنيف '/my-store' كصفحة محمية تغيّر).
+const STATIC_CACHE = 'market-static-v23'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -124,12 +126,26 @@ export const PERSONAL_SHELL_ROUTES = [
   '/my-store/inventory',
   '/my-store/members',
   '/my-store/products',
+  // FIX OFFLINE-CREATE-PAGES-01: نموذج إضافة منتج جديد نفسه كان غائبًا —
+  // فقط قائمة المنتجات ('/my-store/products') كانت مُسخَّنة مسبقًا،
+  // بنفس القياس المتبع مع '/ads/create' أعلاه (FIX OFFLINE-AD-CREATE-01):
+  // بائع يفتح /my-store/products/new لأول مرة وهو أوفلاين (قبل أي زيارة
+  // أونلاين سابقة لهذا المسار تحديدًا) كان يصله /offline العامة، رغم أن
+  // isPersonalShellRoute بـpublic/sw.js يغطيه أصلاً عبر بادئة
+  // '/my-store/' (فتُخزَّن نسخته فعليًا في PERSONAL_SHELL_CACHE بعد أول
+  // زيارة أونلاين) — هذه الإضافة فقط تسخّنه استباقيًا قبل تلك الزيارة
+  // الأولى، تمامًا مثل /ads/create. آمن بنفس السبب: 'use client' بالكامل،
+  // ProductForm يجلب بيانات البائع/المتجر عبر React Query بعد الـhydration.
+  '/my-store/products/new',
   '/my-store/promotions',
   '/my-store/collections',
   '/my-store/analytics',
   '/my-store/settings',
   // خدماتي + لوحة مقدّم الخدمة
   '/my-services',
+  // FIX OFFLINE-CREATE-PAGES-01: نفس سبب '/my-store/products/new' أعلاه،
+  // لنموذج نشر خدمة جديدة بدل نموذج المنتج.
+  '/my-services/new',
   '/my-services/requests',
   '/my-services/appointments',
   '/my-services/analytics',
@@ -147,7 +163,8 @@ export const PERSONAL_SHELL_ROUTES = [
 // (غير مدرَج بـ currentCaches هناك) — تمامًا نفس أثر PWA-VER-01 الأصلي.
 // يجب مطابقة CACHE_VERSION بـ public/sw.js دائمًا، وهذا الآن مغطى بـ
 // __tests__/unit/lib/cacheVersionSync.test.ts.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v22';
+// FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب أعلاه.
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v23';
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`

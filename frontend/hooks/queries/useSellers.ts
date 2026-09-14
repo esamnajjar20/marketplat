@@ -10,7 +10,7 @@ import {
   selectHasAccessToken,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import type { SellerAttention } from '@/types/seller.types';
+import type { SellerAttention, SellerProfile } from '@/types/seller.types';
 import {
   getOfflineJson,
   saveOfflineJson,
@@ -32,13 +32,46 @@ export function useSellerProfile(id: string) {
  * A 404 here just means "not a seller yet", not an error state — every
  * caller of this hook should treat `isError` (with no profile) as
  * "show a become-a-seller CTA", not as a failure to surface.
+ *
+ * FIX OFFLINE-SELLER-GATE-01: previously had zero offline handling — a
+ * plain network failure (no cached fallback at all) looked identical to
+ * a genuine 404 to every caller (CreateAdGate, useIsSeller, nav
+ * components), so a real seller who went offline was shown "أنشئ ملف
+ * البائع أولاً" and blocked from /ads/create even though they already
+ * have a seller profile — the exact same class of bug already fixed
+ * once for auth session state (AuthHydrationProvider) and applied here
+ * to seller-profile state instead. Mirrors useMyAttention's own
+ * cache-on-success / fall-back-on-failure pattern below, with one
+ * addition specific to this hook: apiClient's response interceptor
+ * (client.ts) already runs every rejection through parseApiError
+ * before it reaches here, so the caught error is a ParsedError, not a
+ * raw AxiosError — statusCode:0 is that layer's own signal for "no
+ * server response at all" (offline/DNS/connection-refused), the same
+ * convention client.ts's own refresh-retry logic already uses. A
+ * genuine 404 (statusCode 404 — confirmed, from the server, "this user
+ * really has no SellerProfile") must NOT fall back to a stale cached
+ * profile: that's the one case this gate is actually supposed to block
+ * for. Only a real network failure falls back to cache.
  */
 export function useMySellerProfile() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   return useQuery({
     queryKey: queryKeys.sellers.me(),
-    queryFn: () => sellersApi.getMyProfile().then(r => r.data.data),
+    queryFn: async () => {
+      try {
+        const data = await sellersApi.getMyProfile().then(r => r.data.data);
+        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data);
+        return data;
+      } catch (err) {
+        const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
+        if (isNetworkFailure) {
+          const cached = getOfflineJson<SellerProfile>(OFFLINE_JSON_KEYS.sellerProfileSelf);
+          if (cached) return cached.data;
+        }
+        throw err;
+      }
+    },
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated,
     retry: false,

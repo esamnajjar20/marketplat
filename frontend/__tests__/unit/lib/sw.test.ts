@@ -274,7 +274,7 @@ describe('sw.js — service worker logic', () => {
   describe('isProtectedPage (audit #7 — protected/admin navigate exclusion)', () => {
     const isProtectedPage = () => ctx.sandbox.isProtectedPage;
 
-    it('flags dashboard, settings, my-ads, my-services, favorites, messages, notifications, ads/create, and admin as protected', () => {
+    it('flags dashboard, settings, my-ads, my-services, my-store, favorites, messages, notifications, ads/create, and admin as protected', () => {
       const paths = [
         '/dashboard',
         '/settings',
@@ -282,6 +282,15 @@ describe('sw.js — service worker logic', () => {
         '/my-ads',
         '/my-services',
         '/my-services/123/edit',
+        // REGRESSION (FIX OFFLINE-CREATE-PAGES-01): '/my-store' was
+        // missing from protectedPrefixes entirely — every /my-store/*
+        // page shell was falling through to the shared, never-cleared
+        // STATIC_CACHE via networkFirstPage instead of the isolated
+        // PERSONAL_SHELL_CACHE, in direct violation of audit #7's own
+        // documented policy (same bug class as FIX PWA-NOTIF-01 above,
+        // just for the store owner's dashboard instead of notifications).
+        '/my-store',
+        '/my-store/products/new',
         '/favorites',
         '/messages',
         '/notifications',
