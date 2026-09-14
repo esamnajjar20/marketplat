@@ -234,6 +234,13 @@ function loadServiceWorker() {
     Blob,
     Response,
     queueMicrotask,
+    // FIX SW-WEAK-NET-TIMEOUT-01: withNetworkTimeout (sw.js) races fetch()
+    // against setTimeout — real Node timers are fine here since every
+    // test's fetch either resolves/rejects on its own microtask (timeout
+    // never wins) or a test explicitly wants the timeout path and awaits
+    // it for real (see the "weak network" describe block below).
+    setTimeout,
+    clearTimeout,
   };
   sandbox.globalThis = sandbox;
 
@@ -248,7 +255,7 @@ function loadServiceWorker() {
   // same execution, since sw.js itself is read-only source we don't
   // want to modify just for testability.
   vm.runInContext(
-    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;`,
+    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__withNetworkTimeout = withNetworkTimeout;`,
     sandbox,
     { filename: 'sw.js' },
   );
@@ -452,6 +459,35 @@ describe('sw.js — service worker logic', () => {
 
       const remaining = (await cache.keys()).map((k: any) => k.url);
       expect(remaining).toEqual(['https://x/fresh']);
+    });
+  });
+
+  describe('withNetworkTimeout (FIX SW-WEAK-NET-TIMEOUT-01)', () => {
+    it('resolves with the network response when it wins the race', async () => {
+      const fast = Promise.resolve(new Response('ok'));
+      const result = await ctx.sandbox.__withNetworkTimeout(fast, 50);
+      expect(await result.text()).toBe('ok');
+    });
+
+    it('rejects with SwTimeoutError when the network hangs past the budget, without touching the underlying fetch', async () => {
+      let resolveHang: (r: Response) => void;
+      const hanging = new Promise<Response>((resolve) => {
+        resolveHang = resolve;
+      });
+
+      await expect(ctx.sandbox.__withNetworkTimeout(hanging, 20)).rejects.toMatchObject({
+        name: 'SwTimeoutError',
+      });
+
+      // The real fetch is still alive after the race — this is the whole
+      // point (background cache update once it eventually completes).
+      resolveHang!(new Response('late'));
+      await expect(hanging).resolves.toBeInstanceOf(Response);
+    });
+
+    it('propagates a real fetch rejection (offline) rather than a timeout', async () => {
+      const failing = Promise.reject(new Error('network down'));
+      await expect(ctx.sandbox.__withNetworkTimeout(failing, 50)).rejects.toThrow('network down');
     });
   });
 

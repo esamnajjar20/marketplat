@@ -45,7 +45,9 @@ import { API_BASE_URL } from '@/lib/constants';
 // ينكشف فقط بمستخدم متضرر بالإنتاج.
 // FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب (راجع تعليق
 // public/sw.js's CACHE_VERSION).
-export const CORE_CACHE = 'market-core-v23'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+// FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
+// fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
+export const CORE_CACHE = 'market-core-v24'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 const LAST_WARMED_KEY = 'marketplat:core-bundle:last-warmed';
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 ساعات — يكفي لبيانات "تصفح عام"
 

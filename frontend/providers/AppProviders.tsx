@@ -23,7 +23,6 @@ import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { NavigationProgress } from '@/components/shared/NavigationProgress';
-import { GlobalMutationIndicator } from '@/components/shared/GlobalMutationIndicator';
 import { BackgroundRefetchIndicator } from '@/components/shared/BackgroundRefetchIndicator';
 
 interface AppProvidersProps {
@@ -98,7 +97,6 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
 
         <NavigationProgress />
         <BackgroundRefetchIndicator />
-        <GlobalMutationIndicator />
 
         <NetworkStatusBanner />
 

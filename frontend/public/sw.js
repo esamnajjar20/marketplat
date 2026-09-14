@@ -4,7 +4,10 @@
  * استراتيجيات التخزين المؤقت:
  *  - App Shell (HTML/CSS/JS الأساسية): Stale-While-Revalidate
  *  - الصور (Cloudinary + الأيقونات المحلية): Cache First مع حد أقصى للعمر
- *  - طلبات API (GET): Network First مع fallback على الكاش عند انقطاع الشبكة
+ *  - طلبات API (GET) وصفحات App Shell: Network First مع fallback على الكاش
+ *    عند انقطاع الشبكة *أو* تجاوزها مهلة NETWORK_TIMEOUT_MS (نت ضعيف/بطيء
+ *    غير منقطع فعليًا — انظر withNetworkTimeout أدناه)؛ طلب الشبكة الحقيقي
+ *    يستمر بالخلفية في الحالتين لتحديث الكاش إن نجح لاحقًا
  *  - طلبات API (POST/PUT/PATCH/DELETE) الفاشلة بسبب انقطاع الشبكة: تُحفظ في
  *    IndexedDB Queue وتُعاد تلقائيًا عند عودة الاتصال (Background Sync)
  *  - لا كاش إطلاقًا لطلبات auth (/auth/*) لتفادي تسريب أو تقديم بيانات جلسة قديمة
@@ -89,7 +92,12 @@
 // يجب ألا تبقى قابلة للقراءة بعد هذا الإصلاح — رفع الرقم يضمن أن 'activate'
 // يحذفها كأي كاش market-* غير مُدرَج، بدل أن تبقى صالحة للمطابقة لحين
 // انتهاء صلاحيتها بمحض الصدفة.
-const CACHE_VERSION = 'v23';
+// FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' — استراتيجية fetch تغيّرت
+// لثلاث دوال (networkFirstPage/networkFirstApi/handleProtectedPage، انظر
+// NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
+// الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
+// fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
+const CACHE_VERSION = 'v24';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -131,6 +139,58 @@ const QUEUE_DB_VERSION = 1;
 const QUEUE_STORE_NAME = 'requests';
 
 const SYNC_TAG = 'replay-offline-queue';
+
+/**
+ * FIX SW-WEAK-NET-TIMEOUT-01: نت "ضعيف" (بطيء لكن غير منقطع فعليًا) يختلف
+ * جوهريًا عن أوفلاين كامل — fetch() لا يفشل بسرعة (لا reject سريع، لا
+ * AbortError)، بل يبقى معلّقًا لعشرات الثواني (أحيانًا أكثر من دقيقة على
+ * شبكات 2G/3G أو محمول بإشارة ضعيفة) قبل أن ينجح أو يفشل فعليًا. قبل هذا
+ * الإصلاح، networkFirstPage/networkFirstApi/handleProtectedPage كانت تنتظر
+ * fetch() تلك المدة كاملة قبل أن "تفشل" وتلجأ للكاش — أي أن نفس المستخدم
+ * اللي الكاش مصمَّم أصلًا لخدمته (نت غير موثوق) كان يعاني أطول انتظار،
+ * بينما اتصال منقطع تمامًا (فشل فوري) كان يحصل على تجربة أسرع فعليًا.
+ *
+ * الحل: سباق بين fetch() الحقيقي ومهلة NETWORK_TIMEOUT_MS. لو فازت المهلة،
+ * نعتبرها "فشل" مؤقت لغرض القرار الفوري (نعرض الكاش الآن) — لكن fetch()
+ * الحقيقي لا يُلغى (لا AbortController) ويستمر بالخلفية، فإن نجح لاحقًا
+ * فعلًا يُستخدم لتحديث الكاش عبر event.waitUntil في كل مستدعٍ (نفس نمط
+ * "حدّث بالخلفية" المستخدم أصلًا بـstaleWhileRevalidate) — لا نخسر تحديث
+ * البيانات فقط لأننا لم ننتظره لعرض الرد.
+ *
+ * ملاحظة: لا تُستخدم هذه المهلة لطلبات الكتابة (handleMutation) — إلغاء
+ * الانتظار هناك يخاطر بتكرار العملية (الطلب الأصلي قد ينجح فعليًا عند
+ * السيرفر رغم انتهاء مهلتنا)، ولمسار الكتابة أصلًا نتيجة صريحة: قائمة
+ * الانتظار offlineQueue، لا حاجة لسباق ضد الزمن.
+ */
+const NETWORK_TIMEOUT_MS = 4000;
+
+/** يرفض بعد ms مللي ثانية بخطأ SwTimeoutError، بدون التأثير على
+ * fetchPromise نفسه (يستمر بالخلفية بمعزل عن نتيجة هذا السباق). */
+function withNetworkTimeout(fetchPromise, ms) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(Object.assign(new Error('SW network timeout'), { name: 'SwTimeoutError' }));
+    }, ms);
+
+    fetchPromise.then(
+      (response) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(response);
+      },
+      (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 // FIX OFFLINE-AUTH-01: يجب مطابقة frontend's lib/constants.ts's
 // API_BASE_URL حرفيًا (`${origin}/api/v1`) — انظر تعليق refreshAccessToken
@@ -471,8 +531,11 @@ async function staleWhileRevalidate(event, request, cacheKey) {
  * ما تعالجه هذه الدالة. */
 async function networkFirstPage(event, request, cacheKey) {
   const cache = await caches.open(STATIC_CACHE);
+  // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
+  // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
+  const fetchPromise = fetch(request);
   try {
-    const response = await fetch(request);
+    const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
     if (response && response.ok && isSameOriginResponse(response)) {
       const toStore = isRscShellRequest(request)
         ? await stripVaryAndClone(response.clone())
@@ -482,8 +545,24 @@ async function networkFirstPage(event, request, cacheKey) {
       event.waitUntil(cache.put(cacheKey, toStore));
     }
     return response;
-  } catch {
-    // فشل الشبكة (أوفلاين) — آخر نسخة مخزَّنة فعليًا، إن وُجدت.
+  } catch (err) {
+    // FIX SW-WEAK-NET-TIMEOUT-01: مهلة (نت ضعيف) لا تعني تخلّيًا عن
+    // fetchPromise الحقيقي — لو نجح لاحقًا فعلًا حدِّث الكاش بالخلفية.
+    if (err && err.name === 'SwTimeoutError') {
+      event.waitUntil(
+        fetchPromise
+          .then(async (response) => {
+            if (response && response.ok && isSameOriginResponse(response)) {
+              const toStore = isRscShellRequest(request)
+                ? await stripVaryAndClone(response.clone())
+                : response.clone();
+              await cache.put(cacheKey, toStore);
+            }
+          })
+          .catch(() => {}),
+      );
+    }
+    // فشل الشبكة (أوفلاين) أو تجاوز المهلة — آخر نسخة مخزَّنة فعليًا، إن وُجدت.
     const cachedResponse = await cache.match(cacheKey);
     if (cachedResponse) return cachedResponse;
 
@@ -541,8 +620,11 @@ async function handleProtectedPage(event, request, url) {
   const myGeneration = (protectedNavGeneration.get(url.pathname) || 0) + 1;
   protectedNavGeneration.set(url.pathname, myGeneration);
 
+  // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
+  // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
+  const fetchPromise = fetch(request);
   try {
-    const response = await fetch(request);
+    const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
     if (useShellCache && response && response.ok && isSameOriginResponse(response)) {
       const cache = await caches.open(PERSONAL_SHELL_CACHE);
       const toStore = isRscShellRequest(request)
@@ -552,6 +634,26 @@ async function handleProtectedPage(event, request, url) {
     }
     return response;
   } catch (err) {
+    // FIX SW-WEAK-NET-TIMEOUT-01: مهلة (نت ضعيف، ليست AbortError ولا فشل
+    // شبكة حقيقي) لا تعني تخلّيًا عن fetchPromise — لو نجح لاحقًا فعلًا
+    // حدِّث shell الكاش بالخلفية، بنفس شرط useShellCache أعلاه.
+    if (err && err.name === 'SwTimeoutError') {
+      if (useShellCache) {
+        event.waitUntil(
+          fetchPromise
+            .then(async (response) => {
+              if (response && response.ok && isSameOriginResponse(response)) {
+                const cache = await caches.open(PERSONAL_SHELL_CACHE);
+                const toStore = isRscShellRequest(request)
+                  ? await stripVaryAndClone(response.clone())
+                  : response.clone();
+                await cache.put(cacheKey, toStore);
+              }
+            })
+            .catch(() => {}),
+        );
+      }
+    }
     // FIX SW-ABORT-01 (refined by SW-ABORT-02 above): only treat this as
     // a superseded race — safe to re-throw and let it die quietly — when
     // a newer request for this same pathname was actually issued after
@@ -689,8 +791,11 @@ async function trimCache(cacheName, maxEntries) {
  * استباقيًا عبر warmCoreBundle لمسارات لم تُزَر من قبل). */
 async function networkFirstApi(event, request, _url) {
   const cache = await caches.open(API_CACHE);
+  // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
+  // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
+  const fetchPromise = fetch(request);
   try {
-    const response = await fetch(request);
+    const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
     // FIX SW-CAPTIVE-01 (API variant): إضافة لفحص same-origin، رد API حقيقي
     // متوقّع يكون JSON — صفحة captive portal/edge error بحالة 200 عادة HTML.
     const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
@@ -702,7 +807,23 @@ async function networkFirstApi(event, request, _url) {
       );
     }
     return response;
-  } catch {
+  } catch (err) {
+    // FIX SW-WEAK-NET-TIMEOUT-01: مهلة (نت ضعيف) لا تعني تخلّيًا عن
+    // fetchPromise الحقيقي — لو نجح لاحقًا فعلًا حدِّث الكاش بالخلفية،
+    // بنفس شرط JSON/same-origin أعلاه.
+    if (err && err.name === 'SwTimeoutError') {
+      event.waitUntil(
+        fetchPromise
+          .then(async (response) => {
+            const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
+            if (response && response.ok && isSameOriginResponse(response) && looksLikeJson) {
+              await putTimestamped(cache, request, response.clone());
+              await trimCache(API_CACHE, MAX_API_ENTRIES);
+            }
+          })
+          .catch(() => {}),
+      );
+    }
     const cachedApi = await cache.match(request);
     if (cachedApi) return cachedApi;
 

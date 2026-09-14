@@ -47,7 +47,9 @@
 // يفشل الآن تلقائيًا لو انحرفت هذه القيمة عن sw.js مستقبلًا.
 // FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لتطابق public/sw.js
 // (راجع تعليق CACHE_VERSION هناك — تصنيف '/my-store' كصفحة محمية تغيّر).
-const STATIC_CACHE = 'market-static-v23'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+// FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
+// fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
+const STATIC_CACHE = 'market-static-v24'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -164,7 +166,8 @@ export const PERSONAL_SHELL_ROUTES = [
 // يجب مطابقة CACHE_VERSION بـ public/sw.js دائمًا، وهذا الآن مغطى بـ
 // __tests__/unit/lib/cacheVersionSync.test.ts.
 // FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب أعلاه.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v23';
+// FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v24';
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
