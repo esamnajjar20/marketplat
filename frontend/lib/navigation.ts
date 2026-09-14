@@ -25,7 +25,7 @@
  */
 import {
   Home, Search, Store, Wrench, Users, Settings,
-  History, ListOrdered, Package, Trophy,
+  History, ListOrdered, Package, Trophy, Radio,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -47,6 +47,7 @@ export const BROWSE_LINKS = [
   { label: 'المنتجات', href: ROUTES.products, icon: Package },
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
+  { label: 'سوق الطلبات', href: ROUTES.serviceBroadcasts, icon: Radio },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
   { label: 'أفضل البائعين', href: ROUTES.sellersRanking, icon: Trophy },
 ] as const;
@@ -78,6 +79,8 @@ export const SERVICES_GROUP = {
     { label: 'مواعيدي', href: ROUTES.myServiceAppointments },
     { label: 'طلباتي', href: ROUTES.myServiceRequests },
     { label: 'سوق الطلبات', href: ROUTES.serviceBroadcasts },
+    { label: 'طلباتي في السوق', href: ROUTES.myServiceBroadcasts },
+    { label: 'نشر طلب في السوق', href: ROUTES.serviceBroadcastNew },
     { label: 'عروضي', href: ROUTES.myServiceBroadcastQuotes },
     { label: 'الإحصائيات', href: ROUTES.myServiceProviderAnalytics },
   ],
@@ -123,40 +126,23 @@ export const SETTINGS_GROUP = {
   href: ROUTES.settings.profile,
   icon: Settings,
   children: [
-    {
-      label: 'الملف الشخصي',
-      href: ROUTES.settings.profile,
-      // يشمل تبويبات البائع ومقدم الخدمة بعد دمج الصفحات الثلاث
-      activeMatch: [ROUTES.settings.profile, ROUTES.settings.seller, ROUTES.settings.serviceProvider] as const,
-    },
+    { label: 'الملف الشخصي', href: ROUTES.settings.profile },
+    { label: 'ملف البائع', href: ROUTES.settings.seller },
+    { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
     { label: 'إدارة المتجر', href: ROUTES.myStore },
     { label: 'الأمان', href: ROUTES.settings.security },
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
     { label: 'التخزين والبيانات', href: ROUTES.settings.storage },
-    { label: 'مركز المزامنة', href: ROUTES.settings.sync },
   ],
 } as const;
-
-export interface NavChildLink {
-  label: string;
-  href: string;
-  /** بادئات مسار إضافية تُعتبر نشطة (مثلاً تبويبات الملف المدمجة). */
-  activeMatch?: readonly string[];
-}
 
 export interface NavDisclosureGroup {
   label: string;
   href: string;
   icon: typeof Settings;
-  children: readonly NavChildLink[];
-}
-
-/** هل المسار الحالي يطابق عنصر قائمة (href أو activeMatch). */
-export function navChildIsActive(pathname: string, child: NavChildLink): boolean {
-  const prefixes = child.activeMatch ?? [child.href];
-  return prefixes.some((p) => pathname.startsWith(p));
+  children: readonly { label: string; href: string }[];
 }
 
 /**
@@ -177,4 +163,15 @@ export function settingsGroupFor(isSeller: boolean): NavDisclosureGroup {
     ...SETTINGS_GROUP,
     children: SETTINGS_GROUP.children.filter((child) => child.href !== ROUTES.myStore),
   };
+}
+
+/**
+ * Returns whether a navigation child matches the current pathname.
+ * Exact match is preferred; nested routes also keep the parent child active.
+ */
+export function navChildIsActive(
+  pathname: string,
+  child: { href: string }
+): boolean {
+  return pathname === child.href || pathname.startsWith(`${child.href}/`);
 }

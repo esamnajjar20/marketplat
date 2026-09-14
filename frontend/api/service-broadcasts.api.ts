@@ -68,6 +68,9 @@ export const serviceBroadcastsApi = {
     attachedImages?: string[];
   }) => apiClient.post<ApiResponse<ServiceBroadcastListItem>>('/service-broadcasts', body),
 
+  cancel: (id: string) =>
+    apiClient.patch<ApiResponse<ServiceBroadcastListItem>>(`/service-broadcasts/${id}/cancel`),
+
   submitQuote: (
     broadcastId: string,
     body: { price: number; message?: string; durationEstimate?: string },

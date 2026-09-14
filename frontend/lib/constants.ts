@@ -61,6 +61,8 @@ export const ROUTES = {
   myServiceProviderAnalytics: '/my-services/analytics',
   serviceBroadcasts: '/service-broadcasts',
   serviceBroadcast: (id: string) => `/service-broadcasts/${id}`,
+  serviceBroadcastNew: '/service-broadcasts/new',
+  myServiceBroadcasts: '/service-broadcasts/me',
   myServiceBroadcastQuotes: '/service-broadcasts/quotes',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,

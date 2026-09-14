@@ -1,7 +1,8 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import { serviceBroadcastsApi } from '@/api/service-broadcasts.api';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -18,20 +19,38 @@ export default function ServiceBroadcastsFeedPage() {
   const items = data?.data ?? [];
 
   return (
-    // FIX DESKTOP-WIDTH-01: see my-reports/page.tsx's matching comment.
     <div className="mx-auto max-w-2xl space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">سوق الطلبات</h1>
           <p className="text-sm text-muted-foreground">
-            طلبات مفتوحة من العملاء — قدّم عرض سعر كمزود خدمة
+            عملاء ينشرون احتياجهم — مزوّدو الخدمة يقدّمون عروض أسعار
           </p>
         </div>
-        <Link href={ROUTES.myServiceBroadcastQuotes}>
-          <Button size="sm" variant="outline">
-            عروضي
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" className="gap-1">
+            <Link href={ROUTES.serviceBroadcastNew}>
+              <Plus className="h-4 w-4" />
+              أنشر طلبك
+            </Link>
           </Button>
-        </Link>
+          <Button asChild size="sm" variant="outline">
+            <Link href={ROUTES.myServiceBroadcasts}>طلباتي</Link>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link href={ROUTES.myServiceBroadcastQuotes}>عروضي</Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+        <p className="font-medium">عميل؟</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          اكتب ما تحتاجه واحصل على عروض من أكثر من مزوّد ثم اختر الأنسب.
+        </p>
+        <Button asChild size="sm" className="mt-2">
+          <Link href={ROUTES.serviceBroadcastNew}>نشر طلب خدمة</Link>
+        </Button>
       </div>
 
       {isLoading && (
@@ -40,7 +59,7 @@ export default function ServiceBroadcastsFeedPage() {
         </div>
       )}
       {isError && (
-        <div className="text-center py-8">
+        <div className="py-8 text-center">
           <p className="text-destructive">تعذّر التحميل</p>
           <button type="button" className="text-sm text-primary" onClick={() => refetch()}>
             إعادة المحاولة
@@ -48,18 +67,26 @@ export default function ServiceBroadcastsFeedPage() {
         </div>
       )}
       {!isLoading && !isError && items.length === 0 && (
-        <EmptyState title="لا طلبات مفتوحة حالياً" description="عد لاحقاً أو أنشئ طلبك من حساب عميل" />
+        <EmptyState
+          title="لا طلبات مفتوحة حالياً"
+          description="كن أول من ينشر طلباً — أو عد لاحقاً كمزوّد خدمة"
+          action={
+            <Button asChild size="sm">
+              <Link href={ROUTES.serviceBroadcastNew}>أنشر طلباً</Link>
+            </Button>
+          }
+        />
       )}
       <ul className="space-y-3">
         {items.map((b) => (
           <li key={b.id}>
             <Link
               href={ROUTES.serviceBroadcast(b.id)}
-              className="block rounded-lg border bg-card p-4 hover:bg-muted/40 transition-colors"
+              className="block rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40"
             >
-              <h2 className="font-semibold text-sm">{b.title}</h2>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{b.description}</p>
-              <p className="text-xs text-muted-foreground mt-2">
+              <h2 className="text-sm font-semibold">{b.title}</h2>
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{b.description}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
                 {b.city ? `${b.city} · ` : ''}
                 {formatRelativeTime(b.createdAt)}
               </p>
