@@ -91,6 +91,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
           const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
           await saveAdDraft({
             mode: 'create',
+            kind: 'ad',
             payload: {
               title: String((payload as { title?: string })?.title ?? ''),
               description: String((payload as { description?: string })?.description ?? ''),
@@ -149,6 +150,7 @@ export function useUpdateAd(adId: string) {
         try {
           await saveAdDraft({
             mode: 'edit',
+            kind: 'ad',
             remoteAdId: adId,
             payload: {
               title: String((payload as { title?: string })?.title ?? ''),

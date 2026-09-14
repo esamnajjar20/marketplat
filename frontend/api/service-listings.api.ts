@@ -14,6 +14,7 @@
  */
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
+import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { ApiResponse } from '@/types/api.types';
 import type {
   ServiceListing,
@@ -47,8 +48,15 @@ export const serviceListingsApi = {
    * as ads.api.ts's create(), so ServiceListingForm can show a real
    * progress bar during the multipart upload instead of only a static
    * "جارٍ الحفظ…" button label.
+   *
+   * operationId (اختياري): نفس نمط ads.api — يُرسَل كـ X-Offline-Op-Id
+   * لربط المسودة المحلية (offlineAdDrafts) بعنصر طابور الـ SW.
    */
-  create: (payload: CreateServiceListingPayload, onUploadProgress?: (percent: number) => void) => {
+  create: (
+    payload: CreateServiceListingPayload,
+    onUploadProgress?: (percent: number) => void,
+    operationId?: string,
+  ) => {
     const form = new FormData();
     form.append('categoryId', payload.categoryId);
     form.append('title', payload.title);
@@ -60,7 +68,10 @@ export const serviceListingsApi = {
     payload.images.forEach((file) => form.append('images', file));
 
     return apiClient.post<ApiResponse<ServiceListing>>('/service-listings', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
+      },
       onUploadProgress: onUploadProgress
         ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
         : undefined,
@@ -68,8 +79,10 @@ export const serviceListingsApi = {
   },
 
   /** PATCH /service-listings/:id — JSON only, no images (see file header). */
-  update: (id: string, payload: UpdateServiceListingPayload) =>
-    apiClient.patch<ApiResponse<ServiceListing>>(`/service-listings/${id}`, payload),
+  update: (id: string, payload: UpdateServiceListingPayload, operationId?: string) =>
+    apiClient.patch<ApiResponse<ServiceListing>>(`/service-listings/${id}`, payload, {
+      headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined,
+    }),
 
   /** DELETE /service-listings/:id */
   delete: (id: string) =>

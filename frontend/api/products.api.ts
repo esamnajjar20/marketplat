@@ -14,6 +14,7 @@
  */
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
+import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { ApiResponse } from '@/types/api.types';
 import type {
   Product,
@@ -46,8 +47,15 @@ export const productsApi = {
    * ads.api.ts / service-listings.api.ts. Accepts an optional
    * onUploadProgress callback so ImageUpload can drive a real progress
    * bar during the multipart upload.
+   *
+   * operationId (اختياري): نفس نمط ads.api — يُرسَل كـ X-Offline-Op-Id
+   * لربط المسودة المحلية (offlineAdDrafts) بعنصر طابور الـ SW.
    */
-  create: (payload: CreateProductPayload, onUploadProgress?: (percent: number) => void) => {
+  create: (
+    payload: CreateProductPayload,
+    onUploadProgress?: (percent: number) => void,
+    operationId?: string,
+  ) => {
     const form = new FormData();
     form.append('categoryId', payload.categoryId);
     form.append('name', payload.name);
@@ -60,7 +68,10 @@ export const productsApi = {
     payload.images.forEach((file) => form.append('images', file));
 
     return apiClient.post<ApiResponse<Product>>('/products', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
+      },
       onUploadProgress: onUploadProgress
         ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
         : undefined,
@@ -68,8 +79,10 @@ export const productsApi = {
   },
 
   /** PATCH /products/:id — JSON only, no images (see file header). */
-  update: (id: string, payload: UpdateProductPayload) =>
-    apiClient.patch<ApiResponse<Product>>(`/products/${id}`, payload),
+  update: (id: string, payload: UpdateProductPayload, operationId?: string) =>
+    apiClient.patch<ApiResponse<Product>>(`/products/${id}`, payload, {
+      headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined,
+    }),
 
   /** DELETE /products/:id */
   delete: (id: string) =>

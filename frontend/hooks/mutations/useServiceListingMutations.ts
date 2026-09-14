@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -8,6 +9,10 @@ import { parseApiError } from '@/lib/errorParser';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
+import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { compressImageForOffline } from '@/lib/imageOffline';
+import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import type {
   CreateServiceListingPayload,
   UpdateServiceListingPayload,
@@ -16,33 +21,99 @@ import type {
 import type { PaginatedResponse } from '@/types/api.types';
 
 /**
+ * FIX IMAGEOFFLINE-WIRE-01: يضغط أفضل جهد ممكن — صورة واحدة تفشل لا توقف
+ * البقية ولا تمنع حفظ المسودة؛ فقط تُستبعَد من المعاينة.
+ */
+async function bestEffortCompressPreviews(
+  files: File[],
+): Promise<{ name: string; blob: Blob }[]> {
+  const results = await Promise.allSettled(
+    files.slice(0, 4).map(async (f) => ({ name: f.name, blob: await compressImageForOffline(f) })),
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<{ name: string; blob: Blob }> => r.status === 'fulfilled')
+    .map((r) => r.value);
+}
+
+/**
  * UX-FIX P3-10b: accepts an optional onUploadProgress callback, same
  * pattern as useCreateAd, so ServiceListingForm can drive a real
  * progress bar in ImageUpload during the multipart upload.
+ *
+ * Offline: عند انقطاع الشبكة أو وضع الطلب بالطابور، تُحفظ مسودة محلية
+ * (kind:'service') بنفس نمط useCreateAd — عنوان + وصف + معاينات مضغوطة
+ * تظهر بمركز المزامنة بدل «طلب عام».
  */
 export function useCreateServiceListing(onUploadProgress?: (percent: number) => void) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const userId = useAuthStore(selectUser)?.id ?? null;
+  const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (payload: CreateServiceListingPayload) =>
-      serviceListingsApi.create(payload, onUploadProgress).then((r) => r.data.data),
+    mutationFn: (payload: CreateServiceListingPayload) => {
+      operationIdRef.current = newOfflineOperationId();
+      return serviceListingsApi
+        .create(payload, onUploadProgress, operationIdRef.current)
+        .then((r) => r.data.data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
       toast.success('تم نشر الخدمة بنجاح');
       router.push(ROUTES.myServices);
     },
-    onError: toastMutationError,
+    onError: async (err, payload) => {
+      const parsed = parseApiError(err);
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || parsed.queued) {
+        try {
+          const files = payload.images ?? [];
+          const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
+          await saveAdDraft({
+            mode: 'create',
+            kind: 'service',
+            payload: {
+              title: String(payload.title ?? ''),
+              description: String(payload.description ?? ''),
+              price: payload.price ?? null,
+              categoryId: payload.categoryId ?? null,
+              pricingType: payload.pricingType,
+              durationEstimate: payload.durationEstimate,
+              serviceLocation: payload.serviceLocation,
+              imageLabels: files.map((f) => f.name),
+            },
+            status: 'pending_sync',
+            operationId: operationIdRef.current,
+            userId,
+            images,
+          });
+          toast.message('محفوظ محليًا — بانتظار الاتصال', {
+            description:
+              'ستُرسل الخدمة تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
+          });
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toastMutationError(err);
+    },
   });
 }
 
 export function useUpdateServiceListing(listingId: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const userId = useAuthStore(selectUser)?.id ?? null;
+  const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (payload: UpdateServiceListingPayload) =>
-      serviceListingsApi.update(listingId, payload).then((r) => r.data.data),
+    mutationFn: (payload: UpdateServiceListingPayload) => {
+      operationIdRef.current = newOfflineOperationId();
+      return serviceListingsApi
+        .update(listingId, payload, operationIdRef.current)
+        .then((r) => r.data.data);
+    },
     onSuccess: () => {
       // Same reasoning as useUpdateAd's I-05 fix: invalidate the whole
       // ['service-listings'] prefix, not just detail+mine, so public
@@ -51,7 +122,39 @@ export function useUpdateServiceListing(listingId: string) {
       toast.success('تم حفظ التعديلات');
       router.push(ROUTES.myServices);
     },
-    onError: toastMutationError,
+    onError: async (err, payload) => {
+      const parsed = parseApiError(err);
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || parsed.queued) {
+        try {
+          await saveAdDraft({
+            mode: 'edit',
+            kind: 'service',
+            remoteAdId: listingId,
+            payload: {
+              title: String(payload.title ?? ''),
+              description: String(payload.description ?? ''),
+              price: payload.price ?? null,
+              categoryId: payload.categoryId ?? null,
+              pricingType: payload.pricingType,
+              durationEstimate: payload.durationEstimate,
+              serviceLocation: payload.serviceLocation,
+              status: payload.status,
+            },
+            status: 'pending_sync',
+            operationId: operationIdRef.current,
+            userId,
+          });
+          toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
+            description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
+          });
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toastMutationError(err);
+    },
   });
 }
 

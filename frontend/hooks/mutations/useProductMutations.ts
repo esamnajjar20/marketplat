@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { productsApi } from '@/api/products.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -8,43 +9,153 @@ import { parseApiError } from '@/lib/errorParser';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
+import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { compressImageForOffline } from '@/lib/imageOffline';
+import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { CreateProductPayload, UpdateProductPayload, Product } from '@/types/product.types';
 import type { PaginatedResponse } from '@/types/api.types';
+
+/**
+ * FIX IMAGEOFFLINE-WIRE-01: يضغط أفضل جهد ممكن — صورة واحدة تفشل لا توقف
+ * البقية ولا تمنع حفظ المسودة؛ فقط تُستبعَد من المعاينة. النشر الفعلي
+ * بجودة كاملة غير متأثر (يمر بطابور الـ SW).
+ */
+async function bestEffortCompressPreviews(
+  files: File[],
+): Promise<{ name: string; blob: Blob }[]> {
+  const results = await Promise.allSettled(
+    files.slice(0, 4).map(async (f) => ({ name: f.name, blob: await compressImageForOffline(f) })),
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<{ name: string; blob: Blob }> => r.status === 'fulfilled')
+    .map((r) => r.value);
+}
 
 /**
  * Accepts an optional onUploadProgress callback, same pattern as
  * useCreateServiceListing, so ProductForm can drive a real progress
  * bar in ImageUpload during the multipart upload.
+ *
+ * Offline: عند انقطاع الشبكة أو وضع الطلب بالطابور، تُحفظ مسودة محلية
+ * (kind:'product') بنفس نمط useCreateAd — عنوان + وصف + معاينات مضغوطة
+ * تظهر بمركز المزامنة بدل «طلب عام».
  */
 export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const userId = useAuthStore(selectUser)?.id ?? null;
+  const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (payload: CreateProductPayload) =>
-      productsApi.create(payload, onUploadProgress).then((r) => r.data.data),
+    mutationFn: (payload: CreateProductPayload) => {
+      operationIdRef.current = newOfflineOperationId();
+      return productsApi
+        .create(payload, onUploadProgress, operationIdRef.current)
+        .then((r) => r.data.data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم إضافة المنتج بنجاح');
       router.push(ROUTES.myStoreProducts);
     },
-    onError: toastMutationError,
+    onError: async (err, payload) => {
+      const parsed = parseApiError(err);
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || parsed.queued) {
+        try {
+          const files = payload.images ?? [];
+          const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
+          await saveAdDraft({
+            mode: 'create',
+            kind: 'product',
+            payload: {
+              // title موحّد للعرض في مركز المزامنة؛ name يُحفظ أيضًا
+              title: String(payload.name ?? ''),
+              name: payload.name,
+              description: String(payload.description ?? ''),
+              price: payload.price ?? null,
+              categoryId: payload.categoryId ?? null,
+              discountPrice: payload.discountPrice,
+              wholesalePrice: payload.wholesalePrice,
+              wholesaleMinQty: payload.wholesaleMinQty,
+              availability: payload.availability,
+              stockQuantity: payload.stockQuantity,
+              imageLabels: files.map((f) => f.name),
+            },
+            status: 'pending_sync',
+            operationId: operationIdRef.current,
+            userId,
+            images,
+          });
+          toast.message('محفوظ محليًا — بانتظار الاتصال', {
+            description:
+              'سيُرسل المنتج تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
+          });
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toastMutationError(err);
+    },
   });
 }
 
 export function useUpdateProduct(productId: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const userId = useAuthStore(selectUser)?.id ?? null;
+  const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (payload: UpdateProductPayload) =>
-      productsApi.update(productId, payload).then((r) => r.data.data),
+    mutationFn: (payload: UpdateProductPayload) => {
+      operationIdRef.current = newOfflineOperationId();
+      return productsApi
+        .update(productId, payload, operationIdRef.current)
+        .then((r) => r.data.data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم حفظ التعديلات');
       router.push(ROUTES.myStoreProducts);
     },
-    onError: toastMutationError,
+    onError: async (err, payload) => {
+      const parsed = parseApiError(err);
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || parsed.queued) {
+        try {
+          await saveAdDraft({
+            mode: 'edit',
+            kind: 'product',
+            remoteAdId: productId,
+            payload: {
+              title: String(payload.name ?? ''),
+              name: payload.name,
+              description: String(payload.description ?? ''),
+              price: payload.price ?? null,
+              categoryId: payload.categoryId ?? null,
+              discountPrice: payload.discountPrice,
+              wholesalePrice: payload.wholesalePrice,
+              wholesaleMinQty: payload.wholesaleMinQty,
+              availability: payload.availability,
+              stockQuantity: payload.stockQuantity,
+              status: payload.status,
+            },
+            status: 'pending_sync',
+            operationId: operationIdRef.current,
+            userId,
+          });
+          toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
+            description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
+          });
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toastMutationError(err);
+    },
   });
 }
 

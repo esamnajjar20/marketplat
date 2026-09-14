@@ -13,6 +13,7 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
+import { saveAdDraft } from '@/lib/offlineAdDrafts';
 import { toast } from 'sonner';
 
 const mockPush = vi.fn();
@@ -31,8 +32,31 @@ vi.mock('@/api/service-listings.api', () => ({
   },
 }));
 
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectUser: (s: { user: { id: string } | null }) => s.user,
+}));
+
+vi.mock('@/lib/offlineAdDrafts', () => ({
+  saveAdDraft: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/lib/imageOffline', () => ({
+  compressImageForOffline: vi.fn(),
+}));
+
+import { useAuthStore } from '@/store/auth.store';
+import { compressImageForOffline } from '@/lib/imageOffline';
+
+function mockCurrentUser(id: string | null) {
+  (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    (selector: (s: { user: { id: string } | null }) => unknown) =>
+      selector({ user: id ? { id } : null }),
+  );
+}
+
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() },
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -47,6 +71,8 @@ function newClient() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockCurrentUser('user-1');
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
 
 describe('useCreateServiceListing', () => {
@@ -80,6 +106,73 @@ describe('useCreateServiceListing', () => {
 
     expect(toast.error).toHaveBeenCalled();
   });
+
+  it('saves an offline draft with kind:service and the same operationId sent to the API', async () => {
+    const queryClient = newClient();
+    (serviceListingsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    const payload = {
+      categoryId: 'c1',
+      title: 'تصليح مكيفات',
+      description: 'وصف',
+      pricingType: 'FIXED',
+      price: 50,
+      serviceLocation: 'AT_PROVIDER',
+      images: [],
+    } as never;
+
+    const { result } = renderHook(() => useCreateServiceListing(), { wrapper: createWrapper(queryClient) });
+    act(() => { result.current.mutate(payload); });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+    const sentOperationId = (serviceListingsApi.create as ReturnType<typeof vi.fn>).mock.calls[0][2];
+    expect(typeof sentOperationId).toBe('string');
+    expect(saveAdDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'create',
+        kind: 'service',
+        status: 'pending_sync',
+        operationId: sentOperationId,
+        userId: 'user-1',
+        payload: expect.objectContaining({
+          title: 'تصليح مكيفات',
+          description: 'وصف',
+        }),
+      }),
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.message).toHaveBeenCalled();
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+  });
+
+  it('stores imageLabels and compressed previews on offline create', async () => {
+    const queryClient = newClient();
+    (serviceListingsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    const fakeBlob = new Blob(['x'], { type: 'image/jpeg' });
+    vi.mocked(compressImageForOffline).mockResolvedValue(fakeBlob);
+    const file = new File(['x'], 'svc.png', { type: 'image/png' });
+
+    const { result } = renderHook(() => useCreateServiceListing(), { wrapper: createWrapper(queryClient) });
+    act(() => {
+      result.current.mutate({
+        categoryId: 'c1',
+        title: 'خدمة',
+        description: 'وصف',
+        pricingType: 'FIXED',
+        serviceLocation: 'AT_PROVIDER',
+        images: [file],
+      } as never);
+    });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+    const saved = (saveAdDraft as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(saved.payload.imageLabels).toEqual(['svc.png']);
+    expect(saved.payload).not.toHaveProperty('images');
+    expect(saved.images).toEqual([{ name: 'svc.png', blob: fakeBlob }]);
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+  });
 });
 
 describe('useUpdateServiceListing', () => {
@@ -94,10 +187,38 @@ describe('useUpdateServiceListing', () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(serviceListingsApi.update).toHaveBeenCalledWith('sl1', { title: 'عنوان جديد' });
+    expect(serviceListingsApi.update).toHaveBeenCalledWith(
+      'sl1',
+      { title: 'عنوان جديد' },
+      expect.any(String),
+    );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.serviceListings.all() });
     expect(toast.success).toHaveBeenCalledWith('تم حفظ التعديلات');
     expect(mockPush).toHaveBeenCalledWith('/my-services');
+  });
+
+  it('saves an offline draft with kind:service, remoteAdId, and matching operationId', async () => {
+    const queryClient = newClient();
+    (serviceListingsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    const { result } = renderHook(() => useUpdateServiceListing('sl1'), { wrapper: createWrapper(queryClient) });
+    act(() => { result.current.mutate({ title: 'تعديل أوفلاين' } as never); });
+
+    await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
+    const sentOperationId = (serviceListingsApi.update as ReturnType<typeof vi.fn>).mock.calls[0][2];
+    expect(saveAdDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'edit',
+        kind: 'service',
+        remoteAdId: 'sl1',
+        status: 'pending_sync',
+        operationId: sentOperationId,
+        userId: 'user-1',
+      }),
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   });
 });
 

@@ -33,6 +33,8 @@ import {
 import {
   listAdDrafts,
   deleteAdDraft,
+  draftDisplayTitle,
+  draftKindLabel,
   type AdDraft,
   type AdDraftPreviewImage,
 } from '@/lib/offlineAdDrafts';
@@ -179,11 +181,11 @@ export function SyncCenterClient() {
         </Button>
       </div>
 
-      {/* مسودات الإعلانات */}
+      {/* مسودات محفوظة محليًا (إعلان / منتج / خدمة) */}
       <section className="space-y-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <FileText className="h-4 w-4" />
-          مسودات الإعلانات
+          مسودات محفوظة محليًا
         </h2>
         {drafts.length === 0 ? (
           <p className="text-sm text-muted-foreground">لا توجد مسودات محفوظة محليًا.</p>
@@ -193,11 +195,11 @@ export function SyncCenterClient() {
               <li key={d.id} className="flex items-start justify-between gap-3 p-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">
-                    {d.payload.title?.trim() || 'مسودة بدون عنوان'}
+                    {draftDisplayTitle(d)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {d.mode === 'create' ? 'إنشاء' : 'تعديل'} · {statusLabel(d.status)} ·{' '}
-                    {formatWhen(d.updatedAt)}
+                    {draftKindLabel(d.kind)} · {d.mode === 'create' ? 'إنشاء' : 'تعديل'} ·{' '}
+                    {statusLabel(d.status)} · {formatWhen(d.updatedAt)}
                     {d.operationId ? ' · مرتبط بطلب بالطابور (سيُرسل مع الصور تلقائيًا)' : ''}
                   </p>
                   {/* FIX IMAGEOFFLINE-WIRE-01: معاينة مضغوطة فقط — الصور
@@ -220,8 +222,8 @@ export function SyncCenterClient() {
           </ul>
         )}
         <p className="text-xs text-muted-foreground">
-          المسودات تُحفظ عند تعذّر النشر بدون إنترنت. أكمل الرفع وأنت متصل من نموذج الإعلان
-          أو بعد استعادة الحقول من المسودة.
+          المسودات تُحفظ عند تعذّر النشر بدون إنترنت (إعلان، منتج، أو خدمة). أكمل الرفع وأنت
+          متصل من النموذج المناسب أو بعد استعادة الحقول من المسودة.
         </p>
       </section>
 

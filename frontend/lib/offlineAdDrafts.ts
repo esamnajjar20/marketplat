@@ -1,22 +1,36 @@
 /**
- * مسودات الإعلانات للأوفلاين — IndexedDB.
+ * مسودات الأوفلاين — IndexedDB.
  *
- * المستخدم يكتب إعلانًا بدون نت → يُحفظ محليًا بحالة draft/pending_sync
+ * يدعم 3 أنواع: إعلان / منتج / خدمة (kind).
+ *
+ * المستخدم يكتب بدون نت → يُحفظ محليًا بحالة draft/pending_sync
  * وليس «تم النشر». عند عودة الاتصال: الرفع من مركز المزامنة أو تلقائيًا.
  *
  * لا نخزّن ملفات الصور الأصلية بجودتها الكاملة (تلك تُرسَل فعليًا عبر
  * طابور الـ SW نفسه — نفس الطلب الأصلي). هنا فقط بيانات النص + نسخ
  * معاينة مضغوطة صغيرة اختيارية (FIX IMAGEOFFLINE-WIRE-01، انظر
  * AdDraftPreviewImage أدناه) لعرضها بمركز المزامنة، لا للنشر.
+ *
+ * الاسم التاريخي offlineAdDrafts بقي للتوافق مع الاستيرادات الحالية؛
+ * الحقل kind يميّز النوع فعليًا.
  */
 
 const DB_NAME = 'market-ad-drafts';
 const DB_VERSION = 1;
 const STORE = 'drafts';
+/**
+ * سقف إجمالي لكل مستخدم عبر الأنواع الثلاثة (إعلان/منتج/خدمة) معًا —
+ * نفس الـ store ونفس العدّاد. ليس 20 لكل نوع. قرار منتج صريح: الحدّ على
+ * الجهاز لكل حساب، لا فصلًا حسب الكيان. تغييره إلى per-kind يحتاج تصفية
+ * listAdDrafts بالـ kind قبل تطبيق السقف.
+ */
 const MAX_DRAFTS = 20;
 const MAX_PREVIEW_IMAGES = 4;
 
 export type AdDraftStatus = 'draft' | 'pending_sync' | 'failed' | 'synced';
+
+/** نوع الكيان — مسودات قديمة بلا kind تُعامَل كـ 'ad'. */
+export type OfflineDraftKind = 'ad' | 'product' | 'service';
 
 /**
  * FIX IMAGEOFFLINE-WIRE-01: نسخة معاينة مضغوطة واحدة (lib/imageOffline.ts's
@@ -28,6 +42,10 @@ export interface AdDraftPreviewImage {
   blob: Blob;
 }
 
+/**
+ * حمولة نصية مشتركة. للإعلان: title؛ للمنتج: name (يُنسخ أيضًا إلى title
+ * للعرض الموحّد)؛ للخدمة: title.
+ */
 export interface AdDraftPayload {
   title: string;
   description: string;
@@ -38,13 +56,18 @@ export interface AdDraftPayload {
   contactPhone?: string | null;
   /** معرفات/أسماء ملفات فقط — ليس محتوى الصور */
   imageLabels?: string[];
+  /** حقول إضافية حسب النوع (pricingType، availability، …) */
   [key: string]: unknown;
 }
 
 export interface AdDraft {
   id: string;
   mode: 'create' | 'edit';
-  /** لمعرّف الإعلان عند التعديل */
+  /**
+   * نوع الكيان. مسودات أُنشئت قبل التعميم بلا هذا الحقل → تُقرأ كـ 'ad'.
+   */
+  kind?: OfflineDraftKind;
+  /** لمعرّف الكيان البعيد عند التعديل (إعلان / منتج / خدمة) */
   remoteAdId?: string | null;
   payload: AdDraftPayload;
   status: AdDraftStatus;
@@ -97,6 +120,28 @@ function newId(): string {
   return `draft_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** عنوان العرض الموحّد — title للإعلان/الخدمة، name للمنتج. */
+export function draftDisplayTitle(d: AdDraft): string {
+  const p = d.payload;
+  const raw =
+    (typeof p.title === 'string' && p.title.trim()) ||
+    (typeof p.name === 'string' && String(p.name).trim()) ||
+    '';
+  return raw || 'مسودة بدون عنوان';
+}
+
+export function draftKindLabel(kind?: OfflineDraftKind | null): string {
+  switch (kind ?? 'ad') {
+    case 'product':
+      return 'منتج';
+    case 'service':
+      return 'خدمة';
+    case 'ad':
+    default:
+      return 'إعلان';
+  }
+}
+
 /**
  * FIX AD-DRAFT-USER-SCOPE-01: userId اختياري — مررها لتصفية مسودات
  * المستخدم الحالي فقط (شاشة "المزامنة" يجب أن تفعل هذا دومًا). بلا
@@ -142,6 +187,7 @@ export async function saveAdDraft(
   input: {
     id?: string;
     mode: 'create' | 'edit';
+    kind?: OfflineDraftKind;
     remoteAdId?: string | null;
     payload: AdDraftPayload;
     status?: AdDraftStatus;
@@ -156,6 +202,7 @@ export async function saveAdDraft(
   const draft: AdDraft = {
     id: input.id ?? existing?.id ?? newId(),
     mode: input.mode,
+    kind: input.kind ?? existing?.kind ?? 'ad',
     remoteAdId: input.remoteAdId ?? existing?.remoteAdId ?? null,
     payload: input.payload,
     status: input.status ?? existing?.status ?? 'draft',
@@ -240,9 +287,7 @@ export async function markAdDraftByOperationId(
   const draft = await findAdDraftByOperationId(operationId);
   if (!draft) return;
   if (patch.status === 'synced') {
-    // لا داعٍ للاحتفاظ بمسودة "متزامنة" — الإعلان نُشر فعليًا، والمحتوى
-    // نفسه موجود الآن على السيرفر لا بحاجة نسخة محلية. حذفها أوضح من
-    // إبقائها بحالة يسهل الخلط بينها وبين قائمة إعلاناتي الحقيقية.
+    // لا داعٍ للاحتفاظ بمسودة "متزامنة" — المحتوى نُشر فعليًا على السيرفر.
     await deleteAdDraft(draft.id);
     return;
   }

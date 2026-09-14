@@ -221,4 +221,108 @@ describe('offlineAdDrafts', () => {
     const user2Drafts = await lib.listAdDrafts('user-2');
     expect(user2Drafts.map((d) => d.id)).toContain(other.id);
   });
+
+  it('defaults kind to "ad" when omitted (legacy drafts / ads path)', async () => {
+    const d = await lib.saveAdDraft({ mode: 'create', payload, userId: 'u1', status: 'draft' });
+    expect(d.kind).toBe('ad');
+  });
+
+  it('persists kind product/service through save + list', async () => {
+    await lib.saveAdDraft({
+      mode: 'create',
+      kind: 'product',
+      payload: { title: 'منتج', name: 'منتج', description: 'د' },
+      userId: 'u1',
+      status: 'pending_sync',
+    });
+    await lib.saveAdDraft({
+      mode: 'create',
+      kind: 'service',
+      payload: { title: 'خدمة', description: 'د' },
+      userId: 'u1',
+      status: 'pending_sync',
+    });
+
+    const list = await lib.listAdDrafts('u1');
+    const kinds = list.map((d) => d.kind).sort();
+    expect(kinds).toEqual(['product', 'service']);
+  });
+
+  it('draftDisplayTitle prefers title, falls back to name, then placeholder', () => {
+    expect(
+      lib.draftDisplayTitle({
+        id: '1',
+        mode: 'create',
+        payload: { title: 'عنوان', description: '' },
+        status: 'draft',
+        createdAt: '',
+        updatedAt: '',
+      }),
+    ).toBe('عنوان');
+
+    expect(
+      lib.draftDisplayTitle({
+        id: '2',
+        mode: 'create',
+        kind: 'product',
+        payload: { title: '', name: 'اسم المنتج', description: '' },
+        status: 'draft',
+        createdAt: '',
+        updatedAt: '',
+      }),
+    ).toBe('اسم المنتج');
+
+    expect(
+      lib.draftDisplayTitle({
+        id: '3',
+        mode: 'create',
+        payload: { title: '  ', description: '' },
+        status: 'draft',
+        createdAt: '',
+        updatedAt: '',
+      }),
+    ).toBe('مسودة بدون عنوان');
+  });
+
+  it('draftKindLabel maps kinds to Arabic labels and defaults missing to إعلان', () => {
+    expect(lib.draftKindLabel('ad')).toBe('إعلان');
+    expect(lib.draftKindLabel('product')).toBe('منتج');
+    expect(lib.draftKindLabel('service')).toBe('خدمة');
+    expect(lib.draftKindLabel(undefined)).toBe('إعلان');
+    expect(lib.draftKindLabel(null)).toBe('إعلان');
+  });
+
+  it('MAX_DRAFTS cap is shared across kinds for the same user (not 20 per kind)', async () => {
+    // 8 ads + 8 products + 8 services = 24 > 20 → oldest excess pruned overall
+    for (let i = 0; i < 8; i++) {
+      await lib.saveAdDraft({
+        mode: 'create',
+        kind: 'ad',
+        payload: { title: `ad-${i}`, description: '' },
+        userId: 'u1',
+        status: 'draft',
+      });
+    }
+    for (let i = 0; i < 8; i++) {
+      await lib.saveAdDraft({
+        mode: 'create',
+        kind: 'product',
+        payload: { title: `p-${i}`, name: `p-${i}`, description: '' },
+        userId: 'u1',
+        status: 'draft',
+      });
+    }
+    for (let i = 0; i < 8; i++) {
+      await lib.saveAdDraft({
+        mode: 'create',
+        kind: 'service',
+        payload: { title: `s-${i}`, description: '' },
+        userId: 'u1',
+        status: 'draft',
+      });
+    }
+
+    const all = await lib.listAdDrafts('u1');
+    expect(all.length).toBeLessThanOrEqual(20);
+  });
 });

@@ -305,6 +305,7 @@ describe('useCreateAd', () => {
     expect(saveAdDraft).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: 'create',
+        kind: 'ad',
         status: 'pending_sync',
         operationId: sentOperationId,
         userId: 'user-1',
@@ -439,6 +440,7 @@ describe('useUpdateAd', () => {
     expect(saveAdDraft).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: 'edit',
+        kind: 'ad',
         remoteAdId: 'ad-1',
         status: 'pending_sync',
         operationId: sentOperationId,
