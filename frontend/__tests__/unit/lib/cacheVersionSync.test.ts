@@ -13,7 +13,7 @@
  * sw.js moved to 'v5' — both warm-up features were silently no-ops), and
  * a third instance found during this audit: offlineRouteShells.ts's
  * PERSONAL_SHELL_CACHE stuck on 'v18' while STATIC_CACHE in the very
- * same file had already moved to 'v19' (FIX SW-TRIM-ORDER-01). Each time
+ * same file had already moved to 'v20' (FIX SW-TRIM-ORDER-01). Each time
  * the failure mode was identical and silent: a cache is written under a
  * name 'activate' doesn't recognize, so it's deleted the moment the new
  * SW activates, and the feature it backed (route-shell warm-up, core

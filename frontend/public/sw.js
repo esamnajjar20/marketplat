@@ -83,7 +83,9 @@
 // ارفع CACHE_VERSION فقط عند تغيّر سياسة الكاش / الـ shells / استراتيجيات fetch
 // في هذا الملف — وليس مع كل deploy لا يمسّ SW. عند التفعيل (activate) تُمسَح
 // كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
-const CACHE_VERSION = 'v19';
+// FIX SW-QUEUE-ONLY-OFFLINE-01: رُفع إلى v20 — تغيّر سياسة handleMutation
+// (طابور فقط عند !navigator.onLine). رفع الرقم يفعّل SW جديد عند المستخدمين.
+const CACHE_VERSION = 'v20';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -950,14 +952,35 @@ async function replayQueue() {
   await notifyClients({ type: 'QUEUE_REPLAYED' });
 }
 
-/** طلبات API غير GET (POST/PUT/PATCH/DELETE) — عند فشل الشبكة تُحفظ بالطابور
- * وتُرجَع استجابة 202 {queued:true} يتعرّف عليها api/client.ts's response
- * interceptor فيمنع أي onSuccess/toast نجاح كاذب لعملية لم تصل فعليًا. */
+/** طلبات API غير GET (POST/PUT/PATCH/DELETE) — عند فشل الشبكة *وهو أوفلاين*
+ * تُحفظ بالطابور وتُرجَع 202 {queued:true}. يتعرّف عليها api/client.ts.
+ *
+ * FIX SW-QUEUE-ONLY-OFFLINE-01: سابقًا أي فشل fetch (سيرفر متوقف، timeout،
+ * DNS، CORS، انقطاع لحظي…) كان يدخل الطابور برسالة «لا يوجد اتصال» حتى
+ * و`navigator.onLine === true`. المستخدم يرى «انتظر النت» وهو شابك فعلًا.
+ * الآن: الطابور + رسالة الأوفلاين فقط عند `!navigator.onLine`. أونلاين +
+ * فشل شبكة → 503 بدون queued حتى يظهر خطأ حقيقي ويُعاد المحاولة يدويًا.
+ */
 async function handleMutation(request) {
   const requestForQueue = request.clone();
   try {
     return await fetch(request);
   } catch {
+    const isOffline =
+      typeof navigator !== 'undefined' && navigator.onLine === false;
+
+    // أونلاين لكن الطلب لم يصل (سيرفر/شبكة) — لا نكذب بـ«لا يوجد اتصال».
+    if (!isOffline) {
+      return new Response(
+        JSON.stringify({
+          message:
+            'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
+          code: 'NETWORK_ERROR',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
     // FIX OFFLINE-ADS-01: كان الجسم يُقرأ عبر .text()، وهذا يفكّ ترميز
     // البايتات كـ UTF-8 قبل إعادة تخزينها — عملية غير عكسية لبيانات
     // ثنائية. طلبات إنشاء/تعديل الإعلانات (وأي رفع صور آخر) هي
