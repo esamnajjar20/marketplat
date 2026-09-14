@@ -42,7 +42,10 @@
 // بكاش لا يقرأ منه sw.js أبدًا، وأن 'activate' هناك يحذف هذا الكاش (v4) فورًا
 // بعد كل تفعيل لأنه غير مدرَج بـ currentCaches. رُفعت هنا إلى 'v6' لتطابق
 // public/sw.js's CACHE_VERSION الحالية — راجع تعليق CACHE_VERSION هناك.
-const STATIC_CACHE = 'market-static-v18'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+// FIX SW-TRIM-ORDER-01: رُفعت إلى 'v19' لنفس السبب (راجع تعليق
+// lib/offlineCoreBundle.ts's CORE_CACHE) — __tests__/unit/lib/cacheVersionSync.test.ts
+// يفشل الآن تلقائيًا لو انحرفت هذه القيمة عن sw.js مستقبلًا.
+const STATIC_CACHE = 'market-static-v19'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -99,6 +102,12 @@ export const PERSONAL_SHELL_ROUTES = [
   '/my-ads',
   '/saved-searches',
   '/activity',
+  // FIX OFFLINE-AD-CREATE-01: يجب مطابقة public/sw.js's isPersonalShellRoute
+  // حرفيًا — انظر تعليقها هناك لسبب الإضافة. مُدرَج هنا أيضًا (وليس فقط
+  // بالتصنيف بـsw.js) ليُسخَّن استباقيًا قبل أول زيارة فعلية، تمامًا مثل
+  // '/my-store' و'/my-services' أدناه — أهم صفحة كتابة للبائع تستحق نفس
+  // معاملة التسخين المسبق.
+  '/ads/create',
   // الملف والإعدادات (قوائم فقط — لا sessions حساسة كـ HTML بيانات)
   '/settings',
   '/settings/profile',
@@ -129,7 +138,16 @@ export const PERSONAL_SHELL_ROUTES = [
   '/my-requests',
 ];
 
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v18';
+// FIX SW-TRIM-ORDER-01: كانت هذه القيمة ثابتة على 'v18' بينما STATIC_CACHE
+// بنفس الملف رُفع لـ'v19' — نفس عائلة خلل PWA-VER-01 بالضبط، لكن بثابت
+// ثالث بهذا الملف لم يُكتشف بالمراجعة السابقة (رُوجعا فقط STATIC_CACHE
+// وlib/offlineCoreBundle.ts's CORE_CACHE، لا هذا). النتيجة العملية لو
+// بقي منحرفًا: warmRouteShells() (سطر caches.open أدناه) يكتب أشكال
+// الصفحات الشخصية بكاش 'v18' الذي يُحذف فورًا عبر sw.js's 'activate'
+// (غير مدرَج بـ currentCaches هناك) — تمامًا نفس أثر PWA-VER-01 الأصلي.
+// يجب مطابقة CACHE_VERSION بـ public/sw.js دائمًا، وهذا الآن مغطى بـ
+// __tests__/unit/lib/cacheVersionSync.test.ts.
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v19';
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`

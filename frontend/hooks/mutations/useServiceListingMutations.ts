@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
 import type {
@@ -31,7 +32,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
       toast.success('تم نشر الخدمة بنجاح');
       router.push(ROUTES.myServices);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -50,7 +51,7 @@ export function useUpdateServiceListing(listingId: string) {
       toast.success('تم حفظ التعديلات');
       router.push(ROUTES.myServices);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -69,7 +70,7 @@ export function useAddServiceListingImages(onUploadProgress?: (percent: number) 
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -87,7 +88,7 @@ export function useRemoveServiceListingImage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -105,7 +106,7 @@ export function useReorderServiceListingImages() {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -118,7 +119,7 @@ export function useDeleteServiceListing() {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
       toast.success('تم حذف الخدمة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 

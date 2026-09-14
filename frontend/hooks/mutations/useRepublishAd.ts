@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { republishAd } from '@/api/ads-republish.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 
 export function useRepublishAd() {
@@ -15,6 +15,6 @@ export function useRepublishAd() {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
       toast.success('تم إعادة نشر الإعلان');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

@@ -12,7 +12,7 @@ import { Input } from '@/components/shared/ui/Input';
 import { Badge } from '@/components/shared/ui/Badge';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { SERVICE_QUOTE_STATUS_LABELS, SERVICE_QUOTE_STATUS_VARIANT } from '@/lib/serviceQuoteStatus';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useWithdrawServiceQuote, useAcceptServiceQuote } from '@/hooks/mutations/useServiceBroadcastMutations';
@@ -47,7 +47,7 @@ export default function ServiceBroadcastDetailPage({
       setMessage('');
       void qc.invalidateQueries({ queryKey: ['service-broadcasts', id] });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 
   const withdrawQuote = useWithdrawServiceQuote(id);

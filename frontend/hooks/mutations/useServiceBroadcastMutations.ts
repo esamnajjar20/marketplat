@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceBroadcastsApi } from '@/api/service-broadcasts.api';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 
 /**
@@ -22,7 +22,7 @@ export function useWithdrawServiceQuote(broadcastId: string) {
       queryClient.invalidateQueries({ queryKey: ['service-broadcasts', 'my-quotes'] });
       toast.success('تم سحب العرض');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -40,6 +40,6 @@ export function useAcceptServiceQuote(broadcastId: string) {
       queryClient.invalidateQueries({ queryKey: ['service-broadcasts', broadcastId] });
       toast.success('تم قبول العرض');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

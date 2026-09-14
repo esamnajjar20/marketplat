@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type { CreateStorePayload, UpdateStorePayload } from '@/types/store.types';
 
@@ -22,7 +23,7 @@ export function useCreateStore() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
       toast.success('تم إنشاء المتجر بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -41,7 +42,7 @@ export function useUpdateStore() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
       toast.success('تم حفظ التعديلات');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -121,7 +122,7 @@ export function useToggleStoreFollow() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.followed() });
       toast.success(data?.action === 'followed' ? 'تمت متابعة المتجر' : 'تم إلغاء متابعة المتجر');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -133,6 +134,6 @@ export function useRequestStoreFeature() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.me() });
       toast.success('تم إرسال طلب تمييز المتجر — تراجعه الإدارة قريبًا');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

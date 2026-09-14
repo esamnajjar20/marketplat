@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceRequestsApi } from '@/api/service-requests.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type {
   CreateServiceRequestPayload,
@@ -25,7 +25,7 @@ export function useCreateServiceRequest() {
       queryClient.invalidateQueries({ queryKey: ['service-requests', 'me'] });
       toast.success('تم إرسال طلبك بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -48,6 +48,6 @@ export function useRespondToServiceRequest(id: string) {
       queryClient.invalidateQueries({ queryKey: ['service-requests', 'incoming'] });
       toast.success('تم تحديث حالة الطلب');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

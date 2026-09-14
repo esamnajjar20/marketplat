@@ -13,6 +13,7 @@ import { queryKeys }            from '@/lib/queryKeys';
 import { parseApiError }        from '@/lib/errorParser';
 import { toast }                from 'sonner';
 import type { CreateServiceCategoryPayload, UpdateServiceCategoryPayload, ServiceCategory } from '@/types/service.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /**
  * A create/update/delete here affects both the admin-only tree (this
@@ -36,7 +37,7 @@ export function useCreateServiceCategory() {
       invalidateServiceCategoryQueries(queryClient);
       toast.success('تم إنشاء فئة الخدمة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -50,7 +51,7 @@ export function useUpdateServiceCategory(id: string) {
       invalidateServiceCategoryQueries(queryClient);
       toast.success('تم حفظ التعديلات');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -63,7 +64,7 @@ export function useDeleteServiceCategory() {
       invalidateServiceCategoryQueries(queryClient);
       toast.success('تم حذف الفئة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 

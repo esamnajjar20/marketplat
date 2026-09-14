@@ -15,6 +15,7 @@ import { queryKeys }            from '@/lib/queryKeys';
 import { parseApiError }        from '@/lib/errorParser';
 import { toast }                from 'sonner';
 import type { CreateProductCategoryPayload, UpdateProductCategoryPayload, ProductCategory } from '@/types/product.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /**
  * A create/update/delete here affects both the admin-only tree (this
@@ -39,7 +40,7 @@ export function useCreateProductCategory() {
       invalidateProductCategoryQueries(queryClient);
       toast.success('تم إنشاء فئة المنتج');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -53,7 +54,7 @@ export function useUpdateProductCategory(id: string) {
       invalidateProductCategoryQueries(queryClient);
       toast.success('تم حفظ التعديلات');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -66,7 +67,7 @@ export function useDeleteProductCategory() {
       invalidateProductCategoryQueries(queryClient);
       toast.success('تم حذف الفئة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 

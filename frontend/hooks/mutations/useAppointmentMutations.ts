@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { appointmentsApi } from '@/api/appointments.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type {
   CreateAppointmentPayload,
@@ -49,7 +49,7 @@ export function useCreateAppointment() {
       }
       toast.success('تم حجز الموعد بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -70,6 +70,6 @@ export function useUpdateAppointmentStatus() {
       queryClient.invalidateQueries({ queryKey: ['appointments', 'me'] });
       toast.success('تم تحديث حالة الموعد');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

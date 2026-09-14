@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { promotionsApi } from '@/api/promotions.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type { CreatePromotionPayload, UpdatePromotionPayload } from '@/types/promotion.types';
 
@@ -25,7 +25,7 @@ export function useCreatePromotion() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم إنشاء العرض بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -40,7 +40,7 @@ export function useUpdatePromotion(promotionId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم حفظ التعديلات');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -54,6 +54,6 @@ export function useCancelPromotion() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم إلغاء العرض');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

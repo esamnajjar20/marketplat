@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { adjustProductStock } from '@/api/products-stock.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 
 export function useAdjustProductStock() {
@@ -17,6 +17,6 @@ export function useAdjustProductStock() {
       qc.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم تحديث المخزون');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

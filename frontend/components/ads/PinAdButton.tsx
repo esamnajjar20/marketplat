@@ -5,7 +5,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
 import { toast } from 'sonner';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import type { ApiResponse } from '@/types/api.types';
 
 interface Props {
@@ -25,7 +25,11 @@ export function PinAdButton({ adId, isPinned, className }: Props) {
       queryClient.invalidateQueries({ queryKey: ['ads'] });
       toast.success(next ? 'تم تثبيت الإعلان' : 'تم إلغاء التثبيت');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    // FIX OFFLINE-QUEUED-TOAST-01: كان onError يعرض toast.error بلا تمييز
+    // عن حالة "تم قبول الطلب أوفلاين بطابور SW" (202 {queued:true}) —
+    // بائع يضغط تثبيت وهو أوفلاين كان يشوف تنبيه أحمر "فشل" لعملية نجحت
+    // فعليًا وهتترسل تلقائيًا. انظر lib/mutationFeedback.ts.
+    onError: toastMutationError,
   });
 
   return (

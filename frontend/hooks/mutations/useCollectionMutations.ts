@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { collectionsApi } from '@/api/collections.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type {
   CreateCollectionPayload,
@@ -21,7 +21,7 @@ export function useCreateCollection() {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.mine() });
       toast.success('تم إنشاء المجموعة بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -36,7 +36,7 @@ export function useUpdateCollection(id: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.detail(id) });
       toast.success('تم حفظ التعديلات');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -49,7 +49,7 @@ export function useDeleteCollection() {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.mine() });
       toast.success('تم حذف المجموعة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -64,7 +64,7 @@ export function useReorderCollections() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.mine() });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -83,7 +83,7 @@ export function useAddProductToCollection(collectionId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.products(collectionId) });
       toast.success('تمت إضافة المنتج إلى المجموعة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -97,6 +97,6 @@ export function useRemoveProductFromCollection(collectionId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.products(collectionId) });
       toast.success('تمت إزالة المنتج من المجموعة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { productsApi } from '@/api/products.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
 import type { CreateProductPayload, UpdateProductPayload, Product } from '@/types/product.types';
@@ -27,7 +28,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
       toast.success('تم إضافة المنتج بنجاح');
       router.push(ROUTES.myStoreProducts);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -43,7 +44,7 @@ export function useUpdateProduct(productId: string) {
       toast.success('تم حفظ التعديلات');
       router.push(ROUTES.myStoreProducts);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -64,7 +65,7 @@ export function useAddProductImages(onUploadProgress?: (percent: number) => void
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -82,7 +83,7 @@ export function useRemoveProductImage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -99,7 +100,7 @@ export function useReorderProductImages() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -112,7 +113,7 @@ export function useDeleteProduct() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
       toast.success('تم حذف المنتج');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 

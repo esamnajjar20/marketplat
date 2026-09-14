@@ -23,6 +23,7 @@ import { useRouter }     from 'next/navigation';
 import { adsApi }        from '@/api/ads.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
@@ -185,7 +186,7 @@ export function useDeleteAd() {
       toast.success('تم حذف الإعلان');
       router.push(ROUTES.myAds);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -205,7 +206,7 @@ export function useMarkAsSold() {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
       toast.success('تم تعليم الإعلان كمباع');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -230,7 +231,7 @@ export function useAddAdImages(onUploadProgress?: (percent: number) => void) {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -252,7 +253,7 @@ export function useRemoveAdImage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -273,6 +274,6 @@ export function useReorderAdImages() {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

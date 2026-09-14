@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeMembersApi } from '@/api/store-members.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type {
   InviteStoreMemberPayload,
@@ -20,7 +20,7 @@ export function useInviteStoreMember(storeId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.members(storeId) });
       toast.success('تم إرسال الدعوة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -39,7 +39,7 @@ export function useUpdateStoreMemberRole(storeId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.members(storeId) });
       toast.success('تم تحديث الدور');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -53,7 +53,7 @@ export function useRemoveStoreMember(storeId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.members(storeId) });
       toast.success('تم إزالة العضو');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -69,6 +69,6 @@ export function useAcceptStoreMemberInvite() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
       toast.success('تم قبول الدعوة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

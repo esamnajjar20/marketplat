@@ -18,10 +18,21 @@
  * lib/offlineQueue.ts، lib/offlineCoreBundle.ts، lib/offlineRouteShells.ts،
  * backend/.../pushService.ts، و__tests__/unit/lib/sw.test.ts (المصدر الوحيد
  * القابل للتحقق آليًا من بين كل هذه المراجع). isProtectedPage/isNeverCache/
- * isApiRequest ومستمع CLEAR_API_CACHE مطابقة لذلك الاختبار حرفيًا. باقي
- * المنطق (fetch strategies, IndexedDB queue, background sync, push) غير
- * مُغطى باختبارات — مبني على التعليقات المرجعية بأمانة قدر الإمكان لكنه لم
- * يُشغَّل فعليًا بمتصفح حقيقي في هذه الجلسة (لا شبكة/build متاح هنا).
+ * isApiRequest ومستمع CLEAR_API_CACHE مطابقة لذلك الاختبار حرفيًا.
+ *
+ * FIX SW-TEST-COVERAGE-01: التعليق السابق هنا كان يقر أن باقي المنطق
+ * (fetch strategies، طابور IndexedDB، replay، تجديد التوكن أثناء الـ
+ * replay) غير مُغطى بأي اختبار إطلاقًا. sw.test.ts يغطي الآن أيضًا:
+ * trimCache (بما فيها ترتيب X-SW-Cached-At الصريح بعد FIX SW-TRIM-ORDER-01)،
+ * networkFirstApi (كتابة/عدم كتابة الكاش)، handleMutation (تمرير الشبكة،
+ * الحفظ كـ Blob بالطابور، ربط X-Offline-Op-Id)، refreshAccessToken (نجاح/
+ * فشل/URL غير صالح)، وreplayOne/replayQueue بكل مساراتها: نجاح، 4xx غير
+ * 401 (فشل بلا حجب الطابور)، 5xx/انقطاع فعلي (يبقى pending ويحجب الطابور)،
+ * ومسار 401→تجديد→إعادة محاولة الأكثر تعقيدًا بالملف كله. لا يزال ينقص:
+ * تشغيل فعلي بمتصفح حقيقي (Background Sync API الحقيقي، push، lifecycle
+ * الفعلي لـ install/activate) — هذا يتطلب متصفحًا فعليًا، تعذّر بهذه الجلسة
+ * (لا شبكة/build متاح هنا)، فقط تحقق منطقي عبر vm.runInContext + Node's
+ * fetch API الحقيقي (Response/Headers/Blob) + IndexedDB مُحاكاة سلوكيًا.
  */
 
 // FIX PWA-VER-01: كان CACHE_VERSION هنا 'v5' بينما lib/offlineRouteShells.ts
@@ -61,10 +72,18 @@
 // (1) صفحات login/register ما عاد الـSW يعترضها إطلاقًا (كانت تسبب صفحة
 // بيضاء بعد كل تعديل أوفلاين حتى مسح البيانات). (2) فشل تنقّل SPA/RSC
 // بدون كاش ما عاد يفرض الانتقال لـ/offline — يبقى المستخدم على صفحته.
+// FIX SW-TRIM-ORDER-01: رُفع إلى v19 — trimCache كان يعتمد على ترتيب
+// caches.keys() كتقريب لـ FIFO، وهذا الترتيب غير مضمون بمواصفة Cache API
+// (لا التزام بترتيب الإدخال). أي بيئة/متصفح لا يحافظ عمليًا على هذا
+// الترتيب كان قد يحذف عنصرًا حديثًا بدل الأقدم فعليًا عند التقليم. الحل:
+// كل عنصر يُكتب الآن بترويسة X-SW-Cached-At صريحة (putTimestamped)،
+// وtrimCache يرتّب بها مباشرة بدل الاعتماد على keys(). رفع الرقم هنا
+// يفرّغ عبر 'activate' أي مدخلات API_CACHE/IMAGE_CACHE قديمة كُتبت قبل
+// هذا الإصلاح وتفتقر للترويسة الجديدة (بدل معاملتها معاملة خاصة بصمت).
 // ارفع CACHE_VERSION فقط عند تغيّر سياسة الكاش / الـ shells / استراتيجيات fetch
 // في هذا الملف — وليس مع كل deploy لا يمسّ SW. عند التفعيل (activate) تُمسَح
 // كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
-const CACHE_VERSION = 'v18';
+const CACHE_VERSION = 'v19';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -211,6 +230,17 @@ function isPersonalShellRoute(url) {
     '/my-ads',
     '/saved-searches',
     '/activity',
+    // FIX OFFLINE-AD-CREATE-01: نموذج نشر إعلان جديد كان غائبًا عن هذه
+    // القائمة رغم أن lib/offlineAdDrafts.ts (mode: 'create') وطابور SW
+    // (handleMutation) مبنيان بالكامل لدعم نشر إعلان كامل أوفلاين —
+    // النتيجة العملية قبل هذا الإصلاح: بائع يفتح /ads/create لأول مرة
+    // (أو بعد hard reload) وهو أوفلاين كان يوصله لصفحة /offline العامة،
+    // مو نموذج النشر، رغم أن كل البنية التحتية لحفظ المسودة وإرسالها لاحقًا
+    // جاهزة وتعمل. آمن بنفس منطق /notifications (FIX PWA-NOTIF-01):
+    // CreateAdGate/CreateAdForm بالكامل 'use client'، تجلب seller profile
+    // عبر useMySellerProfile بعد الـhydration — لا بيانات مستخدم مُخصَّصة
+    // مخبوزة بالـHTML/RSC نفسه.
+    '/ads/create',
     '/settings',
     '/settings/profile',
     '/settings/security',
@@ -286,6 +316,24 @@ async function stripVaryAndClone(response) {
     statusText: response.statusText,
     headers,
   });
+}
+
+/** FIX SW-TRIM-ORDER-01: يكتب رد مع ترويسة X-SW-Cached-At صريحة (طابع
+ * زمني الآن) قبل التخزين — مصدر الحقيقة الوحيد اللي trimCache يعتمد
+ * عليه للترتيب، بدل الوثوق بترتيب caches.keys() غير المضمون بالمواصفة.
+ * يُستخدم فقط لكاشات تُقلَّم فعليًا (API_CACHE وIMAGE_CACHE) — لا داعي
+ * له لـ STATIC_CACHE/CORE_CACHE/PERSONAL_SHELL_CACHE/SAVED_ADS_CACHE
+ * (لا تُقلَّم تلقائيًا أصلًا). */
+async function putTimestamped(cache, request, response) {
+  const headers = new Headers(response.headers);
+  headers.set('X-SW-Cached-At', String(Date.now()));
+  const body = await response.blob();
+  const stamped = new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+  await cache.put(request, stamped);
 }
 
 /** FIX SW-RSC-OFFLINE-01: OFFLINE_URL was pre-cached once, at install
@@ -575,7 +623,7 @@ async function cacheFirstImage(event, request, url) {
       const tooLarge = Number.isFinite(lenNum) && lenNum > 2.5 * 1024 * 1024;
       if (!tooLarge) {
         event.waitUntil(
-          cache.put(request, response.clone()).then(() =>
+          putTimestamped(cache, request, response.clone()).then(() =>
             trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
           ),
         );
@@ -587,16 +635,31 @@ async function cacheFirstImage(event, request, url) {
   }
 }
 
-/** يُبقي API_CACHE ضمن MAX_API_ENTRIES بترتيب FIFO تقريبي — cache.keys()
- * يرجع بترتيب الإدخال تقريبًا في المتصفحات الحالية، وهذا كافٍ هنا (ليس
- * ترتيبًا مضمونًا بالمواصفة لكنه سلوك عملي مقبول لتقليم غير حرج). */
+/** FIX SW-TRIM-ORDER-01: يقلّم بالاعتماد على ترويسة X-SW-Cached-At
+ * الصريحة (مكتوبة بـ putTimestamped) بدل ترتيب caches.keys() — غير
+ * مضمون بالمواصفة (سابقًا: "ترتيب FIFO تقريبي"، وهذا بالضبط ما كان قد
+ * يحذف عنصرًا حديثًا خطأً على بيئة لا تحافظ على ترتيب الإدخال). أي
+ * مدخل بلا الترويسة (مثلًا مدخل قديم من قبل هذا الإصلاح — نظريًا لن
+ * يحدث بعد رفع CACHE_VERSION لأن activate يفرّغ الكاشات القديمة، لكن
+ * دفاعًا إضافيًا) يُعامَل كطابع زمني صفر فيُحذف أولًا كأولوية. */
 async function trimCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
   if (keys.length <= maxEntries) return;
-  const excess = keys.length - maxEntries;
+
+  const withTimestamps = await Promise.all(
+    keys.map(async (key) => {
+      const res = await cache.match(key);
+      const raw = res && res.headers.get('X-SW-Cached-At');
+      const ts = raw ? Number(raw) : 0;
+      return { key, ts: Number.isFinite(ts) ? ts : 0 };
+    }),
+  );
+  withTimestamps.sort((a, b) => a.ts - b.ts);
+
+  const excess = withTimestamps.length - maxEntries;
   for (let i = 0; i < excess; i += 1) {
-    await cache.delete(keys[i]);
+    await cache.delete(withTimestamps[i].key);
   }
 }
 
@@ -612,7 +675,9 @@ async function networkFirstApi(event, request, _url) {
     const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
     if (response && response.ok && isSameOriginResponse(response) && looksLikeJson) {
       event.waitUntil(
-        cache.put(request, response.clone()).then(() => trimCache(API_CACHE, MAX_API_ENTRIES)),
+        putTimestamped(cache, request, response.clone()).then(() =>
+          trimCache(API_CACHE, MAX_API_ENTRIES),
+        ),
       );
     }
     return response;

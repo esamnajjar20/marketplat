@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
+import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type {
   CreateServiceProviderPayload,
@@ -26,7 +27,7 @@ export function useCreateServiceProvider() {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.me() });
       toast.success('تم إنشاء ملف مقدم الخدمة بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -41,7 +42,7 @@ export function useUpdateServiceProvider() {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.me() });
       toast.success('تم حفظ التعديلات');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
