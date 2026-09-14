@@ -83,9 +83,9 @@
 // ارفع CACHE_VERSION فقط عند تغيّر سياسة الكاش / الـ shells / استراتيجيات fetch
 // في هذا الملف — وليس مع كل deploy لا يمسّ SW. عند التفعيل (activate) تُمسَح
 // كاشات market-* القديمة تلقائيًا. لا تستدعِ skipWaiting() من install.
-// FIX SW-QUEUE-ONLY-OFFLINE-01: رُفع إلى v20 — تغيّر سياسة handleMutation
+// FIX SW-QUEUE-ONLY-OFFLINE-01: رُفع إلى v22 — SW-ONLINE-PASSTHROUGH-01 (أونلاين بلا 503 مُختلق)
 // (طابور فقط عند !navigator.onLine). رفع الرقم يفعّل SW جديد عند المستخدمين.
-const CACHE_VERSION = 'v21';
+const CACHE_VERSION = 'v22';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -952,53 +952,34 @@ async function replayQueue() {
   await notifyClients({ type: 'QUEUE_REPLAYED' });
 }
 
-/** طلبات API غير GET (POST/PUT/PATCH/DELETE) — عند فشل الشبكة *وهو أوفلاين*
- * تُحفظ بالطابور وتُرجَع 202 {queued:true}. يتعرّف عليها api/client.ts.
+/** طلبات API غير GET (POST/PUT/PATCH/DELETE).
  *
- * FIX SW-QUEUE-ONLY-OFFLINE-01: سابقًا أي فشل fetch (سيرفر متوقف، timeout،
- * DNS، CORS، انقطاع لحظي…) كان يدخل الطابور برسالة «لا يوجد اتصال» حتى
- * و`navigator.onLine === true`. المستخدم يرى «انتظر النت» وهو شابك فعلًا.
- * الآن: الطابور + رسالة الأوفلاين فقط عند `!navigator.onLine`. أونلاين +
- * فشل شبكة → 503 بدون queued حتى يظهر خطأ حقيقي ويُعاد المحاولة يدويًا.
+ * FIX SW-ONLINE-PASSTHROUGH-01:
+ *   أونلاين → تمرير شفاف `fetch(request)` بلا catch يختلق 503.
+ *   السبب: أي فشل لحظي (أو TypeError) كان يُحوَّل لـ 503 JSON
+ *   `{code:NETWORK_ERROR}` (~150 بايت) فيظهر في Network كـ POST ads 503
+ *   رغم أن GET للـ API ينجح والخادم سليم — رسالة مضلّلة.
+ *   التمرير الشفاف يعيد سلوك المتصفح/axios الطبيعي (رد السيرفر الحقيقي
+ *   أو خطأ شبكة status 0) دون اختلاق 503 من الـ SW.
+ *
+ *   أوفلاين → طابور + 202 {queued:true} (SW-QUEUE-ONLY-OFFLINE-01).
  */
 async function handleMutation(request) {
-  // نسختان: واحدة لإعادة المحاولة أونلاين، وواحدة للطابور أوفلاين (الجسم يُستهلك مرة).
-  const requestForRetry = request.clone();
+  const isOffline =
+    typeof navigator !== 'undefined' && navigator.onLine === false;
+
+  // ── أونلاين: لا نتدخل ───────────────────────────────────────────
+  if (!isOffline) {
+    return fetch(request);
+  }
+
+  // ── أوفلاين: طابور ─────────────────────────────────────────────
   const requestForQueue = request.clone();
   try {
     return await fetch(request);
   } catch {
-    const isOffline =
-      typeof navigator !== 'undefined' && navigator.onLine === false;
-
-    // أونلاين: محاولة ثانية قبل إعلان الفشل (انقطاع لحظي شائع).
-    // لا نكذب بـ«لا يوجد اتصال» ولا بـ«خطأ خادم» — code: NETWORK_ERROR
-    // يقرأه errorParser (FIX SW-NETWORK-MSG-01).
-    if (!isOffline) {
-      try {
-        return await fetch(requestForRetry);
-      } catch {
-        return new Response(
-          JSON.stringify({
-            message:
-              'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
-            code: 'NETWORK_ERROR',
-          }),
-          { status: 503, headers: { 'Content-Type': 'application/json' } },
-        );
-      }
-    }
-
-    // FIX OFFLINE-ADS-01: كان الجسم يُقرأ عبر .text()، وهذا يفكّ ترميز
-    // البايتات كـ UTF-8 قبل إعادة تخزينها — عملية غير عكسية لبيانات
-    // ثنائية. طلبات إنشاء/تعديل الإعلانات (وأي رفع صور آخر) هي
-    // multipart/form-data وتحمل بايتات صور خامة ضمن نفس الجسم النصي
-    // ظاهريًا؛ .text() كان يُتلف تلك البايتات بصمت (كل بايت غير صالح
-    // UTF-8 يُستبدل بحرف ), فيصل السيرفر لاحقًا صورة تالفة أو يفشل تحليل
-    // multipart أصلاً — أي أن "طابور الأوفلاين" كان يبتلع الطلب بصمت وكأنه
-    // نجح (202 queued) بينما هو فعليًا مفقود عمليًا عند إعادة الإرسال.
-    // .blob() يحفظ البايتات كما هي تمامًا؛ IndexedDB يخزّن Blob مباشرة
-    // (structured clone) و fetch() يقبله كـ body دون أي تحويل إضافي.
+    // FIX OFFLINE-ADS-01: .blob() بدل .text() حتى لا تُتلف بايتات الصور
+    // في multipart عند إعادة الإرسال لاحقًا.
     let body = null;
     try {
       const blob = await requestForQueue.blob();
@@ -1011,11 +992,7 @@ async function handleMutation(request) {
       headers[key] = value;
     });
 
-    // FIX AD-DRAFT-QUEUE-LINK-01: لو الطلب حمل X-Offline-Op-Id (مثلًا
-    // إنشاء/تعديل إعلان — انظر lib/offlineOperationId.ts)، خزّنه كحقل
-    // مستقل بالعنصر (لا داخل headers فقط) حتى تقدر lib/offlineAdDraftSync.ts
-    // تربط لاحقًا نجاح/فشل هذا العنصر بعينه بمسودة الإعلان المطابقة له،
-    // بدل أن يبقيا نظامين منفصلين لا يعرف أحدهما بالآخر.
+    // FIX AD-DRAFT-QUEUE-LINK-01: X-Offline-Op-Id → حقل operationId مستقل.
     const operationId = headers['x-offline-op-id'] || null;
 
     try {
@@ -1035,8 +1012,7 @@ async function handleMutation(request) {
       try {
         await self.registration.sync.register(SYNC_TAG);
       } catch {
-        // Background Sync غير مدعوم (iOS Safari مثلًا) — لا مشكلة، fallback
-        // اليدوي عبر REPLAY_QUEUE_NOW (lib/offlineQueue.ts) يغطي هذه الحالة.
+        // Background Sync غير مدعوم (iOS Safari) — REPLAY_QUEUE_NOW يغطي.
       }
     }
 
