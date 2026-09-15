@@ -62,6 +62,9 @@ export const ACTIVITY_GROUP = {
   icon: History,
   children: [
     { label: 'المفضلة', href: ROUTES.favorites },
+    { label: 'المحفوظات (دفع وبطاقات)', href: ROUTES.savedPayments },
+    { label: 'التنزيلات', href: ROUTES.downloads },
+    { label: 'إعلانات محفوظة دون نت', href: ROUTES.savedAds },
     { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches },
     { label: 'سجل النشاط', href: ROUTES.activity },
     { label: 'بلاغاتي', href: ROUTES.myReports },
@@ -126,18 +129,14 @@ export const SETTINGS_GROUP = {
   href: ROUTES.settings.profile,
   icon: Settings,
   children: [
-    // ملف البائع + ملف مقدم الخدمة دُمجا داخل «الملف الشخصي» الموحّد
-    // (UnifiedProfileSettings). الروابط القديمة /settings/seller و
-    // /settings/service-provider ما زالت تعمل (تفتح نفس الصفحة مع التبويب)،
-    // لكن لا حاجة لعرضهما كخيارات منفصلة في القائمة الجانبية.
     { label: 'الملف الشخصي', href: ROUTES.settings.profile },
+    // ملف البائع / مقدم الخدمة مخفيان — الوصول من «متجري» و«خدماتي»
     { label: 'إدارة المتجر', href: ROUTES.myStore },
     { label: 'الأمان', href: ROUTES.settings.security },
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
     { label: 'التخزين والبيانات', href: ROUTES.settings.storage },
-    // مركز العمليات التي تتم دون اتصال (طابور الطلبات + المسودات + إعادة المحاولة)
     { label: 'المزامنة (عمليات دون اتصال)', href: ROUTES.settings.sync },
   ],
 } as const;

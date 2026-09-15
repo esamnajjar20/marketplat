@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * جهات الدفع وبطاقات النت — تخزين محلي بالكامل (تعمل بدون إنترنت).
+ * المحفوظات المحلية — جهات الدفع وبطاقات النت.
+ * بدون QR / مسح (مخفي لأن النظام غير مستقر) — الإضافة والتعديل اليدوي هما الأساس.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Banknote,
   Wifi,
@@ -14,6 +15,8 @@ import {
   Phone,
   Plus,
   WifiOff,
+  Search,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -29,11 +32,12 @@ import {
   listSavedPayees,
   removePayee,
   savePayee,
+  updatePayee,
   listSavedNetCards,
   removeNetCard,
   saveNetCard,
+  updateNetCard,
   buildUssd,
-  buildNetCardUssd,
   ussdTelHref,
   PAY_METHOD_LABELS,
   type SavedPayee,
@@ -73,19 +77,20 @@ export function SavedPaymentsPageClient() {
   const [cards, setCards] = useState<SavedNetCard[]>([]);
   const [tab, setTab] = useState<'pay' | 'cards'>('pay');
   const [online, setOnline] = useState(true);
+  const [query, setQuery] = useState('');
 
   const [addPayOpen, setAddPayOpen] = useState(false);
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const [editPayee, setEditPayee] = useState<SavedPayee | null>(null);
+  const [editCard, setEditCard] = useState<SavedNetCard | null>(null);
   const [ussdPayee, setUssdPayee] = useState<SavedPayee | null>(null);
   const [ussdAmount, setUssdAmount] = useState('');
   const [ussdRecipient, setUssdRecipient] = useState<'friend' | 'merchant'>('friend');
 
-  // نموذج إضافة جهة
   const [pName, setPName] = useState('');
   const [pNumber, setPNumber] = useState('');
   const [pMethod, setPMethod] = useState<PayMethod>('jawwal');
 
-  // نموذج بطاقة
   const [cLabel, setCLabel] = useState('');
   const [cUser, setCUser] = useState('');
   const [cPass, setCPass] = useState('');
@@ -108,36 +113,113 @@ export function SavedPaymentsPageClient() {
     };
   }, [refresh]);
 
-  function handleAddPayee() {
-    if (!pNumber.trim()) {
-      toast.error('أدخل الرقم');
-      return;
-    }
-    savePayee({ name: pName.trim() || 'بدون اسم', number: pNumber.trim(), method: pMethod });
-    toast.success('تم حفظ جهة الدفع');
+  const q = query.trim().toLowerCase();
+
+  const filteredPayees = useMemo(() => {
+    if (!q) return payees;
+    return payees.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.number.toLowerCase().includes(q) ||
+        (PAY_METHOD_LABELS[p.method] ?? p.method).toLowerCase().includes(q),
+    );
+  }, [payees, q]);
+
+  const filteredCards = useMemo(() => {
+    if (!q) return cards;
+    return cards.filter(
+      (c) =>
+        (c.label ?? '').toLowerCase().includes(q) ||
+        c.username.toLowerCase().includes(q),
+    );
+  }, [cards, q]);
+
+  function resetPayForm() {
     setPName('');
     setPNumber('');
+    setPMethod('jawwal');
+  }
+
+  function resetCardForm() {
+    setCLabel('');
+    setCUser('');
+    setCPass('');
+  }
+
+  function handleAddPay() {
+    if (!pName.trim() || !pNumber.trim()) {
+      toast.error('الاسم والرقم مطلوبان');
+      return;
+    }
+    savePayee({ name: pName.trim(), number: pNumber.trim(), method: pMethod });
+    toast.success('تم حفظ جهة الدفع');
+    resetPayForm();
     setAddPayOpen(false);
     refresh();
   }
 
-  function handleAddCard() {
-    if (!cUser.trim() || !cPass.trim()) {
-      toast.error('أدخل اسم المستخدم وكلمة السر');
+  function handleEditPay() {
+    if (!editPayee) return;
+    if (!pName.trim() || !pNumber.trim()) {
+      toast.error('الاسم والرقم مطلوبان');
       return;
     }
-    saveNetCard({ username: cUser.trim(), password: cPass.trim(), label: cLabel.trim() || undefined });
-    const ussd = buildNetCardUssd(cUser.trim(), cPass.trim());
-    toast.success('تم حفظ البطاقة', {
-      action: ussd
-        ? { label: 'USSD', onClick: () => { window.location.href = ussdTelHref(ussd); } }
-        : undefined,
+    updatePayee(editPayee.id, {
+      name: pName.trim(),
+      number: pNumber.trim(),
+      method: pMethod,
     });
-    setCLabel('');
-    setCUser('');
-    setCPass('');
+    toast.success('تم تحديث جهة الدفع');
+    setEditPayee(null);
+    resetPayForm();
+    refresh();
+  }
+
+  function handleAddCard() {
+    if (!cUser.trim()) {
+      toast.error('اسم المستخدم / الرقم مطلوب');
+      return;
+    }
+    saveNetCard({
+      label: cLabel.trim() || undefined,
+      username: cUser.trim(),
+      password: cPass,
+    });
+    toast.success('تم حفظ البطاقة');
+    resetCardForm();
     setAddCardOpen(false);
     refresh();
+  }
+
+  function handleEditCard() {
+    if (!editCard) return;
+    if (!cUser.trim()) {
+      toast.error('اسم المستخدم / الرقم مطلوب');
+      return;
+    }
+    updateNetCard(editCard.id, {
+      label: cLabel.trim() || undefined,
+      username: cUser.trim(),
+      password: cPass,
+    });
+    toast.success('تم تحديث البطاقة');
+    setEditCard(null);
+    resetCardForm();
+    refresh();
+  }
+
+  function openEditPayee(p: SavedPayee) {
+    setPName(p.name);
+    setPNumber(p.number);
+    setPMethod(p.method);
+    setEditPayee(p);
+  }
+
+  function openEditCard(c: SavedNetCard) {
+    setCLabel(c.label ?? '');
+    setCUser(c.username);
+    setCPass(c.password);
+    setEditCard(c);
   }
 
   function dialPayeeUssd() {
@@ -162,12 +244,27 @@ export function SavedPaymentsPageClient() {
         </div>
       )}
 
+      <p className="text-sm text-muted-foreground">
+        أضف جهات الدفع وبطاقات النت يدويًا هنا. البيانات تُحفظ على جهازك فقط ويمكن تعديلها أو البحث عنها.
+      </p>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={tab === 'pay' ? 'بحث في جهات الدفع…' : 'بحث في البطاقات…'}
+          className="h-11 ps-10"
+          aria-label="بحث في المحفوظات"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-2 rounded-2xl border p-1">
         <button
           type="button"
           onClick={() => setTab('pay')}
           className={cn(
-            'flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
+            'flex min-h-[48px] items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
             tab === 'pay' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
           )}
         >
@@ -178,7 +275,7 @@ export function SavedPaymentsPageClient() {
           type="button"
           onClick={() => setTab('cards')}
           className={cn(
-            'flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
+            'flex min-h-[48px] items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
             tab === 'cards' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
           )}
         >
@@ -189,55 +286,76 @@ export function SavedPaymentsPageClient() {
 
       {tab === 'pay' && (
         <section className="space-y-3">
-          <Button type="button" className="w-full gap-2" onClick={() => setAddPayOpen(true)}>
+          <Button type="button" className="w-full gap-2" size="lg" onClick={() => { resetPayForm(); setAddPayOpen(true); }}>
             <Plus className="h-4 w-4" />
             إضافة جهة دفع
           </Button>
-          {payees.length === 0 ? (
+          {filteredPayees.length === 0 ? (
             <EmptyState
               icon={<Banknote className="h-7 w-7" />}
-              title="لا جهات محفوظة"
-              description="أضف رقماً من هنا أو من الدفع السريع — يُحفظ على جهازك ويعمل بدون نت."
+              title={q ? 'لا نتائج لهذا البحث' : 'لا جهات محفوظة'}
+              description={
+                q
+                  ? 'جرّب كلمة أخرى أو امسح البحث.'
+                  : 'أضف رقمًا يدويًا — يُحفظ على جهازك ويعمل بدون نت.'
+              }
             />
           ) : (
             <ul className="space-y-3">
-              {payees.map((p) => (
+              {filteredPayees.map((p) => (
                 <li key={p.id} className="space-y-3 rounded-xl border bg-card p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold">{p.name}</p>
-                      <p className="mt-1 font-mono text-sm" dir="ltr">{p.number}</p>
-                      <p className="text-xs text-muted-foreground">{PAY_METHOD_LABELS[p.method]}</p>
+                      <p className="text-sm text-muted-foreground" dir="ltr">
+                        {p.number}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {PAY_METHOD_LABELS[p.method] ?? p.method}
+                      </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => {
-                        removePayee(p.id);
-                        refresh();
-                        toast.success('تم الحذف');
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9"
+                        aria-label="تعديل"
+                        onClick={() => openEditPayee(p)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-destructive"
+                        aria-label="حذف"
+                        onClick={() => {
+                          removePayee(p.id);
+                          toast.success('تم الحذف');
+                          refresh();
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <CopyBtn value={p.number} label="نسخ الرقم" />
                     {p.method !== 'bank' && (
                       <Button
                         type="button"
+                        variant="outline"
                         size="sm"
                         className="gap-1.5"
                         onClick={() => {
-                          setUssdPayee(p);
                           setUssdAmount('');
-                          setUssdRecipient('friend');
+                          setUssdPayee(p);
                         }}
                       >
                         <Phone className="h-3.5 w-3.5" />
-                        دفع USSD
+                        USSD
                       </Button>
                     )}
                   </div>
@@ -250,95 +368,123 @@ export function SavedPaymentsPageClient() {
 
       {tab === 'cards' && (
         <section className="space-y-3">
-          <Button type="button" className="w-full gap-2" onClick={() => setAddCardOpen(true)}>
+          <Button type="button" className="w-full gap-2" size="lg" onClick={() => { resetCardForm(); setAddCardOpen(true); }}>
             <Plus className="h-4 w-4" />
             إضافة بطاقة نت
           </Button>
-          {cards.length === 0 ? (
+          {filteredCards.length === 0 ? (
             <EmptyState
               icon={<Wifi className="h-7 w-7" />}
-              title="لا بطاقات محفوظة"
-              description="أضف بطاقة من هنا — تُحفظ محلياً وتعمل بدون نت."
+              title={q ? 'لا نتائج لهذا البحث' : 'لا بطاقات محفوظة'}
+              description={
+                q
+                  ? 'جرّب كلمة أخرى أو امسح البحث.'
+                  : 'أضف بطاقة يدويًا — تُحفظ محليًا وتعمل بدون نت.'
+              }
             />
           ) : (
             <ul className="space-y-3">
-              {cards.map((c) => {
-                const ussd = buildNetCardUssd(c.username, c.password);
-                return (
-                  <li key={c.id} className="space-y-3 rounded-xl border bg-card p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold">{c.label || c.username}</p>
-                        <p className="mt-1 text-sm">
-                          <span className="text-muted-foreground">المستخدم: </span>
-                          <span className="font-mono" dir="ltr">{c.username}</span>
-                        </p>
-                        <p className="text-sm">
-                          <span className="text-muted-foreground">كلمة السر: </span>
-                          <span className="font-mono" dir="ltr">{c.password}</span>
-                        </p>
-                      </div>
+              {filteredCards.map((c) => (
+                <li key={c.id} className="space-y-3 rounded-xl border bg-card p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{c.label || 'بطاقة نت'}</p>
+                      <p className="text-sm text-muted-foreground" dir="ltr">
+                        {c.username}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="text-destructive"
+                        className="h-9 w-9"
+                        aria-label="تعديل"
+                        onClick={() => openEditCard(c)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-destructive"
+                        aria-label="حذف"
                         onClick={() => {
                           removeNetCard(c.id);
-                          refresh();
                           toast.success('تم الحذف');
+                          refresh();
                         }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <CopyBtn value={c.username} label="نسخ المستخدم" />
-                      <CopyBtn value={c.password} label="نسخ كلمة السر" />
-                      {ussd && (
-                        <Button type="button" size="sm" className="gap-1.5" asChild>
-                          <a href={ussdTelHref(ussd)} title={ussd}>
-                            <Phone className="h-3.5 w-3.5" />
-                            USSD
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <CopyBtn value={c.username} label="نسخ المستخدم" />
+                    {c.password ? <CopyBtn value={c.password} label="نسخ كلمة السر" /> : null}
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </section>
       )}
 
-      {/* إضافة جهة دفع */}
+      {/* إضافة جهة */}
       <Dialog open={addPayOpen} onOpenChange={setAddPayOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>إضافة جهة دفع</DialogTitle>
-            <DialogDescription>تُحفظ على جهازك وتعمل بدون إنترنت.</DialogDescription>
+            <DialogDescription>تُحفظ محليًا على جهازك — بدون رفع للسيرفر.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input placeholder="الاسم" value={pName} onChange={(e) => setPName(e.target.value)} />
             <Input placeholder="الرقم" value={pNumber} onChange={(e) => setPNumber(e.target.value)} dir="ltr" />
-            <div className="grid grid-cols-3 gap-2">
-              {(['jawwal', 'palpay', 'bank'] as PayMethod[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setPMethod(m)}
-                  className={cn(
-                    'rounded-lg border px-2 py-2 text-xs font-medium',
-                    pMethod === m ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-muted',
-                  )}
-                >
-                  {PAY_METHOD_LABELS[m]}
-                </button>
-              ))}
-            </div>
-            <Button type="button" className="w-full" onClick={handleAddPayee}>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={pMethod}
+              onChange={(e) => setPMethod(e.target.value as PayMethod)}
+            >
+              <option value="jawwal">جوال بي</option>
+              <option value="palpay">بال بي</option>
+              <option value="bank">بنك / تحويل</option>
+            </select>
+            <Button type="button" className="w-full" onClick={handleAddPay}>
               حفظ الجهة
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* تعديل جهة */}
+      <Dialog
+        open={!!editPayee}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditPayee(null);
+            resetPayForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل جهة دفع</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="الاسم" value={pName} onChange={(e) => setPName(e.target.value)} />
+            <Input placeholder="الرقم" value={pNumber} onChange={(e) => setPNumber(e.target.value)} dir="ltr" />
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={pMethod}
+              onChange={(e) => setPMethod(e.target.value as PayMethod)}
+            >
+              <option value="jawwal">جوال بي</option>
+              <option value="palpay">بال بي</option>
+              <option value="bank">بنك / تحويل</option>
+            </select>
+            <Button type="button" className="w-full" onClick={handleEditPay}>
+              حفظ التعديلات
             </Button>
           </div>
         </DialogContent>
@@ -349,7 +495,7 @@ export function SavedPaymentsPageClient() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>إضافة بطاقة نت</DialogTitle>
-            <DialogDescription>تُحفظ محلياً — بدون رفع للسيرفر.</DialogDescription>
+            <DialogDescription>تُحفظ محليًا — بدون رفع للسيرفر.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
@@ -362,7 +508,32 @@ export function SavedPaymentsPageClient() {
         </DialogContent>
       </Dialog>
 
-      {/* USSD لجهة دفع */}
+      {/* تعديل بطاقة */}
+      <Dialog
+        open={!!editCard}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditCard(null);
+            resetCardForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل بطاقة نت</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
+            <Input placeholder="اسم المستخدم / الرقم" value={cUser} onChange={(e) => setCUser(e.target.value)} dir="ltr" />
+            <Input placeholder="كلمة السر" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
+            <Button type="button" className="w-full" onClick={handleEditCard}>
+              حفظ التعديلات
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* USSD */}
       <Dialog open={!!ussdPayee} onOpenChange={(o) => !o && setUssdPayee(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>

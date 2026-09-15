@@ -77,6 +77,28 @@ export function removePayee(id: string) {
   );
 }
 
+/** تحديث جهة دفع محفوظة بالـ id */
+export function updatePayee(
+  id: string,
+  patch: Partial<Omit<SavedPayee, 'id' | 'savedAt'>>,
+): SavedPayee | null {
+  const list = listSavedPayees();
+  const idx = list.findIndex((p) => p.id === id);
+  if (idx < 0) return null;
+  const existing = list[idx];
+  if (!existing) return null;
+  const updated: SavedPayee = {
+    ...existing,
+    ...patch,
+    name: patch.name ?? existing.name,
+    id: existing.id,
+    savedAt: new Date().toISOString(),
+  };
+  list[idx] = updated;
+  localSet(PAYEES_KEY, list);
+  return updated;
+}
+
 export function listSavedNetCards(): SavedNetCard[] {
   return migrateLegacy<SavedNetCard>(LEGACY_CARDS, CARDS_KEY);
 }
@@ -107,6 +129,28 @@ export function removeNetCard(id: string) {
     CARDS_KEY,
     listSavedNetCards().filter((c) => c.id !== id),
   );
+}
+
+/** تحديث بطاقة نت محفوظة بالـ id */
+export function updateNetCard(
+  id: string,
+  patch: Partial<Omit<SavedNetCard, 'id' | 'savedAt'>>,
+): SavedNetCard | null {
+  const list = listSavedNetCards();
+  const idx = list.findIndex((c) => c.id === id);
+  if (idx < 0) return null;
+  const existing = list[idx];
+  if (!existing) return null;
+  const updated: SavedNetCard = {
+    ...existing,
+    ...patch,
+    username: patch.username ?? existing.username,
+    id: existing.id,
+    savedAt: new Date().toISOString(),
+  };
+  list[idx] = updated;
+  localSet(CARDS_KEY, list);
+  return updated;
 }
 
 export function buildUssd(

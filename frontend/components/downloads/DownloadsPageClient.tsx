@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Download, Trash2, Store, FileText, WifiOff, Eye } from 'lucide-react';
+import { Download, Trash2, Store, FileText, WifiOff, Eye, Search } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import {
   listCatalogDownloads,
@@ -30,10 +31,21 @@ function formatDate(iso: string) {
 export function DownloadsPageClient() {
   const [items, setItems] = useState<CatalogDownloadRecord[]>([]);
   const [online, setOnline] = useState(true);
+  const [query, setQuery] = useState('');
 
   const refresh = useCallback(() => {
     setItems(listCatalogDownloads());
   }, []);
+
+  const filteredItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (item) =>
+        item.storeName.toLowerCase().includes(q) ||
+        item.fileName.toLowerCase().includes(q),
+    );
+  }, [items, query]);
 
   useEffect(() => {
     refresh();
@@ -91,8 +103,19 @@ export function DownloadsPageClient() {
         </Button>
       </div>
 
+      <div className="relative">
+        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="بحث في التنزيلات…"
+          className="h-11 ps-10"
+          aria-label="بحث في التنزيلات"
+        />
+      </div>
+
       <ul className="space-y-3">
-        {items.map((item) => (
+        {filteredItems.map((item) => (
           <li
             key={item.id}
             className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
