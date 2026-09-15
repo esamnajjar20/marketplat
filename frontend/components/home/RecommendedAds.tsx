@@ -1,23 +1,19 @@
 'use client';
 
-import { Sparkle, AlertTriangle } from 'lucide-react';
-import { AdCard }         from '@/components/ads/AdCard';
+/**
+ * شريط «قد يعجبك أيضاً» على الرئيسية.
+ * يعتمد على مدينة المستخدم عند توفرها — نفس إشارة الترتيب التي يرسلها
+ * الـ backend عبر query.city / ملف المستخدم.
+ */
+
+import { Sparkle, AlertTriangle, MapPin } from 'lucide-react';
+import { AdCard } from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useRecommendations } from '@/hooks/queries/useRecommendations';
+import { useAuthStore } from '@/store/auth.store';
 import { homeSectionLimit } from '@/lib/listLimits';
 
 /**
- * "قد يعجبك أيضًا" — home-page personalized rail (Gap #9). Owns its
- * own heading (unlike FeaturedAds/RecentAds, which are grids dropped
- * into a heading the page renders separately) because this section
- * must disappear as a whole — heading included — when there's genuinely
- * nothing to show, the same self-contained pattern RelatedAds.tsx
- * already uses on the ad-detail page for the identical reason: a page
- * section a visitor should never see as an empty heading over a blank
- * grid. No visible distinction between "personalized" and "trending
- * fallback" results — from the visitor's side both are just "ads you
- * might like"; the backend decides which signals apply.
- *
  * FIX UX-AUDIT-02: previously `!isLoading && !data?.length` collapsed
  * the section to `null` for a failed fetch exactly the same as a
  * genuinely-empty result — a visitor with a real personalized feed
@@ -31,7 +27,11 @@ import { homeSectionLimit } from '@/lib/listLimits';
  */
 export function RecommendedAds() {
   const limit = homeSectionLimit(8, 4);
-  const { data, isLoading, isError, refetch } = useRecommendations({ limit });
+  const city = useAuthStore((s) => s.user?.city?.trim() || undefined);
+  const { data, isLoading, isError, refetch } = useRecommendations({
+    limit,
+    city,
+  });
 
   if (!isLoading && !isError && !data?.length) return null;
 
@@ -44,12 +44,24 @@ export function RecommendedAds() {
             لك
           </p>
           <h2 className="text-lg font-bold sm:text-xl">قد يعجبك أيضاً</h2>
+          {city ? (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3" aria-hidden />
+              أولوية لنتائج في {city}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              حدّد مدينتك من الإعدادات لتحسين الاقتراحات
+            </p>
+          )}
         </div>
       </div>
 
       {isLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {Array.from({ length: limit }).map((_, i) => <AdCardSkeleton key={i} />)}
+          {Array.from({ length: limit }).map((_, i) => (
+            <AdCardSkeleton key={i} />
+          ))}
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center gap-2 py-6 text-center text-sm">
@@ -61,7 +73,9 @@ export function RecommendedAds() {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
-          {data!.map((ad) => <AdCard key={ad.id} ad={ad} />)}
+          {data!.map((ad) => (
+            <AdCard key={ad.id} ad={ad} />
+          ))}
         </div>
       )}
     </section>

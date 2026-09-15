@@ -639,7 +639,8 @@ export const recommendationsRepository = {
   findByWeightedCategories: async (
     weights: CategoryWeight[],
     excludeIds: string[],
-    limit: number
+    limit: number,
+    city?: string | null,
   ): Promise<AdListRow[]> => {
     if (weights.length === 0) return [];
 
@@ -669,6 +670,11 @@ export const recommendationsRepository = {
       whereParts.push(Prisma.sql`a."id" NOT IN (${Prisma.join(excludeIds)})`);
     }
     const whereSql = Prisma.join(whereParts, ' AND ');
+    const trimmedCity = city?.trim() || null;
+    // أولوية المدينة: إعلانات نفس المدينة أولاً ثم وزن الفئة
+    const cityOrder = trimmedCity
+      ? Prisma.sql`CASE WHEN a."city" = ${trimmedCity} THEN 0 ELSE 1 END,`
+      : Prisma.empty;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT a."id"
@@ -676,7 +682,7 @@ export const recommendationsRepository = {
       JOIN (VALUES ${weightValues}) AS w("categoryId", weight) ON w."categoryId" = a."categoryId"
       JOIN "seller_profiles" sp ON sp."id" = a."sellerProfileId"
       WHERE ${whereSql}
-      ORDER BY w.weight DESC, a."isFeatured" DESC, a."createdAt" DESC
+      ORDER BY ${cityOrder} w.weight DESC, a."isFeatured" DESC, a."createdAt" DESC
       LIMIT ${limit}
     `;
 
@@ -705,25 +711,85 @@ export const recommendationsRepository = {
   // isn't starved behind every ad with even one view. Two bounded
   // candidate pools instead of one views-sorted page — see
   // rankTrendingCandidates' own comment for why.
-  findTrending: async (excludeIds: string[], limit: number): Promise<AdListRow[]> => {
+  findTrending: async (
+    excludeIds: string[],
+    limit: number,
+    city?: string | null,
+  ): Promise<AdListRow[]> => {
     // SEC-FIX: same suspended-seller leak as findByCategoryWeights
     // above — sellerProfile is Ad's direct belongs-to relation
     // (Ad.sellerProfileId), same relation filter ads.repository.ts's
     // findMany uses.
-    const where: Prisma.AdWhereInput = {
+    const baseWhere: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
       sellerProfile: { suspended: false },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
+    const trimmedCity = city?.trim() || null;
+
+    // إن وُجدت مدينة: نملأ أولاً من نفس المدينة ثم نكمل من المنصة
+    if (trimmedCity) {
+      const cityWhere: Prisma.AdWhereInput = { ...baseWhere, city: trimmedCity };
+      const [cityTop, cityRecent] = await Promise.all([
+        prisma.ad.findMany({
+          where: cityWhere,
+          select: recommendationAdSelect,
+          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
+          take: TRENDING_POOL_SIZE,
+        }),
+        prisma.ad.findMany({
+          where: cityWhere,
+          select: recommendationAdSelect,
+          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
+          take: TRENDING_POOL_SIZE,
+        }),
+      ]);
+      const cityRanked = rankTrendingCandidates(
+        [cityTop, cityRecent],
+        limit,
+        ad => [ad.isPinned, ad.isFeatured],
+      );
+      if (cityRanked.length >= limit) return cityRanked;
+
+      const cityIds = new Set(cityRanked.map(a => a.id));
+      const restExclude = [...excludeIds, ...cityIds];
+      const restWhere: Prisma.AdWhereInput = {
+        status: AdStatus.ACTIVE,
+        sellerProfile: { suspended: false },
+        ...(restExclude.length > 0 && { id: { notIn: restExclude } }),
+      };
+      const remaining = limit - cityRanked.length;
+      const [topByViews, mostRecent] = await Promise.all([
+        prisma.ad.findMany({
+          where: restWhere,
+          select: recommendationAdSelect,
+          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
+          take: TRENDING_POOL_SIZE,
+        }),
+        prisma.ad.findMany({
+          where: restWhere,
+          select: recommendationAdSelect,
+          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
+          take: TRENDING_POOL_SIZE,
+        }),
+      ]);
+      const rest = rankTrendingCandidates(
+        [topByViews, mostRecent],
+        remaining,
+        ad => [ad.isPinned, ad.isFeatured],
+      );
+      return [...cityRanked, ...rest];
+    }
+
     const [topByViews, mostRecent] = await Promise.all([
       prisma.ad.findMany({
-        where,
+        where: baseWhere,
         select: recommendationAdSelect,
         orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
         take: TRENDING_POOL_SIZE,
       }),
       prisma.ad.findMany({
-        where,
+        where: baseWhere,
         select: recommendationAdSelect,
         orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
         take: TRENDING_POOL_SIZE,

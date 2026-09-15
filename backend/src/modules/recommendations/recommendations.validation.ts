@@ -18,6 +18,8 @@ const getRecommendationsQueryObjectSchema = z.object({
   // adsService.findAdForReference if the id doesn't resolve to a real
   // ad, so no extra format validation earns its keep here.
   excludeAdId: z.string().min(1).optional(),
+  // أولوية المدينة: إن وُجدت تُفضَّل نتائج نفس المدينة في الترتيب
+  city: z.string().min(1).max(100).optional(),
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): `type` decides
   // which entity's recommendation rail to build — 'ad' when absent,
   // preserving GET /recommendations' exact pre-existing default

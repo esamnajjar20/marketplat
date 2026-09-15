@@ -25,6 +25,8 @@ export interface GetRecommendationsParams {
   limit?: number;
   /** Ad-detail-page mode: rank by this ad's own category and exclude it. */
   excludeAdId?: string;
+  /** تفضيل إعلانات نفس المدينة في الترتيب */
+  city?: string;
 }
 
 /** Product-detail-context mode: rank by this product's own category and exclude it. */

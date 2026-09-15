@@ -1,3 +1,4 @@
+import { prisma } from '../../config/prisma';
 import { recommendationsRepository, CategoryWeight, productRecommendationsRepository, serviceListingRecommendationsRepository, storeRecommendationsRepository } from './recommendations.repository';
 import { adsService } from '../ads/ads.service';
 import { productsService } from '../products/products.service';
@@ -83,6 +84,20 @@ export const recommendationsService = {
     const excludeIds = new Set<string>();
     const weights = new Map<string, number>();
 
+    // مدينة المستخدم: من الاستعلام أو من الملف الشخصي (أولوية للاقتراحات)
+    let city: string | null = query.city?.trim() || null;
+    if (!city && userId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { city: true },
+        });
+        city = user?.city?.trim() || null;
+      } catch (err) {
+        logger.error('Failed to resolve user city for recommendations', { err, userId });
+      }
+    }
+
     if (query.excludeAdId) {
       excludeIds.add(query.excludeAdId);
       // Not found or deleted → this signal simply contributes nothing;
@@ -127,7 +142,8 @@ export const recommendationsService = {
         ? await recommendationsRepository.findByWeightedCategories(
             categoryWeights,
             excludeIdList,
-            limit
+            limit,
+            city,
           )
         : [];
 
@@ -136,9 +152,14 @@ export const recommendationsService = {
     // Backfill with trending — excluding both the original exclusions
     // and whatever personalized picks already filled the rail, so the
     // combined result never repeats an ad.
+    // عند وجود مدينة: trending يفضّل إعلانات المدينة أولاً.
     const combinedExcludeIds = [...excludeIdList, ...personalized.map(ad => ad.id)];
     const remaining = limit - personalized.length;
-    const trending = await recommendationsRepository.findTrending(combinedExcludeIds, remaining);
+    const trending = await recommendationsRepository.findTrending(
+      combinedExcludeIds,
+      remaining,
+      city,
+    );
 
     return [...personalized, ...trending];
   },
