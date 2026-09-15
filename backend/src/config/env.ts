@@ -55,6 +55,11 @@ const envSchema = z.object({
   // matching JWT_SECRET/DATABASE_URL's "required, fail fast at startup"
   // treatment rather than silently degrading security.
   REDIS_PASSWORD: z.string().optional(),
+  // Aiven Valkey (and some managed Redis providers) require an ACL
+  // username in addition to a password. Optional so local/self-hosted
+  // Redis (which has no ACL user) still works — when unset, ioredis
+  // falls back to the default `AUTH <password>` flow.
+  REDIS_USERNAME: z.string().optional(),
   // FIX LOCAL-DEV-01: previously `tls: {}` was hardcoded unconditionally
   // in config/redis.ts, correct only for managed providers that require
   // TLS on every plan (Upstash, etc. — see that file's own comment on
@@ -415,6 +420,7 @@ export const env = {
   redis: {
     host: _env.REDIS_HOST,
     port: parseInt(_env.REDIS_PORT, 10),
+    username: _env.REDIS_USERNAME,
     password: _env.REDIS_PASSWORD,
     tls: _env.REDIS_TLS,
   },

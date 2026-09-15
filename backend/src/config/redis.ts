@@ -5,6 +5,7 @@ import { env } from "./env";
 export const redis = new Redis({
   host: env.redis.host,
   port: env.redis.port,
+  username: env.redis.username || undefined,
   password: env.redis.password || undefined,
   lazyConnect: true,
   // FIX DEPLOY-01: previously no connectTimeout was set, so an
