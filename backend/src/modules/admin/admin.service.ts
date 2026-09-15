@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { AdStatus, AuditEventType, ReportStatus, Role, Prisma } from '@prisma/client';
+import { AdStatus, AuditEventType, ReportStatus, Role, Prisma, ServiceBroadcastStatus } from '@prisma/client';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { NotFoundError }   from '../../shared/errors/NotFoundError';
 import { ForbiddenError }  from '../../shared/errors/ForbiddenError';
@@ -15,6 +15,9 @@ import { adminStatsCache } from '../../shared/utils/adminStatsCache';
 // mutate Ad rows the GET /ads list cache is built from, but previously
 // never invalidated it.
 import { bumpAdsCacheVersion } from '../ads/ads.service';
+
+/** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
+let _systemHealthMem: { at: number; value: any } | null = null;
 
 export const adminService = {
   /**
@@ -684,80 +687,6 @@ export const adminService = {
     return updated;
   },
 
-  /**
-   * Admin list of service-request broadcasts (سوق الطلبات).
-   * Unlike the public open feed, this includes OPEN / ACCEPTED / CANCELLED.
-   */
-  getAdminServiceBroadcasts: async (query: {
-    page?: number;
-    limit?: number;
-    status?: 'OPEN' | 'ACCEPTED' | 'CANCELLED';
-    q?: string;
-  }) => {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    const skip = (page - 1) * limit;
-    const where: Prisma.ServiceRequestBroadcastWhereInput = {
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.q
-        ? {
-            OR: [
-              { title: { contains: query.q, mode: 'insensitive' as const } },
-              { description: { contains: query.q, mode: 'insensitive' as const } },
-              { city: { contains: query.q, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
-    };
-    const [items, total] = await Promise.all([
-      prisma.serviceRequestBroadcast.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          city: true,
-          status: true,
-          createdAt: true,
-          customerId: true,
-          categoryId: true,
-          customer: { select: { id: true, name: true } },
-          category: { select: { id: true, name: true, nameAr: true } },
-          _count: { select: { quotes: true } },
-        },
-      }),
-      prisma.serviceRequestBroadcast.count({ where }),
-    ]);
-    return { items, meta: buildPaginationMeta(total, page, limit) };
-  },
-
-  /**
-   * Force-cancel an OPEN broadcast (moderation). No-op if already not OPEN.
-   */
-  adminCancelServiceBroadcast: async (
-    broadcastId: string,
-    adminUserId: string,
-    reason?: string,
-  ) => {
-    const row = await prisma.serviceRequestBroadcast.findUnique({ where: { id: broadcastId } });
-    if (!row) throw new NotFoundError('Service broadcast not found', 'SERVICE_BROADCAST_NOT_FOUND');
-    if (row.status !== 'OPEN') {
-      throw new BadRequestError('Only OPEN broadcasts can be cancelled', 'BROADCAST_NOT_OPEN');
-    }
-    const updated = await prisma.serviceRequestBroadcast.update({
-      where: { id: broadcastId },
-      data: { status: 'CANCELLED' },
-    });
-    auditLog({
-      event: AuditEventType.ADMIN_AD_DELETED,
-      userId: adminUserId,
-      details: { broadcastId, status: 'CANCELLED', reason: reason ?? null, kind: 'service_broadcast' },
-    }).catch(() => {});
-    return updated;
-  },
 
   /**
    * Daily counts for users / ads / reports over the last N days —
@@ -818,7 +747,6 @@ export const adminService = {
     redis: {
       ok: boolean;
       latencyMs: number | null;
-      /** زمن أمر PING فقط بعد التأكد من الاتصال (أدق من القياس الأول) */
       commandLatencyMs: number | null;
       error?: string;
       note?: string;
@@ -831,11 +759,19 @@ export const adminService = {
     };
     checkedAt: string;
   }> => {
-    const checkedAt = new Date().toISOString();
+    // UPSTASH-SAVE: كاش دقيقة واحدة — فتح الصفحة عدة مرات لا يضرب Redis/DB
+    if (
+      _systemHealthMem &&
+      Date.now() - _systemHealthMem.at < 60_000
+    ) {
+      return _systemHealthMem.value;
+    }
+
     const nowMs = () => {
       const [s, ns] = process.hrtime();
       return s * 1000 + ns / 1e6;
     };
+    const checkedAt = new Date().toISOString();
 
     let redisOk = false;
     let redisMs: number | null = null;
@@ -844,25 +780,16 @@ export const adminService = {
     let redisNote: string | undefined;
     try {
       const { redis } = await import('../../config/redis');
-      // lazyConnect: أول PING قد يشمل TCP/TLS — نقيس ذلك كـ latencyMs
       const t0 = nowMs();
       if (redis.status !== 'ready') {
         await redis.connect().catch(() => undefined);
       }
+      // UPSTASH-SAVE: PING واحد بعد التأكد من الاتصال (بدل 4 أوامر)
+      const s0 = nowMs();
       await redis.ping();
+      redisCmdMs = Math.round(nowMs() - s0);
       redisMs = Math.round(nowMs() - t0);
-
-      // عيّنة أوضح لأمر PING فقط (وسيط 3 محاولات) — هذا أقرب لواقع الكاش
-      const samples: number[] = [];
-      for (let i = 0; i < 3; i++) {
-        const s0 = nowMs();
-        await redis.ping();
-        samples.push(nowMs() - s0);
-      }
-      samples.sort((a, b) => a - b);
-      redisCmdMs = Math.round(samples[1] ?? samples[0] ?? 0);
       redisOk = true;
-
       if (redisMs >= 80 && redisCmdMs < 25) {
         redisNote =
           'زمن الاتصال/الشبكة مرتفع، لكن أوامر Redis سريعة — الكاش نفسه ليس بطيئًا.';
@@ -879,26 +806,19 @@ export const adminService = {
     let dbErr: string | undefined;
     let dbNote: string | undefined;
     try {
-      // تسخين خفيف ثم قياس SELECT 1
+      const s0 = nowMs();
       await prisma.$queryRaw`SELECT 1`;
-      const samples: number[] = [];
-      for (let i = 0; i < 3; i++) {
-        const s0 = nowMs();
-        await prisma.$queryRaw`SELECT 1`;
-        samples.push(nowMs() - s0);
-      }
-      samples.sort((a, b) => a - b);
-      dbMs = Math.round(samples[1] ?? samples[0] ?? 0);
+      dbMs = Math.round(nowMs() - s0);
       dbOk = true;
       if (dbMs >= 80) {
         dbNote =
-          'استجابة DB أعلى من المعتاد محليًا — قد يكون الخادم بعيدًا أو تحت ضغط أو بارد الاتصال.';
+          'استجابة DB أعلى من المعتاد محليًا — قد يكون الخادم بعيدًا أو تحت ضغط.';
       }
     } catch (e) {
       dbErr = e instanceof Error ? e.message : 'db unreachable';
     }
 
-    return {
+    const value = {
       redis: {
         ok: redisOk,
         latencyMs: redisMs,
@@ -909,6 +829,8 @@ export const adminService = {
       db: { ok: dbOk, latencyMs: dbMs, error: dbErr, note: dbNote },
       checkedAt,
     };
+    _systemHealthMem = { at: Date.now(), value };
+    return value;
   },
 
   exportUsersCsv: async (): Promise<string> => {
@@ -978,6 +900,94 @@ export const adminService = {
     const total = openReports + pendingStores + pendingSellers + unreviewedFraud;
     return { openReports, pendingStores, pendingSellers, unreviewedFraud, total };
   },
+
+  /**
+   * Epic 6 / Feature 4: admin list of service-request broadcasts
+   * (سوق الطلبات). MODERATOR+ can view all broadcasts with filters.
+   */
+  getAdminServiceBroadcasts: async (query: {
+    page?: number;
+    limit?: number;
+    status?: ServiceBroadcastStatus;
+    q?: string;
+  }): Promise<{ items: unknown[]; meta: ReturnType<typeof buildPaginationMeta> }> => {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.ServiceRequestBroadcastWhereInput = {};
+    if (query.status) where.status = query.status;
+    if (query.q && query.q.trim()) {
+      const q = query.q.trim();
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { city: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.serviceRequestBroadcast.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          customer: { select: { id: true, name: true, phone: true, city: true } },
+          category: { select: { id: true, name: true, nameAr: true } },
+          _count: { select: { quotes: true } },
+        },
+      }),
+      prisma.serviceRequestBroadcast.count({ where }),
+    ]);
+
+    return { items, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  /**
+   * Epic 6 / Feature 4: admin cancel of a service broadcast.
+   * Only OPEN broadcasts can be cancelled by an admin — ACCEPTED
+   * broadcasts must go through the normal resolution flow, and
+   * already-CANCELLED ones are a no-op.
+   */
+  adminCancelServiceBroadcast: async (
+    id: string,
+    adminUserId: string,
+    reason?: string,
+  ): Promise<unknown> => {
+    const existing = await prisma.serviceRequestBroadcast.findUnique({
+      where: { id },
+      select: { id: true, status: true, customerId: true },
+    });
+    if (!existing) throw new NotFoundError('Service broadcast not found');
+    if (existing.status === 'CANCELLED') return existing;
+    if (existing.status === 'ACCEPTED') {
+      throw new BadRequestError(
+        'Cannot cancel an ACCEPTED broadcast — resolve the accepted quote first',
+      );
+    }
+
+    const updated = await prisma.serviceRequestBroadcast.update({
+      where: { id },
+      data: { status: 'CANCELLED' },
+      include: {
+        customer: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true, nameAr: true } },
+      },
+    });
+
+    await auditLog({
+      event: AuditEventType.ADMIN_SERVICE_BROADCAST_CANCELLED,
+      userId: adminUserId,
+      details: {
+        broadcastId: id,
+        reason: reason ?? null,
+      },
+    });
+
+    return updated;
+  },
+
 
 
 };

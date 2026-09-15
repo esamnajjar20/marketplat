@@ -28,13 +28,13 @@ import { register } from './metrics';
  *     Grafana wired up yet — same "opt-in monitoring, but not silent"
  *     pattern as capacityCheck.ts and PROD-FIX-10's Sentry check.
  *
- * Polls every 30s via INFO memory (a cheap, standard Redis command —
+ * Polls every 180s via INFO memory (a cheap, standard Redis command —
  * not a performance concern at this frequency) rather than reacting to
  * every write, since exact real-time precision doesn't matter for a
  * capacity trend that changes over minutes, not milliseconds.
  */
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 180_000; // UPSTASH-SAVE: كان 30s
 const WARNING_THRESHOLD_RATIO = 0.8;
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;

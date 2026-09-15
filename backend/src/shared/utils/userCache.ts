@@ -5,14 +5,11 @@ import { logger } from './logger';
 const USER_CACHE_PREFIX = 'user_cache:';
 const BASE_TTL = 5 * 60;
 const JITTER = 60;
+const L1_TTL_MS = 30_000;
+const L1 = new Map<string, { user: CachedUser; exp: number }>();
 
-// AUDIT-FIX M-01: exported so any other module needing this exact key
-// format (e.g. auth.middleware.ts's pipelined GET) imports it instead
-// of redeclaring USER_CACHE_PREFIX locally — a duplicated constant
-// silently diverges if this format ever changes in only one place.
 export const getUserCacheKey = (userId: string): string => `${USER_CACHE_PREFIX}${userId}`;
 
-// Single Flight — طلب واحد فقط يذهب للـ DB لنفس userId
 const inflightMap = new Map<string, Promise<CachedUser | null>>();
 
 const getTTLWithJitter = (): number => BASE_TTL + Math.floor(Math.random() * JITTER);
@@ -23,17 +20,47 @@ export interface CachedUser {
   isActive: boolean;
 }
 
+function l1Get(userId: string): CachedUser | null {
+  const hit = L1.get(userId);
+  if (!hit) return null;
+  if (Date.now() > hit.exp) {
+    L1.delete(userId);
+    return null;
+  }
+  return hit.user;
+}
+
+function l1Set(user: CachedUser): void {
+  L1.set(user.id, { user, exp: Date.now() + L1_TTL_MS });
+  if (L1.size > 5_000) {
+    const first = L1.keys().next().value;
+    if (first) L1.delete(first);
+  }
+}
+
+function l1Del(userId: string): void {
+  L1.delete(userId);
+}
+
 export const userCache = {
+  peek: (userId: string): CachedUser | null => l1Get(userId),
+
   get: async (userId: string): Promise<CachedUser | null> => {
+    const local = l1Get(userId);
+    if (local) return local;
     try {
       const cached = await redis.get(getUserCacheKey(userId));
-      return cached ? (JSON.parse(cached) as CachedUser) : null;
+      if (!cached) return null;
+      const user = JSON.parse(cached) as CachedUser;
+      l1Set(user);
+      return user;
     } catch {
       return null;
     }
   },
 
   set: async (user: CachedUser): Promise<void> => {
+    l1Set(user);
     try {
       await redis.setex(getUserCacheKey(user.id), getTTLWithJitter(), JSON.stringify(user));
     } catch {
@@ -42,6 +69,7 @@ export const userCache = {
   },
 
   invalidate: async (userId: string): Promise<void> => {
+    l1Del(userId);
     try {
       await redis.del(getUserCacheKey(userId));
     } catch {
@@ -53,7 +81,6 @@ export const userCache = {
     const cached = await userCache.get(userId);
     if (cached) return cached;
 
-    // Single Flight: إذا يوجد طلب جاري، انتظره
     const existing = inflightMap.get(userId);
     if (existing) return existing;
 

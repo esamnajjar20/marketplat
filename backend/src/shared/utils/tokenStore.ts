@@ -13,6 +13,8 @@ const ACCOUNT_LOCKED_PREFIX = 'account_locked:';
 const REFRESH_TTL = 7 * 24 * 60 * 60;
 export const MAX_SESSIONS_PER_USER = 10;
 
+const _lastSeenLocal = new Map<string, number>();
+
 /**
  * BUGFIX (found during a post-implementation code audit): previously
  * `auth.middleware.ts` reimplemented this exact key construction
@@ -34,6 +36,34 @@ export const MAX_SESSIONS_PER_USER = 10;
  * each caller still owns how it actually issues the Redis command(s).
  */
 export const getBlacklistKey = (token: string): string => `${BLACKLIST_PREFIX}${hashToken(token)}`;
+
+const BL_L1 = new Map<string, { blacklisted: boolean; exp: number }>();
+const BL_L1_NEG_MS = 20_000;
+const BL_L1_POS_MS = 60_000;
+
+export function peekBlacklistL1(token: string): boolean | undefined {
+  const key = getBlacklistKey(token);
+  const e = BL_L1.get(key);
+  if (!e) return undefined;
+  if (Date.now() > e.exp) {
+    BL_L1.delete(key);
+    return undefined;
+  }
+  return e.blacklisted;
+}
+
+export function rememberBlacklistL1(token: string, blacklisted: boolean): void {
+  const key = getBlacklistKey(token);
+  BL_L1.set(key, {
+    blacklisted,
+    exp: Date.now() + (blacklisted ? BL_L1_POS_MS : BL_L1_NEG_MS),
+  });
+  if (BL_L1.size > 10_000) {
+    const first = BL_L1.keys().next().value;
+    if (first) BL_L1.delete(first);
+  }
+}
+
 
 // IP Masking — GDPR friendly
 export const maskIp = (ip: string): string => {
@@ -209,15 +239,23 @@ export const tokenStore = {
     }
   },
 
-  // ── Update lastSeen — Throttled (5 min) ──────────────
+  // ── Update lastSeen — Throttled (5 min) + local first ─
   updateSessionLastSeen: async (userId: string, sessionId: string): Promise<void> => {
+    const localKey = `${userId}:${sessionId}`;
+    const now = Date.now();
+    const localExp = _lastSeenLocal.get(localKey);
+    if (localExp && now < localExp) return;
+
     const key = `${SESSION_META_PREFIX}${userId}:${sessionId}`;
     const throttleKey = `last_seen_throttle:${userId}:${sessionId}`;
 
-    const recentlyUpdated = await redis.exists(throttleKey);
-    if (recentlyUpdated) return;
-
     try {
+      const recentlyUpdated = await redis.exists(throttleKey);
+      if (recentlyUpdated) {
+        _lastSeenLocal.set(localKey, now + 5 * 60 * 1000);
+        return;
+      }
+
       const data = await redis.get(key);
       if (!data) return;
 
@@ -230,6 +268,11 @@ export const tokenStore = {
         pipeline.setex(key, ttl, JSON.stringify(meta));
         pipeline.setex(throttleKey, 5 * 60, '1');
         await pipeline.exec();
+      }
+      _lastSeenLocal.set(localKey, now + 5 * 60 * 1000);
+      if (_lastSeenLocal.size > 5_000) {
+        const first = _lastSeenLocal.keys().next().value;
+        if (first) _lastSeenLocal.delete(first);
       }
     } catch {
       // silent fail — lastSeen غير حرج
@@ -262,6 +305,7 @@ export const tokenStore = {
   blacklistAccessToken: async (token: string, ttlSeconds: number): Promise<void> => {
     if (ttlSeconds <= 0) return;
     await redis.setex(getBlacklistKey(token), ttlSeconds, '1');
+    rememberBlacklistL1(token, true);
   },
 
   // BUGFIX: isBlacklisted() previously lived here as a standalone

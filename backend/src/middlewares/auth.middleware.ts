@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../shared/utils/jwt";
-import { tokenStore, getBlacklistKey } from "../shared/utils/tokenStore";
+import { tokenStore, getBlacklistKey, peekBlacklistL1, rememberBlacklistL1 } from "../shared/utils/tokenStore";
 import { userCache, getUserCacheKey } from "../shared/utils/userCache";
 import { UnauthorizedError } from "../shared/errors/UnauthorizedError";
 import { env } from "../config/env";
@@ -22,6 +22,21 @@ export const authenticate = async (
 
     // Verify JWT first (CPU-only, no I/O) — fail fast before hitting Redis
     const payload = verifyAccessToken(token);
+
+    // UPSTASH-SAVE: مسار ساخن بدون Redis
+    const localBl = peekBlacklistL1(token);
+    const localUser = userCache.peek(payload.userId);
+    if (localBl === false && localUser && localUser.isActive) {
+      req.user = { ...payload, role: localUser.role };
+      tokenStore
+        .updateSessionLastSeen(payload.userId, payload.sessionId)
+        .catch(() => {});
+      next();
+      return;
+    }
+    if (localBl === true) {
+      throw new UnauthorizedError("Token has been revoked");
+    }
 
     // P-02: batch both Redis reads into one pipeline round-trip
     // [0] = blacklist check, [1] = user cache
@@ -63,15 +78,17 @@ export const authenticate = async (
 
     // Blacklist check
     if (blacklistResult !== null) {
+      rememberBlacklistL1(token, true);
       throw new UnauthorizedError("Token has been revoked");
     }
+    rememberBlacklistL1(token, false);
 
     // Resolve user — from pipeline result or DB fallback
     let user: { id: string; role: string; isActive: boolean } | null = null;
     if (userCacheResult) {
       user = JSON.parse(userCacheResult);
+      if (user) void userCache.set(user);
     } else {
-      // Cache miss — fetch from DB and warm cache (Single Flight handled in userCache)
       user = await userCache.getOrFetch(payload.userId);
     }
 

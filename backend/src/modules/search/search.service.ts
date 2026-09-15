@@ -18,6 +18,8 @@ function sanitizeDistanceKm(value: number | null | undefined): number | null {
 
 const SUGGESTIONS_TTL = 5 * 60; // 5 minutes — design doc's 5-10min window, low end since categories/products change more often than the ads-search's own 1hr categories cache
 const SUGGESTIONS_LIMIT = 8;
+const _suggestL1 = new Map<string, { at: number; value: string[] }>();
+const SUGGEST_L1_MS = 30_000;
 
 const suggestionsCacheKey = (q: string): string =>
   // Lowercased so "iPhone" and "iphone" share a cache entry — the
@@ -90,14 +92,26 @@ export const searchService = {
   suggest: async (query: SearchSuggestionsQuery): Promise<string[]> => {
     const cacheKey = suggestionsCacheKey(query.q);
 
+    const l1 = _suggestL1.get(cacheKey);
+    if (l1 && Date.now() - l1.at < SUGGEST_L1_MS) return l1.value;
+
     try {
       const cached = await redis.get(cacheKey);
-      if (cached) return JSON.parse(cached) as string[];
+      if (cached) {
+        const parsed = JSON.parse(cached) as string[];
+        _suggestL1.set(cacheKey, { at: Date.now(), value: parsed });
+        return parsed;
+      }
     } catch {
       logger.warn('Search suggestions cache read failed, falling back to DB');
     }
 
     const suggestions = await searchRepository.suggest(query.q, SUGGESTIONS_LIMIT);
+    _suggestL1.set(cacheKey, { at: Date.now(), value: suggestions });
+    if (_suggestL1.size > 500) {
+      const first = _suggestL1.keys().next().value;
+      if (first) _suggestL1.delete(first);
+    }
 
     try {
       await redis.setex(cacheKey, SUGGESTIONS_TTL, JSON.stringify(suggestions));

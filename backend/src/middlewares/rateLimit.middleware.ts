@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { MemoryStore } from "express-rate-limit";
 import { RedisStore, type RedisReply } from "rate-limit-redis";
 import { redis } from "../config/redis";
 import { env } from "../config/env";
@@ -19,6 +19,18 @@ const bypassRateLimit = env.rateLimit.disabled;
 
 const noRateLimit = () => (_req: any, _res: any, next: any) => next();
 
+/**
+ * UPSTASH-SAVE-01: افتراضيًا MemoryStore (ذاكرة العملية) بدل Redis.
+ * كل طلب API كان يستهلك عدة أوامر Redis عبر rate-limit-redis (Lua/INCR)،
+ * وهذا يملأ حصة Upstash المجانية بسرعة ويرفع زمن الاستجابة (RTT Ireland↔Frankfurt).
+ *
+ * RATE_LIMIT_USE_REDIS=true يُرجع السلوك القديم (متجر مشترك بين عدة instances).
+ * مع instance واحد على Render الذاكرة كافية ودقيقة.
+ */
+const useRedisStore =
+  process.env.RATE_LIMIT_USE_REDIS === "true" ||
+  process.env.RATE_LIMIT_USE_REDIS === "1";
+
 // FIX TEST-V4-05: extracted from createRedisStore so the actual
 // security-relevant logic (does a Redis outage silently let every
 // request through, or correctly block it for endpoints that opted into
@@ -37,13 +49,18 @@ export const makeSendCommand =
     }
   };
 
-export const createRedisStore = (prefix: string, failOpen = true) =>
-  new RedisStore({
+export const createRedisStore = (prefix: string, failOpen = true) => {
+  if (!useRedisStore) {
+    // prefix غير مستخدم في MemoryStore — كل rateLimit() يملك متجره الخاص
+    return new MemoryStore();
+  }
+  return new RedisStore({
     // M-06: explicit type cast + configurable store error handling
     // rate-limit-redis v4 returns strings for SCRIPT LOAD and arrays for EVALSHA.
     sendCommand: makeSendCommand(failOpen),
     prefix: `rl:${prefix}:`,
   });
+};
 
 export const globalRateLimit = bypassRateLimit
   ? noRateLimit()
