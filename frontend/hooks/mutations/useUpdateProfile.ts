@@ -45,6 +45,10 @@ export function useUpdateProfile() {
         name:      updated.name,
         city:      updated.city ?? null,
         avatarUrl: updated.avatarUrl ?? null,
+        // FEAT-GOOGLE-COMPLETE-PROFILE: lets ProfileCompletionGate stop
+        // redirecting immediately on save, without waiting on a
+        // separate /users/me refetch.
+        needsProfileCompletion: updated.needsProfileCompletion,
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
       toast.success('تم حفظ التغييرات');

@@ -33,6 +33,12 @@ export interface AuthUser {
   role:      UserRole;
   avatarUrl: string | null;
   city:      string | null;
+  // FEAT-GOOGLE-COMPLETE-PROFILE: true only right after a brand-new
+  // Google Sign-In signup, until the /complete-profile step is
+  // submitted. Absent/false for every local account and every
+  // returning Google user — see backend's schema.prisma comment on
+  // the column this mirrors.
+  needsProfileCompletion?: boolean;
 }
 
 /**

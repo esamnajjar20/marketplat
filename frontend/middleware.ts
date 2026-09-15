@@ -109,6 +109,10 @@ const PROTECTED_PREFIXES = [
   '/saved-searches',
   '/my-reports',
   '/service-broadcasts',
+  // FEAT-GOOGLE-COMPLETE-PROFILE: same Edge-redirect treatment as
+  // every other (protected) route above — belt-and-suspenders with
+  // that layout's own client-side guard.
+  '/complete-profile',
 ] as const;
 
 const PROTECTED_AD_EDIT_RE = /^\/ads\/[^/]+\/edit(\/.*)?$/;

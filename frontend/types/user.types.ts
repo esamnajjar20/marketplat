@@ -46,6 +46,10 @@ export interface User {
   role:      UserRole;
   isActive:  boolean;
   notificationPreferences: NotificationPreferences;
+  // FEAT-GOOGLE-COMPLETE-PROFILE: mirrors the backend column of the
+  // same name — see types/auth.types.ts's AuthUser.needsProfileCompletion
+  // comment.
+  needsProfileCompletion: boolean;
   createdAt: string;
   updatedAt: string;
 }

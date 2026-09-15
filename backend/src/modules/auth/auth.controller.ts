@@ -257,7 +257,14 @@ export const authController = {
       const result = await authService.loginWithGoogle(profile, getClientIp(req), getUserAgent(req));
       setSessionCookies(res, result.tokens.refreshToken);
 
-      res.redirect(env.frontendUrl);
+      // FEAT-GOOGLE-COMPLETE-PROFILE: a brand-new Google signup (Case 3
+      // in loginWithGoogle) comes back with needsProfileCompletion true
+      // — send them to the completion step instead of the home page so
+      // they confirm their name and pick a city before using the app.
+      // Existing/linked accounts (Case 1/2) are always false here and
+      // land on the home page exactly as before.
+      const postLoginPath = result.user.needsProfileCompletion ? 'complete-profile' : '';
+      res.redirect(`${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}${postLoginPath}`);
     } catch (error) {
       // Deliberately does NOT call next(error): this request came from
       // a top-level browser navigation with no frontend JS listening

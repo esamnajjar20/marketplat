@@ -19,6 +19,7 @@ import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
 import { CapacitorBootstrap }  from '@/components/pwa/CapacitorBootstrap';
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
+import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
@@ -94,6 +95,11 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         {/* Chat presence heartbeat — see PresenceHeartbeat.tsx's own
             header; same mount-once, no-props posture as the two above. */}
         <PresenceHeartbeat />
+
+        {/* FEAT-GOOGLE-COMPLETE-PROFILE: see the component's own
+            header for why this is a client-side redirect rather than
+            an Edge middleware rule. */}
+        <ProfileCompletionGate />
 
         <NavigationProgress />
         <BackgroundRefetchIndicator />

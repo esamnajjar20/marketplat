@@ -79,7 +79,13 @@ export const usersService = {
       const existing = await usersRepository.findByPhone(input.phone);
       if (existing) throw new BadRequestError('Phone number already in use');
     }
-    const updated = await usersRepository.update(userId, input);
+    // FEAT-GOOGLE-COMPLETE-PROFILE: this is the same PATCH /users/me
+    // the /complete-profile page submits to, so a city being provided
+    // here IS the completion signal — clear the flag in the same
+    // write rather than adding a dedicated endpoint. Never re-sets it
+    // true; only ever moves false->false or true->false.
+    const updateData = input.city ? { ...input, needsProfileCompletion: false } : input;
+    const updated = await usersRepository.update(userId, updateData);
     await userCache.invalidate(userId);
 
     // Gap #10: fire-and-forget, see activityService.record()'s own doc

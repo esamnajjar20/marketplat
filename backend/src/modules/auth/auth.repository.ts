@@ -57,6 +57,12 @@ export const authRepository = {
           googleId: data.googleId,
           avatarUrl: data.avatarUrl,
           provider: 'google',
+          // FEAT-GOOGLE-COMPLETE-PROFILE: Google never supplies a
+          // city, so this brand-new account is flagged for the
+          // /complete-profile step (see schema.prisma's comment on
+          // the column) — cleared once they submit it via the
+          // existing PATCH /users/me.
+          needsProfileCompletion: true,
         },
       });
     } catch (error) {

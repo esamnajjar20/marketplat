@@ -13,6 +13,9 @@ export const ROUTES = {
   contact:       '/contact',
   login:         '/login',
   register:      '/register',
+  // FEAT-GOOGLE-COMPLETE-PROFILE: post-Google-signup step (name + city)
+  // — see ProfileCompletionGate.tsx and app/complete-profile/page.tsx.
+  completeProfile: '/complete-profile',
   forgotPassword:'/forgot-password',
   resetPassword: '/reset-password',
   search:        '/search',

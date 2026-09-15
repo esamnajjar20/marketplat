@@ -12,7 +12,11 @@ export type SafeUser = Omit<User, 'passwordHash'>;
  * Cloudinary. This type extends the public input with that one
  * internal-only field, rather than widening the Zod schema itself.
  */
-type UpdateUserData = UpdateProfileInput & { avatarUrl?: string };
+// FEAT-GOOGLE-COMPLETE-PROFILE: needsProfileCompletion?: boolean added
+// so usersService.updateMe can clear the flag (set it false) in the
+// same prisma.user.update call that saves the submitted city, rather
+// than a second round-trip.
+type UpdateUserData = UpdateProfileInput & { avatarUrl?: string; needsProfileCompletion?: boolean };
 
 const safeUserSelect = {
   id: true,
@@ -24,6 +28,10 @@ const safeUserSelect = {
   bio: true,
   avatarUrl: true,
   isActive: true,
+  // FEAT-GOOGLE-COMPLETE-PROFILE: exposed so GET/PATCH /users/me let
+  // the frontend know whether to route the user through
+  // /complete-profile (see schema.prisma's comment on the column).
+  needsProfileCompletion: true,
   // FIX FEAT-02: needed so GET /users/me actually returns the user's
   // saved preferences — NotificationSettingsForm.tsx loads its initial
   // toggle state from here instead of always defaulting to hardcoded

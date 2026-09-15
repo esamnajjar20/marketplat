@@ -175,6 +175,12 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           role:      user.role as 'USER' | 'ADMIN',
           avatarUrl: user.avatarUrl,
           city:      user.city,
+          // FEAT-GOOGLE-COMPLETE-PROFILE: needed so ProfileCompletionGate
+          // can redirect a fresh Google signup — the redirect from
+          // authController.googleCallback already lands here, but this
+          // is also what covers a returning session on a later visit
+          // before the form is ever submitted.
+          needsProfileCompletion: user.needsProfileCompletion,
         });
         // Set role cookie for middleware admin check.
         setCookie('app_user_role', user.role, cookieMaxAge);

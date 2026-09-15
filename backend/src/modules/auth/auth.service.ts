@@ -31,7 +31,12 @@ const LOCKOUT_DURATION = 30 * 60;
 
 export interface AuthResult {
   tokens: Omit<TokenPair, 'sessionId'>;
-  user: { id: string; name: string; email: string; role: string };
+  // FEAT-GOOGLE-COMPLETE-PROFILE: optional, present (and meaningful)
+  // only from loginWithGoogle — register()/login() never set it, so
+  // it's simply absent/falsy there, matching those accounts always
+  // having needsProfileCompletion=false. authController.googleCallback
+  // reads this to pick the post-login redirect target.
+  user: { id: string; name: string; email: string; role: string; needsProfileCompletion?: boolean };
 }
 
 /**
@@ -42,7 +47,7 @@ export interface AuthResult {
  * shared setup is factored out rather than duplicated in both places.
  */
 async function issueSession(
-  user: { id: string; name: string; email: string; role: string },
+  user: { id: string; name: string; email: string; role: string; needsProfileCompletion?: boolean },
   ip: string,
   userAgent: string,
 ): Promise<{ result: AuthResult; sessionId: string }> {
@@ -62,7 +67,7 @@ async function issueSession(
     sessionId: tokens.sessionId,
     result: {
       tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn },
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, needsProfileCompletion: user.needsProfileCompletion },
     },
   };
 }

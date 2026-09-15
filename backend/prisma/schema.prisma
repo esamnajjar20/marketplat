@@ -117,6 +117,20 @@ model User {
   googleId                    String?                   @unique
   role                        Role                      @default(USER)
   city                        String?
+  // FEAT-GOOGLE-COMPLETE-PROFILE: true only for a brand-new account
+  // created via Google Sign-In (authRepository.createWithGoogle) —
+  // Google never supplies a city, and we ask the user to pick one
+  // (and confirm their name) on a dedicated /complete-profile step
+  // right after their first Google sign-up, instead of leaving city
+  // silently null. Defaults to false for every local registration
+  // (RegisterForm already collects city there, even though it's
+  // optional) and for existing/linked Google accounts (authService.
+  // loginWithGoogle's Case 1/2), so this never re-interrupts a
+  // returning user. Cleared to false the moment PATCH /users/me is
+  // called with a city (usersService.updateMe) — the completion form
+  // uses that exact endpoint, so no separate "complete" endpoint was
+  // needed.
+  needsProfileCompletion      Boolean                   @default(false)
   bio                         String?
   avatarUrl                   String?
   isActive                    Boolean                   @default(true)
