@@ -115,13 +115,15 @@ export function BottomNav() {
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
-        <span className="relative inline-flex">
-          <Icon className="h-5 w-5" aria-hidden={true} />
-          {isActive && (
-            <span className="absolute -bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" aria-hidden />
+        <span
+          className={cn(
+            'relative inline-flex items-center justify-center rounded-xl px-2.5 py-1 transition-colors',
+            isActive && 'bg-primary/10',
           )}
+        >
+          <Icon className={cn('h-5 w-5', isActive && 'text-primary')} aria-hidden={true} />
         </span>
-        {label}
+        <span className={cn(isActive && 'font-semibold text-primary')}>{label}</span>
       </Link>
     );
   }
@@ -143,13 +145,15 @@ export function BottomNav() {
           isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
-        <span className="relative inline-flex">
-          <Compass className="h-5 w-5" aria-hidden={true} />
-          {isExploreActive && (
-            <span className="absolute -bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" aria-hidden />
+        <span
+          className={cn(
+            'relative inline-flex items-center justify-center rounded-xl px-2.5 py-1 transition-colors',
+            isExploreActive && 'bg-primary/10',
           )}
+        >
+          <Compass className={cn('h-5 w-5', isExploreActive && 'text-primary')} aria-hidden={true} />
         </span>
-        استكشاف
+        <span className={cn(isExploreActive && 'font-semibold text-primary')}>استكشاف</span>
       </button>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">

@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * Floating "back to top" control — appears after the user scrolls down
- * on long list/search pages. Positioned above BottomNav on mobile.
+ * زر العودة للأعلى — يظهر بعد التمرير، فوق شريط التنقّل السفلي.
  */
 
 import { useEffect, useState } from 'react';
@@ -13,8 +12,14 @@ export function ScrollToTop({ className }: { className?: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    let ticking = false;
     function onScroll() {
-      setVisible(window.scrollY > 480);
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        setVisible(window.scrollY > 420);
+        ticking = false;
+      });
     }
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -27,16 +32,12 @@ export function ScrollToTop({ className }: { className?: string }) {
     <button
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      aria-label="العودة إلى الأعلى"
+      aria-label="العودة إلى أعلى الصفحة"
       className={cn(
-        // RTL: `start` = right side — keeps clear of StickyContactBar's
-        // primary CTA ("راسل البائع") which sits on the inline-start of
-        // the bar (left in RTL). Bottom offset clears BottomNav (~3.5rem)
-        // + sticky contact bar (~5.5rem) so the FAB never covers the tip
-        // line or the message button.
         'fixed start-4 z-40 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full',
-        'border bg-card text-foreground shadow-lg transition-all duration-200',
-        'hover:bg-muted hover:border-primary/40 hover:shadow-xl hover:-translate-y-0.5 active:scale-95',
+        'border border-border/80 bg-card/95 text-foreground shadow-md backdrop-blur-sm',
+        'transition-all duration-200 hover:border-primary/40 hover:text-primary hover:shadow-lg',
+        'active:scale-95',
         'bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))] md:bottom-6',
         className,
       )}

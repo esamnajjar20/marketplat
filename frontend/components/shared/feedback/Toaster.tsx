@@ -1,10 +1,29 @@
+'use client';
+
 /**
- * Toaster — renders toast notifications.
- *
- * FIX UI-01: '@/components/ui/toaster' (shadcn's legacy Radix-based toast
- * wrapper) does not exist in this project and was never generated — it
- * also requires '@radix-ui/react-toast', which is not installed.
- * 'sonner' IS an installed dependency (package.json) and ships its own
- * <Toaster /> component — re-export that directly instead.
+ * Toaster — إشعارات عابرة بمظهر متسق وRTL.
  */
-export { Toaster } from 'sonner';
+import { Toaster as SonnerToaster } from 'sonner';
+
+export function Toaster() {
+  return (
+    <SonnerToaster
+      position="top-center"
+      dir="rtl"
+      richColors
+      closeButton
+      duration={3800}
+      toastOptions={{
+        classNames: {
+          toast:
+            'rounded-2xl border border-border/80 bg-card text-foreground shadow-lg font-sans',
+          title: 'text-sm font-semibold',
+          description: 'text-xs text-muted-foreground',
+          actionButton: 'bg-primary text-primary-foreground rounded-lg',
+          cancelButton: 'bg-muted text-muted-foreground rounded-lg',
+          closeButton: 'bg-card border-border',
+        },
+      }}
+    />
+  );
+}

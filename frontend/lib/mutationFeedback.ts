@@ -48,7 +48,7 @@ export function toastMutationError(err: unknown): void {
     // a failure. See FIX QUEUE-UX-01 (client.ts) for where `.queued`
     // and this exact `.message` text come from.
     toast.message(parsed.message, {
-      description: 'يمكنك متابعة حالته من الإعدادات ← المزامنة.',
+      description: 'سيُرسل تلقائيًا عند عودة النت. تابع الحالة من: الإعدادات ← المزامنة.',
     });
     return;
   }

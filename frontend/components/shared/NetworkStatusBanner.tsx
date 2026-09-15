@@ -128,8 +128,8 @@ export function NetworkStatusBanner() {
         )}
         <span className="leading-snug">
           {showFullOffline
-            ? 'لا يوجد اتصال — قد تظهر آخر بيانات محفوظة (قد تكون قديمة)'
-            : 'عاد الاتصال'}
+            ? 'أنت دون اتصال — المحفوظات والتنزيلات ما زالت متاحة'
+            : 'تم استعادة الاتصال — يمكنك المتابعة'}
         </span>
       </span>
       {showBackOnline && (

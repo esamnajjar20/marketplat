@@ -1,12 +1,7 @@
 'use client';
 
 /**
- * QueryState — غلاف موحّد لحالات الاستعلام (تحميل / خطأ / فارغ / محتوى).
- *
- * الاستخدام:
- *   <QueryState isLoading={isLoading} isError={isError} onRetry={refetch} isEmpty={!items.length}>
- *     {items.map(...)}
- *   </QueryState>
+ * QueryState — غلاف موحّد: تحميل / خطأ / فارغ / محتوى.
  */
 
 import type { ReactNode } from 'react';
@@ -26,9 +21,7 @@ export interface QueryStateProps {
   emptyDescription?: string;
   emptyIcon?: ReactNode;
   onRetry?: () => void;
-  /** هيكل تحميل مخصّص (skeleton) بدل spinner */
   loadingFallback?: ReactNode;
-  /** إظهار شريط «جاري التحديث» فوق المحتوى أثناء refetch */
   showRefetchBar?: boolean;
   children: ReactNode;
   className?: string;
@@ -41,7 +34,7 @@ export function QueryState({
   isEmpty,
   errorMessage = 'تعذّر تحميل البيانات. تحقق من الاتصال ثم أعد المحاولة.',
   emptyTitle = 'لا توجد نتائج',
-  emptyDescription = 'جرّب تغيير الفلاتر أو العودة لاحقاً.',
+  emptyDescription = 'جرّب تغيير الفلاتر أو كلمة البحث، أو عد لاحقًا.',
   emptyIcon,
   onRetry,
   loadingFallback,
@@ -53,8 +46,9 @@ export function QueryState({
     return (
       <div className={cn('w-full', className)}>
         {loadingFallback ?? (
-          <div className="flex min-h-[40vh] items-center justify-center">
-            <LoadingSpinner label="جارٍ التحميل…" />
+          <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
+            <LoadingSpinner size="lg" hideLabel />
+            <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>
           </div>
         )}
       </div>
@@ -65,12 +59,18 @@ export function QueryState({
     return (
       <div className={cn('w-full', className)}>
         <EmptyState
-          icon={<AlertTriangle className="h-10 w-10" />}
-          title="حدث خطأ"
+          icon={<AlertTriangle />}
+          title="تعذّر التحميل"
           description={errorMessage}
           action={
             onRetry ? (
-              <Button type="button" variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={onRetry}
+                className="min-h-10 gap-1.5 rounded-xl px-4"
+              >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden />
                 إعادة المحاولة
               </Button>
@@ -85,7 +85,7 @@ export function QueryState({
     return (
       <div className={cn('w-full', className)}>
         <EmptyState
-          icon={emptyIcon ?? <SearchX className="h-10 w-10" />}
+          icon={emptyIcon ?? <SearchX />}
           title={emptyTitle}
           description={emptyDescription}
         />
@@ -95,14 +95,17 @@ export function QueryState({
 
   return (
     <div className={cn('relative w-full', className)}>
-      {showRefetchBar && isFetching && !isLoading && (
+      {showRefetchBar && isFetching && !isLoading ? (
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-primary/10"
-          aria-hidden
+          className="absolute inset-x-0 -top-1 z-10 flex justify-center"
+          aria-live="polite"
         >
-          <div className="nav-progress-bar h-full opacity-80" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card/95 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur">
+            <LoadingSpinner size="sm" hideLabel className="!h-3.5 !w-3.5" />
+            جارٍ التحديث…
+          </span>
         </div>
-      )}
+      ) : null}
       {children}
     </div>
   );
