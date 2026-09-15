@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * واجهة إدارة التخزين المحلي للـ PWA —
- * مسار: /settings/storage (الإعدادات → التخزين والبيانات)
+ * إدارة التخزين والبيانات — أوضح، أجمل، وأكثر فائدة.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   HardDrive,
   Trash2,
@@ -17,8 +17,14 @@ import {
   Bookmark,
   MessageSquare,
   AlertTriangle,
+  Download,
+  FileEdit,
+  WifiOff,
+  CheckCircle2,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { DataSaverToggle } from '@/components/shared/DataSaverToggle';
 import {
   collectStorageStats,
   clearCacheByName,
@@ -28,6 +34,9 @@ import {
   type StorageStats,
   type CacheBucketStat,
 } from '@/lib/storageStats';
+import { clearCatalogDownloads } from '@/lib/downloadStorage';
+import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
+import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 function iconForCache(name: string) {
@@ -45,6 +54,7 @@ export function StorageManagementClient() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -63,113 +73,210 @@ export function StorageManagementClient() {
     void refresh();
   }, [refresh]);
 
-  async function runAction(key: string, action: () => Promise<void>) {
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  const runAction = async (key: string, action: () => Promise<void>, okMsg: string) => {
     setBusy(key);
     setError(null);
     try {
       await action();
       await refresh();
+      setToast(okMsg);
     } catch {
-      setError('فشلت عملية المسح. أعد المحاولة.');
+      setError('فشلت العملية. حاول مرة أخرى.');
     } finally {
       setBusy(null);
     }
-  }
+  };
+
+  const usagePct = useMemo(() => {
+    if (!stats?.quotaBytes || !stats.usageBytes || stats.quotaBytes <= 0) return null;
+    return Math.min(100, Math.round((stats.usageBytes / stats.quotaBytes) * 100));
+  }, [stats]);
 
   if (!loading && stats && !stats.supported) {
     return (
-      <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        التخزين المؤقت غير متاح في هذا المتصفح.
-      </p>
+      <div className="rounded-2xl border border-dashed p-8 text-center">
+        <HardDrive className="mx-auto h-10 w-10 text-muted-foreground" />
+        <p className="mt-3 font-medium">التخزين المحلي غير متاح في هذا المتصفح</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          جرّب متصفحًا حديثًا أو ثبّت التطبيق كـ PWA للاستفادة من العمل دون اتصال.
+        </p>
+      </div>
     );
   }
 
-  const usageRatio =
-    stats?.quotaBytes && stats.usageBytes != null && stats.quotaBytes > 0
-      ? Math.min(100, Math.round((stats.usageBytes / stats.quotaBytes) * 100))
-      : null;
-
   return (
-    <div className="space-y-6">
-      {/* ملخص */}
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="space-y-5">
+      {toast && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {toast}
+        </div>
+      )}
+
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* ملخص الحصة */}
+      <section className="rounded-2xl border bg-card p-4 shadow-xs">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <HardDrive className="h-5 w-5" aria-hidden />
-            </span>
-            <div>
-              <h2 className="text-base font-semibold">ملخص التخزين</h2>
-              <p className="text-sm text-muted-foreground">
-                {loading
-                  ? 'جارٍ الحساب…'
-                  : `${formatStorageBytes(stats?.totalBytes ?? 0)} · ${stats?.totalEntries ?? 0} عنصر في الكاش`}
-              </p>
-            </div>
+          <div>
+            <h2 className="text-sm font-semibold">مساحة هذا الجهاز</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              تقدير المتصفح لما يستخدمه التطبيق محليًا
+            </p>
           </div>
           <Button
-            variant="outline"
+            type="button"
+            variant="ghost"
             size="sm"
-            onClick={() => void refresh()}
             disabled={loading || busy !== null}
+            onClick={() => void refresh()}
             aria-label="تحديث الإحصائيات"
           >
             <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </Button>
         </div>
 
-        {usageRatio != null && stats && (
-          <div className="mt-4 space-y-1.5">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>
-                استخدام المتصفح: {formatStorageBytes(stats.usageBytes ?? 0)}
-              </span>
-              <span>
-                من أصل {formatStorageBytes(stats.quotaBytes ?? 0)} ({usageRatio}%)
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all',
-                  usageRatio > 85 ? 'bg-destructive' : 'bg-primary',
-                )}
-                style={{ width: `${usageRatio}%` }}
-              />
-            </div>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-end justify-between gap-2 text-sm">
+            <span className="font-semibold tabular-nums">
+              {loading ? '…' : formatStorageBytes(stats?.usageBytes ?? stats?.totalBytes ?? 0)}
+            </span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              من أصل{' '}
+              {stats?.quotaBytes != null ? formatStorageBytes(stats.quotaBytes) : '—'}
+              {usagePct != null ? ` · ${usagePct}%` : ''}
+            </span>
           </div>
-        )}
+          <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all duration-500',
+                usagePct != null && usagePct >= 85
+                  ? 'bg-destructive'
+                  : usagePct != null && usagePct >= 60
+                    ? 'bg-amber-500'
+                    : 'bg-primary',
+              )}
+              style={{ width: `${usagePct ?? (loading ? 8 : 12)}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            كاش التطبيق المقاس:{' '}
+            <span className="font-medium text-foreground">
+              {loading ? '…' : formatStorageBytes(stats?.totalBytes ?? 0)}
+            </span>
+            {' · '}
+            {loading ? '…' : stats?.totalEntries ?? 0} عنصر
+          </p>
+        </div>
       </section>
 
-      {error && (
-        <p
-          role="alert"
-          className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-        >
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          {error}
+      {/* توفير البيانات */}
+      <section className="rounded-2xl border bg-card p-4 shadow-xs">
+        <h2 className="text-sm font-semibold">توفير البيانات</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          يقلّل تحميل الصور الثقيلة على شبكات ضعيفة أو باقات محدودة
         </p>
-      )}
+        <div className="mt-3">
+          <DataSaverToggle />
+        </div>
+      </section>
 
-      {/* قائمة الكاشات */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">الكاش والملفات دون اتصال</h2>
+      {/* بيانات محلية هامة */}
+      <section className="rounded-2xl border bg-card p-4 shadow-xs">
+        <h2 className="text-sm font-semibold">بيانات محفوظة لديك</h2>
+        <ul className="mt-3 space-y-2">
+          <li className="flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Download className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">كتالوجات المتاجر</p>
+              <p className="text-xs text-muted-foreground">
+                {loading
+                  ? '…'
+                  : `${stats?.extras.catalogDownloads ?? 0} تنزيل · ${formatStorageBytes(stats?.extras.catalogBytes ?? 0)}`}
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <Link href={ROUTES.downloads}>
+                عرض
+                <ExternalLink className="ms-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </li>
+          <li className="flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <FileEdit className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">مسودات دون اتصال</p>
+              <p className="text-xs text-muted-foreground">
+                {loading
+                  ? '…'
+                  : `${stats?.extras.offlineDrafts ?? 0} مسودة`}
+                {!loading && (stats?.extras.pendingDrafts ?? 0) > 0
+                  ? ` · ${stats?.extras.pendingDrafts} بانتظار المزامنة`
+                  : ''}
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <Link href={ROUTES.settings.sync}>
+                المزامنة
+                <WifiOff className="ms-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </li>
+        </ul>
+      </section>
+
+      {/* تفاصيل الكاش */}
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-xs">
+        <div className="border-b px-4 py-3">
+          <h2 className="text-sm font-semibold">تفصيل الكاش</h2>
+          <p className="text-xs text-muted-foreground">
+            يمكنك مسح نوعًا واحدًا دون حذف كل شيء
+          </p>
+        </div>
         {loading && !stats ? (
-          <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>
-        ) : (stats?.caches.length ?? 0) === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-            لا توجد بيانات كاش محفوظة حاليًا.
+          <div className="flex justify-center py-10">
+            <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : stats && stats.caches.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            لا يوجد كاش بعد — سيُبنى تلقائيًا أثناء التصفح
           </p>
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-            {stats!.caches.map((bucket) => (
+          <ul className="divide-y">
+            {stats?.caches.map((bucket) => (
               <CacheRow
                 key={bucket.name}
                 bucket={bucket}
                 busy={busy === bucket.name}
-                disabled={busy !== null}
+                disabled={busy !== null || loading}
                 onClear={() =>
-                  void runAction(bucket.name, () => clearCacheByName(bucket.name))
+                  void runAction(
+                    bucket.name,
+                    () => clearCacheByName(bucket.name),
+                    `تم مسح «${bucket.label}»`,
+                  )
                 }
               />
             ))}
@@ -178,53 +285,111 @@ export function StorageManagementClient() {
       </section>
 
       {/* إجراءات جماعية */}
-      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-xs">
         <h2 className="text-sm font-semibold">إجراءات سريعة</h2>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          مسح كاش التصفح يفرّغ الصفحات والصور وبيانات API المخزّنة مؤقتًا، ويبقي
-          الإعلانات التي حفظتها يدويًا للعمل دون اتصال. المسح الكامل يحذف كل
-          كاشات التطبيق بما فيها الإعلانات المحفوظة.
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid gap-2 sm:grid-cols-2">
           <Button
+            type="button"
             variant="outline"
-            className="flex-1"
+            className="justify-start gap-2"
             disabled={busy !== null || loading}
             onClick={() =>
-              void runAction('browsable', () => clearBrowsableCaches())
+              void runAction('browsable', () => clearBrowsableCaches(), 'تم مسح كاش التصفح')
             }
           >
             {busy === 'browsable' ? (
-              <RefreshCw className="me-2 h-4 w-4 animate-spin" />
+              <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
-              <Trash2 className="me-2 h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             )}
             مسح كاش التصفح
+            <span className="ms-auto text-[10px] font-normal text-muted-foreground">
+              يبقي المحفوظات
+            </span>
           </Button>
+
           <Button
-            variant="destructive"
-            className="flex-1"
-            disabled={busy !== null || loading}
+            type="button"
+            variant="outline"
+            className="justify-start gap-2"
+            disabled={busy !== null || loading || (stats?.extras.offlineDrafts ?? 0) === 0}
             onClick={() => {
               if (
-                typeof window !== 'undefined' &&
                 !window.confirm(
-                  'هل تريد مسح كل بيانات الكاش بما فيها الإعلانات المحفوظة دون اتصال؟',
+                  'مسح المسودات المحلية غير المُرسلة فقط؟ لن تُحذف العناصر قيد المزامنة إن وُجدت في الطابور بشكل منفصل.',
                 )
               ) {
                 return;
               }
-              void runAction('all', () => clearAllMarketCaches());
+              void runAction(
+                'drafts',
+                () => clearDraftOnlyAdDrafts(),
+                'تم مسح المسودات المحلية',
+              );
+            }}
+          >
+            {busy === 'drafts' ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileEdit className="h-4 w-4" />
+            )}
+            مسح المسودات المحلية
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="justify-start gap-2"
+            disabled={busy !== null || loading || (stats?.extras.catalogDownloads ?? 0) === 0}
+            onClick={() => {
+              if (!window.confirm('حذف كل كتالوجات المتاجر المحمّلة على هذا الجهاز؟')) {
+                return;
+              }
+              void runAction(
+                'catalogs',
+                async () => {
+                  clearCatalogDownloads();
+                },
+                'تم حذف التنزيلات المحلية',
+              );
+            }}
+          >
+            {busy === 'catalogs' ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            مسح التنزيلات
+          </Button>
+
+          <Button
+            type="button"
+            variant="destructive"
+            className="justify-start gap-2"
+            disabled={busy !== null || loading}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  'مسح كل كاش التطبيق بما فيه الإعلانات المحفوظة دون اتصال؟ لا يمكن التراجع.',
+                )
+              ) {
+                return;
+              }
+              void runAction('all', () => clearAllMarketCaches(), 'تم مسح كل الكاش');
             }}
           >
             {busy === 'all' ? (
-              <RefreshCw className="me-2 h-4 w-4 animate-spin" />
+              <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
-              <Trash2 className="me-2 h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             )}
-            مسح الكل
+            مسح كل الكاش
           </Button>
         </div>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          مسح الكاش لا يحذف حسابك ولا بيانات السيرفر. يحرّر مساحة على هذا الجهاز فقط، وقد يُعاد
+          بناء الكاش تلقائيًا عند التصفح.
+        </p>
       </section>
     </div>
   );
@@ -255,6 +420,7 @@ function CacheRow({
       </div>
       {bucket.clearable && (
         <Button
+          type="button"
           variant="ghost"
           size="sm"
           className="shrink-0 text-destructive hover:text-destructive"

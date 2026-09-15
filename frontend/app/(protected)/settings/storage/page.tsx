@@ -11,9 +11,10 @@ export default function StorageSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold">التخزين والبيانات</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          إدارة الملفات والكاش المحفوظة على هذا الجهاز للعمل دون اتصال.
+        <h1 className="text-xl font-bold tracking-tight">التخزين والبيانات</h1>
+        <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          راقب المساحة على جهازك، أدِر الكاش والتنزيلات والمسودات، وفعّل توفير البيانات للعمل
+          بسلاسة حتى مع اتصال ضعيف.
         </p>
       </div>
       <StorageManagementClient />

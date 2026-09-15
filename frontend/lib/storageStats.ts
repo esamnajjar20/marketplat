@@ -1,29 +1,33 @@
 /**
- * إحصائيات التخزين المحلي للـ PWA — Cache Storage + تقديرات IndexedDB.
- * يُستخدم من صفحة الإعدادات → التخزين والبيانات.
+ * إحصائيات التخزين المحلي للـ PWA — Cache Storage + تقديرات IndexedDB/التنزيلات.
  */
 
+import { listCatalogDownloads } from '@/lib/downloadStorage';
+import { listAdDrafts } from '@/lib/offlineAdDrafts';
+
 export interface CacheBucketStat {
-  /** اسم الكاش في Cache Storage */
   name: string;
-  /** تسمية عربية للعرض */
   label: string;
-  /** عدد المداخل */
   entries: number;
-  /** حجم تقريبي بالبايت (مجموع أحجام الأجسام إن توفرت) */
   bytes: number;
-  /** هل يُسمح بمسحه من الواجهة */
   clearable: boolean;
+}
+
+export interface LocalDataExtras {
+  catalogDownloads: number;
+  catalogBytes: number;
+  offlineDrafts: number;
+  pendingDrafts: number;
 }
 
 export interface StorageStats {
   caches: CacheBucketStat[];
   totalBytes: number;
   totalEntries: number;
-  /** تقدير من navigator.storage.estimate إن وُجد */
   quotaBytes: number | null;
   usageBytes: number | null;
   supported: boolean;
+  extras: LocalDataExtras;
 }
 
 const CACHE_LABELS: Record<string, string> = {
@@ -39,13 +43,11 @@ function labelForCacheName(name: string): string {
   if (name === 'market-saved-ads') {
     return CACHE_LABELS['market-saved-ads'] ?? name;
   }
-
   const base = name.replace(/-v\d+$/, '');
   return CACHE_LABELS[base] ?? name;
 }
 
 function isClearable(name: string): boolean {
-  // كل كاشات market-* قابلة للمسح من الواجهة عدا ما قد يُعاد بناؤه تلقائيًا
   return name.startsWith('market-');
 }
 
@@ -54,7 +56,6 @@ async function measureCache(name: string): Promise<{ entries: number; bytes: num
     const cache = await caches.open(name);
     const keys = await cache.keys();
     let bytes = 0;
-    // قياس عيّنة/كامل بحذر — clone + blob لكل مدخل
     await Promise.all(
       keys.map(async (req) => {
         try {
@@ -63,7 +64,7 @@ async function measureCache(name: string): Promise<{ entries: number; bytes: num
           const blob = await res.clone().blob();
           bytes += blob.size;
         } catch {
-          // تجاهل مدخل فاشل
+          /* ignore */
         }
       }),
     );
@@ -73,7 +74,38 @@ async function measureCache(name: string): Promise<{ entries: number; bytes: num
   }
 }
 
+async function collectExtras(): Promise<LocalDataExtras> {
+  let catalogDownloads = 0;
+  let catalogBytes = 0;
+  let offlineDrafts = 0;
+  let pendingDrafts = 0;
+  try {
+    const catalogs = listCatalogDownloads();
+    catalogDownloads = catalogs.length;
+    catalogBytes = catalogs.reduce((s, c) => s + (c.sizeBytes ?? 0), 0);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const drafts = await listAdDrafts();
+    offlineDrafts = drafts.length;
+    pendingDrafts = drafts.filter(
+      (d) => d.status === 'pending_sync' || d.status === 'failed',
+    ).length;
+  } catch {
+    /* ignore */
+  }
+  return { catalogDownloads, catalogBytes, offlineDrafts, pendingDrafts };
+}
+
 export async function collectStorageStats(): Promise<StorageStats> {
+  const emptyExtras: LocalDataExtras = {
+    catalogDownloads: 0,
+    catalogBytes: 0,
+    offlineDrafts: 0,
+    pendingDrafts: 0,
+  };
+
   if (typeof window === 'undefined' || typeof caches === 'undefined') {
     return {
       caches: [],
@@ -82,6 +114,7 @@ export async function collectStorageStats(): Promise<StorageStats> {
       quotaBytes: null,
       usageBytes: null,
       supported: false,
+      extras: emptyExtras,
     };
   }
 
@@ -99,7 +132,6 @@ export async function collectStorageStats(): Promise<StorageStats> {
     });
   }
 
-  // ترتيب: الأكبر أولًا
   cachesStats.sort((a, b) => b.bytes - a.bytes);
 
   let quotaBytes: number | null = null;
@@ -111,11 +143,16 @@ export async function collectStorageStats(): Promise<StorageStats> {
       usageBytes = est.usage ?? null;
     }
   } catch {
-    // غير مدعوم
+    /* ignore */
   }
 
-  const totalBytes = cachesStats.reduce((s, c) => s + c.bytes, 0);
-  const totalEntries = cachesStats.reduce((s, c) => s + c.entries, 0);
+  const extras = await collectExtras();
+  const totalBytes =
+    cachesStats.reduce((s, c) => s + c.bytes, 0) + extras.catalogBytes;
+  const totalEntries =
+    cachesStats.reduce((s, c) => s + c.entries, 0) +
+    extras.catalogDownloads +
+    extras.offlineDrafts;
 
   return {
     caches: cachesStats,
@@ -124,16 +161,15 @@ export async function collectStorageStats(): Promise<StorageStats> {
     quotaBytes,
     usageBytes,
     supported: true,
+    extras,
   };
 }
 
-/** مسح كاش واحد بالاسم */
 export async function clearCacheByName(name: string): Promise<void> {
   if (typeof caches === 'undefined') return;
   await caches.delete(name);
 }
 
-/** مسح كل كاشات market-* (لا يمس IndexedDB للطابور ولا localStorage) */
 export async function clearAllMarketCaches(): Promise<void> {
   if (typeof caches === 'undefined') return;
   const names = await caches.keys();
@@ -142,10 +178,6 @@ export async function clearAllMarketCaches(): Promise<void> {
   );
 }
 
-/**
- * مسح بيانات التصفح المؤقت فقط (صفحات/API/صور/core/shell)
- * مع الإبقاء على الإعلانات المحفوظة يدويًا (market-saved-ads).
- */
 export async function clearBrowsableCaches(): Promise<void> {
   if (typeof caches === 'undefined') return;
   const names = await caches.keys();
