@@ -70,7 +70,12 @@ export const adminApi = {
   setServiceListingStatus: (id: string, body: { status: string; reason?: string }) =>
     apiClient.patch(`/admin/service-listings/${id}/status`, body),
 
-  
+  getAdminServiceBroadcasts: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
+    apiClient.get('/admin/service-broadcasts', { params }),
+
+  cancelServiceBroadcast: (id: string, body?: { reason?: string }) =>
+    apiClient.patch(`/admin/service-broadcasts/${id}/cancel`, body ?? {}),
+
   getPlatformTrends: (days?: number) =>
     apiClient.get('/admin/trends', { params: { days } }),
 

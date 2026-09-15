@@ -120,6 +120,8 @@ export const ROUTES = {
     fraud:             '/admin/fraud',
     products:          '/admin/products',
     serviceListings:   '/admin/service-listings',
+    serviceBroadcasts: '/admin/service-broadcasts',
+    notifications:     '/admin/notifications',
     system:            '/admin/system',
   },
 } as const;

@@ -684,6 +684,80 @@ export const adminService = {
     return updated;
   },
 
+  /**
+   * Admin list of service-request broadcasts (سوق الطلبات).
+   * Unlike the public open feed, this includes OPEN / ACCEPTED / CANCELLED.
+   */
+  getAdminServiceBroadcasts: async (query: {
+    page?: number;
+    limit?: number;
+    status?: 'OPEN' | 'ACCEPTED' | 'CANCELLED';
+    q?: string;
+  }) => {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const where: Prisma.ServiceRequestBroadcastWhereInput = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { title: { contains: query.q, mode: 'insensitive' as const } },
+              { description: { contains: query.q, mode: 'insensitive' as const } },
+              { city: { contains: query.q, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+    const [items, total] = await Promise.all([
+      prisma.serviceRequestBroadcast.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          city: true,
+          status: true,
+          createdAt: true,
+          customerId: true,
+          categoryId: true,
+          customer: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true, nameAr: true } },
+          _count: { select: { quotes: true } },
+        },
+      }),
+      prisma.serviceRequestBroadcast.count({ where }),
+    ]);
+    return { items, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  /**
+   * Force-cancel an OPEN broadcast (moderation). No-op if already not OPEN.
+   */
+  adminCancelServiceBroadcast: async (
+    broadcastId: string,
+    adminUserId: string,
+    reason?: string,
+  ) => {
+    const row = await prisma.serviceRequestBroadcast.findUnique({ where: { id: broadcastId } });
+    if (!row) throw new NotFoundError('Service broadcast not found', 'SERVICE_BROADCAST_NOT_FOUND');
+    if (row.status !== 'OPEN') {
+      throw new BadRequestError('Only OPEN broadcasts can be cancelled', 'BROADCAST_NOT_OPEN');
+    }
+    const updated = await prisma.serviceRequestBroadcast.update({
+      where: { id: broadcastId },
+      data: { status: 'CANCELLED' },
+    });
+    auditLog({
+      event: AuditEventType.ADMIN_AD_DELETED,
+      userId: adminUserId,
+      details: { broadcastId, status: 'CANCELLED', reason: reason ?? null, kind: 'service_broadcast' },
+    }).catch(() => {});
+    return updated;
+  },
 
   /**
    * Daily counts for users / ads / reports over the last N days —

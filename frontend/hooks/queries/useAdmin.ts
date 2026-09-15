@@ -202,6 +202,15 @@ export function useAdminServiceListings(params?: { page?: number; limit?: number
   });
 }
 
+export function useAdminServiceBroadcasts(params?: { page?: number; limit?: number; status?: string; q?: string }) {
+  return useQuery({
+    queryKey: ['admin', 'service-broadcasts', params ?? {}],
+    queryFn: () => adminApi.getAdminServiceBroadcasts(params).then((r) => r.data),
+    staleTime: CACHE_TTL.adminList ?? 30_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useAdminPlatformTrends(days = 30) {
   return useQuery({
     queryKey: ['admin', 'trends', days],

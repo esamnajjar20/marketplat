@@ -36,7 +36,15 @@ import { PageTransition } from '@/components/shared/PageTransition';
 // backend's requireMinRole(MODERATOR) gate on ads/reports/fraud.
 // Kept as prefixes (not exact matches) so nested routes like
 // /admin/ads/123 are covered too.
-const MODERATOR_ALLOWED_PREFIXES = [ROUTES.admin.root, ROUTES.admin.ads, ROUTES.admin.reports];
+const MODERATOR_ALLOWED_PREFIXES = [
+  ROUTES.admin.root,
+  ROUTES.admin.ads,
+  ROUTES.admin.reports,
+  ROUTES.admin.fraud,
+  ROUTES.admin.products,
+  ROUTES.admin.serviceListings,
+  ROUTES.admin.serviceBroadcasts,
+];
 
 function isAllowedForModerator(pathname: string): boolean {
   if (pathname === ROUTES.admin.root) return true;
@@ -108,7 +116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
-        <main id="main-content" className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        <main id="main-content" className="flex-1 overflow-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6 lg:p-8">
           <div className="mx-auto w-full max-w-[1600px]">
             <PageTransition>{children}</PageTransition>
           </div>

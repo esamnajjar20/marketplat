@@ -638,3 +638,15 @@ export function useAdminSetServiceListingStatus() {
     },
   });
 }
+
+/** إلغاء إداري لطلب خدمة مفتوح في سوق الطلبات */
+export function useAdminCancelServiceBroadcast() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      adminApi.cancelServiceBroadcast(id, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'service-broadcasts'] });
+    },
+  });
+}

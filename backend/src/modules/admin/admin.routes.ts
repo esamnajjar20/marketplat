@@ -28,6 +28,9 @@ adminRouter.patch('/products/:id/status', requireMinRole(ROLES.MODERATOR), admin
 adminRouter.get('/service-listings', requireMinRole(ROLES.MODERATOR), adminController.getAdminServiceListings);
 adminRouter.patch('/service-listings/:id/status', requireMinRole(ROLES.MODERATOR), adminController.setServiceListingStatus);
 
+// سوق الطلبات — قائمة + إلغاء إداري لطلب مفتوح
+adminRouter.get('/service-broadcasts', requireMinRole(ROLES.MODERATOR), adminController.getAdminServiceBroadcasts);
+adminRouter.patch('/service-broadcasts/:id/cancel', requireMinRole(ROLES.MODERATOR), adminController.adminCancelServiceBroadcast);
 
 adminRouter.get('/trends', requireMinRole(ROLES.ADMIN), adminController.getPlatformTrends);
 adminRouter.get('/system-health', requireMinRole(ROLES.ADMIN), adminController.getSystemHealth);

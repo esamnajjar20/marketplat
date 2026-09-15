@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
-  HeartPulse } from 'lucide-react';
+  HeartPulse, ClipboardList, Bell, Search } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { cn } from '@/lib/utils';
@@ -35,12 +35,15 @@ const NAV_LINKS = [
   { href: ROUTES.admin.fraud,             label: 'مكافحة الاحتيال', icon: ShieldAlert, badgeKey: 'unreviewedFraud' as const },
   { href: ROUTES.admin.products,          label: 'المنتجات',       icon: Package },
   { href: ROUTES.admin.serviceListings,   label: 'الخدمات',        icon: Wrench },
+  // سوق الطلبات — إدارة طلبات الخدمة المفتوحة
+  { href: ROUTES.admin.serviceBroadcasts, label: 'طلبات الخدمة',   icon: ClipboardList },
   { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree,      tierRequired: 'ADMIN' as const },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
   { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench,          tierRequired: 'ADMIN' as const },
   // Audit fix: was entirely missing despite full backend CRUD + a
   // mandatory role in ProductForm — see AdminProductCategoriesTree.tsx.
   { href: ROUTES.admin.productCategories, label: 'فئات المنتجات',  icon: Package,         tierRequired: 'ADMIN' as const },
+  { href: ROUTES.admin.notifications,     label: 'الإشعارات',      icon: Bell,            tierRequired: 'ADMIN' as const },
   // Audit Logs: GET /admin/audit-logs — see AdminAuditLogsTable.tsx.
   { href: ROUTES.admin.auditLogs,         label: 'سجل العمليات',   icon: ScrollText,      tierRequired: 'ADMIN' as const },
   // Gap #7 (product analytics): GET /admin/analytics/summary — see
@@ -53,17 +56,35 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const user     = useAuthStore(selectUser);
   const { data: queue } = useAdminOpsQueue();
+  const [filter, setFilter] = useState('');
   // A MODERATOR only sees links with no tierRequired (ads/reports);
   // ADMIN and SUPER_ADMIN see everything — mirrors the backend's own
   // requireMinRole(ADMIN) gate on every tierRequired route.
   const isModerator = user?.role === 'MODERATOR';
-  const links = NAV_LINKS.filter((link) => !isModerator || !('tierRequired' in link));
+  const links = NAV_LINKS.filter((link) => !isModerator || !('tierRequired' in link)).filter(
+    (link) => !filter.trim() || link.label.includes(filter.trim()),
+  );
 
   return (
     <nav aria-label="قائمة الإدارة" className="space-y-1 p-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-4">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">
         لوحة الإدارة
       </p>
+      {/* بحث سريع في القائمة — مفيد خاصة على الموبايل مع كثرة الروابط */}
+      <div className="relative mb-3 px-1">
+        <Search className="pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <input
+          type="search"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="بحث في القائمة…"
+          className="h-9 w-full rounded-md border border-input bg-background pe-3 ps-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="بحث في قائمة الإدارة"
+        />
+      </div>
+      {links.length === 0 && (
+        <p className="px-2 py-4 text-center text-xs text-muted-foreground">لا نتائج</p>
+      )}
       {links.map((link) => {
         const { href, label, icon: Icon } = link;
         const isActive = pathname === href || pathname.startsWith(href + '/');
@@ -78,7 +99,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+              // min-h for comfortable touch targets on mobile
+              'flex min-h-[44px] items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors md:min-h-0',
               isActive
                 ? 'bg-primary-soft text-primary shadow-xs'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
