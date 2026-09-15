@@ -183,9 +183,11 @@ function levenshteinDistance(a: string, b: string): number {
  * applies to them, same as before this change.
  */
 function allowedEditDistance(tokenLength: number): number {
+  // تسامح أوسع قليلًا للكلمات المتوسطة/الطويلة (أخطاء لمس شائعة)
   if (tokenLength <= 3) return 0;
-  if (tokenLength <= 6) return 1;
-  return 2;
+  if (tokenLength <= 5) return 1;
+  if (tokenLength <= 9) return 2;
+  return 3;
 }
 
 /**
