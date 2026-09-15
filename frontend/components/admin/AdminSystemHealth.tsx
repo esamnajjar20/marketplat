@@ -2,7 +2,7 @@
 
 import { useAdminSystemHealth } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { AlertTriangle, CheckCircle2, Database, Server } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Database, Server, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/ui/Button';
 
@@ -20,13 +20,20 @@ function StatusPill({ ok }: { ok: boolean }) {
   );
 }
 
+function latencyTone(ms: number | null | undefined): string {
+  if (ms == null) return 'text-foreground';
+  if (ms < 20) return 'text-emerald-600 dark:text-emerald-400';
+  if (ms < 80) return 'text-amber-600 dark:text-amber-400';
+  return 'text-orange-600 dark:text-orange-400';
+}
+
 export function AdminSystemHealth() {
-  const { data, isLoading, isError, refetch, dataUpdatedAt } = useAdminSystemHealth();
+  const { data, isLoading, isError, refetch, dataUpdatedAt, isFetching } = useAdminSystemHealth();
 
   if (isLoading) {
     return (
       <div className="flex justify-center py-16">
-        <LoadingSpinner />
+        <LoadingSpinner label="جارٍ فحص الخدمات…" />
       </div>
     );
   }
@@ -43,22 +50,19 @@ export function AdminSystemHealth() {
     );
   }
 
-  const cards = [
-    {
-      title: 'قاعدة البيانات',
-      icon: Database,
-      ok: data.db.ok,
-      latency: data.db.latencyMs,
-      error: data.db.error,
-    },
-    {
-      title: 'Redis',
-      icon: Server,
-      ok: data.redis.ok,
-      latency: data.redis.latencyMs,
-      error: data.redis.error,
-    },
-  ];
+  const redis = data.redis as {
+    ok: boolean;
+    latencyMs: number | null;
+    commandLatencyMs?: number | null;
+    error?: string;
+    note?: string;
+  };
+  const db = data.db as {
+    ok: boolean;
+    latencyMs: number | null;
+    error?: string;
+    note?: string;
+  };
 
   return (
     <div className="space-y-4">
@@ -71,40 +75,99 @@ export function AdminSystemHealth() {
               ? new Date(dataUpdatedAt).toLocaleString('ar')
               : '—'}
         </p>
-        <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
-          تحديث الآن
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isFetching}
+          onClick={() => refetch()}
+        >
+          {isFetching ? 'جارٍ التحديث…' : 'تحديث الآن'}
         </Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {cards.map(({ title, icon: Icon, ok, latency, error }) => (
-          <div key={title} className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                  <Icon className="h-4 w-4" />
-                </div>
-                <h2 className="font-semibold">{title}</h2>
+        {/* DB */}
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+                <Database className="h-4 w-4" />
               </div>
-              <StatusPill ok={ok} />
+              <h2 className="font-semibold">قاعدة البيانات</h2>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              زمن الاستجابة:{' '}
-              <span className="font-medium text-foreground tabular-nums">
-                {latency != null ? `${latency} ms` : '—'}
-              </span>
-            </p>
-            {error && (
-              <p className="mt-2 break-all text-xs text-destructive">{error}</p>
-            )}
+            <StatusPill ok={db.ok} />
           </div>
-        ))}
+          <p className="mt-3 text-sm text-muted-foreground">
+            زمن الاستعلام (وسيط):{' '}
+            <span className={cn('font-medium tabular-nums', latencyTone(db.latencyMs))}>
+              {db.latencyMs != null ? `${db.latencyMs} ms` : '—'}
+            </span>
+          </p>
+          {db.note && (
+            <p className="mt-2 flex gap-1.5 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {db.note}
+            </p>
+          )}
+          {db.error && <p className="mt-2 break-all text-xs text-destructive">{db.error}</p>}
+        </div>
+
+        {/* Redis */}
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+                <Server className="h-4 w-4" />
+              </div>
+              <h2 className="font-semibold">Redis (الكاش)</h2>
+            </div>
+            <StatusPill ok={redis.ok} />
+          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            أول فحص (قد يشمل الاتصال):{' '}
+            <span className={cn('font-medium tabular-nums', latencyTone(redis.latencyMs))}>
+              {redis.latencyMs != null ? `${redis.latencyMs} ms` : '—'}
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            زمن الأمر PING (أدق للكاش):{' '}
+            <span
+              className={cn(
+                'font-medium tabular-nums',
+                latencyTone(redis.commandLatencyMs ?? null),
+              )}
+            >
+              {redis.commandLatencyMs != null ? `${redis.commandLatencyMs} ms` : '—'}
+            </span>
+          </p>
+          {redis.note && (
+            <p className="mt-2 flex gap-1.5 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {redis.note}
+            </p>
+          )}
+          {redis.error && (
+            <p className="mt-2 break-all text-xs text-destructive">{redis.error}</p>
+          )}
+        </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        هذه الصفحة تعرض فحصاً حياً لـ PostgreSQL و Redis فقط. سجلات الأخطاء التفصيلية تُراجع من
-        مخرجات الخادم أو أداة المراقبة الخارجية.
-      </p>
+      <div className="rounded-xl border border-dashed bg-muted/30 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+        <p className="font-medium text-foreground">ماذا تعني الأرقام؟</p>
+        <ul className="mt-1 list-inside list-disc space-y-0.5">
+          <li>
+            هذا فحص <strong>اتصال حي</strong> (PING / SELECT 1) وليس سرعة كل قراءة كاش في التطبيق.
+          </li>
+          <li>
+            <strong>أقل من ~20 ms</strong> ممتاز محليًا · <strong>20–80 ms</strong> مقبول لخادم بعيد ·{' '}
+            <strong>أكثر من 80 ms</strong> غالبًا شبكة أو استضافة بعيدة.
+          </li>
+          <li>
+            إن كان «أول فحص» عاليًا و«PING» منخفضًا: الاتصال/الشبكة بطيئة، والكاش نفسه سليم.
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }

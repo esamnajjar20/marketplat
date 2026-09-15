@@ -815,37 +815,98 @@ export const adminService = {
   },
 
   getSystemHealth: async (): Promise<{
-    redis: { ok: boolean; latencyMs: number | null; error?: string };
-    db: { ok: boolean; latencyMs: number | null; error?: string };
+    redis: {
+      ok: boolean;
+      latencyMs: number | null;
+      /** زمن أمر PING فقط بعد التأكد من الاتصال (أدق من القياس الأول) */
+      commandLatencyMs: number | null;
+      error?: string;
+      note?: string;
+    };
+    db: {
+      ok: boolean;
+      latencyMs: number | null;
+      error?: string;
+      note?: string;
+    };
     checkedAt: string;
   }> => {
     const checkedAt = new Date().toISOString();
+    const nowMs = () => {
+      const [s, ns] = process.hrtime();
+      return s * 1000 + ns / 1e6;
+    };
+
     let redisOk = false;
     let redisMs: number | null = null;
+    let redisCmdMs: number | null = null;
     let redisErr: string | undefined;
+    let redisNote: string | undefined;
     try {
       const { redis } = await import('../../config/redis');
-      const t0 = Date.now();
+      // lazyConnect: أول PING قد يشمل TCP/TLS — نقيس ذلك كـ latencyMs
+      const t0 = nowMs();
+      if (redis.status !== 'ready') {
+        await redis.connect().catch(() => undefined);
+      }
       await redis.ping();
-      redisMs = Date.now() - t0;
+      redisMs = Math.round(nowMs() - t0);
+
+      // عيّنة أوضح لأمر PING فقط (وسيط 3 محاولات) — هذا أقرب لواقع الكاش
+      const samples: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const s0 = nowMs();
+        await redis.ping();
+        samples.push(nowMs() - s0);
+      }
+      samples.sort((a, b) => a - b);
+      redisCmdMs = Math.round(samples[1] ?? samples[0] ?? 0);
       redisOk = true;
+
+      if (redisMs >= 80 && redisCmdMs < 25) {
+        redisNote =
+          'زمن الاتصال/الشبكة مرتفع، لكن أوامر Redis سريعة — الكاش نفسه ليس بطيئًا.';
+      } else if (redisCmdMs >= 50) {
+        redisNote =
+          'أوامر Redis بطيئة نسبيًا — غالبًا بسبب استضافة بعيدة (RTT) أو ضغط على الخادم.';
+      }
     } catch (e) {
       redisErr = e instanceof Error ? e.message : 'redis unreachable';
     }
+
     let dbOk = false;
     let dbMs: number | null = null;
     let dbErr: string | undefined;
+    let dbNote: string | undefined;
     try {
-      const t0 = Date.now();
+      // تسخين خفيف ثم قياس SELECT 1
       await prisma.$queryRaw`SELECT 1`;
-      dbMs = Date.now() - t0;
+      const samples: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const s0 = nowMs();
+        await prisma.$queryRaw`SELECT 1`;
+        samples.push(nowMs() - s0);
+      }
+      samples.sort((a, b) => a - b);
+      dbMs = Math.round(samples[1] ?? samples[0] ?? 0);
       dbOk = true;
+      if (dbMs >= 80) {
+        dbNote =
+          'استجابة DB أعلى من المعتاد محليًا — قد يكون الخادم بعيدًا أو تحت ضغط أو بارد الاتصال.';
+      }
     } catch (e) {
       dbErr = e instanceof Error ? e.message : 'db unreachable';
     }
+
     return {
-      redis: { ok: redisOk, latencyMs: redisMs, error: redisErr },
-      db: { ok: dbOk, latencyMs: dbMs, error: dbErr },
+      redis: {
+        ok: redisOk,
+        latencyMs: redisMs,
+        commandLatencyMs: redisCmdMs,
+        error: redisErr,
+        note: redisNote,
+      },
+      db: { ok: dbOk, latencyMs: dbMs, error: dbErr, note: dbNote },
       checkedAt,
     };
   },
