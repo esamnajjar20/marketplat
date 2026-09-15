@@ -31,7 +31,7 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
 
 /** GET /favorites — paginated list of the user's favorited ads */
-export function useFavorites(params?: { page?: number; limit?: number }) {
+export function useFavorites(params?: { page?: number; limit?: number; listId?: string }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient     = useQueryClient();
 
@@ -189,7 +189,7 @@ export function useIsFavorited(adId: string): boolean {
  */
 export function useFavoritesByType<T>(
   type: FavoriteEntityKind,
-  params?: { page?: number; limit?: number },
+  params?: { page?: number; limit?: number; listId?: string },
 ) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient     = useQueryClient();

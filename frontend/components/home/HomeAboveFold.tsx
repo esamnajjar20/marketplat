@@ -106,7 +106,7 @@ export function HomeAboveFold() {
   // the CTA is specifically the "prompt an explicit browser permission
   // request" escape hatch, never shown while already resolved to a
   // GPS source and never auto-triggered on mount by this component).
-  const showLocateCta = location.source !== 'gps-current' && location.source !== 'gps-saved';
+  const showLocateCta = false; // المدينة أولوية — إخفاء الاعتماد على موقع الجهاز
 
   if (stillLoading) {
     return (

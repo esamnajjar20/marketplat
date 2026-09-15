@@ -11,7 +11,6 @@ import { CITIES, ROUTES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
-import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
 import { cn } from '@/lib/utils';
 import type { SearchType } from '@/types/search.types';
 
@@ -49,14 +48,7 @@ export function SearchFilters() {
         تصفية النتائج
       </div>
 
-      {/* —— Basic —— */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          الموقع
-        </label>
-        <SearchNearbyToggle />
-      </div>
-
+      {/* —— Basic: المدينة أولوية (بدون GPS) —— */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           المدينة

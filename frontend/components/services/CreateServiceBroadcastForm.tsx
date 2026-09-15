@@ -91,13 +91,13 @@ export function CreateServiceBroadcastForm() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!categoryId || title.trim().length < 5 || description.trim().length < 10) return;
+    if (!categoryId || title.trim().length < 5 || description.trim().length < 10 || !city.trim()) return;
     create.mutate(
       {
         categoryId,
         title: title.trim(),
         description: description.trim(),
-        city: city.trim() || undefined,
+        city: city.trim(),
       },
       // onSuccess فقط: طلب أوفلاين يبقى بالطابور (ليس نجاحًا بعد) عبر
       // sw.js handleMutation — مسح المسودة قبل نجاح فعلي يخسّرها.
@@ -118,6 +118,7 @@ export function CreateServiceBroadcastForm() {
     Boolean(categoryId) &&
     title.trim().length >= 5 &&
     description.trim().length >= 10 &&
+    Boolean(city.trim()) &&
     !create.isPending;
 
   return (
@@ -178,7 +179,7 @@ export function CreateServiceBroadcastForm() {
 
       <div className="space-y-1.5">
         <label htmlFor="bc-city" className="text-sm font-medium">
-          المدينة (اختياري)
+          المدينة <span className="text-destructive">*</span>
         </label>
         <Input
           id="bc-city"
@@ -186,6 +187,7 @@ export function CreateServiceBroadcastForm() {
           onChange={(e) => setCity(e.target.value)}
           placeholder="مثال: غزة، خان يونس…"
           maxLength={100}
+          required
         />
       </div>
 

@@ -110,7 +110,7 @@ export function useLocationResolver(): ResolvedLocation {
     return () => gpsUpdateBus.removeEventListener(GPS_UPDATED_EVENT, onGpsUpdated);
   }, []);
 
-  // ── Check permission state (no prompt) + silently resolve if granted ─
+  // ── لا نجلب GPS تلقائيًا — المدينة هي المصدر الأساسي ───────────────
   useEffect(() => {
     let cancelled = false;
 
@@ -119,11 +119,10 @@ export function useLocationResolver(): ResolvedLocation {
       return;
     }
 
+    // لا نستدعي getCurrentPosition أبدًا عند التحميل — حتى لو كان الإذن ممنوحًا
+    setPermission('prompt');
+
     if (!('permissions' in navigator) || !navigator.permissions) {
-      // Permissions API unsupported: we still must not call
-      // getCurrentPosition automatically (would prompt every visitor).
-      // Wait for an explicit requestLocation() call instead.
-      setPermission('prompt');
       return;
     }
 
@@ -134,26 +133,7 @@ export function useLocationResolver(): ResolvedLocation {
 
         if (status.state === 'granted') {
           setPermission('granted');
-          // Already granted — resolves without a popup.
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              if (cancelled || !mountedRef.current) return;
-              const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-              // وضع غزة: رفض إحداثيات خارج المنطقة المعقولة
-              if (!isUsableNearbyCoord(coords.latitude, coords.longitude)) {
-                setIsRequesting(false);
-                setPermission((prev) => (prev === 'checking' ? 'prompt' : prev));
-                return;
-              }
-              setCurrentCoords(coords);
-              persistSavedGps(coords);
-            },
-            () => {
-              // Granted but resolution failed (e.g. hardware error) —
-              // fall through to saved GPS / city / fallback below.
-            },
-            GEO_POSITION_OPTIONS,
-          );
+          // تعمدًا: لا نجلب الإحداثيات تلقائيًا
         } else if (status.state === 'denied') {
           setPermission('denied');
         } else {
@@ -244,9 +224,20 @@ export function useLocationResolver(): ResolvedLocation {
     });
   }, []);
 
-  // ── Resolve final source per the priority chain ───────────────────
+  // ── Resolve final source — المدينة أولوية (بدون اعتماد على GPS) ───
   const isLoading = permission === 'checking' || isRequesting;
 
+  const trimmedCity = city?.trim();
+  if (trimmedCity) {
+    return {
+      source: 'city',
+      city: trimmedCity,
+      isLoading: false,
+      requestLocation,
+    };
+  }
+
+  // لا نستخدم GPS كمصدر افتراضي — فقط عند طلب صريح (معطّل من الواجهة)
   if (currentCoords) {
     return {
       source: 'gps-current',
@@ -267,19 +258,9 @@ export function useLocationResolver(): ResolvedLocation {
     };
   }
 
-  const trimmedCity = city?.trim();
-  if (trimmedCity) {
-    return {
-      source: 'city',
-      city: trimmedCity,
-      isLoading,
-      requestLocation,
-    };
-  }
-
   return {
     source: 'fallback',
-    isLoading,
+    isLoading: false,
     requestLocation,
   };
 }

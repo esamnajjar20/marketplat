@@ -50,9 +50,11 @@ export function FavoriteListsSidebar() {
     const name = newName.trim();
     if (!name) return;
     createList.mutate(name, {
-      onSuccess: () => {
+      onSuccess: (created) => {
         setNewName('');
         setShowCreate(false);
+        // افتح القائمة الجديدة فورًا ليرى المستخدم محتواها (فارغة أولاً)
+        if (created?.id) selectList(created.id);
       },
     });
   }

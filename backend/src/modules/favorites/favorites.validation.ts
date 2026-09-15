@@ -78,6 +78,8 @@ export const getFavoritesSchema = z.object({
     // switch explicit instead of the response shape depending on
     // what the data happens to contain.
     type: z.enum(['ad', 'product', 'store', 'service']).optional(),
+    // تصفية حسب قائمة المفضلة المسمّاة (?list=…)
+    listId: z.string().min(1).optional(),
   }),
 });
 

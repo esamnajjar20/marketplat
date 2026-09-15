@@ -73,7 +73,7 @@ export const favoritesApi = {
    * try/finally (and therefore setAuthResolved()) open for however long
    * the request took — up to its own unrelated axios-level timeout.
    */
-  getAll: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
+  getAll: (params?: { page?: number; limit?: number; listId?: string }, config?: AxiosRequestConfig) =>
     apiClient
       .get<ApiResponse<FavoriteRecord[]>>('/favorites', { ...config, params })
       .then((r) => unwrapPaginated<FavoriteRecord>(r)),
@@ -105,7 +105,7 @@ export const favoritesApi = {
    */
   getAllByType: <T>(
     type: FavoriteEntityKind,
-    params?: { page?: number; limit?: number },
+    params?: { page?: number; limit?: number; listId?: string },
     config?: AxiosRequestConfig
   ) =>
     apiClient

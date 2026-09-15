@@ -60,7 +60,11 @@ const EMPTY_COPY: Record<FavoriteEntityKind, { title: string; description: strin
 export function EntityFavoritesList({ type }: Props) {
   const sp = useSearchParams();
   const page = Number(sp.get('page') ?? 1);
-  const { data, isLoading, isError, refetch } = useFavoritesByType<FavoriteEntity>(type, { page });
+  const listId = sp.get('list') || undefined;
+  const { data, isLoading, isError, refetch } = useFavoritesByType<FavoriteEntity>(type, {
+    page,
+    listId,
+  });
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
   const copy = EMPTY_COPY[type];

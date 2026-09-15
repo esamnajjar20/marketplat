@@ -42,7 +42,7 @@ export function NearbyProvidersSection() {
   const items = data?.items ?? [];
   const showSkeleton = isChecking || isLoading;
   const badgeCity = source === 'city' ? location.city : undefined;
-  const showLocateCta = location.source !== 'gps-current' && location.source !== 'gps-saved';
+  const showLocateCta = false; // المدينة أولوية — إخفاء الاعتماد على موقع الجهاز
 
   const header = (
     <SectionHeader

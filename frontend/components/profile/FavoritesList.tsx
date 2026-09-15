@@ -16,7 +16,8 @@ import { ROUTES }        from '@/lib/constants';
 export function FavoritesList() {
   const sp   = useSearchParams();
   const page = Number(sp.get('page') ?? 1);
-  const { data, isLoading, isError, refetch } = useFavorites({ page });
+  const listId = sp.get('list') || undefined;
+  const { data, isLoading, isError, refetch } = useFavorites({ page, listId });
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;

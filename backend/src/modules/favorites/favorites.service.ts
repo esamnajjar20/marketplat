@@ -23,6 +23,7 @@ export interface FavoriteWireRecord {
   id: string;
   userId: string;
   adId: string;
+  listId: string | null;
   createdAt: Date;
   ad: FavoriteAdEntity;
 }
@@ -33,6 +34,7 @@ const toWireRecord = (row: FavoriteListRow): FavoriteWireRecord | null => {
     id: row.id,
     userId: row.userId,
     adId: row.entityId,
+    listId: row.listId ?? null,
     createdAt: row.createdAt,
     ad: row.entity as FavoriteAdEntity,
   };
@@ -49,6 +51,7 @@ export interface FavoriteEntityWireRecord {
   userId: string;
   entityType: FavoriteEntityType;
   entityId: string;
+  listId: string | null;
   createdAt: Date;
   entity: FavoriteEntity;
 }
@@ -60,6 +63,7 @@ const toGenericWireRecord = (row: FavoriteListRow): FavoriteEntityWireRecord | n
     userId: row.userId,
     entityType: row.entityType,
     entityId: row.entityId,
+    listId: row.listId ?? null,
     createdAt: row.createdAt,
     entity: row.entity,
   };

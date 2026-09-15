@@ -41,7 +41,7 @@ export function ProfileSettingsForm() {
   const [city, setCity] = useState(user?.city ?? '');
   const [bio,  setBio]  = useState('');
   const [phone, setPhone] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; phone?: string; city?: string }>({});
   // FIX M-1: the real gap here — updateProfileSchema validates phone against
   // /^\+?[0-9]{9,15}$/ (users.validation.ts), which this form never checked
   // client-side (plain <Input type="tel">, no pattern/JS check below). Any
@@ -52,7 +52,7 @@ export function ProfileSettingsForm() {
   // this catches it too if the backend rule ever tightens further.
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
 
-  function fieldError(field: 'name' | 'phone'): string | undefined {
+  function fieldError(field: 'name' | 'phone' | 'city'): string | undefined {
     return errors[field] ?? serverErrors?.[field]?.[0];
   }
 
@@ -71,6 +71,7 @@ export function ProfileSettingsForm() {
   function validate() {
     const e: typeof errors = {};
     if (!name.trim()) e.name = 'الاسم مطلوب';
+    if (!city.trim()) e.city = 'المدينة مطلوبة';
     // UX-03 FIX: implements the check the FIX M-1 comment above already
     // described but never applied — matches updateProfileSchema's
     // /^\+?[0-9]{9,15}$/ (users.validation.ts) so a bad phone is caught
@@ -81,16 +82,14 @@ export function ProfileSettingsForm() {
     return Object.keys(e).length === 0;
   }
 
-  // UX-FIX: name is the one required field here — this only guards
-  // against the field being cleared out entirely (e.g. select-all +
-  // delete) while the rest of the form is otherwise untouched.
-  const isFormIncomplete = !name.trim();
+  // الاسم + المدينة مطلوبان
+  const isFormIncomplete = !name.trim() || !city.trim();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
     updateProfile.mutate(
-      { name: name.trim(), city: city || undefined, bio: bio || undefined, phone: phone || undefined },
+      { name: name.trim(), city: city.trim(), bio: bio || undefined, phone: phone || undefined },
       {
         onSuccess: () => toast.success('تم حفظ التغييرات'),
         onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
@@ -152,15 +151,14 @@ export function ProfileSettingsForm() {
         <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} />
       </FormField>
 
-      <div className="space-y-1.5">
-        <label htmlFor="pcity" className="text-sm font-medium">المدينة</label>
+      <FormField label="المدينة" htmlFor="pcity" required error={fieldError('city')}>
         <Select value={city} onValueChange={setCity}>
           <SelectTrigger id="pcity"><SelectValue placeholder="اختر مدينتك" /></SelectTrigger>
           <SelectContent>
             {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
-      </div>
+      </FormField>
 
       <FormField label="رقم الهاتف" htmlFor="pphone" hint="لن يُعرض للعامة" error={fieldError('phone')}>
         <Input id="pphone" type="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+970..." />

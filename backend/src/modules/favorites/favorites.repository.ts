@@ -73,6 +73,7 @@ export type FavoriteListRow = {
   userId: string;
   entityType: FavoriteEntityType;
   entityId: string;
+  listId: string | null;
   createdAt: Date;
   entity: FavoriteEntity | null; // null if the referenced entity was hard-deleted (or, for STORE, BLOCKED) after favoriting
 };
@@ -241,14 +242,20 @@ export const favoritesRepository = {
     // raw-SQL join or a "top up short pages" loop to fully match the
     // old guarantee — do not treat this as resolved without
     // addressing it.
+    const listFilter = query.listId ? { listId: query.listId } : {};
+    const where = { userId, entityType: type, ...listFilter };
+
     const [rows, total] = await Promise.all([
       prisma.favorite.findMany({
-        where: { userId, entityType: type },
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take,
       }),
-      favoritesRepository.countByUserIdAndType(userId, type),
+      // عند تصفية بقائمة: عدّ الصفوف في تلك القائمة فقط (قبل استبعاد المحذوف)
+      query.listId
+        ? prisma.favorite.count({ where })
+        : favoritesRepository.countByUserIdAndType(userId, type),
     ]);
 
     const ids = rows.map((r) => r.entityId);
@@ -261,6 +268,7 @@ export const favoritesRepository = {
         userId: r.userId,
         entityType: r.entityType,
         entityId: r.entityId,
+        listId: r.listId ?? null,
         createdAt: r.createdAt,
         entity: byId.get(r.entityId) ?? null,
       }))
