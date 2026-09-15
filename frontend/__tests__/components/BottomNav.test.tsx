@@ -13,10 +13,10 @@
  *
  * CREATE-SHEET FIX: the center button no longer swaps between
  * /ads/create and /settings/seller based on isSeller — it opens
- * CreateSheet with all three create destinations, and no longer
- * queries useIsSeller at all (see BottomNav's own doc comment), so
- * the old "center create button" describe block below is replaced
- * with coverage of the sheet instead.
+ * CreateSheet with all create destinations (four as of
+ * FEAT-CREATE-BROADCAST-01), and no longer queries useIsSeller at all
+ * (see BottomNav's own doc comment), so the old "center create button"
+ * describe block below is replaced with coverage of the sheet instead.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -97,7 +97,7 @@ describe('BottomNav', () => {
       expect(screen.queryByText('إعلان جديد')).not.toBeInTheDocument();
     });
 
-    it('opens CreateSheet with all three create destinations when "أضف" is tapped', async () => {
+    it('opens CreateSheet with all four create destinations when "أضف" is tapped', async () => {
       const user = setupUser();
       render(<BottomNav />);
       await user.click(screen.getByRole('button', { name: 'أضف' }));
@@ -105,6 +105,8 @@ describe('BottomNav', () => {
       expect(screen.getByRole('link', { name: /إعلان جديد/ })).toHaveAttribute('href', '/ads/create');
       expect(screen.getByRole('link', { name: /منتج جديد/ })).toHaveAttribute('href', '/my-store/products/new');
       expect(screen.getByRole('link', { name: /خدمة جديدة/ })).toHaveAttribute('href', '/my-services/new');
+      // FEAT-CREATE-BROADCAST-01: "طلب خدمة" — سوق الطلبات.
+      expect(screen.getByRole('link', { name: /طلب خدمة/ })).toHaveAttribute('href', '/service-broadcasts/new');
     });
   });
 

@@ -1,35 +1,77 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { serviceCategoriesApi } from '@/api/service-categories.api';
+import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useCreateServiceBroadcast } from '@/hooks/mutations/useServiceBroadcastMutations';
+import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 
+// PHASE-OFFLINE-DRAFTS (FEAT-CREATE-BROADCAST-01): نفس نمط AdForm/
+// ProductForm/ServiceListingForm بالضبط — طلب خدمة لا يحمل صورًا، فمسودة
+// localStorage البسيطة (useFormDraft) تكفي بدون الحاجة لآلية
+// offlineAdDrafts (IndexedDB + مركز المزامنة) المخصصة لحالات الصور.
+type BroadcastDraftValues = {
+  categoryId: string;
+  title: string;
+  description: string;
+  city: string;
+};
+
 export function CreateServiceBroadcastForm() {
-  const [categoryId, setCategoryId] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [city, setCity] = useState('');
+  // FEAT-CREATE-BROADCAST-01: كانت useQuery مضمّنة هنا مباشرة بمفتاح
+  // ['service-categories'] يدويًا — نفس المفتاح حرفيًا اللي
+  // useServiceCategories() (lib/queryKeys.ts) يستخدمه، فكانت تشارك نفس
+  // كاش React Query صدفةً لكن بدون staleTime المخصّص لتصنيفات "تتغيّر
+  // نادرًا" (CACHE_TTL.categories) ولا التوحيد مع بقية النماذج
+  // (ServiceListingForm يستخدم نفس الـ hook). التبديل هنا تناسق فقط —
+  // لا يغيّر مصدر البيانات نفسه.
+  const { data: categories, isLoading: catsLoading } = useServiceCategories();
+  // FEAT-CREATE-BROADCAST-01: مسودة محلية — نفس نمط AdForm/ProductForm/
+  // ServiceListingForm بالضبط: قراءة draft مرة واحدة داخل lazy
+  // useState initializer (لا useEffect ولا setState أثناء الـ render،
+  // ولا قراءة localStorage بكل render) فلا تظهر الحقول فارغة للحظة ثم
+  // تُملأ بعد التركيب. لا يوجد وضع "تعديل" هنا (سوق الطلبات لا يدعم
+  // تعديل الطلب بعد نشره)، فلا استثناء مطلوب كالذي في النماذج الأخرى
+  // (mode === 'create').
+  const [categoryId, setCategoryId] = useState(
+    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.categoryId ?? '',
+  );
+  const [title, setTitle] = useState(
+    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.title ?? '',
+  );
+  const [description, setDescription] = useState(
+    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.description ?? '',
+  );
+  const [city, setCity] = useState(
+    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.city ?? '',
+  );
   const create = useCreateServiceBroadcast();
 
-  const { data: categories, isLoading: catsLoading } = useQuery({
-    queryKey: ['service-categories'],
-    queryFn: () => serviceCategoriesApi.getAll().then((r) => r.data.data ?? []),
-  });
+  const { clearDraft, lastSavedAt } = useFormDraft<BroadcastDraftValues>(
+    'service-broadcast:create',
+    { categoryId, title, description, city },
+  );
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!categoryId || title.trim().length < 5 || description.trim().length < 10) return;
-    create.mutate({
-      categoryId,
-      title: title.trim(),
-      description: description.trim(),
-      city: city.trim() || undefined,
-    });
+    create.mutate(
+      {
+        categoryId,
+        title: title.trim(),
+        description: description.trim(),
+        city: city.trim() || undefined,
+      },
+      // FEAT-CREATE-BROADCAST-01: نفس نمط AdForm — onSuccess هنا (لا
+      // onSettled) عمدًا: طلب أوفلاين يبقى بالطابور (queued، ليس نجاحًا
+      // بعد) عبر sw.js's handleMutation (انظر تعليقه — يقبل أي POST
+      // لطلب API بغض النظر عن المسار، لا حاجة لأي تعديل هناك)، فمسح
+      // المسودة قبل نجاح فعلي يخسّرها المستخدم بلا داع.
+      { onSuccess: () => clearDraft() },
+    );
   }
 
   if (catsLoading) {
@@ -115,6 +157,19 @@ export function CreateServiceBroadcastForm() {
           maxLength={100}
         />
       </div>
+
+      {/* FEAT-CREATE-BROADCAST-01: نفس مؤشر "مسودة محفوظة" الموجود بالضبط
+          بـ AdForm/ProductForm/ServiceListingForm — تناسق بصري ووظيفي. */}
+      {lastSavedAt && (
+        <p
+          className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+          مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
+        </p>
+      )}
 
       <Button type="submit" disabled={!canSubmit} className="w-full gap-2">
         {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

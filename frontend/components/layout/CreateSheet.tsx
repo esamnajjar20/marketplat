@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Megaphone, Package, Wrench } from 'lucide-react';
+import { Megaphone, Package, Wrench, ClipboardList } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
 
@@ -24,11 +24,19 @@ import { ROUTES } from '@/lib/constants';
  * first when the profile is missing, redirecting back here (`from`)
  * once it's created — so this sheet doesn't need to duplicate that
  * seller/store/provider lookup just to decide where "+" points.
+ *
+ * FEAT-CREATE-BROADCAST-01: أضيف "طلب خدمة" كرابع خيار — سوق الطلبات
+ * (service-broadcasts) عكس بقية الثلاثة: هنا المستخدم لا يعرض شيئًا
+ * (إعلان/منتج/خدمة)، بل ينشر ما يحتاجه ومزوّدو الخدمة يقدّمون عروض أسعار.
+ * /service-broadcasts/new صفحة محمية عادية (لا gate خاص بها — أي مستخدم
+ * مسجّل دخول يمكنه النشر، لا حاجة لملف بائع/متجر/مزوّد مسبقًا)، فتُضاف
+ * هنا بنفس نمط الثلاثة الباقين بدون أي منطق إضافي.
  */
 const CREATE_LINKS = [
   { label: 'إعلان جديد', description: 'انشر إعلان بيع', href: ROUTES.adCreate, icon: Megaphone },
   { label: 'منتج جديد', description: 'أضف منتجًا إلى متجرك', href: ROUTES.myStoreProductCreate, icon: Package },
   { label: 'خدمة جديدة', description: 'اعرض خدمة تقدمها', href: ROUTES.myServiceCreate, icon: Wrench },
+  { label: 'طلب خدمة', description: 'اطلب خدمة وقارن عروض الأسعار', href: ROUTES.serviceBroadcastNew, icon: ClipboardList },
 ] as const;
 
 export function CreateSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {

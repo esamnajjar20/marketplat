@@ -92,6 +92,17 @@ export function buildCoreUrls(): { key: string; url: string }[] {
   return [
     { key: 'categories', url: `${API_BASE_URL}/categories` },
     {
+      key: 'service-categories',
+      // FEAT-CREATE-BROADCAST-01: كانت غائبة عن هذه القائمة رغم أن
+      // ServiceListingForm.tsx (نموذج "خدمة جديدة" الحالي) وCreateServiceBroadcastForm.tsx
+      // (نموذج "طلب خدمة" الجديد) كلاهما يعتمد على GET /service-categories
+      // لملء قائمة الفئات — دون تسخين استباقي، أي مستخدم لم يفتح صفحة
+      // تجلبها من قبل وهو أونلاين يرى قائمة فئات فارغة (ولا يقدر يُكمل
+      // النشر، الحقل required) أول مرة يحاول ينشر بلا اتصال. لا معاملات —
+      // الـ endpoint نفسه بلا صفحات (نفس نمط 'categories' أعلاه).
+      url: `${API_BASE_URL}/service-categories`,
+    },
+    {
       key: 'products',
       // FIX CACHE-KEY-01: ترتيب المعاملات هنا يجب يطابق حرفيًا الترتيب اللي
       // axios يبنيه فعليًا من كائن params في ProductsGrid.tsx —

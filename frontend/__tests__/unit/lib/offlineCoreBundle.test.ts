@@ -27,6 +27,16 @@ describe('offlineCoreBundle', () => {
     expect(joined).toMatch(/categories|products|stores/i);
   });
 
+  // FEAT-CREATE-BROADCAST-01: service-categories must be warmed too — it's
+  // the one taxonomy endpoint two creation forms (ServiceListingForm,
+  // CreateServiceBroadcastForm) rely on that this list previously omitted.
+  it('buildCoreUrls includes service-categories (used by service-listing and service-broadcast forms offline)', () => {
+    const urls = buildCoreUrls();
+    const entry = urls.find((u) => u.key === 'service-categories');
+    expect(entry).toBeTruthy();
+    expect(entry!.url).toBe('https://api.example.com/service-categories');
+  });
+
   it('getWarmupProgress returns a progress object', () => {
     const p = getWarmupProgress();
     expect(p).toBeTruthy();
