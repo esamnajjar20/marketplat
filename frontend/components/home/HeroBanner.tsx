@@ -14,6 +14,7 @@ const ROTATING_CREATE_LABELS = [
   'انشر إعلانًا',
   'أضف منتجًا',
   'أضف خدمة جديدة',
+  'اطلب خدمة',
 ] as const;
 
 export function HeroBanner() {

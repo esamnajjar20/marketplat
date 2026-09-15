@@ -1,16 +1,31 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { serviceBroadcastsApi } from '@/api/service-broadcasts.api';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
+import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure, ONLINE_DRAFT_TOAST } from '@/lib/isNetworkLikeFailure';
+import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import {
+  getActiveOfflineDraftId,
+  clearActiveOfflineDraftId,
+} from '@/lib/offlineDraftResume';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 
-/** POST /service-broadcasts — عميل ينشر طلب خدمة مفتوح في السوق. */
+/** POST /service-broadcasts — عميل ينشر طلب خدمة مفتوح في السوق.
+ * PHASE-OFFLINE-DRAFTS: نفس مسار إعلان/منتج/خدمة — عند انقطاع الشبكة
+ * تُحفظ مسودة IndexedDB (kind: service-broadcast) وتظهر بمركز المزامنة.
+ */
 export function useCreateServiceBroadcast() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const userId = useAuthStore(selectUser)?.id ?? null;
+  const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
     mutationFn: (body: {
@@ -18,8 +33,14 @@ export function useCreateServiceBroadcast() {
       title: string;
       description: string;
       city?: string;
-    }) => serviceBroadcastsApi.create(body).then((r) => r.data.data),
+    }) => {
+      operationIdRef.current = newOfflineOperationId();
+      return serviceBroadcastsApi
+        .create(body, operationIdRef.current)
+        .then((r) => r.data.data);
+    },
     onSuccess: (created) => {
+      clearActiveOfflineDraftId();
       toast.success('تم نشر طلبك في سوق الطلبات');
       queryClient.invalidateQueries({ queryKey: ['service-broadcasts'] });
       if (created?.id) {
@@ -28,7 +49,43 @@ export function useCreateServiceBroadcast() {
         router.push(ROUTES.myServiceBroadcasts);
       }
     },
-    onError: toastMutationError,
+    onError: async (err, body) => {
+      const parsed = parseApiError(err);
+      const offline =
+        typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || isNetworkLikeFailure(parsed)) {
+        try {
+          await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
+            mode: 'create',
+            kind: 'service-broadcast',
+            payload: {
+              title: String(body.title ?? ''),
+              description: String(body.description ?? ''),
+              categoryId: body.categoryId ?? null,
+              city: body.city ?? null,
+            },
+            status: offline ? 'pending_sync' : 'failed',
+            lastError: offline ? undefined : parsed.message,
+            operationId: operationIdRef.current,
+            userId,
+          });
+          if (offline) {
+            toast.message('محفوظ محليًا — بانتظار الاتصال', {
+              description: 'سيُنشر طلب الخدمة تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
+            });
+          } else {
+            toast.message(ONLINE_DRAFT_TOAST.create.title, {
+              description: ONLINE_DRAFT_TOAST.create.description,
+            });
+          }
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toastMutationError(err);
+    },
   });
 }
 

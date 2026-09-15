@@ -1,7 +1,7 @@
 /**
  * مسودات الأوفلاين — IndexedDB.
  *
- * يدعم 3 أنواع: إعلان / منتج / خدمة (kind).
+ * يدعم 4 أنواع: إعلان / منتج / خدمة / طلب خدمة (kind).
  *
  * المستخدم يكتب بدون نت → يُحفظ محليًا بحالة draft/pending_sync
  * وليس «تم النشر». عند عودة الاتصال: الرفع من مركز المزامنة أو تلقائيًا.
@@ -19,7 +19,7 @@ const DB_NAME = 'market-ad-drafts';
 const DB_VERSION = 1;
 const STORE = 'drafts';
 /**
- * سقف إجمالي لكل مستخدم عبر الأنواع الثلاثة (إعلان/منتج/خدمة) معًا —
+ * سقف إجمالي لكل مستخدم عبر كل الأنواع (إعلان/منتج/خدمة/طلب خدمة) معًا —
  * نفس الـ store ونفس العدّاد. ليس 20 لكل نوع. قرار منتج صريح: الحدّ على
  * الجهاز لكل حساب، لا فصلًا حسب الكيان. تغييره إلى per-kind يحتاج تصفية
  * listAdDrafts بالـ kind قبل تطبيق السقف.
@@ -30,7 +30,7 @@ const MAX_PREVIEW_IMAGES = 4;
 export type AdDraftStatus = 'draft' | 'pending_sync' | 'failed' | 'synced';
 
 /** نوع الكيان — مسودات قديمة بلا kind تُعامَل كـ 'ad'. */
-export type OfflineDraftKind = 'ad' | 'product' | 'service';
+export type OfflineDraftKind = 'ad' | 'product' | 'service' | 'service-broadcast';
 
 /**
  * FIX IMAGEOFFLINE-WIRE-01: نسخة معاينة مضغوطة واحدة (lib/imageOffline.ts's
@@ -136,6 +136,8 @@ export function draftKindLabel(kind?: OfflineDraftKind | null): string {
       return 'منتج';
     case 'service':
       return 'خدمة';
+    case 'service-broadcast':
+      return 'طلب خدمة';
     case 'ad':
     default:
       return 'إعلان';

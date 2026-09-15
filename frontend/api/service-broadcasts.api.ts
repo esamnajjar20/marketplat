@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import type { ApiResponse } from '@/types/api.types';
 import type { ServiceQuoteStatus } from '@/types/service.types';
+import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 
 /** Lightweight shapes — backend returns richer relations when present. */
 export type ServiceBroadcastListItem = {
@@ -60,13 +61,19 @@ export const serviceBroadcastsApi = {
   getById: (id: string) =>
     apiClient.get<ApiResponse<ServiceBroadcastDetail>>(`/service-broadcasts/${id}`),
 
-  create: (body: {
-    categoryId: string;
-    title: string;
-    description: string;
-    city?: string;
-    attachedImages?: string[];
-  }) => apiClient.post<ApiResponse<ServiceBroadcastListItem>>('/service-broadcasts', body),
+  create: (
+    body: {
+      categoryId: string;
+      title: string;
+      description: string;
+      city?: string;
+      attachedImages?: string[];
+    },
+    operationId?: string,
+  ) =>
+    apiClient.post<ApiResponse<ServiceBroadcastListItem>>('/service-broadcasts', body, {
+      headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined,
+    }),
 
   cancel: (id: string) =>
     apiClient.patch<ApiResponse<ServiceBroadcastListItem>>(`/service-broadcasts/${id}/cancel`),

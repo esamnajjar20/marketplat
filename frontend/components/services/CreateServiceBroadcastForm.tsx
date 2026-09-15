@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useCreateServiceBroadcast } from '@/hooks/mutations/useServiceBroadcastMutations';
@@ -8,11 +9,15 @@ import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { getAdDraft } from '@/lib/offlineAdDrafts';
+import {
+  setActiveOfflineDraftId,
+  clearActiveOfflineDraftId,
+} from '@/lib/offlineDraftResume';
 
-// PHASE-OFFLINE-DRAFTS (FEAT-CREATE-BROADCAST-01): نفس نمط AdForm/
-// ProductForm/ServiceListingForm بالضبط — طلب خدمة لا يحمل صورًا، فمسودة
-// localStorage البسيطة (useFormDraft) تكفي بدون الحاجة لآلية
-// offlineAdDrafts (IndexedDB + مركز المزامنة) المخصصة لحالات الصور.
+// PHASE-OFFLINE-DRAFTS: localStorage (useFormDraft) أثناء الكتابة +
+// IndexedDB (offlineAdDrafts, kind: service-broadcast) عند فشل الشبكة
+// حتى تظهر المسودة بمركز المزامنة ويمكن استئنافها عبر ?draftId=.
 type BroadcastDraftValues = {
   categoryId: string;
   title: string;
@@ -21,39 +26,68 @@ type BroadcastDraftValues = {
 };
 
 export function CreateServiceBroadcastForm() {
-  // FEAT-CREATE-BROADCAST-01: كانت useQuery مضمّنة هنا مباشرة بمفتاح
-  // ['service-categories'] يدويًا — نفس المفتاح حرفيًا اللي
-  // useServiceCategories() (lib/queryKeys.ts) يستخدمه، فكانت تشارك نفس
-  // كاش React Query صدفةً لكن بدون staleTime المخصّص لتصنيفات "تتغيّر
-  // نادرًا" (CACHE_TTL.categories) ولا التوحيد مع بقية النماذج
-  // (ServiceListingForm يستخدم نفس الـ hook). التبديل هنا تناسق فقط —
-  // لا يغيّر مصدر البيانات نفسه.
+  const searchParams = useSearchParams();
+  const offlineDraftId = searchParams.get('draftId');
+
   const { data: categories, isLoading: catsLoading } = useServiceCategories();
-  // FEAT-CREATE-BROADCAST-01: مسودة محلية — نفس نمط AdForm/ProductForm/
-  // ServiceListingForm بالضبط: قراءة draft مرة واحدة داخل lazy
-  // useState initializer (لا useEffect ولا setState أثناء الـ render،
-  // ولا قراءة localStorage بكل render) فلا تظهر الحقول فارغة للحظة ثم
-  // تُملأ بعد التركيب. لا يوجد وضع "تعديل" هنا (سوق الطلبات لا يدعم
-  // تعديل الطلب بعد نشره)، فلا استثناء مطلوب كالذي في النماذج الأخرى
-  // (mode === 'create').
+
   const [categoryId, setCategoryId] = useState(
-    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.categoryId ?? '',
+    () =>
+      offlineDraftId
+        ? ''
+        : (readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.categoryId ?? ''),
   );
   const [title, setTitle] = useState(
-    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.title ?? '',
+    () =>
+      offlineDraftId
+        ? ''
+        : (readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.title ?? ''),
   );
   const [description, setDescription] = useState(
-    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.description ?? '',
+    () =>
+      offlineDraftId
+        ? ''
+        : (readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.description ?? ''),
   );
   const [city, setCity] = useState(
-    () => readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.city ?? '',
+    () =>
+      offlineDraftId
+        ? ''
+        : (readFormDraft<BroadcastDraftValues>('service-broadcast:create')?.city ?? ''),
   );
+  const [draftLoading, setDraftLoading] = useState(Boolean(offlineDraftId));
   const create = useCreateServiceBroadcast();
 
   const { clearDraft, lastSavedAt } = useFormDraft<BroadcastDraftValues>(
     'service-broadcast:create',
     { categoryId, title, description, city },
   );
+
+  // استئناف مسودة IndexedDB من مركز المزامنة (?draftId=)
+  useEffect(() => {
+    if (!offlineDraftId) {
+      clearActiveOfflineDraftId();
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const d = await getAdDraft(offlineDraftId);
+        if (cancelled || !d || d.kind !== 'service-broadcast') return;
+        const p = d.payload;
+        setCategoryId(String(p.categoryId ?? ''));
+        setTitle(String(p.title ?? ''));
+        setDescription(String(p.description ?? ''));
+        setCity(String(p.city ?? ''));
+        setActiveOfflineDraftId(d.id);
+      } finally {
+        if (!cancelled) setDraftLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [offlineDraftId]);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -65,16 +99,13 @@ export function CreateServiceBroadcastForm() {
         description: description.trim(),
         city: city.trim() || undefined,
       },
-      // FEAT-CREATE-BROADCAST-01: نفس نمط AdForm — onSuccess هنا (لا
-      // onSettled) عمدًا: طلب أوفلاين يبقى بالطابور (queued، ليس نجاحًا
-      // بعد) عبر sw.js's handleMutation (انظر تعليقه — يقبل أي POST
-      // لطلب API بغض النظر عن المسار، لا حاجة لأي تعديل هناك)، فمسح
-      // المسودة قبل نجاح فعلي يخسّرها المستخدم بلا داع.
+      // onSuccess فقط: طلب أوفلاين يبقى بالطابور (ليس نجاحًا بعد) عبر
+      // sw.js handleMutation — مسح المسودة قبل نجاح فعلي يخسّرها.
       { onSuccess: () => clearDraft() },
     );
   }
 
-  if (catsLoading) {
+  if (catsLoading || draftLoading) {
     return (
       <div className="flex justify-center py-12">
         <LoadingSpinner />

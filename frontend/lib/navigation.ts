@@ -126,15 +126,19 @@ export const SETTINGS_GROUP = {
   href: ROUTES.settings.profile,
   icon: Settings,
   children: [
+    // ملف البائع + ملف مقدم الخدمة دُمجا داخل «الملف الشخصي» الموحّد
+    // (UnifiedProfileSettings). الروابط القديمة /settings/seller و
+    // /settings/service-provider ما زالت تعمل (تفتح نفس الصفحة مع التبويب)،
+    // لكن لا حاجة لعرضهما كخيارات منفصلة في القائمة الجانبية.
     { label: 'الملف الشخصي', href: ROUTES.settings.profile },
-    { label: 'ملف البائع', href: ROUTES.settings.seller },
-    { label: 'ملف مقدم الخدمة', href: ROUTES.settings.serviceProvider },
     { label: 'إدارة المتجر', href: ROUTES.myStore },
     { label: 'الأمان', href: ROUTES.settings.security },
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
     { label: 'التخزين والبيانات', href: ROUTES.settings.storage },
+    // مركز العمليات التي تتم دون اتصال (طابور الطلبات + المسودات + إعادة المحاولة)
+    { label: 'المزامنة (عمليات دون اتصال)', href: ROUTES.settings.sync },
   ],
 } as const;
 
