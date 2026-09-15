@@ -33,10 +33,24 @@ const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
  * Product card — badges top-start, favorite top-end only (no overlap).
  */
 export function ProductCard({ product, className, priority = false }: Props) {
-  const rawImage = product.images[0];
+  const rawImage = product.images?.[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
-  const { discountPrice, discountPercentage, hasActivePromotion } = product.effectivePrice;
+  // FIX: الـ API يُرجع price/discountPrice مسطّحة، فنحسب effectivePrice محلياً
+  const rawPrice = Number(product.price ?? 0);
+  const rawDiscount =
+    product.discountPrice != null ? Number(product.discountPrice) : null;
+  const effectivePrice = product.effectivePrice ?? {
+    price: rawPrice,
+    originalPrice: rawPrice,
+    discountPrice: rawDiscount,
+    discountPercentage:
+      rawDiscount != null && rawPrice > 0
+        ? Math.round(((rawPrice - rawDiscount) / rawPrice) * 100)
+        : null,
+    hasActivePromotion: false,
+  };
+  const { discountPrice, discountPercentage, hasActivePromotion } = effectivePrice;
   const hasDiscount = discountPrice !== null;
   const outOfStock = product.availability === 'OUT_OF_STOCK';
 
@@ -44,7 +58,7 @@ export function ProductCard({ product, className, priority = false }: Props) {
   const timeColorClass =
     ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
 
-  const storeLogo = getAvatarUrl(product.store.logoUrl ?? '', 32);
+  const storeLogo = getAvatarUrl(product.store?.logoUrl ?? '', 32);
 
   return (
     <div

@@ -43,10 +43,21 @@ export function ProductDetail({ product, related = [] }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
-  const images = product.images.length > 0 ? product.images : [PLACEHOLDER_SVG];
+  const images = product.images && product.images.length > 0 ? product.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
 
-  const { effectivePrice } = product;
+  // FIX: الـ API يُرجع price/discountPrice مسطّحة، فنحسب effectivePrice محلياً
+  const rawPrice = Number(product.price ?? 0);
+  const rawDiscount = product.discountPrice != null ? Number(product.discountPrice) : null;
+  const effectivePrice = product.effectivePrice ?? {
+    price: rawPrice,
+    discountPrice: rawDiscount,
+    originalPrice: rawPrice,
+    discountPercentage:
+      rawDiscount != null && rawPrice > 0
+        ? Math.round(((rawPrice - rawDiscount) / rawPrice) * 100)
+        : null,
+  };
   const hasDiscount = effectivePrice.discountPrice !== null;
   const displayPrice = hasDiscount
     ? effectivePrice.discountPrice!
@@ -281,7 +292,7 @@ function PriceBlock({
       </p>
       {hasDiscount && (
         <p className="text-sm text-muted-foreground line-through">
-          {formatPrice(String(product.effectivePrice.originalPrice))}
+          {formatPrice(String(product.effectivePrice?.originalPrice ?? product.effectivePrice?.price ?? 0))}
         </p>
       )}
       <span
@@ -308,7 +319,7 @@ function MetaRow({ product }: { product: ProductWithFullStore }) {
           {product.category.nameAr}
         </span>
       )}
-      {product.store.city && (
+      {product.store?.city && (
         <span className="inline-flex items-center gap-1">
           <MapPin className="h-3.5 w-3.5" aria-hidden />
           {product.store.city}
@@ -318,7 +329,7 @@ function MetaRow({ product }: { product: ProductWithFullStore }) {
         <Eye className="h-3.5 w-3.5" aria-hidden />
         {product.views} مشاهدة
       </span>
-      <span>{formatRelativeTime(product.createdAt)}</span>
+      <span>{product.createdAt ? formatRelativeTime(product.createdAt) : ''}</span>
     </div>
   );
 }
@@ -378,9 +389,17 @@ function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
           <Link href={ROUTES.storeDetail(store.slug || store.id)}>عرض صفحة المتجر</Link>
         </Button>
         {/* UNIFY-PAYMENTS-STORES: read from sellerProfile — store no
-            longer has its own paymentMethods column. */}
+            longer has its own paymentMethods column.
+            BUGFIX: sellerProfile can be null (a store whose owner
+            never completed seller onboarding) — ownerId above already
+            guards this with `?.`, but this line didn't, so opening
+            such a product's page threw "Cannot read properties of
+            undefined/null (reading 'paymentMethods')" and crashed the
+            whole page into ProductDetailError. StorePaymentMethods'
+            own paymentMethods prop is already optional/unknown-typed,
+            so passing undefined here is a normal, already-handled case. */}
         <StorePaymentMethods
-          paymentMethods={store.sellerProfile.paymentMethods}
+          paymentMethods={store.sellerProfile?.paymentMethods}
           entityName={store.name}
           fallbackName={store.name}
           fallbackPhone={store.phone}
