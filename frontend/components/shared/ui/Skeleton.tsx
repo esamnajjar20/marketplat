@@ -1,2 +1,2 @@
-/** Skeleton — re-exports the shadcn/ui Skeleton. */
+/** Skeleton — re-exports the shared UI Skeleton. */
 export { Skeleton } from '@/components/ui/skeleton';

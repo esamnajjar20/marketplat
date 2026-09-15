@@ -1,21 +1,27 @@
 /**
- * LoadingSpinner — accessible inline / full-page spinner.
+ * LoadingSpinner — جذّاب، مفهوم، ومتاح (a11y).
  */
 import { cn } from '@/lib/utils';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   fullPage?: boolean;
-  /** طبقة شبه شفافة فوق المحتوى الحالي (حالات حفظ/تحديث) */
   overlay?: boolean;
   label?: string;
+  hideLabel?: boolean;
   className?: string;
 }
 
-const SIZE_CLASSES = {
-  sm: 'h-4 w-4 border-2',
-  md: 'h-8 w-8 border-4',
-  lg: 'h-12 w-12 border-4',
+const RING = {
+  sm: 'h-5 w-5',
+  md: 'h-9 w-9',
+  lg: 'h-12 w-12',
+} as const;
+
+const BORDER = {
+  sm: 'border-2',
+  md: 'border-[3px]',
+  lg: 'border-4',
 } as const;
 
 export function LoadingSpinner({
@@ -23,39 +29,65 @@ export function LoadingSpinner({
   fullPage = false,
   overlay = false,
   label = 'جارٍ التحميل…',
+  hideLabel = false,
   className,
 }: LoadingSpinnerProps) {
   const spinner = (
     <div
       role="status"
       aria-label={label}
-      className={cn(
-        'animate-spin rounded-full border-primary border-t-transparent',
-        SIZE_CLASSES[size],
-        className,
-      )}
-    />
+      className={cn('relative shrink-0', RING[size], className)}
+    >
+      <span
+        aria-hidden
+        className={cn('absolute inset-0 rounded-full border-muted-foreground/15', BORDER[size])}
+      />
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-0 animate-spin rounded-full border-primary border-t-transparent border-l-transparent',
+          BORDER[size],
+        )}
+        style={{ animationDuration: '0.85s' }}
+      />
+      <span
+        aria-hidden
+        className="absolute inset-[32%] rounded-full bg-primary/25 animate-pulse"
+      />
+      {hideLabel ? <span className="sr-only">{label}</span> : null}
+    </div>
   );
 
   if (fullPage) {
     return (
-      <div className="flex min-h-screen items-center justify-center gap-3">
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4">
         {spinner}
-        <span className="text-sm text-muted-foreground">{label}</span>
+        {!hideLabel && (
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        )}
       </div>
     );
   }
 
   if (overlay) {
     return (
-      <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
-        <div className="flex items-center gap-2 rounded-xl border bg-card px-4 py-2 shadow-md">
+      <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
+        <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card px-5 py-3 shadow-lg">
           {spinner}
-          <span className="text-sm font-medium">{label}</span>
+          {!hideLabel && (
+            <span className="text-sm font-semibold text-foreground">{label}</span>
+          )}
         </div>
       </div>
     );
   }
 
-  return spinner;
+  if (hideLabel) return spinner;
+
+  return (
+    <div className="inline-flex items-center gap-2.5">
+      {spinner}
+      <span className="text-sm text-muted-foreground">{label}</span>
+    </div>
+  );
 }

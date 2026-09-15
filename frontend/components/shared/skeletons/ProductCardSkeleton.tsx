@@ -1,17 +1,13 @@
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
-/**
- * Same shape family as AdCardSkeleton (vertical image card) but
- * matches ProductCard.tsx's actual aspect-square image (not
- * AdCardSkeleton's aspect-[4/3]) and its price-only meta row.
- */
 export function ProductCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <Skeleton className="aspect-square w-full" />
+    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
+      <Skeleton className="aspect-square w-full rounded-none" />
       <div className="space-y-2 p-3">
-        <Skeleton className="h-4 w-4/5" />
-        <Skeleton className="h-5 w-1/2" />
+        <Skeleton className="h-3.5 w-4/5" />
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-3 w-1/2" />
       </div>
     </div>
   );

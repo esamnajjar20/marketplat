@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * LoadingButton — زر يعرض حالة الإرسال ويمنع الضغط المزدوج.
+ * LoadingButton — يمنع الضغط المزدوج ويعرض حالة واضحة.
  */
 
 import { forwardRef } from 'react';
@@ -23,15 +23,18 @@ export const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         aria-busy={isLoading || undefined}
-        className={cn(className)}
+        className={cn(isLoading && 'cursor-wait', className)}
         {...props}
       >
         {isLoading ? (
           <span className="inline-flex items-center gap-2">
             <span
-              className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+              className="relative h-4 w-4 shrink-0"
               aria-hidden
-            />
+            >
+              <span className="absolute inset-0 rounded-full border-2 border-current/25" />
+              <span className="absolute inset-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            </span>
             <span>{loadingText ?? 'جارٍ التنفيذ…'}</span>
           </span>
         ) : (
