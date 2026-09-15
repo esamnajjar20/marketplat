@@ -1,52 +1,53 @@
 'use client';
 
-import { MapPin, ShieldCheck, Megaphone } from 'lucide-react';
-import { useAds } from '@/hooks/queries/useAds';
-import { CITIES } from '@/lib/constants';
+/**
+ * شريط ثقة مختصر — طمأنة سريعة بدون إطالة الصفحة.
+ */
+import { ShieldCheck, MapPin, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * شريط ثقة رفيع تحت الهيرو — يعطي إحساس سوق حي دون إعاقة الاكتشاف.
- */
+const ITEMS = [
+  {
+    icon: MapPin,
+    title: 'محلي',
+    desc: 'نتائج أقرب لمدينتك',
+  },
+  {
+    icon: Handshake,
+    title: 'مباشر',
+    desc: 'تواصل مع البائع أو مقدم الخدمة',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'آمن',
+    desc: 'إبلاغ ومتابعة عند الحاجة',
+  },
+] as const;
+
 export function HomeTrustStrip({ className }: { className?: string }) {
-  const { data } = useAds({ limit: 1, sortBy: 'createdAt', sortOrder: 'desc' });
-  const total = data?.meta?.total;
-
-  const items = [
-    {
-      icon: MapPin,
-      label: `${CITIES.length}+ مدن في القطاع`,
-    },
-    {
-      icon: Megaphone,
-      label:
-        typeof total === 'number' && total > 0
-          ? `${new Intl.NumberFormat('ar-EG').format(total)}+ إعلان`
-          : 'إعلانات تتجدد يوميًا',
-    },
-    {
-      icon: ShieldCheck,
-      label: 'تواصل داخل التطبيق',
-    },
-  ];
-
   return (
-    <div
-      className={cn(
-        'container mx-auto max-w-7xl px-4',
-        className,
-      )}
+    <section
+      className={cn('container mx-auto max-w-7xl px-4', className)}
+      aria-label="لماذا MarketPlat"
     >
-      <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-2xl border border-border/70 bg-surface-1/80 px-3 py-2.5 text-xs text-muted-foreground shadow-xs sm:gap-x-8 sm:text-sm">
-        {items.map(({ icon: Icon, label }) => (
-          <li key={label} className="flex items-center gap-1.5">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-soft text-primary">
-              <Icon className="h-3.5 w-3.5" aria-hidden />
+      <ul className="grid grid-cols-3 gap-2 sm:gap-3">
+        {ITEMS.map(({ icon: Icon, title, desc }) => (
+          <li
+            key={title}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/70 bg-card/70 px-2 py-3 text-center shadow-xs sm:flex-row sm:items-start sm:gap-3 sm:px-4 sm:py-3.5 sm:text-start"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Icon className="h-4 w-4" aria-hidden />
             </span>
-            <span className="font-medium text-foreground/80">{label}</span>
+            <span className="min-w-0">
+              <span className="block text-xs font-bold text-foreground sm:text-sm">{title}</span>
+              <span className="mt-0.5 hidden text-[11px] leading-snug text-muted-foreground sm:block">
+                {desc}
+              </span>
+            </span>
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }

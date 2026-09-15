@@ -106,7 +106,7 @@ export function HomeAboveFold() {
   // the CTA is specifically the "prompt an explicit browser permission
   // request" escape hatch, never shown while already resolved to a
   // GPS source and never auto-triggered on mount by this component).
-  const showLocateCta = false; // المدينة أولوية — إخفاء الاعتماد على موقع الجهاز
+  const showLocateCta = false; // المدينة أولوية — بدون GPS CTA
 
   if (stillLoading) {
     return (
@@ -125,7 +125,7 @@ export function HomeAboveFold() {
           </div>
         </section>
 
-        <section className="relative mt-6 border-y border-accent/15 bg-gradient-to-b from-accent/[0.12] to-accent/[0.04] py-7 sm:mt-10 sm:py-12">
+        <section className="relative mt-6 border-y border-border/50 bg-muted/30 py-7 sm:mt-10 sm:py-12">
           <div className="container relative mx-auto max-w-7xl space-y-5 px-4">
             <SectionHeader
               tone="featured"
@@ -157,10 +157,10 @@ export function HomeAboveFold() {
         <CategoryGrid />
       </section>
 
-      <section className="relative mt-6 border-y border-accent/15 bg-gradient-to-b from-accent/[0.12] to-accent/[0.04] py-7 sm:mt-10 sm:py-12">
+      <section className="relative mt-6 border-y border-border/50 bg-muted/30 py-7 sm:mt-10 sm:py-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute -end-10 top-0 h-40 w-40 rounded-full bg-accent/10 blur-3xl"
+          className="pointer-events-none absolute -end-10 top-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
         />
         <div className="container relative mx-auto max-w-7xl space-y-5 px-4">
           <SectionHeader

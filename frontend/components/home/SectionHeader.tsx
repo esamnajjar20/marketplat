@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -27,15 +28,14 @@ export function SectionHeader({
   return (
     <div
       className={cn(
-        'flex items-end justify-between gap-3 border-b pb-3',
-        featured ? 'border-accent/25' : 'border-border/70',
+        'flex items-end justify-between gap-3',
         className,
       )}
     >
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <p
           className={cn(
-            'flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider',
+            'flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider',
             featured ? 'text-accent' : 'text-muted-foreground',
           )}
         >
@@ -45,8 +45,8 @@ export function SectionHeader({
         <div className="flex flex-wrap items-center gap-2">
           <h2
             className={cn(
-              'font-bold tracking-tight',
-              featured ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl',
+              'font-bold tracking-tight text-foreground',
+              featured ? 'text-lg sm:text-xl' : 'text-base sm:text-lg',
             )}
           >
             {title}
@@ -58,11 +58,14 @@ export function SectionHeader({
         <Link
           href={cta.href}
           className={cn(
-            'shrink-0 text-sm font-semibold underline-offset-4 transition-colors hover:underline',
-            featured ? 'text-accent hover:text-accent/90' : 'text-primary hover:text-primary/80',
+            'inline-flex shrink-0 items-center gap-0.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+            featured
+              ? 'border-accent/30 bg-accent/10 text-accent hover:bg-accent/15'
+              : 'border-border/80 bg-card text-muted-foreground hover:border-primary/30 hover:text-primary',
           )}
         >
-          {cta.label}
+          {cta.label.replace(/\s*←\s*$/, '').replace(/^عرض الكل/, 'الكل') || cta.label}
+          <ChevronLeft className="h-3.5 w-3.5 opacity-70" aria-hidden />
         </Link>
       )}
     </div>
