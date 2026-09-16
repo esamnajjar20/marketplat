@@ -27,13 +27,6 @@ function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
-function isStandalone(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    // Safari القديم لا يدعم matchMedia لهذا — يوفر خاصية مباشرة بدلًا من ذلك
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
 
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -45,15 +38,11 @@ export function InstallPrompt() {
     let cleanup: (() => void) | undefined;
 
     (async () => {
-      // BUG FIX (PLAN-runtime-separation, المرحلة 7): كان الفحص هنا يعتمد فقط
-      // على isStandalone()، فيظهر شريط "ثبّت التطبيق" حتى داخل التطبيق
-      // الأصلي (Capacitor) المثبّت أصلًا من المتجر — isNativePlatform() لازم
-      // يُفحص أولًا ويمنع الشريط بلا شرط، بغض النظر عن standalone.
-      const { isNativePlatform } = await import('@/lib/capacitor/platform');
-      if (await isNativePlatform()) return; // داخل التطبيق الأصلي أصلًا — لا معنى لعرض "ثبّته"
+      // مصدر الحقيقة: lib/runtime/capabilities.supportsInstallPrompt
+      // (Native → false، standalone PWA → false، Browser فقط → true).
+      const { supportsInstallPrompt } = await import('@/lib/runtime/capabilities');
+      if (!(await supportsInstallPrompt())) return;
       if (cancelled) return;
-
-      if (isStandalone()) return; // مثبّت أصلًا كـ PWA — لا داعٍ للشريط
 
       const dismissedAt = Number(localStorage.getItem(DISMISS_STORAGE_KEY) ?? 0);
       const withinCooldown = Date.now() - dismissedAt < DISMISS_COOLDOWN_MS;

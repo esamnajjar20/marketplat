@@ -16,6 +16,8 @@ import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { warmRouteShells, warmPersonalShells } from '@/lib/offlineRouteShells';
 import { ensurePushSubscriptionSynced } from '@/lib/pwa';
+import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
+import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
 
@@ -82,14 +84,30 @@ export function OfflineBootstrap() {
 
   // تسخين أشكال الصفحات المحمية (رسائل/إشعارات/لوحة…) لمستخدم مسجّل فقط.
   // PERSONAL_SHELL_CACHE يُمسَح عند تسجيل الخروج (CLEAR_API_CACHE).
-  // مزامنة Web Push صامتة إن كان الإذن ممنوحًا مسبقًا (لا يطلب إذنًا جديدًا).
+  // مزامنة Push صامتة إن كان الإذن ممنوحًا مسبقًا (لا يطلب إذنًا جديدًا):
+  //   Web/PWA → VAPID (ensurePushSubscriptionSynced)
+  //   Native  → FCM   (ensureNativePushSynced)
   useEffect(() => {
     if (!isAuthenticated) return;
     void warmPersonalShells();
-    void ensurePushSubscriptionSynced();
+    void (async () => {
+      if (await supportsWebPush()) {
+        void ensurePushSubscriptionSynced();
+      }
+      if (await supportsNativePush()) {
+        void ensureNativePushSynced();
+      }
+    })();
     const onOnline = () => {
       void warmPersonalShells();
-      void ensurePushSubscriptionSynced();
+      void (async () => {
+        if (await supportsWebPush()) {
+          void ensurePushSubscriptionSynced();
+        }
+        if (await supportsNativePush()) {
+          void ensureNativePushSynced();
+        }
+      })();
     };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);

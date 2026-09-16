@@ -16,6 +16,8 @@ import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { warmRouteShells, warmPersonalShells } from '@/lib/offlineRouteShells';
 import { ensurePushSubscriptionSynced } from '@/lib/pwa';
+import { supportsWebPush, supportsNativePush } from '@/lib/runtime/capabilities';
+import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/lib/offlineQueue', () => ({
@@ -37,6 +39,15 @@ vi.mock('@/lib/offlineRouteShells', () => ({
 
 vi.mock('@/lib/pwa', () => ({
   ensurePushSubscriptionSynced: vi.fn().mockResolvedValue('skipped'),
+}));
+
+vi.mock('@/lib/runtime/capabilities', () => ({
+  supportsWebPush: vi.fn().mockResolvedValue(true),
+  supportsNativePush: vi.fn().mockResolvedValue(false),
+}));
+
+vi.mock('@/lib/capacitor/nativePush', () => ({
+  ensureNativePushSynced: vi.fn().mockResolvedValue('skipped'),
 }));
 
 vi.mock('@/store/auth.store', () => ({
@@ -137,23 +148,57 @@ describe('OfflineBootstrap', () => {
     expect(ensurePushSubscriptionSynced).not.toHaveBeenCalled();
   });
 
-  it('warms personal shells and syncs push once signed in', () => {
+  it('warms personal shells and syncs push once signed in', async () => {
     mockAuth(true);
     render(<OfflineBootstrap />);
 
     expect(warmPersonalShells).toHaveBeenCalledTimes(1);
-    expect(ensurePushSubscriptionSynced).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(ensurePushSubscriptionSynced).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('re-warms personal shells and re-syncs push when back online while signed in', () => {
+  it('re-warms personal shells and re-syncs push when back online while signed in', async () => {
     mockAuth(true);
     render(<OfflineBootstrap />);
+    await vi.waitFor(() => {
+      expect(ensurePushSubscriptionSynced).toHaveBeenCalled();
+    });
     vi.clearAllMocks();
     mockAuth(true);
+    vi.mocked(supportsWebPush).mockResolvedValue(true);
 
     window.dispatchEvent(new Event('online'));
 
     expect(warmPersonalShells).toHaveBeenCalledTimes(1);
-    expect(ensurePushSubscriptionSynced).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(ensurePushSubscriptionSynced).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not sync Web Push when supportsWebPush is false (e.g. Native / FCM path)', async () => {
+    vi.mocked(supportsWebPush).mockResolvedValue(false);
+    vi.mocked(supportsNativePush).mockResolvedValue(false);
+    mockAuth(true);
+    render(<OfflineBootstrap />);
+
+    expect(warmPersonalShells).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ensurePushSubscriptionSynced).not.toHaveBeenCalled();
+    expect(ensureNativePushSynced).not.toHaveBeenCalled();
+  });
+
+  it('syncs native FCM when supportsNativePush is true and signed in', async () => {
+    vi.mocked(supportsWebPush).mockResolvedValue(false);
+    vi.mocked(supportsNativePush).mockResolvedValue(true);
+    mockAuth(true);
+    render(<OfflineBootstrap />);
+
+    expect(warmPersonalShells).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(ensureNativePushSynced).toHaveBeenCalledTimes(1);
+    });
+    expect(ensurePushSubscriptionSynced).not.toHaveBeenCalled();
   });
 });

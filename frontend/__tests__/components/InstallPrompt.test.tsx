@@ -18,6 +18,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, act } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
+import { isNativePlatform } from '@/lib/capacitor/platform';
+
+vi.mock('@/lib/capacitor/platform', () => ({
+  isNativePlatform: vi.fn(async () => false),
+}));
 
 const DISMISS_STORAGE_KEY = 'pwa-install-dismissed-at';
 
@@ -55,6 +60,7 @@ describe('InstallPrompt', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(isNativePlatform).mockResolvedValue(false);
     localStorage.clear();
     mockMatchMedia(false);
     mockUserAgent(
@@ -81,6 +87,17 @@ describe('InstallPrompt', () => {
     const { container } = render(<InstallPrompt />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders nothing inside the native Capacitor shell', async () => {
+    vi.mocked(isNativePlatform).mockResolvedValue(true);
+    const { container } = render(<InstallPrompt />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container).toBeEmptyDOMElement();
+    expect(isNativePlatform).toHaveBeenCalled();
   });
 
   it('renders nothing within the 7-day dismiss cooldown', () => {

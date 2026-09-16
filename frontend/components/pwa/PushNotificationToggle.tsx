@@ -17,6 +17,7 @@ import {
 } from '@/lib/pwa';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import {
+  NATIVE_FCM_TOKEN_STORAGE_KEY,
   getNativePushPermissionState,
   registerNativePush,
   unregisterNativePush,
@@ -24,8 +25,6 @@ import {
 import { toast } from 'sonner';
 import { getRawVapidPublicKey } from '@/lib/env';
 import { cn } from '@/lib/utils';
-
-const NATIVE_TOKEN_STORAGE_KEY = 'push:native-fcm-token';
 
 type SubState = 'loading' | 'subscribed' | 'unsubscribed' | 'unsupported';
 type PermState = 'granted' | 'denied' | 'default' | 'unsupported' | 'loading';
@@ -82,15 +81,15 @@ export function PushNotificationToggle() {
     try {
       if (isNative) {
         if (state === 'subscribed') {
-          const token = window.localStorage.getItem(NATIVE_TOKEN_STORAGE_KEY);
+          const token = window.localStorage.getItem(NATIVE_FCM_TOKEN_STORAGE_KEY);
           if (token) await unregisterNativePush(token);
-          window.localStorage.removeItem(NATIVE_TOKEN_STORAGE_KEY);
+          window.localStorage.removeItem(NATIVE_FCM_TOKEN_STORAGE_KEY);
           setState('unsubscribed');
           setPermission('default');
           toast.success('تم إيقاف إشعارات الجهاز');
         } else {
           const token = await registerNativePush();
-          if (token) window.localStorage.setItem(NATIVE_TOKEN_STORAGE_KEY, token);
+          if (token) window.localStorage.setItem(NATIVE_FCM_TOKEN_STORAGE_KEY, token);
           setState(token ? 'subscribed' : 'unsubscribed');
           setPermission(token ? 'granted' : 'denied');
           if (token) toast.success('تم تفعيل إشعارات الجهاز');

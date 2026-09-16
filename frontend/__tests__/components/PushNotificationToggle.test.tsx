@@ -20,6 +20,12 @@ import {
   isPushSupported,
 } from '@/lib/pwa';
 import { toast } from 'sonner';
+import { isNativePlatform } from '@/lib/capacitor/platform';
+import {
+  getNativePushPermissionState,
+  registerNativePush,
+  unregisterNativePush,
+} from '@/lib/capacitor/nativePush';
 
 vi.mock('@/lib/pwa', () => ({
   getPushSubscriptionState: vi.fn(),
@@ -32,6 +38,17 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
+vi.mock('@/lib/capacitor/platform', () => ({
+  isNativePlatform: vi.fn(async () => false),
+}));
+
+vi.mock('@/lib/capacitor/nativePush', () => ({
+  NATIVE_FCM_TOKEN_STORAGE_KEY: 'push:native-fcm-token',
+  getNativePushPermissionState: vi.fn(async () => 'unsupported'),
+  registerNativePush: vi.fn(async () => null),
+  unregisterNativePush: vi.fn(async () => undefined),
+}));
+
 const mockGetState = vi.mocked(getPushSubscriptionState);
 const mockSubscribe = vi.mocked(subscribeToPush);
 const mockUnsubscribe = vi.mocked(unsubscribeFromPush);
@@ -42,6 +59,8 @@ describe('PushNotificationToggle', () => {
     vi.clearAllMocks();
     vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'test-vapid-key');
     mockIsSupported.mockReturnValue(true);
+    vi.mocked(isNativePlatform).mockResolvedValue(false);
+    vi.mocked(getNativePushPermissionState).mockResolvedValue('unsupported');
   });
 
   afterEach(() => {
@@ -144,5 +163,35 @@ describe('PushNotificationToggle', () => {
 
     await user.click(await screen.findByRole('button', { name: 'تفعيل' }));
     expect(screen.getByRole('button')).toBeDisabled();
+  });
+
+  it('uses registerNativePush on activate when native', async () => {
+    vi.mocked(isNativePlatform).mockResolvedValue(true);
+    vi.mocked(getNativePushPermissionState).mockResolvedValue('prompt');
+    vi.mocked(registerNativePush).mockResolvedValue('fcm-token-1');
+    const user = setupUser();
+    render(<PushNotificationToggle />);
+
+    await user.click(await screen.findByRole('button', { name: 'تفعيل' }));
+
+    await waitFor(() => expect(registerNativePush).toHaveBeenCalled());
+    expect(subscribeToPush).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith('تم تفعيل إشعارات الجهاز');
+    expect(localStorage.getItem('push:native-fcm-token')).toBe('fcm-token-1');
+  });
+
+  it('uses unregisterNativePush on deactivate when native', async () => {
+    vi.mocked(isNativePlatform).mockResolvedValue(true);
+    vi.mocked(getNativePushPermissionState).mockResolvedValue('granted');
+    localStorage.setItem('push:native-fcm-token', 'fcm-token-1');
+    vi.mocked(unregisterNativePush).mockResolvedValue(undefined);
+    const user = setupUser();
+    render(<PushNotificationToggle />);
+
+    await user.click(await screen.findByRole('button', { name: 'إيقاف' }));
+
+    await waitFor(() => expect(unregisterNativePush).toHaveBeenCalledWith('fcm-token-1'));
+    expect(unsubscribeFromPush).not.toHaveBeenCalled();
+    expect(localStorage.getItem('push:native-fcm-token')).toBeNull();
   });
 });

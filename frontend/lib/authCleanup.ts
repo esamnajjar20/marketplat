@@ -40,6 +40,37 @@ export function clearServiceWorkerApiCache() {
  * لا تمسح مسودات إعلانات معلّقة فعليًا (pending_sync/failed)، فقط
  * status:'draft' النقية غير المرتبطة بأي محاولة إرسال.
  */
+/**
+ * Best-effort: drop this device's push bindings from the server and local
+ * storage when the session ends. Fire-and-forget — never blocks logout UI.
+ * Web: unsubscribeFromPush (VAPID). Native: DELETE fcm-tokens + clear stored token.
+ */
+function clearPushBindingsOnSessionEnd(): void {
+  void (async () => {
+    try {
+      const { unsubscribeFromPush } = await import('@/lib/pwa');
+      await unsubscribeFromPush();
+    } catch {
+      /* web push unsupported or network failure — ignore */
+    }
+    try {
+      const { NATIVE_FCM_TOKEN_STORAGE_KEY, unregisterNativePush } = await import(
+        '@/lib/capacitor/nativePush'
+      );
+      const token =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem(NATIVE_FCM_TOKEN_STORAGE_KEY)
+          : null;
+      if (token) {
+        await unregisterNativePush(token);
+        localStorage.removeItem(NATIVE_FCM_TOKEN_STORAGE_KEY);
+      }
+    } catch {
+      /* native path unavailable on plain web — ignore */
+    }
+  })();
+}
+
 export function clearSensitiveLocalData(): void {
   clearServiceWorkerApiCache();
   // نفس منطق clearServiceWorkerApiCache أعلاه: notifications-cache
@@ -52,4 +83,5 @@ export function clearSensitiveLocalData(): void {
   void clearDraftOnlyAdDrafts();
   clearAllOfflineJson();
   void clearOfflineMessagesStore();
+  clearPushBindingsOnSessionEnd();
 }

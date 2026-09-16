@@ -11,6 +11,8 @@
  *  - Android hardware back button (WebView has no back button of its
  *    own; without this, the OS default is to exit the app on every
  *    back-press instead of navigating within it)
+ *  - native push notification tap → in-app navigation (FCM path;
+ *    mirrors sw.js notificationclick for Web Push)
  */
 'use client';
 
@@ -18,6 +20,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { registerDeepLinkListener } from '@/lib/capacitor/deepLinks';
+import { onNativePushTapped } from '@/lib/capacitor/nativePush';
 
 export function CapacitorBootstrap() {
   const router = useRouter();
@@ -25,11 +28,27 @@ export function CapacitorBootstrap() {
   useEffect(() => {
     let cleanupDeepLinks: (() => void) | undefined;
     let cleanupBackButton: (() => void) | undefined;
+    let cleanupPushTap: (() => void) | undefined;
 
     void (async () => {
       if (!(await isNativePlatform())) return;
 
       cleanupDeepLinks = await registerDeepLinkListener(router);
+
+      cleanupPushTap = await onNativePushTapped((notification) => {
+        const raw = notification.url;
+        if (!raw) return;
+        if (raw.startsWith('/')) {
+          router.push(raw);
+          return;
+        }
+        try {
+          const parsed = new URL(raw);
+          router.push(`${parsed.pathname}${parsed.search}` || '/');
+        } catch {
+          /* malformed payload url — ignore */
+        }
+      });
 
       const [{ SplashScreen }, { StatusBar, Style }, { App }] = await Promise.all([
         import('@capacitor/splash-screen'),
@@ -57,6 +76,7 @@ export function CapacitorBootstrap() {
     return () => {
       cleanupDeepLinks?.();
       cleanupBackButton?.();
+      cleanupPushTap?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- router identity is stable from next/navigation
   }, []);

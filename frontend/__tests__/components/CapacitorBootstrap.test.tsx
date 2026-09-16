@@ -6,6 +6,7 @@ import { render, waitFor } from '@testing-library/react';
 import { CapacitorBootstrap } from '@/components/pwa/CapacitorBootstrap';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { registerDeepLinkListener } from '@/lib/capacitor/deepLinks';
+import { onNativePushTapped } from '@/lib/capacitor/nativePush';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
@@ -17,6 +18,10 @@ vi.mock('@/lib/capacitor/platform', () => ({
 
 vi.mock('@/lib/capacitor/deepLinks', () => ({
   registerDeepLinkListener: vi.fn(async () => () => {}),
+}));
+
+vi.mock('@/lib/capacitor/nativePush', () => ({
+  onNativePushTapped: vi.fn(async () => () => {}),
 }));
 
 vi.mock('@capacitor/splash-screen', () => ({
@@ -39,6 +44,7 @@ describe('CapacitorBootstrap', () => {
   beforeEach(() => {
     vi.mocked(isNativePlatform).mockResolvedValue(false);
     vi.mocked(registerDeepLinkListener).mockClear();
+    vi.mocked(onNativePushTapped).mockClear();
   });
 
   it('renders nothing', () => {
@@ -52,6 +58,7 @@ describe('CapacitorBootstrap', () => {
       expect(isNativePlatform).toHaveBeenCalled();
     });
     expect(registerDeepLinkListener).not.toHaveBeenCalled();
+    expect(onNativePushTapped).not.toHaveBeenCalled();
   });
 
   it('registers deep links when native', async () => {
@@ -59,6 +66,14 @@ describe('CapacitorBootstrap', () => {
     render(<CapacitorBootstrap />);
     await waitFor(() => {
       expect(registerDeepLinkListener).toHaveBeenCalled();
+    });
+  });
+
+  it('registers native push tap handler when native', async () => {
+    vi.mocked(isNativePlatform).mockResolvedValue(true);
+    render(<CapacitorBootstrap />);
+    await waitFor(() => {
+      expect(onNativePushTapped).toHaveBeenCalled();
     });
   });
 });
