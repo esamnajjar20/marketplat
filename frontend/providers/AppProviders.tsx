@@ -16,6 +16,7 @@ import { makeQueryClient }     from '@/lib/queryClient';
 import { AuthHydrationProvider } from './AuthHydrationProvider';
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
+import { OfflineBootstrap }    from '@/components/pwa/OfflineBootstrap';
 import { CapacitorBootstrap }  from '@/components/pwa/CapacitorBootstrap';
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
@@ -85,6 +86,11 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         <ThemedToaster />
 
         <PwaBootstrap />
+        {/* PLAN-runtime-separation (مرحلة 2/6): استُخرج من PwaBootstrap —
+            نفس مكان التركيب، نفس السلوك، مكوّن منفصل. يُركَّب مباشرة بعد
+            PwaBootstrap للحفاظ على نفس ترتيب التنفيذ التقريبي السابق
+            (registerServiceWorker قبل بدء عمليات الـ warming). */}
+        <OfflineBootstrap />
         {/* NEW — no-op outside the Capacitor native shell, see its own header. */}
         <CapacitorBootstrap />
 

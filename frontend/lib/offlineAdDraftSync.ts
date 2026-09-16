@@ -5,7 +5,9 @@
  * offlineAdDrafts.ts نظامان منفصلان لا يتزامنان أبدًا: مسودة تبقى
  * "بانتظار الرفع" للأبد حتى لو الإعلان نُشر فعليًا بالخلفية.
  *
- * يُستدعى مرة واحدة من PwaBootstrap.tsx (نفس نمط requestQueueReplay).
+ * يُستدعى مرة واحدة من OfflineBootstrap.tsx (نفس نمط requestQueueReplay؛
+ * انتقل مع بقية منطق الـ offline من PwaBootstrap.tsx في
+ * PLAN-runtime-separation مرحلة 2/6، بلا تغيير سلوكي).
  */
 import { markAdDraftByOperationId, deleteAdDraftByOperationId } from '@/lib/offlineAdDrafts';
 

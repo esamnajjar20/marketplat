@@ -41,25 +41,43 @@ export function InstallPrompt() {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    if (isStandalone()) return; // مثبّت أصلًا — لا داعٍ للشريط
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
 
-    const dismissedAt = Number(localStorage.getItem(DISMISS_STORAGE_KEY) ?? 0);
-    const withinCooldown = Date.now() - dismissedAt < DISMISS_COOLDOWN_MS;
-    if (withinCooldown) return;
+    (async () => {
+      // BUG FIX (PLAN-runtime-separation, المرحلة 7): كان الفحص هنا يعتمد فقط
+      // على isStandalone()، فيظهر شريط "ثبّت التطبيق" حتى داخل التطبيق
+      // الأصلي (Capacitor) المثبّت أصلًا من المتجر — isNativePlatform() لازم
+      // يُفحص أولًا ويمنع الشريط بلا شرط، بغض النظر عن standalone.
+      const { isNativePlatform } = await import('@/lib/capacitor/platform');
+      if (await isNativePlatform()) return; // داخل التطبيق الأصلي أصلًا — لا معنى لعرض "ثبّته"
+      if (cancelled) return;
 
-    setDismissed(false);
+      if (isStandalone()) return; // مثبّت أصلًا كـ PWA — لا داعٍ للشريط
 
-    const handleBeforeInstall = (event: Event) => {
-      event.preventDefault();
-      setDeferredPrompt(event as BeforeInstallPromptEvent);
+      const dismissedAt = Number(localStorage.getItem(DISMISS_STORAGE_KEY) ?? 0);
+      const withinCooldown = Date.now() - dismissedAt < DISMISS_COOLDOWN_MS;
+      if (withinCooldown) return;
+
+      setDismissed(false);
+
+      const handleBeforeInstall = (event: Event) => {
+        event.preventDefault();
+        setDeferredPrompt(event as BeforeInstallPromptEvent);
+      };
+      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+      if (isIos()) {
+        setShowIosHint(true);
+      }
+
+      cleanup = () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    })();
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
     };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-
-    if (isIos()) {
-      setShowIosHint(true);
-    }
-
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
   }, []);
 
   const handleDismiss = () => {

@@ -48,7 +48,9 @@ export function WarmupIndicator() {
       aria-live="polite"
       // FIX STACK-01: UpdatePrompt.tsx يشغل نفس fixed top-4 — تحديث تطبيق
       // نادر مقابل تجهيز كاش روتيني كل بضع ساعات، فلو ظهرا معًا (كلاهما
-      // يُركَّب بنفس PwaBootstrap) سيتراكبان حرفيًا فوق بعض. إزاحة هذا
+      // يُركَّب دائمًا معًا في AppProviders — UpdatePrompt عبر PwaBootstrap
+      // وهذا المكوّن عبر OfflineBootstrap، انظر PLAN-runtime-separation
+      // مرحلة 2/6) سيتراكبان حرفيًا فوق بعض. إزاحة هذا
       // الشريط لأسفل (top-20 بدل top-4) تكفي لتفادي التراكب بأبسط حل ممكن
       // بدون تنسيق حالة مشتركة بين مكوّنين مستقلّين لسيناريو نادر أصلًا.
       className="fixed inset-x-4 top-20 z-50 flex items-center gap-3 rounded-xl border bg-card p-3 shadow-lg sm:inset-x-auto sm:start-1/2 sm:max-w-sm sm:-translate-x-1/2"
