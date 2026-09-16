@@ -1349,20 +1349,32 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'سوق غزة';
+  const targetUrl = data.url || '/';
   const options = {
     body: data.body || '',
     tag: data.tag,
     renotify: Boolean(data.tag),
-    data: { url: data.url || '/' },
+    data: { url: targetUrl },
     icon: '/icon-192',
     badge: '/icon-192',
+    // Rich: optional large image (absolute https URL from payload)
+    ...(typeof data.image === 'string' && data.image.startsWith('http')
+      ? { image: data.image }
+      : {}),
+    actions: [
+      { action: 'open', title: 'فتح' },
+      { action: 'dismiss', title: 'تجاهل' },
+    ],
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
+  const action = event.action;
   event.notification.close();
+  if (action === 'dismiss') return;
+
   const url = (event.notification.data && event.notification.data.url) || '/';
 
   event.waitUntil(

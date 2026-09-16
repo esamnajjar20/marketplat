@@ -84,6 +84,17 @@ export const updateNotificationPreferencesSchema = z.object({
     savedSearch: z.boolean().optional(),
     storeUpdates: z.boolean().optional(),
     serviceQuotes: z.boolean().optional(),
+    // Quiet hours (external push only; Asia/Gaza). Optional partial PATCH.
+    quietHoursEnabled: z.boolean().optional(),
+    quietHoursStart: z
+      .string()
+      .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm')
+      .optional(),
+    quietHoursEnd: z
+      .string()
+      .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm')
+      .optional(),
+    quietHoursAllowUrgent: z.boolean().optional(),
   }).refine(obj => Object.keys(obj).length > 0, {
     message: 'At least one preference must be provided',
   }),

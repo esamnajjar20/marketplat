@@ -235,13 +235,9 @@ export async function getPushSubscriptionState(): Promise<'subscribed' | 'unsubs
 }
 
 /**
- * يطلب إذن الإشعارات، ينشئ اشتراك Push، ويرسله للباك-إند لحفظه.
- *
- * ⚠️ يتطلب من الباك-إند إضافة نقطة `POST /notifications/push-subscriptions`
- * (غير موجودة حاليًا في src/modules — راجع قسم "المشاكل/المتطلبات
- * المتبقية" في التسليم) تستقبل { endpoint, keys: { p256dh, auth } }
- * وتربطها بالمستخدم الحالي عبر الـ Bearer token، بالإضافة لمتغير بيئة
- * NEXT_PUBLIC_VAPID_PUBLIC_KEY يجب توليده وضبطه في كلا الطرفين.
+ * يطلب إذن الإشعارات، ينشئ اشتراك Push، ويرسله للباك-إند لحفظه
+ * عبر `POST /notifications/push-subscriptions`.
+ * يتطلب NEXT_PUBLIC_VAPID_PUBLIC_KEY مطابقًا لـ VAPID_PUBLIC_KEY في الباك-إند.
  */
 export async function subscribeToPush(): Promise<boolean> {
   if (!isPushSupported()) return false;
@@ -264,12 +260,8 @@ export async function subscribeToPush(): Promise<boolean> {
     await apiClient.post('/notifications/push-subscriptions', subscription.toJSON());
     return true;
   } catch (err) {
-    // FIX PWA-CRITICAL-04: لو فشل حفظ الاشتراك في الباك-إند (مثلًا نقطة
-    // /notifications/push-subscriptions غير منشورة بعد، أو خطأ شبكة)،
-    // يبقى المتصفح مشتركًا فعليًا عبر pushManager دون أن يعرف الخادم
-    // بذلك — تناقض حالة يجعل واجهة المستخدم تظهر "غير مفعّل" بينما
-    // المتصفح يحمل اشتراكًا حيًا لن يُستخدم أبدًا ولن يمكن استبداله
-    // بسهولة لاحقًا. نتراجع عن الاشتراك محليًا فورًا لإبقاء الحالتين متطابقتين.
+    // لو فشل حفظ الاشتراك في الباك-إند يبقى المتصفح مشتركًا دون أن يعرف الخادم —
+    // نتراجع محليًا فورًا لإبقاء الحالتين متطابقتين.
     await subscription.unsubscribe().catch(() => undefined);
     throw err;
   }
@@ -286,5 +278,50 @@ export async function unsubscribeFromPush(): Promise<void> {
   await apiClient
     .delete('/notifications/push-subscriptions', { data: { endpoint } })
     .catch(() => undefined); // فشل حذف السجل من الخادم لا يجب أن يمنع الإلغاء المحلي
+}
+
+/**
+ * مزامنة صامتة للاشتراك بعد تسجيل الدخول:
+ * - لا يطلب إذنًا جديدًا إن كان مرفوضًا أو لم يُمنح بعد (default).
+ * - إن كان الإذن granted والاشتراك موجودًا → يعيد إرسال الـendpoint للخادم
+ *   (يعالج حذف صف من DB أو تبديل حساب على نفس الجهاز).
+ * - إن كان الإذن granted ولا يوجد اشتراك محلي → ينشئ اشتراكًا ويحفظه.
+ * لا يرمي أخطاء للمستخدم؛ فشل الشبكة يُتجاهل بهدوء.
+ */
+export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscribed' | 'skipped'> {
+  if (!isPushSupported()) return 'skipped';
+  const vapidPublicKey = getVapidPublicKey();
+  if (!vapidPublicKey) return 'skipped';
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+    return 'skipped';
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+      try {
+        await apiClient.post('/notifications/push-subscriptions', subscription.toJSON());
+        return 'subscribed';
+      } catch {
+        await subscription.unsubscribe().catch(() => undefined);
+        return 'skipped';
+      }
+    }
+
+    try {
+      await apiClient.post('/notifications/push-subscriptions', subscription.toJSON());
+      return 'synced';
+    } catch {
+      return 'skipped';
+    }
+  } catch {
+    return 'skipped';
+  }
 }
 

@@ -54,6 +54,14 @@ export interface PushPayload {
   url?: string;
   /** Collapses repeat notifications of the same kind (see sw.js's `renotify`). */
   tag?: string;
+  /** Optional absolute image URL for rich notifications (Chrome/Android). */
+  image?: string;
+  /**
+   * When true, delivery is allowed even during the user's quiet hours
+   * if they opted into "allow urgent during quiet hours" (default on).
+   * Used for new messages.
+   */
+  urgent?: boolean;
 }
 
 // web-push's send rejects with a statusCode on the error object for
@@ -70,6 +78,66 @@ interface WebPushError {
 function isGoneError(err: unknown): boolean {
   const statusCode = (err as WebPushError)?.statusCode;
   return statusCode === 404 || statusCode === 410;
+}
+
+/** Local time "HH:mm" in Asia/Gaza (Palestine) for quiet-hours checks. */
+function currentTimeInGaza(): { hours: number; minutes: number } {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Gaza',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const hours = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minutes = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  return { hours, minutes };
+}
+
+function parseHm(value: unknown, fallback: string): { h: number; m: number } {
+  const raw = typeof value === 'string' && /^\d{1,2}:\d{2}$/.test(value) ? value : fallback;
+  const [h, m] = raw.split(':').map((n) => Number(n));
+  return {
+    h: Number.isFinite(h) ? Math.min(23, Math.max(0, h)) : 22,
+    m: Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0,
+  };
+}
+
+/**
+ * Quiet hours live on User.notificationPreferences (jsonb):
+ *   quietHoursEnabled?: boolean (default false)
+ *   quietHoursStart?: "HH:mm" (default "22:00")
+ *   quietHoursEnd?: "HH:mm" (default "08:00")
+ *   quietHoursAllowUrgent?: boolean (default true)
+ * Only suppresses external push — in-app rows are still created by callers.
+ */
+async function isInQuietHoursBlockingPush(userId: string, urgent?: boolean): Promise<boolean> {
+  try {
+    const { prisma } = await import('../../config/prisma');
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { notificationPreferences: true },
+    });
+    const prefs =
+      user?.notificationPreferences && typeof user.notificationPreferences === 'object'
+        ? (user.notificationPreferences as Record<string, unknown>)
+        : {};
+    if (prefs.quietHoursEnabled !== true) return false;
+    if (urgent && prefs.quietHoursAllowUrgent !== false) return false;
+
+    const start = parseHm(prefs.quietHoursStart, '22:00');
+    const end = parseHm(prefs.quietHoursEnd, '08:00');
+    const { hours, minutes } = currentTimeInGaza();
+    const now = hours * 60 + minutes;
+    const startMin = start.h * 60 + start.m;
+    const endMin = end.h * 60 + end.m;
+
+    // Window can span midnight (22:00 → 08:00) or sit in the same day (13:00 → 15:00).
+    if (startMin === endMin) return false;
+    if (startMin < endMin) return now >= startMin && now < endMin;
+    return now >= startMin || now < endMin;
+  } catch {
+    return false;
+  }
 }
 
 export const pushService = {
@@ -93,6 +161,12 @@ export const pushService = {
     // below (own try/catch, own graceful-degradation, see
     // fcmPushService.ts). Fire-and-forget here too, matching this
     // whole function's own contract with ITS callers.
+    // Quiet hours: skip both channels when blocking (in-app still written by caller).
+    if (await isInQuietHoursBlockingPush(userId, payload.urgent)) {
+      logger.info('[PUSH SKIPPED — quiet hours]', { userId, title: payload.title });
+      return;
+    }
+
     void fcmPushService.notifyUser(userId, payload).catch(() => undefined);
 
     // AUDIT-FIX 2.1: wraps the whole body (not just the per-subscription
@@ -126,6 +200,8 @@ export const pushService = {
         body: payload.body,
         url: payload.url,
         tag: payload.tag,
+        image: payload.image,
+        urgent: payload.urgent,
       });
 
       const staleEndpoints: string[] = [];

@@ -100,6 +100,10 @@ export function useUnreadNotificationCount() {
   useEffect(() => {
     if (typeof query.data === 'number') {
       saveUnreadCountCache(query.data);
+      // PWA icon badge — best-effort; no-op if Badging API missing
+      void import('@/lib/appBadge').then(({ setAppBadgeCount }) => {
+        setAppBadgeCount(query.data as number);
+      });
     }
   }, [query.data]);
 

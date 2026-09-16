@@ -165,10 +165,10 @@ export function PushNotificationToggle() {
               {isChecking
                 ? 'جارٍ التحقق…'
                 : isDenied
-                  ? 'مرفوضة من إعدادات المتصفح/النظام'
+                  ? 'مرفوضة من إعدادات المتصفح/النظام — لن تظهر إشعارات خارجية'
                   : isOn
-                    ? 'مفعّلة — تصلك حتى والصفحة مغلقة'
-                    : 'غير مفعّلة على هذا الجهاز'}
+                    ? 'مفعّلة — تصلك حتى والـPWA أو المتصفح مغلقان'
+                    : 'غير مفعّلة على هذا الجهاز — فعّلها لاستلام التنبيهات فورًا'}
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
               <Smartphone className="h-3 w-3" />

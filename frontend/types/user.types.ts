@@ -33,6 +33,14 @@ export interface NotificationPreferences {
   storeUpdates: boolean;
   /** Service broadcast quote submitted / accepted. */
   serviceQuotes: boolean;
+  /** Suppress external device push during local quiet window (Asia/Gaza). */
+  quietHoursEnabled?: boolean;
+  /** "HH:mm" 24h, default 22:00 */
+  quietHoursStart?: string;
+  /** "HH:mm" 24h, default 08:00 */
+  quietHoursEnd?: string;
+  /** If true (default), new-message push still delivers during quiet hours. */
+  quietHoursAllowUrgent?: boolean;
 }
 
 export interface User {

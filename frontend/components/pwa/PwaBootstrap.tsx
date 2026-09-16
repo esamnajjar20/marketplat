@@ -5,7 +5,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { registerServiceWorker } from '@/lib/pwa';
+import { registerServiceWorker, ensurePushSubscriptionSynced } from '@/lib/pwa';
 import { requestQueueReplay } from '@/lib/offlineQueue';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
@@ -87,11 +87,14 @@ export function PwaBootstrap() {
 
   // تسخين أشكال الصفحات المحمية (رسائل/إشعارات/لوحة…) لمستخدم مسجّل فقط.
   // PERSONAL_SHELL_CACHE يُمسَح عند تسجيل الخروج (CLEAR_API_CACHE).
+  // مزامنة Web Push صامتة إن كان الإذن ممنوحًا مسبقًا (لا يطلب إذنًا جديدًا).
   useEffect(() => {
     if (!isAuthenticated) return;
     void warmPersonalShells();
+    void ensurePushSubscriptionSynced();
     const onOnline = () => {
       void warmPersonalShells();
+      void ensurePushSubscriptionSynced();
     };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);

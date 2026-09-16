@@ -132,6 +132,18 @@ export const notificationsService = {
     if (userIds.length === 0) return 0;
     const recipients = await filterUserIdsByPref(userIds, 'promotions');
     if (recipients.length === 0) return 0;
+    // Web Push + in-app — same fire-and-forget convention as notificationEvents.
+    // Admin broadcast is the PROMOTION path that previously only wrote in-app
+    // rows; weekly reports and store promotion lifecycle already call
+    // pushService from their scripts.
+    void pushService
+      .notifyUsers(recipients, {
+        title,
+        body,
+        url: '/notifications',
+        tag: 'platform-promotion',
+      })
+      .catch(() => {});
     const result = await notificationsRepository.createMany(
       recipients.map((userId) => ({ userId, type: 'PROMOTION' as const, title, body }))
     );
@@ -235,12 +247,21 @@ async function fanOutSameContentNotification(
   content: { title: string; body: string; data: Prisma.InputJsonValue },
   pushUrl: string,
   pushTag: string,
-  prefKey?: PrefKey
+  prefKey?: PrefKey,
+  pushImage?: string
 ): Promise<{ count: number }> {
   const recipients = prefKey ? await filterUserIdsByPref(userIds, prefKey) : userIds;
   if (recipients.length === 0) return { count: 0 };
   const { title, body, data } = content;
-  void pushService.notifyUsers(recipients, { title, body, url: pushUrl, tag: pushTag }).catch(() => {});
+  void pushService
+    .notifyUsers(recipients, {
+      title,
+      body,
+      url: pushUrl,
+      tag: pushTag,
+      ...(pushImage ? { image: pushImage } : {}),
+    })
+    .catch(() => {});
   return notificationsRepository.createMany(
     recipients.map((userId) => ({ userId, type, title, body, data }))
   );
@@ -259,6 +280,7 @@ export const notificationEvents = {
       body,
       url: `/messages/${conversationId}`,
       tag: `conversation-${conversationId}`,
+      urgent: true,
     }).catch(() => {});
     return notificationsRepository.createOrRefreshNewMessage({
       userId: recipientUserId,
@@ -274,7 +296,8 @@ export const notificationEvents = {
   onFavoritedAdPriceChanged: (
     favoriterUserIds: string[],
     adId: string,
-    adTitle: string
+    adTitle: string,
+    imageUrl?: string
   ): Promise<{ count: number }> =>
     fanOutSameContentNotification(
       favoriterUserIds,
@@ -282,7 +305,8 @@ export const notificationEvents = {
       { title: 'تغيّر سعر إعلان في المفضلة', body: `تم تحديث سعر "${adTitle}"`, data: { adId } },
       `/ads/${adId}`,
       `ad-${adId}`,
-      'favAdUpdated'
+      'favAdUpdated',
+      imageUrl
     ),
 
   /** ads.service.ts's updateAd calls this after an ACTIVE -> SOLD
@@ -295,15 +319,17 @@ export const notificationEvents = {
   onFavoritedAdSold: (
     favoriterUserIds: string[],
     adId: string,
-    adTitle: string
+    adTitle: string,
+    imageUrl?: string
   ): Promise<{ count: number }> =>
     fanOutSameContentNotification(
       favoriterUserIds,
       'FAV_AD_SOLD',
-      { title: 'تم بيع إعلان في المفضلة', body: `تم بيع \"${adTitle}\"`, data: { adId } },
+      { title: 'تم بيع إعلان في المفضلة', body: `تم بيع "${adTitle}"`, data: { adId } },
       `/ads/${adId}`,
       `ad-${adId}`,
-      'favAdUpdated'
+      'favAdUpdated',
+      imageUrl
     ),
 
   /** saved-searches.service.ts's onAdCreated/onProductCreated/

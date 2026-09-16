@@ -490,7 +490,7 @@ export const adsService = {
     if (input.price !== undefined && Number(input.price) !== Number(ad.price)) {
       favoritesRepository
         .findUserIdsByAdId(adId)
-        .then((userIds) => notificationEvents.onFavoritedAdPriceChanged(userIds, adId, updated.title))
+        .then((userIds) => notificationEvents.onFavoritedAdPriceChanged(userIds, adId, updated.title, updated.images?.[0]))
         .catch((err) => {
           logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId });
           recordFailedTask(
@@ -513,7 +513,7 @@ export const adsService = {
     if (justTransitionedToSold) {
       favoritesRepository
         .findUserIdsByAdId(adId)
-        .then((userIds) => notificationEvents.onFavoritedAdSold(userIds, adId, updated.title))
+        .then((userIds) => notificationEvents.onFavoritedAdSold(userIds, adId, updated.title, updated.images?.[0]))
         .catch((err) => {
           logger.error('Failed to create FAV_AD_SOLD notifications', { err, adId });
           recordFailedTask(

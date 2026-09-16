@@ -10,11 +10,12 @@ import type { NotificationPreferences } from '@/types/user.types';
 import { cn } from '@/lib/utils';
 
 type PrefKey = keyof NotificationPreferences;
+type BooleanPrefKey = 'newMessage' | 'adViews' | 'favAdUpdated' | 'promotions' | 'myPromotions' | 'savedSearch' | 'storeUpdates' | 'serviceQuotes';
 
 const GROUPS: {
   title: string;
   description: string;
-  items: { key: PrefKey; label: string; desc: string }[];
+  items: { key: BooleanPrefKey; label: string; desc: string }[];
 }[] = [
   {
     title: 'التواصل',
@@ -93,6 +94,10 @@ const DEFAULT_PREFS: NotificationPreferences = {
   savedSearch: true,
   storeUpdates: true,
   serviceQuotes: true,
+  quietHoursEnabled: false,
+  quietHoursStart: '22:00',
+  quietHoursEnd: '08:00',
+  quietHoursAllowUrgent: true,
 };
 
 export function NotificationSettingsForm() {
@@ -125,7 +130,7 @@ export function NotificationSettingsForm() {
   }
 
   async function setAll(value: boolean) {
-    const patch: Partial<NotificationPreferences> = {};
+    const patch: Partial<Record<BooleanPrefKey, boolean>> = {};
     for (const g of GROUPS) {
       for (const item of g.items) {
         if (prefs[item.key] !== value) patch[item.key] = value;
@@ -158,7 +163,8 @@ export function NotificationSettingsForm() {
         <div>
           <h2 className="font-semibold">أذونات وأنواع الإشعارات</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            اختر ما تريد استلامه داخل التطبيق وعلى الجهاز · {enabledCount}/{totalCount} مفعّل
+            تطبَّق على إشعارات داخل التطبيق وعلى الجهاز (Web Push) معًا ·{' '}
+            {enabledCount}/{totalCount} مفعّل
           </p>
         </div>
         <div className="flex gap-2">
@@ -240,6 +246,112 @@ export function NotificationSettingsForm() {
           </section>
         ))}
       </div>
+
+      {/* Quiet hours — external device push only */}
+      <section className="space-y-2">
+        <div className="px-0.5">
+          <h3 className="text-sm font-semibold">ساعات الهدوء</h3>
+          <p className="text-[11px] text-muted-foreground">
+            إيقاف إشعارات الجهاز في فترة محددة (توقيت فلسطين). إشعارات داخل التطبيق تبقى كما هي.
+          </p>
+        </div>
+        <div className="overflow-hidden rounded-xl border divide-y">
+          <div className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">تفعيل ساعات الهدوء</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                لا تُرسل تنبيهات للجهاز بين الساعتين أدناه
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={Boolean(prefs.quietHoursEnabled)}
+              aria-label="ساعات الهدوء"
+              disabled={bulkPending}
+              onClick={() => {
+                const next = !prefs.quietHoursEnabled;
+                setPrefs((p) => ({ ...p, quietHoursEnabled: next }));
+                updatePrefs.mutate({ quietHoursEnabled: next });
+              }}
+              className={cn(
+                'relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50',
+                prefs.quietHoursEnabled ? 'bg-primary' : 'bg-input',
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
+                  prefs.quietHoursEnabled ? 'start-[1.375rem]' : 'start-0.5',
+                )}
+              />
+            </button>
+          </div>
+          {prefs.quietHoursEnabled && (
+            <>
+              <div className="flex flex-wrap items-center gap-3 bg-card px-3 py-3 sm:px-4">
+                <label className="flex flex-col gap-1 text-xs">
+                  <span className="text-muted-foreground">من</span>
+                  <input
+                    type="time"
+                    value={prefs.quietHoursStart ?? '22:00'}
+                    onChange={(e) => {
+                      const quietHoursStart = e.target.value || '22:00';
+                      setPrefs((p) => ({ ...p, quietHoursStart }));
+                      updatePrefs.mutate({ quietHoursStart });
+                    }}
+                    className="rounded-md border bg-background px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs">
+                  <span className="text-muted-foreground">إلى</span>
+                  <input
+                    type="time"
+                    value={prefs.quietHoursEnd ?? '08:00'}
+                    onChange={(e) => {
+                      const quietHoursEnd = e.target.value || '08:00';
+                      setPrefs((p) => ({ ...p, quietHoursEnd }));
+                      updatePrefs.mutate({ quietHoursEnd });
+                    }}
+                    className="rounded-md border bg-background px-2 py-1.5 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">السماح بالرسائل العاجلة</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    إشعارات الرسائل الجديدة تصل حتى أثناء ساعات الهدوء
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={prefs.quietHoursAllowUrgent !== false}
+                  aria-label="السماح بالرسائل العاجلة"
+                  disabled={bulkPending}
+                  onClick={() => {
+                    const next = prefs.quietHoursAllowUrgent === false;
+                    setPrefs((p) => ({ ...p, quietHoursAllowUrgent: next }));
+                    updatePrefs.mutate({ quietHoursAllowUrgent: next });
+                  }}
+                  className={cn(
+                    'relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50',
+                    prefs.quietHoursAllowUrgent !== false ? 'bg-primary' : 'bg-input',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
+                      prefs.quietHoursAllowUrgent !== false ? 'start-[1.375rem]' : 'start-0.5',
+                    )}
+                  />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

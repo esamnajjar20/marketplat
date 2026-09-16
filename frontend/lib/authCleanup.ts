@@ -24,6 +24,7 @@ import { clearAllOfflineLists } from '@/lib/offlineListCache';
 import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
 import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
+import { clearAppBadge } from '@/lib/appBadge';
 
 /** يطلب من الـ SW مسح كاش API + PERSONAL_SHELL — نفس بروتوكول
  * CLEAR_API_CACHE الموجود أصلًا بـ public/sw.js (SECURITY FIX audit #2 +
@@ -46,6 +47,7 @@ export function clearSensitiveLocalData(): void {
   // يمنع ظهور إشعارات المستخدم السابق على جهاز مشترك بعد تسجيل الدخول
   // بحساب آخر.
   clearNotificationsCache();
+  clearAppBadge();
   clearAllOfflineLists();
   void clearDraftOnlyAdDrafts();
   clearAllOfflineJson();
