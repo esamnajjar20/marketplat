@@ -7,6 +7,22 @@ export const redis = new Redis({
   port: env.redis.port,
   username: env.redis.username || undefined,
   password: env.redis.password || undefined,
+  // FIX REDIS-LATENCY-01: family=4 forces IPv4, avoiding the ~100ms
+  // IPv6-then-fallback-to-IPv4 delay Node.js incurs when the host
+  // has an AAAA record but the network path for IPv6 is unavailable
+  // (Aiven publishes both A and AAAA; Render's egress path is IPv4-only
+  // in our region, so every fresh connect was silently paying the
+  // 100ms IPv6 timeout before falling back).
+  family: 4,
+  // keepAlive sends TCP keepalive probes every 10s so idle connections
+  // are not dropped by the Aiven haproxy front (which closes idle
+  // connections after ~60s), preventing a fresh TLS handshake (~50-80ms)
+  // on the next PING after a quiet period.
+  keepAlive: 10_000,
+  // enableReadyCheck=false skips the extra INFO command ioredis sends
+  // after connecting to verify the server is ready; for a health-check
+  // PING path this removes one additional round-trip per connection.
+  enableReadyCheck: false,
   lazyConnect: true,
   // FIX DEPLOY-01: previously no connectTimeout was set, so an
   // unreachable host (e.g. REDIS_HOST misconfigured/pointing at a
