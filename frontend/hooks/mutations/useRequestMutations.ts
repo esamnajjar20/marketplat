@@ -33,7 +33,7 @@ export function useCreateRequest() {
       clearActiveOfflineDraftId();
       void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
       toast.success('تم نشر طلبك');
-      if (created) { router.push(ROUTES.request(created.id)); }
+      router.push(ROUTES.request(created.id));
     },
     onError: async (err, body) => {
       const parsed = parseApiError(err);
@@ -123,7 +123,15 @@ export function useAcceptRequestOffer() {
     onSuccess: (_data, { id }) => {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
       void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
-      toast.success('تم قبول العرض');
+      toast.success('تم قبول العرض', {
+        description: 'تم فتح محادثة للتنسيق مع صاحب العرض',
+        action: {
+          label: 'الرسائل',
+          onClick: () => {
+            window.location.href = ROUTES.messages;
+          },
+        },
+      });
     },
     onError: toastMutationError,
   });

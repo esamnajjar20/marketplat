@@ -123,9 +123,9 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.serviceBroadcasts}>
+            <Link href={ROUTES.requests}>
               <Radio className="h-4 w-4" />
-              سوق الطلبات
+              الطلبات المفتوحة
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">

@@ -22,7 +22,7 @@ export default function ServiceBroadcastsFeedPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">سوق الطلبات</h1>
+          <h1 className="text-xl font-bold">سوق الخدمات (قديم)</h1>
           <p className="text-sm text-muted-foreground">
             عملاء ينشرون احتياجهم — مزوّدو الخدمة يقدّمون عروض أسعار
           </p>

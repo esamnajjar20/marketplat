@@ -34,9 +34,22 @@ const requireOwnProviderId = async (userId: string): Promise<string> => {
   return provider.id;
 };
 
+
+/** Writes disabled after Open Requests (/requests) became the primary marketplace. */
+const assertLegacyWritesEnabled = (): void => {
+  // Set LEGACY_SERVICE_BROADCASTS_WRITES=1 only for emergency rollback.
+  if (process.env.LEGACY_SERVICE_BROADCASTS_WRITES === '1') return;
+  throw new BadRequestError(
+    'سوق الطلبات انتقل إلى /requests. استخدم POST /api/v1/requests و /api/v1/requests/:id/offers.',
+    'LEGACY_SERVICE_BROADCASTS_DEPRECATED',
+  );
+};
+
 export const serviceBroadcastsService = {
-  create: (customerId: string, input: CreateBroadcastInput): Promise<ServiceRequestBroadcast> =>
-    serviceBroadcastsRepository.create(customerId, input),
+  create: (customerId: string, input: CreateBroadcastInput): Promise<ServiceRequestBroadcast> => {
+    assertLegacyWritesEnabled();
+    return serviceBroadcastsRepository.create(customerId, input);
+  },
 
   getOpenFeed: async (query: GetOpenBroadcastsQuery): Promise<PaginatedResult<BroadcastListItem>> => {
     const { broadcasts, total } = await serviceBroadcastsRepository.findOpenFeed(query);
@@ -70,6 +83,7 @@ export const serviceBroadcastsService = {
   },
 
   cancel: async (userId: string, id: string): Promise<ServiceRequestBroadcast> => {
+    assertLegacyWritesEnabled();
     const broadcast = await serviceBroadcastsRepository.findById(id);
     if (!broadcast) throw new NotFoundError('Service broadcast not found', 'SERVICE_BROADCAST_NOT_FOUND');
     if (broadcast.customerId !== userId) {
@@ -89,6 +103,7 @@ export const serviceBroadcastsService = {
    * exactly the behavior an open marketplace should allow, not block.
    */
   submitQuote: async (userId: string, broadcastId: string, input: SubmitQuoteInput): Promise<ServiceQuote> => {
+    assertLegacyWritesEnabled();
     const broadcast = await serviceBroadcastsRepository.findById(broadcastId);
     if (!broadcast) throw new NotFoundError('Service broadcast not found', 'SERVICE_BROADCAST_NOT_FOUND');
     if (broadcast.status !== 'OPEN') {
@@ -123,6 +138,7 @@ export const serviceBroadcastsService = {
   },
 
   withdrawQuote: async (userId: string, quoteId: string): Promise<ServiceQuote> => {
+    assertLegacyWritesEnabled();
     const quote = await serviceQuotesRepository.findById(quoteId);
     if (!quote) throw new NotFoundError('Quote not found', 'QUOTE_NOT_FOUND');
     if (quote.provider.sellerProfile.userId !== userId) {
@@ -146,6 +162,7 @@ export const serviceBroadcastsService = {
    * than this model growing its own booking machinery.
    */
   acceptQuote: async (userId: string, broadcastId: string, quoteId: string): Promise<ServiceRequestBroadcast> => {
+    assertLegacyWritesEnabled();
     const broadcast = await serviceBroadcastsRepository.findById(broadcastId);
     if (!broadcast) throw new NotFoundError('Service broadcast not found', 'SERVICE_BROADCAST_NOT_FOUND');
     if (broadcast.customerId !== userId) {

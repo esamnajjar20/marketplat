@@ -44,6 +44,19 @@ const isProd = process.env.NODE_ENV === 'production';
 const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? '';
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    // Soft-deprecate legacy service-broadcasts marketplace in favor of /requests
+    // (Open Requests). Data should be migrated via:
+    //   npm run report:migrate-service-broadcasts-to-requests
+    return [
+      { source: '/service-broadcasts', destination: '/requests?type=SERVICE', permanent: false },
+      { source: '/service-broadcasts/new', destination: '/requests/new', permanent: false },
+      { source: '/service-broadcasts/me', destination: '/requests/me', permanent: false },
+      { source: '/service-broadcasts/quotes', destination: '/requests/offers', permanent: false },
+      { source: '/service-broadcasts/:id', destination: '/requests/:id', permanent: false },
+    ];
+  },
+
   reactStrictMode: true,
 
   // FIX D-18: standalone output bundles only the files actually needed

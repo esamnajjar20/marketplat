@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
-  HeartPulse, ClipboardList, Bell, Search } from 'lucide-react';
+  HeartPulse, ClipboardList, ListOrdered, Bell, Search } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { cn } from '@/lib/utils';
@@ -35,9 +35,7 @@ const NAV_LINKS = [
   { href: ROUTES.admin.fraud,             label: 'مكافحة الاحتيال', icon: ShieldAlert, badgeKey: 'unreviewedFraud' as const },
   { href: ROUTES.admin.products,          label: 'المنتجات',       icon: Package },
   { href: ROUTES.admin.serviceListings,   label: 'الخدمات',        icon: Wrench },
-  // سوق الطلبات — إدارة طلبات الخدمة المفتوحة
-  { href: ROUTES.admin.serviceBroadcasts, label: 'طلبات الخدمة',   icon: ClipboardList },
-  { href: ROUTES.admin.openRequests,      label: 'الطلبات المفتوحة', icon: ClipboardList },
+  { href: ROUTES.admin.openRequests,      label: 'الطلبات المفتوحة', icon: ListOrdered },
   { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree,      tierRequired: 'ADMIN' as const },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
   { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench,          tierRequired: 'ADMIN' as const },

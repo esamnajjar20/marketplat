@@ -127,7 +127,15 @@ export function useAcceptServiceQuote(broadcastId: string) {
       serviceBroadcastsApi.acceptQuote(broadcastId, quoteId).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service-broadcasts', broadcastId] });
-      toast.success('تم قبول العرض');
+      toast.success('تم قبول العرض', {
+        description: 'تم فتح محادثة للتنسيق مع مقدّم الخدمة',
+        action: {
+          label: 'الرسائل',
+          onClick: () => {
+            window.location.href = ROUTES.messages;
+          },
+        },
+      });
     },
     onError: toastMutationError,
   });

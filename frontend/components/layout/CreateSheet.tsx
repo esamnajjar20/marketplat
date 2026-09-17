@@ -25,12 +25,10 @@ import { ROUTES } from '@/lib/constants';
  * once it's created — so this sheet doesn't need to duplicate that
  * seller/store/provider lookup just to decide where "+" points.
  *
- * FEAT-CREATE-BROADCAST-01: أضيف "طلب خدمة" كرابع خيار — سوق الطلبات
- * (service-broadcasts) عكس بقية الثلاثة: هنا المستخدم لا يعرض شيئًا
- * (إعلان/منتج/خدمة)، بل ينشر ما يحتاجه ومزوّدو الخدمة يقدّمون عروض أسعار.
- * /service-broadcasts/new صفحة محمية عادية (لا gate خاص بها — أي مستخدم
- * مسجّل دخول يمكنه النشر، لا حاجة لملف بائع/متجر/مزوّد مسبقًا)، فتُضاف
- * هنا بنفس نمط الثلاثة الباقين بدون أي منطق إضافي.
+ * OPEN-REQUESTS: fourth entry is "طلب / احتياج" → ROUTES.requestNew (/requests/new).
+ * This is the primary open marketplace (SERVICE | PRODUCT | RENTAL), not the
+ * legacy /service-broadcasts feed. Any authenticated user can publish; offer
+ * eligibility is enforced server-side by request type.
  */
 const CREATE_LINKS = [
   { label: 'إعلان جديد', description: 'انشر إعلان بيع', href: ROUTES.adCreate, icon: Megaphone },

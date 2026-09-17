@@ -48,7 +48,6 @@ export const BROWSE_LINKS = [
   { label: 'المنتجات', href: ROUTES.products, icon: Package },
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
-  { label: 'سوق الطلبات', href: ROUTES.serviceBroadcasts, icon: Radio },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
   { label: 'أفضل البائعين', href: ROUTES.sellersRanking, icon: Trophy },
 ] as const;
@@ -74,9 +73,9 @@ export const ACTIVITY_GROUP = {
 
 // Used by ProtectedSidebar.tsx and ProtectedMobileNav.tsx.
 
-// Open Requests marketplace — visible to every authenticated user
-// (customers post needs; sellers/providers submit offers). Distinct from
-// SERVICES_GROUP's service-only directed requests and legacy broadcasts.
+// Open Requests marketplace — primary path for customer needs + provider offers
+// (SERVICE | PRODUCT | RENTAL). CreateSheet "+" publishes here.
+// Legacy /service-broadcasts remains under SERVICES_GROUP as secondary.
 export const REQUESTS_GROUP = {
   label: 'الطلبات',
   href: ROUTES.requests,
@@ -98,10 +97,9 @@ export const SERVICES_GROUP = {
     { label: 'الطلبات الواردة', href: ROUTES.incomingServiceRequests },
     { label: 'مواعيدي', href: ROUTES.myServiceAppointments },
     { label: 'طلباتي', href: ROUTES.myServiceRequests },
-    { label: 'سوق الطلبات', href: ROUTES.serviceBroadcasts },
-    { label: 'طلباتي في السوق', href: ROUTES.myServiceBroadcasts },
-    { label: 'نشر طلب في السوق', href: ROUTES.serviceBroadcastNew },
-    { label: 'عروضي', href: ROUTES.myServiceBroadcastQuotes },
+    // Primary open marketplace (SERVICE|PRODUCT|RENTAL) — CreateSheet publishes here.
+    { label: 'الطلبات المفتوحة', href: ROUTES.requests },
+    { label: 'عروض على الطلبات', href: ROUTES.myRequestOffers },
     { label: 'الإحصائيات', href: ROUTES.myServiceProviderAnalytics },
   ],
 } as const;
