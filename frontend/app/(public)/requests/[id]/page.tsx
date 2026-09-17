@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { ArrowRight, MapPin, Wallet, CalendarClock } from 'lucide-react';
 import { useRequestDetail } from '@/hooks/queries/useRequests';
 import { useCancelRequest } from '@/hooks/mutations/useRequestMutations';
-import { useAuthStore, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import {
   REQUEST_STATUS_LABEL,
@@ -26,11 +26,12 @@ export default function RequestDetailPage() {
   const id = String(params.id ?? '');
   const { data: request, isLoading, isError } = useRequestDetail(id);
   const user = useAuthStore(selectUser);
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const cancel = useCancelRequest();
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4" dir="rtl" aria-busy>
+      <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-24 sm:p-4" dir="rtl" aria-busy>
         <div className="h-4 w-24 animate-pulse rounded bg-muted" />
         <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
         <div className="h-24 animate-pulse rounded-xl bg-muted" />
@@ -40,12 +41,12 @@ export default function RequestDetailPage() {
 
   if (isError || !request) {
     return (
-      <div className="mx-auto max-w-3xl p-4" dir="rtl">
+      <div className="mx-auto max-w-3xl px-3 py-4 pb-24 sm:p-4" dir="rtl">
         <EmptyState
           title="الطلب غير موجود"
           description="قد يكون محذوفًا أو الرابط غير صحيح."
           action={
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="min-h-11">
               <Link href={ROUTES.requests}>العودة لسوق الطلبات</Link>
             </Button>
           }
@@ -54,20 +55,22 @@ export default function RequestDetailPage() {
     );
   }
 
-  const isOwner = user?.id === request.customerId;
+  const isOwner = Boolean(user?.id && user.id === request.customerId);
   const myOffer = request.offers?.find((o) => o.offererUserId === user?.id);
   const images = request.attachedImages ?? [];
   const budget = formatRequestBudget(request.budgetMin, request.budgetMax);
   const offers = request.offers ?? [];
-  // Non-owner with no own offer and empty list → competitive hide message
-  const hiddenForCompetition = !isOwner && offers.length === 0 && request.status === 'OPEN';
+  const hiddenForCompetition =
+    !isOwner && offers.length === 0 && request.status === 'OPEN';
+  const canOffer = isAuthenticated && !isOwner && request.status === 'OPEN';
+  const loginHref = `${ROUTES.login}?from=${encodeURIComponent(`/requests/${id}`)}`;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4 pb-10" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-5 px-3 py-4 pb-28 sm:space-y-6 sm:p-4 sm:pb-10" dir="rtl">
       <div>
         <Link
           href={ROUTES.requests}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex min-h-10 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowRight className="h-4 w-4" aria-hidden />
           سوق الطلبات
@@ -90,7 +93,9 @@ export default function RequestDetailPage() {
           )}
         </div>
 
-        <h1 className="text-2xl font-bold tracking-tight leading-snug">{request.title}</h1>
+        <h1 className="text-xl font-bold tracking-tight leading-snug sm:text-2xl">
+          {request.title}
+        </h1>
 
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           {request.createdAt && <span>نُشر {formatRelativeTime(request.createdAt)}</span>}
@@ -124,7 +129,7 @@ export default function RequestDetailPage() {
               key={url}
               src={url}
               alt=""
-              className="h-32 w-full rounded-xl object-cover border border-border/50"
+              className="h-28 w-full rounded-xl object-cover border border-border/50 sm:h-32"
             />
           ))}
         </div>
@@ -134,6 +139,7 @@ export default function RequestDetailPage() {
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
+            className="min-h-11"
             disabled={cancel.isPending}
             onClick={() => {
               if (window.confirm('إلغاء هذا الطلب؟ لن يستقبل عروضًا جديدة.')) {
@@ -143,14 +149,28 @@ export default function RequestDetailPage() {
           >
             إلغاء الطلب
           </Button>
-          <Button variant="ghost" asChild>
+          <Button variant="ghost" className="min-h-11" asChild>
             <Link href={ROUTES.myRequests}>طلباتي</Link>
           </Button>
         </div>
       )}
 
-      {!isOwner && request.status === 'OPEN' && (
-        <RequestOfferForm requestId={id} myOffer={myOffer} />
+      {/* Desktop / inline offer form for logged-in non-owners */}
+      {canOffer && (
+        <div id="offer-form" className="scroll-mt-24">
+          <RequestOfferForm requestId={id} myOffer={myOffer} />
+        </div>
+      )}
+
+      {!isAuthenticated && request.status === 'OPEN' && !isOwner && (
+        <div className="hidden rounded-xl border border-dashed p-4 text-center sm:block">
+          <p className="text-sm text-muted-foreground mb-3">
+            سجّل الدخول لتقديم عرض على هذا الطلب
+          </p>
+          <Button asChild className="min-h-11">
+            <Link href={loginHref}>تسجيل الدخول</Link>
+          </Button>
+        </div>
       )}
 
       {!isOwner && request.status !== 'OPEN' && (
@@ -162,10 +182,28 @@ export default function RequestDetailPage() {
       <RequestOffersList
         requestId={id}
         offers={offers}
-        isOwner={Boolean(isOwner)}
+        isOwner={isOwner}
         requestStatus={request.status}
         hiddenForCompetition={hiddenForCompetition}
       />
+
+      {/* Mobile sticky bottom CTA — above BottomNav (pb-16 layout) */}
+      {!isOwner && request.status === 'OPEN' && (
+        <div
+          className="fixed inset-x-0 bottom-16 z-20 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          {isAuthenticated ? (
+            <Button asChild className="h-12 w-full text-base">
+              <a href="#offer-form">قدّم عرضًا</a>
+            </Button>
+          ) : (
+            <Button asChild className="h-12 w-full text-base">
+              <Link href={loginHref}>سجّل الدخول لتقديم عرض</Link>
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

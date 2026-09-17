@@ -33,6 +33,7 @@ export const requestsApi = {
     type?: RequestType;
     categoryId?: string;
     city?: string;
+    q?: string;
   }) => apiClient.get<ApiResponse<RequestListItem[]>>('/requests', { params }),
 
   getMyRequests: (params?: { page?: number; limit?: number; status?: string }) =>
@@ -55,5 +56,5 @@ export const requestsApi = {
     apiClient.delete<ApiResponse<RequestOfferListItem>>(`/requests/${id}/offers/${offerId}`),
 
   acceptOffer: (id: string, offerId: string) =>
-    apiClient.patch<ApiResponse<RequestListItem>>(`/requests/${id}/offers/${offerId}/accept`),
+    apiClient.patch<ApiResponse<RequestListItem & { conversationId?: string }>>(`/requests/${id}/offers/${offerId}/accept`),
 };

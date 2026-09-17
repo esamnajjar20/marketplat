@@ -113,3 +113,35 @@ export const authenticate = async (
     }
   }
 };
+
+/**
+ * Soft auth for public reads. Sets req.user when a valid Bearer token is present;
+ * otherwise continues anonymously (never 401).
+ */
+export const optionalAuthenticate = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      next();
+      return;
+    }
+    const token = authHeader.split(" ")[1];
+    const payload = verifyAccessToken(token);
+    const localBl = peekBlacklistL1(token);
+    if (localBl === true) {
+      next();
+      return;
+    }
+    const localUser = userCache.peek(payload.userId);
+    if (localUser && localUser.isActive) {
+      req.user = { ...payload, role: localUser.role };
+    }
+    next();
+  } catch {
+    next();
+  }
+};

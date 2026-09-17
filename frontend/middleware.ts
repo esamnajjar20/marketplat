@@ -95,8 +95,10 @@ const PROTECTED_PREFIXES = [
   // is the customer-side counterpart of /my-services/requests and had
   // the exact same gap as the /my-services and /my-store fixes above.
   '/my-requests',
-  // Open Requests marketplace (list / new / me / offers / detail)
-  '/requests',
+  // Open Requests: list+detail are public (like /ads). Only write/account paths gated.
+  '/requests/new',
+  '/requests/me',
+  '/requests/offers',
   // AUDIT-FIX (issue #6): new /service-requests/[id] detail page —
   // protected the same way /my-requests and /my-services are, since it
   // shows the same customer/provider-only data as those list pages.

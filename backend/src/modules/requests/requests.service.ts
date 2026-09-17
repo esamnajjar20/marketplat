@@ -147,19 +147,24 @@ export const requestsService = {
    * An offerer sees only their own offer; other authenticated users see
    * offer count via _count but no prices/names/messages.
    */
-  getById: async (id: string, viewerUserId: string): Promise<RequestWithRelations> => {
+  getById: async (
+    id: string,
+    viewerUserId?: string | null,
+  ): Promise<RequestWithRelations> => {
     const row = await requestsRepository.findById(id);
     if (!row) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
 
-    if (row.customerId === viewerUserId) {
+    if (viewerUserId && row.customerId === viewerUserId) {
       return row;
     }
 
-    const mine = (row.offers ?? []).filter((o) => o.offererUserId === viewerUserId);
-    return {
-      ...row,
-      offers: mine,
-    };
+    if (viewerUserId) {
+      const mine = (row.offers ?? []).filter((o) => o.offererUserId === viewerUserId);
+      return { ...row, offers: mine };
+    }
+
+    // Anonymous: never expose competitive offer details
+    return { ...row, offers: [] };
   },
 
   cancel: async (userId: string, id: string): Promise<RequestRow> => {
@@ -247,7 +252,11 @@ export const requestsService = {
     return requestOffersRepository.withdraw(offerId);
   },
 
-  acceptOffer: async (userId: string, requestId: string, offerId: string): Promise<RequestRow> => {
+  acceptOffer: async (
+    userId: string,
+    requestId: string,
+    offerId: string,
+  ): Promise<RequestRow & { conversationId?: string }> => {
     const request = await requestsRepository.findById(requestId);
     if (!request) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
     if (request.customerId !== userId) {
@@ -281,16 +290,18 @@ export const requestsService = {
         logger.error('Failed to create REQUEST_OFFER_ACCEPTED notification', { err, requestId }),
       );
 
-    conversationsService
-      .startFromUser(userId, offer.offererUserId)
-      .catch((err) =>
-        logger.error('Failed to start conversation after request offer acceptance', {
-          err,
-          requestId,
-        }),
-      );
+    let conversationId: string | undefined;
+    try {
+      const conversation = await conversationsService.startFromUser(userId, offer.offererUserId);
+      conversationId = conversation.id;
+    } catch (err) {
+      logger.error('Failed to start conversation after request offer acceptance', {
+        err,
+        requestId,
+      });
+    }
 
-    return result;
+    return { ...result, conversationId };
   },
 
   getMyOffers: async (

@@ -38,7 +38,7 @@ import { ROUTES } from '@/lib/constants';
 export const BROWSE_LINKS = [
   { label: 'الرئيسية', href: ROUTES.home, icon: Home },
   { label: 'البحث', href: ROUTES.search, icon: Search },
-  { label: 'الطلبات', href: ROUTES.requests, icon: ClipboardList },
+  { label: 'سوق الطلبات', href: ROUTES.requests, icon: ClipboardList },
   // FIX NAV-ADS-01: كان رابط الإعلانات موجوداً في ExploreSheet فقط وغير
   // موجود في BROWSE_LINKS (القائمة الجانبية/الدرج) — فظهر للمستخدم أن
   // "القائمة الجانبية ما فيها خيار الإعلانات". نفس الوجهة المستخدمة في

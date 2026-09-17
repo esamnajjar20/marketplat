@@ -36,7 +36,7 @@ export default function OpenRequestsPage() {
     (data?.meta as { totalPages?: number } | undefined)?.totalPages ?? 1;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 pb-10" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-24 sm:space-y-5 sm:p-4 sm:pb-10" dir="rtl">
       <header className="space-y-1">
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">سوق الطلبات</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">

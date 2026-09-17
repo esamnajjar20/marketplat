@@ -57,9 +57,9 @@ export const requestsController = {
 
   getById: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = requireUser(req);
       const { params } = requestIdSchema.parse({ params: req.params });
-      const row = await requestsService.getById(params.id, user.userId);
+      const viewerId = req.user?.userId;
+      const row = await requestsService.getById(params.id, viewerId);
       res.status(200).json(successResponse('Request fetched', row));
     } catch (error) {
       next(error);

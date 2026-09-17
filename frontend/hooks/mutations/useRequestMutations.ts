@@ -118,18 +118,25 @@ export function useWithdrawRequestOffer() {
 
 export function useAcceptRequestOffer() {
   const qc = useQueryClient();
+  const router = useRouter();
   return useMutation({
     mutationFn: ({ id, offerId }: { id: string; offerId: string }) =>
       requestsApi.acceptOffer(id, offerId).then((r) => r.data.data),
-    onSuccess: (_data, { id }) => {
+    onSuccess: (data, { id }) => {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
       void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
+      const conversationId = (data as { conversationId?: string } | undefined)?.conversationId;
+      if (conversationId) {
+        toast.success('تم قبول العرض — جاري فتح المحادثة');
+        router.push(ROUTES.conversationDetail(conversationId));
+        return;
+      }
       toast.success('تم قبول العرض', {
         description: 'تم فتح محادثة للتنسيق مع صاحب العرض',
         action: {
           label: 'الرسائل',
           onClick: () => {
-            window.location.href = ROUTES.messages;
+            router.push(ROUTES.messages);
           },
         },
       });

@@ -11,6 +11,7 @@ export function useOpenRequests(params?: {
   type?: RequestType;
   categoryId?: string;
   city?: string;
+  q?: string;
 }) {
   return useQuery({
     queryKey: queryKeys.requests.open(params),

@@ -10,6 +10,7 @@ import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import type { RequestType } from '@/types/request.types';
 import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import { Button } from '@/components/shared/ui/Button';
+import { CITIES } from '@/lib/constants';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { mediaApi } from '@/api/media.api';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
@@ -51,6 +52,7 @@ export function CreateRequestForm() {
   const seed = !offlineDraftId ? readFormDraft<DraftValues>('open-request:create') : null;
 
   const [type, setType] = useState<RequestType>(seed?.type ?? 'SERVICE');
+  const [expiresInDays, setExpiresInDays] = useState<string>('7');
   const [categoryId, setCategoryId] = useState(seed?.categoryId ?? '');
   const [title, setTitle] = useState(seed?.title ?? '');
   const [description, setDescription] = useState(seed?.description ?? '');
@@ -163,7 +165,7 @@ export function CreateRequestForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto flex max-w-lg flex-col gap-4" dir="rtl" noValidate>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-xs sm:p-5" dir="rtl" noValidate>
       {lastSavedAt && (
         <p className="text-xs text-muted-foreground" role="status">
           مسودة محفوظة تلقائيًا
@@ -243,12 +245,19 @@ export function CreateRequestForm() {
         <label htmlFor="req-city" className="text-sm font-medium">
           المدينة (اختياري)
         </label>
-        <input
+        <select
           id="req-city"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-        />
+        >
+          <option value="">اختر المدينة…</option>
+          {CITIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -285,6 +294,23 @@ export function CreateRequestForm() {
         <ImageUpload value={files} onChange={setFiles} maxFiles={5} uploadProgress={uploadProgress} />
       </div>
 
+
+      <div className="space-y-1.5">
+        <label htmlFor="req-exp" className="text-sm font-medium">
+          مدة الإعلان (أيام)
+        </label>
+        <select
+          id="req-exp"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={expiresInDays}
+          onChange={(e) => setExpiresInDays(e.target.value)}
+        >
+          <option value="7">7 أيام</option>
+          <option value="14">14 يومًا</option>
+          <option value="30">30 يومًا</option>
+          <option value="60">60 يومًا</option>
+        </select>
+      </div>
       <Button
         type="submit"
         disabled={create.isPending || uploadProgress !== null || !categoryId || title.trim().length < 5}

@@ -85,20 +85,32 @@ export const requestsRepository = {
     type?: 'SERVICE' | 'PRODUCT' | 'RENTAL';
     categoryId?: string;
     city?: string;
+    q?: string;
   }): Promise<{ requests: RequestListItem[]; total: number }> => {
-    const { page = 1, limit = 20, type, categoryId, city } = query;
+    const { page = 1, limit = 20, type, categoryId, city, q } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const now = new Date();
+    const search = q?.trim();
     const where: Prisma.RequestWhereInput = {
       status: 'OPEN',
       AND: [
         {
           OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         },
+        ...(search
+          ? [
+              {
+                OR: [
+                  { title: { contains: search, mode: 'insensitive' as const } },
+                  { description: { contains: search, mode: 'insensitive' as const } },
+                ],
+              },
+            ]
+          : []),
       ],
       ...(type && { type }),
       ...(categoryId && { categoryId }),
-      ...(city && { city }),
+      ...(city && { city: { contains: city, mode: 'insensitive' as const } }),
     };
 
     const [requests, total] = await Promise.all([

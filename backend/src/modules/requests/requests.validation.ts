@@ -41,6 +41,7 @@ export const getOpenRequestsSchema = z.object({
     type: requestTypeEnum.optional(),
     categoryId: z.string().min(1).optional(),
     city: z.string().min(1).optional(),
+    q: z.string().min(1).max(100).optional(),
   }),
 });
 
