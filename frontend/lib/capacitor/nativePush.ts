@@ -12,6 +12,7 @@
  */
 import { apiClient } from '@/api/client';
 import { getNativePlatformName, isNativePlatform } from './platform';
+import { secureGet, secureSet } from '@/lib/runtime/secureStorage';
 
 /** Shared with PushNotificationToggle + authCleanup — FCM device token. */
 export const NATIVE_FCM_TOKEN_STORAGE_KEY = 'push:native-fcm-token';
@@ -92,17 +93,12 @@ export async function ensureNativePushSynced(): Promise<'synced' | 'subscribed' 
     const state = await getNativePushPermissionState();
     if (state !== 'granted') return 'skipped';
 
-    const previous =
-      typeof localStorage !== 'undefined'
-        ? localStorage.getItem(NATIVE_FCM_TOKEN_STORAGE_KEY)
-        : null;
+    const previous = await secureGet(NATIVE_FCM_TOKEN_STORAGE_KEY);
 
     const token = await registerNativePush();
     if (!token) return 'skipped';
 
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(NATIVE_FCM_TOKEN_STORAGE_KEY, token);
-    }
+    await secureSet(NATIVE_FCM_TOKEN_STORAGE_KEY, token);
 
     return previous === token ? 'synced' : 'subscribed';
   } catch {

@@ -1,26 +1,20 @@
 /**
- * NEW — native-shell bootstrap, sibling to PwaBootstrap (which stays
- * untouched and keeps owning all Service-Worker/web-PWA concerns).
- * Everything in here is a no-op on the plain web build — isNativePlatform()
- * short-circuits every import before any @capacitor/* package loads.
- *
- * Handles, all previously entirely absent from the project:
- *  - deep links (marketplat://... and https://... open-in-app)
- *  - hiding the native splash screen once the WebView has painted
- *  - status bar styling matching the app's theme color
- *  - Android hardware back button (WebView has no back button of its
- *    own; without this, the OS default is to exit the app on every
- *    back-press instead of navigating within it)
- *  - native push notification tap → in-app navigation (FCM path;
- *    mirrors sw.js notificationclick for Web Push)
+ * Native-shell bootstrap — sibling to PwaBootstrap (SW / web-PWA only).
+ * No-op on plain web. Logic for back/deep-links/chrome lives in
+ * lib/runtime/navigation.ts; push tap routing stays here (needs router).
  */
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/capacitor/platform';
-import { registerDeepLinkListener } from '@/lib/capacitor/deepLinks';
 import { onNativePushTapped } from '@/lib/capacitor/nativePush';
+import {
+  applyNativeChrome,
+  registerNativeBackButton,
+  registerNativeDeepLinks,
+} from '@/lib/runtime/navigation';
+import { getAppMode } from '@/lib/runtime/appMode';
 
 export function CapacitorBootstrap() {
   const router = useRouter();
@@ -31,9 +25,19 @@ export function CapacitorBootstrap() {
     let cleanupPushTap: (() => void) | undefined;
 
     void (async () => {
+      // data-app-mode on <html> for CSS (safe-area, chrome) — all modes
+      try {
+        const mode = await getAppMode();
+        document.documentElement.dataset.appMode = mode;
+      } catch {
+        /* ignore */
+      }
+
       if (!(await isNativePlatform())) return;
 
-      cleanupDeepLinks = await registerDeepLinkListener(router);
+      cleanupDeepLinks = await registerNativeDeepLinks(router);
+      cleanupBackButton = await registerNativeBackButton(router);
+      await applyNativeChrome();
 
       cleanupPushTap = await onNativePushTapped((notification) => {
         const raw = notification.url;
@@ -46,31 +50,9 @@ export function CapacitorBootstrap() {
           const parsed = new URL(raw);
           router.push(`${parsed.pathname}${parsed.search}` || '/');
         } catch {
-          /* malformed payload url — ignore */
+          /* malformed */
         }
       });
-
-      const [{ SplashScreen }, { StatusBar, Style }, { App }] = await Promise.all([
-        import('@capacitor/splash-screen'),
-        import('@capacitor/status-bar'),
-        import('@capacitor/app'),
-      ]);
-
-      void SplashScreen.hide();
-      // Matches app/manifest.ts's theme_color (#2F5D45, a dark green) —
-      // Style.Dark here means "light text/icons for a dark bar", not
-      // "dark mode".
-      void StatusBar.setBackgroundColor({ color: '#2F5D45' });
-      void StatusBar.setStyle({ style: Style.Dark });
-
-      const backListener = await App.addListener('backButton', ({ canGoBack }) => {
-        if (canGoBack) {
-          router.back();
-        } else {
-          void App.minimizeApp();
-        }
-      });
-      cleanupBackButton = () => void backListener.remove();
     })();
 
     return () => {
@@ -78,7 +60,7 @@ export function CapacitorBootstrap() {
       cleanupBackButton?.();
       cleanupPushTap?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- router identity is stable from next/navigation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return null;

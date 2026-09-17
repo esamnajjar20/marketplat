@@ -338,3 +338,9 @@ a, button, [role="button"] {
     transition: none !important;
   }
 }
+
+/* Runtime shell: extra safe-area when installed as PWA or native */
+html[data-app-mode='pwa'] .pwa-safe-bottom,
+html[data-app-mode='native'] .pwa-safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}

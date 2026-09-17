@@ -11,6 +11,7 @@
 
 import { useEffect } from 'react';
 import { registerServiceWorker } from '@/lib/pwa';
+import { getAppMode } from '@/lib/runtime/appMode';
 import { InstallPrompt } from './InstallPrompt';
 import { UpdatePrompt } from './UpdatePrompt';
 
@@ -24,7 +25,15 @@ export function PwaBootstrap() {
   // الحدث بصمت. لا تُعِد ترتيب <UpdatePrompt/> ليصبح خارج هذا المكوّن أو
   // قبل تركيبه دون مراعاة هذا الترتيب.
   useEffect(() => {
-    void registerServiceWorker();
+    void (async () => {
+      try {
+        const mode = await getAppMode();
+        document.documentElement.dataset.appMode = mode;
+      } catch {
+        /* ignore */
+      }
+      void registerServiceWorker();
+    })();
   }, []);
 
   return (
