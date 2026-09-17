@@ -20,6 +20,7 @@ import { sellersService } from '../sellers/sellers.service';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { withUserAdCreationLock } from '../../shared/utils/adLock';
 import { env } from '../../config/env';
 import { logger } from '../../shared/utils/logger';
 
@@ -90,17 +91,7 @@ export const adsRepublishService = {
       );
     }
 
-    const activeCount = await adsRepository.countActiveByUserId(userId);
-    const maxPerUser = env.ads?.maxPerUser ?? 20;
-    if (activeCount >= maxPerUser) {
-      throw new BadRequestError(
-        `You have reached the maximum number of active ads (${maxPerUser}).`,
-        'AD_LIMIT_REACHED',
-        { maxPerUser }
-      );
-    }
-
-    // Cooldown since source was closed
+    // Cooldown since source was closed (outside lock — pure time check)
     const hoursSinceUpdate =
       (Date.now() - new Date(source.updatedAt).getTime()) / (1000 * 60 * 60);
     if (hoursSinceUpdate < COOLDOWN_HOURS && source.status === AdStatus.SOLD) {
@@ -110,44 +101,59 @@ export const adsRepublishService = {
       );
     }
 
-    const created = await prisma.$transaction(async (tx) => {
-      const ad = await tx.ad.create({
-        data: {
-          title: source.title,
-          description: source.description,
-          price: source.price,
-          images: source.images,
-          city: source.city,
-          latitude: source.latitude,
-          longitude: source.longitude,
-          condition: source.condition,
-          isNegotiable: source.isNegotiable,
-          status: AdStatus.ACTIVE,
-          views: 0,
-          isFeatured: false,
-          isPinned: false,
-          userId: source.userId,
-          categoryId: source.categoryId,
-          sellerProfileId: sellerProfile.id,
-          storeId: source.storeId,
-        },
-      });
-      await tx.sellerProfile.update({
-        where: { id: sellerProfile.id },
-        data: {
-          totalAds: { increment: 1 },
-          activeAds: { increment: 1 },
-        },
-      });
-      return ad;
-    });
+    // AUDIT-FIX (#4): same race as createAd — count then insert without a
+    // lock lets concurrent republish exceed maxPerUser.
+    return withUserAdCreationLock(userId, async () => {
+      const activeCount = await adsRepository.countActiveByUserId(userId);
+      const maxPerUser = env.ads?.maxPerUser ?? 20;
+      if (activeCount >= maxPerUser) {
+        throw new BadRequestError(
+          `You have reached the maximum number of active ads (${maxPerUser}).`,
+          'AD_LIMIT_REACHED',
+          { maxPerUser }
+        );
+      }
 
-    logger.info('Ad republished', {
-      sourceAdId: source.id,
-      newAdId: created.id,
-      userId,
-    });
+      const created = await prisma.$transaction(async (tx) => {
+        const ad = await tx.ad.create({
+          data: {
+            title: source.title,
+            description: source.description,
+            price: source.price,
+            images: source.images,
+            city: source.city,
+            latitude: source.latitude,
+            longitude: source.longitude,
+            condition: source.condition,
+            isNegotiable: source.isNegotiable,
+            status: AdStatus.ACTIVE,
+            views: 0,
+            isFeatured: false,
+            isPinned: false,
+            pinnedByAdmin: false,
+            userId: source.userId,
+            categoryId: source.categoryId,
+            sellerProfileId: sellerProfile.id,
+            storeId: source.storeId,
+          },
+        });
+        await tx.sellerProfile.update({
+          where: { id: sellerProfile.id },
+          data: {
+            totalAds: { increment: 1 },
+            activeAds: { increment: 1 },
+          },
+        });
+        return ad;
+      });
 
-    return created;
+      logger.info('Ad republished', {
+        sourceAdId: source.id,
+        newAdId: created.id,
+        userId,
+      });
+
+      return created;
+    });
   },
 };

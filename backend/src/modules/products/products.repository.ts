@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, Product, ProductStatus, ProductAvailability } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { GetProductsQuery } from './products.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
@@ -163,6 +164,31 @@ export const productsRepository = {
     } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
+    // AUDIT-FIX (#2): use GIN + arabic_normalize (same expression as
+    // products_search_idx) instead of ILIKE contains.
+    let ftsIds: string[] | undefined;
+    if (search?.trim()) {
+      const { tsQueryString } = analyzeSearchQuery(search.trim());
+      const effectiveTs = tsQueryString ?? search.trim();
+      const idRows = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT p."id"
+        FROM "products" p
+        INNER JOIN "store_details" s ON p."storeId" = s."id"
+        INNER JOIN "seller_profiles" sp ON s."sellerProfileId" = sp."id"
+        WHERE p."status" = 'ACTIVE'
+          AND s."status" = 'ACTIVE'
+          AND sp."suspended" = false
+          AND (
+            setweight(to_tsvector('simple', arabic_normalize(coalesce(p."name", ''))), 'A') ||
+            setweight(to_tsvector('simple', arabic_normalize(coalesce(p."description", ''))), 'B')
+          ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))
+      `;
+      ftsIds = idRows.map((r) => r.id);
+      if (ftsIds.length === 0) {
+        return { products: [], total: 0 };
+      }
+    }
+
     // SEC-FIX: an admin suspending a seller (SellerProfile.suspended)
     // blocks that seller from *creating* new products/ads/listings
     // (see sellers.service.ts, ads.service.ts, service-listings.service.ts)
@@ -191,12 +217,8 @@ export const productsRepository = {
           ...(maxPrice !== undefined && { lte: maxPrice }),
         },
       }),
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
+      ...(ftsIds ? { id: { in: ftsIds } } : {}),
+
       // PROMO-1 (Phase 10): relation filter on the Promotion model
       // added for the store-owner CRUD module — deliberately status-
       // based (SCHEDULED or ACTIVE row exists), not a startsAt/endsAt

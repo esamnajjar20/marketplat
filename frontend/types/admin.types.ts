@@ -188,6 +188,8 @@ export interface AdminStore {
   plan:          AdminStorePlan;
   sellerProfileId: string;
   createdAt:     string;
+  /** Set when the seller requests FEATURED plan; null otherwise. */
+  featureRequestedAt?: string | null;
   sellerProfile: {
     id:          string;
     displayName: string;
@@ -195,6 +197,8 @@ export interface AdminStore {
 }
 
 export interface AdminGetStoresParams extends PaginationParams {
+  /** Stores that requested FEATURED plan (featureRequestedAt set) */
+  featureRequested?: boolean;
   status?: AdminStoreStatus;
   q?: string;
 }

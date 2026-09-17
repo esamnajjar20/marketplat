@@ -281,13 +281,14 @@ export const storesService = {
   getAllStores: async (
     query: AdminGetStoresQuery
   ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
-    const { page = 1, limit = 20, status, q } = query;
+    const { page = 1, limit = 20, status, q, featureRequested } = query;
     const skip = (page - 1) * limit;
     const { stores, total } = await storesRepository.findManyForAdmin({
       skip,
       take: limit,
       status,
       q,
+      featureRequested: featureRequested === true,
     });
     return { stores, meta: buildPaginationMeta(total, page, limit) };
   },

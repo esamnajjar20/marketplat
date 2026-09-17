@@ -220,6 +220,7 @@ model Ad {
   viewsAtLastReport Int            @default(0)
   isFeatured        Boolean        @default(false)
   isPinned          Boolean        @default(false)
+  pinnedByAdmin     Boolean        @default(false)
   // Fraud-detection (item 12): 0-100 heuristic score computed at
   // creation/update time by fraudService.scoreAd (see
   // modules/fraud/fraud.service.ts). Not a Prisma relation target

@@ -218,7 +218,11 @@ export const adminService = {
 
   setAdPinned: async (adId: string, isPinned: boolean, adminUserId = 'unknown') => {
     try {
-      const ad = await prisma.ad.update({ where: { id: adId }, data: { isPinned } });
+      // AUDIT-FIX (#5): mark admin pins so seller pin cannot clear them.
+      const ad = await prisma.ad.update({
+        where: { id: adId },
+        data: { isPinned, pinnedByAdmin: isPinned },
+      });
       // BUGFIX: same reasoning as setAdFeatured above.
       await bumpAdsCacheVersion();
       auditLog({

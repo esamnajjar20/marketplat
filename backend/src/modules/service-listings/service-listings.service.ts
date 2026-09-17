@@ -74,6 +74,15 @@ export const serviceListingsService = {
   ): Promise<ServiceListing> => {
     const provider = await requireOwnProvider(userId);
 
+    // AUDIT-FIX (#3): require at least one image at create time.
+    if (!files?.length) {
+      throw new BadRequestError(
+        'At least one service image is required.',
+        'LISTING_IMAGE_REQUIRED',
+      );
+    }
+
+
     // AUDIT-FIX (#8/#10): createServiceListing previously used the
     // generic requireOwnProvider (ownership + suspension only) and never
     // checked availabilityStatus, even though service-providers.service.ts

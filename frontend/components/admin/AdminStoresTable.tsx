@@ -78,11 +78,15 @@ export function AdminStoresTable() {
   const status: AdminStoreStatus | 'ALL' = statusParam === 'ALL'
     ? 'ALL'
     : isAdminStoreStatus(statusParam) ? statusParam : 'PENDING';
+  // Feature filter — reads ?featureRequested=1 from URL, forwarded to
+  // the backend so admins can focus on stores asking for FEATURED plan.
+  const featureRequested = sp.get('featureRequested') === '1';
 
   const { data, isLoading, isError, error, refetch } = useAdminStores({
     page,
     q: q || undefined,
     status: status === 'ALL' ? undefined : status,
+    featureRequested: featureRequested || undefined,
   });
   const updateStatus = useAdminUpdateStoreStatus();
   const updatePlan = useAdminUpdateStorePlan();
@@ -144,6 +148,16 @@ export function AdminStoresTable() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={featureRequested ? 'default' : 'outline'}
+          onClick={() => updateParams({ featureRequested: featureRequested ? undefined : '1' })}
+          className="gap-1"
+        >
+          <Star className="h-3.5 w-3.5" aria-hidden />
+          طلبات التمييز
+        </Button>
         {STATUS_TABS.map((tab) => {
           const isActive = tab.value === status;
           return (
@@ -202,6 +216,7 @@ export function AdminStoresTable() {
         {/* Mobile cards */}
         <div className="space-y-2 md:hidden">
           {items.map((store) => {
+            const wantsFeature = Boolean(store.featureRequestedAt);
             const badge = { label: STORE_STATUS_LABELS[store.status], variant: STORE_STATUS_VARIANT[store.status] };
             return (
               <div key={store.id} className="rounded-xl border border-border bg-card p-3 shadow-xs">
@@ -217,6 +232,9 @@ export function AdminStoresTable() {
                     <p className="text-xs text-muted-foreground">{store.sellerProfile.displayName}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>
+                      {wantsFeature && (
+                        <Badge variant="outline" className="gap-1 text-[10px]"><Star className="h-3 w-3" />طلب تمييز</Badge>
+                      )}
                       {store.city && <span className="text-[11px] text-muted-foreground">{store.city}</span>}
                     </div>
                   </div>

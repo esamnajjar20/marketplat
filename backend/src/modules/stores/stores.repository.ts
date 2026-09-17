@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, StoreDetails, StoreStatus } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { GetStoresQuery } from './stores.validation';
 
 export type StoreWithSeller = Prisma.StoreDetailsGetPayload<{
@@ -147,6 +148,27 @@ export const storesRepository = {
     } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
+    let ftsIds: string[] | undefined;
+    if (search?.trim()) {
+      const { tsQueryString } = analyzeSearchQuery(search.trim());
+      const effectiveTs = tsQueryString ?? search.trim();
+      const idRows = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT s."id"
+        FROM "store_details" s
+        INNER JOIN "seller_profiles" sp ON s."sellerProfileId" = sp."id"
+        WHERE s."status" = 'ACTIVE'
+          AND sp."suspended" = false
+          AND (
+            setweight(to_tsvector('simple', arabic_normalize(coalesce(s."name", ''))), 'A') ||
+            setweight(to_tsvector('simple', arabic_normalize(coalesce(s."description", ''))), 'B')
+          ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))
+      `;
+      ftsIds = idRows.map((r) => r.id);
+      if (ftsIds.length === 0) {
+        return { stores: [], total: 0 };
+      }
+    }
+
     const where: Prisma.StoreDetailsWhereInput = {
       status: 'ACTIVE',
       // AUDIT-FIX (ads-feature review, extended to stores' own public
@@ -156,12 +178,8 @@ export const storesRepository = {
       // in the public "browse stores" directory.
       sellerProfile: { suspended: false },
       ...(city && { city }),
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
+      ...(ftsIds ? { id: { in: ftsIds } } : {}),
+
     };
 
     const [stores, total] = await Promise.all([
@@ -190,10 +208,13 @@ export const storesRepository = {
     take: number;
     status?: StoreStatus;
     q?: string;
+    /** AUDIT-FIX (#6): only stores that requested FEATURED plan */
+    featureRequested?: boolean;
   }): Promise<{ stores: StoreWithSeller[]; total: number }> => {
-    const { skip, take, status, q } = params;
+    const { skip, take, status, q, featureRequested } = params;
     const where: Prisma.StoreDetailsWhereInput = {
       ...(status && { status }),
+      ...(featureRequested ? { featureRequestedAt: { not: null } } : {}),
       ...(q && {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
@@ -206,7 +227,9 @@ export const storesRepository = {
       prisma.storeDetails.findMany({
         where,
         include: storeWithSeller,
-        orderBy: { createdAt: 'desc' },
+        orderBy: featureRequested
+          ? [{ featureRequestedAt: 'desc' }, { createdAt: 'desc' }]
+          : { createdAt: 'desc' },
         skip,
         take,
       }),

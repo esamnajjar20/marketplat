@@ -1,13 +1,6 @@
 /**
- * TRACK-SELLER-PIN — seller can pin ONE of their own ACTIVE ads to the top
- * of their profile listing. Admin pin (isPinned via admin) remains separate
- * and is not cleared by seller unpin of a different ad.
- *
- * Rules:
- * - Owner only
- * - Ad must be ACTIVE
- * - At most one seller-pinned ad per user: pinning B unpins previous A
- * - Uses existing Ad.isPinned column (same flag admin uses; acceptable MVP)
+ * SELLER-PIN — seller can pin ONE of their own ACTIVE ads.
+ * Admin pins use pinnedByAdmin=true and must not be cleared by seller pin.
  */
 import { AdStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
@@ -29,21 +22,31 @@ export const adsPinService = {
     }
 
     if (!isPinned) {
+      if (ad.pinnedByAdmin) {
+        throw new ForbiddenError(
+          'This ad was pinned by an admin and cannot be unpinned by the seller.',
+          'ADMIN_PINNED',
+        );
+      }
       return prisma.ad.update({
         where: { id: adId },
-        data: { isPinned: false },
+        data: { isPinned: false, pinnedByAdmin: false },
       });
     }
 
-    // Pin this one and unpin any other of the same user (single-pin rule)
     await prisma.$transaction([
       prisma.ad.updateMany({
-        where: { userId, isPinned: true, id: { not: adId } },
+        where: {
+          userId,
+          isPinned: true,
+          pinnedByAdmin: false,
+          id: { not: adId },
+        },
         data: { isPinned: false },
       }),
       prisma.ad.update({
         where: { id: adId },
-        data: { isPinned: true },
+        data: { isPinned: true, pinnedByAdmin: false },
       }),
     ]);
 

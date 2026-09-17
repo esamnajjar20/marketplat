@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, ServiceListing, ServiceListingStatus } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { GetServiceListingsQuery } from './service-listings.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
@@ -144,6 +145,28 @@ export const serviceListingsRepository = {
     } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
+    let ftsIds: string[] | undefined;
+    if (search?.trim()) {
+      const { tsQueryString } = analyzeSearchQuery(search.trim());
+      const effectiveTs = tsQueryString ?? search.trim();
+      const idRows = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT sl."id"
+        FROM "service_listings" sl
+        INNER JOIN "service_provider_details" p ON sl."providerId" = p."id"
+        INNER JOIN "seller_profiles" sp ON p."sellerProfileId" = sp."id"
+        WHERE sl."status" = 'ACTIVE'
+          AND sp."suspended" = false
+          AND (
+            setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."title", ''))), 'A') ||
+            setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."description", ''))), 'B')
+          ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))
+      `;
+      ftsIds = idRows.map((r) => r.id);
+      if (ftsIds.length === 0) {
+        return { listings: [], total: 0 };
+      }
+    }
+
     // SEC-FIX: same gap as products.repository.ts / ads.repository.ts —
     // a suspended seller's ServiceProviderDetails.sellerProfile.suspended
     // only ever blocked new listing creation (see
@@ -172,12 +195,8 @@ export const serviceListingsRepository = {
           ...(maxPrice !== undefined && { lte: maxPrice }),
         },
       }),
-      ...(search && {
-        OR: [
-          { title: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
+      ...(ftsIds ? { id: { in: ftsIds } } : {}),
+
     };
 
     const [listings, total] = await Promise.all([

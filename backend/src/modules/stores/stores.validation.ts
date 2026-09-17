@@ -102,6 +102,11 @@ export const adminGetStoresSchema = z.object({
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
     status: z.nativeEnum(StoreStatus).optional(),
     q: z.string().trim().min(1).max(200).optional(),
+    /** AUDIT-FIX (#6): stores that requested FEATURED plan */
+    featureRequested: z
+      .union([z.literal('true'), z.literal('1'), z.literal('false'), z.literal('0')])
+      .optional()
+      .transform((v) => v === 'true' || v === '1'),
   }),
 });
 

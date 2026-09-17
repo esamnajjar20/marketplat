@@ -78,6 +78,15 @@ export const productsService = {
       );
     }
 
+    // AUDIT-FIX (#3): require at least one image (Cloudinary path is live;
+    // same rule as createAd).
+    if (!files?.length) {
+      throw new BadRequestError(
+        'At least one product image is required.',
+        'PRODUCT_IMAGE_REQUIRED',
+      );
+    }
+
     const category = await productCategoriesRepository.findById(input.categoryId);
     if (!category || !category.isActive) {
       throw new BadRequestError('Invalid or inactive product category.');
