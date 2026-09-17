@@ -346,6 +346,9 @@ function isPersonalShellRoute(url) {
     '/my-services/analytics',
     '/service-broadcasts',
     '/service-broadcasts/quotes',
+    '/requests',
+    '/requests/me',
+    '/requests/offers',
     '/my-requests',
   ];
   if (exact.includes(path)) return true;
@@ -354,6 +357,7 @@ function isPersonalShellRoute(url) {
   if (path.startsWith('/my-store/')) return true;
   if (path.startsWith('/my-services/')) return true;
   if (path.startsWith('/service-broadcasts/')) return true;
+  if (path.startsWith('/requests/')) return true;
   if (path.startsWith('/my-requests/')) return true;
   if (path.startsWith('/my-ads/')) return true;
   // صفحة حسابي /profile/:id — شكل فقط؛ يُمسَح عند logout

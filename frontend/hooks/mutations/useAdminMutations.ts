@@ -650,3 +650,15 @@ export function useAdminCancelServiceBroadcast() {
     },
   });
 }
+
+
+export function useAdminCancelOpenRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      adminApi.cancelOpenRequest(id, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'open-requests'] });
+    },
+  });
+}

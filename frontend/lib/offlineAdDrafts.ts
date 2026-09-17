@@ -30,7 +30,7 @@ const MAX_PREVIEW_IMAGES = 4;
 export type AdDraftStatus = 'draft' | 'pending_sync' | 'failed' | 'synced';
 
 /** نوع الكيان — مسودات قديمة بلا kind تُعامَل كـ 'ad'. */
-export type OfflineDraftKind = 'ad' | 'product' | 'service' | 'service-broadcast';
+export type OfflineDraftKind = 'ad' | 'product' | 'service' | 'service-broadcast' | 'open-request';
 
 /**
  * FIX IMAGEOFFLINE-WIRE-01: نسخة معاينة مضغوطة واحدة (lib/imageOffline.ts's
@@ -138,6 +138,8 @@ export function draftKindLabel(kind?: OfflineDraftKind | null): string {
       return 'خدمة';
     case 'service-broadcast':
       return 'طلب خدمة';
+    case 'open-request':
+      return 'طلب / احتياج';
     case 'ad':
     default:
       return 'إعلان';

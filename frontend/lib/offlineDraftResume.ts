@@ -58,6 +58,10 @@ export function resumeHrefForDraft(d: AdDraft): string {
     return `${ROUTES.myServiceCreate}?${q}`;
   }
 
+  if (kind === 'open-request') {
+    return `${ROUTES.requestNew}?${q}`;
+  }
+
   if (kind === 'service-broadcast') {
     // سوق الطلبات لا يدعم تعديل طلب بعد النشر — المسودة دائمًا إنشاء.
     return `${ROUTES.serviceBroadcastNew}?${q}`;

@@ -37,6 +37,7 @@ const NAV_LINKS = [
   { href: ROUTES.admin.serviceListings,   label: 'الخدمات',        icon: Wrench },
   // سوق الطلبات — إدارة طلبات الخدمة المفتوحة
   { href: ROUTES.admin.serviceBroadcasts, label: 'طلبات الخدمة',   icon: ClipboardList },
+  { href: ROUTES.admin.openRequests,      label: 'الطلبات المفتوحة', icon: ClipboardList },
   { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree,      tierRequired: 'ADMIN' as const },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
   { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench,          tierRequired: 'ADMIN' as const },

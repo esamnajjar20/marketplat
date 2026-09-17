@@ -211,6 +211,20 @@ export function useAdminServiceBroadcasts(params?: { page?: number; limit?: numb
   });
 }
 
+
+export function useAdminOpenRequests(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  type?: string;
+  q?: string;
+}) {
+  return useQuery({
+    queryKey: ['admin', 'open-requests', params ?? {}],
+    queryFn: () => adminApi.getAdminOpenRequests(params).then((r) => r.data),
+  });
+}
+
 export function useAdminPlatformTrends(days = 30) {
   return useQuery({
     queryKey: ['admin', 'trends', days],

@@ -105,8 +105,8 @@ describe('BottomNav', () => {
       expect(screen.getByRole('link', { name: /إعلان جديد/ })).toHaveAttribute('href', '/ads/create');
       expect(screen.getByRole('link', { name: /منتج جديد/ })).toHaveAttribute('href', '/my-store/products/new');
       expect(screen.getByRole('link', { name: /خدمة جديدة/ })).toHaveAttribute('href', '/my-services/new');
-      // FEAT-CREATE-BROADCAST-01: "طلب خدمة" — سوق الطلبات.
-      expect(screen.getByRole('link', { name: /طلب خدمة/ })).toHaveAttribute('href', '/service-broadcasts/new');
+      // Open Requests marketplace — unified request/need create entry.
+      expect(screen.getByRole('link', { name: /طلب \/ احتياج|طلب/ })).toHaveAttribute('href', '/requests/new');
     });
   });
 

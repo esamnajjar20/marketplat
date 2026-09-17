@@ -988,6 +988,87 @@ export const adminService = {
     return updated;
   },
 
+  /**
+   * Open Requests marketplace admin list (SERVICE | PRODUCT | RENTAL).
+   * Separate from service-broadcasts (legacy service-only feed).
+   */
+  getAdminOpenRequests: async (query: {
+    page?: number;
+    limit?: number;
+    status?: 'OPEN' | 'ACCEPTED' | 'CANCELLED' | 'EXPIRED';
+    type?: 'SERVICE' | 'PRODUCT' | 'RENTAL';
+    q?: string;
+  }): Promise<{ items: unknown[]; meta: ReturnType<typeof buildPaginationMeta> }> => {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const skip = (page - 1) * limit;
 
+    const where: Prisma.RequestWhereInput = {};
+    if (query.status) where.status = query.status;
+    if (query.type) where.type = query.type;
+    if (query.q && query.q.trim()) {
+      const q = query.q.trim();
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { city: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.request.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          customer: { select: { id: true, name: true, phone: true, city: true } },
+          _count: { select: { offers: true } },
+        },
+      }),
+      prisma.request.count({ where }),
+    ]);
+
+    return { items, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  adminCancelOpenRequest: async (
+    id: string,
+    adminUserId: string,
+    reason?: string,
+  ): Promise<unknown> => {
+    const existing = await prisma.request.findUnique({
+      where: { id },
+      select: { id: true, status: true, customerId: true },
+    });
+    if (!existing) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
+    if (existing.status === 'CANCELLED') return existing;
+    if (existing.status === 'ACCEPTED') {
+      throw new BadRequestError(
+        'Cannot cancel an ACCEPTED request — resolve the accepted offer first',
+        'REQUEST_ALREADY_ACCEPTED',
+      );
+    }
+
+    const updated = await prisma.request.update({
+      where: { id },
+      data: { status: 'CANCELLED' },
+      include: {
+        customer: { select: { id: true, name: true } },
+      },
+    });
+
+    await auditLog({
+      event: AuditEventType.ADMIN_SERVICE_BROADCAST_CANCELLED,
+      userId: adminUserId,
+      details: {
+        requestId: id,
+        reason: reason ?? null,
+        kind: 'open-request',
+      },
+    });
+
+    return updated;
+  },
 
 };

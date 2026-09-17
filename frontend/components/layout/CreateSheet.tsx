@@ -36,7 +36,7 @@ const CREATE_LINKS = [
   { label: 'إعلان جديد', description: 'انشر إعلان بيع', href: ROUTES.adCreate, icon: Megaphone },
   { label: 'منتج جديد', description: 'أضف منتجًا إلى متجرك', href: ROUTES.myStoreProductCreate, icon: Package },
   { label: 'خدمة جديدة', description: 'اعرض خدمة تقدمها', href: ROUTES.myServiceCreate, icon: Wrench },
-  { label: 'طلب خدمة', description: 'اطلب خدمة وقارن عروض الأسعار', href: ROUTES.serviceBroadcastNew, icon: ClipboardList },
+  { label: 'طلب / احتياج', description: 'خدمة، منتج أو إيجار — واستقبل العروض', href: ROUTES.requestNew, icon: ClipboardList },
 ] as const;
 
 export function CreateSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {

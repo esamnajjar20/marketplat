@@ -60,7 +60,7 @@ import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
+import { BROWSE_LINKS, ACTIVITY_GROUP, REQUESTS_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -298,6 +298,7 @@ export function ProtectedMobileNav() {
           })}
 
           <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />
+          <DrawerDisclosureGroup group={REQUESTS_GROUP} pathname={pathname} onNavigate={close} />
 
 
           {/* عرض الملف الشخصي — standalone entry, kept out of LINKS

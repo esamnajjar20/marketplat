@@ -129,6 +129,35 @@ export const adminController = {
     }
   },
 
+
+
+  getAdminOpenRequests: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const status = req.query.status as 'OPEN' | 'ACCEPTED' | 'CANCELLED' | 'EXPIRED' | undefined;
+      const type = req.query.type as 'SERVICE' | 'PRODUCT' | 'RENTAL' | undefined;
+      const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+      const result = await adminService.getAdminOpenRequests({ page, limit, status, type, q });
+      res.status(200).json(successResponse('Open requests fetched', result.items, {
+        pagination: result.meta,
+      }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  adminCancelOpenRequest: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+      const row = await adminService.adminCancelOpenRequest(req.params.id, user.userId, reason);
+      res.status(200).json(successResponse('Request cancelled', row));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getPlatformTrends: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const days = req.query.days ? Number(req.query.days) : 30;

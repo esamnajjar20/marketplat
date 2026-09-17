@@ -25,7 +25,7 @@
  */
 import {
   Home, Search, Store, Wrench, Users, Settings,
-  History, ListOrdered, Package, Trophy, Radio,
+  History, ListOrdered, Package, Trophy, Radio, ClipboardList,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -38,6 +38,7 @@ import { ROUTES } from '@/lib/constants';
 export const BROWSE_LINKS = [
   { label: 'الرئيسية', href: ROUTES.home, icon: Home },
   { label: 'البحث', href: ROUTES.search, icon: Search },
+  { label: 'الطلبات', href: ROUTES.requests, icon: ClipboardList },
   // FIX NAV-ADS-01: كان رابط الإعلانات موجوداً في ExploreSheet فقط وغير
   // موجود في BROWSE_LINKS (القائمة الجانبية/الدرج) — فظهر للمستخدم أن
   // "القائمة الجانبية ما فيها خيار الإعلانات". نفس الوجهة المستخدمة في
@@ -72,6 +73,22 @@ export const ACTIVITY_GROUP = {
 } as const;
 
 // Used by ProtectedSidebar.tsx and ProtectedMobileNav.tsx.
+
+// Open Requests marketplace — visible to every authenticated user
+// (customers post needs; sellers/providers submit offers). Distinct from
+// SERVICES_GROUP's service-only directed requests and legacy broadcasts.
+export const REQUESTS_GROUP = {
+  label: 'الطلبات',
+  href: ROUTES.requests,
+  icon: ClipboardList,
+  children: [
+    { label: 'الطلبات المفتوحة', href: ROUTES.requests },
+    { label: 'نشر طلب', href: ROUTES.requestNew },
+    { label: 'طلباتي', href: ROUTES.myRequests },
+    { label: 'عروضي', href: ROUTES.myRequestOffers },
+  ],
+} as const;
+
 export const SERVICES_GROUP = {
   label: 'خدماتي',
   href: ROUTES.myServices,

@@ -76,6 +76,17 @@ export const adminApi = {
   cancelServiceBroadcast: (id: string, body?: { reason?: string }) =>
     apiClient.patch(`/admin/service-broadcasts/${id}/cancel`, body ?? {}),
 
+  getAdminOpenRequests: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    type?: string;
+    q?: string;
+  }) => apiClient.get('/admin/open-requests', { params }),
+
+  cancelOpenRequest: (id: string, body?: { reason?: string }) =>
+    apiClient.patch(`/admin/open-requests/${id}/cancel`, body ?? {}),
+
   getPlatformTrends: (days?: number) =>
     apiClient.get('/admin/trends', { params: { days } }),
 

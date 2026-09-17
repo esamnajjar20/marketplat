@@ -127,6 +127,7 @@ export const ROUTES = {
     products:          '/admin/products',
     serviceListings:   '/admin/service-listings',
     serviceBroadcasts: '/admin/service-broadcasts',
+    openRequests:       '/admin/open-requests',
     notifications:     '/admin/notifications',
     system:            '/admin/system',
   },

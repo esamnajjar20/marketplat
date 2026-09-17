@@ -25,11 +25,24 @@ export default function RequestDetailPage() {
   const [price, setPrice] = useState('');
   const [message, setMessage] = useState('');
 
-  if (isLoading) return <p className="p-4 text-muted-foreground" dir="rtl">جاري التحميل…</p>;
-  if (isError || !request) return <p className="p-4 text-destructive" dir="rtl">الطلب غير موجود</p>;
+  if (isLoading) {
+    return (
+      <p className="p-4 text-muted-foreground" dir="rtl">
+        جاري التحميل…
+      </p>
+    );
+  }
+  if (isError || !request) {
+    return (
+      <p className="p-4 text-destructive" dir="rtl">
+        الطلب غير موجود
+      </p>
+    );
+  }
 
   const isOwner = user?.id === request.customerId;
   const myOffer = request.offers?.find((o) => o.offererUserId === user?.id);
+  const images = request.attachedImages ?? [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4" dir="rtl">
@@ -45,7 +58,21 @@ export default function RequestDetailPage() {
             الميزانية: {request.budgetMin ?? '—'} – {request.budgetMax ?? '—'}
           </p>
         )}
+        {request.expiresAt && (
+          <p className="text-xs text-muted-foreground">
+            ينتهي: {new Date(request.expiresAt).toLocaleDateString('ar')}
+          </p>
+        )}
       </div>
+
+      {images.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {images.map((url) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={url} src={url} alt="" className="h-28 w-full rounded-lg object-cover" />
+          ))}
+        </div>
+      )}
 
       {isOwner && request.status === 'OPEN' && (
         <Button variant="outline" disabled={cancel.isPending} onClick={() => cancel.mutate(id)}>
@@ -63,22 +90,25 @@ export default function RequestDetailPage() {
           }}
         >
           <h2 className="font-medium">{myOffer ? 'تعديل عرضك' : 'قدّم عرضًا'}</h2>
+          <p className="text-xs text-muted-foreground">
+            للخدمات يلزم ملف مقدّم خدمة. للمنتج/الإيجار يلزم ملف بائع.
+          </p>
           <input
             type="number"
             step="0.01"
-            className="w-full rounded-md border bg-background px-3 py-2"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             placeholder="السعر"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             required
           />
           <textarea
-            className="min-h-[80px] w-full rounded-md border bg-background px-3 py-2"
+            className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             placeholder="رسالة (اختياري)"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={submit.isPending}>
               إرسال العرض
             </Button>
@@ -100,7 +130,10 @@ export default function RequestDetailPage() {
         <h2 className="font-medium">العروض ({request.offers?.length ?? 0})</h2>
         <ul className="space-y-2">
           {(request.offers ?? []).map((o) => (
-            <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+            <li
+              key={o.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+            >
               <div>
                 <p className="font-medium">{o.price}</p>
                 <p className="text-xs text-muted-foreground">
@@ -109,13 +142,20 @@ export default function RequestDetailPage() {
                 {o.message && <p className="text-sm">{o.message}</p>}
               </div>
               {isOwner && request.status === 'OPEN' && o.status === 'PENDING' && (
-                <Button size="sm" disabled={accept.isPending} onClick={() => accept.mutate({ id, offerId: o.id })}>
+                <Button
+                  size="sm"
+                  disabled={accept.isPending}
+                  onClick={() => accept.mutate({ id, offerId: o.id })}
+                >
                   قبول
                 </Button>
               )}
             </li>
           ))}
         </ul>
+        {(request.offers?.length ?? 0) === 0 && (
+          <p className="text-sm text-muted-foreground">لا عروض بعد</p>
+        )}
       </section>
     </div>
   );

@@ -1,25 +1,77 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { requestsApi, type CreateRequestBody, type SubmitOfferBody } from '@/api/requests.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { ROUTES } from '@/lib/constants';
+import { toastMutationError } from '@/lib/mutationFeedback';
+import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure, ONLINE_DRAFT_TOAST } from '@/lib/isNetworkLikeFailure';
+import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import {
+  getActiveOfflineDraftId,
+  clearActiveOfflineDraftId,
+} from '@/lib/offlineDraftResume';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 
 export function useCreateRequest() {
   const qc = useQueryClient();
   const router = useRouter();
+  const userId = useAuthStore(selectUser)?.id ?? null;
+  const operationIdRef = useRef<string | null>(null);
+
   return useMutation({
-    mutationFn: (body: CreateRequestBody) => requestsApi.create(body).then((r) => r.data.data),
-    onSuccess: (created) => {
-      void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
-      toast.success('تم نشر الطلب');
-      if (created) {
-        router.push(ROUTES.request(created.id));
-      }
+    mutationFn: (body: CreateRequestBody) => {
+      operationIdRef.current = newOfflineOperationId();
+      return requestsApi.create(body).then((r) => r.data.data);
     },
-    onError: () => toast.error('تعذّر نشر الطلب'),
+    onSuccess: (created) => {
+      clearActiveOfflineDraftId();
+      void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
+      toast.success('تم نشر طلبك');
+      if (created) { router.push(ROUTES.request(created.id)); }
+    },
+    onError: async (err, body) => {
+      const parsed = parseApiError(err);
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || isNetworkLikeFailure(parsed)) {
+        try {
+          await saveAdDraft({
+            id: getActiveOfflineDraftId() ?? undefined,
+            mode: 'create',
+            kind: 'open-request',
+            payload: {
+              title: String(body.title ?? ''),
+              description: String(body.description ?? ''),
+              categoryId: body.categoryId ?? null,
+              city: body.city ?? null,
+              type: body.type,
+              budgetMin: body.budgetMin ?? null,
+              budgetMax: body.budgetMax ?? null,
+            },
+            userId,
+            operationId: operationIdRef.current ?? undefined,
+          });
+          if (offline) {
+            toast.message('محفوظ محليًا — بانتظار الاتصال', {
+              description: 'يمكنك متابعته من مركز المزامنة',
+            });
+          } else {
+            toast.message(ONLINE_DRAFT_TOAST.create.title, {
+              description: ONLINE_DRAFT_TOAST.create.description,
+            });
+          }
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      toastMutationError(err);
+    },
   });
 }
 
@@ -32,7 +84,7 @@ export function useCancelRequest() {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
       toast.success('تم إلغاء الطلب');
     },
-    onError: () => toast.error('تعذّر إلغاء الطلب'),
+    onError: toastMutationError,
   });
 }
 
@@ -46,7 +98,7 @@ export function useSubmitRequestOffer() {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.myOffers() });
       toast.success('تم إرسال العرض');
     },
-    onError: () => toast.error('تعذّر إرسال العرض'),
+    onError: toastMutationError,
   });
 }
 
@@ -59,7 +111,7 @@ export function useWithdrawRequestOffer() {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
       toast.success('تم سحب العرض');
     },
-    onError: () => toast.error('تعذّر سحب العرض'),
+    onError: toastMutationError,
   });
 }
 
@@ -73,6 +125,6 @@ export function useAcceptRequestOffer() {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
       toast.success('تم قبول العرض');
     },
-    onError: () => toast.error('تعذّر قبول العرض'),
+    onError: toastMutationError,
   });
 }

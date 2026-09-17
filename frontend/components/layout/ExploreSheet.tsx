@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, ListOrdered, Package, Wrench, Store, Users, Trophy } from 'lucide-react';
+import { Search, ListOrdered, Package, Wrench, Store, Users, Trophy, ClipboardList } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
 
@@ -35,6 +35,7 @@ const EXPLORE_LINKS = [
   { label: 'الإعلانات', href: ROUTES.ads, icon: ListOrdered },
   { label: 'المنتجات', href: ROUTES.products, icon: Package },
   { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
+  { label: 'الطلبات', href: ROUTES.requests, icon: ClipboardList },
   { label: 'المتاجر', href: ROUTES.stores, icon: Store },
   { label: 'أفضل البائعين', href: ROUTES.sellersRanking, icon: Trophy },
   { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
