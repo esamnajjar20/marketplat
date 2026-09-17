@@ -297,47 +297,7 @@ export function ProtectedMobileNav() {
             );
           })}
 
-          <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={close} />
-          <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />
-
-
-          {/* عرض الملف الشخصي — standalone entry, kept out of LINKS
-              (which has no user.id to build the href with) and out of
-              SETTINGS_GROUP below (whose children are all edit/manage
-              destinations). Mirrors ProtectedSidebar's identical entry
-              so mobile and desktop navs stay in sync. */}
-          {user && (
-            <li>
-              <Link
-                href={ROUTES.userProfile(user.id)}
-                onClick={close}
-                aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
-                className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
-                  pathname.startsWith(ROUTES.userProfile(user.id))
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted',
-                )}
-              >
-                <User className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                عرض ملفي
-              </Link>
-            </li>
-          )}
-
-          {/* AUDIT-FIX (dynamic sidebar): mirrors ProtectedSidebar's
-              identical fix - sections for roles the user doesn't hold
-              are fully absent, no CTA row. /settings/seller and
-              /settings/service-provider unchanged and still reachable
-              through SETTINGS_GROUP below. */}
-          {isProvider && (
-            <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
-          )}
-
-          {/* SELLER-GATE (myAds): mirrors ProtectedSidebar — ad creation
-              requires a SellerProfile server-side, so إعلاناتي moved out
-              of the always-visible LINKS above into the same isSeller
-              gate as STORE_GROUP. */}
+          {/* NAV-ORDER: same priority as ProtectedSidebar / BROWSE_LINKS */}
           {isSeller && (
             <li>
               <Link
@@ -353,10 +313,6 @@ export function ProtectedMobileNav() {
               </Link>
             </li>
           )}
-
-          {/* SELLER-CTA: mirrors ProtectedSidebar's identical CTA —
-              shown only while sellerLoaded && !sellerProfile, links to
-              /settings/seller. Disappears once isSeller flips true. */}
           {sellerLoaded && !isSeller && (
             <li>
               <Link
@@ -378,11 +334,6 @@ export function ProtectedMobileNav() {
           {isSeller && (
             <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />
           )}
-
-          {/* عرض متجري — mirrors "عرض ملفي" above and ProtectedSidebar's
-              identical entry; view-only link to the public storefront,
-              shown once the store is ACTIVE (matches MyStoreCard's own
-              gate on the same button). */}
           {isSeller && myStore?.status === 'ACTIVE' && (
             <li>
               <Link
@@ -401,7 +352,29 @@ export function ProtectedMobileNav() {
               </Link>
             </li>
           )}
-
+          {isProvider && (
+            <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
+          )}
+          <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={close} />
+          {user && (
+            <li>
+              <Link
+                href={ROUTES.userProfile(user.id)}
+                onClick={close}
+                aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  pathname.startsWith(ROUTES.userProfile(user.id))
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted',
+                )}
+              >
+                <User className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                عرض ملفي
+              </Link>
+            </li>
+          )}
+          <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />
           <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />
 
           {isAdmin && (

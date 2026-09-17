@@ -207,40 +207,11 @@ export function ProtectedSidebar() {
           );
         })}
 
-        <DisclosureGroup group={requestsGroupFor(true)} pathname={pathname} />
-        <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />
+        {/* NAV-ORDER: align with BROWSE_LINKS priority — ads/store first
+            for sellers, then provider tools, then open-requests hub,
+            then secondary (profile view, activity), then settings. */}
 
-
-        {/* عرض الملف الشخصي — standalone entry, distinct from the
-            "الإعدادات" disclosure group below whose children are all
-            edit/manage destinations. This one is a view-only link to
-            the public profile page, so it sits with the other
-            top-level view destinations (favorites, activity) rather
-            than inside SETTINGS_GROUP. */}
-        {user && (
-          <NavLink
-            label="عرض ملفي"
-            href={ROUTES.userProfile(user.id)}
-            icon={User}
-            isActive={pathname.startsWith(ROUTES.userProfile(user.id))}
-          />
-        )}
-
-        {/* AUDIT-FIX (dynamic sidebar): sections for roles the user
-            doesn't hold are now fully absent rather than replaced by a
-            CTA row. "أصبح مقدّم خدمة"/"أصبح بائعاً"/"افتح متجرك" CTAs
-            removed from here — /settings/seller and
-            /settings/service-provider are unchanged and still reachable
-            through SETTINGS_GROUP below, just no longer surfaced as a
-            top-level sidebar row for users who haven't taken either
-            role yet. */}
-        {isProvider && <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />}
-
-        {/* SELLER-GATE (myAds): ads.service.ts's createAd requires a
-            SellerProfile (ensureSellerProfileForAdCreation throws
-            BadRequestError otherwise) — moved out of the always-visible
-            NAV_ITEMS above since it's a seller feature, not a general
-            account feature. Same isSeller gate as STORE_GROUP below. */}
+        {/* 3. إعلاناتي (seller) */}
         {isSeller && (
           <NavLink
             label="إعلاناتي"
@@ -249,14 +220,6 @@ export function ProtectedSidebar() {
             isActive={pathname.startsWith(ROUTES.myAds)}
           />
         )}
-
-        {/* SELLER-CTA: shown only while the user has no SellerProfile
-            yet (sellerLoaded && !sellerProfile — mirrors isSeller's own
-            gating logic: loading/error states stay silent, no flash of
-            the CTA before the query resolves). Links to
-            /settings/seller, the existing seller-signup surface
-            (SellerSettingsSection). Disappears the moment isSeller
-            flips true; إعلاناتي + STORE_GROUP take its place. */}
         {sellerLoaded && !isSeller && (
           <NavLink
             label="أنشئ حساب بائع"
@@ -265,15 +228,9 @@ export function ProtectedSidebar() {
             isActive={pathname.startsWith(ROUTES.settings.seller)}
           />
         )}
-        {isSeller && <DisclosureGroup group={STORE_GROUP} pathname={pathname} />}
 
-        {/* عرض متجري — same pattern as "عرض ملفي" above: a view-only
-            link to the public storefront, mirroring MyStoreCard's
-            existing "عرض صفحتي العامة" button (only shown once the
-            store is ACTIVE, since PENDING/BLOCKED stores have no
-            public page to view yet). Placed right after STORE_GROUP so
-            it reads as "متجري"'s view-mode counterpart, same as
-            ViewMyProfileLink sits apart from SETTINGS_GROUP above. */}
+        {/* 4. متجري + عرض متجري */}
+        {isSeller && <DisclosureGroup group={STORE_GROUP} pathname={pathname} />}
         {isSeller && myStore?.status === 'ACTIVE' && (
           <NavLink
             label="عرض متجري"
@@ -283,10 +240,26 @@ export function ProtectedSidebar() {
           />
         )}
 
-        {/* AUDIT-FIX (nav duplication): settingsGroupFor(isSeller) drops
-            the "متجري" child once STORE_GROUP above is already showing
-            that same destination as its own disclosure — see that
-            function's doc in lib/navigation.ts. */}
+        {/* 5. خدماتي (provider) */}
+        {isProvider && <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />}
+
+        {/* 6. طلباتي (open marketplace hub) */}
+        <DisclosureGroup group={requestsGroupFor(true)} pathname={pathname} />
+
+        {/* 7. عرض ملفي */}
+        {user && (
+          <NavLink
+            label="عرض ملفي"
+            href={ROUTES.userProfile(user.id)}
+            icon={User}
+            isActive={pathname.startsWith(ROUTES.userProfile(user.id))}
+          />
+        )}
+
+        {/* 8. نشاطي — secondary destinations (favorites, reports, …) */}
+        <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />
+
+        {/* 9. الإعدادات — settingsGroupFor drops متجري when STORE_GROUP is shown */}
         <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />
       </nav>
     </aside>
