@@ -99,35 +99,6 @@ export const adminController = {
     }
   },
 
-  getAdminServiceBroadcasts: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const page = req.query.page ? Number(req.query.page) : 1;
-      const limit = req.query.limit ? Number(req.query.limit) : 20;
-      const status = req.query.status as 'OPEN' | 'ACCEPTED' | 'CANCELLED' | undefined;
-      const q = typeof req.query.q === 'string' ? req.query.q : undefined;
-      const result = await adminService.getAdminServiceBroadcasts({ page, limit, status, q });
-      res.status(200).json(successResponse('Service broadcasts fetched', result.items, {
-        pagination: result.meta,
-      }));
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  adminCancelServiceBroadcast: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = requireUser(req);
-      const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
-      const broadcast = await adminService.adminCancelServiceBroadcast(
-        req.params.id,
-        user.userId,
-        reason,
-      );
-      res.status(200).json(successResponse('Service broadcast cancelled', broadcast));
-    } catch (error) {
-      next(error);
-    }
-  },
 
 
 
