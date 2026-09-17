@@ -33,7 +33,8 @@ export function useCreateRequest() {
       clearActiveOfflineDraftId();
       void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
       toast.success('تم نشر طلبك');
-      router.push(ROUTES.request(created.id));
+      if (created?.id) router.push(ROUTES.request(created.id));
+      else router.push(ROUTES.requests);
     },
     onError: async (err, body) => {
       const parsed = parseApiError(err);

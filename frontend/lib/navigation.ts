@@ -25,7 +25,7 @@
  */
 import {
   Home, Search, Store, Wrench, Users, Settings,
-  History, ListOrdered, Package, Trophy, Radio, ClipboardList,
+  History, ListOrdered, Package, Trophy, ClipboardList,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
-  HeartPulse, ClipboardList, ListOrdered, Bell, Search } from 'lucide-react';
+  HeartPulse, ListOrdered, Bell, Search } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { cn } from '@/lib/utils';
