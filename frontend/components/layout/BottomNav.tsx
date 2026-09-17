@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
 import { CreateSheet } from '@/components/layout/CreateSheet';
 import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
 
@@ -79,6 +80,9 @@ export function BottomNav() {
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const { hidden: scrollNavHidden } = useScrollDirection();
+  // Sheets open → force bar visible (user is mid-action).
+  const navHidden = scrollNavHidden && !exploreOpen && !createOpen;
   // FIX NETWORK-BANNER-UNIFY-01: شارة «غير متصل» نُقلت لـ NetworkStatusBanner
   // (شريط سفلي موحّد وواضح). يبقى هنا فقط عدّاد طابور الطلبات.
   // FIX QUEUE-BADGE-01: عدّاد "طلبات بالانتظار" كشارة رقم بزاوية الأيقونة.
@@ -131,7 +135,14 @@ export function BottomNav() {
   return (
     <nav
       aria-label="التنقل الرئيسي"
-      className="pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t border-border/80 bg-background/95 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden"
+      data-hidden={navHidden ? 'true' : 'false'}
+      className={cn(
+        'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t border-border/80',
+        'bg-background/95 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)]',
+        'backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden',
+        'transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform',
+        navHidden ? 'translate-y-full pointer-events-none' : 'translate-y-0',
+      )}
     >
       {leadingItems.map(renderItem)}
 

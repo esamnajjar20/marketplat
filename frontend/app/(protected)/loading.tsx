@@ -1,11 +1,11 @@
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
-export default function Loading() {
+export default function ProtectedLoading() {
   return (
     <PageLoadingState
       variant="list"
-      title="إعلاناتي"
-      description="نجهّز المحتوى…"
+      title="جارٍ التحميل"
+      description="نجهّز صفحتك…"
     />
   );
 }

@@ -1,11 +1,11 @@
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
-export default function Loading() {
+export default function RequestsLoading() {
   return (
     <PageLoadingState
       variant="list"
-      title="إعلاناتي"
-      description="نجهّز المحتوى…"
+      title="سوق الطلبات"
+      description="نجلب الطلبات المفتوحة…"
     />
   );
 }

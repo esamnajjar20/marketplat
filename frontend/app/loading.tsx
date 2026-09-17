@@ -1,5 +1,5 @@
 /**
- * تحميل جذري أثناء بث Server Components — شريط + رسالة خفيفة.
+ * Root route loading — shared minimal chrome for any unmatched segment.
  */
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
