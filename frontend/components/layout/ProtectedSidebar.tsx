@@ -79,7 +79,7 @@ import {
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
-import { ACTIVITY_GROUP, REQUESTS_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
+import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
@@ -132,7 +132,7 @@ function NavLink({
 function DisclosureGroup({
   group, pathname,
 }: {
-  group: typeof ACTIVITY_GROUP | typeof REQUESTS_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
+  group: typeof ACTIVITY_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
 }) {
   const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c));
@@ -207,8 +207,8 @@ export function ProtectedSidebar() {
           );
         })}
 
+        <DisclosureGroup group={requestsGroupFor(true)} pathname={pathname} />
         <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />
-        <DisclosureGroup group={REQUESTS_GROUP} pathname={pathname} />
 
 
         {/* عرض الملف الشخصي — standalone entry, distinct from the

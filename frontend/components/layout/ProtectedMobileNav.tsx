@@ -60,7 +60,7 @@ import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, ACTIVITY_GROUP, REQUESTS_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
+import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -81,7 +81,7 @@ const TOGGLE_ID = 'protected-mobile-nav-toggle';
 function DrawerDisclosureGroup({
   group, pathname, onNavigate,
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup; // + requests/settings via NavDisclosureGroup
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -297,8 +297,8 @@ export function ProtectedMobileNav() {
             );
           })}
 
+          <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={close} />
           <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />
-          <DrawerDisclosureGroup group={REQUESTS_GROUP} pathname={pathname} onNavigate={close} />
 
 
           {/* عرض الملف الشخصي — standalone entry, kept out of LINKS
