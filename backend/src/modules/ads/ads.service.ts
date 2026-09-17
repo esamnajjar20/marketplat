@@ -362,6 +362,25 @@ export const adsService = {
       }
     }
 
+    // AUDIT-FIX (store BLOCKED): direct URL must not surface ads of a
+    // blocked/pending store. Personal ads (no storeId) unaffected.
+    if (ad.storeId) {
+      const storeStatus = (ad as { store?: { status?: string } | null }).store?.status;
+      if (storeStatus && storeStatus !== 'ACTIVE') {
+        throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      }
+      // If include omitted store, load status once
+      if (!storeStatus) {
+        const storeRow = await prisma.storeDetails.findUnique({
+          where: { id: ad.storeId },
+          select: { status: true },
+        });
+        if (!storeRow || storeRow.status !== 'ACTIVE') {
+          throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+        }
+      }
+    }
+
     // P-06: buffered view counting — deduped per IP, flushed to DB every 60s
     // Prevents N DB writes per N pageviews; Redis absorbs the burst
     if (viewerIp) {

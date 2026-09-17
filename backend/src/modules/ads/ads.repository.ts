@@ -184,6 +184,14 @@ export const adsRepository = {
         // identical to the non-search branch rather than introducing a
         // second, slightly different definition of "hidden".
         Prisma.sql`"sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)`,
+        // AUDIT-FIX (store BLOCKED): store-published ads must leave public
+        // search when the store is not ACTIVE (fraud/moderation), matching
+        // products.repository.ts. Personal ads (storeId IS NULL) stay visible
+        // unless the seller profile is suspended (filter above).
+        Prisma.sql`(
+          "storeId" IS NULL
+          OR "storeId" IN (SELECT "id" FROM "store_details" WHERE "status" = 'ACTIVE')
+        )`,
         // FIX SEARCH-AR-01 + SEARCH-INTEL-01: arabic_normalize on both
         // sides; to_tsquery carries synonym OR-groups from analyzeSearchQuery.
         Prisma.sql`(
@@ -270,6 +278,16 @@ export const adsRepository = {
       // products' store.sellerProfile, so this is a single relation
       // filter rather than two.
       sellerProfile: { suspended: false },
+      // AUDIT-FIX (store BLOCKED): hide store ads when store is not ACTIVE.
+      // Personal ads (no store) keep using sellerProfile.suspended only.
+      AND: [
+        {
+          OR: [
+            { storeId: null },
+            { store: { status: 'ACTIVE' } },
+          ],
+        },
+      ],
       // FIX PERF-01: exact match, not contains — see the identical fix
       // in the search-branch above for why this is safe (fixed city
       // list from the frontend) and why contains defeats the
@@ -401,6 +419,14 @@ export const adsRepository = {
       // the two gaps (alongside the search branch above) the SEC-FIX
       // comment on the non-search branch never actually covered.
       sellerProfile: { suspended: false },
+      AND: [
+        {
+          OR: [
+            { storeId: null },
+            { store: { status: 'ACTIVE' } },
+          ],
+        },
+      ],
       OR: [...(categoryId ? [{ categoryId }] : []), { city }],
     };
     return prisma.ad.findMany({

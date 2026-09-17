@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useCallback, useRef, type ReactNode } from 'react';
-import Link from 'next/link';
-import { BadgeCheck, MapPin, Clock, Eye, ChevronLeft, ChevronRight, X, Phone } from 'lucide-react';
+import { MapPin, Clock, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Badge } from '@/components/shared/ui/Badge';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
-import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
-import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ReportServiceButton } from '@/components/services/ReportServiceButton';
+import { ProviderContactCard } from '@/components/services/ProviderContactCard';
 import { ROUTES, APP_URL } from '@/lib/constants';
-import { formatPrice, formatRelativeTime, formatPhone } from '@/lib/formatters';
+import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type {
@@ -22,7 +19,7 @@ import type {
 
 interface Props {
   listing: ServiceListingWithProvider;
-  /** Optional CTA (e.g. ServiceRequestButton) rendered in sticky mobile bar + sidebar */
+  /** Primary CTA only (e.g. طلب خدمة) — messaging lives on ProviderContactCard */
   action?: ReactNode;
 }
 
@@ -38,39 +35,6 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
   return pricingType === 'STARTING_FROM' ? `يبدأ من ${formatted}` : formatted;
 }
 
-
-function toWaPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('970')) return digits;
-  if (digits.startsWith('0')) return `970${digits.slice(1)}`;
-  return digits;
-}
-
-function ProviderContactRow({ phone }: { phone: string }) {
-  const wa = toWaPhone(phone);
-  return (
-    <div className="flex flex-wrap gap-2">
-      <a
-        href={`tel:${phone}`}
-        className="inline-flex flex-1 min-w-[7rem] items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium hover:bg-muted/50"
-      >
-        <Phone className="h-3.5 w-3.5" />
-        {formatPhone(phone)}
-      </a>
-      {wa.length >= 9 && (
-        <a
-          href={`https://wa.me/${wa}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex flex-1 min-w-[7rem] items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-2 text-sm font-medium text-[#128C7E] dark:text-[#25D366]"
-        >
-          واتساب
-        </a>
-      )}
-    </div>
-  );
-}
-
 export function ServiceListingDetail({ listing, action }: Props) {
   const images = listing.images.length > 0 ? listing.images : [PLACEHOLDER_SVG];
   const [imgIdx, setImgIdx] = useState(0);
@@ -79,6 +43,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
   const shareUrl = `${APP_URL}${ROUTES.serviceDetail(listing.id)}`;
+  const thumbnailImages = images.slice(0, 3);
 
   const goPrev = useCallback(() => setImgIdx((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
@@ -86,27 +51,23 @@ export function ServiceListingDetail({ listing, action }: Props) {
     [images.length],
   );
 
-  // Thumbnail strip is budget-capped separately from the navigable
-  // `images` array (prev/next still reach every photo) — keeps the
-  // gallery's total rendered <img> count bounded (1 main preview + up
-  // to 3 thumbnails) regardless of how many photos a listing has.
-  const thumbnailImages = images.slice(0, 3);
-
   return (
     <>
-      <div className="flex flex-col gap-6 pb-sticky-contact-tall md:flex-row md:gap-8">
-        <div className="min-w-0 flex-1 space-y-6">
+      <div className="flex flex-col gap-5 pb-28 md:flex-row md:gap-8 md:pb-8">
+        {/* ── Main column ── */}
+        <div className="min-w-0 flex-1 space-y-5">
           {/* Gallery */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xs">
             <div
-              className="relative aspect-[4/3] bg-muted sm:aspect-[16/9]"
+              className="relative aspect-[4/3] bg-muted sm:aspect-[16/10]"
               onTouchStart={(e) => {
                 touchStartX.current = e.changedTouches[0]?.clientX ?? null;
               }}
               onTouchEnd={(e) => {
                 if (touchStartX.current == null || images.length <= 1) return;
                 const dx =
-                  (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+                  (e.changedTouches[0]?.clientX ?? touchStartX.current) -
+                  touchStartX.current;
                 touchStartX.current = null;
                 if (Math.abs(dx) < 40) return;
                 if (dx > 0) goPrev();
@@ -134,7 +95,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
                     type="button"
                     onClick={goPrev}
                     disabled={imgIdx === 0}
-                    className="absolute start-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 shadow disabled:opacity-40"
+                    className="absolute start-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white disabled:opacity-30"
                     aria-label="السابق"
                   >
                     <ChevronRight className="h-5 w-5" />
@@ -143,19 +104,19 @@ export function ServiceListingDetail({ listing, action }: Props) {
                     type="button"
                     onClick={goNext}
                     disabled={imgIdx === images.length - 1}
-                    className="absolute end-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 shadow disabled:opacity-40"
+                    className="absolute end-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white disabled:opacity-30"
                     aria-label="التالي"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
-                  <span className="absolute bottom-3 start-1/2 -translate-x-1/2 rounded-full bg-background/80 px-2.5 py-0.5 text-xs tabular-nums">
+                  <span className="absolute bottom-2 start-1/2 -translate-x-1/2 rounded-full bg-black/50 px-2.5 py-0.5 text-xs text-white">
                     {imgIdx + 1} / {images.length}
                   </span>
                 </>
               )}
             </div>
             {thumbnailImages.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto p-3">
+              <div className="flex gap-2 overflow-x-auto border-t border-border/60 p-2">
                 {thumbnailImages.map((src, i) => (
                   <button
                     key={`${src}-${i}`}
@@ -167,8 +128,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
                     )}
                   >
                     <SafeImage
-                      src={src === PLACEHOLDER_SVG ? src : getThumbnailUrl(src, 112, 112)}
-                      alt={`${listing.title} - صورة ${i + 1}`}
+                      src={getThumbnailUrl(src)}
+                      alt=""
                       fill
                       className="object-cover"
                       sizes="56px"
@@ -179,75 +140,80 @@ export function ServiceListingDetail({ listing, action }: Props) {
             )}
           </div>
 
-          {/* Title / price / meta / actions — rendered once, no
-              responsive duplicate (mirrors AdDetail.tsx's single
-              title+meta block; only the untested action/contact row
-              below duplicates between the desktop sidebar and the
-              mobile sticky bar, same as AdDetail's price/SellerCard). */}
-          <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-            <p className="font-mono text-2xl font-bold tabular-nums text-primary">
+          {/* Title + price */}
+          <header className="space-y-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h1 className="text-xl font-bold leading-snug tracking-tight sm:text-2xl">
+                {listing.title}
+              </h1>
+              <div className="flex items-center gap-1">
+                <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
+                <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
+              </div>
+            </div>
+            <p className="text-lg font-semibold text-primary">
               {formatServicePrice(listing.pricingType, listing.price)}
             </p>
-            <h1 className="text-xl font-bold leading-snug">{listing.title}</h1>
-            <Meta listing={listing} />
-            <div className="flex flex-wrap gap-2">
-              <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
-              <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
-              <ReportServiceButton serviceListingId={listing.id} />
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" aria-hidden />
+                {LOCATION_LABELS[listing.serviceLocation]}
+              </span>
+              {listing.durationEstimate && (
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  {listing.durationEstimate}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1">
+                <Eye className="h-3.5 w-3.5" aria-hidden />
+                {listing.views} مشاهدة
+              </span>
+              <span>{formatRelativeTime(listing.createdAt)}</span>
             </div>
+          </header>
+
+          {/* Description */}
+          {listing.description && (
+            <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+              <h2 className="mb-2 text-sm font-semibold">التفاصيل</h2>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                {listing.description}
+              </p>
+            </div>
+          )}
+
+          {/* Provider — mobile (desktop has sidebar) */}
+          <div className="md:hidden">
+            <h2 className="mb-2 text-sm font-semibold">مقدم الخدمة</h2>
+            <ProviderContactCard listing={listing} />
           </div>
 
-          <section className="space-y-2 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-            <h2 className="text-sm font-semibold">الوصف</h2>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-              {listing.description?.trim() || 'لا يوجد وصف إضافي.'}
-            </p>
-          </section>
-
-          <div className="space-y-3">
-            <ProviderLink listing={listing} />
-            {listing.provider.sellerProfile?.userId && (
-              <MessageUserButtonGate
-                targetUserId={listing.provider.sellerProfile.userId}
-                size="lg"
-                variant="default"
-                label="مراسلة مقدم الخدمة"
-                className="w-full gap-2 rounded-xl font-semibold"
-              />
-            )}
-            <StorePaymentMethods
-              paymentMethods={listing.provider.sellerProfile?.paymentMethods}
-              entityName={listing.provider.businessName}
-              fallbackName={listing.provider.businessName}
-              fallbackPhone={listing.provider.contactPhone}
-            />
+          <div className="flex justify-end">
+            <ReportServiceButton serviceListingId={listing.id} />
           </div>
         </div>
 
-        {/* Desktop sidebar — only the CTA + contact row live here,
-            mirroring the mobile sticky-contact-bar below; everything
-            else (title/price/meta/provider link) is singular, above. */}
-        {(action || listing.provider.contactPhone) && (
-          <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[320px]">
-            <div className="sticky top-20 space-y-2 rounded-2xl border border-border bg-card p-5 shadow-sm">
-              {action}
-              {listing.provider.contactPhone && (
-                <ProviderContactRow phone={listing.provider.contactPhone} />
-              )}
-            </div>
-          </aside>
-        )}
+        {/* ── Desktop sidebar ── */}
+        <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[300px]">
+          <div className="sticky top-20 space-y-4">
+            {action && (
+              <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+                {action}
+              </div>
+            )}
+            <ProviderContactCard listing={listing} />
+          </div>
+        </aside>
       </div>
 
-      {/* Mobile sticky CTA — above BottomNav; tall padding for dual buttons */}
+      {/* Mobile sticky: request only (message is on provider card above) */}
       {action && (
-        <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
-          <div className="mx-auto max-w-lg space-y-2">
-            {action}
-            {listing.provider.contactPhone && (
-              <ProviderContactRow phone={listing.provider.contactPhone} />
-            )}
-          </div>
+        <div
+          className="fixed inset-x-0 bottom-16 z-30 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          {action}
         </div>
       )}
 
@@ -266,57 +232,13 @@ export function ServiceListingDetail({ listing, action }: Props) {
             <X className="h-6 w-6" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={currentImg} alt={listing.title} className="max-h-[90vh] max-w-full object-contain" />
+          <img
+            src={currentImg}
+            alt={listing.title}
+            className="max-h-[90vh] max-w-full object-contain"
+          />
         </div>
       )}
     </>
-  );
-}
-
-function Meta({ listing }: { listing: ServiceListingWithProvider }) {
-  return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      <span className="inline-flex items-center gap-1">
-        <MapPin className="h-3.5 w-3.5" aria-hidden />
-        {LOCATION_LABELS[listing.serviceLocation]}
-      </span>
-      {listing.durationEstimate && (
-        <span className="inline-flex items-center gap-1">
-          <Clock className="h-3.5 w-3.5" aria-hidden />
-          {listing.durationEstimate}
-        </span>
-      )}
-      <span className="inline-flex items-center gap-1">
-        <Eye className="h-3.5 w-3.5" aria-hidden />
-        <span>{listing.views}</span> مشاهدة
-      </span>
-      <span>{formatRelativeTime(listing.createdAt)}</span>
-    </div>
-  );
-}
-
-function ProviderLink({ listing }: { listing: ServiceListingWithProvider }) {
-  return (
-    <Link
-      href={
-        listing.provider.sellerProfile?.userId
-          ? ROUTES.userProfile(listing.provider.sellerProfile.userId)
-          : ROUTES.serviceProvider(listing.provider.id)
-      }
-      className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40"
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold">{listing.provider.businessName}</span>
-          {listing.provider.sellerProfile?.verified && (
-            <Badge className="gap-1 text-[10px]">
-              <BadgeCheck className="h-3 w-3" /> موثّق
-            </Badge>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">عرض كل خدمات {listing.provider.businessName}</p>
-      </div>
-      <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-    </Link>
   );
 }
