@@ -21,3 +21,6 @@ RUN=bash $BACKEND/scripts/run-job.sh
 0 8 * * 1     $RUN weekly-ad-views
 15 8 * * 1    $RUN weekly-store-views
 30 8 * * 1    $RUN weekly-service-views
+
+# Open requests expiry
+20 * * * *    $RUN expire-open-requests

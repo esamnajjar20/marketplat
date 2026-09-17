@@ -166,6 +166,15 @@ export const queryKeys = {
     mine:   (params?: object)               => ['service-listings', 'me', params ?? {}] as const,
   },
 
+  // ── Open Requests marketplace (SERVICE | PRODUCT | RENTAL) ─────
+  requests: {
+    all:      ()                 => ['requests'] as const,
+    open:     (params?: object)  => ['requests', 'open', params ?? {}] as const,
+    mine:     (params?: object)  => ['requests', 'me', params ?? {}] as const,
+    myOffers: (params?: object)  => ['requests', 'my-offers', params ?? {}] as const,
+    detail:   (id: string)       => ['requests', 'detail', id] as const,
+  },
+
   // ── Service requests (مرحلة 3) ────────────────────────────────
   serviceRequests: {
     detail:   (id: string)      => ['service-requests', 'detail', id] as const,

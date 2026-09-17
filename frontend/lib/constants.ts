@@ -67,6 +67,12 @@ export const ROUTES = {
   serviceBroadcastNew: '/service-broadcasts/new',
   myServiceBroadcasts: '/service-broadcasts/me',
   myServiceBroadcastQuotes: '/service-broadcasts/quotes',
+  // Open Requests marketplace (SERVICE | PRODUCT | RENTAL)
+  requests: '/requests',
+  request: (id: string) => `/requests/${id}`,
+  requestNew: '/requests/new',
+  myRequests: '/requests/me',
+  myRequestOffers: '/requests/offers',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,
   // FEAT-HOME-DISCOVERY: public cross-store products browse page —

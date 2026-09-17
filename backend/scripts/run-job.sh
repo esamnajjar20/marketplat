@@ -8,7 +8,7 @@ if [[ -z "$JOB_NAME" ]]; then
   echo "Jobs:" >&2
   echo "  promotion-lifecycle | notification-digest | cleanup-notifications" >&2
   echo "  seller-response-metrics | weekly-ad-views | weekly-store-views | weekly-service-views" >&2
-  echo "  cleanup-tokens | cleanup-failed-tasks | demote-stale-boosts" >&2
+  echo "  cleanup-tokens | cleanup-failed-tasks | demote-stale-boosts | expire-open-requests" >&2
   exit 2
 fi
 
@@ -43,6 +43,7 @@ case "$JOB_NAME" in
   cleanup-tokens)          NPM_SCRIPT="report:cleanup-tokens" ;;
   cleanup-failed-tasks)    NPM_SCRIPT="report:cleanup-failed-tasks" ;;
   demote-stale-boosts)     NPM_SCRIPT="report:demote-stale-boosts" ;;
+  expire-open-requests)    NPM_SCRIPT="report:expire-open-requests" ;;
   *)
     echo "error: unknown job '$JOB_NAME'" >&2
     exit 2

@@ -79,7 +79,7 @@ export const notificationsService = {
           'PROMOTION_STATUS_CHANGE',
           'STORE_MEMBER_INVITED',
         ],
-        services: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED'],
+        services: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED', 'NEW_REQUEST_OFFER', 'REQUEST_OFFER_ACCEPTED'],
         system: ['PROMOTION', 'WEEKLY_AD_VIEWS_REPORT'],
       };
       types = map[query.category];
@@ -572,6 +572,57 @@ export const notificationEvents = {
       title,
       body,
       data: { broadcastId, quoteId },
+    });
+  },
+
+  /** Open Requests: customer receives a new offer on their request. */
+  onNewRequestOffer: async (
+    customerId: string,
+    requestId: string,
+    offerId: string,
+    offererName: string,
+    requestTitle: string
+  ) => {
+    if (!(await userAllowsPref(customerId, 'serviceQuotes'))) return null;
+    const title = 'عرض جديد على طلبك';
+    const body = `${offererName} أرسل عرضًا على طلبك "${requestTitle}"`;
+    void pushService.notifyUser(customerId, {
+      title,
+      body,
+      url: `/requests/${requestId}`,
+      tag: `request-${requestId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: customerId,
+      type: 'NEW_REQUEST_OFFER',
+      title,
+      body,
+      data: { requestId, offerId },
+    });
+  },
+
+  /** Open Requests: offerer is notified their offer was accepted. */
+  onRequestOfferAccepted: async (
+    offererUserId: string,
+    requestId: string,
+    offerId: string,
+    requestTitle: string
+  ) => {
+    if (!(await userAllowsPref(offererUserId, 'serviceQuotes'))) return null;
+    const title = 'تم قبول عرضك';
+    const body = `تم قبول عرضك على طلب "${requestTitle}"`;
+    void pushService.notifyUser(offererUserId, {
+      title,
+      body,
+      url: `/requests/${requestId}`,
+      tag: `request-${requestId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: offererUserId,
+      type: 'REQUEST_OFFER_ACCEPTED',
+      title,
+      body,
+      data: { requestId, offerId },
     });
   },
 };

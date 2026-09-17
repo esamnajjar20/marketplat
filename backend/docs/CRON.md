@@ -31,6 +31,7 @@ chmod +x scripts/run-job.sh
 | `weekly-ad-views` | `report:weekly-ad-views` | Mon 08:00 |
 | `weekly-store-views` | `report:weekly-store-views` | Mon 08:15 |
 | `weekly-service-views` | `report:weekly-service-views` | Mon 08:30 |
+| `expire-open-requests` | `report:expire-open-requests` | Hourly at :20 |
 
 ### New jobs (phase C)
 

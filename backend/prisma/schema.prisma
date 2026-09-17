@@ -154,6 +154,10 @@ model User {
   serviceRequestsAsCustomer   ServiceRequest[]          @relation("ServiceRequestsAsCustomer")
   serviceReviewsGiven         ServiceReview[]           @relation("ServiceReviewsGiven")
   serviceBroadcastsAsCustomer ServiceRequestBroadcast[] @relation("ServiceBroadcastsAsCustomer")
+  // Open marketplace requests (PRODUCT/SERVICE/RENTAL) — separate from
+  // ServiceRequest (directed) and ServiceRequestBroadcast (service-only legacy path).
+  requestsAsCustomer          Request[]                 @relation("RequestsAsCustomer")
+  requestOffersMade           RequestOffer[]            @relation("RequestOffersAsOfferer")
   storeFollows                StoreFollower[]
   storeReviewsGiven           StoreReview[]             @relation("StoreReviewsGiven")
   blocksMade                  UserBlock[]               @relation("BlocksMade")
@@ -683,6 +687,90 @@ model ServiceRequestBroadcast {
   @@index([categoryId, status, createdAt])
   @@index([customerId])
   @@map("service_request_broadcasts")
+}
+
+// =============================================================================
+// Open Requests marketplace (option B) — NEW tables; does NOT replace
+// ServiceRequest (directed to a listing) or ServiceRequestBroadcast
+// (service-only open feed). Phase 1 types: SERVICE | PRODUCT | RENTAL.
+// Offerer is always User (offererUserId); no offererRole column.
+// budgetMin/budgetMax optional. Accept path must use a transaction with
+// conditional update on status=OPEN (same pattern as markAccepted on
+// service_request_broadcasts).
+// =============================================================================
+
+enum RequestType {
+  SERVICE
+  PRODUCT
+  RENTAL
+}
+
+enum RequestStatus {
+  OPEN
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+enum RequestOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model Request {
+  id              String        @id @default(cuid())
+  customerId      String
+  type            RequestType
+  /// Category id from the tree that matches `type` (service / product / ad).
+  /// Not a Prisma FK on purpose — different category tables per type;
+  /// the service layer validates existence and type alignment.
+  categoryId      String
+  title           String
+  description     String        @db.VarChar(1000)
+  city            String?
+  attachedImages  String[]
+  budgetMin       Decimal?      @db.Decimal(12, 2)
+  budgetMax       Decimal?      @db.Decimal(12, 2)
+  /// Type-specific payload (e.g. condition, bedrooms) — Zod validates by type.
+  attributes      Json?
+  status          RequestStatus @default(OPEN)
+  acceptedOfferId String?       @unique
+  expiresAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  customer        User          @relation("RequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  offers          RequestOffer[] @relation("RequestOffers")
+  acceptedOffer   RequestOffer?  @relation("AcceptedRequestOffer", fields: [acceptedOfferId], references: [id])
+
+  @@index([type, status, createdAt])
+  @@index([categoryId, status, createdAt])
+  @@index([customerId])
+  @@index([status, expiresAt])
+  @@map("requests")
+}
+
+model RequestOffer {
+  id            String             @id @default(cuid())
+  requestId     String
+  /// Offering user — role/eligibility enforced in the service layer, not here.
+  offererUserId String
+  price         Decimal            @db.Decimal(12, 2)
+  message       String?            @db.VarChar(1000)
+  /// Optional extras (durationEstimate, linkedAdId, linkedProductId, …).
+  meta          Json?
+  status        RequestOfferStatus @default(PENDING)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  request       Request            @relation("RequestOffers", fields: [requestId], references: [id], onDelete: Cascade)
+  offerer       User               @relation("RequestOffersAsOfferer", fields: [offererUserId], references: [id], onDelete: Cascade)
+  acceptedFor   Request?           @relation("AcceptedRequestOffer")
+
+  @@unique([requestId, offererUserId])
+  @@index([offererUserId, status])
+  @@index([requestId, status])
+  @@map("request_offers")
 }
 
 model ServiceQuote {
@@ -1301,6 +1389,9 @@ enum NotificationType {
   // quoteId }.
   NEW_SERVICE_QUOTE
   SERVICE_QUOTE_ACCEPTED
+  // Open Requests marketplace (Request / RequestOffer)
+  NEW_REQUEST_OFFER
+  REQUEST_OFFER_ACCEPTED
   // FIX (audit #21): store-members.service.ts's inviteMember has fired
   // AuditEventType.STORE_MEMBER_INVITED (audit log) since 20260905120000
   // but had no matching NotificationType, so the invited user was never

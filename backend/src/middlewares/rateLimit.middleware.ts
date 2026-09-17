@@ -303,6 +303,27 @@ export const submitServiceQuoteRateLimit = rateLimit({
   message: msg("Too many quotes submitted, please try again later"),
 });
 
+// Open Requests marketplace (Request / RequestOffer) — separate buckets
+// from service-broadcast so product/rental traffic does not starve
+// the legacy service-only feed quotas.
+export const createOpenRequestRateLimit = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("create_open_request"),
+  message: msg("Too many requests posted, please try again later"),
+});
+
+export const submitRequestOfferRateLimit = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("submit_request_offer"),
+  message: msg("Too many offers submitted, please try again later"),
+});
+
 // services-design.md §17: same rationale as sellerRatingRateLimit —
 // prevents bulk fake reviews.
 export const serviceReviewRateLimit = rateLimit({
