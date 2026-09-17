@@ -10,7 +10,7 @@ import {
   useWithdrawRequestOffer,
 } from '@/hooks/mutations/useRequestMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
-import { REQUEST_OFFER_STATUS_LABEL, REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
+import { REQUEST_OFFER_STATUS_LABEL } from '@/lib/requestStatus';
 import { Button } from '@/components/shared/ui/Button';
 
 export default function RequestDetailPage() {
@@ -48,7 +48,7 @@ export default function RequestDetailPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-4" dir="rtl">
       <div className="space-y-2">
         <div className="text-xs text-muted-foreground">
-          {REQUEST_TYPE_LABEL[request.type]} · {REQUEST_STATUS_LABEL[request.status]}
+          
           {request.city ? ` · ${request.city}` : ''}
         </div>
         <h1 className="text-2xl font-semibold">{request.title}</h1>

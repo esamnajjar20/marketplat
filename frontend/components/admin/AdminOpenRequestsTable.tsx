@@ -59,8 +59,9 @@ export function AdminOpenRequestsTable() {
 
   return (
     <div className="space-y-4">
-      <AdminFilterBar defaultTab="open"
+      <AdminFilterBar
         searchPlaceholder="بحث في العنوان أو الوصف أو المدينة…"
+        defaultTab="OPEN"
         tabs={[
           { value: 'OPEN', label: 'مفتوح' },
           { value: 'ACCEPTED', label: 'مقبول' },
@@ -70,17 +71,17 @@ export function AdminOpenRequestsTable() {
         ]}
       />
 
-      {isLoading && <TableSkeleton rows={8} />}
+      {isLoading && <TableSkeleton rows={8} columns={5} />}
       {isError && (
         <EmptyState
-          icon={<ClipboardList />}
+          icon={<ClipboardList className="h-10 w-10" />}
           title="تعذّر التحميل"
           description="حاول مرة أخرى"
           action={<Button onClick={() => refetch()}>إعادة المحاولة</Button>}
         />
       )}
       {!isLoading && !isError && items.length === 0 && (
-        <EmptyState icon={<ClipboardList />} title="لا طلبات" description="لا نتائج للفلتر الحالي" />
+        <EmptyState icon={<ClipboardList className="h-10 w-10" />} title="لا طلبات" description="لا نتائج للفلتر الحالي" />
       )}
 
       {!isLoading && items.length > 0 && (
@@ -129,7 +130,16 @@ export function AdminOpenRequestsTable() {
         </div>
       )}
 
-      <Pagination totalPages={Number(totalPages) || 1} currentPage={page} baseUrl="/admin/requests" />
+      <Pagination
+        totalPages={Number(totalPages) || 1}
+        currentPage={page}
+        baseUrl="/admin/open-requests"
+        searchParams={{
+          q: q || undefined,
+          status: status !== 'OPEN' ? status : undefined,
+          type: type,
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(cancelId)}

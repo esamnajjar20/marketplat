@@ -93,30 +93,30 @@ model UserActivity {
 }
 
 model User {
-  id                        String               @id @default(cuid())
-  name                      String
-  email                     String               @unique
-  phone                     String?              @unique
+  id                          String                    @id @default(cuid())
+  name                        String
+  email                       String                    @unique
+  phone                       String?                   @unique
   // FIX OAUTH-01: nullable now — a user created via Google OAuth (see
   // modules/auth/google.strategy.ts) never sets a local password and
   // has nothing to hash. authService.login() now additionally guards
   // on passwordHash being present before comparing (an OAuth-only
   // account has none to compare against).
-  passwordHash              String?
+  passwordHash                String?
   // FIX OAUTH-01: which identity provider created this account.
   // 'local' (default) = registered via email/password. 'google' = the
   // account either originated from Google Sign-In or had a Google
   // identity linked to an existing local account (see
   // google.strategy.ts's link-by-email path).
-  provider                  String               @default("local")
+  provider                    String                    @default("local")
   // FIX OAUTH-01: the stable Google account identifier (OIDC `sub` /
   // Google profile `id`). Optional + unique — null for every
   // local-only user; Prisma/Postgres treat multiple NULLs in a unique
   // column as non-conflicting, so this never collides across local
   // accounts.
-  googleId                  String?              @unique
-  role                      Role                 @default(USER)
-  city                      String?
+  googleId                    String?                   @unique
+  role                        Role                      @default(USER)
+  city                        String?
   // FEAT-GOOGLE-COMPLETE-PROFILE: true only for a brand-new account
   // created via Google Sign-In (authRepository.createWithGoogle) —
   // Google never supplies a city, and we ask the user to pick one
@@ -130,39 +130,40 @@ model User {
   // called with a city (usersService.updateMe) — the completion form
   // uses that exact endpoint, so no separate "complete" endpoint was
   // needed.
-  needsProfileCompletion    Boolean              @default(false)
-  bio                       String?
-  avatarUrl                 String?
-  isActive                  Boolean              @default(true)
-  notificationPreferences   Json                 @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true}")
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
-  ads                       Ad[]
-  auditLogs                 AuditLog[]
-  conversationsAsBuyer      Conversation[]       @relation("ConversationsAsBuyer")
-  conversationsAsSeller     Conversation[]       @relation("ConversationsAsSeller")
-  favorites                 Favorite[]
-  messagesSent              Message[]            @relation("MessagesSent")
-  notifications             Notification[]
-  pushSubscriptions         PushSubscription[]
-  fcmDeviceTokens           FcmDeviceToken[]
-  passwordResetTokens       PasswordResetToken[]
-  reports                   Report[]
-  sellerProfile             SellerProfile?
-  sellerRatingsGiven        SellerRating[]
-  savedSearches             SavedSearch[]
-  serviceRequestsAsCustomer ServiceRequest[]     @relation("ServiceRequestsAsCustomer")
-  serviceReviewsGiven       ServiceReview[]      @relation("ServiceReviewsGiven")
+  needsProfileCompletion      Boolean                   @default(false)
+  bio                         String?
+  avatarUrl                   String?
+  isActive                    Boolean                   @default(true)
+  notificationPreferences     Json                      @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true}")
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
+  ads                         Ad[]
+  auditLogs                   AuditLog[]
+  conversationsAsBuyer        Conversation[]            @relation("ConversationsAsBuyer")
+  conversationsAsSeller       Conversation[]            @relation("ConversationsAsSeller")
+  favorites                   Favorite[]
+  messagesSent                Message[]                 @relation("MessagesSent")
+  notifications               Notification[]
+  pushSubscriptions           PushSubscription[]
+  fcmDeviceTokens              FcmDeviceToken[]
+  passwordResetTokens         PasswordResetToken[]
+  reports                     Report[]
+  sellerProfile               SellerProfile?
+  sellerRatingsGiven          SellerRating[]
+  savedSearches               SavedSearch[]
+  serviceRequestsAsCustomer   ServiceRequest[]          @relation("ServiceRequestsAsCustomer")
+  serviceReviewsGiven         ServiceReview[]           @relation("ServiceReviewsGiven")
+  serviceBroadcastsAsCustomer ServiceRequestBroadcast[] @relation("ServiceBroadcastsAsCustomer")
   // Open marketplace requests (PRODUCT/SERVICE/RENTAL) — separate from
-  // ServiceRequest (directed).
-  requestsAsCustomer        Request[]            @relation("RequestsAsCustomer")
-  requestOffersMade         RequestOffer[]       @relation("RequestOffersAsOfferer")
-  storeFollows              StoreFollower[]
-  storeReviewsGiven         StoreReview[]        @relation("StoreReviewsGiven")
-  blocksMade                UserBlock[]          @relation("BlocksMade")
-  blocksReceived            UserBlock[]          @relation("BlocksReceived")
-  activities                UserActivity[]
-  fraudSignals              FraudSignal[]
+  // ServiceRequest (directed) and ServiceRequestBroadcast (service-only legacy path).
+  requestsAsCustomer          Request[]                 @relation("RequestsAsCustomer")
+  requestOffersMade           RequestOffer[]            @relation("RequestOffersAsOfferer")
+  storeFollows                StoreFollower[]
+  storeReviewsGiven           StoreReview[]             @relation("StoreReviewsGiven")
+  blocksMade                  UserBlock[]               @relation("BlocksMade")
+  blocksReceived              UserBlock[]               @relation("BlocksReceived")
+  activities                  UserActivity[]
+  fraudSignals                FraudSignal[]
 
   storeMemberships   StoreMember[]  @relation("StoreMemberships")
   storeMemberInvites StoreMember[]  @relation("StoreMemberInvites")
@@ -521,6 +522,7 @@ model ServiceProviderDetails {
   updatedAt              DateTime            @updatedAt
   appointments           Appointment[]
   listings               ServiceListing[]
+  quotes                 ServiceQuote[]
   sellerProfile          SellerProfile       @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
 
   @@index([availabilityStatus])
@@ -535,17 +537,18 @@ model ServiceProviderDetails {
 }
 
 model ServiceCategory {
-  id        String            @id @default(cuid())
-  name      String            @unique
-  nameAr    String            @unique
-  slug      String            @unique
-  icon      String?
-  parentId  String?
-  isActive  Boolean           @default(true)
-  createdAt DateTime          @default(now())
-  parent    ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id])
-  children  ServiceCategory[] @relation("ServiceCategoryParent")
-  listings  ServiceListing[]
+  id         String                    @id @default(cuid())
+  name       String                    @unique
+  nameAr     String                    @unique
+  slug       String                    @unique
+  icon       String?
+  parentId   String?
+  isActive   Boolean                   @default(true)
+  createdAt  DateTime                  @default(now())
+  parent     ServiceCategory?          @relation("ServiceCategoryParent", fields: [parentId], references: [id])
+  children   ServiceCategory[]         @relation("ServiceCategoryParent")
+  listings   ServiceListing[]
+  broadcasts ServiceRequestBroadcast[]
 
   @@index([parentId])
   @@map("service_categories")
@@ -657,9 +660,39 @@ enum ServiceBroadcastStatus {
   CANCELLED
 }
 
+enum ServiceQuoteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model ServiceRequestBroadcast {
+  id              String                 @id @default(cuid())
+  customerId      String
+  categoryId      String
+  title           String
+  description     String                 @db.VarChar(1000)
+  city            String?
+  attachedImages  String[]
+  status          ServiceBroadcastStatus @default(OPEN)
+  acceptedQuoteId String?                @unique
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  customer        User                   @relation("ServiceBroadcastsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  category        ServiceCategory        @relation(fields: [categoryId], references: [id])
+  quotes          ServiceQuote[]         @relation("BroadcastQuotes")
+  acceptedQuote   ServiceQuote?          @relation("AcceptedQuote", fields: [acceptedQuoteId], references: [id])
+
+  @@index([categoryId, status, createdAt])
+  @@index([customerId])
+  @@map("service_request_broadcasts")
+}
+
 // =============================================================================
 // Open Requests marketplace (option B) — NEW tables; does NOT replace
-// ServiceRequest (directed to a listing). Phase 1 types: SERVICE | PRODUCT | RENTAL.
+// ServiceRequest (directed to a listing) or ServiceRequestBroadcast
+// (service-only open feed). Phase 1 types: SERVICE | PRODUCT | RENTAL.
 // Offerer is always User (offererUserId); no offererRole column.
 // budgetMin/budgetMax optional. Accept path must use a transaction with
 // conditional update on status=OPEN (same pattern as markAccepted on
@@ -687,7 +720,7 @@ enum RequestOfferStatus {
 }
 
 model Request {
-  id              String         @id @default(cuid())
+  id              String        @id @default(cuid())
   customerId      String
   type            RequestType
   /// Category id from the tree that matches `type` (service / product / ad).
@@ -695,19 +728,19 @@ model Request {
   /// the service layer validates existence and type alignment.
   categoryId      String
   title           String
-  description     String         @db.VarChar(1000)
+  description     String        @db.VarChar(1000)
   city            String?
   attachedImages  String[]
-  budgetMin       Decimal?       @db.Decimal(12, 2)
-  budgetMax       Decimal?       @db.Decimal(12, 2)
+  budgetMin       Decimal?      @db.Decimal(12, 2)
+  budgetMax       Decimal?      @db.Decimal(12, 2)
   /// Type-specific payload (e.g. condition, bedrooms) — Zod validates by type.
   attributes      Json?
-  status          RequestStatus  @default(OPEN)
-  acceptedOfferId String?        @unique
+  status          RequestStatus @default(OPEN)
+  acceptedOfferId String?       @unique
   expiresAt       DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  customer        User           @relation("RequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  customer        User          @relation("RequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
   offers          RequestOffer[] @relation("RequestOffers")
   acceptedOffer   RequestOffer?  @relation("AcceptedRequestOffer", fields: [acceptedOfferId], references: [id])
 
@@ -738,6 +771,27 @@ model RequestOffer {
   @@index([offererUserId, status])
   @@index([requestId, status])
   @@map("request_offers")
+}
+
+model ServiceQuote {
+  id               String                   @id @default(cuid())
+  broadcastId      String
+  providerId       String
+  price            Decimal                  @db.Decimal(10, 2)
+  message          String?                  @db.VarChar(1000)
+  durationEstimate String?
+  status           ServiceQuoteStatus       @default(PENDING)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  broadcast        ServiceRequestBroadcast  @relation("BroadcastQuotes", fields: [broadcastId], references: [id], onDelete: Cascade)
+  provider         ServiceProviderDetails   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  acceptedFor      ServiceRequestBroadcast? @relation("AcceptedQuote")
+
+  // One quote per provider per broadcast — a provider revises their
+  // own offer via PATCH, not by submitting a second competing row.
+  @@unique([broadcastId, providerId])
+  @@index([providerId, status])
+  @@map("service_quotes")
 }
 
 // ---------------------------------------------------------------------
@@ -1633,6 +1687,7 @@ enum AuditEventType {
   ADMIN_FRAUD_SIGNAL_REVIEWED
   ADMIN_FRAUD_MANUAL_FLAG
   ADMIN_SERVICE_BROADCAST_CANCELLED
+  ADMIN_OPEN_REQUEST_CANCELLED
   STORE_MEMBER_INVITED
   STORE_MEMBER_REMOVED
 }
@@ -1660,3 +1715,4 @@ enum AnalyticsEventType {
   PRODUCT_VIEW
   SERVICE_VIEW
 }
+

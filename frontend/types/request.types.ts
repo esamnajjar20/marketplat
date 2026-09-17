@@ -2,6 +2,14 @@ export type RequestType = 'SERVICE' | 'PRODUCT' | 'RENTAL';
 export type RequestStatus = 'OPEN' | 'ACCEPTED' | 'CANCELLED' | 'EXPIRED';
 export type RequestOfferStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
 
+export type RequestOfferSummary = {
+  id: string;
+  title: string;
+  type: RequestType;
+  status: RequestStatus;
+  city?: string | null;
+};
+
 export type RequestListItem = {
   id: string;
   type: RequestType;
@@ -26,6 +34,7 @@ export type RequestOfferListItem = {
   message: string | null;
   status: RequestOfferStatus;
   createdAt: string;
+  request?: RequestOfferSummary | null;
   offerer?: { id: string; name: string; avatarUrl: string | null };
 };
 

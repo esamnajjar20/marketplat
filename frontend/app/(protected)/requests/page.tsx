@@ -22,9 +22,7 @@ export default function OpenRequestsPage() {
 
   const { data, isLoading, isError } = useOpenRequests({ type, page, limit: 20 });
   const items = Array.isArray(data?.data) ? data.data : [];
-  const totalPages = (data?.meta?.pagination as any)?.totalPages
-    ?? data?.meta?.totalPages
-    ?? 1;
+  const totalPages = data?.meta?.totalPages ?? 1;
 
   function typeHref(t?: RequestType) {
     const p = new URLSearchParams();
@@ -95,7 +93,12 @@ export default function OpenRequestsPage() {
         <p className="text-center text-muted-foreground">لا توجد طلبات مفتوحة حاليًا</p>
       )}
 
-      <Pagination totalPages={Number(totalPages) || 1} currentPage={page} baseUrl="/requests" />
+      <Pagination
+        totalPages={Number(totalPages) || 1}
+        currentPage={page}
+        baseUrl={ROUTES.requests}
+        searchParams={{ type: type }}
+      />
     </div>
   );
 }

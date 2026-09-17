@@ -28,6 +28,8 @@ export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   SAVED_SEARCH_MATCH: Search,
   PROMOTION_STATUS_CHANGE: Flame,
   STORE_NEW_PRODUCT: Store,
+  NEW_REQUEST_OFFER: ClipboardList,
+  REQUEST_OFFER_ACCEPTED: ClipboardList,
   STORE_PROMOTION_STARTED: Flame,
   STORE_PRODUCT_RESTOCKED: Package,
   NEW_SERVICE_QUOTE: ClipboardList,
@@ -44,6 +46,8 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   SAVED_SEARCH_MATCH: 'بحث محفوظ',
   PROMOTION_STATUS_CHANGE: 'عرضي',
   STORE_NEW_PRODUCT: 'منتج جديد',
+  NEW_REQUEST_OFFER: 'عرض جديد على طلبك',
+  REQUEST_OFFER_ACCEPTED: 'تم قبول عرضك',
   STORE_PROMOTION_STARTED: 'عرض متجر',
   STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
   NEW_SERVICE_QUOTE: 'عرض سعر',
@@ -85,7 +89,7 @@ export const NOTIFICATION_CATEGORIES: {
   {
     id: 'services',
     label: 'خدمات',
-    types: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED'],
+    types: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED', 'NEW_REQUEST_OFFER', 'REQUEST_OFFER_ACCEPTED'],
   },
   {
     id: 'system',
@@ -119,6 +123,12 @@ export function hrefFor(notification: Notification): string | null {
   ) {
     if (d?.productId) return ROUTES.productDetail(d.productId);
     if (d?.storeId) return ROUTES.storeDetail(d.storeId);
+  }
+
+  if (notification.type === 'NEW_REQUEST_OFFER' || notification.type === 'REQUEST_OFFER_ACCEPTED') {
+    const rid = d?.requestId;
+    if (rid) return `/requests/${rid}`;
+    return '/requests';
   }
   if (notification.type === 'STORE_NEW_PRODUCT' && d?.storeId) {
     return ROUTES.storeDetail(d.storeId);

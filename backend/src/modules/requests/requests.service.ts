@@ -142,10 +142,24 @@ export const requestsService = {
     };
   },
 
-  getById: async (id: string): Promise<RequestWithRelations> => {
+  /**
+   * Competitive pricing: only the request owner sees all offers.
+   * An offerer sees only their own offer; other authenticated users see
+   * offer count via _count but no prices/names/messages.
+   */
+  getById: async (id: string, viewerUserId: string): Promise<RequestWithRelations> => {
     const row = await requestsRepository.findById(id);
     if (!row) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
-    return row;
+
+    if (row.customerId === viewerUserId) {
+      return row;
+    }
+
+    const mine = (row.offers ?? []).filter((o) => o.offererUserId === viewerUserId);
+    return {
+      ...row,
+      offers: mine,
+    };
   },
 
   cancel: async (userId: string, id: string): Promise<RequestRow> => {

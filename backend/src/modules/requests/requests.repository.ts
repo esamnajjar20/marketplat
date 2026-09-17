@@ -33,7 +33,12 @@ export type RequestListItem = Prisma.RequestGetPayload<{
 }>;
 
 export type OfferWithOfferer = Prisma.RequestOfferGetPayload<{
-  include: { offerer: { select: typeof offererSelect } };
+  include: {
+    offerer: { select: typeof offererSelect };
+    request: {
+      select: { id: true; title: true; type: true; status: true; city: true };
+    };
+  };
 }>;
 
 export const requestsRepository = {
@@ -198,7 +203,12 @@ export const requestOffersRepository = {
   findById: (id: string): Promise<OfferWithOfferer | null> =>
     prisma.requestOffer.findUnique({
       where: { id },
-      include: { offerer: { select: offererSelect } },
+      include: {
+        offerer: { select: offererSelect },
+        request: {
+          select: { id: true, title: true, type: true, status: true, city: true },
+        },
+      },
     }),
 
   findByRequestAndOfferer: (
@@ -241,7 +251,15 @@ export const requestOffersRepository = {
         where,
         include: {
           offerer: { select: offererSelect },
-          // request summary would be useful; keep lean for list
+          request: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              status: true,
+              city: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
