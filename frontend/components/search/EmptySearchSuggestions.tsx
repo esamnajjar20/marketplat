@@ -1,18 +1,34 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Car, Home, Smartphone, Sofa, Store, Package, Wrench, Megaphone } from 'lucide-react';
+import {
+  Car,
+  Home,
+  Smartphone,
+  Sofa,
+  Store,
+  Package,
+  Wrench,
+  Megaphone,
+  History,
+  Eye,
+} from 'lucide-react';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { ROUTES } from '@/lib/constants';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
+import { getRecentSearches } from '@/lib/recentSearches';
+import { listAutoReadAds, type AutoReadMeta } from '@/lib/offlineAutoRead';
 
 /**
  * Escape hatches under zero-result search:
- * 1) popular query chips (rewrite URL with a known-good q)
- * 2) entity-type shortcuts (ads / products / stores / services)
- * 3) top-level categories
+ * 0) recent searches (local)
+ * 1) popular query chips
+ * 2) recently viewed ads (auto-read cache)
+ * 3) entity-type shortcuts
+ * 4) top-level categories
  */
 
 const POPULAR_QUERIES = [
@@ -35,6 +51,14 @@ export function EmptySearchSuggestions() {
   const { data: categories, isLoading } = useCategories();
   const top = (categories ?? []).filter((c) => !c.parentId).slice(0, 8);
 
+  const [recent, setRecent] = useState<string[]>([]);
+  const [viewed, setViewed] = useState<AutoReadMeta[]>([]);
+
+  useEffect(() => {
+    setRecent(getRecentSearches().slice(0, 6));
+    setViewed(listAutoReadAds().slice(0, 6));
+  }, []);
+
   function searchHref(q: string) {
     const params = new URLSearchParams();
     params.set('q', q);
@@ -47,11 +71,35 @@ export function EmptySearchSuggestions() {
   }
 
   return (
-    <div className="mx-auto mt-6 max-w-lg space-y-6 text-center">
-      {/* Popular queries */}
+    <div className="mx-auto flex max-w-lg flex-col gap-6 px-2 py-4 text-center">
+      {/* PHASE-3: recent searches */}
+      {recent.length > 0 && (
+        <div className="space-y-2">
+          <p className="flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <History className="h-3.5 w-3.5" aria-hidden />
+            بحثت مؤخرًا
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {recent.map((q) => (
+              <Link
+                key={q}
+                href={searchHref(q)}
+                className={cn(
+                  'inline-flex min-h-[40px] items-center gap-1.5 rounded-full border bg-card px-3.5 py-2',
+                  'text-sm font-medium transition-colors hover:border-primary/40 hover:bg-primary/5',
+                )}
+              >
+                {q}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Popular */}
       <div className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          جرب بحثاً شائعاً
+          جرّب بحثًا شائعًا
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           {POPULAR_QUERIES.map(({ q, icon: Icon }) => (
@@ -69,6 +117,27 @@ export function EmptySearchSuggestions() {
           ))}
         </div>
       </div>
+
+      {/* PHASE-3: recently viewed ads */}
+      {viewed.length > 0 && (
+        <div className="space-y-2">
+          <p className="flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <Eye className="h-3.5 w-3.5" aria-hidden />
+            شوهد مؤخرًا
+          </p>
+          <div className="flex flex-col gap-1.5 text-start">
+            {viewed.map((ad) => (
+              <Link
+                key={ad.id}
+                href={ROUTES.adDetail(ad.id)}
+                className="rounded-lg border bg-card px-3 py-2 text-sm hover:border-primary/40 hover:bg-primary/5"
+              >
+                <span className="line-clamp-1 font-medium">{ad.title}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Entity type shortcuts */}
       <div className="space-y-2">

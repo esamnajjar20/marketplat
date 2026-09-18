@@ -4,8 +4,43 @@ import { useEffect, useRef, useState } from 'react';
 
 /**
  * Debounced localStorage draft for long forms (ads, products).
- * Returns clearDraft + lastSavedAt so the UI can show "مسودة محفوظة".
+ * PHASE-3: keeps last 5 payload snapshots for restore.
  */
+
+const MAX_VERSIONS = 5;
+
+export interface FormDraftVersion<T> {
+  savedAt: number;
+  values: T;
+}
+
+function historyKey(key: string) {
+  return `draft:${key}:history`;
+}
+
+function readHistory<T>(key: string): FormDraftVersion<T>[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(historyKey(key));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as FormDraftVersion<T>[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHistory<T>(key: string, versions: FormDraftVersion<T>[]) {
+  try {
+    window.localStorage.setItem(
+      historyKey(key),
+      JSON.stringify(versions.slice(0, MAX_VERSIONS)),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
 export function useFormDraft<T extends object>(
   key: string,
   values: T,
@@ -16,12 +51,17 @@ export function useFormDraft<T extends object>(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRun = useRef(true);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [versions, setVersions] = useState<FormDraftVersion<T>[]>([]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    setVersions(readHistory<T>(key));
+  }, [key, enabled]);
 
   useEffect(() => {
     if (!enabled) return;
     if (isFirstRun.current) {
       isFirstRun.current = false;
-      // If a draft already exists, surface "restored" time as saved.
       try {
         if (window.localStorage.getItem(storageKey)) {
           setLastSavedAt(Date.now());
@@ -34,6 +74,22 @@ export function useFormDraft<T extends object>(
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       try {
+        const prevRaw = window.localStorage.getItem(storageKey);
+        if (prevRaw) {
+          try {
+            const prev = JSON.parse(prevRaw) as T;
+            if (JSON.stringify(prev) !== JSON.stringify(values)) {
+              const nextHist: FormDraftVersion<T>[] = [
+                { savedAt: Date.now(), values: prev },
+                ...readHistory<T>(key),
+              ].slice(0, MAX_VERSIONS);
+              writeHistory(key, nextHist);
+              setVersions(nextHist);
+            }
+          } catch {
+            /* ignore parse */
+          }
+        }
         window.localStorage.setItem(storageKey, JSON.stringify(values));
         setLastSavedAt(Date.now());
       } catch {
@@ -44,18 +100,34 @@ export function useFormDraft<T extends object>(
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(values), enabled, storageKey, debounceMs]);
+  }, [JSON.stringify(values), enabled, storageKey, debounceMs, key]);
 
   function clearDraft() {
     try {
       window.localStorage.removeItem(storageKey);
+      window.localStorage.removeItem(historyKey(key));
       setLastSavedAt(null);
+      setVersions([]);
     } catch {
       /* ignore */
     }
   }
 
-  return { clearDraft, lastSavedAt };
+  /** Restore a historical snapshot into storage (caller should re-seed form). */
+  function restoreVersion(index: number): T | null {
+    const hist = readHistory<T>(key);
+    const ver = hist[index];
+    if (!ver) return null;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(ver.values));
+      setLastSavedAt(Date.now());
+      return ver.values;
+    } catch {
+      return null;
+    }
+  }
+
+  return { clearDraft, lastSavedAt, versions, restoreVersion };
 }
 
 /** Read a draft once (mount seed) without a subscription. */
@@ -68,4 +140,8 @@ export function readFormDraft<T>(key: string): T | null {
   } catch {
     return null;
   }
+}
+
+export function listFormDraftVersions<T>(key: string): FormDraftVersion<T>[] {
+  return readHistory<T>(key);
 }

@@ -60,6 +60,11 @@ export interface AdDraftPayload {
   [key: string]: unknown;
 }
 
+export interface DraftVersion {
+  savedAt: string;
+  payload: AdDraftPayload;
+}
+
 export interface AdDraft {
   id: string;
   mode: 'create' | 'edit';
@@ -70,6 +75,11 @@ export interface AdDraft {
   /** لمعرّف الكيان البعيد عند التعديل (إعلان / منتج / خدمة) */
   remoteAdId?: string | null;
   payload: AdDraftPayload;
+  /**
+   * PHASE-3: last payloads before current (newest first), max 5.
+   * Does not store images blobs — payload text only.
+   */
+  versions?: DraftVersion[];
   status: AdDraftStatus;
   lastError?: string;
   createdAt: string;
@@ -203,12 +213,23 @@ export async function saveAdDraft(
 ): Promise<AdDraft> {
   const existing = input.id ? await getAdDraft(input.id) : null;
   const now = new Date().toISOString();
+  let versions: DraftVersion[] = existing?.versions ? [...existing.versions] : [];
+  if (
+    existing?.payload &&
+    JSON.stringify(existing.payload) !== JSON.stringify(input.payload)
+  ) {
+    versions = [
+      { savedAt: existing.updatedAt || now, payload: existing.payload },
+      ...versions,
+    ].slice(0, 5);
+  }
   const draft: AdDraft = {
     id: input.id ?? existing?.id ?? newId(),
     mode: input.mode,
     kind: input.kind ?? existing?.kind ?? 'ad',
     remoteAdId: input.remoteAdId ?? existing?.remoteAdId ?? null,
     payload: input.payload,
+    versions,
     status: input.status ?? existing?.status ?? 'draft',
     lastError: input.lastError,
     createdAt: existing?.createdAt ?? now,
@@ -310,4 +331,31 @@ export async function countPendingAdDrafts(): Promise<number> {
   const items = await listAdDrafts();
   return items.filter((d) => d.status === 'draft' || d.status === 'pending_sync' || d.status === 'failed')
     .length;
+}
+
+
+/** PHASE-3: restore payload from a previous version index (0 = newest history). */
+export async function restoreAdDraftVersion(
+  draftId: string,
+  versionIndex: number,
+): Promise<AdDraft | null> {
+  const existing = await getAdDraft(draftId);
+  if (!existing?.versions?.length) return null;
+  const ver = existing.versions[versionIndex];
+  if (!ver) return null;
+  return saveAdDraft({
+    id: existing.id,
+    mode: existing.mode,
+    kind: existing.kind,
+    remoteAdId: existing.remoteAdId,
+    payload: ver.payload,
+    status: existing.status,
+    operationId: existing.operationId,
+    userId: existing.userId,
+    images: existing.images,
+  });
+}
+
+export function listAdDraftVersions(draft: AdDraft): DraftVersion[] {
+  return draft.versions ?? [];
 }
