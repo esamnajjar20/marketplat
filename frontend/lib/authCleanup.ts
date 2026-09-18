@@ -26,6 +26,7 @@ import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
 import { clearOfflineQueue } from '@/lib/offlineQueue';
 import { clearCatalogDownloads } from '@/lib/downloadStorage';
 import { clearSavedPaymentMethods } from '@/lib/paymentStorage';
+import { getQueryClient } from '@/lib/queryClient';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
 
@@ -75,6 +76,15 @@ function clearPushBindingsOnSessionEnd(): void {
 }
 
 export function clearSensitiveLocalData(): void {
+  // FIX AUTH-CLEAR-QUERY-CACHE: كان TanStack Query cache يبقى بعد logout
+  // — User B يرى ['auth', 'me'], ['favorites', 'list'], ['notifications']
+  // وغيرها من User A. استخدام clear() (وليس invalidate) — لأن
+  // invalidation يُبقي البيانات القديمة كـ placeholder بينما يُحدّث.
+  try {
+    getQueryClient().clear();
+  } catch (err) {
+    console.warn('[auth-cleanup] queryClient.clear() failed:', err);
+  }
   clearServiceWorkerApiCache();
   // نفس منطق clearServiceWorkerApiCache أعلاه: notifications-cache
   // مخزَّنة محليًا (localStorage) بلا ربط بهوية المستخدم — تنظيفها هنا
