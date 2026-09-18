@@ -88,14 +88,48 @@ export const viewsBuffer = {
 
       if (updates.length > 0) {
         await Promise.all(
-          updates.map(
-            ({ adId, count }) =>
-              prisma.ad
-                .updateMany({
-                  where: { id: adId, status: { not: 'DELETED' } },
-                  data: { views: { increment: count } },
-                })
-                .catch(() => {}) // ignore if ad was deleted
+          updates.map(({ adId, count }) =>
+            prisma.ad
+              .updateMany({
+                where: { id: adId, status: { not: 'DELETED' } },
+                data: { views: { increment: count } },
+              })
+              .catch(async (err) => {
+                // Previously `.catch(() => {})` — completely silent.
+                // Two things were wrong with that:
+                //
+                //  1. The `where: { id, status: { not: 'DELETED' } }`
+                //     clause means an ad being deleted matches 0 rows
+                //     WITHOUT throwing — updateMany returns
+                //     `{count: 0}`. So the catch never fired for that
+                //     case anyway; it only fired for real DB errors
+                //     (connection blips, timeouts). Swallowing those
+                //     silently lost the view count for that ad with no
+                //     trace anywhere.
+                //  2. There's no retry path — GETDEL in
+                //     FLUSH_VIEWS_SCRIPT already removed the counter,
+                //     so if the DB write fails the increment is gone.
+                //
+                // Restore the count to the buffer (INCRBY adds to
+                // whatever accumulated in the meantime — a few extra
+                // views arriving between our GETDEL and this restore
+                // are counted correctly, not double-counted). The
+                // subsequent EXPIRE restores the key's TTL — INCRBY
+                // on a non-existent key creates it with no TTL.
+                logger.warn(
+                  'Views update failed — restoring buffer count for retry',
+                  { adId, count, err },
+                );
+                try {
+                  await redis.incrby(`${VIEWS_PREFIX}${adId}`, count);
+                  await redis.expire(`${VIEWS_PREFIX}${adId}`, VIEWS_BUFFER_TTL_SECONDS);
+                } catch (restoreErr) {
+                  logger.error(
+                    'Views update failed AND buffer restore failed — those views are permanently lost',
+                    { adId, count, restoreErr },
+                  );
+                }
+              })
           )
         );
         logger.debug(

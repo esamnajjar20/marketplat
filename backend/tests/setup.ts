@@ -24,6 +24,19 @@ jest.mock('../src/config/redis', () => {
     else lists.set(key, list);
     return popped;
   });
+  // activityBuffer.ts's flush() re-pushes on createMany failure
+  // (LPUSH ..., reversed array). Mirrored here so that retry path is
+  // exercised the same way real Redis would.
+  const lpush = jest.fn(async (key: string, ...values: string[]) => {
+    const list = lists.get(key) ?? [];
+    // LPUSH inserts each arg at the head in turn — so the first arg
+    // passed ends up deepest. list.unshift(...values) mirrors Redis's
+    // own ordering exactly (with N args, list head becomes
+    // [values[N-1], ..., values[0], ...existing]).
+    list.unshift(...values);
+    lists.set(key, list);
+    return list.length;
+  });
   const llen = jest.fn(async (key: string) => lists.get(key)?.length ?? 0);
 
   const get = jest.fn(async (key: string) => store.get(key) ?? null);
@@ -45,6 +58,13 @@ jest.mock('../src/config/redis', () => {
     store.set(key, String(next));
     return next;
   });
+  // viewsBuffer.ts's flush() failure path uses INCRBY to restore a
+  // destroyed counter. Mirrored here so that retry path is testable.
+  const incrby = jest.fn(async (key: string, delta: number) => {
+    const next = Number.parseInt(store.get(key) ?? '0', 10) + delta;
+    store.set(key, String(next));
+    return next;
+  });
   const zadd = jest.fn(async (key: string, score: number | string, member: string) => {
     const zset = zsets.get(key) ?? new Map<string, number>();
     zset.set(member, Number(score));
@@ -61,6 +81,7 @@ jest.mock('../src/config/redis', () => {
   const redis: Record<string, any> = {
     get,
     incr,
+    incrby,
     set: jest.fn(async (key: string, value: string, ...flags: unknown[]) => {
       // FIX TEST-V4-03: previously ignored all flags and unconditionally
       // overwrote the key — adLock.ts's withAdImagesLock relies on NX
@@ -82,6 +103,7 @@ jest.mock('../src/config/redis', () => {
     mget: jest.fn(async (...keys: string[]) => keys.map((key) => store.get(key) ?? null)),
     rpush,
     lpop,
+    lpush,
     llen,
     zadd,
     zrem,

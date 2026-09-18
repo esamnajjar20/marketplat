@@ -41,6 +41,16 @@ const MAX_BATCH_PER_FLUSH = 500;
 // draining the list, the key must still expire eventually rather than
 // growing forever from a wedged flush loop.
 const BUFFER_TTL_SECONDS = 24 * 60 * 60;
+// Upper bound on the shutdown drain loop (stopFlushTimer below).
+// Without this, a persistently-failing DB (createMany throwing on
+// every retry) leaves `remaining` permanently > 0 and the loop spins
+// until server.ts's force-exit timer kills the process mid-shutdown
+// (10s, exit 1) instead of letting it shut down cleanly. Any entries
+// still unflushed after this many iterations remain in the shared
+// Redis buffer and will be drained by another worker (or this one on
+// next boot) once the DB recovers — the buffer key's own 24h TTL is
+// the ultimate safety net.
+const MAX_DRAIN_ITERATIONS = 100;
 
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -89,28 +99,64 @@ export const activityBuffer = {
       const raw = await redis.lpop(BUFFER_KEY, MAX_BATCH_PER_FLUSH);
       if (!raw || raw.length === 0) return;
 
+      let parseFailures = 0;
       const entries = raw
         .map((item) => {
           try {
             return JSON.parse(item) as CreateActivityInput & { createdAt: string };
           } catch {
+            parseFailures++;
             return null;
           }
         })
         .filter((entry): entry is CreateActivityInput & { createdAt: string } => entry !== null);
 
+      if (parseFailures > 0) {
+        // Previously silent — a corrupted buffer entry would just vanish
+        // from the batch. Logged so a bad writer (or a Redis value
+        // tampered with) is visible instead of silently reducing the
+        // flushed row count.
+        logger.warn('Activity buffer: dropped unparseable entries', { parseFailures });
+      }
+
       if (entries.length === 0) return;
 
-      await prisma.userActivity.createMany({
-        data: entries.map(({ createdAt, ...rest }) => ({
-          ...rest,
-          createdAt: new Date(createdAt),
-        })),
-      });
-
-      logger.debug(`Activity buffer flushed: ${entries.length} rows`);
+      try {
+        await prisma.userActivity.createMany({
+          data: entries.map(({ createdAt, ...rest }) => ({
+            ...rest,
+            createdAt: new Date(createdAt),
+          })),
+        });
+        logger.debug(`Activity buffer flushed: ${entries.length} rows`);
+      } catch (createErr) {
+        // CRITICAL: LPOP already removed these from Redis. If we just
+        // log-and-return (the previous behavior) they are gone forever
+        // — no retry, no record. Re-push them to the head of the list
+        // so the next tick retries the same batch (createMany is a
+        // single SQL statement — all-or-nothing — so this can never
+        // produce duplicates of rows that actually committed).
+        //
+        // LPUSH with multiple args prepends each in turn, so passing
+        // the popped array reversed restores the original head order
+        // ([a,b,c] popped → LPUSH c b a → [a,b,c,...rest]).
+        try {
+          await redis.lpush(BUFFER_KEY, ...entries.map((e) =>
+            JSON.stringify({ ...e, createdAt: new Date(e.createdAt).toISOString() })
+          ).reverse());
+          logger.warn('Activity buffer flush failed — entries re-pushed for retry', {
+            count: entries.length,
+            err: createErr,
+          });
+        } catch (repushErr) {
+          logger.error(
+            'Activity buffer flush failed AND re-push failed — entries lost',
+            { count: entries.length, createErr, repushErr },
+          );
+        }
+      }
     } catch (err) {
-      logger.error('Activity buffer flush failed', err);
+      logger.error('Activity buffer flush failed (pre-DB stage)', err);
     }
   },
 
@@ -131,11 +177,21 @@ export const activityBuffer = {
     // Final flush on shutdown, same convention as viewsBuffer.
     // Loop until the list is empty rather than a single flush() call,
     // since a busy instance can have more than MAX_BATCH_PER_FLUSH
-    // queued at shutdown time.
+    // queued at shutdown time. Capped by MAX_DRAIN_ITERATIONS so a
+    // wedged DB (flush failing every tick) can't spin here past the
+    // caller's force-exit timeout.
     let remaining = await redis.llen(BUFFER_KEY).catch(() => 0);
-    while (remaining > 0) {
+    let iterations = 0;
+    while (remaining > 0 && iterations < MAX_DRAIN_ITERATIONS) {
       await activityBuffer.flush();
       remaining = await redis.llen(BUFFER_KEY).catch(() => 0);
+      iterations++;
+    }
+    if (remaining > 0) {
+      logger.warn(
+        'Activity buffer drain hit MAX_DRAIN_ITERATIONS before emptying — remaining entries stay buffered for next worker/boot',
+        { remaining, iterations },
+      );
     }
   },
 };
