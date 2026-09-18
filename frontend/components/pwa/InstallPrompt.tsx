@@ -24,6 +24,9 @@ const DISMISS_STORAGE_KEY = 'pwa-install-dismissed-at';
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // أسبوع قبل إعادة الاقتراح
 
 function isIos(): boolean {
+  // FIX INSTALL-IOS-SSR: حماية defensive (يُستدعى من useEffect، لكن
+  // نظيف لو استُدعي في سياق آخر مستقبلًا).
+  if (typeof window === 'undefined') return false;
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
@@ -70,17 +73,30 @@ export function InstallPrompt() {
   }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISS_STORAGE_KEY, String(Date.now()));
+    // FIX INSTALL-DISMISS-QUOTA: localStorage قد يرمي في private mode أو
+    // عند quota exceeded — الزر يجب أن يُغلق على أي حال.
+    try {
+      localStorage.setItem(DISMISS_STORAGE_KEY, String(Date.now()));
+    } catch (err) {
+      console.warn('[install-prompt] dismiss persist failed:', err);
+    }
     setDismissed(true);
   };
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted' || outcome === 'dismissed') {
-      setDeferredPrompt(null);
+    // FIX INSTALL-PROMPT-CATCH: prompt() قد يرمي (حالة متصفح غير متوقعة
+    // أو رفض المستخدم) — بدون catch، الزر يبقى مع unhandled rejection.
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted' || outcome === 'dismissed') {
+        setDeferredPrompt(null);
+      }
+    } catch (err) {
+      console.warn('[install-prompt] prompt failed:', err);
     }
+    // أغلق على أي حال — التحديث فقط عند نجاح فعلي.
     handleDismiss();
   };
 

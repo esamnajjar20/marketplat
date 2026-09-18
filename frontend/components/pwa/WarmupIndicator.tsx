@@ -14,7 +14,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DownloadCloud, X } from 'lucide-react';
 import { onWarmupProgress, type WarmupProgress } from '@/lib/offlineCoreBundle';
 
@@ -22,16 +22,20 @@ export function WarmupIndicator() {
   const [progress, setProgress] = useState<WarmupProgress>({ active: false, completed: 0, total: 0 });
   const [dismissed, setDismissed] = useState(false);
 
+  // FIX WARMUP-SETSTATE: useRef لتتبع active — بدل nested setState
+  // داخل updater (anti-pattern في React: updaters يجب أن تكون pure؛
+  // StrictMode قد يستدعيها مرتين).
+  const prevActiveRef = useRef(false);
+
   useEffect(() => {
     return onWarmupProgress((next) => {
-      setProgress((prev) => {
-        // active يتحوّل من false إلى true فقط عند بداية دورة جديدة —
-        // هذا التوقيت بالذات هو ما يعيد ضبط dismissed، لا كل تحديث تقدّم.
-        if (next.active && !prev.active) {
-          setDismissed(false);
-        }
-        return next;
-      });
+      setProgress(next);
+      // active يتحوّل من false إلى true فقط عند بداية دورة جديدة —
+      // هذا التوقيت بالذات هو ما يعيد ضبط dismissed.
+      if (next.active && !prevActiveRef.current) {
+        setDismissed(false);
+      }
+      prevActiveRef.current = next.active;
     });
   }, []);
 
