@@ -40,6 +40,7 @@ import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE
 import { getCsrfToken } from '@/lib/csrf';
 import { toast } from 'sonner';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
+import { clearSensitiveLocalData } from '@/lib/authCleanup';
 
 export const apiClient = axios.create({
   baseURL:         API_BASE_URL,
@@ -290,6 +291,14 @@ apiClient.interceptors.response.use(
       }
 
       useAuthStore.getState().logout();
+      // FIX AUTH-401-CLEANUP: نفس التنظيف الشامل الذي يفعله logout العادي
+      // (انظر useAuthMutations.ts). بدونه: بيانات المستخدم السابق
+      // (offline-lists، offline-json، notifications، messages-store،
+      // كاش SW) تبقى على الجهاز بعد انتهاء الجلسة → تسريب فعلي على أي
+      // جهاز مشترك يسجّل عليه حساب آخر بعده. هذا مسار مستقل عن
+      // useLogout (يُطلَق من response interceptor، ليس mutation)، فيجب
+      // أن يمسح بنفسه بدل الاعتماد على أن useLogout سيتولى الأمر.
+      clearSensitiveLocalData();
       // AUDIT-FIX C-1: clear the session hint too — the refresh
       // genuinely failed (session revoked, expired, or backend
       // disagrees for any reason), so leaving a stale '1' behind would
