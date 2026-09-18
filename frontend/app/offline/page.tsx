@@ -52,19 +52,21 @@ export default function OfflinePage() {
   }, []);
 
   useEffect(() => {
-    setIsOnline(navigator.onLine);
+    const online = navigator.onLine;
+    setIsOnline(online);
     refreshQueue();
 
-    const handleOnline = () => {
+    const recoverToApp = () => {
       setIsOnline(true);
       void requestQueueReplay();
-      // FIX OFFLINE-02: router.refresh() فقط يُعيد جلب بيانات المسار
-      // الحالي (/offline نفسها) — لا ينقل المستخدم لأي مكان، خلافًا لما
-      // كان التعليق يوحي به سابقًا. الانتقال الفعلي للرئيسية يتطلب
-      // push صريح. المستخدم عادة كان يحاول الوصول لصفحة أخرى غير
-      // الرئيسية، لكنها أضمن نقطة بداية إن كانت الصفحة الأصلية نفسها
-      // لم تُخزَّن مسبقًا في الكاش.
+      // FIX OFFLINE-FALSE-TIMEOUT-01: /offline may appear after a navigate
+      // soft-timeout while navigator.onLine is still true — the 'online'
+      // event never fires. Same recovery path as a real online transition.
       router.push('/');
+    };
+
+    const handleOnline = () => {
+      recoverToApp();
     };
     const handleOffline = () => setIsOnline(false);
 
@@ -75,7 +77,18 @@ export default function OfflinePage() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     navigator.serviceWorker?.addEventListener('message', onSwMessage);
+
+    // Already "online" per browser but landed on /offline (slow-net timeout):
+    // auto-recover after a short beat so the user is not stuck on the banner.
+    let recoverTimer: ReturnType<typeof setTimeout> | undefined;
+    if (online) {
+      recoverTimer = setTimeout(() => {
+        recoverToApp();
+      }, 800);
+    }
+
     return () => {
+      if (recoverTimer) clearTimeout(recoverTimer);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       navigator.serviceWorker?.removeEventListener('message', onSwMessage);

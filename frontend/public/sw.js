@@ -97,7 +97,7 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v25';
+const CACHE_VERSION = 'v28';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -163,7 +163,21 @@ const SYNC_TAG = 'replay-offline-queue';
  * الانتظار offlineQueue، لا حاجة لسباق ضد الزمن.
  */
 /** SLOW-NET phase4: fail-over to cache faster on weak links (was 4000). */
-const NETWORK_TIMEOUT_MS = 3000;
+/** API / image soft timeout (ms). */
+const NETWORK_TIMEOUT_MS = 5000
+
+/** Navigate documents need longer on weak links — 3s caused false /offline. */
+const NAVIGATE_TIMEOUT_MS = 10000
+
+/** FIX QUEUE-HOL-01: max consecutive soft failures on the same head entry
+ * before marking failed (unblocks the rest of the queue). */
+const MAX_QUEUE_RETRIES = 5
+
+/** Soft failures (5xx / unexpected status while online): fail faster. */
+const MAX_QUEUE_SERVER_RETRIES = 3
+
+/** Minimum gap between replay attempts on the same entry (ms). Backoff base. */
+const QUEUE_RETRY_MIN_GAP_MS = 30_000;
 
 /** يرفض بعد ms مللي ثانية بخطأ SwTimeoutError، بدون التأثير على
  * fetchPromise نفسه (يستمر بالخلفية بمعزل عن نتيجة هذا السباق). */
@@ -540,7 +554,7 @@ async function networkFirstPage(event, request, cacheKey) {
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
   const fetchPromise = fetch(request);
   try {
-    const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
+    const response = await withNetworkTimeout(fetchPromise, NAVIGATE_TIMEOUT_MS);
     if (response && response.ok && isSameOriginResponse(response)) {
       const toStore = isRscShellRequest(request)
         ? await stripVaryAndClone(response.clone())
@@ -1064,10 +1078,11 @@ async function replayOne(entry, hasRetriedAfterRefresh) {
       return 'failed';
     }
 
-    // 5xx أو حالة غير متوقعة أخرى — مشكلة خادم مؤقتة على الأرجح، اترك
-    // العنصر pending وأعد المحاولة لاحقًا بلا تغيير حالته.
-    return 'still-offline';
+    // 5xx أو حالة غير متوقعة — السيرفر وصلنا فعليًا (فيه اتصال)،
+    // المشكلة بالطلب/السيرفر وليست "أوفلاين". FIX QUEUE-HOL-02.
+    return 'server-error';
   } catch {
+    // TypeError / network failure — انقطاع أو فشل قبل أي رد HTTP.
     return 'still-offline';
   }
 }
@@ -1080,6 +1095,15 @@ async function replayOne(entry, hasRetriedAfterRefresh) {
  * (still-offline) لتحافظ على الترتيب — لكنها لا تتوقف عند 4xx نهائي بعد
  * الآن (FIX CONFLICT-01)، فرسالة فشلت لسبب لا علاقة له بالاتصال لا يجب أن
  * تحجب باقي عناصر الطابور (لمحادثات/عمليات أخرى قد تنجح بلا مشكلة). */
+function isOrderSensitiveQueueEntry(entry) {
+  const u = String(entry.url || '');
+  return (
+    u.includes('/messages') ||
+    u.includes('/conversations') ||
+    u.includes('/chat')
+  );
+}
+
 async function replayQueue() {
   let entries;
   try {
@@ -1088,14 +1112,92 @@ async function replayQueue() {
     return;
   }
 
+  // FIX QUEUE-HOL-01/02/03:
+  //  - still-offline  → no HTTP response (network)
+  //  - server-error   → 5xx while connected
+  //  - Real offline (navigator.onLine === false): stop loop (no point).
+  //  - Server error / soft fail: fail-fast then continue so one item
+  //    cannot park 50+ others. Message/chat URLs stay FIFO (break).
+  //  - minGap backoff per entry; non-sensitive entries skip if too soon.
+  const trulyOffline =
+    typeof navigator !== 'undefined' && navigator.onLine === false;
+
   for (const entry of entries) {
     if (entry.status === 'failed') continue;
+
+    const now = Date.now();
+    const lastAttemptAt =
+      typeof entry.lastAttemptAt === 'number' ? entry.lastAttemptAt : 0;
+    const retries = typeof entry.retryCount === 'number' ? entry.retryCount : 0;
+    const minGap = Math.min(
+      QUEUE_RETRY_MIN_GAP_MS * Math.pow(2, Math.max(0, retries - 1)),
+      5 * 60_000,
+    );
+    const tooSoon = lastAttemptAt > 0 && now - lastAttemptAt < minGap;
+    const orderSensitive = isOrderSensitiveQueueEntry(entry);
+
+    if (tooSoon) {
+      if (orderSensitive || trulyOffline) break;
+      continue; // try later items that may be eligible
+    }
+
     const result = await replayOne(entry, false);
-    if (result === 'still-offline') break;
+
+    if (result === 'sent' || result === 'failed') {
+      continue;
+    }
+
+    const nextRetries = retries + 1;
+    const isServer = result === 'server-error';
+    const limit = isServer ? MAX_QUEUE_SERVER_RETRIES : MAX_QUEUE_RETRIES;
+
+    if (nextRetries >= limit) {
+      await markQueuedEntry(entry.id, {
+        status: 'failed',
+        retryCount: nextRetries,
+        lastAttemptAt: now,
+        lastError: {
+          status: isServer ? 500 : 0,
+          message: isServer
+            ? 'فشل السيرفر بعد عدة محاولات — أعد المحاولة يدويًا أو احذف الطلب'
+            : 'تعذّر الإرسال بعد عدة محاولات — أعد المحاولة يدويًا أو احذف الطلب',
+        },
+      });
+      await notifyClients({
+        type: 'QUEUE_ITEM_FAILED',
+        id: entry.id,
+        url: entry.url,
+        status: isServer ? 500 : 0,
+        message: isServer
+          ? 'فشل السيرفر بعد عدة محاولات'
+          : 'تعذّر الإرسال بعد عدة محاولات',
+        operationId: entry.operationId || null,
+      });
+      continue;
+    }
+
+    await markQueuedEntry(entry.id, {
+      retryCount: nextRetries,
+      lastAttemptAt: now,
+      lastSoftError: result,
+    });
+
+    // Real offline → stop entire drain.
+    if (trulyOffline || result === 'still-offline' && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      break;
+    }
+    // Chat/messages: preserve order.
+    if (orderSensitive) {
+      break;
+    }
+    // Other operations: continue so one stuck ad/product mutation
+    // does not freeze the rest of the queue.
   }
 
   await notifyClients({ type: 'QUEUE_REPLAYED' });
 }
+
+
 
 /** طلبات API غير GET (POST/PUT/PATCH/DELETE).
  *
