@@ -22,14 +22,24 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
 import { initConflictResolver } from '@/lib/conflictResolver';
 
+// FIX OFFLINE-INIT-ONCE: يمنع تنفيذ initAdDraftSync/initConflictResolver
+// مرتين في React StrictMode (dev). في production، StrictMode غير مفعّل
+// فلا يوجد double-mount، لكن الحماية مطلوبة لأن هذه الدوال تُضيف
+// listeners على window/navigator.serviceWorker — إضافتها مرتين يعني
+// معالجة كل رسالة SW مرتين (toast مكرر، إعادة محاولة مكررة).
+let __offlineBootstrapInitialized = false;
+
 export function OfflineBootstrap() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   useEffect(() => {
     // FIX AD-DRAFT-QUEUE-LINK-01: يربط لاحقًا كل رسالة QUEUE_ITEM_* بمسودة
     // الإعلان المطابقة (operationId) — انظر lib/offlineAdDraftSync.ts.
-    initAdDraftSync();
-    initConflictResolver();
+    if (!__offlineBootstrapInitialized) {
+      __offlineBootstrapInitialized = true;
+      initAdDraftSync();
+      initConflictResolver();
+    }
 
     // PHASE-1 (Offline Core Bundle) + PHASE-3-A (route shells): تحديث صامت
     // بالخلفية، محدود بمهلة WARM_INTERVAL_MS داخل warmCoreBundle نفسها فلا
@@ -52,10 +62,18 @@ export function OfflineBootstrap() {
     // تحول فعلي — requestQueueReplay() آمن حتى لو استُدعي وهو أوفلاين
     // فعليًا (fetch يفشل بصمت، العنصر يبقى pending، انظر replayOne's
     // 'still-offline' بـ sw.js).
-    void requestQueueReplay();
+    // FIX OFFLINE-LOGGING: catch للتشخيص — كان صامتًا تمامًا.
+    requestQueueReplay().catch((err) =>
+      console.warn('[offline] initial requestQueueReplay failed:', err),
+    );
 
     // مزامنة دورية خفيفة أونلاين لطابور عالق (ليس بدل Background Sync)
-    const PERIODIC_QUEUE_MS = 3 * 60 * 1000;
+    // FIX OFFLINE-PERIODIC-BATTERY: 5 دقائق بدل 3 — كل استدعاء يفتح SW
+    // ويقرأ IndexedDB. على البطارية، 5 دقائق كافية لمعالجة أي طابور
+    // عالق (المسارات الأخرى: online + visibilitychange + mount تلتقط
+    // الحالات الفورية). iOS Safari يوقف setInterval عند الخمول أصلاً،
+    // فالزيادة لا تضر التجربة.
+    const PERIODIC_QUEUE_MS = 5 * 60 * 1000;
     const periodicId = window.setInterval(() => {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         void requestQueueReplay();
@@ -69,16 +87,10 @@ export function OfflineBootstrap() {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // fallback لإعادة إرسال الطابور عند عودة الاتصال في المتصفحات التي لا
-    // تدعم Background Sync (انظر تعليق requestQueueReplay).
-    const handleOnline = () => {
-      void requestQueueReplay();
-      void warmCoreBundle();
-      void warmRouteShells();
-    };
-    window.addEventListener('online', handleOnline);
+    // FIX OFFLINE-MERGE-ONLINE: online listener واحد في Effect 2 يغطي
+    // كلا الاهتمامين (public + authenticated). هذا Effect يُنظّف فقط
+    // الـ interval والـ visibility — لا يُسجّل online آخر.
     return () => {
-      window.removeEventListener('online', handleOnline);
       window.clearInterval(periodicId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -100,7 +112,19 @@ export function OfflineBootstrap() {
         void ensureNativePushSynced();
       }
     })();
+    // FIX OFFLINE-MERGE-ONLINE: listener واحد يغطي:
+    //   - replay queue (public)
+    //   - warm core/route shells (public)
+    //   - warm personal shells (auth only)
+    //   - push sync (auth only)
+    // بدل listenerين متوازيين على window.
     const onOnline = () => {
+      requestQueueReplay().catch((err) =>
+        console.warn('[offline] replay on online failed:', err),
+      );
+      void warmCoreBundle();
+      void warmRouteShells();
+      if (!isAuthenticated) return;
       void warmPersonalShells();
       void (async () => {
         if (await supportsWebPush()) {
