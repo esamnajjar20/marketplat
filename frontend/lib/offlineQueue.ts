@@ -257,6 +257,24 @@ function setLastReplayAt(value: number): void {
   }
 }
 
+/**
+ * FIX QUEUE-CLEAR-ON-LOGOUT: يحذف كل عناصر الطابور (market-offline-queue).
+ * يُستدعى من authCleanup عند logout — بدونه، User B على نفس الجهاز يرى
+ * عدد العمليات المعلّقة من User A (وفي أول replay → 401 من توكن A).
+ *
+ * يُرسل رسالة للـ SW (owner الفعلي للطابور) بدل الكتابة مباشرة — تفادياً
+ * لتعارض محتمل مع replay جارٍ.
+ */
+export async function clearOfflineQueue(): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    registration.active?.postMessage({ type: 'CLEAR_QUEUE' });
+  } catch (err) {
+    console.warn('[queue] clearOfflineQueue failed:', err);
+  }
+}
+
 export async function requestQueueReplay(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   const now = Date.now();

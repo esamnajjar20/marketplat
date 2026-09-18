@@ -15,6 +15,9 @@ import type { Notification } from '@/types/notification.types';
 const KEY = 'notifications-cache';
 /** أقصى عدد إشعارات يُحتفظ به محليًا — يكفي لعرض قائمة مفيدة بدون تضخيم localStorage. */
 const MAX_ITEMS = 30;
+/** FIX NOTIF-CACHE-TTL: 7 أيام — إشعار أقدم من ذلك قد يكون مضللاً عند
+ * القراءة أوفلاين. */
+const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface NotificationsCacheData {
   items: Notification[];
@@ -26,7 +29,12 @@ export interface NotificationsCacheData {
 const EMPTY: NotificationsCacheData = { items: [], unreadCount: 0, savedAt: '' };
 
 function readCache(): NotificationsCacheData {
-  return localGet<NotificationsCacheData>(KEY, EMPTY);
+  const cache = localGet<NotificationsCacheData>(KEY, EMPTY);
+  // FIX NOTIF-CACHE-TTL: إن انتهت صلاحية النسخة → تعاملها كـ فارغة.
+  if (!cache.savedAt) return EMPTY;
+  const saved = Date.parse(cache.savedAt);
+  if (!Number.isFinite(saved) || Date.now() - saved > TTL_MS) return EMPTY;
+  return cache;
 }
 
 /** حفظ/تحديث آخر إشعارات مجلوبة من الخادم بنجاح. */

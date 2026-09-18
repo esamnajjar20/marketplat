@@ -1618,6 +1618,26 @@ self.addEventListener('message', (event) => {
     event.waitUntil(replayQueue());
   }
 
+  // FIX QUEUE-CLEAR-ON-LOGOUT: يحذف كل عناصر الطابور — يُستدعى من
+  // authCleanup عند logout، بدلاً من ترك عناصر User A (مع توكنه) تظهر
+  // لـ User B على نفس الجهاز. لا يحاول replay أثناء الحذف.
+  if (type === 'CLEAR_QUEUE') {
+    event.waitUntil(
+      (async () => {
+        try {
+          const all = await getAllQueuedEntries();
+          for (const entry of all) {
+            await deleteQueuedEntry(entry.id);
+          }
+          await notifyClients({ type: 'QUEUE_REPLAYED' });
+        } catch (err) {
+          // لا توقف الـ SW إن فشل الحذف.
+          console.warn('[SW] CLEAR_QUEUE failed:', err);
+        }
+      })(),
+    );
+  }
+
   // FEAT-OFFLINE-MSG: إعادة محاولة عنصر فاشل بعينه (زر "إعادة المحاولة"
   // على فقاعة رسالة فشلت — انظر lib/offlineMessagesQueue.ts). يعيد الحالة
   // إلى pending فقط لو نجحت المحاولة فورًا فشلت مجددًا بـ 4xx (replayOne

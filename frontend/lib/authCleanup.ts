@@ -23,6 +23,7 @@ import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { clearAllOfflineLists } from '@/lib/offlineListCache';
 import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
 import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
+import { clearOfflineQueue } from '@/lib/offlineQueue';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
 
@@ -82,6 +83,9 @@ export function clearSensitiveLocalData(): void {
   clearAllOfflineLists();
   void clearDraftOnlyAdDrafts();
   clearAllOfflineJson();
+  // FIX QUEUE-CLEAR-ON-LOGOUT: طابور الـ SW يحتوي عناصر User A (مع توكنه
+  // في Authorization headers) — بدونه، User B يرى عدد العمليات المعلّقة.
+  void clearOfflineQueue();
   void clearOfflineMessagesStore();
   clearPushBindingsOnSessionEnd();
 }
