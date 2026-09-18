@@ -97,7 +97,7 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v30';
+const CACHE_VERSION = 'v31';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -254,6 +254,23 @@ function isProtectedPage(url) {
     // لأي مسار /my-store/* لأن isProtectedPage نفسها كانت تُرجع false أولًا.
     '/my-store',
     '/admin',
+    // FIX PROTECTED-PARITY-01: مزامنة مع middleware.ts's PROTECTED_PREFIXES.
+    // الثلاث كانت غائبة تمامًا عن isProtectedPage *و* isPersonalShellRoute.
+    //
+    // الأخطر: /my-reports و/complete-profile هما Server Components (بـ
+    // `import type { Metadata }` + لا يوجد 'use client') — يعني HTML/RSC
+    // يُبنى على السيرفر ويُخزَّن. بما أنهما كانا يُخزَّنان في STATIC_CACHE
+    // (الكاش المشترك بين كل الزوار، لا يُمسح عند logout)، فقد يُعرض شكل
+    // الصفحة لمستخدم آخر على نفس الجهاز بعد تسجيل الأول للخروج. حتى لو
+    // كان محتواهما يُجلب عبر React Query بعد hydration، الـ metadata
+    // (title/description) قد يحتوي بيانات المستخدم. هذا خرق مباشر لسياسة
+    // audit #7 الموثّقة أعلاه.
+    //
+    // /service-requests هو 'use client' بالكامل، لكن يُضاف هنا للاتساق
+    // ومزامنة القوائم مع middleware.ts (يمنع تكرار الخطأ في المستقبل).
+    '/service-requests',
+    '/my-reports',
+    '/complete-profile',
   ];
   return protectedPrefixes.some(
     (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
