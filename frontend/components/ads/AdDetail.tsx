@@ -20,6 +20,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { isAdSavedOffline, saveAdOffline, unsaveAdOffline } from '@/lib/offlineSavedAds';
+import { autoSaveVisitedAd } from '@/lib/offlineAutoRead';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -134,6 +135,11 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   useEffect(() => {
     setIsSavedOffline(isAdSavedOffline(ad.id));
   }, [ad.id]);
+
+  // PHASE-2: auto offline snapshot for 24h (does not replace manual save)
+  useEffect(() => {
+    void autoSaveVisitedAd(ad);
+  }, [ad]);
 
   async function handleSaveOffline() {
     if (isSavingOffline) return;

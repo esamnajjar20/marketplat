@@ -29,6 +29,7 @@ import {
   hrefFor,
   NOTIFICATION_CATEGORIES,
   groupNotificationsByDay,
+  groupNotificationsByContext,
   type NotificationCategoryId,
 } from '@/lib/notificationMeta';
 import { ROUTES } from '@/lib/constants';
@@ -76,7 +77,22 @@ export function NotificationsPage() {
 
   const items = data?.items ?? [];
   const filteredByRead = readTab === 'unread' ? items.filter((n) => !n.readAt) : items;
-  const groups = useMemo(() => groupNotificationsByDay(filteredByRead), [filteredByRead]);
+  const groups = useMemo(() => {
+    return groupNotificationsByDay(filteredByRead).map((day) => ({
+      ...day,
+      items: groupNotificationsByContext(day.items).flatMap((ctx) => {
+        if (ctx.items.length <= 1) return ctx.items;
+        // Represent stack as the newest item with a combined title
+        const head = { ...ctx.items[0]! };
+        head.title = ctx.label;
+        head.body =
+          ctx.items.length > 1
+            ? `${ctx.items.length} إشعارات مشابهة`
+            : head.body;
+        return [head];
+      }),
+    }));
+  }, [filteredByRead]);
   const hasMore = Boolean(data?.meta?.hasNextPage);
   const loadingMore = isFetching && !isLoading;
   const showHardError = isError && items.length === 0;

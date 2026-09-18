@@ -8,6 +8,7 @@ import { Pagination } from '@/components/shared/ui/Pagination';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
+import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
@@ -78,8 +79,7 @@ export function ProductsGrid() {
   }
 
   return (
-    <>
-      {/* SLOW-NET phase4 */}
+    <PullToRefresh onRefresh={() => refetch()}>
       <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
       <div className="space-y-4">
       {/* Toolbar — same "count on the left, save-search on the right"
@@ -137,6 +137,6 @@ export function ProductsGrid() {
         />
       )}
     </div>
-      </>
+    </PullToRefresh>
   );
 }

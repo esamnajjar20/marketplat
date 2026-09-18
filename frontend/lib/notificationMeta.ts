@@ -174,3 +174,53 @@ export function groupNotificationsByDay(items: Notification[]): { label: string;
 }
 
 export { Bell };
+
+
+/** PHASE-2: collapse consecutive same-type notifications that share an entity key. */
+export function groupNotificationsByContext(
+  items: import('@/types/notification.types').Notification[],
+): { key: string; items: import('@/types/notification.types').Notification[]; label: string }[] {
+  const groups: {
+    key: string;
+    items: import('@/types/notification.types').Notification[];
+    label: string;
+  }[] = [];
+
+  function entityKey(n: import('@/types/notification.types').Notification): string {
+    const d = n.data ?? {};
+    const id =
+      d.adId ||
+      d.conversationId ||
+      d.productId ||
+      d.storeId ||
+      d.listingId ||
+      d.broadcastId ||
+      d.savedSearchId ||
+      '';
+    return `${n.type}:${id}`;
+  }
+
+  for (const n of items) {
+    const key = entityKey(n);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) {
+      last.items.push(n);
+      continue;
+    }
+    groups.push({
+      key: `${key}:${n.id}`,
+      items: [n],
+      label: n.title,
+    });
+  }
+
+  return groups.map((g) => {
+    if (g.items.length <= 1) return g;
+    const count = g.items.length;
+    const baseTitle = g.items[0]?.title ?? '';
+    return {
+      ...g,
+      label: count > 1 ? `${count}× ${baseTitle}` : baseTitle,
+    };
+  });
+}

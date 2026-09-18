@@ -200,15 +200,13 @@ export function useUpdateAd(adId: string) {
 
 export function useDeleteAd() {
   const queryClient = useQueryClient();
-  const router      = useRouter();
 
   return useMutation({
     mutationFn: (adId: string) => adsApi.delete(adId),
     onSuccess: (_data, adId) => {
       queryClient.removeQueries({ queryKey: queryKeys.ads.detail(adId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      toast.success('تم حذف الإعلان');
-      router.push(ROUTES.myAds);
+      queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
     },
     onError: toastMutationError,
   });

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Pencil, Trash2, Eye, CheckCircle } from 'lucide-react';
@@ -14,6 +15,8 @@ import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkel
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyAds }     from '@/hooks/queries/useAds';
 import { useDeleteAd, useMarkAsSold } from '@/hooks/mutations/useAdMutations';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
@@ -29,10 +32,51 @@ export function MyAdsList() {
 
   const { data, isLoading, isError, refetch } = useMyAds({ page, limit: 10, status });
   const deleteAd   = useDeleteAd();
+  const queryClient = useQueryClient();
+  const pendingDeletes = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  /** PHASE-2: optimistic hide + 10s undo, then real DELETE. */
+  function scheduleDelete(adId: string) {
+    const existing = pendingDeletes.current.get(adId);
+    if (existing) clearTimeout(existing);
+
+    // Soft-hide from all my-ads list caches
+    queryClient.setQueriesData({ queryKey: ['ads', 'me'] }, (old: unknown) => {
+      if (!old || typeof old !== 'object') return old;
+      const o = old as { items?: { id: string }[]; data?: { items?: { id: string }[] } };
+      if (Array.isArray((o as { items?: unknown }).items)) {
+        return {
+          ...o,
+          items: (o as { items: { id: string }[] }).items.filter((a) => a.id !== adId),
+        };
+      }
+      return old;
+    });
+
+    const timer = setTimeout(() => {
+      pendingDeletes.current.delete(adId);
+      deleteAd.mutate(adId);
+    }, 10_000);
+    pendingDeletes.current.set(adId, timer);
+
+    toast.success('تم حذف الإعلان', {
+      duration: 10_000,
+      action: {
+        label: 'تراجع',
+        onClick: () => {
+          const t = pendingDeletes.current.get(adId);
+          if (t) clearTimeout(t);
+          pendingDeletes.current.delete(adId);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
+          toast.message('تم التراجع عن الحذف');
+        },
+      },
+    });
+  }
+
   const markAsSold = useMarkAsSold();
 
   // Tracks which ad the delete-confirmation dialog applies to (null = closed).
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   // UX-FIX: "تعليم كمباع" changes the ad's status platform-wide (removed
   // from active search/listings) with no easy undo path, same class of
   // action as delete — but previously fired straight from onClick with
@@ -179,7 +223,7 @@ export function MyAdsList() {
                   </Link>
                   <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:text-destructive"
                     aria-label={`حذف ${ad.title}`}
-                    onClick={() => setDeleteTargetId(ad.id)}>
+                    onClick={() => scheduleDelete(ad.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -194,23 +238,7 @@ export function MyAdsList() {
           baseUrl={ROUTES.myAds} searchParams={Object.fromEntries(sp.entries())} />
       )}
 
-      <ConfirmDialog
-        open={deleteTargetId !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
-        title="حذف الإعلان؟"
-        description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
-        confirmLabel="حذف"
-        destructive
-        isPending={deleteAd.isPending}
-        onConfirm={() => {
-          if (!deleteTargetId) return;
-          // UX-FIX P1-3: close only once the delete actually succeeds
-          // (useDeleteAd's own onSuccess still handles the toast +
-          // redirect + cache invalidation — this just also closes the
-          // dialog so it doesn't linger if navigation is ever delayed).
-          deleteAd.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
-        }}
-      />
+      {/* delete uses scheduleDelete + undo toast (PHASE-2) */}
 
       {/* UX-FIX: confirmation for "تعليم كمباع" — same pending-aware
           pattern as the delete dialog above (close only on confirmed
