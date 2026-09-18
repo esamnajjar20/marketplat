@@ -100,10 +100,15 @@ function isPending(entry: RawQueueEntry): boolean {
  * شارة/نص يَعِد بإرسال تلقائي عند عودة الاتصال (انظر FIX QUEUE-COUNT-01 أعلاه).
  */
 export async function getQueuedRequestCount(): Promise<number> {
+  // FIX QUEUE-PERF-01: استخدام getQueuedRequestCounts (readonce ثم
+  // filter) بدل استدعاء getAll مرتين في نفس التطبيق. هنا نحتاج فقط
+  // الـ pending count — نستخدم نفس الدالة لتوحيد المنطق.
   try {
-    const entries = await getAllEntries();
-    return entries.filter(isPending).length;
+    const { pending } = await getQueuedRequestCounts();
+    return pending;
   } catch {
+    // FIX QUEUE-LOGGING-01: تسجيل الفشل للتشخيص.
+    console.warn('[queue] getQueuedRequestCount failed');
     return 0;
   }
 }
@@ -120,7 +125,9 @@ export async function getQueuedRequestCounts(): Promise<{ pending: number; faile
       else failed += 1;
     }
     return { pending, failed };
-  } catch {
+  } catch (err) {
+    // FIX QUEUE-LOGGING-01: تسجيل فشل قراءة الطابور.
+    console.warn('[queue] getQueuedRequestCounts failed:', err);
     return { pending: 0, failed: 0 };
   }
 }
@@ -162,13 +169,24 @@ export async function listFailedRequests(): Promise<QueuedRequestSummary[]> {
       lastError: e.lastError,
       operationId: e.operationId ?? null,
     }))
-    .sort((a, b) => a.queuedAt - b.queuedAt);
+    .sort((a, b) => a.queuedAt - b.queuedAt)
+    // FIX QUEUE-UI-LIMIT: cap the list displayed in /offline at 20 —
+    // sw.js's pruneFailedEntries keeps 50 max in IDB, but showing all
+    // of them in the page is overkill and slows the UI. Users can
+    // discard the visible ones and refresh to see more.
+    .slice(0, 20);
 }
 
 /** يطلب من الـ SW إعادة محاولة عنصر بعينه فورًا (نفس بروتوكول
  * RETRY_QUEUE_ITEM الذي lib/offlineMessagesQueue.ts يستخدمه لرسائل
  * المحادثة — عام أصلًا بـ sw.js، هنا فقط لعناصر غير الرسائل). */
 export async function retryFailedRequest(id: number): Promise<void> {
+  // FIX QUEUE-ID-VALIDATION: تحقق من صحة id قبل الإرسال — id خاطئ (NaN،
+  // سالب، غير صحيح) يجعل SW يحاول getQueuedEntry(id) ويفشل بصمت.
+  if (!Number.isInteger(id) || id <= 0) {
+    console.warn('[queue] retryFailedRequest: invalid id', id);
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
   const registration = await navigator.serviceWorker.ready;
   registration.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id });
@@ -176,6 +194,11 @@ export async function retryFailedRequest(id: number): Promise<void> {
 
 /** يحذف عنصرًا فاشلاً نهائيًا دون إعادة محاولة. */
 export async function discardFailedRequest(id: number): Promise<void> {
+  // FIX QUEUE-ID-VALIDATION: نفس التحقق كما في retryFailedRequest.
+  if (!Number.isInteger(id) || id <= 0) {
+    console.warn('[queue] discardFailedRequest: invalid id', id);
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
   const registration = await navigator.serviceWorker.ready;
   registration.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id });
@@ -209,13 +232,36 @@ export const QUEUE_EVENT_TYPES = [
  * بما يكفي لعدم تعطيل أي replay يدوي لاحق.
  */
 const REPLAY_THROTTLE_MS = 1500;
-let lastReplayAt = 0;
+// FIX QUEUE-THROTTLE-PERSIST: استخدم sessionStorage بدل متغير في الذاكرة
+// حتى يبقى الـ throttle فعالًا بعد reload في نفس التبويب. بعد reload،
+// OfflineBootstrap يُشغّل 4 triggers بسرعة — بدون sessionStorage، كل
+// واحد يمرّ لأن lastReplayAt يُصفّر عند reload.
+const REPLAY_STORAGE_KEY = 'market-offline-last-replay';
+
+function getLastReplayAt(): number {
+  try {
+    if (typeof sessionStorage === 'undefined') return 0;
+    return Number(sessionStorage.getItem(REPLAY_STORAGE_KEY) || 0);
+  } catch {
+    return 0;
+  }
+}
+
+function setLastReplayAt(value: number): void {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(REPLAY_STORAGE_KEY, String(value));
+  } catch {
+    // sessionStorage قد يكون محجوبًا في وضع التصفح المتخفي —
+    // نتجاهل ونكمل بدون throttle.
+  }
+}
 
 export async function requestQueueReplay(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   const now = Date.now();
-  if (now - lastReplayAt < REPLAY_THROTTLE_MS) return;
-  lastReplayAt = now;
+  if (now - getLastReplayAt() < REPLAY_THROTTLE_MS) return;
+  setLastReplayAt(now);
   const registration = await navigator.serviceWorker.ready;
   registration.active?.postMessage({ type: 'REPLAY_QUEUE_NOW' });
 }
