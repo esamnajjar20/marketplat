@@ -13,6 +13,10 @@ import {
   initUserCacheInvalidationSubscriber,
   stopUserCacheInvalidationSubscriber,
 } from './shared/utils/userCache';
+import {
+  initUnreadNotificationsCacheInvalidationSubscriber,
+  stopUnreadNotificationsCacheInvalidationSubscriber,
+} from './shared/utils/unreadNotificationsCache';
 import { activityBuffer } from './shared/utils/activityBuffer';
 import { redisMemoryMonitor } from './shared/utils/redisMemoryMonitor';
 import { checkConnectionCapacity } from './shared/utils/capacityCheck';
@@ -107,6 +111,7 @@ const bootstrap = async (): Promise<void> => {
     // 30s L1 TTL. See userCache.ts's "Cross-worker L1 invalidation"
     // comment for the full auth-bypass reasoning.
     initUserCacheInvalidationSubscriber();
+    initUnreadNotificationsCacheInvalidationSubscriber();
     viewsBuffer.startFlushTimer();
     // FIX OPS-1.1: same buffer-then-flush pattern as viewsBuffer above,
     // for user activity writes — see activityBuffer.ts's own doc
@@ -153,6 +158,7 @@ const bootstrap = async (): Promise<void> => {
         await activityBuffer.stopFlushTimer();
         redisMemoryMonitor.stop();
         stopUserCacheInvalidationSubscriber();
+        stopUnreadNotificationsCacheInvalidationSubscriber();
         await prisma.$disconnect();
         await redis.quit();
         logger.info('Server closed cleanly');
@@ -188,6 +194,7 @@ const bootstrap = async (): Promise<void> => {
           await activityBuffer.stopFlushTimer();
           redisMemoryMonitor.stop();
           stopUserCacheInvalidationSubscriber();
+          stopUnreadNotificationsCacheInvalidationSubscriber();
           await prisma.$disconnect();
           await redis.quit();
         } catch (cleanupError) {
