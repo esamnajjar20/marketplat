@@ -1,6 +1,7 @@
 import { redis } from '../../config/redis';
 import { AppError } from '../errors/AppError';
 import { env } from '../../config/env';
+import { logger } from './logger';
 import crypto from 'crypto';
 
 /**
@@ -54,10 +55,35 @@ export async function withRedisLock<T>(key: string, ttlSeconds: number, fn: () =
     return await fn();
   } finally {
     try {
-      await (redis as any).eval(RELEASE_SCRIPT, 1, key, token);
-    } catch {
+      // RELEASE_SCRIPT returns 1 if it deleted the lock (our token still
+      // matched), 0 if it didn't (our token was no longer in Redis).
+      // 0 means the TTL expired BEFORE fn() finished: another request may
+      // have acquired the lock and run concurrently with the tail end of
+      // ours — the exact race the lock exists to prevent. This is the
+      // only reliable signal that a given TTL is too short for its
+      // operation, and previously it was indistinguishable from the
+      // normal case. Logged (not thrown — the caller's work is already
+      // done, and the result is still what fn() returned), so a
+      // production TTL that needs raising actually shows up in the logs
+      // instead of silently corrupting a percentage of writes.
+      const released = await (redis as any).eval(RELEASE_SCRIPT, 1, key, token);
+      if (released === 0) {
+        logger.warn(
+          'Redis lock expired before its holder finished — TTL is too short for the locked operation',
+          { key, ttlSeconds },
+        );
+      }
+    } catch (err) {
       // If release fails (e.g. transient Redis error), the lock still
-      // self-heals via its TTL — no need to throw from a cleanup path.
+      // self-heals via its TTL — the caller's work has already finished,
+      // so this must not throw. But silent-swallow here would hide a
+      // persistent Redis problem that keeps leaking locks until their TTL
+      // elapses, so it's logged at warn.
+      logger.warn('Redis lock release failed — will self-heal via TTL', {
+        key,
+        ttlSeconds,
+        err,
+      });
     }
   }
 }
