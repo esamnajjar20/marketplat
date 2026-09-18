@@ -16,14 +16,25 @@ export interface CatalogBlobRecord {
   savedAt: string;
 }
 
+/**
+ * FIX CATALOG-IDB-SINGLETON: connection واحد يُعاد استخدامه — كان يُفتح
+ * اتصال جديد لكل عملية، يتراكم. نُغلق تلقائياً بعد idle 30 ثانية.
+ */
+let dbPromise: Promise<IDBDatabase> | null = null;
+let closeTimer: ReturnType<typeof setTimeout> | null = null;
+
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
       reject(new Error('IndexedDB unavailable'));
       return;
     }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onerror = () => reject(req.error ?? new Error('IDB open failed'));
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error ?? new Error('IDB open failed'));
+    };
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -33,10 +44,27 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
   });
+  return dbPromise;
+}
+
+/** يُغلق الاتصال بعد 30s من عدم الاستخدام (يمنع التسريب دون إغلاق فوري). */
+function scheduleClose(): void {
+  if (closeTimer) clearTimeout(closeTimer);
+  closeTimer = setTimeout(async () => {
+    try {
+      const db = await dbPromise;
+      db?.close();
+    } catch {
+      /* ignore */
+    }
+    dbPromise = null;
+    closeTimer = null;
+  }, 30_000);
 }
 
 export async function idbPutCatalog(record: CatalogBlobRecord): Promise<void> {
   const db = await openDb();
+  scheduleClose();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.oncomplete = () => resolve();
@@ -57,6 +85,7 @@ export async function idbPutCatalog(record: CatalogBlobRecord): Promise<void> {
 
 export async function idbGetCatalog(id: string): Promise<CatalogBlobRecord | null> {
   const db = await openDb();
+  scheduleClose();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).get(id);
@@ -67,6 +96,7 @@ export async function idbGetCatalog(id: string): Promise<CatalogBlobRecord | nul
 
 export async function idbDeleteCatalog(id: string): Promise<void> {
   const db = await openDb();
+  scheduleClose();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.oncomplete = () => resolve();
@@ -77,18 +107,25 @@ export async function idbDeleteCatalog(id: string): Promise<void> {
 
 /** فتح الكتالوج في تبويب جديد من Blob (يعمل دون نت) */
 export async function openCatalogOffline(id: string): Promise<boolean> {
-  const rec = await idbGetCatalog(id);
-  if (!rec?.html) return false;
-  const blob = new Blob([rec.html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const w = window.open(url, '_blank');
-  if (!w) {
-    // popup blocked — تنزيل بدلًا من ذلك
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = rec.fileName;
-    a.click();
+  // FIX CATALOG-OPEN-CATCH: try/catch — أي فشل (IndexedDB, Blob, popup)
+  // كان يُصعّد كـ unhandled rejection. الآن يُرجع false بأمان.
+  try {
+    const rec = await idbGetCatalog(id);
+    if (!rec?.html) return false;
+    const blob = new Blob([rec.html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) {
+      // popup blocked — تنزيل بدلًا من ذلك
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = rec.fileName;
+      a.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch (err) {
+    console.warn('[catalog-idb] openCatalogOffline failed:', err);
+    return false;
   }
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return true;
 }
