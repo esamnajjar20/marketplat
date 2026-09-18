@@ -92,18 +92,7 @@ export async function autoSaveVisitedAd(ad: Ad): Promise<void> {
     const apiUrl = adDetailUrl(ad.id);
     try {
       const res = await fetch(apiUrl);
-      if (res.ok) {
-        // FIX AUTOREAD-TIMESTAMP: X-SW-Cached-At على المدخلات — يحمي
-        // من الحذف العشوائي لو أُضيف trimCache مستقبلاً.
-        const headers = new Headers(res.headers);
-        headers.set('X-SW-Cached-At', String(Date.now()));
-        const body = await res.clone().blob();
-        await cache.put(apiUrl, new Response(body, {
-          status: res.status,
-          statusText: res.statusText,
-          headers,
-        }));
-      }
+      if (res.ok) await cache.put(apiUrl, res.clone());
     } catch {
       /* offline already — skip network put */
     }
@@ -115,18 +104,7 @@ export async function autoSaveVisitedAd(ad: Ad): Promise<void> {
     if (thumbUrl) {
       try {
         const imgRes = await fetch(thumbUrl);
-        if (imgRes.ok) {
-          // FIX AUTOREAD-TIMESTAMP: X-SW-Cached-At على الصورة أيضاً —
-          // يحمي من الحذف العشوائي لو أُضيف trimCache مستقبلاً.
-          const headers = new Headers(imgRes.headers);
-          headers.set('X-SW-Cached-At', String(Date.now()));
-          const body = await imgRes.clone().blob();
-          await cache.put(thumbUrl, new Response(body, {
-            status: imgRes.status,
-            statusText: imgRes.statusText,
-            headers,
-          }));
-        }
+        if (imgRes.ok) await cache.put(thumbUrl, imgRes.clone());
       } catch {
         /* ignore */
       }

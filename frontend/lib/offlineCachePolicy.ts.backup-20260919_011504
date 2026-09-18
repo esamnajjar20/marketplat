@@ -30,11 +30,9 @@ export const OFFLINE_DATA_LIMITS = {
 export const SW_CACHE_LIMITS = {
   apiEntries: 60,
   imageEntries: 80,
-  savedAdsEntries: 700,  // FIX CACHE-SAVED-ADS-CAP
+  // FIX CACHE-POLICY-SAVED-ADS: كان مفقوداً من هذه المرآة المعلوماتية.
+  savedAdsEntries: 500,
   staticEntries: 250,
-  personalShellEntries: 300,  // FIX CACHE-PERSONAL-SHELL
-  // CORE_CACHE مقصود بلا حد (يُحدَّث يدوياً عبر warmCoreBundle).
-  // autoReadEntries يُدار عبر الفهرس (MAX_AUTO=15) — لا trimCache رسمي.
 } as const;
 
 /** أسماء كاشات مُصدَّرة (غير مرتبطة بإصدار) vs مُصدَّرة. */

@@ -138,14 +138,7 @@ const MAX_STATIC_ENTRIES = 250;
 
 /** FIX SW-MEMORY-02: حد أقصى لمدخلات SAVED_ADS_CACHE — الإعلانات
  * المحفوظة يدويًا + صورها. عند التجاوز، الأقدم يُحذف. */
-// FIX CACHE-SAVED-ADS-CAP: 30 إعلان (offlineSavedAds MAX_SAVED_ADS) ×
-// حتى 21 مدخل/إعلان (10 صور × 2 + API) = 630. 500 قد يحذف إعلانات
-// المستخدم القديمة. رُفع إلى 700 (احتياط 70 مدخل).
-const MAX_SAVED_ADS_ENTRIES = 700;
-
-/** FIX CACHE-PERSONAL-SHELL: كان بلا حد — ينمو مع كل زيارة محمية.
- * 300 مدخل يكفي لـ ~100 صفحة (HTML + RSC + chunks). */
-const MAX_PERSONAL_SHELL_ENTRIES = 300;
+const MAX_SAVED_ADS_ENTRIES = 500;
 
 const OFFLINE_URL = '/offline';
 
@@ -698,9 +691,7 @@ async function handleProtectedPage(event, request, url) {
       const toStore = isRscShellRequest(request)
         ? await stripVaryAndClone(response.clone())
         : response.clone();
-      // FIX CACHE-PERSONAL-SHELL: trim بعد الكتابة.
-      await putTimestamped(cache, cacheKey, toStore);
-      await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+      await cache.put(cacheKey, toStore);
     }
     return response;
   } catch (err) {
@@ -717,8 +708,7 @@ async function handleProtectedPage(event, request, url) {
                 const toStore = isRscShellRequest(request)
                   ? await stripVaryAndClone(response.clone())
                   : response.clone();
-                await putTimestamped(cache, cacheKey, toStore);
-                await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+                await cache.put(cacheKey, toStore);
               }
             })
             .catch(() => {}),
