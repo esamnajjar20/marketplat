@@ -97,7 +97,7 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v31';
+const CACHE_VERSION = 'v33';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -130,6 +130,15 @@ const SAVED_ADS_CACHE = 'market-saved-ads';
 const MAX_API_ENTRIES = 60;
 /** حد صور IMAGE_CACHE — FIFO عند التجاوز (لا نترك الكاش بلا سقف). */
 const MAX_IMAGE_ENTRIES = 80;
+
+/** FIX SW-MEMORY-01: حد أقصى لمدخلات STATIC_CACHE (HTML/RSC/JS/CSS).
+ * بدون حد، كل تنقّل يُخزَّن بلا تقليم → ذاكرة الهاتف تنفد بعد أشهر.
+ * 100 مدخل تكفي لتغطية الاستخدام العادي + offline shells. */
+const MAX_STATIC_ENTRIES = 100;
+
+/** FIX SW-MEMORY-02: حد أقصى لمدخلات SAVED_ADS_CACHE — الإعلانات
+ * المحفوظة يدويًا + صورها. عند التجاوز، الأقدم يُحذف. */
+const MAX_SAVED_ADS_ENTRIES = 200;
 
 const OFFLINE_URL = '/offline';
 
@@ -509,11 +518,13 @@ async function staleWhileRevalidate(event, request, cacheKey) {
 
   const networkFetch = fetch(request)
     .then(async (response) => {
-      if (response && response.ok && isSameOriginResponse(response)) {
+      if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
         const toStore = isRscShellRequest(request)
           ? await stripVaryAndClone(response.clone())
           : response.clone();
-        await cache.put(cacheKey, toStore);
+        // FIX SW-MEMORY-01: putTimestamped + trim بدل cache.put.
+        await putTimestamped(cache, cacheKey, toStore);
+        await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES);
       }
       return response;
     })
@@ -578,7 +589,12 @@ async function networkFirstPage(event, request, cacheKey) {
         : response.clone();
       // event.waitUntil (لا await مباشر): لا داعي لتأخير الرد للمستخدم
       // بانتظار كتابة الكاش — نفس نمط handleProtectedPage/networkFirstApi.
-      event.waitUntil(cache.put(cacheKey, toStore));
+      // FIX SW-MEMORY-01: putTimestamped + trim بدل cache.put.
+      event.waitUntil(
+        putTimestamped(cache, cacheKey, toStore).then(() =>
+          trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES),
+        ),
+      );
     }
     return response;
   } catch (err) {
@@ -588,11 +604,12 @@ async function networkFirstPage(event, request, cacheKey) {
       event.waitUntil(
         fetchPromise
           .then(async (response) => {
-            if (response && response.ok && isSameOriginResponse(response)) {
+            if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
               const toStore = isRscShellRequest(request)
                 ? await stripVaryAndClone(response.clone())
                 : response.clone();
-              await cache.put(cacheKey, toStore);
+              await putTimestamped(cache, cacheKey, toStore);
+              await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES);
             }
           })
           .catch(() => {}),
@@ -655,13 +672,21 @@ async function handleProtectedPage(event, request, url) {
 
   const myGeneration = (protectedNavGeneration.get(url.pathname) || 0) + 1;
   protectedNavGeneration.set(url.pathname, myGeneration);
+  // FIX SW-MAP-CLEANUP: Map ينمو بلا حد عند التنقل الطويل. احذف الأقدم
+  // عند تجاوز 200 عنصر.
+  if (protectedNavGeneration.size > 200) {
+    const keysToDelete = Array.from(protectedNavGeneration.keys()).slice(0, 100);
+    keysToDelete.forEach((k) => protectedNavGeneration.delete(k));
+  }
 
   // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
   const fetchPromise = fetch(request);
   try {
     const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
-    if (useShellCache && response && response.ok && isSameOriginResponse(response)) {
+    // FIX SW-206-PROTECTED: استثناء 206 (Partial Content) — نفس منطق
+    // staleWhileRevalidate وnetworkFirstPage.
+    if (useShellCache && response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
       const cache = await caches.open(PERSONAL_SHELL_CACHE);
       const toStore = isRscShellRequest(request)
         ? await stripVaryAndClone(response.clone())
@@ -678,7 +703,7 @@ async function handleProtectedPage(event, request, url) {
         event.waitUntil(
           fetchPromise
             .then(async (response) => {
-              if (response && response.ok && isSameOriginResponse(response)) {
+              if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
                 const cache = await caches.open(PERSONAL_SHELL_CACHE);
                 const toStore = isRscShellRequest(request)
                   ? await stripVaryAndClone(response.clone())
@@ -751,7 +776,11 @@ async function cacheFirstImage(event, request, url) {
   // lib/offlineSavedAds.ts's saveAdOffline — تحقّق منه قبل الشبكة.
   const savedCache = await caches.open(SAVED_ADS_CACHE);
   const savedHit = await savedCache.match(request);
-  if (savedHit) return savedHit;
+  if (savedHit) {
+    // FIX SW-MEMORY-02: trim دوري عند كل قراءة من SAVED_ADS_CACHE.
+    event.waitUntil(trimCache(SAVED_ADS_CACHE, MAX_SAVED_ADS_ENTRIES));
+    return savedHit;
+  }
 
   // PHASE-OFFLINE-AD-DETAIL (fallback ثانٍ): Next.js Image Optimization
   // مفعّل (next.config.ts's images.remotePatterns)، فالطلب الفعلي اللي
@@ -775,7 +804,10 @@ async function cacheFirstImage(event, request, url) {
 
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    // FIX SW-206-IMAGE: استثناء 206 (Partial Content — Range requests
+    // من <img loading="lazy">) من التخزين — وإلا قد تُخزَّن نسخة جزئية
+    // فاسدة.
+    if (response && response.ok && response.status !== 206) {
       // لا تخزّن صورًا ضخمة جدًا (توفير مساحة الهاتف)
       const len = response.headers.get('content-length');
       const lenNum = len ? Number(len) : 0;
@@ -835,7 +867,8 @@ async function networkFirstApi(event, request, _url) {
     // FIX SW-CAPTIVE-01 (API variant): إضافة لفحص same-origin، رد API حقيقي
     // متوقّع يكون JSON — صفحة captive portal/edge error بحالة 200 عادة HTML.
     const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
-    if (response && response.ok && isSameOriginResponse(response) && looksLikeJson) {
+    // FIX SW-206-API: استثناء 206 أيضاً.
+    if (response && response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson) {
       event.waitUntil(
         putTimestamped(cache, request, response.clone()).then(() =>
           trimCache(API_CACHE, MAX_API_ENTRIES),
@@ -1024,18 +1057,26 @@ async function refreshAccessToken(sampleUrl) {
     const csrfToken = body?.data?.csrfToken;
     if (typeof accessToken !== 'string' || !accessToken) return null;
     return { accessToken, csrfToken: typeof csrfToken === 'string' ? csrfToken : null };
-  } catch {
+  } catch (err) {
+    // FIX SW-LOGGING: تسجيل الفشل للتشخيص (كان صامتًا).
+    console.warn('[SW] refreshAccessToken failed:', err && err.message);
     return null;
   }
 }
 
 async function replayOne(entry, hasRetriedAfterRefresh) {
+  // FIX SW-PROCESSING-01: علّم العنصر قيد المعالجة لتفادي retry متوازي
+  // عبر RETRY_QUEUE_ITEM أثناء عمل replayQueue.
+  await markQueuedEntry(entry.id, { processing: true });
   try {
     const response = await fetch(entry.url, {
       method: entry.method,
       headers: entry.headers,
       body: entry.body ?? undefined,
-      credentials: 'same-origin',
+      // FIX SW-CREDENTIALS-01: 'include' بدل 'same-origin' — Backend على
+      // origin مختلف (Render)، فلزم إرسال cookies (refreshToken في httpOnly
+      // cookie) للاتساق مع refreshAccessToken الذي يستخدم 'include'.
+      credentials: 'include',
     });
 
     if (response.ok) {
@@ -1101,6 +1142,9 @@ async function replayOne(entry, hasRetriedAfterRefresh) {
   } catch {
     // TypeError / network failure — انقطاع أو فشل قبل أي رد HTTP.
     return 'still-offline';
+  } finally {
+    // FIX SW-PROCESSING-01: أزل علم المعالجة دائماً.
+    try { await markQueuedEntry(entry.id, { processing: false }); } catch {}
   }
 }
 
@@ -1201,7 +1245,8 @@ async function tryCoalesceAnalyticsEntry(entry) {
     await markQueuedEntry(existing.id, {
       body: newBody,
       queuedAt: existing.queuedAt,
-      priority: 'low',
+      // FIX SW-PRIORITY-01: احتفظ بالأولوية الأصلية بدل فرض 'low'
+      priority: existing.priority || 'low',
     });
     return true;
   } catch {
@@ -1236,7 +1281,28 @@ async function replayQueue() {
   }
 }
 
+/** FIX SW-PRUNE-FAILED: حد أقصى لعدد العناصر الفاشلة في الطابور.
+ * بدون هذا، المستخدم الذي لديه 100+ عملية فاشلة يبقى الطابور ينمو
+ * للأبد. عند التجاوز، الأقدم يُحذف تلقائياً. */
+async function pruneFailedEntries(maxFailed = 50) {
+  try {
+    const all = await getAllQueuedEntries();
+    const failed = all.filter((e) => e.status === 'failed');
+    if (failed.length <= maxFailed) return;
+    const sorted = failed.slice().sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
+    const toDelete = sorted.slice(0, failed.length - maxFailed);
+    for (const entry of toDelete) {
+      await deleteQueuedEntry(entry.id);
+    }
+  } catch {
+    // لا توقف replayQueue إن فشل التنظيف.
+  }
+}
+
 async function replayQueueImpl() {
+  // FIX SW-PRUNE-FAILED: نظّف العناصر الفاشلة القديمة قبل المعالجة.
+  await pruneFailedEntries(50);
+
   let entries;
   try {
     entries = await getAllQueuedEntries();
@@ -1433,7 +1499,9 @@ self.addEventListener('install', (event) => {
       try {
         const cache = await caches.open(STATIC_CACHE);
         const response = await fetch(OFFLINE_URL, { credentials: 'same-origin' });
-        if (!response.ok) return;
+        // FIX SW-CAPTIVE-02: تحقق من isSameOriginResponse أيضاً — بدونها
+        // captive portal قد يُخزَّن كصفحة /offline شرعية.
+        if (!response.ok || !isSameOriginResponse(response)) return;
         await cache.put(OFFLINE_URL, response.clone());
 
         // FIX OFFLINE-CHUNK-01: cache.add(OFFLINE_URL) وحده كان يخزّن مستند
@@ -1557,6 +1625,8 @@ self.addEventListener('message', (event) => {
       (async () => {
         const entry = await getQueuedEntry(event.data.id);
         if (!entry) return;
+        // FIX SW-PROCESSING-01: تجاوز إذا كانت replayQueue تعالج نفس العنصر
+        if (entry.processing) return;
         if (entry.status === 'failed') {
           await markQueuedEntry(entry.id, { status: 'pending' });
         }
@@ -1648,7 +1718,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (request.method !== 'GET') {
+  // FIX SW-OPTIONS-01: استثناء OPTIONS (CORS preflight) — إدخاله في
+  // الطابور لا فائدة له، فهو سؤال عن الصلاحيات لا طلب فعلي.
+  if (request.method !== 'GET' && request.method !== 'OPTIONS') {
     if (isApiRequest(url) && !isNeverCache(url)) {
       event.respondWith(handleMutation(request));
     }
