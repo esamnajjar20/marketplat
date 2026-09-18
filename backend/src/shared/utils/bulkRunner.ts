@@ -20,6 +20,30 @@
  * a duplicated/divergent one for the bulk case.
  */
 
+import { BadRequestError } from '../errors/BadRequestError';
+
+// Upper bound on how many ids a single bulk call may carry. Three
+// admin controllers (admin / sellers / stores) call runBulk with
+// ids straight from the request body — nothing in the runner itself
+// previously bounded the array, so a direct API call (bypassing the
+// UI's own selection cap) could submit thousands of ids and fire
+// that many concurrent DB writes, exhausting the Prisma connection
+// pool and wedging the worker for other tenants. 500 is generous for
+// any realistic "select all on this page" batch while bounding the
+// damage a hostile or malformed request can do.
+export const BULK_MAX_IDS = 500;
+
+// Max number of action() calls actually in flight at once. The
+// previous implementation did Promise.allSettled(ids.map(action)) —
+// full parallelism, which for a 500-id batch means 500 simultaneous
+// DB round trips. Processing in sequential chunks of this size keeps
+// order-independent parallel throughput for small/medium batches
+// while capping peak load for the large end of the range. 10 matches
+// the same magnitude used elsewhere in this codebase for
+// "concurrent DB writers" (e.g. the image-upload helper's per-call
+// upload concurrency).
+export const BULK_CONCURRENCY = 10;
+
 export interface BulkFailure {
   id: string;
   reason: string;
@@ -43,7 +67,23 @@ export async function runBulk<T>(
   ids: string[],
   action: (id: string) => Promise<T>
 ): Promise<BulkResult<T>> {
-  const results = await Promise.allSettled(ids.map((id) => action(id)));
+  if (ids.length > BULK_MAX_IDS) {
+    throw new BadRequestError(
+      `Cannot process more than ${BULK_MAX_IDS} items in a single bulk request (received ${ids.length}).`,
+    );
+  }
+
+  // Process in sequential chunks of BULK_CONCURRENCY, preserving
+  // per-id result order: each chunk's Promise.allSettled resolves
+  // before the next chunk starts, and we push results as we go — so
+  // `results[i]` still corresponds to `ids[i]`, exactly as the
+  // original single-allSettled implementation guaranteed.
+  const results: PromiseSettledResult<T>[] = [];
+  for (let i = 0; i < ids.length; i += BULK_CONCURRENCY) {
+    const chunk = ids.slice(i, i + BULK_CONCURRENCY);
+    const chunkResults = await Promise.allSettled(chunk.map((id) => action(id)));
+    results.push(...chunkResults);
+  }
 
   const updated: T[] = [];
   const failed: BulkFailure[] = [];
