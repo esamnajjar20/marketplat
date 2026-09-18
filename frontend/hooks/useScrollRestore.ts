@@ -5,8 +5,22 @@ import { usePathname } from 'next/navigation';
 
 const PREFIX = 'marketplat:scroll:';
 
-function storageKey(path: string) {
-  return `${PREFIX}${path}`;
+/**
+ * FIX SCROLL-INCLUDE-SEARCH: المفتاح يشمل search params — بدونه،
+ * /ads?page=2 و/ads?page=3 يتشاركان نفس المفتاح، فيستعيد أحدهما موضع
+ * الآخر (تجربة مشوشة عند التنقل بين صفحات القوائم).
+ *
+ * نقرأ window.location.search مباشرة (وليس useSearchParams) لأن الأخير
+ * يتطلب Suspense boundary في Next.js 15+ — قد يكسر layout حيث يُستخدم
+ * هذا الـ hook. window.location.search آمن داخل useEffect.
+ */
+function storageKey(path: string, search = ''): string {
+  // استبعاد ?_rsc= (Next.js internals) — لا داعي له في المفتاح
+  const cleaned = search
+    .replace(/[?&]_rsc=[^&]*/g, '')
+    .replace(/^&/, '?')
+    .replace(/[?&]$/, '');
+  return `${PREFIX}${path}${cleaned}`;
 }
 
 /**
@@ -21,7 +35,11 @@ export function useScrollRestore(enabled = true) {
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
-    const key = storageKey(pathname);
+    const search = window.location.search || '';
+    const key = storageKey(pathname, search);
+    let cleanupTimeout: (() => void) | undefined;
+    let cleanupObserver: (() => void) | undefined;
+
     try {
       const raw = sessionStorage.getItem(key);
       if (raw) {
@@ -36,16 +54,47 @@ export function useScrollRestore(enabled = true) {
           const t = window.setTimeout(() => {
             window.scrollTo({ top: y, behavior: 'auto' });
           }, 120);
-          return () => clearTimeout(t);
+          cleanupTimeout = () => clearTimeout(t);
+
+          // FIX SCROLL-RESIZE: ResizeObserver يستعيد الموضع مرة أخرى عند
+          // استقرار الـ layout (صور/بطاقات تُحمَّل بعد 120ms على الشبكات
+          // البطيئة). يوقف نفسه بعد أول محاولة ناجحة.
+          if (typeof ResizeObserver !== 'undefined') {
+            let done = false;
+            const observer = new ResizeObserver(() => {
+              if (done) return;
+              const needed = y + window.innerHeight;
+              if (document.body.scrollHeight >= needed) {
+                window.scrollTo(0, y);
+                done = true;
+                observer.disconnect();
+              }
+            });
+            observer.observe(document.body);
+            // Safety: disconnect بعد 3 ثوانٍ حتى لا يبقى observer عالقاً
+            const safety = window.setTimeout(() => observer.disconnect(), 3000);
+            cleanupObserver = () => {
+              observer.disconnect();
+              clearTimeout(safety);
+            };
+          }
         }
       }
     } catch {
       /* private mode */
     }
+
+    return () => {
+      cleanupTimeout?.();
+      cleanupObserver?.();
+    };
   }, [pathname, enabled]);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
+
+    const search = window.location.search || '';
+    const key = storageKey(pathname, search);
 
     let ticking = false;
     function persist() {
@@ -54,7 +103,7 @@ export function useScrollRestore(enabled = true) {
       requestAnimationFrame(() => {
         ticking = false;
         try {
-          sessionStorage.setItem(storageKey(pathname), String(Math.round(window.scrollY)));
+          sessionStorage.setItem(key, String(Math.round(window.scrollY)));
         } catch {
           /* ignore */
         }
@@ -65,7 +114,7 @@ export function useScrollRestore(enabled = true) {
     return () => {
       window.removeEventListener('scroll', persist);
       try {
-        sessionStorage.setItem(storageKey(pathname), String(Math.round(window.scrollY)));
+        sessionStorage.setItem(key, String(Math.round(window.scrollY)));
       } catch {
         /* ignore */
       }

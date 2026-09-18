@@ -30,6 +30,9 @@ export function useConnectionQuality(): ConnectionQuality {
 
   // Listen to Network Information API changes when available
   useEffect(() => {
+    // FIX CONN-QUALITY-SSR: navigator غير معرّف على SSR — الحماية
+    // مطلوبة رغم أن useEffect لا يعمل على السيرفر (defensive coding).
+    if (typeof navigator === 'undefined') return;
     const conn = (navigator as Navigator & {
       connection?: EventTarget & { effectiveType?: string };
     }).connection;
