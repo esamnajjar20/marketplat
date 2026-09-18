@@ -1,12 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import {
+  getOfflineList,
+  saveOfflineList,
+  OFFLINE_LIST_KEYS,
+  OFFLINE_LIST_LIMITS,
+} from '@/lib/offlineListCache';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import type { StoresQuery, StoreDetails } from '@/types/store.types';
+import type { StoresQuery, StoreDetails, StoreWithSeller } from '@/types/store.types';
 import {
   getOfflineJson,
   saveOfflineJson,
@@ -15,14 +21,66 @@ import {
 
 /** GET /stores — public directory, paginated. */
 export function useStores(params?: StoresQuery) {
+  const isBaseBrowse =
+    (!params?.page || params.page === 1) && !params?.search && !params?.city;
+  const cached = isBaseBrowse
+    ? getOfflineList<StoreWithSeller>(OFFLINE_LIST_KEYS.storesBrowse)
+    : null;
+
   return useQuery({
     queryKey: queryKeys.stores.list(params),
-    queryFn: () => storesApi.getAll(params).then((r) => r.data.data),
+    queryFn: async () => {
+      try {
+        const data = await storesApi.getAll(params).then((r) => r.data.data);
+        if (isBaseBrowse && data?.items?.length) {
+          saveOfflineList(
+            OFFLINE_LIST_KEYS.storesBrowse,
+            data.items as StoreWithSeller[],
+            OFFLINE_LIST_LIMITS.storesBrowse,
+          );
+        }
+        return data;
+      } catch (err) {
+        if (isBaseBrowse) {
+          const local = getOfflineList<StoreWithSeller>(OFFLINE_LIST_KEYS.storesBrowse);
+          if (local?.items?.length) {
+            return {
+              items: local.items,
+              meta: {
+                total: local.items.length,
+                page: 1,
+                limit: local.items.length || 1,
+                totalPages: 1,
+                hasNextPage: false,
+                hasPrevPage: false,
+              },
+            };
+          }
+        }
+        throw err;
+      }
+    },
     staleTime: CACHE_TTL.adsList,
+    placeholderData: keepPreviousData,
+    ...(cached?.items?.length
+      ? {
+          initialData: {
+            items: cached.items,
+            meta: {
+              total: cached.items.length,
+              page: 1,
+              limit: cached.items.length || 1,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            },
+          },
+          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
+        }
+      : {}),
   });
 }
 
-/** GET /stores/:id — public store page. No auth required. */
 export function useStore(id: string) {
   return useQuery({
     queryKey: queryKeys.stores.detail(id),
@@ -49,9 +107,8 @@ export function useStore(id: string) {
  */
 export function useMyStore() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  const setLastKnownRoles = useAuthStore((s) => s.setLastKnownRoles);
 
-  const query = useQuery({
+  return useQuery({
     queryKey: queryKeys.stores.me(),
     queryFn: async () => {
       try {
@@ -71,16 +128,6 @@ export function useMyStore() {
     enabled: isAuthenticated,
     retry: false,
   });
-
-  useEffect(() => {
-    if (query.isSuccess) {
-      setLastKnownRoles({
-        hasActiveStore: Boolean(query.data && query.data.status === 'ACTIVE'),
-      });
-    }
-  }, [query.isSuccess, query.data, setLastKnownRoles]);
-
-  return query;
 }
 
 /**

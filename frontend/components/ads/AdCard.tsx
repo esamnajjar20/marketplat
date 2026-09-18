@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Heart, Star, BadgeCheck } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
@@ -36,8 +38,17 @@ interface Props {
  * Hover lift uses isolation so cards don't stack over neighbours incorrectly.
  */
 export function AdCard({ ad, className, priority = false }: Props) {
+  const router = useRouter();
+  const detailHref = ROUTES.adDetail(ad.id);
+
+  function warmDetail() {
+    onIntentPrefetch(`ad:${ad.id}`, () => {
+      router.prefetch(detailHref);
+    });
+  }
+
   const rawImage = ad.images[0];
-  const thumb    = rawImage ? getListThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
+  const thumb    = rawImage ? getListThumbnailUrl(rawImage, 320, 224) : PLACEHOLDER_SVG;
   const isSold   = ad.status === 'SOLD';
   const isNew    = ad.condition === 'NEW';
 
@@ -77,7 +88,9 @@ export function AdCard({ ad, className, priority = false }: Props) {
       )}
     >
       <Link
-        href={ROUTES.adDetail(ad.id)}
+        href={detailHref}
+        onPointerEnter={warmDetail}
+        onFocus={warmDetail}
         className={cn(
           'flex h-full flex-col overflow-hidden rounded-2xl border bg-card',
           'shadow-sm transition-[box-shadow,border-color] duration-200',
@@ -97,7 +110,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
             alt={ad.title}
             fill
             className="object-cover transition-transform duration-400 ease-out group-hover/card:scale-[1.04]"
-            sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
+            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 20vw"
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}

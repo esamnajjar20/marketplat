@@ -266,7 +266,7 @@ export function getImageProps(
  * List/card thumbnail — halves dimensions when data-saver is on.
  * Call from client components only (reads localStorage).
  */
-export function getListThumbnailUrl(url: string, width = 400, height = 300): string {
+export function getListThumbnailUrl(url: string, width = 320, height = 240): string {
   let w = width;
   let h = height;
   try {

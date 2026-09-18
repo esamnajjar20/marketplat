@@ -39,11 +39,17 @@ export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime:            60_000,
-        gcTime:               5 * 60_000,
+        staleTime:            90_000,  // SLOW-NET phase1
+        gcTime:               10 * 60_000,
         retry:                shouldRetry,   // API-INT-04 FIX: smart retry
         refetchOnWindowFocus: false,
-        refetchOnMount:       true,
+        refetchOnMount: (query) => {
+          // QueryOptions typing varies by TanStack version — read safely
+          const opts = query.options as { staleTime?: number | typeof Infinity };
+          const staleMs = typeof opts.staleTime === 'number' ? opts.staleTime : 90_000;
+          if (!query.state.dataUpdatedAt) return true;
+          return Date.now() - query.state.dataUpdatedAt > staleMs;
+        },
       },
       mutations: {
         retry: 0,

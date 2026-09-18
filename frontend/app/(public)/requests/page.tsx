@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestCard } from '@/components/requests/RequestCard';
 import { RequestFilters } from '@/components/requests/RequestFilters';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
+import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 
 export default function OpenRequestsPage() {
   const searchParams = useSearchParams();
@@ -24,7 +25,7 @@ export default function OpenRequestsPage() {
   const city = searchParams.get('city') || undefined;
   const q = searchParams.get('q') || undefined;
 
-  const { data, isLoading, isError, refetch } = useOpenRequests({
+  const { data, isLoading, isFetching, isError, refetch } = useOpenRequests({
     type,
     city,
     q,
@@ -32,8 +33,8 @@ export default function OpenRequestsPage() {
     limit: 20,
   });
   const items = Array.isArray(data?.data) ? data.data : [];
-  const totalPages =
-    (data?.meta as { totalPages?: number } | undefined)?.totalPages ?? 1;
+  const meta = (data as { meta?: { pagination?: { totalPages?: number }; totalPages?: number } } | undefined)?.meta;
+  const totalPages = meta?.pagination?.totalPages ?? meta?.totalPages ?? 1;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-24 sm:space-y-5 sm:p-4 sm:pb-10" dir="rtl">
@@ -55,7 +56,8 @@ export default function OpenRequestsPage() {
         </Button>
       </div>
 
-      {isLoading && <RequestListSkeleton />}
+      {isLoading && !data && <RequestListSkeleton />}
+      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} />
       {isError && (
         <EmptyState
           title="تعذّر التحميل"
@@ -68,7 +70,7 @@ export default function OpenRequestsPage() {
         />
       )}
 
-      {!isLoading && !isError && (
+      {(data || !isLoading) && !isError && (
         <ul className="space-y-3">
           {items.map((r) => (
             <RequestCard key={r.id} request={r} />
@@ -76,7 +78,7 @@ export default function OpenRequestsPage() {
         </ul>
       )}
 
-      {!isLoading && !isError && items.length === 0 && (
+      {(data || !isLoading) && !isError && items.length === 0 && (
         <EmptyState
           icon={<ClipboardList />}
           title="لا طلبات مطابقة"

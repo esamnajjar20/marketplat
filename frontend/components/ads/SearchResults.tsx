@@ -1,3 +1,4 @@
+import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 'use client';
 
 import Link from 'next/link';
@@ -93,7 +94,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
   // on every keystroke-driven search, wasting a full GET /ads request
   // whose result was never even read (see useAds.ts).
   const browseQ    = useAds({ page, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { enabled: !isSearch });
-  const { data, isLoading, isError, refetch } = isSearch ? searchQ : browseQ;
+  const { data, isLoading, isFetching, isError, isPlaceholderData, refetch } = isSearch ? searchQ : browseQ;
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -108,7 +109,8 @@ export function SearchResults({ categorySlug }: Props = {}) {
   // Picks AdCardSkeleton or AdListItemSkeleton to match whichever view
   // the user currently has selected, so a filter change or page
   // navigation doesn't visually snap between two different layouts.
-  if (isLoading) {
+
+  if (isLoading && !data) {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
@@ -143,6 +145,9 @@ export function SearchResults({ categorySlug }: Props = {}) {
   }
 
   return (
+    <>
+<ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
+
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
@@ -233,5 +238,6 @@ export function SearchResults({ categorySlug }: Props = {}) {
           searchParams={searchParams} />
       )}
     </div>
+    </>
   );
 }

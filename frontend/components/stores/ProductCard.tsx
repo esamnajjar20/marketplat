@@ -1,4 +1,7 @@
+'use client';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { PackageX, Clock3, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -33,8 +36,16 @@ const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
  * Product card — badges top-start, favorite top-end only (no overlap).
  */
 export function ProductCard({ product, className, priority = false }: Props) {
+  const router = useRouter();
+  const detailHref = ROUTES.productDetail(product.id);
+  function warmDetail() {
+    onIntentPrefetch(`product:${product.id}`, () => {
+      router.prefetch(detailHref);
+    });
+  }
+
   const rawImage = product.images?.[0];
-  const thumb = rawImage ? getListThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
+  const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 224) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   // FIX: الـ API يُرجع price/discountPrice مسطّحة، فنحسب effectivePrice محلياً
   const rawPrice = Number(product.price ?? 0);
@@ -69,7 +80,9 @@ export function ProductCard({ product, className, priority = false }: Props) {
       )}
     >
       <Link
-        href={ROUTES.productDetail(product.id)}
+        href={detailHref}
+        onPointerEnter={warmDetail}
+        onFocus={warmDetail}
         className={cn(
           'flex h-full flex-col overflow-hidden rounded-2xl border bg-card',
           'shadow-sm transition-[box-shadow,border-color] duration-200',

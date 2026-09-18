@@ -200,7 +200,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               onClick={() => setLightboxOpen(true)}
               aria-label="تكبير الصورة"
             >
-              <SafeImage src={currentImg} alt={ad.title} fill className="object-contain select-none pointer-events-none" sizes="(max-width:1024px) 100vw, 66vw" priority draggable={false} />
+              <SafeImage src={currentImg} alt={ad.title} fill className="object-contain select-none pointer-events-none" sizes="(max-width:1024px) 100vw, 66vw" priority={imgIdx === 0} draggable={false} />
             </button>
             {ad.isFeatured && (
               <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
@@ -453,7 +453,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               fill
               className="object-contain"
               sizes="100vw"
-              priority
+              priority={imgIdx === 0}
             />
             {images.length > 1 && (
               <>

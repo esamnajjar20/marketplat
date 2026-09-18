@@ -1,4 +1,7 @@
+'use client';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { BadgeCheck, Clock, MapPin, Star } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -47,8 +50,16 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
  * Service listing card — availability top-start, favorite top-end only.
  */
 export function ServiceListingCard({ listing, className, priority = false }: Props) {
+  const router = useRouter();
+  const detailHref = ROUTES.serviceDetail(listing.id);
+  function warmDetail() {
+    onIntentPrefetch(`service:${listing.id}`, () => {
+      router.prefetch(detailHref);
+    });
+  }
+
   const rawImage = listing.images[0];
-  const thumb = rawImage ? getListThumbnailUrl(rawImage, 400, 280) : PLACEHOLDER_SVG;
+  const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 224) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
   const isNegotiable = listing.pricingType === 'NEGOTIABLE' || !listing.price;
@@ -82,7 +93,9 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
       )}
     >
       <Link
-        href={ROUTES.serviceDetail(listing.id)}
+        href={detailHref}
+        onPointerEnter={warmDetail}
+        onFocus={warmDetail}
         className={cn(
           'flex h-full flex-col overflow-hidden rounded-2xl border bg-card',
           'shadow-sm transition-[box-shadow,border-color] duration-200',
@@ -99,7 +112,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
             alt={listing.title}
             fill
             className="object-cover transition-transform duration-400 ease-out group-hover/card:scale-[1.04]"
-            sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
+            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 20vw"
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}

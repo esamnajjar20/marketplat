@@ -20,6 +20,44 @@ export const listingWithRelations = {
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;
 
+/** SLOW-NET phase5: public list omits long description. */
+const serviceListingListSelect = {
+  id: true,
+  providerId: true,
+  categoryId: true,
+  title: true,
+  images: true,
+  pricingType: true,
+  price: true,
+  durationEstimate: true,
+  serviceLocation: true,
+  status: true,
+  views: true,
+  createdAt: true,
+  updatedAt: true,
+  provider: {
+    select: {
+      id: true,
+      businessName: true,
+      logoUrl: true,
+      availabilityStatus: true,
+      contactPhone: true,
+      sellerProfile: {
+        select: {
+          userId: true,
+          displayName: true,
+          verified: true,
+          averageRating: true,
+          suspended: true,
+        },
+      },
+    },
+  },
+  category: { select: { id: true, name: true, nameAr: true } },
+} as const;
+
+
+
 export const serviceListingsRepository = {
   create: (
     tx: Prisma.TransactionClient,
@@ -202,7 +240,7 @@ export const serviceListingsRepository = {
     const [listings, total] = await Promise.all([
       prisma.serviceListing.findMany({
         where,
-        include: listingWithRelations,
+        select: serviceListingListSelect,
         orderBy: { [sortBy]: sortOrder },
         skip,
         take,
@@ -210,7 +248,9 @@ export const serviceListingsRepository = {
       prisma.serviceListing.count({ where }),
     ]);
 
-    return { listings, total };
+    // SLOW-NET phase5: serviceListingListSelect omits description, but
+    // ServiceListingWithProvider is still the public type — cast is safe.
+    return { listings: listings as unknown as ServiceListingWithProvider[], total };
   },
 
   // ANALYTICS: mirrors productsRepository.findTopByStoreId — active

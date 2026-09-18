@@ -1,9 +1,14 @@
-import { AdDetailsSkeleton } from '@/components/shared/skeletons';
+/**
+ * SLOW-NET phase1 — detail shell while RSC streams.
+ */
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
-export default function ProductDetailLoading() {
+export default function Loading() {
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8">
-      <AdDetailsSkeleton />
-    </div>
+    <PageLoadingState
+      variant="detail"
+      title="جارٍ فتح الصفحة"
+      description="لحظة من فضلك…"
+    />
   );
 }

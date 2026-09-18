@@ -6,7 +6,7 @@ import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
 import { ServiceCategoryFilter } from '@/components/services/ServiceCategoryFilter';
 import { ServiceListingsGrid } from '@/components/services/ServiceListingsGrid';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 export const metadata: Metadata = buildMetadata({ title: 'الخدمات', path: '/services' });
 
@@ -53,7 +53,7 @@ export default function ServicesPage() {
             <Suspense><ServiceCategoryFilter /></Suspense>
           </aside>
           <main className="lg:col-span-3">
-            <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+            <Suspense fallback={<PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز القائمة…" />}>
               <ServiceListingsGrid />
             </Suspense>
           </main>

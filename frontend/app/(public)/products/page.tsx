@@ -5,7 +5,7 @@ import { buildMetadata } from '@/lib/seo';
 import { ProductsGrid } from '@/components/stores/ProductsGrid';
 import { ProductsFilters } from '@/components/stores/ProductsFilters';
 import { ProductsFiltersSheet } from '@/components/stores/ProductsFiltersSheet';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 export const metadata: Metadata = buildMetadata({ title: 'المنتجات', path: '/products' });
 
@@ -51,7 +51,7 @@ export default function ProductsPage() {
             <Suspense><ProductsFilters /></Suspense>
           </aside>
           <main className="lg:col-span-3">
-            <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+            <Suspense fallback={<PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز القائمة…" />}>
               <ProductsGrid />
             </Suspense>
           </main>

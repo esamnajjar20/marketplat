@@ -57,6 +57,7 @@ export const adsController = {
     try {
       const { query } = getAdsSchema.parse({ query: req.query });
       const result = await adsService.getAds(query);
+      res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=90');
       res
         .status(200)
         .json(successResponse('Ads fetched', result.items, { pagination: result.meta }));

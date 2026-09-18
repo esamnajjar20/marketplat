@@ -15,13 +15,10 @@ import { buildMetadata } from '@/lib/seo';
 export const metadata: Metadata = buildMetadata({ title: 'الرئيسية', path: '/' });
 
 /**
- * الرئيسية — تدفق مريح:
- * 1) ترحيب واضح + إجراءان
- * 2) أدوات شخصية (محفوظات / تنزيلات)
- * 3) ثقة مختصرة
- * 4) تصنيفات → مميز → أحدث
- * 5) اقتراحات حسب المدينة
- * 6) منتجات / خدمات / متاجر (تحت الطية)
+ * SLOW-NET phase2 — above the fold only:
+ *   Hero + quick actions + trust + HomeAboveFold (categories + featured + recent).
+ * Everything else mounts near viewport, and on slow links uses whenIdle so
+ * the first paint is not competing with secondary section queries.
  */
 export default function HomePage() {
   return (
@@ -33,33 +30,32 @@ export default function HomePage() {
         <HomeTrustStrip />
       </div>
 
-      {/* اكتشاف أساسي */}
+      {/* اكتشاف أساسي — فوق الطية، بدون تأجيل */}
       <div className="mt-2">
         <HomeAboveFold />
       </div>
 
-      {/* اقتراحات شخصية — أقرب للمستخدم بعد الإعلانات */}
+      {/* تحت الطية: تأجيل أقوى على النت البطيء (LazySection يضيّق rootMargin) */}
       <div className="mt-2">
-        <LazySection minHeight={240} rootMargin="80px 0px">
+        <LazySection minHeight={240} rootMargin="48px 0px" whenIdle>
           <RecommendedAds />
         </LazySection>
       </div>
 
-      {/* بقية الاكتشاف — أبعد قليلًا لتقليل الإرهاق */}
       <div className="mt-4 space-y-1 sm:mt-6">
-        <LazySection minHeight={260} rootMargin="100px 0px">
+        <LazySection minHeight={260} rootMargin="48px 0px" whenIdle>
           <NearbyProvidersSection />
         </LazySection>
-        <LazySection minHeight={260} rootMargin="100px 0px">
+        <LazySection minHeight={260} rootMargin="64px 0px" whenIdle>
           <PromotedProductsSection />
         </LazySection>
-        <LazySection minHeight={280} rootMargin="80px 0px">
+        <LazySection minHeight={280} rootMargin="64px 0px" whenIdle>
           <RecentProductsSection />
         </LazySection>
-        <LazySection minHeight={260} rootMargin="80px 0px">
+        <LazySection minHeight={260} rootMargin="80px 0px" whenIdle>
           <HomeServicesSection />
         </LazySection>
-        <LazySection minHeight={260} rootMargin="60px 0px">
+        <LazySection minHeight={260} rootMargin="80px 0px" whenIdle>
           <FeaturedStoresSection />
         </LazySection>
       </div>

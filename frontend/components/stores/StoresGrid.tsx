@@ -6,6 +6,7 @@ import { StoreCard } from './StoreCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useStores } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
 import type { StoreSortField } from '@/types/store.types';
@@ -20,7 +21,7 @@ export function StoresGrid() {
   const sortBy = (sp.get('sortBy') as StoreSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
 
-  const { data, isLoading, isError, refetch } = useStores({
+  const { data, isLoading, isFetching, isError, isPlaceholderData, refetch } = useStores({
     search, page, city, sortBy, sortOrder,
   });
 
@@ -32,7 +33,8 @@ export function StoresGrid() {
   // FIX UX-04: same fix as SearchResults/ServiceListingsGrid — a
   // centered spinner replaced the whole directory on every filter
   // change instead of a skeleton shaped like the actual cards.
-  if (isLoading) {
+
+  if (isLoading && !data) {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
@@ -65,7 +67,10 @@ export function StoresGrid() {
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      {/* SLOW-NET phase4 */}
+      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
+      <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         {total > 0 ? `${total} متجر` : 'لا توجد نتائج'}
         {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
@@ -94,5 +99,6 @@ export function StoresGrid() {
         />
       )}
     </div>
+      </>
   );
 }

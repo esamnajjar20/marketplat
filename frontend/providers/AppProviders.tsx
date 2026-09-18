@@ -17,7 +17,14 @@ import { AuthHydrationProvider } from './AuthHydrationProvider';
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
 import { OfflineBootstrap }    from '@/components/pwa/OfflineBootstrap';
-import { CapacitorBootstrap }  from '@/components/pwa/CapacitorBootstrap';
+import dynamic from 'next/dynamic';
+
+// SLOW-NET phase3: Capacitor APIs stay out of the default web chunk
+const CapacitorBootstrap = dynamic(
+  () =>
+    import('@/components/pwa/CapacitorBootstrap').then((m) => m.CapacitorBootstrap),
+  { ssr: false },
+);
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';

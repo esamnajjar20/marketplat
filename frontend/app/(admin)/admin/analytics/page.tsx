@@ -1,8 +1,20 @@
 import type { Metadata } from 'next';
-import { AdminAnalyticsDashboard } from '@/components/admin/AdminAnalyticsDashboard';
+import dynamic from 'next/dynamic';
 import { buildMetadata } from '@/lib/seo';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 export const metadata: Metadata = buildMetadata({ title: 'التحليلات', noIndex: true });
+
+const AdminAnalyticsDashboard = dynamic(
+  () =>
+    import('@/components/admin/AdminAnalyticsDashboard').then((m) => m.AdminAnalyticsDashboard),
+  {
+    loading: () => (
+      <PageLoadingState variant="cards" title="جارٍ تحميل التحليلات" description="…" />
+    ),
+    ssr: false,
+  },
+);
 
 export default function AdminAnalyticsPage() {
   return (

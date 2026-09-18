@@ -7,9 +7,11 @@ import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import type { ProductSortField } from '@/types/product.types';
 
 /**
@@ -39,7 +41,7 @@ export function ProductsGrid() {
   // the URL param this page already receives actually take effect.
   const hasPromotion = sp.get('hasPromotion') === 'true' ? true : undefined;
 
-  const { data, isLoading, isError, refetch } = useProducts({
+  const { data, isLoading, isFetching, isError, isPlaceholderData, refetch } = useProducts({
     search, page, city, sortBy, sortOrder, hasPromotion, limit: 12,
   });
 
@@ -48,11 +50,12 @@ export function ProductsGrid() {
   const total = data?.meta?.total ?? 0;
   const searchParams = Object.fromEntries(sp.entries());
 
-  if (isLoading) {
+
+  if (isLoading && !data) {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
+        <div className={cn("grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4")}>
           {Array.from({ length: 12 }).map((_, i) => <ProductCardSkeleton key={i} />)}
         </div>
       </div>
@@ -75,7 +78,10 @@ export function ProductsGrid() {
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      {/* SLOW-NET phase4 */}
+      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
+      <div className="space-y-4">
       {/* Toolbar — same "count on the left, save-search on the right"
           pattern as ads/SearchResults.tsx. queryParamKey="search"
           because this page's free-text param is `search`, not `q` (see
@@ -131,5 +137,6 @@ export function ProductsGrid() {
         />
       )}
     </div>
+      </>
   );
 }

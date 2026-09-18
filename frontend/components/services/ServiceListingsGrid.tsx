@@ -6,6 +6,7 @@ import { ServiceListingCard } from './ServiceListingCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { ROUTES } from '@/lib/constants';
@@ -25,7 +26,7 @@ export function ServiceListingsGrid() {
   const sortBy = (sp.get('sortBy') as ServiceListingSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
 
-  const { data, isLoading, isError, refetch } = useServiceListings({
+  const { data, isLoading, isFetching, isError, isPlaceholderData, refetch } = useServiceListings({
     search, page, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
   });
 
@@ -37,7 +38,8 @@ export function ServiceListingsGrid() {
   // FIX UX-04: mirrors the same fix in SearchResults — a centered
   // spinner replaced the whole grid on every filter change instead of
   // a skeleton shaped like the actual cards.
-  if (isLoading) {
+
+  if (isLoading && !data) {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
@@ -66,7 +68,10 @@ export function ServiceListingsGrid() {
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      {/* SLOW-NET phase4 */}
+      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
+      <div className="space-y-4">
       {/* Toolbar — queryParamKey="search" for the same reason as
           ProductsGrid.tsx (see SaveSearchButton's own doc comment). */}
       <div className="flex items-center justify-between">
@@ -100,5 +105,6 @@ export function ServiceListingsGrid() {
         />
       )}
     </div>
+      </>
   );
 }

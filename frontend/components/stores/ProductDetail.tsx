@@ -105,7 +105,7 @@ export function ProductDetail({ product, related = [] }: Props) {
                   fill
                   className="pointer-events-none select-none object-contain"
                   sizes="(max-width:1024px) 100vw, 66vw"
-                  priority
+                  priority={imgIdx === 0}
                   draggable={false}
                 />
               </button>

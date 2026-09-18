@@ -97,7 +97,7 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v24';
+const CACHE_VERSION = 'v25';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -162,7 +162,8 @@ const SYNC_TAG = 'replay-offline-queue';
  * السيرفر رغم انتهاء مهلتنا)، ولمسار الكتابة أصلًا نتيجة صريحة: قائمة
  * الانتظار offlineQueue، لا حاجة لسباق ضد الزمن.
  */
-const NETWORK_TIMEOUT_MS = 4000;
+/** SLOW-NET phase4: fail-over to cache faster on weak links (was 4000). */
+const NETWORK_TIMEOUT_MS = 3000;
 
 /** يرفض بعد ms مللي ثانية بخطأ SwTimeoutError، بدون التأثير على
  * fetchPromise نفسه (يستمر بالخلفية بمعزل عن نتيجة هذا السباق). */

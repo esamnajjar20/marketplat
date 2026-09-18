@@ -48,6 +48,10 @@ export const OFFLINE_LIST_KEYS = {
   sellersRanking: 'sellers-ranking',
   adsBrowse: 'ads-browse',
   myAds: 'my-ads',
+  productsBrowse: 'products-browse',
+  servicesBrowse: 'services-browse',
+  storesBrowse: 'stores-browse',
+  categories: 'categories',
 } as const;
 
 export function clearAllOfflineLists(): void {
@@ -63,4 +67,8 @@ export const OFFLINE_LIST_LIMITS = {
   sellersRanking: OFFLINE_DATA_LIMITS.sellersRanking,
   adsBrowse: OFFLINE_DATA_LIMITS.adsBrowse,
   myAds: OFFLINE_DATA_LIMITS.myAds,
+  productsBrowse: OFFLINE_DATA_LIMITS.productsBrowse,
+  servicesBrowse: OFFLINE_DATA_LIMITS.servicesBrowse,
+  storesBrowse: OFFLINE_DATA_LIMITS.storesBrowse,
+  categories: OFFLINE_DATA_LIMITS.categories,
 } as const;

@@ -6,7 +6,7 @@ import { StoresGrid } from '@/components/stores/StoresGrid';
 import { StoresFilters } from '@/components/stores/StoresFilters';
 import { StoresFiltersSheet } from '@/components/stores/StoresFiltersSheet';
 import { SearchSortBarWrapper } from '@/components/stores/SearchSortBarWrapper';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 export const metadata: Metadata = buildMetadata({ title: 'المتاجر', path: '/stores' });
 
@@ -60,7 +60,7 @@ export default function StoresPage() {
             <Suspense><StoresFilters /></Suspense>
           </aside>
           <main className="lg:col-span-3">
-            <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+            <Suspense fallback={<PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز القائمة…" />}>
               <StoresGrid />
             </Suspense>
           </main>

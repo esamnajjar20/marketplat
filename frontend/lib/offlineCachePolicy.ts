@@ -13,6 +13,10 @@
 export const OFFLINE_DATA_LIMITS = {
   adsBrowse: 24,
   myAds: 30,
+  productsBrowse: 24,
+  servicesBrowse: 24,
+  storesBrowse: 24,
+  categories: 80,
   activity: 40,
   savedSearches: 20,
   sellersRanking: 30,

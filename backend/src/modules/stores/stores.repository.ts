@@ -20,6 +20,20 @@ export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
 // definition.
 export const storeWithSeller = { sellerProfile: true } as const;
 
+/** SLOW-NET phase5: public directory — lighter seller fields. */
+const storeListInclude = {
+  sellerProfile: {
+    select: {
+      id: true,
+      verified: true,
+      averageRating: true,
+      totalRatings: true,
+      suspended: true,
+    },
+  },
+} as const;
+
+
 const storeWithSellerAndCounts = {
   sellerProfile: true,
   _count: { select: { followers: true, products: true } },

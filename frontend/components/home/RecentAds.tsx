@@ -96,7 +96,7 @@ export function RecentAds() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-fade-in">
         {items.kind === 'search'
           ? items.data.map((result) => <UnifiedResultCard key={result.id} result={result} />)
-          : items.data.map((ad) => <AdCard key={ad.id} ad={ad} />)}
+          : items.data.map((ad, i) => <AdCard key={ad.id} ad={ad} priority={i < 2} />)}
       </div>
       <div className="flex justify-center">
         <Link href={ROUTES.search}>

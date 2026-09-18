@@ -21,6 +21,45 @@ export const productWithRelations = {
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;
 
+/** SLOW-NET phase5: list payload omits long description (detail still full). */
+const productListSelect = {
+  id: true,
+  storeId: true,
+  categoryId: true,
+  name: true,
+  images: true,
+  price: true,
+  discountPrice: true,
+  wholesalePrice: true,
+  wholesaleMinQty: true,
+  availability: true,
+  stockQuantity: true,
+  status: true,
+  views: true,
+  createdAt: true,
+  updatedAt: true,
+  store: {
+    select: {
+      id: true,
+      name: true,
+      logoUrl: true,
+      city: true,
+      status: true,
+      sellerProfile: {
+        select: {
+          id: true,
+          verified: true,
+          averageRating: true,
+          suspended: true,
+        },
+      },
+    },
+  },
+  category: { select: { id: true, name: true, nameAr: true } },
+} as const;
+
+
+
 export const productsRepository = {
   create: (
     tx: Prisma.TransactionClient,
@@ -234,7 +273,7 @@ export const productsRepository = {
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        include: productWithRelations,
+        select: productListSelect,
         orderBy: { [sortBy]: sortOrder },
         skip,
         take,
@@ -242,7 +281,9 @@ export const productsRepository = {
       prisma.product.count({ where }),
     ]);
 
-    return { products, total };
+    // SLOW-NET phase5: productListSelect omits description, but ProductWithStore
+    // is still the public type — cast is safe (the wire shape is lighter).
+    return { products: products as unknown as ProductWithStore[], total };
   },
 
   findManyByStoreId: async (
