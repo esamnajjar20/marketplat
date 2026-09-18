@@ -97,7 +97,7 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v28';
+const CACHE_VERSION = 'v29';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -1095,6 +1095,103 @@ async function replayOne(entry, hasRetriedAfterRefresh) {
  * (still-offline) لتحافظ على الترتيب — لكنها لا تتوقف عند 4xx نهائي بعد
  * الآن (FIX CONFLICT-01)، فرسالة فشلت لسبب لا علاقة له بالاتصال لا يجب أن
  * تحجب باقي عناصر الطابور (لمحادثات/عمليات أخرى قد تنجح بلا مشكلة). */
+
+/** PHASE-4: priority for offline queue drain order (mirrored in lib/queuePriority.ts). */
+function inferQueuePriority(url, method) {
+  const u = String(url || '').toLowerCase();
+  const m = String(method || 'POST').toUpperCase();
+  if (
+    u.includes('/messages') ||
+    u.includes('/conversations') ||
+    u.includes('/auth/') ||
+    u.includes('/payments') ||
+    u.includes('/checkout')
+  ) {
+    return 'critical';
+  }
+  if (
+    u.includes('/analytics') ||
+    u.includes('/views') ||
+    u.includes('/presence') ||
+    u.includes('/heartbeat') ||
+    m === 'GET' ||
+    m === 'HEAD'
+  ) {
+    return 'low';
+  }
+  return 'normal';
+}
+
+function queuePriorityRank(p) {
+  if (p === 'critical') return 0;
+  if (p === 'normal') return 1;
+  return 2;
+}
+
+function isBatchableAnalyticsUrl(url) {
+  return String(url || '').includes('/analytics/events');
+}
+
+/**
+ * PHASE-4 batch: if a pending analytics POST already exists, merge JSON
+ * event arrays into it instead of enqueueing another row.
+ */
+async function tryCoalesceAnalyticsEntry(entry) {
+  if (!isBatchableAnalyticsUrl(entry.url) || entry.method !== 'POST') return false;
+  if (!entry.body) return false;
+
+  let newEvents;
+  try {
+    const text =
+      typeof entry.body === 'string'
+        ? entry.body
+        : await new Response(entry.body).text();
+    const parsed = JSON.parse(text);
+    newEvents = Array.isArray(parsed?.events) ? parsed.events : Array.isArray(parsed) ? parsed : null;
+    if (!newEvents || newEvents.length === 0) return false;
+  } catch {
+    return false;
+  }
+
+  const all = await getAllQueuedEntries();
+  const existing = all.find(
+    (e) =>
+      e.status !== 'failed' &&
+      e.method === 'POST' &&
+      isBatchableAnalyticsUrl(e.url),
+  );
+  if (!existing) return false;
+
+  try {
+    const oldText =
+      typeof existing.body === 'string'
+        ? existing.body
+        : existing.body
+          ? await new Response(existing.body).text()
+          : '{}';
+    const oldParsed = JSON.parse(oldText || '{}');
+    const oldEvents = Array.isArray(oldParsed?.events)
+      ? oldParsed.events
+      : Array.isArray(oldParsed)
+        ? oldParsed
+        : [];
+    const merged = [...oldEvents, ...newEvents].slice(0, 40);
+    const newBody = JSON.stringify(
+      oldParsed && !Array.isArray(oldParsed) && typeof oldParsed === 'object'
+        ? { ...oldParsed, events: merged }
+        : { events: merged },
+    );
+    await markQueuedEntry(existing.id, {
+      body: newBody,
+      queuedAt: existing.queuedAt,
+      priority: 'low',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function isOrderSensitiveQueueEntry(entry) {
   const u = String(entry.url || '');
   return (
@@ -1121,6 +1218,14 @@ async function replayQueue() {
   //  - minGap backoff per entry; non-sensitive entries skip if too soon.
   const trulyOffline =
     typeof navigator !== 'undefined' && navigator.onLine === false;
+
+  // PHASE-4: critical (messages/auth) before normal before low (analytics)
+  entries = entries.slice().sort((a, b) => {
+    const ra = queuePriorityRank(a.priority || inferQueuePriority(a.url, a.method));
+    const rb = queuePriorityRank(b.priority || inferQueuePriority(b.url, b.method));
+    if (ra !== rb) return ra - rb;
+    return (a.queuedAt || 0) - (b.queuedAt || 0);
+  });
 
   for (const entry of entries) {
     if (entry.status === 'failed') continue;
@@ -1243,14 +1348,21 @@ async function handleMutation(request) {
     const operationId = headers['x-offline-op-id'] || null;
 
     try {
-      await queueRequestEntry({
+      const priority = inferQueuePriority(requestForQueue.url, requestForQueue.method);
+      const entry = {
         url: requestForQueue.url,
         method: requestForQueue.method,
         headers,
         body,
         queuedAt: Date.now(),
         operationId,
-      });
+        priority,
+      };
+      // PHASE-4: merge offline analytics beacons into one queue row
+      const coalesced = await tryCoalesceAnalyticsEntry(entry);
+      if (!coalesced) {
+        await queueRequestEntry(entry);
+      }
     } catch {
       return Response.error();
     }

@@ -47,6 +47,8 @@ export interface QueuedRequestSummary {
   lastError?: { status: number; message?: string };
   /** FIX AD-DRAFT-QUEUE-LINK-01 — موجود فقط لو الطلب حمل X-Offline-Op-Id. */
   operationId?: string | null;
+  /** PHASE-4 */
+  priority?: 'critical' | 'normal' | 'low';
 }
 
 interface RawQueueEntry {

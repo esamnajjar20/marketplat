@@ -20,6 +20,7 @@ import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
+import { initConflictResolver } from '@/lib/conflictResolver';
 
 export function OfflineBootstrap() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -28,6 +29,7 @@ export function OfflineBootstrap() {
     // FIX AD-DRAFT-QUEUE-LINK-01: يربط لاحقًا كل رسالة QUEUE_ITEM_* بمسودة
     // الإعلان المطابقة (operationId) — انظر lib/offlineAdDraftSync.ts.
     initAdDraftSync();
+    initConflictResolver();
 
     // PHASE-1 (Offline Core Bundle) + PHASE-3-A (route shells): تحديث صامت
     // بالخلفية، محدود بمهلة WARM_INTERVAL_MS داخل warmCoreBundle نفسها فلا
