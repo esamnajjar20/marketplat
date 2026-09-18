@@ -25,6 +25,26 @@ function getVapidPublicKey(): string {
 
 export type SwUpdateListener = (registration: ServiceWorkerRegistration) => void;
 
+/**
+ * FIX PWA-READY-HANG: navigator.serviceWorker.ready لا يُحل أبداً إذا لم
+ * يُسجَّل SW (dev mode = SW معطّل، أو متصفح قديم). كل دوال Push في هذا
+ * الملف كانت تستدعيه مباشرة → الزر يعلق في "loading" للأبد بلا خطأ.
+ *
+ * getRegistration() يُرجع فوراً (null لو لا SW)، ونُكمل بـ ready فقط
+ * عند وجود registration فعلي.
+ */
+async function getReadySW(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  try {
+    const existing = await navigator.serviceWorker.getRegistration();
+    if (existing) return existing;
+    // لا SW مسجّل → لا تُعلّق، ارجع null فوراً.
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 let waitingUpdateListeners: SwUpdateListener[] = [];
 
 /** بعد تفعيل تحديث بنجاح: لا تُظهر طلب تحديث جديد فورًا (عالق waiting أو sw.js غير مستقر). */
@@ -229,7 +249,8 @@ export function isPushSupported(): boolean {
 
 export async function getPushSubscriptionState(): Promise<'subscribed' | 'unsubscribed' | 'unsupported'> {
   if (!isPushSupported()) return 'unsupported';
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getReadySW();
+  if (!registration) return 'unsupported';
   const subscription = await registration.pushManager.getSubscription();
   return subscription ? 'subscribed' : 'unsubscribed';
 }
@@ -247,10 +268,19 @@ export async function subscribeToPush(): Promise<boolean> {
     return false;
   }
 
-  const permission = await Notification.requestPermission();
+  // FIX PWA-NOTIF-PERMISSION: requestPermission قد يرمي على بعض
+  // المتصفحات/السياقات → نلتقط.
+  let permission: NotificationPermission;
+  try {
+    permission = await Notification.requestPermission();
+  } catch (err) {
+    console.warn('[push] requestPermission failed:', err);
+    return false;
+  }
   if (permission !== 'granted') return false;
 
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getReadySW();
+  if (!registration) return false;
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
@@ -269,7 +299,8 @@ export async function subscribeToPush(): Promise<boolean> {
 
 export async function unsubscribeFromPush(): Promise<void> {
   if (!isPushSupported()) return;
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getReadySW();
+  if (!registration) return;
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return;
 
@@ -297,7 +328,8 @@ export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscr
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await getReadySW();
+    if (!registration) return 'skipped';
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
