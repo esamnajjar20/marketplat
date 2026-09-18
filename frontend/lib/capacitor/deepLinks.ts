@@ -28,7 +28,14 @@
  * iOS: requires an apple-app-site-association file plus the
  *   Associated Domains capability in Xcode — also documented there.
  */
-import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+// FIX DEEPLINK-INTERNAL-IMPORT: كان يستورد نوع Next.js من مسار داخلي
+// (next/dist/shared/...) — مسار خاص غير مُضمون عبر الإصدارات. التعريف
+// المحلي (structural typing) يحقق نفس الغرض بلا اعتماد على مسار قد يختفي
+// في Next.js 17+ (نفس نمط navigation.ts's RouterLike).
+type RouterLike = {
+  push: (href: string) => void;
+};
+
 import { isNativePlatform } from './platform';
 
 function extractInAppPath(openedUrl: string): string | null {
@@ -54,7 +61,7 @@ function extractInAppPath(openedUrl: string): string | null {
  * on web.
  */
 export async function registerDeepLinkListener(
-  router: Pick<AppRouterInstance, 'push'>
+  router: RouterLike
 ): Promise<() => void> {
   if (!(await isNativePlatform())) return () => {};
 
