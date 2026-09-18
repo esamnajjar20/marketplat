@@ -263,17 +263,17 @@ export function getImageProps(
 
 
 /**
- * List/card thumbnail — halves dimensions when data-saver is on.
- * Call from client components only (reads localStorage).
+ * FIX CLOUDINARY-SAVER-CONSISTENCY: كان يقرأ localStorage مباشرة
+ * (`window.localStorage.getItem('marketplat:data-saver') === '1'`) بدل
+ * isDataSaverEnabled() — يفوت حالات saveData/effectiveType 2g التي
+ * يغطيها dataSaver.ts. الآن يستخدم نفس المصدر كباقي الملف.
+ *
+ * يقلّص الأبعاد بنسبة 55% عند تفعيل موفّر البيانات (أكثر حدة من
+ * getThumbnailUrl's Math.min cap — مقصود لبطاقات القوائم).
  */
 export function getListThumbnailUrl(url: string, width = 320, height = 240): string {
-  let w = width;
-  let h = height;
-  try {
-    if (typeof window !== 'undefined' && window.localStorage.getItem('marketplat:data-saver') === '1') {
-      w = Math.round(width * 0.55);
-      h = Math.round(height * 0.55);
-    }
-  } catch { /* ignore */ }
+  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
+  const w = saver ? Math.round(width * 0.55) : width;
+  const h = saver ? Math.round(height * 0.55) : height;
   return getThumbnailUrl(url, w, h);
 }
