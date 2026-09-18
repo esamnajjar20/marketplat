@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
 'use client';
+
+import { useEffect } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import { serviceProvidersApi } from '@/api/service-providers.api';

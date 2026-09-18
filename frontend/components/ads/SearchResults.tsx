@@ -1,5 +1,6 @@
-import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 'use client';
+
+import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';

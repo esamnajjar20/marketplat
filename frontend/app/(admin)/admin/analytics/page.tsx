@@ -12,7 +12,6 @@ const AdminAnalyticsDashboard = dynamic(
     loading: () => (
       <PageLoadingState variant="cards" title="جارٍ تحميل التحليلات" description="…" />
     ),
-    ssr: false,
   },
 );
 
