@@ -50,7 +50,26 @@ export const makeSendCommand =
   };
 
 export const createRedisStore = (prefix: string, failOpen = true) => {
-  if (!useRedisStore) {
+  // FIX RATE-LIMIT-CLUSTER-01: MemoryStore is safe ONLY as the
+  // deliberate "avoid burning Redis commands on cheap abuse-prevention
+  // limiters" optimization — its semantics under PM2 cluster mode
+  // (ecosystem.config.js: exec_mode='cluster', instances=2) are wrong
+  // for anything security-relevant:
+  //
+  //   1. Each worker holds its own MemoryStore, so the configured `max`
+  //      is effectively multiplied by the worker count. authRateLimit's
+  //      max:10 quietly became 20 across the cluster.
+  //   2. The per-limiter failOpen=false flag (auth / refresh / forgot_pw
+  //      / change_password) has no effect under MemoryStore — that flag
+  //      only flows through makeSendCommand, which MemoryStore never
+  //      calls. So those endpoints silently stop being fail-closed.
+  //
+  // Any limiter that opted into failOpen=false is therefore forced onto
+  // the shared Redis store regardless of RATE_LIMIT_USE_REDIS — a
+  // security-critical limiter must not be silently degraded by a
+  // cost-saving env default. The cheap, fail-open limiters (the vast
+  // majority) keep the MemoryStore path unchanged.
+  if (!useRedisStore && failOpen) {
     // prefix غير مستخدم في MemoryStore — كل rateLimit() يملك متجره الخاص
     return new MemoryStore();
   }

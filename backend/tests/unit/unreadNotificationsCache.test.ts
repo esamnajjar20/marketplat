@@ -6,6 +6,7 @@ jest.mock('../../src/config/redis', () => ({
     get: jest.fn(),
     setex: jest.fn(),
     del: jest.fn(),
+    publish: jest.fn(),
     __clear: jest.fn(),
   },
 }));
@@ -40,5 +41,30 @@ describe('unreadNotificationsCache', () => {
 
     (redis.setex as jest.Mock).mockRejectedValue(new Error('down'));
     await expect(unreadNotificationsCache.set('u1', 1)).resolves.toBeUndefined();
+  });
+
+  it('invalidate deletes the cache key', async () => {
+    (redis.del as jest.Mock).mockResolvedValue(1);
+    (redis.publish as jest.Mock).mockResolvedValue(0);
+    await unreadNotificationsCache.invalidate('u1');
+    expect(redis.del).toHaveBeenCalledWith('unread_notifications_count:u1');
+  });
+
+  // Cross-worker invalidation (PM2 cluster mode): invalidate() must
+  // also publish the userId so other workers drop their L1 entry.
+  it('invalidate publishes the userId on the invalidation channel', async () => {
+    (redis.del as jest.Mock).mockResolvedValue(1);
+    (redis.publish as jest.Mock).mockResolvedValue(0);
+    await unreadNotificationsCache.invalidate('u1');
+    expect(redis.publish).toHaveBeenCalledWith(
+      'unread_notifications_count:invalidate',
+      'u1',
+    );
+  });
+
+  it('invalidate swallows Redis errors on both del and publish', async () => {
+    (redis.del as jest.Mock).mockRejectedValue(new Error('down'));
+    (redis.publish as jest.Mock).mockResolvedValue(0);
+    await expect(unreadNotificationsCache.invalidate('u1')).resolves.toBeUndefined();
   });
 });
