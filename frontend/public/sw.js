@@ -134,7 +134,7 @@ const MAX_IMAGE_ENTRIES = 80;
 /** FIX SW-MEMORY-01: حد أقصى لمدخلات STATIC_CACHE (HTML/RSC/JS/CSS).
  * بدون حد، كل تنقّل يُخزَّن بلا تقليم → ذاكرة الهاتف تنفد بعد أشهر.
  * 100 مدخل تكفي لتغطية الاستخدام العادي + offline shells. */
-const MAX_STATIC_ENTRIES = 100;
+const MAX_STATIC_ENTRIES = 250;
 
 /** FIX SW-MEMORY-02: حد أقصى لمدخلات SAVED_ADS_CACHE — الإعلانات
  * المحفوظة يدويًا + صورها. عند التجاوز، الأقدم يُحذف. */

@@ -97,14 +97,21 @@ const CORE_ROUTES = [
 // الشكل (HTML/RSC) قد يعكس حالة جلسة سابقة؛ يُمسَح PERSONAL_SHELL_CACHE
 // كاملًا عند تسجيل الخروج (CLEAR_API_CACHE في sw.js) لنفس سبب API_CACHE.
 // يجب أن تطابق isPersonalShellRoute في public/sw.js حرفيًا.
-export const PERSONAL_SHELL_ROUTES = [
+/**
+ * FIX OFFLINE-WARM-PRIORITY: كان PERSONAL_SHELL_ROUTES يحتوي 40+ مسار،
+ * فيُطلق ~160 طلب لكل مستخدم مسجّل عند كل تسخين — على شبكة غزة = 5-10
+ * دقائق + 10-20 MB بيانات. الآن مقسّم:
+ *   - ESSENTIAL: 15 مسار أساسي (يُسخَّن تلقائياً بعد login)
+ *   - SECONDARY: باقي المسارات (تُسخَّن عند الزيارة عبر sw.js)
+ * sw.js's isPersonalShellRoute لا يحتاج تغيير — يستخدم البادئات.
+ */
+export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   // حساب / تنقّل
   '/messages',
   '/notifications',
   '/dashboard',
   '/favorites',
   '/my-ads',
-  '/saved-searches',
   '/activity',
   // FIX OFFLINE-AD-CREATE-01: يجب مطابقة public/sw.js's isPersonalShellRoute
   // حرفيًا — انظر تعليقها هناك لسبب الإضافة. مُدرَج هنا أيضًا (وليس فقط
@@ -156,6 +163,11 @@ export const PERSONAL_SHELL_ROUTES = [
   '/my-requests',
 ];
 
+/** FIX OFFLINE-WARM-PRIORITY: القائمة الكاملة (ESSENTIAL + SECONDARY) —
+ * تصديرها باسم PERSONAL_SHELL_ROUTES الأصلي للتوافق مع أي كود خارجي
+ * (بما فيها الاختبارات). warmPersonalShells يستخدم ESSENTIAL فقط. */
+export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
+
 // FIX SW-TRIM-ORDER-01: كانت هذه القيمة ثابتة على 'v18' بينما STATIC_CACHE
 // بنفس الملف رُفع لـ'v22' — نفس عائلة خلل PWA-VER-01 بالضبط، لكن بثابت
 // ثالث بهذا الملف لم يُكتشف بالمراجعة السابقة (رُوجعا فقط STATIC_CACHE
@@ -169,6 +181,51 @@ export const PERSONAL_SHELL_ROUTES = [
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
 const PERSONAL_SHELL_CACHE = 'market-personal-shell-v34';
 
+/**
+ * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —
+ * ضروري لأن trimCache يرتّب بـ X-SW-Cached-At، وأي مدخل بلا الترويسة
+ * يُعامَل كـ ts=0 فيُحذف أولاً عند تجاوز الحد. بدون هذا، كل ما يُخزّنه
+ * warmRouteShells/warmPersonalShells كان يُحذف فور تجاوز MAX_STATIC_ENTRIES.
+ */
+async function putTimestamped(cache: Cache, request: string, response: Response): Promise<void> {
+  const headers = new Headers(response.headers);
+  headers.set('X-SW-Cached-At', String(Date.now()));
+  const body = await response.blob();
+  const stamped = new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+  await cache.put(request, stamped);
+}
+
+/**
+ * FIX OFFLINE-WARM-THROTTLE: منع التسخين المتكرر — كان warmRouteShells
+ * وwarmPersonalShells يُستدعيان من mount + online + visibilitychange بلا
+ * أي throttle، فكل فتح تطبيق يُطلق ~100-200 طلب. WARM_INTERVAL_MS يمنع
+ * إعادة التسخين خلال 6 ساعات لكل مجموعة.
+ */
+const LAST_ROUTE_WARMED_KEY = 'marketplat:route-shells:last-warmed';
+const LAST_PERSONAL_WARMED_KEY = 'marketplat:personal-shells:last-warmed';
+const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+let isWarmingRouteShells = false;
+let isWarmingPersonalShells = false;
+
+/**
+ * FIX OFFLINE-WARM-ABORT: مهلة لكل طلب — بدونها، طلب بطيء على شبكة غزة
+ * قد يعلّق 30+ ثانية، فيوقف التسخين كله. 8s حد معقول لعنصر واحد.
+ */
+const FETCH_TIMEOUT_MS = 8000;
+
+function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
  * متغيّر ورأس Vary يمنعان مطابقة Cache API الحرفية (انظر تعليق PHASE-3-B
@@ -181,6 +238,11 @@ export async function warmRouteShells(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!navigator.onLine) return;
   if (typeof caches === 'undefined') return;
+  // FIX OFFLINE-WARM-THROTTLE
+  if (isWarmingRouteShells) return;
+  const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
+  if (Date.now() - last < WARM_INTERVAL_MS) return;
+  isWarmingRouteShells = true;
 
   try {
     const cache = await caches.open(STATIC_CACHE);
@@ -198,9 +260,9 @@ export async function warmRouteShells(): Promise<void> {
     await Promise.allSettled(
       CORE_ROUTES.map(async (path) => {
         try {
-          const response = await fetch(path, { credentials: 'same-origin' });
+          const response = await fetchWithTimeout(path, { credentials: 'same-origin' });
           if (!response.ok) return;
-          await cache.put(path, response.clone());
+          await putTimestamped(cache, path, response.clone());
 
           const html = await response.clone().text();
           const assetUrls = Array.from(
@@ -212,15 +274,19 @@ export async function warmRouteShells(): Promise<void> {
           await Promise.allSettled(
             assetUrls.map(async (assetUrl) => {
               try {
-                const assetResponse = await fetch(assetUrl, { credentials: 'same-origin' });
-                if (assetResponse.ok) await cache.put(assetUrl, assetResponse.clone());
+                // FIX OFFLINE-WARM-DEDUP: تجاوز الأصول الموجودة مسبقاً —
+                // نفس chunks يتشاركها أكثر من مسار، جلوّبها مرة واحدة.
+                if (await cache.match(assetUrl)) return;
+                const assetResponse = await fetchWithTimeout(assetUrl, { credentials: 'same-origin' });
+                if (assetResponse.ok) await putTimestamped(cache, assetUrl, assetResponse.clone());
               } catch {
                 // أصل واحد فاشل لا يوقف تخزين الباقي.
               }
             }),
           );
-        } catch {
-          // مسار واحد فاشل (مثلًا انقطع النت أثناء الجلب) لا يوقف الباقي.
+        } catch (err) {
+          // FIX OFFLINE-WARM-LOGGING
+          console.warn('[route-shells] warmRouteShells path failed:', path, err);
         }
       }),
     );
@@ -235,26 +301,34 @@ export async function warmRouteShells(): Promise<void> {
     await Promise.allSettled(
       CORE_ROUTES.map(async (path) => {
         try {
-          const response = await fetch(path, {
+          const response = await fetchWithTimeout(path, {
             credentials: 'same-origin',
             headers: { RSC: '1' },
           });
           if (!response.ok) return;
           const headers = new Headers(response.headers);
           headers.delete('Vary');
+          // FIX OFFLINE-WARM-TIMESTAMP
+          headers.set('X-SW-Cached-At', String(Date.now()));
           const stored = new Response(await response.clone().blob(), {
             status: response.status,
             statusText: response.statusText,
             headers,
           });
           await cache.put(rscShellKey(path), stored);
-        } catch {
-          // مسار واحد فاشل لا يوقف الباقي — نفس منطق (أ) أعلاه.
+        } catch (err) {
+          console.warn('[route-shells] warmRouteShells RSC failed:', path, err);
         }
       }),
     );
-  } catch {
-    // فشل كامل — لا مشكلة، warmRouteShells تُعاد استدعاؤها بأول فتح تالٍ.
+
+    // FIX OFFLINE-WARM-THROTTLE: سجّل نجاح الجلسة كاملة
+    localStorage.setItem(LAST_ROUTE_WARMED_KEY, String(Date.now()));
+  } catch (err) {
+    // FIX OFFLINE-WARM-LOGGING
+    console.warn('[route-shells] warmRouteShells failed:', err);
+  } finally {
+    isWarmingRouteShells = false;
   }
 }
 
@@ -267,16 +341,22 @@ export async function warmPersonalShells(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!navigator.onLine) return;
   if (typeof caches === 'undefined') return;
+  // FIX OFFLINE-WARM-THROTTLE
+  if (isWarmingPersonalShells) return;
+  const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
+  if (Date.now() - last < WARM_INTERVAL_MS) return;
+  isWarmingPersonalShells = true;
 
   try {
     const cache = await caches.open(PERSONAL_SHELL_CACHE);
+    const staticCache = await caches.open(STATIC_CACHE);
 
     await Promise.allSettled(
-      PERSONAL_SHELL_ROUTES.map(async (path) => {
+      PERSONAL_SHELL_ROUTES_ESSENTIAL.map(async (path) => {
         try {
-          const response = await fetch(path, { credentials: 'same-origin' });
+          const response = await fetchWithTimeout(path, { credentials: 'same-origin' });
           if (!response.ok) return;
-          await cache.put(path, response.clone());
+          await putTimestamped(cache, path, response.clone());
 
           const html = await response.clone().text();
           const assetUrls = Array.from(
@@ -285,47 +365,52 @@ export async function warmPersonalShells(): Promise<void> {
             .map((match) => match[1])
             .filter((url): url is string => Boolean(url));
 
-          // الأصول تُخزَّن في STATIC_CACHE حتى يخدمها staleWhileRevalidate
-          const staticCache = await caches.open(STATIC_CACHE);
           await Promise.allSettled(
             assetUrls.map(async (assetUrl) => {
               try {
-                const assetResponse = await fetch(assetUrl, { credentials: 'same-origin' });
-                if (assetResponse.ok) await staticCache.put(assetUrl, assetResponse.clone());
+                // FIX OFFLINE-WARM-DEDUP
+                if (await staticCache.match(assetUrl)) return;
+                const assetResponse = await fetchWithTimeout(assetUrl, { credentials: 'same-origin' });
+                if (assetResponse.ok) await putTimestamped(staticCache, assetUrl, assetResponse.clone());
               } catch {
                 /* ignore */
               }
             }),
           );
-        } catch {
-          /* ignore single path */
+        } catch (err) {
+          console.warn('[route-shells] warmPersonalShells path failed:', path, err);
         }
       }),
     );
 
     await Promise.allSettled(
-      PERSONAL_SHELL_ROUTES.map(async (path) => {
+      PERSONAL_SHELL_ROUTES_ESSENTIAL.map(async (path) => {
         try {
-          const response = await fetch(path, {
+          const response = await fetchWithTimeout(path, {
             credentials: 'same-origin',
             headers: { RSC: '1' },
           });
           if (!response.ok) return;
           const headers = new Headers(response.headers);
           headers.delete('Vary');
+          headers.set('X-SW-Cached-At', String(Date.now()));
           const stored = new Response(await response.clone().blob(), {
             status: response.status,
             statusText: response.statusText,
             headers,
           });
           await cache.put(rscShellKey(path), stored);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('[route-shells] warmPersonalShells RSC failed:', path, err);
         }
       }),
     );
-  } catch {
-    /* ignore full failure */
+
+    localStorage.setItem(LAST_PERSONAL_WARMED_KEY, String(Date.now()));
+  } catch (err) {
+    console.warn('[route-shells] warmPersonalShells failed:', err);
+  } finally {
+    isWarmingPersonalShells = false;
   }
 }
 
