@@ -56,8 +56,14 @@ export async function unregisterPush(): Promise<void> {
     }
     return;
   }
-  const { unsubscribeFromPush } = await import('@/lib/pwa');
-  await unsubscribeFromPush();
+  // FIX PUSH-UNREGISTER-CATCH: unsubscribeFromPush قد يرمي على الويب
+  // (SW غير مسجّل، لا اشتراك، خطأ شبكة) — لا يجب أن يكسر الـ toggle.
+  try {
+    const { unsubscribeFromPush } = await import('@/lib/pwa');
+    await unsubscribeFromPush();
+  } catch (err) {
+    console.warn('[push] unsubscribeFromPush failed:', err);
+  }
 }
 
 export async function getPushPermissionState(): Promise<

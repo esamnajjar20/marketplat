@@ -53,7 +53,35 @@ export async function registerNativePush(): Promise<string | null> {
   }
   if (status !== 'granted') return null;
 
-  return new Promise<string | null>((resolve, reject) => {
+  // FIX NATIVEPUSH-LISTENER-LEAK + TIMEOUT:
+  //  1) listeners كانت تتراكم مع كل استدعاء (toggle/ensureSynced) بلا إزالة.
+  //  2) FCM قد لا يستجيب أبدًا (شبكة/إعداد خاطئ) → Promise يعلق للأبد.
+  // الحل: tracked handles + settled flag + 30s timeout + cleanup في finally.
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let resolveOnce: (v: string | null) => void = () => {};
+  let rejectOnce: (e: unknown) => void = () => {};
+
+  const promise = new Promise<string | null>((resolve, reject) => {
+    resolveOnce = (v) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolve(v);
+    };
+    rejectOnce = (e) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      reject(e);
+    };
+    timer = setTimeout(
+      () => rejectOnce(new Error('FCM registration timeout (30s)')),
+      30_000,
+    );
+  });
+
+  const handles = await Promise.all([
     PushNotifications.addListener('registration', (token) => {
       void (async () => {
         const platform = await getNativePlatformName();
@@ -64,18 +92,24 @@ export async function registerNativePush(): Promise<string | null> {
             token: token.value,
             platform: platformLabel,
           });
-          resolve(token.value);
+          resolveOnce(token.value);
         } catch (err) {
-          reject(err);
+          rejectOnce(err);
         }
       })();
-    });
-
+    }),
     PushNotifications.addListener('registrationError', (err) => {
-      reject(new Error(err.error || 'FCM registration failed'));
-    });
+      rejectOnce(new Error(err.error || 'FCM registration failed'));
+    }),
+  ]);
 
-    void PushNotifications.register();
+  void PushNotifications.register();
+
+  return promise.finally(() => {
+    if (timer) clearTimeout(timer);
+    handles.forEach((h) => {
+      void h.remove();
+    });
   });
 }
 
