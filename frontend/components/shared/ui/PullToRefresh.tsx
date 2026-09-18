@@ -73,6 +73,9 @@ export function PullToRefresh({
   return (
     <div
       className={cn('relative', className)}
+      // FIX PULL-IOS-TOUCH: pan-y يمنع bounce مزدوج على iOS Safari +
+      // overscroll-behavior يمنع السحب أن يُنتقل للأب.
+      style={{ touchAction: 'pan-y', overscrollBehaviorY: 'contain' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -80,6 +83,10 @@ export function PullToRefresh({
       <div
         className="pointer-events-none flex items-center justify-center overflow-hidden transition-[height] duration-150"
         style={{ height: refreshing ? 40 : offset }}
+        // FIX PULL-A11Y: role="status" + aria-label عند التحديث — يعلن
+        // قارئ الشاشة أن العملية جارية.
+        role={refreshing ? 'status' : undefined}
+        aria-label={refreshing ? 'جاري التحديث…' : undefined}
         aria-hidden={!refreshing && offset < 8}
       >
         {(refreshing || offset > 12) && (

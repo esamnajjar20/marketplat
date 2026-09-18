@@ -130,7 +130,7 @@ export function NetworkStatusBanner() {
       {showOfflineFull && (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground safe-area-pb"
+          className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground pwa-safe-bottom"
         >
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
           <span>لا يوجد اتصال بالإنترنت</span>
@@ -156,7 +156,7 @@ export function NetworkStatusBanner() {
       {showBackOnline && (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white safe-area-pb"
+          className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white pwa-safe-bottom"
         >
           <Wifi className="h-4 w-4 shrink-0" aria-hidden />
           <span>عاد الاتصال</span>
