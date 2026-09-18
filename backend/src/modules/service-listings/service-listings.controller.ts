@@ -46,6 +46,7 @@ export const serviceListingsController = {
       const { query } = getServiceListingsSchema.parse({ query: req.query });
       const result = await serviceListingsService.getServiceListings(query);
       res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=90');
+      res.setHeader('Vary', 'Authorization');
       res
         .status(200)
         .json(

@@ -45,6 +45,7 @@ export const productsController = {
       const result = await productsService.getProducts(query);
       // SLOW-NET phase5: short public cache for browse lists
       res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=90');
+      res.setHeader('Vary', 'Authorization');
       res
         .status(200)
         .json(successResponse('Products fetched', result.items, { pagination: result.meta }));

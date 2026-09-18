@@ -22,6 +22,7 @@ export const categoriesController = {
     try {
       const categories = await categoriesService.getCategories();
       res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+      res.setHeader('Vary', 'Authorization');
       res.status(200).json(successResponse('Categories fetched', categories));
     } catch (error) {
       next(error);
