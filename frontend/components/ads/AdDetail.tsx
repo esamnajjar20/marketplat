@@ -81,6 +81,8 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   }, [imageCount, goPrev, goNext]);
 
   const isAuth = useAuthStore(selectIsAuthenticated);
+  // FIX SAVED-ADS-USER-SCOPE: userId لتصفية محفوظات المستخدم.
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const toggleFavorite = useToggleFavorite();
   const queryClient = useQueryClient();
 
@@ -133,7 +135,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   const [isSavingOffline, setIsSavingOffline] = useState(false);
 
   useEffect(() => {
-    setIsSavedOffline(isAdSavedOffline(ad.id));
+    setIsSavedOffline(isAdSavedOffline(ad.id, userId));
   }, [ad.id]);
 
   // PHASE-2: auto offline snapshot for 24h (does not replace manual save)
@@ -144,14 +146,14 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   async function handleSaveOffline() {
     if (isSavingOffline) return;
     if (isSavedOffline) {
-      await unsaveAdOffline(ad.id);
+      await unsaveAdOffline(ad.id, userId);
       setIsSavedOffline(false);
       toast.success('أُزيل من المحفوظات دون اتصال');
       return;
     }
     setIsSavingOffline(true);
     try {
-      const ok = await saveAdOffline(ad);
+      const ok = await saveAdOffline(ad, userId);
       if (ok) {
         setIsSavedOffline(true);
         toast.success('تم حفظ الإعلان', {

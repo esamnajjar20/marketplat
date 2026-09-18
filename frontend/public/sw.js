@@ -138,7 +138,7 @@ const MAX_STATIC_ENTRIES = 250;
 
 /** FIX SW-MEMORY-02: حد أقصى لمدخلات SAVED_ADS_CACHE — الإعلانات
  * المحفوظة يدويًا + صورها. عند التجاوز، الأقدم يُحذف. */
-const MAX_SAVED_ADS_ENTRIES = 200;
+const MAX_SAVED_ADS_ENTRIES = 500;
 
 const OFFLINE_URL = '/offline';
 

@@ -54,6 +54,9 @@ const MAX_SAVED_ADS = 30;
 
 export interface SavedOfflineAdMeta {
   id: string;
+  /** FIX SAVED-ADS-USER-SCOPE: معرّف صاحب الحفظ. بدونه، حساب آخر يسجّل
+   * دخول على نفس الجهاز يرى محفوظات الحساب السابق. null لعناصر قديمة. */
+  userId?: string | null;
   title: string;
   price: string | null;
   city: string;
@@ -66,12 +69,18 @@ export interface SavedOfflineAdMeta {
   imageUrls: string[];
 }
 
-export function listSavedOfflineAds(): SavedOfflineAdMeta[] {
-  return localGet<SavedOfflineAdMeta[]>(SAVED_INDEX_KEY, []);
+/**
+ * FIX SAVED-ADS-USER-SCOPE: userId اختياري — مررها لتصفية محفوظات
+ * المستخدم الحالي فقط. بلا userId تُرجَع كل المحفوظات (للتنظيف الشامل).
+ */
+export function listSavedOfflineAds(userId?: string | null): SavedOfflineAdMeta[] {
+  const all = localGet<SavedOfflineAdMeta[]>(SAVED_INDEX_KEY, []);
+  if (userId === undefined) return all;
+  return all.filter((a) => (a.userId ?? null) === (userId ?? null));
 }
 
-export function isAdSavedOffline(adId: string): boolean {
-  return listSavedOfflineAds().some((a) => a.id === adId);
+export function isAdSavedOffline(adId: string, userId?: string | null): boolean {
+  return listSavedOfflineAds(userId).some((a) => a.id === adId);
 }
 
 function adDetailUrl(id: string): string {
@@ -88,9 +97,23 @@ function collectImageUrls(ad: Ad): string[] {
   return urls;
 }
 
+/**
+ * FIX SAVED-ADS-TIMESTAMP: نسخة من putTimestamped (نفس منطق sw.js) —
+ * بدونها كل مدخلات SAVED_ADS_CACHE لها ts=0، فـ trimCache يحذفها بشكل
+ * عشوائي بدل الأقدم أولاً عند تجاوز الحد.
+ */
 async function cachePutSafe(cache: Cache, url: string, response: Response): Promise<void> {
   try {
-    if (response.ok) await cache.put(url, response.clone());
+    if (!response.ok) return;
+    const headers = new Headers(response.headers);
+    headers.set('X-SW-Cached-At', String(Date.now()));
+    const body = await response.clone().blob();
+    const stamped = new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+    await cache.put(url, stamped);
   } catch {
     // فشل تخزين عنصر واحد (مساحة ممتلئة، مثلًا) لا يجب يوقف بقية العملية.
   }
@@ -122,7 +145,7 @@ async function purgeSavedAdFromCache(entry: Pick<SavedOfflineAdMeta, 'id' | 'ima
  * لا يرمي استثناءات للمستدعي — إن فشل الحفظ (لا كاش متاح، لا اتصال
  * أصلًا وقت الضغط على الزر، إلخ) يُعاد false ليعرض المكوّن toast مناسب.
  */
-export async function saveAdOffline(ad: Ad): Promise<boolean> {
+export async function saveAdOffline(ad: Ad, userId?: string | null): Promise<boolean> {
   if (typeof window === 'undefined' || typeof caches === 'undefined') return false;
 
   try {
@@ -148,6 +171,7 @@ export async function saveAdOffline(ad: Ad): Promise<boolean> {
     const index = listSavedOfflineAds().filter((a) => a.id !== ad.id);
     index.unshift({
       id: ad.id,
+      userId: userId ?? null,
       title: ad.title,
       price: ad.price,
       city: ad.city,
@@ -175,8 +199,8 @@ export async function saveAdOffline(ad: Ad): Promise<boolean> {
  * (FIX SAVED-ADS-LEAK-01؛ سابقًا كانت تُحذف استجابة الـ API فقط وتبقى
  * الصور "بقايا غير ضارة" بالكاش، وهو افتراض لا يصمد بلا سقف فعلي مُطبَّق).
  */
-export async function unsaveAdOffline(adId: string): Promise<void> {
-  const current = listSavedOfflineAds();
+export async function unsaveAdOffline(adId: string, userId?: string | null): Promise<void> {
+  const current = listSavedOfflineAds(userId);
   const entry = current.find((a) => a.id === adId);
   await purgeSavedAdFromCache({ id: adId, imageUrls: entry?.imageUrls ?? [] });
   localSet(SAVED_INDEX_KEY, current.filter((a) => a.id !== adId));

@@ -30,6 +30,9 @@ export const OFFLINE_DATA_LIMITS = {
 export const SW_CACHE_LIMITS = {
   apiEntries: 60,
   imageEntries: 80,
+  // FIX CACHE-POLICY-SAVED-ADS: كان مفقوداً من هذه المرآة المعلوماتية.
+  savedAdsEntries: 500,
+  staticEntries: 250,
 } as const;
 
 /** أسماء كاشات مُصدَّرة (غير مرتبطة بإصدار) vs مُصدَّرة. */

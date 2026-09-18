@@ -15,14 +15,18 @@ import { listSavedOfflineAds, unsaveAdOffline, type SavedOfflineAdMeta } from '@
 import { formatPrice } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 
 export function SavedOfflineAdsPageClient() {
+  const user = useAuthStore(selectUser);
+  const userId = user?.id ?? null;
   const [ads, setAds] = useState<SavedOfflineAdMeta[]>([]);
   const [query, setQuery] = useState('');
 
   const refresh = useCallback(() => {
-    setAds(listSavedOfflineAds());
-  }, []);
+    // FIX SAVED-ADS-USER-SCOPE: تمرير userId لتصفية محفوظات المستخدم.
+    setAds(listSavedOfflineAds(userId));
+  }, [userId]);
 
   useEffect(() => {
     refresh();
@@ -39,7 +43,7 @@ export function SavedOfflineAdsPageClient() {
   }, [ads, query]);
 
   async function handleRemove(id: string) {
-    await unsaveAdOffline(id);
+    await unsaveAdOffline(id, userId);
     toast.success('أُزيل من المحفوظات دون اتصال');
     refresh();
   }
