@@ -74,7 +74,14 @@ async function measureCache(name: string): Promise<{ entries: number; bytes: num
   }
 }
 
-async function collectExtras(): Promise<LocalDataExtras> {
+/**
+ * FIX STORAGE-STATS-USER-SCOPE: كان listAdDrafts() يُستدعى بلا userId،
+ * فتُحتسب مسودات كل المستخدمين على نفس الجهاز في إحصائيات المستخدم
+ * الحالي. المظهر: مستخدم B يسجّل دخول على جهاز مشترك → يرى عدد مسودات A
+ * في "التخزين والبيانات" رغم أنه لا يملكها. الآن يُمرَّر userId (نفس
+ * ما تفعله SyncCenterClient.tsx) لتصفية المسودات بحسب الملكية.
+ */
+async function collectExtras(userId?: string | null): Promise<LocalDataExtras> {
   let catalogDownloads = 0;
   let catalogBytes = 0;
   let offlineDrafts = 0;
@@ -87,7 +94,7 @@ async function collectExtras(): Promise<LocalDataExtras> {
     /* ignore */
   }
   try {
-    const drafts = await listAdDrafts();
+    const drafts = await listAdDrafts(userId);
     offlineDrafts = drafts.length;
     pendingDrafts = drafts.filter(
       (d) => d.status === 'pending_sync' || d.status === 'failed',
@@ -98,7 +105,14 @@ async function collectExtras(): Promise<LocalDataExtras> {
   return { catalogDownloads, catalogBytes, offlineDrafts, pendingDrafts };
 }
 
-export async function collectStorageStats(): Promise<StorageStats> {
+/**
+ * FIX STORAGE-STATS-USER-SCOPE: يقبل userId اختياريًا لتصفية مسودات
+ * المستخدم الحالي (نفس سبب collectExtras أعلاه). مرّر userId دومًا من
+ * أي واجهة تعرضها لمستخدم مسجّل.
+ */
+export async function collectStorageStats(
+  userId?: string | null,
+): Promise<StorageStats> {
   const emptyExtras: LocalDataExtras = {
     catalogDownloads: 0,
     catalogBytes: 0,
@@ -146,7 +160,7 @@ export async function collectStorageStats(): Promise<StorageStats> {
     /* ignore */
   }
 
-  const extras = await collectExtras();
+  const extras = await collectExtras(userId);
   const totalBytes =
     cachesStats.reduce((s, c) => s + c.bytes, 0) + extras.catalogBytes;
   const totalEntries =

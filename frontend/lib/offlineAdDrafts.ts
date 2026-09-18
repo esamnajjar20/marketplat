@@ -268,7 +268,11 @@ export async function deleteAdDraft(id: string): Promise<void> {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).delete(id);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => {
+      // FIX AD-DRAFT-LOGGING: تسجيل فشل الحذف للتشخيص.
+      console.warn('[ad-drafts] delete failed:', id, tx.error);
+      reject(tx.error);
+    };
   });
 }
 
@@ -327,8 +331,15 @@ export async function deleteAdDraftByOperationId(operationId: string): Promise<v
   if (draft) await deleteAdDraft(draft.id);
 }
 
-export async function countPendingAdDrafts(): Promise<number> {
-  const items = await listAdDrafts();
+/**
+ * FIX AD-DRAFT-COUNT-SCOPE: كانت تستدعي listAdDrafts() بلا userId، فترجع
+ * عدد مسودات كل المستخدمين على نفس الجهاز — رقم خاطئ لأي واجهة تعرضه
+ * (لو استُخدمت مستقبلًا). الآن تقبل userId اختياريًا للاتساق مع listAdDrafts.
+ * ملاحظة: غير مستخدمة حاليًا في الكود، لكنها موجودة كواجهة عامة (API)
+ * فتُصلَح وقائيًا بدل تركها فخًّا لمن يستخدمها لاحقًا.
+ */
+export async function countPendingAdDrafts(userId?: string | null): Promise<number> {
+  const items = await listAdDrafts(userId);
   return items.filter((d) => d.status === 'draft' || d.status === 'pending_sync' || d.status === 'failed')
     .length;
 }

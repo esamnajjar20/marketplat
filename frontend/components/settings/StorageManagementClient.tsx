@@ -38,6 +38,7 @@ import { clearCatalogDownloads } from '@/lib/downloadStorage';
 import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth.store';
 
 function iconForCache(name: string) {
   if (name.includes('image')) return ImageIcon;
@@ -50,6 +51,9 @@ function iconForCache(name: string) {
 }
 
 export function StorageManagementClient() {
+  // FIX STORAGE-STATS-USER-SCOPE: استخراج userId الحالي لتصفية المسودات
+  // بحسب الملكية — بدون هذا، مسودات مستخدم آخر على نفس الجهاز تُحتسب.
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -60,14 +64,16 @@ export function StorageManagementClient() {
     setLoading(true);
     setError(null);
     try {
-      const next = await collectStorageStats();
+      const next = await collectStorageStats(userId);
       setStats(next);
     } catch {
       setError('تعذّر قراءة بيانات التخزين على هذا الجهاز.');
     } finally {
       setLoading(false);
     }
-  }, []);
+    // FIX STORAGE-STATS-USER-SCOPE: userId في deps — عند تسجيل الدخول/
+    // الخروج يُعاد حساب الإحصائيات بالملكية الصحيحة.
+  }, [userId]);
 
   useEffect(() => {
     void refresh();

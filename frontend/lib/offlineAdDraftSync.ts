@@ -56,6 +56,11 @@ export function initAdDraftSync(): void {
 
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (!isQueueMessage(event.data)) return;
-    void handleMessage(event.data);
+    // FIX AD-DRAFT-SYNC-UNHANDLED: catch لمنع unhandled promise rejection —
+    // handleMessage يستدعي IndexedDB (saveAdDraft/deleteAdDraft) وقد يرمي
+    // عند مساحة ممتلئة أو corruption، فيُصعّد بصمت بلا أي أثر للتشخيص.
+    void handleMessage(event.data).catch((err) =>
+      console.warn('[ad-draft-sync] message handling failed:', err),
+    );
   });
 }
