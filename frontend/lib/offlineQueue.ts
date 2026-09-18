@@ -197,8 +197,25 @@ export const QUEUE_EVENT_TYPES = [
  * يُستدعى عند حدث 'online' في الصفحة كـ fallback للمتصفحات التي لا تدعم
  * Background Sync (الاعتماد فقط على `sync` event في sw.js غير كافٍ لها).
  */
+/**
+ * FIX REPLAY-RACE-01: throttle لمنع تشغيل replayQueue متوازياً.
+ * OfflineBootstrap يستدعي هذه الدالة من 4 مسارات (mount، online،
+ * visibilitychange، periodic). بدون throttle، عند عودة الاتصال
+ * تصل 2-4 رسائل REPLAY_QUEUE_NOW لنفس اللحظة، فيشغّل SW
+ * replayQueue() متعدداً بالتوازي — كل واحد يقرأ نفس العناصر قبل
+ * حذفها → POSTs مكررة (تكرار إعلانات).
+ *
+ * 1500ms كافية لدمج أي انفجار من الاستدعاءات المتزامنة، وقصيرة
+ * بما يكفي لعدم تعطيل أي replay يدوي لاحق.
+ */
+const REPLAY_THROTTLE_MS = 1500;
+let lastReplayAt = 0;
+
 export async function requestQueueReplay(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
+  const now = Date.now();
+  if (now - lastReplayAt < REPLAY_THROTTLE_MS) return;
+  lastReplayAt = now;
   const registration = await navigator.serviceWorker.ready;
   registration.active?.postMessage({ type: 'REPLAY_QUEUE_NOW' });
 }

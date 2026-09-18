@@ -97,7 +97,7 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v29';
+const CACHE_VERSION = 'v30';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -1201,7 +1201,25 @@ function isOrderSensitiveQueueEntry(entry) {
   );
 }
 
+// FIX REPLAY-RACE-01: قفل يمنع تشغيل replayQueue() متوازياً.
+// OfflineBootstrap يستدعي REPLAY_QUEUE_NOW من 4 مسارات (mount،
+// online، visibilitychange، periodic) + عبر التبويبات/النوافذ
+// المتعددة (Chrome tab + PWA standalone). بدون قفل، replayQueue()
+// يُشغَّل 2-4 مرات متوازية، كل واحد يقرأ نفس العناصر من IndexedDB
+// قبل حذفها → POSTs مكررة لنفس الإعلان/الرسالة.
+let replayQueueInFlight = false;
+
 async function replayQueue() {
+  if (replayQueueInFlight) return;
+  replayQueueInFlight = true;
+  try {
+    await replayQueueImpl();
+  } finally {
+    replayQueueInFlight = false;
+  }
+}
+
+async function replayQueueImpl() {
   let entries;
   try {
     entries = await getAllQueuedEntries();
