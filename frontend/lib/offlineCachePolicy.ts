@@ -36,7 +36,12 @@ export const SW_CACHE_LIMITS = {
 } as const;
 
 /** أسماء كاشات مُصدَّرة (غير مرتبطة بإصدار) vs مُصدَّرة. */
-export const UNVERSIONED_CACHES = ['market-saved-ads'] as const;
+export const UNVERSIONED_CACHES = [
+  'market-saved-ads',
+  // FIX AUTO-READ-CACHE-PRESERVE: نفس سياسة market-saved-ads — بدون
+  // إصدار، يُحفظ عبر كل SW update.
+  'market-auto-read-ads',
+] as const;
 
 export const VERSIONED_CACHE_PREFIXES = [
   'market-static-',

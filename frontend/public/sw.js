@@ -1554,6 +1554,10 @@ self.addEventListener('activate', (event) => {
     CORE_CACHE,
     SAVED_ADS_CACHE,
     PERSONAL_SHELL_CACHE,
+    // FIX AUTO-READ-CACHE-PRESERVE: market-auto-read-ads كان يُحذف فور كل
+    // SW update لأنه ليس في currentCaches → كل الإعلانات المزارة تختفي
+    // (نفس نمط v24 لـ CORE_CACHE). الآن يُحفظ عبر التحديثات.
+    'market-auto-read-ads',
   ];
   event.waitUntil(
     (async () => {
