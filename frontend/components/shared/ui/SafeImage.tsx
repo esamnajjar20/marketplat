@@ -31,7 +31,21 @@ export function SafeImage({
   ...props
 }: ImageProps & { variant?: 'default' | 'avatar' }) {
   const fallback = variant === 'avatar' ? PLACEHOLDER_AVATAR_SVG : PLACEHOLDER_SVG;
-  const [errored, setErrored] = useState(false);
+  // Track WHICH src failed, not just that a failure happened. The
+  // previous `useState(false)` stayed true forever once any error
+  // fired — including when the SAME component instance was reused for
+  // a DIFFERENT src by React (the image carousel in AdDetail.tsx
+  // swapping currentImg, ChatWindow switching conversations, any list
+  // reusing a row's cell). Those cases all rendered the grey fallback
+  // for a perfectly valid new image, because React reconciles the same
+  // SafeImage instance and never remounts, so `errored` was never
+  // reset. Deriving it from (erroredSrc === current src) makes the
+  // fallback automatically clear the moment src changes, with no
+  // useEffect and no extra render — the same "reset state when a
+  // prop changes" pattern the React docs recommend over useEffect.
+  const [erroredSrc, setErroredSrc] = useState<string | null>(null);
+  const currentSrc = typeof src === 'string' ? src : '';
+  const errored = erroredSrc !== null && erroredSrc === currentSrc;
 
   // Data-saver: skip blur-up placeholders (extra network request for
   // a tiny LQIP) — the final image alone is enough on slow links.
@@ -46,7 +60,7 @@ export function SafeImage({
       unoptimized={errored ? true : props.unoptimized}
       {...blurProps}
       onError={(e) => {
-        setErrored(true);
+        setErroredSrc(currentSrc);
         onError?.(e);
       }}
     />
