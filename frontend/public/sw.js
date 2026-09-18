@@ -287,6 +287,30 @@ function isProtectedPage(url) {
     '/service-requests',
     '/my-reports',
     '/complete-profile',
+    // FIX PROTECTED-PARITY-02: seven more routes present in
+    // middleware.ts's PROTECTED_PREFIXES but still missing here, on top
+    // of the three PROTECTED-PARITY-01 added above. Same class of bug
+    // the /my-store comment documents: handlePageRequest checks
+    // isProtectedPage FIRST, so for any route that returns false here,
+    // handleProtectedPage is never called — meaning isPersonalShellRoute
+    // (which already covers every one of these via exact entry or
+    // prefix match) is effectively dead code for them, and their page
+    // shell is stored in the shared STATIC_CACHE instead of
+    // PERSONAL_SHELL_CACHE. STATIC_CACHE is never cleared on logout, so
+    // on a shared browser the next person to open the site could be
+    // served the previous user's shell for the same URL.
+    //
+    // /requests/new, /requests/me, /requests/offers are listed
+    // individually (not as a /requests prefix) because /requests itself
+    // is public — only its write/account subroutes are protected, the
+    // same boundary middleware.ts draws.
+    '/my-requests',
+    '/requests/new',
+    '/requests/me',
+    '/requests/offers',
+    '/activity',
+    '/saved-searches',
+    '/service-broadcasts',
   ];
   return protectedPrefixes.some(
     (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
