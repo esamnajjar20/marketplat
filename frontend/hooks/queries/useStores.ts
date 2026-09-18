@@ -49,8 +49,9 @@ export function useStore(id: string) {
  */
 export function useMyStore() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const setLastKnownRoles = useAuthStore((s) => s.setLastKnownRoles);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.stores.me(),
     queryFn: async () => {
       try {
@@ -70,6 +71,16 @@ export function useMyStore() {
     enabled: isAuthenticated,
     retry: false,
   });
+
+  useEffect(() => {
+    if (query.isSuccess) {
+      setLastKnownRoles({
+        hasActiveStore: Boolean(query.data && query.data.status === 'ACTIVE'),
+      });
+    }
+  }, [query.isSuccess, query.data, setLastKnownRoles]);
+
+  return query;
 }
 
 /**

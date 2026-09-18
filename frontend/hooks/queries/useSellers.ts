@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
@@ -88,9 +89,27 @@ export function useMySellerProfile() {
  * but query resolved" CTA (`isLoaded && !isSeller`), which is a
  * different condition from "still loading".
  */
-export function useIsSeller(): { isSeller: boolean; isLoaded: boolean } {
-  const { data, isSuccess } = useMySellerProfile();
-  return { isSeller: isSuccess && Boolean(data), isLoaded: isSuccess };
+export function useIsSeller(): {
+  isSeller: boolean;
+  isLoaded: boolean;
+  /** True while the query has no answer yet and no local role hint */
+  showRoleSkeleton: boolean;
+} {
+  const { data, isSuccess, isPending } = useMySellerProfile();
+  const lastKnown = useAuthStore((s) => s.lastKnownRoles);
+  const setLastKnownRoles = useAuthStore((s) => s.setLastKnownRoles);
+
+  useEffect(() => {
+    if (isSuccess) {
+      setLastKnownRoles({ isSeller: Boolean(data) });
+    }
+  }, [isSuccess, data, setLastKnownRoles]);
+
+  const isLoaded = isSuccess;
+  // Prefer server truth; while pending, paint from lastKnownRoles (slow-net).
+  const isSeller = isSuccess ? Boolean(data) : Boolean(lastKnown?.isSeller);
+  const showRoleSkeleton = !isSuccess && !lastKnown && isPending;
+  return { isSeller, isLoaded, showRoleSkeleton };
 }
 
 

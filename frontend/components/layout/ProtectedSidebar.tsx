@@ -178,6 +178,15 @@ function DisclosureGroup({
   );
 }
 
+function RoleNavSkeleton() {
+  return (
+    <div className="space-y-1 px-1 py-0.5" aria-hidden>
+      <div className="h-9 animate-pulse rounded-md bg-muted/70" />
+      <div className="h-9 animate-pulse rounded-md bg-muted/50" />
+    </div>
+  );
+}
+
 export function ProtectedSidebar() {
   const pathname = usePathname();
   const { data: unreadMessages = 0 } = useUnreadConversationCount();
@@ -185,8 +194,8 @@ export function ProtectedSidebar() {
   // ROLE-SEP 3.2: isSuccess && data is the only positive signal —
   // everything else (loading, 404, network error) reads as "no
   // profile yet" and renders the CTA. No isError branch.
-  const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
-  const { isProvider } = useIsProvider();
+  const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
+  const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
   const { data: myStore } = useMyStore();
 
   return (
@@ -211,8 +220,9 @@ export function ProtectedSidebar() {
             for sellers, then provider tools, then open-requests hub,
             then secondary (profile view, activity), then settings. */}
 
-        {/* 3. إعلاناتي (seller) */}
-        {isSeller && (
+        {/* 3. إعلاناتي (seller) — skeleton while roles unknown (slow net) */}
+        {showRoleSkeleton && <RoleNavSkeleton />}
+        {!showRoleSkeleton && isSeller && (
           <NavLink
             label="إعلاناتي"
             href={ROUTES.myAds}
@@ -241,7 +251,12 @@ export function ProtectedSidebar() {
         )}
 
         {/* 5. خدماتي (provider) */}
-        {isProvider && <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />}
+        {showProviderSkeleton && (
+          <div className="h-9 animate-pulse rounded-md bg-muted/60" aria-hidden />
+        )}
+        {!showProviderSkeleton && isProvider && (
+          <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />
+        )}
 
         {/* 6. طلباتي (open marketplace hub) */}
         <DisclosureGroup group={requestsGroupFor(true)} pathname={pathname} />

@@ -141,8 +141,8 @@ export function ProtectedMobileNav() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
-  const { isProvider } = useIsProvider();
+  const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
+  const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
   const { data: myStore } = useMyStore();
 
   useEffect(() => {
@@ -298,7 +298,12 @@ export function ProtectedMobileNav() {
           })}
 
           {/* NAV-ORDER: same priority as ProtectedSidebar / BROWSE_LINKS */}
-          {isSeller && (
+          {showRoleSkeleton && (
+            <li aria-hidden className="px-3 py-2">
+              <div className="h-9 animate-pulse rounded-md bg-muted/70" />
+            </li>
+          )}
+          {!showRoleSkeleton && isSeller && (
             <li>
               <Link
                 href={ROUTES.myAds}
@@ -352,7 +357,12 @@ export function ProtectedMobileNav() {
               </Link>
             </li>
           )}
-          {isProvider && (
+          {showProviderSkeleton && (
+            <li aria-hidden className="px-3 py-2">
+              <div className="h-9 animate-pulse rounded-md bg-muted/60" />
+            </li>
+          )}
+          {!showProviderSkeleton && isProvider && (
             <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
           )}
           <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={close} />

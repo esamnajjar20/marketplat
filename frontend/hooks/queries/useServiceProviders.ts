@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
@@ -91,9 +92,25 @@ export function useMyServiceProvider() {
  * call sites need to distinguish "still loading" from "loaded, not
  * a provider".
  */
-export function useIsProvider(): { isProvider: boolean; isLoaded: boolean } {
-  const { data, isSuccess } = useMyServiceProvider();
-  return { isProvider: isSuccess && Boolean(data), isLoaded: isSuccess };
+export function useIsProvider(): {
+  isProvider: boolean;
+  isLoaded: boolean;
+  showRoleSkeleton: boolean;
+} {
+  const { data, isSuccess, isPending } = useMyServiceProvider();
+  const lastKnown = useAuthStore((s) => s.lastKnownRoles);
+  const setLastKnownRoles = useAuthStore((s) => s.setLastKnownRoles);
+
+  useEffect(() => {
+    if (isSuccess) {
+      setLastKnownRoles({ isProvider: Boolean(data) });
+    }
+  }, [isSuccess, data, setLastKnownRoles]);
+
+  const isLoaded = isSuccess;
+  const isProvider = isSuccess ? Boolean(data) : Boolean(lastKnown?.isProvider);
+  const showRoleSkeleton = !isSuccess && !lastKnown && isPending;
+  return { isProvider, isLoaded, showRoleSkeleton };
 }
 
 /** GET /service-providers/nearby — Haversine search, requires lat/lng. */

@@ -44,9 +44,21 @@ const noopStorage: Storage = {
   length: 0,
 };
 
+export interface LastKnownRoles {
+  isSeller: boolean;
+  isProvider: boolean;
+  hasActiveStore: boolean;
+}
+
 interface AuthStore {
   // ── State ────────────────────────────────────────────────────────
   user:             AuthUser | null;
+  /**
+   * NAV-SLOW-NET: last known seller/provider/store flags for immediate
+   * sidebar paint on reload (same rationale as persisted `user`). UX
+   * hint only — pages still enforce server authz.
+   */
+  lastKnownRoles:   LastKnownRoles | null;
   accessToken:      string | null;   // in-memory only — not persisted
   /**
    * CROSS-ORIGIN-CSRF-FIX: the double-submit CSRF cookie (see
@@ -128,6 +140,7 @@ interface AuthStore {
 
   /** Update full user after /users/me resolves. */
   setUser:        (user: AuthUser) => void;
+  setLastKnownRoles: (patch: Partial<LastKnownRoles>) => void;
 
   /** Merge partial profile changes without overwriting role/id. */
   patchUser:      (patch: Partial<AuthUser>) => void;
@@ -150,6 +163,7 @@ export const useAuthStore = create<AuthStore>()(
     (set, get) => ({
       // ── Initial state ─────────────────────────────────────────────
       user:            null,
+      lastKnownRoles:  null,
       accessToken:     null,
       csrfToken:       null,
       isAuthenticated: false,
@@ -184,6 +198,14 @@ export const useAuthStore = create<AuthStore>()(
       setCsrfToken: (token) => set({ csrfToken: token }),
 
       setUser: (user) => set({ user }),
+      setLastKnownRoles: (patch) =>
+        set((s) => ({
+          lastKnownRoles: {
+            isSeller: patch.isSeller ?? s.lastKnownRoles?.isSeller ?? false,
+            isProvider: patch.isProvider ?? s.lastKnownRoles?.isProvider ?? false,
+            hasActiveStore: patch.hasActiveStore ?? s.lastKnownRoles?.hasActiveStore ?? false,
+          },
+        })),
 
       patchUser: (patch) => {
         const current = get().user;
@@ -206,6 +228,7 @@ export const useAuthStore = create<AuthStore>()(
       logout: () =>
         set({
           user:            null,
+          lastKnownRoles:  null,
           accessToken:     null,
           csrfToken:       null,
           isAuthenticated: false,
@@ -228,6 +251,7 @@ export const useAuthStore = create<AuthStore>()(
       // for it specifically.
       partialize: (state) => ({
         user: state.user,
+        lastKnownRoles: state.lastKnownRoles,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
@@ -295,5 +319,7 @@ export const selectIsAuthResolving = (s: AuthStore) => s.isAuthResolving;
 // selectors never trigger a re-render.
 export const selectSetAuth    = (s: AuthStore) => s.setAuth;
 export const selectSetUser    = (s: AuthStore) => s.setUser;
+export const selectLastKnownRoles = (s: AuthStore) => s.lastKnownRoles;
+export const selectSetLastKnownRoles = (s: AuthStore) => s.setLastKnownRoles;
 export const selectPatchUser  = (s: AuthStore) => s.patchUser;
 export const selectLogout     = (s: AuthStore) => s.logout;
