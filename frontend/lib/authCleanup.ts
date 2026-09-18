@@ -24,6 +24,7 @@ import { clearAllOfflineLists } from '@/lib/offlineListCache';
 import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
 import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
 import { clearOfflineQueue } from '@/lib/offlineQueue';
+import { clearCatalogDownloads } from '@/lib/downloadStorage';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
 
@@ -86,6 +87,9 @@ export function clearSensitiveLocalData(): void {
   // FIX QUEUE-CLEAR-ON-LOGOUT: طابور الـ SW يحتوي عناصر User A (مع توكنه
   // في Authorization headers) — بدونه، User B يرى عدد العمليات المعلّقة.
   void clearOfflineQueue();
+  // FIX CATALOG-CLEAR-ON-LOGOUT: سجل تنزيلات كتالوجات المتاجر + أجسامها
+  // في IndexedDB كانت تبقى عبر logout — User B يرى ما نزّله User A.
+  clearCatalogDownloads();
   void clearOfflineMessagesStore();
   clearPushBindingsOnSessionEnd();
 }

@@ -39,8 +39,20 @@ function readList(): CatalogDownloadRecord[] {
   return localGet<CatalogDownloadRecord[]>(KEY, []);
 }
 
+/**
+ * FIX CATALOG-EVICT-CLEANUP: قبل، `slice(0, 50)` كان يحذف من localStorage
+ * فقط — IndexedDB (catalogIdb) يبقى بـ HTML الكامل للأبد. الآن نحذف
+ * الأجسام المُقصاة أيضاً (نفس نمط SAVED-ADS-LEAK-01).
+ */
 function writeList(list: CatalogDownloadRecord[]) {
-  localSet(KEY, list.slice(0, 50));
+  const kept = list.slice(0, 50);
+  const evicted = list.slice(50);
+  localSet(KEY, kept);
+  if (evicted.length > 0) {
+    void Promise.all(
+      evicted.map((r) => idbDeleteCatalog(r.id).catch(() => undefined)),
+    );
+  }
 }
 
 export function listCatalogDownloads(): CatalogDownloadRecord[] {
