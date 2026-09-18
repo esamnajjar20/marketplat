@@ -19,11 +19,31 @@ const MAX_ITEMS = 30;
  * القراءة أوفلاين. */
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * FIX NOTIF-CACHE-USER: معرّف المستخدم الحالي — يُقرأ من Zustand persist
+ * في localStorage (نفس نمط paymentStorage). يُخزَّن مع البيانات لمنع
+ * عرض إشعارات User A لـ User B في الـ flash القصير قبل أن يُكمل
+ * clearSensitiveLocalData عمله.
+ */
+function getCurrentUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('marketplace-auth');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { user?: { id?: string } } };
+    return parsed?.state?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface NotificationsCacheData {
   items: Notification[];
   unreadCount: number;
   /** وقت آخر تحديث لهذه النسخة المحلية */
   savedAt: string;
+  /** FIX NOTIF-CACHE-USER: مالك البيانات. null لعناصر قديمة. */
+  userId?: string | null;
 }
 
 const EMPTY: NotificationsCacheData = { items: [], unreadCount: 0, savedAt: '' };
@@ -34,6 +54,9 @@ function readCache(): NotificationsCacheData {
   if (!cache.savedAt) return EMPTY;
   const saved = Date.parse(cache.savedAt);
   if (!Number.isFinite(saved) || Date.now() - saved > TTL_MS) return EMPTY;
+  // FIX NOTIF-CACHE-USER: رفض لو البيانات لمستخدم آخر.
+  const uid = getCurrentUserId();
+  if ((cache.userId ?? null) !== uid) return EMPTY;
   return cache;
 }
 
@@ -42,6 +65,7 @@ export function saveNotificationsItemsCache(items: Notification[]): void {
   const prev = readCache();
   localSet(KEY, {
     ...prev,
+    userId: getCurrentUserId(),
     items: items.slice(0, MAX_ITEMS),
     savedAt: new Date().toISOString(),
   } satisfies NotificationsCacheData);
@@ -52,6 +76,7 @@ export function saveUnreadCountCache(count: number): void {
   const prev = readCache();
   localSet(KEY, {
     ...prev,
+    userId: getCurrentUserId(),
     unreadCount: count,
     savedAt: new Date().toISOString(),
   } satisfies NotificationsCacheData);

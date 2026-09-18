@@ -69,9 +69,21 @@ export function useFavorites(params?: { page?: number; limit?: number; listId?: 
     const data = query.data;
     if (!data) return;
 
-    queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (prev) => {
-      const idSet = new Set(prev ?? []);
-      data.items.forEach((fav) => idSet.add(fav.ad.id));
+    // FIX FAVORITES-EFFECT-RERENDER: كان Set جديد يُنشأ كل refetch حتى
+    // لو نفس البيانات → re-render لكل AdCard subscribers عبر
+    // useIsFavorited. الآن: defensive على fav.ad.id + early return
+    // لو ما فيه جديد.
+    const newIds = data.items
+      .map((fav) => fav?.ad?.id)
+      .filter((id): id is string => typeof id === 'string');
+    if (newIds.length === 0) return;
+
+    const prev = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids());
+    if (prev && newIds.every((id) => prev.has(id))) return;
+
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (existing) => {
+      const idSet = new Set(existing ?? []);
+      newIds.forEach((id) => idSet.add(id));
       return idSet;
     });
   }, [query.data, queryClient]);
@@ -205,9 +217,18 @@ export function useFavoritesByType<T>(
     const data = query.data;
     if (!data) return;
 
-    queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds(type), (prev) => {
-      const idSet = new Set(prev ?? []);
-      data.items.forEach((fav) => idSet.add(fav.entityId));
+    // FIX FAVORITES-EFFECT-RERENDER (نفس useFavorites)
+    const newIds = data.items
+      .map((fav) => fav?.entityId)
+      .filter((id): id is string => typeof id === 'string');
+    if (newIds.length === 0) return;
+
+    const prev = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds(type));
+    if (prev && newIds.every((id) => prev.has(id))) return;
+
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds(type), (existing) => {
+      const idSet = new Set(existing ?? []);
+      newIds.forEach((id) => idSet.add(id));
       return idSet;
     });
   }, [query.data, queryClient, type]);
