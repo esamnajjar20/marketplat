@@ -25,6 +25,7 @@ import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
 import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
 import { clearOfflineQueue } from '@/lib/offlineQueue';
 import { clearCatalogDownloads } from '@/lib/downloadStorage';
+import { clearSavedPaymentMethods } from '@/lib/paymentStorage';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
 
@@ -90,6 +91,9 @@ export function clearSensitiveLocalData(): void {
   // FIX CATALOG-CLEAR-ON-LOGOUT: سجل تنزيلات كتالوجات المتاجر + أجسامها
   // في IndexedDB كانت تبقى عبر logout — User B يرى ما نزّله User A.
   clearCatalogDownloads();
+  // FIX PAYMENT-CLEAR-ON-LOGOUT: جهات دفع + بطاقات نت (بكلمات مرور
+  // plaintext) كانت تبقى — User B يرى بيانات User A المالية.
+  clearSavedPaymentMethods();
   void clearOfflineMessagesStore();
   clearPushBindingsOnSessionEnd();
 }
