@@ -2,7 +2,7 @@ import { redis } from '../../config/redis';
 import { logger } from './logger';
 
 const STATS_CACHE_KEY = 'admin_stats_cache';
-const CACHE_TTL_SECONDS = 90;
+const CACHE_TTL_SECONDS = 30;
 
 export interface AdminStats {
   totalAds: number;

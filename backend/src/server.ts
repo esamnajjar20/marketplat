@@ -9,6 +9,10 @@ import { prisma } from './config/prisma';
 import { redis } from './config/redis';
 import { logger } from './shared/utils/logger';
 import { viewsBuffer } from './shared/utils/viewsBuffer';
+import {
+  initUserCacheInvalidationSubscriber,
+  stopUserCacheInvalidationSubscriber,
+} from './shared/utils/userCache';
 import { activityBuffer } from './shared/utils/activityBuffer';
 import { redisMemoryMonitor } from './shared/utils/redisMemoryMonitor';
 import { checkConnectionCapacity } from './shared/utils/capacityCheck';
@@ -96,6 +100,13 @@ const bootstrap = async (): Promise<void> => {
     logger.info('✅ Database connected');
     await withRetry('Redis', () => redis.ping());
     logger.info('✅ Redis connected');
+    // PM2 cluster mode: subscribe THIS worker to the user-cache
+    // invalidation channel BEFORE the first request is served, so an
+    // invalidate() on another worker (ban / deactivation) drops this
+    // worker's in-process L1 entry immediately instead of after the
+    // 30s L1 TTL. See userCache.ts's "Cross-worker L1 invalidation"
+    // comment for the full auth-bypass reasoning.
+    initUserCacheInvalidationSubscriber();
     viewsBuffer.startFlushTimer();
     // FIX OPS-1.1: same buffer-then-flush pattern as viewsBuffer above,
     // for user activity writes — see activityBuffer.ts's own doc
@@ -141,6 +152,7 @@ const bootstrap = async (): Promise<void> => {
         // process's timer happens to drain them.
         await activityBuffer.stopFlushTimer();
         redisMemoryMonitor.stop();
+        stopUserCacheInvalidationSubscriber();
         await prisma.$disconnect();
         await redis.quit();
         logger.info('Server closed cleanly');
@@ -175,6 +187,7 @@ const bootstrap = async (): Promise<void> => {
           await viewsBuffer.stopFlushTimer();
           await activityBuffer.stopFlushTimer();
           redisMemoryMonitor.stop();
+          stopUserCacheInvalidationSubscriber();
           await prisma.$disconnect();
           await redis.quit();
         } catch (cleanupError) {

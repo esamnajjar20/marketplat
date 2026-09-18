@@ -8,6 +8,7 @@ describe('userCache', () => {
     jest.spyOn(redis, 'get').mockResolvedValue(null);
     jest.spyOn(redis, 'setex').mockResolvedValue('OK');
     jest.spyOn(redis, 'del').mockResolvedValue(1);
+    jest.spyOn(redis, 'publish').mockResolvedValue(0);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -32,6 +33,13 @@ describe('userCache', () => {
   it('invalidate deletes cache key', async () => {
     await userCache.invalidate('u1');
     expect(redis.del).toHaveBeenCalledWith('user_cache:u1');
+  });
+
+  // Cross-worker invalidation (PM2 cluster mode): invalidate() must
+  // also publish the userId so other workers drop their L1 entry.
+  it('invalidate publishes the userId on the invalidation channel', async () => {
+    await userCache.invalidate('u1');
+    expect(redis.publish).toHaveBeenCalledWith('user_cache:invalidate', 'u1');
   });
 
   it('getOrFetch loads from DB on cache miss', async () => {

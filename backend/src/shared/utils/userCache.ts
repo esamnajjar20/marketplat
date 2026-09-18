@@ -1,11 +1,15 @@
 import { redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
+import type Redis from 'ioredis';
 
 const USER_CACHE_PREFIX = 'user_cache:';
 const BASE_TTL = 5 * 60;
 const JITTER = 60;
 const L1_TTL_MS = 30_000;
+// Cross-worker invalidation channel — see the "Cross-worker L1
+// invalidation" block below for why this exists and why init is eager.
+const INVALIDATION_CHANNEL = 'user_cache:invalidate';
 const L1 = new Map<string, { user: CachedUser; exp: number }>();
 
 export const getUserCacheKey = (userId: string): string => `${USER_CACHE_PREFIX}${userId}`;
@@ -27,6 +31,13 @@ function l1Get(userId: string): CachedUser | null {
     L1.delete(userId);
     return null;
   }
+  // LRU touch: Map preserves insertion order, so re-inserting on read
+  // makes the FIFO eviction in l1Set below actually evict the
+  // least-recently-USED entry instead of the oldest-INSERTED one. A
+  // "hot" user (checked on every request) that happened to be added
+  // early previously got evicted before a cold user added after it.
+  L1.delete(userId);
+  L1.set(userId, hit);
   return hit.user;
 }
 
@@ -42,6 +53,82 @@ function l1Del(userId: string): void {
   L1.delete(userId);
 }
 
+// ---------------------------------------------------------------------
+// Cross-worker L1 invalidation
+//
+// Under PM2 cluster mode (ecosystem.config.js: exec_mode='cluster',
+// instances=2), each worker has its OWN in-process L1 Map. A plain
+// userCache.invalidate(userId) on the worker that handled the request
+// clears that worker's L1 only — every OTHER worker keeps serving the
+// stale user (including a still-true isActive) until L1_TTL_MS elapses.
+// For an isActive change (admin ban / self-deactivate) that 30-second
+// window is a real auth bypass: auth.middleware.ts trusts
+// userCache.peek() before it ever re-reads the DB.
+//
+// Redis pub/sub closes it: invalidate() publishes the userId, every
+// worker's subscriber receives it and drops just that one L1 entry.
+// Same redis.duplicate() pattern as notificationStream.ts.
+//
+// Why EAGER init from server.ts (not lazy-on-first-use like
+// notificationStream): a worker that has not yet handled any request
+// that touches userCache has not yet put anything in L1 — but a
+// worker that HAS, and is not yet subscribed, would miss an
+// invalidation published while the admin's request went to another
+// worker. Subscribing at boot on every worker closes that window
+// unconditionally.
+// ---------------------------------------------------------------------
+
+let subscriber: Redis | null = null;
+let subscriberReady: Promise<void> | null = null;
+
+/**
+ * Eagerly subscribes this worker to the cross-worker invalidation
+ * channel. Must be called at boot on every worker BEFORE the first
+ * request is served (server.ts bootstrap). Idempotent: a second call
+ * is a no-op. Never throws — a Redis failure here must not prevent
+ * the server from starting; the 30s L1 TTL bounds eventual staleness.
+ */
+export function initUserCacheInvalidationSubscriber(): void {
+  if (subscriberReady) return;
+  subscriberReady = (async () => {
+    try {
+      subscriber = redis.duplicate();
+      subscriber.on('error', (err) => {
+        logger.warn('userCache invalidation subscriber error', { err });
+      });
+      if (subscriber.status === 'wait') {
+        await subscriber.connect();
+      }
+      await subscriber.subscribe(INVALIDATION_CHANNEL);
+      subscriber.on('message', (channel, message) => {
+        if (channel !== INVALIDATION_CHANNEL) return;
+        if (message) l1Del(message);
+      });
+      logger.info('userCache invalidation subscriber ready');
+    } catch (err) {
+      logger.warn(
+        'userCache invalidation subscriber unavailable — L1 will only be cleared on the worker handling the invalidation',
+        { err },
+      );
+      subscriber = null;
+    }
+  })();
+}
+
+/** Called from server.ts's graceful-shutdown / uncaughtException cleanup. */
+export function stopUserCacheInvalidationSubscriber(): void {
+  const s = subscriber;
+  subscriber = null;
+  subscriberReady = null;
+  if (s) {
+    try {
+      void s.quit();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export const userCache = {
   peek: (userId: string): CachedUser | null => l1Get(userId),
 
@@ -54,7 +141,12 @@ export const userCache = {
       const user = JSON.parse(cached) as CachedUser;
       l1Set(user);
       return user;
-    } catch {
+    } catch (err) {
+      // Redis is a cache, not the source of truth — a miss here falls
+      // through to getOrFetch's DB read. Logged (not silent) so a
+      // persistent Redis outage is visible; on a healthy cache this
+      // line never fires.
+      logger.warn('userCache.get failed', { userId, err });
       return null;
     }
   },
@@ -63,8 +155,8 @@ export const userCache = {
     l1Set(user);
     try {
       await redis.setex(getUserCacheKey(user.id), getTTLWithJitter(), JSON.stringify(user));
-    } catch {
-      // silent fail
+    } catch (err) {
+      logger.warn('userCache.set failed', { userId: user.id, err });
     }
   },
 
@@ -72,8 +164,14 @@ export const userCache = {
     l1Del(userId);
     try {
       await redis.del(getUserCacheKey(userId));
-    } catch {
-      // silent fail
+      // Fan out to the OTHER workers so their L1 entries drop too.
+      // Subscribers run l1Del only — the Redis key is already gone.
+      await redis.publish(INVALIDATION_CHANNEL, userId);
+    } catch (err) {
+      // Covers both del and publish. If either fails, other workers'
+      // L1 entries stay stale up to L1_TTL_MS — logging (replacing the
+      // previous silent catch) makes that window visible in the logs.
+      logger.warn('userCache.invalidate failed', { userId, err });
     }
   },
 
