@@ -1,4 +1,11 @@
-import { tokenStore, maskIp, MAX_SESSIONS_PER_USER } from '../../src/shared/utils/tokenStore';
+import {
+  tokenStore,
+  maskIp,
+  MAX_SESSIONS_PER_USER,
+  peekBlacklistL1,
+  rememberBlacklistL1,
+  getBlacklistKey,
+} from '../../src/shared/utils/tokenStore';
 import { redis } from '../../src/config/redis';
 
 describe('tokenStore utilities', () => {
@@ -182,5 +189,68 @@ describe('tokenStore utilities', () => {
       // The first session created is still present — nothing evicted yet.
       expect(sessions.map((s) => s.sessionId)).toContain('session-0');
     });
+  });
+});
+
+// ────────────────────────────────────────────────────────────
+// Cross-worker blacklist invalidation (added for the PM2-cluster
+// L1-staleness fix). Tests use unique tokens per `it` so the
+// module-level BL_L1 Map doesn't leak state across cases.
+// ────────────────────────────────────────────────────────────
+describe('blacklistAccessToken — cross-worker invalidation', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('writes the Redis blacklist key', async () => {
+    const token = 'bl-write-test-token';
+    await tokenStore.blacklistAccessToken(token, 300);
+    const { redis } = await import('../../src/config/redis');
+    expect(await redis.get(getBlacklistKey(token))).toBe('1');
+  });
+
+  it('publishes the blacklist key on the invalidation channel', async () => {
+    const token = 'bl-publish-test-token';
+    const { redis } = await import('../../src/config/redis');
+    await tokenStore.blacklistAccessToken(token, 300);
+    expect(redis.publish).toHaveBeenCalledWith(
+      'blacklist:invalidate',
+      getBlacklistKey(token),
+    );
+  });
+
+  it('is a complete no-op when ttlSeconds <= 0', async () => {
+    const token = 'bl-zero-ttl-test-token';
+    const { redis } = await import('../../src/config/redis');
+    await tokenStore.blacklistAccessToken(token, 0);
+    expect(redis.publish).not.toHaveBeenCalled();
+    expect(await redis.get(getBlacklistKey(token))).toBeNull();
+  });
+
+  it('does not throw when publish fails — revocation is already durable in Redis', async () => {
+    const token = 'bl-publish-fail-test-token';
+    const { redis } = await import('../../src/config/redis');
+    (redis.publish as jest.Mock).mockRejectedValueOnce(new Error('Redis down'));
+    await expect(tokenStore.blacklistAccessToken(token, 300)).resolves.toBeUndefined();
+    // setex still succeeded — the key is there.
+    expect(await redis.get(getBlacklistKey(token))).toBe('1');
+  });
+});
+
+describe('peekBlacklistL1 / rememberBlacklistL1 (LRU touch)', () => {
+  it('returns undefined for a token never remembered', () => {
+    expect(peekBlacklistL1('bl-never-seen-unique-token')).toBeUndefined();
+  });
+
+  it('returns true after rememberBlacklistL1(token, true)', () => {
+    const token = 'bl-positive-unique-token';
+    rememberBlacklistL1(token, true);
+    expect(peekBlacklistL1(token)).toBe(true);
+  });
+
+  it('returns false after rememberBlacklistL1(token, false)', () => {
+    const token = 'bl-negative-unique-token';
+    rememberBlacklistL1(token, false);
+    expect(peekBlacklistL1(token)).toBe(false);
   });
 });

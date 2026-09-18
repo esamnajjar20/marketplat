@@ -1,6 +1,7 @@
 import { redis } from '../../config/redis';
 import { hashToken } from './refreshLock';
 import { logger } from './logger';
+import type Redis from 'ioredis';
 
 const REFRESH_PREFIX = 'refresh:';
 const BLACKLIST_PREFIX = 'blacklist:';
@@ -9,6 +10,9 @@ const SESSION_META_PREFIX = 'session_meta:';
 const FAILED_EMAIL_PREFIX = 'failed_login_email:';
 const FAILED_IP_PREFIX = 'failed_login_ip:';
 const ACCOUNT_LOCKED_PREFIX = 'account_locked:';
+// Cross-worker blacklist invalidation channel — see the
+// "Cross-worker blacklist L1 invalidation" block below.
+const INVALIDATION_CHANNEL = 'blacklist:invalidate';
 
 const REFRESH_TTL = 7 * 24 * 60 * 60;
 export const MAX_SESSIONS_PER_USER = 10;
@@ -49,6 +53,11 @@ export function peekBlacklistL1(token: string): boolean | undefined {
     BL_L1.delete(key);
     return undefined;
   }
+  // LRU touch — see userCache.ts's identical l1Get for why
+  // re-inserting on read matters for the FIFO bound in
+  // rememberBlacklistL1 below.
+  BL_L1.delete(key);
+  BL_L1.set(key, e);
   return e.blacklisted;
 }
 
@@ -61,6 +70,76 @@ export function rememberBlacklistL1(token: string, blacklisted: boolean): void {
   if (BL_L1.size > 10_000) {
     const first = BL_L1.keys().next().value;
     if (first) BL_L1.delete(first);
+  }
+}
+
+// ---------------------------------------------------------------------
+// Cross-worker blacklist L1 invalidation
+//
+// Same PM2-cluster reasoning as userCache.ts's "Cross-worker L1
+// invalidation" block, but a stronger security impact: BL_L1 holds a
+// per-token boolean ("is this access token revoked?") that
+// auth.middleware.ts trusts as a fast path BEFORE it ever hits Redis.
+//
+// A user logs out on worker A: blacklistAccessToken() writes the
+// Redis key + remembers BL_L1[token]=true on A only. Every OTHER
+// worker keeps serving BL_L1[token]=false (its previously-cached
+// negative answer, TTL 20s) — during that window a stolen copy of
+// the just-revoked token still authenticates on those workers.
+// Pub/sub closes it: blacklistAccessToken() publishes the blacklist
+// key, every worker's subscriber runs BL_L1.delete(key) so the next
+// auth attempt on that worker re-reads Redis and sees the blacklist.
+//
+// Eager init from server.ts (not lazy) for the same reason as
+// userCache: a worker that has already cached the negative answer
+// must be subscribed BEFORE any invalidation is published, or it
+// misses it silently.
+// ---------------------------------------------------------------------
+
+let subscriber: Redis | null = null;
+let subscriberReady: Promise<void> | null = null;
+
+export function initBlacklistInvalidationSubscriber(): void {
+  if (subscriberReady) return;
+  subscriberReady = (async () => {
+    try {
+      subscriber = redis.duplicate();
+      subscriber.on('error', (err) => {
+        logger.warn('blacklist invalidation subscriber error', { err });
+      });
+      if (subscriber.status === 'wait') {
+        await subscriber.connect();
+      }
+      await subscriber.subscribe(INVALIDATION_CHANNEL);
+      subscriber.on('message', (channel, message) => {
+        if (channel !== INVALIDATION_CHANNEL) return;
+        // The published message is the FULL blacklist key
+        // (getBlacklistKey(token) — "blacklist:<hash>"), so the
+        // subscriber can delete BL_L1's entry directly without
+        // re-hashing the token.
+        if (message) BL_L1.delete(message);
+      });
+      logger.info('blacklist invalidation subscriber ready');
+    } catch (err) {
+      logger.warn(
+        'blacklist invalidation subscriber unavailable — L1 will only be cleared on the worker handling the invalidation',
+        { err },
+      );
+      subscriber = null;
+    }
+  })();
+}
+
+export function stopBlacklistInvalidationSubscriber(): void {
+  const s = subscriber;
+  subscriber = null;
+  subscriberReady = null;
+  if (s) {
+    try {
+      void s.quit();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -304,8 +383,19 @@ export const tokenStore = {
   // ── Blacklist — strictMode configurable ───────────────
   blacklistAccessToken: async (token: string, ttlSeconds: number): Promise<void> => {
     if (ttlSeconds <= 0) return;
-    await redis.setex(getBlacklistKey(token), ttlSeconds, '1');
+    const key = getBlacklistKey(token);
+    await redis.setex(key, ttlSeconds, '1');
     rememberBlacklistL1(token, true);
+    // Fan out so OTHER workers drop their BL_L1 entry immediately —
+    // otherwise they keep serving this now-revoked token from their
+    // own 20s negative cache. Publish failure is non-fatal: the
+    // revocation is already durable in Redis, and the next auth
+    // attempt on any worker will re-read it once its L1 entry expires.
+    try {
+      await redis.publish(INVALIDATION_CHANNEL, key);
+    } catch (err) {
+      logger.warn('blacklist invalidation publish failed', { err });
+    }
   },
 
   // BUGFIX: isBlacklisted() previously lived here as a standalone

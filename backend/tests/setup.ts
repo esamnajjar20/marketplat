@@ -247,6 +247,19 @@ jest.mock('../src/config/redis', () => {
     connect: jest.fn().mockResolvedValue(undefined),
     quit: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
+    // Cross-worker invalidation: userCache.ts, unreadNotificationsCache.ts,
+    // and tokenStore.ts's blacklist subscriber all use redis.publish() and
+    // redis.duplicate(). Mocked here (duplicate returns a harmless no-op
+    // subscriber exposing exactly the methods those init functions call) so
+    // importing a module that touches those paths never crashes tests.
+    publish: jest.fn(async () => 0),
+    duplicate: jest.fn(() => ({
+      status: 'ready',
+      connect: jest.fn().mockResolvedValue(undefined),
+      subscribe: jest.fn().mockResolvedValue(undefined),
+      quit: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn(),
+    })),
     __clear: () => {
       store.clear();
       zsets.clear();

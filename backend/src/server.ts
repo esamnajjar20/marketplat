@@ -17,6 +17,10 @@ import {
   initUnreadNotificationsCacheInvalidationSubscriber,
   stopUnreadNotificationsCacheInvalidationSubscriber,
 } from './shared/utils/unreadNotificationsCache';
+import {
+  initBlacklistInvalidationSubscriber,
+  stopBlacklistInvalidationSubscriber,
+} from './shared/utils/tokenStore';
 import { activityBuffer } from './shared/utils/activityBuffer';
 import { redisMemoryMonitor } from './shared/utils/redisMemoryMonitor';
 import { checkConnectionCapacity } from './shared/utils/capacityCheck';
@@ -112,6 +116,7 @@ const bootstrap = async (): Promise<void> => {
     // comment for the full auth-bypass reasoning.
     initUserCacheInvalidationSubscriber();
     initUnreadNotificationsCacheInvalidationSubscriber();
+    initBlacklistInvalidationSubscriber();
     viewsBuffer.startFlushTimer();
     // FIX OPS-1.1: same buffer-then-flush pattern as viewsBuffer above,
     // for user activity writes — see activityBuffer.ts's own doc
@@ -159,6 +164,7 @@ const bootstrap = async (): Promise<void> => {
         redisMemoryMonitor.stop();
         stopUserCacheInvalidationSubscriber();
         stopUnreadNotificationsCacheInvalidationSubscriber();
+        stopBlacklistInvalidationSubscriber();
         await prisma.$disconnect();
         await redis.quit();
         logger.info('Server closed cleanly');
@@ -195,6 +201,7 @@ const bootstrap = async (): Promise<void> => {
           redisMemoryMonitor.stop();
           stopUserCacheInvalidationSubscriber();
           stopUnreadNotificationsCacheInvalidationSubscriber();
+          stopBlacklistInvalidationSubscriber();
           await prisma.$disconnect();
           await redis.quit();
         } catch (cleanupError) {
