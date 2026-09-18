@@ -32,6 +32,7 @@ import {
   type QueuedRequestSummary,
 } from '@/lib/offlineQueue';
 import { formatNumber } from '@/lib/formatters';
+import { formatSyncEta } from '@/lib/connectionQuality';
 
 export default function OfflinePage() {
   const router = useRouter();
@@ -153,8 +154,10 @@ export default function OfflinePage() {
 
       {pendingCount > 0 && (
         <p className="rounded-lg bg-warning/10 border border-warning/30 px-4 py-2 text-sm text-foreground">
-          لديك {formatNumber(pendingCount)} طلب{pendingCount > 1 ? 'ات' : ''} بانتظار الإرسال — سيُرسل
-          تلقائيًا عند عودة الاتصال.
+          لديك {formatNumber(pendingCount)} طلب{pendingCount > 1 ? 'ات' : ''} بانتظار الإرسال
+          {' — ستُرسل خلال '}
+          {formatSyncEta(pendingCount) || '~30 ثانية'}
+          {' عند عودة الاتصال.'}
         </p>
       )}
 

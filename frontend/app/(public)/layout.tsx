@@ -1,3 +1,4 @@
+import { ScrollRestore } from '@/components/shared/ScrollRestore';
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -14,7 +15,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <PublicHeader />
       {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
       <main id="main-content" className="min-w-0 flex-1 pb-16 md:pb-0">
-        <PageTransition>{children}</PageTransition>
+        <PageTransition><ScrollRestore />
+        {children}</PageTransition>
       </main>
       <PublicFooter />
       <BottomNav />

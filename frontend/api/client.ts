@@ -28,6 +28,7 @@
  * X-CSRF-Token header — see getCsrfToken()'s own comment for why that
  * is the necessary other half of moving to a cookie-based refresh flow.
  */
+import { recordRequestTiming } from '@/lib/connectionQuality';
 import axios, {
   type AxiosError,
   type InternalAxiosRequestConfig,
@@ -51,6 +52,11 @@ const SAFE_METHODS = new Set(['get', 'head', 'options']);
 
 // ── Request interceptor — attach access token + CSRF token ────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // PHASE-1 UX: sample RTT for connection quality indicator
+  (config as InternalAxiosRequestConfig & { metadata?: { start: number } }).metadata = {
+    start: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+  };
+
   // useAuthStore.getState() is synchronous — safe outside React components.
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -108,6 +114,14 @@ function processQueue(error: unknown, token: string | null) {
 
 apiClient.interceptors.response.use(
   (response) => {
+    try {
+      const start = (response.config as { metadata?: { start?: number } }).metadata?.start;
+      if (typeof start === 'number') {
+        const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        recordRequestTiming(end - start);
+      }
+    } catch { /* ignore */ }
+
     // FIX QUEUE-UX-01: sw.js queues an offline mutation (POST/PUT/PATCH/
     // DELETE it couldn't send) and answers the page with 202
     // {queued: true, message}, precisely so the request doesn't fail

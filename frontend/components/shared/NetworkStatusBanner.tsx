@@ -3,28 +3,35 @@
 /**
  * شريط حالة الشبكة — أسفل الشاشة.
  *
- * - أوفلاين: شريط كامل «لا يوجد اتصال بالإنترنت» لمدة 3 ثوانٍ، ثم يتحوّل
- *   بأنيميشن لشارة جانبية ثابتة «غير متصل».
- * - عودة الاتصال: شريط أخضر «عاد الاتصال» مؤقت ثم يختفي.
+ * - أوفلاين: شريط كامل ثم شارة جانبية «غير متصل».
+ * - عودة الاتصال: شريط أخضر مؤقت.
+ * - PHASE-1: اتصال بطيء — شارة صفراء خفيفة (لا تزعج مثل الأوفلاين).
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Wifi, WifiOff, X } from 'lucide-react';
+import { Wifi, WifiOff, SignalLow, X } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useConnectionQuality } from '@/hooks/useConnectionQuality';
+import { connectionQualityLabel } from '@/lib/connectionQuality';
 import { cn } from '@/lib/utils';
 
 const BACK_ONLINE_DURATION_MS = 3500;
 const OFFLINE_FULL_DURATION_MS = 3000;
+const SLOW_HINT_DURATION_MS = 5000;
 
 type OfflinePhase = 'full' | 'compact';
 
 export function NetworkStatusBanner() {
   const isOnline = useOnlineStatus();
+  const quality = useConnectionQuality();
   const [showBackOnline, setShowBackOnline] = useState(false);
   const [offlinePhase, setOfflinePhase] = useState<OfflinePhase | null>(null);
+  const [showSlowHint, setShowSlowHint] = useState(false);
   const wasOnlineRef = useRef(isOnline);
+  const wasSlowRef = useRef(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const compactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function clearHideTimer() {
     if (hideTimerRef.current) {
@@ -40,8 +47,14 @@ export function NetworkStatusBanner() {
     }
   }
 
+  function clearSlowTimer() {
+    if (slowTimerRef.current) {
+      clearTimeout(slowTimerRef.current);
+      slowTimerRef.current = null;
+    }
+  }
+
   useEffect(() => {
-    // انتقال من أوفلاين → أونلاين
     if (!wasOnlineRef.current && isOnline) {
       clearHideTimer();
       clearCompactTimer();
@@ -53,11 +66,10 @@ export function NetworkStatusBanner() {
       }, BACK_ONLINE_DURATION_MS);
     }
 
-    // دخول أوفلاين (أو البقاء أوفلاين عند التركيب)
     if (!isOnline) {
       clearHideTimer();
       setShowBackOnline(false);
-      // كل مرة نصير أوفلاين: ابدأ بالشريط الكامل ثم بعد 3ث الشارة الجانبية
+      setShowSlowHint(false);
       if (wasOnlineRef.current || offlinePhase === null) {
         setOfflinePhase('full');
         clearCompactTimer();
@@ -73,75 +85,114 @@ export function NetworkStatusBanner() {
       clearHideTimer();
       clearCompactTimer();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- offlinePhase فقط للتحقق عند التركيب
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
+
+  // Slow network soft hint (once when entering slow while online)
+  useEffect(() => {
+    if (!isOnline) {
+      wasSlowRef.current = false;
+      return;
+    }
+    const isSlow = quality === 'slow';
+    if (isSlow && !wasSlowRef.current) {
+      setShowSlowHint(true);
+      clearSlowTimer();
+      slowTimerRef.current = setTimeout(() => {
+        setShowSlowHint(false);
+        slowTimerRef.current = null;
+      }, SLOW_HINT_DURATION_MS);
+    }
+    if (!isSlow) {
+      setShowSlowHint(false);
+    }
+    wasSlowRef.current = isSlow;
+    return () => clearSlowTimer();
+  }, [quality, isOnline]);
 
   function dismissBackOnline() {
     clearHideTimer();
     setShowBackOnline(false);
   }
 
-  const bottomBase =
-    'bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] md:bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))]';
-
-  // شارة جانبية مدمجة أثناء الأوفلاين بعد 3 ثوانٍ
-  if (!isOnline && offlinePhase === 'compact') {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className={cn(
-          'fixed z-[100] flex items-center gap-1.5 rounded-full bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground shadow-lg sm:text-sm',
-          'end-3 transition-all duration-300 ease-out',
-          bottomBase,
-        )}
-      >
-        <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
-        <span>غير متصل</span>
-      </div>
-    );
+  function dismissSlow() {
+    clearSlowTimer();
+    setShowSlowHint(false);
   }
 
-  // شريط كامل: أوفلاين (أول 3 ث) أو عودة الاتصال
-  const showFullOffline = !isOnline && offlinePhase === 'full';
-  const visible = showFullOffline || showBackOnline;
-  if (!visible) return null;
+  // Compact offline chip (persistent until online)
+  const showOfflineCompact = !isOnline && offlinePhase === 'compact';
+  const showOfflineFull = !isOnline && offlinePhase === 'full';
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={cn(
-        'fixed inset-x-0 z-[100] flex items-center justify-center gap-2 px-4 py-3 text-center text-sm font-medium shadow-lg sm:text-base',
-        bottomBase,
-        'mx-3 mb-1 max-w-lg rounded-xl transition-all duration-300 ease-out md:mx-auto',
-        showFullOffline
-          ? 'bg-destructive text-destructive-foreground'
-          : 'bg-emerald-600 text-white',
-      )}
-    >
-      <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-2.5 pe-6">
-        {showFullOffline ? (
-          <WifiOff className="h-5 w-5 shrink-0" aria-hidden />
-        ) : (
-          <Wifi className="h-5 w-5 shrink-0" aria-hidden />
-        )}
-        <span className="leading-snug">
-          {showFullOffline
-            ? 'أنت دون اتصال — المحفوظات والتنزيلات ما زالت متاحة'
-            : 'تم استعادة الاتصال — يمكنك المتابعة'}
-        </span>
-      </span>
-      {showBackOnline && (
-        <button
-          type="button"
-          onClick={dismissBackOnline}
-          className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 opacity-90 transition hover:bg-black/15 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-          aria-label="إغلاق الرسالة"
+    <>
+      {/* Full offline bar */}
+      {showOfflineFull && (
+        <div
+          role="status"
+          className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground safe-area-pb"
         >
-          <X className="h-4 w-4" />
-        </button>
+          <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
+          <span>لا يوجد اتصال بالإنترنت</span>
+        </div>
       )}
-    </div>
+
+      {/* Compact offline */}
+      {showOfflineCompact && (
+        <div
+          role="status"
+          className={cn(
+            'fixed bottom-20 start-3 z-[60] flex items-center gap-1.5 rounded-full',
+            'bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium shadow-lg',
+            'sm:bottom-6',
+          )}
+        >
+          <WifiOff className="h-3.5 w-3.5" aria-hidden />
+          غير متصل
+        </div>
+      )}
+
+      {/* Back online */}
+      {showBackOnline && (
+        <div
+          role="status"
+          className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white safe-area-pb"
+        >
+          <Wifi className="h-4 w-4 shrink-0" aria-hidden />
+          <span>عاد الاتصال</span>
+          <button
+            type="button"
+            onClick={dismissBackOnline}
+            className="absolute end-3 rounded p-1 opacity-80 hover:opacity-100"
+            aria-label="إغلاق"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Slow connection hint */}
+      {showSlowHint && isOnline && !showBackOnline && (
+        <div
+          role="status"
+          className={cn(
+            'fixed bottom-20 start-3 z-[55] flex max-w-[min(100%,280px)] items-center gap-1.5 rounded-full',
+            'bg-amber-500/95 text-amber-950 px-3 py-1.5 text-xs font-medium shadow-lg',
+            'sm:bottom-6',
+          )}
+        >
+          <SignalLow className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>{connectionQualityLabel('slow')} — قد يستغرق التحميل وقتًا أطول</span>
+          <button
+            type="button"
+            onClick={dismissSlow}
+            className="ms-1 rounded p-0.5 opacity-80 hover:opacity-100"
+            aria-label="إغلاق"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </>
   );
 }
