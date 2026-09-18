@@ -130,6 +130,11 @@ export async function listQueuedMessages(conversationId: string): Promise<Queued
 /** يطلب من الـ SW إعادة محاولة إرسال عنصر واحد بعينه فورًا (زر "إعادة
  * المحاولة" على فقاعة رسالة فشلت أو لا تزال بالانتظار). */
 export async function retryQueuedMessage(queueId: number): Promise<void> {
+  // FIX MSG-QUEUE-ID-VALIDATION: تحقق من صحة queueId قبل الإرسال.
+  if (!Number.isInteger(queueId) || queueId <= 0) {
+    console.warn('[messages-queue] retryQueuedMessage: invalid id', queueId);
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
   const registration = await navigator.serviceWorker.ready;
   registration.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id: queueId });
@@ -137,6 +142,11 @@ export async function retryQueuedMessage(queueId: number): Promise<void> {
 
 /** يحذف عنصرًا فاشلاً نهائيًا من الطابور دون إعادة محاولة (زر "حذف"). */
 export async function discardQueuedMessage(queueId: number): Promise<void> {
+  // FIX MSG-QUEUE-ID-VALIDATION
+  if (!Number.isInteger(queueId) || queueId <= 0) {
+    console.warn('[messages-queue] discardQueuedMessage: invalid id', queueId);
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
   const registration = await navigator.serviceWorker.ready;
   registration.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id: queueId });

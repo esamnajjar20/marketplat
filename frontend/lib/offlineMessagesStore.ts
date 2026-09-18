@@ -27,6 +27,13 @@ const MAX_MESSAGES_PER_CONV = OFFLINE_DATA_LIMITS.messagesPerConversation;
 
 const META_UNREAD = 'unreadCount';
 const META_LAST_SYNC = 'lastSyncedAt';
+// FIX MSG-STORE-USER-META: معرّف صاحب البيانات المحفوظة. إن جاء userId
+// مختلف عند الحفظ → امسح القديم (defense-in-depth إن نُسي logout).
+const META_USER_ID = 'userId';
+
+// FIX MSG-STORE-TTL: محادثة لم تُحدَّث خلال 30 يوم تُحذف تلقائيًا عند
+// الحفظ التالي (لا نخزّن بلا حد زمني — كان المخزن يبقى حتى logout فقط).
+const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 يوم
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -63,10 +70,29 @@ function idbReq<T>(req: IDBRequest<T>): Promise<T> {
 /** حفظ قائمة المحادثات (آخر N محادثة حسب ترتيب القائمة الواردة). */
 export async function saveConversationsList(
   items: ConversationListItem[],
+  userId?: string | null,
 ): Promise<void> {
   try {
+    // FIX MSG-STORE-USER-META: إن جاء userId مختلف عن المخزَّن →
+    // بيانات مستخدم آخر على نفس الجهاز. امسح قبل الكتابة.
+    if (userId !== undefined) {
+      const stored = await getMeta(META_USER_ID);
+      if (stored !== null && stored !== userId) {
+        await clearOfflineMessagesStore();
+      }
+      await setMeta(META_USER_ID, userId ?? null);
+    }
+
+    // FIX MSG-STORE-TTL: فلترة المحادثات الأقدم من TTL.
+    const now = Date.now();
+    const fresh = items.filter((it) => {
+      const updated = Date.parse(it.updatedAt ?? '');
+      if (!Number.isFinite(updated)) return true; // بلا تاريخ صالح → احتفظ
+      return now - updated <= CONVERSATION_TTL_MS;
+    });
+
     const db = await openDb();
-    const limited = items.slice(0, MAX_CONVERSATIONS);
+    const limited = fresh.slice(0, MAX_CONVERSATIONS);
     const tx = db.transaction(STORE_CONVERSATIONS, 'readwrite');
     const store = tx.objectStore(STORE_CONVERSATIONS);
     // استبدال بسيط: امسح ثم أعد الكتابة للحفاظ على الحد
@@ -79,8 +105,9 @@ export async function saveConversationsList(
       tx.onerror = () => reject(tx.error);
     });
     await setMeta(META_LAST_SYNC, new Date().toISOString());
-  } catch {
-    // لا نكسر مسار الشبكة إن فشل التخزين المحلي
+  } catch (err) {
+    // FIX MSG-STORE-LOGGING: تسجيل فشل التخزين للتشخيص (كان صامتًا).
+    console.warn('[messages-store] saveConversationsList failed:', err);
   }
 }
 
@@ -90,11 +117,19 @@ export async function getConversationsList(): Promise<ConversationListItem[]> {
     const db = await openDb();
     const tx = db.transaction(STORE_CONVERSATIONS, 'readonly');
     const all = await idbReq(tx.objectStore(STORE_CONVERSATIONS).getAll());
+    // FIX MSG-STORE-TTL: فلترة أي محادثة انتهت صلاحيتها بين حفظين.
+    const now = Date.now();
+    const fresh = (all as ConversationListItem[]).filter((it) => {
+      const updated = Date.parse(it.updatedAt ?? '');
+      if (!Number.isFinite(updated)) return true;
+      return now - updated <= CONVERSATION_TTL_MS;
+    });
     // ترتيب تقريبي: updatedAt تنازلي
-    return (all as ConversationListItem[]).sort((a, b) =>
+    return fresh.sort((a, b) =>
       (b.updatedAt || '').localeCompare(a.updatedAt || ''),
     );
-  } catch {
+  } catch (err) {
+    console.warn('[messages-store] getConversationsList failed:', err);
     return [];
   }
 }
@@ -122,8 +157,9 @@ export async function saveMessagesForConversation(
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch {
-    // ignore
+  } catch (err) {
+    // FIX MSG-STORE-LOGGING
+    console.warn('[messages-store] saveMessagesForConversation failed:', err);
   }
 }
 
@@ -139,7 +175,8 @@ export async function getMessagesForConversation(
     );
     if (!row || !Array.isArray((row as { items?: Message[] }).items)) return null;
     return (row as { items: Message[] }).items;
-  } catch {
+  } catch (err) {
+    console.warn('[messages-store] getMessagesForConversation failed:', err);
     return null;
   }
 }
@@ -162,8 +199,8 @@ async function setMeta(key: string, value: unknown): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('[messages-store] setMeta failed:', key, err);
   }
 }
 
