@@ -183,7 +183,18 @@ export const conversationsService = {
       archivedOnly?: boolean;
     }
   ): Promise<PaginatedResult<ConversationListItem>> => {
-    const { conversations, total } = await conversationsRepository.findManyForUser(userId, query);
+    // FIX CONV-ARCHIVE-FILTER-01: explicit pass-through instead of
+    // forwarding the whole query object. The previous shape relied on
+    // structural typing — extra fields in `query` compiled fine while
+    // the repository silently ignored them. Now every accepted filter
+    // is named at the call site, so a future signature mismatch breaks
+    // at compile time instead of at the user's expense.
+    const { conversations, total } = await conversationsRepository.findManyForUser(userId, {
+      page: query.page,
+      limit: query.limit,
+      includeArchived: query.includeArchived,
+      archivedOnly: query.archivedOnly,
+    });
     return {
       items: conversations,
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),

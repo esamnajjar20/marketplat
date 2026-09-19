@@ -383,6 +383,24 @@ export const sendMessageRateLimit = rateLimit({
   message: msg("Too many messages sent, please slow down"),
 });
 
+// FIX TYPING-RATE-LIMIT-01: /conversations/:id/typing fires on every
+// keystroke-driven state change (typing=true on first key, typing=false
+// after the debounce), so a real user in a live conversation can
+// legitimately produce more events than sendMessageRateLimit's 60/15min
+// allows. 600/15min = 40/min average — well above any real typing rate,
+// still tight enough to bound a scripted flood that would otherwise
+// DoS the SSE fan-out on the recipient's stream. Deliberately its own
+// bucket from send_message so a chat-heavy user never exhausts their
+// message quota just by typing.
+export const typingRateLimit = rateLimit({
+  windowMs: FIFTEEN_MIN_MS,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("typing"),
+  message: msg("Too many typing events, please slow down"),
+});
+
 // Stores module: same rationale as createSellerProfileRateLimit /
 // createServiceProviderRateLimit — a one-time (per seller profile)
 // write, still worth guarding against scripted retry storms against

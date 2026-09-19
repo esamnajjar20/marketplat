@@ -157,12 +157,35 @@ export const conversationsRepository = {
    * shape Prisma already generates for any relation count. */
   findManyForUser: async (
     userId: string,
-    query: { page?: number; limit?: number }
+    query: {
+      page?: number;
+      limit?: number;
+      // FIX CONV-ARCHIVE-FILTER-01: the endpoint accepted these two flags
+      // since setConversationFlags shipped (validation parsed them,
+      // service forwarded them), but this function's signature narrowed
+      // query to { page, limit } and the WHERE clause never touched
+      // archivedAt. Net effect: archiving a conversation appeared to
+      // work (the row was updated), but the thread stayed in the list
+      // forever because no filter ever read the column. Now honored:
+      //   - includeArchived: true  → include archived alongside active
+      //   - archivedOnly: true     → only archived
+      //   - default (neither)      → only non-archived
+      // If both are passed, archivedOnly wins (strictest). Neither
+      // filter touches the existing OR on buyerId/sellerId.
+      includeArchived?: boolean;
+      archivedOnly?: boolean;
+    }
   ): Promise<{ conversations: ConversationListItem[]; total: number }> => {
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 20, includeArchived, archivedOnly } = query;
     const { skip, take } = getPaginationParams(page, limit);
+
     const where: Prisma.ConversationWhereInput = {
       OR: [{ buyerId: userId }, { sellerId: userId }],
+      ...(archivedOnly
+        ? { archivedAt: { not: null } }
+        : includeArchived
+          ? {} // any archivedAt value — active and archived together
+          : { archivedAt: null }), // default: exclude archived
     };
 
     const [conversations, total] = await Promise.all([
