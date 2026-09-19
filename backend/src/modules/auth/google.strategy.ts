@@ -70,10 +70,6 @@ export function extractGoogleProfile(profile: Profile): GoogleProfileData {
     throw err;
   }
 
-  if (!email) {
-    throw new Error('Google account has no accessible email address');
-  }
-
   return {
     googleId: profile.id,
     email: email.toLowerCase(),
