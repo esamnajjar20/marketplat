@@ -29,6 +29,32 @@ const MAX_EMAIL_ATTEMPTS = 5;
 const MAX_IP_ATTEMPTS = 50;
 const LOCKOUT_DURATION = 30 * 60;
 
+/**
+ * FIX FORGOT-PASSWORD-TIMING-01: the minimum wall-clock time a
+ * forgotPassword() response may take, regardless of whether the
+ * requested email actually exists. Without this floor, an
+ * unauthenticated caller could distinguish registered emails from
+ * unknown ones by response latency alone: the "user not found" branch
+ * returns in a few milliseconds while a real request pays for a DB
+ * write and a full SMTP round trip (~250-1000ms). The rate limit
+ * (3/hour per IP) slows the attack but does not close it — a patient
+ * attacker with a few residential proxies can still enumerate a
+ * meaningful fraction of the user base per day. This is the same
+ * CWE-208 class we already closed in login() via
+ * comparePasswordOrDummy; here a fixed time-floor is the appropriate
+ * tool because the two branches do genuinely different work and we
+ * don't want to run the full pipeline for nonexistent users.
+ *
+ * 700ms is chosen above the realistic minimum cost of a database
+ * write + local SMTP handshake on the production deployment, so the
+ * floor is what actually dominates the response in both branches.
+ */
+const FORGOT_PASSWORD_MIN_MS = 700;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export interface AuthResult {
   tokens: Omit<TokenPair, 'sessionId'>;
   // FEAT-GOOGLE-COMPLETE-PROFILE: optional, present (and meaningful)
@@ -562,8 +588,22 @@ export const authService = {
    * email — log it for now until an email provider is wired up.
    */
   forgotPassword: async (email: string): Promise<void> => {
+    // FIX FORGOT-PASSWORD-TIMING-01: start the clock before the DB
+    // lookup so the sleep at the end accounts for whatever time was
+    // already spent. See FORGOT_PASSWORD_MIN_MS's own comment.
+    const startedAt = Date.now();
+
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.isActive) return; // silent — don't reveal existence
+    if (!user || !user.isActive) {
+      // Silent — do not reveal existence. Enforce the timing floor
+      // before returning so this branch is indistinguishable from the
+      // "user exists" branch by response latency.
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < FORGOT_PASSWORD_MIN_MS) {
+        await sleep(FORGOT_PASSWORD_MIN_MS - elapsed);
+      }
+      return;
+    }
 
     // FIX AUDIT-V3-04: randomBytes(32) (256-bit entropy) is the
     // conventional choice for security tokens like this, vs.
@@ -594,7 +634,22 @@ export const authService = {
     // actually receive the reset link. emailService falls back to
     // logging on its own if SMTP isn't configured, so this call is
     // safe in any environment (dev/test/CI included).
-    await emailService.sendPasswordResetEmail(user.email, token);
+    //
+    // FIX FORGOT-PASSWORD-TIMING-01: intentionally NOT awaited. The
+    // response no longer blocks on the SMTP round trip, so the
+    // endpoint returns in a predictable (and floored) amount of time
+    // regardless of SMTP provider health. The .catch() is essential —
+    // an unhandled rejection here would crash the process on strict
+    // Node, and the caller already told the user "if this email is
+    // registered, a link will arrive" — a send failure is not
+    // actionable there anyway. Logged so a real SMTP outage is
+    // visible in the logs.
+    emailService.sendPasswordResetEmail(user.email, token).catch((err) => {
+      logger.error('Failed to send password reset email', {
+        userId: user.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
 
     // FIX AUDIT-V3-05 (reviewed, not changed): forgotPassword
     // intentionally does NOT revoke the account's existing sessions —
@@ -607,6 +662,17 @@ export const authService = {
     // The actual mitigation already exists at the right point:
     // resetPassword revokes all sessions once the new password is set.
     logger.info('Password reset token generated and email dispatched', { userId: user.id });
+
+    // FIX FORGOT-PASSWORD-TIMING-01: apply the same floor here so both
+    // branches (existing vs nonexistent email) land within a few ms of
+    // each other — see FORGOT_PASSWORD_MIN_MS's own comment. Since the
+    // email send above is now fire-and-forget, the elapsed time on
+    // this path is dominated by the DB write, which is well under the
+    // floor on typical hardware.
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < FORGOT_PASSWORD_MIN_MS) {
+      await sleep(FORGOT_PASSWORD_MIN_MS - elapsed);
+    }
   },
 
   resetPassword: async (token: string, newPassword: string): Promise<void> => {

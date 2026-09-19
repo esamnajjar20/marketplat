@@ -27,7 +27,11 @@ const COMMON_WEAK_PASSWORDS = new Set([
   'palestine', 'gaza', 'غزة', 'فلسطين', 'محمد', 'احمد',
 ]);
 
-const passwordSchema = z
+// FIX USERS-PASSWORD-STRENGTH-01: exported so users.validation's
+// changePasswordSchema can reuse the exact same weak-password
+// rejection — otherwise POST /users/me/password would accept
+// "12345678" even though register and reset-password reject it.
+export const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters')
   .max(100, 'Password must be at most 100 characters')

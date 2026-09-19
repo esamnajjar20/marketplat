@@ -51,10 +51,20 @@ export const getUserByIdSchema = z.object({
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>['body'];
 
+// FIX USERS-PASSWORD-STRENGTH-01: reuse auth.validation.ts's
+// passwordSchema (weak-password list + length bounds) instead of a
+// bare .min(8) here. This schema is the one users.controller.
+// changePassword actually parses — the changePasswordSchema exported
+// from auth.validation.ts was dead code for that endpoint. Without
+// this, a user could set "12345678" via POST /users/me/password even
+// though register/reset-password reject it, silently bypassing the
+// weak-password protection we added in the auth module.
+import { passwordSchema } from '../auth/auth.validation';
+
 export const changePasswordSchema = z.object({
   body: z.object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword:     z.string().min(8, 'New password must be at least 8 characters').max(100),
+    newPassword:     passwordSchema,
   }),
 });
 
