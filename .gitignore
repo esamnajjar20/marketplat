@@ -54,3 +54,4 @@ frontend/test-results/
 
 backend/scripts/make-admin.ts
 frontend-full.txt
+.backup_*/

@@ -161,6 +161,15 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/service-broadcasts',
   '/service-broadcasts/quotes',
   '/my-requests',
+  // FIX OFFLINE-REQUESTS-NEW-01: /requests/new is a first-class
+  // create page with full offline support already wired
+  // (useCreateRequest.onError → saveAdDraft with kind:'open-request',
+  // offlineDraftResume.resumeHrefForDraft → /requests/new?draftId=,
+  // useFormDraft autosave) — but was missing from this warming list,
+  // so a user who opened it fresh offline got bounced to the generic
+  // /offline page instead of the form. Same treatment as
+  // /ads/create and /my-services/new above.
+  '/requests/new',
 ];
 
 /** FIX OFFLINE-WARM-PRIORITY: القائمة الكاملة (ESSENTIAL + SECONDARY) —
