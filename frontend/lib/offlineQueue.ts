@@ -323,3 +323,32 @@ export async function listQueuedOperationIds(): Promise<Set<string>> {
     return new Set();
   }
 }
+
+/**
+ * FIX STALE-QUEUE-HANDOFF-01: same shape as listQueuedOperationIds, but
+ * carries each operationId's queuedAt timestamp instead of discarding
+ * it. offlineDraftPublisher uses this to distinguish "SW just accepted
+ * this, give it a moment" from "SW has been sitting on this for ages
+ * and clearly isn't going to send it" — the latter case falls through
+ * to the Publisher, which sends from the local draft instead. Without
+ * the age, a queued entry that the SW never actually processes (e.g.
+ * any entry created under an earlier deployment where the SW did NOT
+ * intercept cross-origin requests) would stay in the draft as
+ * 'pending_sync' forever, with the UI honestly showing "1 pending" but
+ * nothing ever happening.
+ */
+export async function listQueuedOperationsWithAge(): Promise<Map<string, number>> {
+  try {
+    const entries = await getAllEntries();
+    const map = new Map<string, number>();
+    for (const e of entries) {
+      if (e.operationId && e.status !== 'failed' && typeof e.queuedAt === 'number') {
+        map.set(e.operationId, e.queuedAt);
+      }
+    }
+    return map;
+  } catch (err) {
+    console.warn('[queue] listQueuedOperationsWithAge failed:', err);
+    return new Map();
+  }
+}

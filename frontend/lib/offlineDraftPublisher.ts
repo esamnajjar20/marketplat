@@ -24,7 +24,7 @@ import {
   publishFilesToFiles,
   type AdDraft,
 } from '@/lib/offlineAdDrafts';
-import { listQueuedOperationIds } from '@/lib/offlineQueue';
+import { listQueuedOperationsWithAge } from '@/lib/offlineQueue';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import type { CreateAdPayload } from '@/types/ad.types';
@@ -38,6 +38,17 @@ import type {
 import type { RequestType } from '@/types/request.types';
 
 const MAX_AUTO_RETRIES = 5;
+
+/**
+ * FIX STALE-QUEUE-HANDOFF-01: if an operationId has been sitting in
+ * the SW queue longer than this, the Publisher stops waiting on it
+ * and sends from the local draft instead. 60s is comfortably longer
+ * than the SW's own QUEUE_RETRY_MIN_GAP_MS (30s), so a normal retry
+ * gets at least one shot before we take over, but short enough that
+ * a user whose queued entry is genuinely stuck sees progress within
+ * a minute of hitting مزامنة الآن rather than never.
+ */
+const STALE_QUEUE_HANDOFF_MS = 60_000;
 
 export type DraftPublishResult = {
   sent: number;
@@ -256,7 +267,7 @@ export async function syncPendingOfflineDrafts(options?: {
     const result: DraftPublishResult = { sent: 0, failed: 0, skipped: 0 };
     try {
       const drafts = await listAdDrafts(options?.userId);
-      const queueOpIds = await listQueuedOperationIds();
+      const queueOpAges = await listQueuedOperationsWithAge();
       const includeFailed = options?.includeFailed !== false;
 
       const candidates = drafts.filter((d) => {
@@ -267,11 +278,22 @@ export async function syncPendingOfflineDrafts(options?: {
         return false;
       });
 
+      const now = Date.now();
       for (const draft of candidates) {
-        // SW ما زال يملك هذا الطلب → لا نرسل من المسودة (تجنّب ازدواج)
-        if (draft.operationId && queueOpIds.has(draft.operationId)) {
-          result.skipped += 1;
-          continue;
+        // FIX STALE-QUEUE-HANDOFF-01: an entry the SW is actively
+        // retrying is fine to skip — the SW will deliver it. But an
+        // entry the SW has been sitting on for over a minute is
+        // effectively stuck (weak-network retries exhausted, or a
+        // deployment where the SW never actually intercepted it) —
+        // at that point waiting on the SW forever means the draft
+        // stays 'pending_sync' forever. Take over.
+        if (draft.operationId) {
+          const queuedAt = queueOpAges.get(draft.operationId);
+          if (queuedAt !== undefined && now - queuedAt < STALE_QUEUE_HANDOFF_MS) {
+            result.skipped += 1;
+            continue;
+          }
+          // Otherwise: fall through and send from the draft.
         }
 
         // إنشاء بصور مطلوبة للمنتج/الخدمة بلا publishFiles → لا نقدر نرفع

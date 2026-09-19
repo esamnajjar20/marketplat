@@ -94,10 +94,16 @@ export function SyncCenterClient() {
       });
       if (draftResult.sent > 0 || draftResult.failed > 0) {
         toastDraftPublishResult(draftResult);
+      } else if (draftResult.skipped > 0) {
+        toast.message('الطلبات في طابور الإرسال', {
+          description:
+            `${draftResult.skipped} عنصر مربوط بطابور الإرسال وسيُرسل تلقائيًا. ` +
+            `إذا بقيت معلّقة أكثر من دقيقة، سيتولى الرفع من المسودة تلقائيًا.`,
+          duration: 8000,
+        });
       } else {
         toast.success('تمت المزامنة', {
-          description:
-            'لا توجد مسودات معلّقة. الطلبات في الطابور تُعالَج في الخلفية إن وُجدت.',
+          description: 'لا توجد مسودات أو طلبات معلّقة.',
           duration: 5000,
         });
       }
@@ -227,7 +233,7 @@ export function SyncCenterClient() {
                   <p className="text-xs text-muted-foreground">
                     {draftKindLabel(d.kind)} · {d.mode === 'create' ? 'إنشاء' : 'تعديل'} ·{' '}
                     {statusLabel(d.status)} · {formatWhen(d.updatedAt)}
-                    {d.operationId ? ' · مرتبط بطلب بالطابور (سيُرسل مع الصور تلقائيًا)' : ''}
+                    {d.operationId ? ' · في طابور الإرسال' : ''}
                   </p>
                   {/* FIX IMAGEOFFLINE-WIRE-01: معاينة مضغوطة فقط — الصور
                       الفعلية بجودتها الكاملة تُرسَل عبر طابور الـ SW. */}
