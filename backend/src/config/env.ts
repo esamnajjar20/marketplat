@@ -76,11 +76,33 @@ const envSchema = z.object({
     .string()
     .default("false")
     .transform((v) => v === "true"),
-  // TRUST_PROXY must be a number (1 = trust one proxy hop, e.g. nginx/Cloudflare)
-  // String "1" is NOT equivalent to number 1 in Express trust proxy logic
+  // TRUST_PROXY must be a number (1 = trust one proxy hop, e.g. nginx/Cloudflare).
+  // String "1" is NOT equivalent to number 1 in Express trust proxy logic.
+  //
+  // FIX TRUST-PROXY-RANGE-01: previously the regex accepted any non-
+  // negative integer — including values that make req.ip *less* safe
+  // than the default:
+  //   - 0 in production collapses every user behind Render's internal
+  //     LB address into a single req.ip, which turns the per-IP login
+  //     rate limit into a shared global bucket (one attacker exhausts
+  //     it for everyone, and legit users start seeing 429s).
+  //   - A number larger than the actual number of proxies in front of
+  //     the app makes Express trust client-supplied XFF entries, so a
+  //     caller can set X-Forwarded-For: 1.2.3.4 and be seen as that IP
+  //     — defeating both the per-IP rate limit and every audit/forensic
+  //     use of req.ip.
+  // The range 0-5 covers every realistic topology (Render = 1,
+  // Cloudflare+Render = 2, self-hosted nginx chain = up to 3-4) while
+  // refusing anything the operator almost certainly typed by mistake.
+  // A separate runtime warning in server.ts flags 0 in production,
+  // since that value is never correct there.
   TRUST_PROXY: z
     .string()
     .regex(/^\d+$/, "TRUST_PROXY must be a number")
+    .refine((v) => {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) && n >= 0 && n <= 5;
+    }, "TRUST_PROXY must be an integer between 0 and 5 (0 = no proxy, 1 = Render/nginx, 2 = Cloudflare+Render, etc.)")
     .default("1"),
   BLACKLIST_STRICT: z
     .string()

@@ -103,6 +103,32 @@ const bootstrap = async (): Promise<void> => {
       );
     }
 
+    // FIX TRUST-PROXY-RANGE-01: env.ts's schema now rejects values
+    // outside 0-5 at boot, but 0 in production is a *legal* value that
+    // is nevertheless never the right one when any reverse proxy sits
+    // in front of this process. Render (this app's target host)
+    // terminates TLS at its edge and forwards internally, so with
+    // TRUST_PROXY=0 every request arrives with req.ip = Render's own
+    // LB address. The consequence is subtle and dangerous: the per-IP
+    // login rate limit (MAX_IP_ATTEMPTS in auth.service.ts) becomes a
+    // single shared bucket for every user on the internet — the first
+    // 50 failed attempts, from anyone, lock out everyone. Same story
+    // for every audit log / security alert that records an IP. This
+    // warns loudly at boot rather than failing — TRUST_PROXY=0 is
+    // still the correct value on a bare local dev box, and we have no
+    // reliable way to know from inside the process whether something
+    // is proxying us.
+    if (env.nodeEnv === 'production' && env.security.trustProxy === 0) {
+      logger.warn(
+        '⚠️  TRUST_PROXY=0 in production — req.ip will be the address of the ' +
+        'reverse proxy in front of this process (e.g. Render\'s internal LB), ' +
+        'identical for every user. Per-IP rate limiting, lockouts, and audit ' +
+        'logs will all be wrong. Set TRUST_PROXY=1 (Render / single nginx hop), ' +
+        '2 (Cloudflare in front of Render), or higher to match your topology. ' +
+        'See env.ts\'s TRUST_PROXY comment for the full range rationale.',
+      );
+    }
+
     checkConnectionCapacity(env.database.url);
     await withRetry('Database (Postgres)', () => prisma.$connect());
     logger.info('✅ Database connected');
