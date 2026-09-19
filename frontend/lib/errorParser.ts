@@ -269,7 +269,11 @@ export function parseApiError(error: unknown): ParsedError {
         // Same rule as 401: never backendMsg, even if a code happens to be
         // unrecognised — only the static dictionary or the hardcoded string.
         // FIX SW-NETWORK-MSG-01: NETWORK_ERROR من الـ SW ليس عطل خادم.
-        if (code === 'NETWORK_ERROR') {
+        if (
+          code === 'NETWORK_ERROR' ||
+          code === 'QUEUE_STORE_FAILED' ||
+          code === 'QUEUE_BODY_TOO_LARGE'
+        ) {
           return {
             message:
               codeMsg ??
@@ -288,7 +292,11 @@ export function parseApiError(error: unknown): ParsedError {
           // FIX SW-NETWORK-MSG-01: 503 + NETWORK_ERROR من handleMutation
           // (أونلاين + فشل fetch) كان يُعرض كـ «خطأ في الخادم» لأن فرع 5xx
           // يتجاهل backendMsg. فرّق رسالة الشبكة عن عطل السيرفر الحقيقي.
-          if (code === 'NETWORK_ERROR') {
+          if (
+            code === 'NETWORK_ERROR' ||
+            code === 'QUEUE_STORE_FAILED' ||
+            code === 'QUEUE_BODY_TOO_LARGE'
+          ) {
             return {
               message:
                 codeMsg ??

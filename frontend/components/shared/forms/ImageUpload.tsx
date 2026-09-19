@@ -45,6 +45,7 @@ import { formatFileSize } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { takeOrPickNativePhoto } from '@/lib/capacitor/nativeCamera';
+import { compressImageForPublish } from '@/lib/imageOffline';
 
 interface ImageUploadProps {
   value: File[];
@@ -111,7 +112,7 @@ export function ImageUpload({
 
   // Total photo count across existing (Cloudinary) + new (local File) images.
   const totalCount = existingUrls.length + value.length;
-  const remainingSlots = Math.max(0, maxFiles - existingUrls.length);
+  const remainingSlots = Math.max(0, maxFiles - existingUrls.length - value.length);
 
   function openPicker() { inputRef.current?.click(); }
 
@@ -161,50 +162,83 @@ export function ImageUpload({
     };
   }, []);
 
+  /** MIME أو امتداد — بعض أجهزة Android/iOS تعطي type فارغ من الاستوديو. */
+  function isAllowedImageFile(f: File): boolean {
+    if (ALLOWED_IMAGE_TYPES.includes(f.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+      return true;
+    }
+    // type فارغ أو generic — اعتمد الامتداد
+    if (!f.type || f.type === 'application/octet-stream') {
+      const name = (f.name || '').toLowerCase();
+      return /\.(jpe?g|png|webp)$/.test(name);
+    }
+    // HEIC/HEIF من آيفون — نحاول لاحقًا تحويله عبر Canvas إن أمكن
+    if (f.type === 'image/heic' || f.type === 'image/heif') return true;
+    const name = (f.name || '').toLowerCase();
+    return /\.(heic|heif)$/.test(name);
+  }
+
   const addFiles = useCallback(
-    (newFiles: FileList | File[] | null) => {
+    async (newFiles: FileList | File[] | null) => {
       if (!newFiles) return;
       const incoming = Array.from(newFiles);
+      if (incoming.length === 0) return;
 
-      const wrongType = incoming.filter(
-        (f) => !ALLOWED_IMAGE_TYPES.includes(f.type as typeof ALLOWED_IMAGE_TYPES[number]),
-      );
-      const tooLarge = incoming.filter(
-        (f) =>
-          ALLOWED_IMAGE_TYPES.includes(f.type as typeof ALLOWED_IMAGE_TYPES[number]) &&
-          f.size > maxBytes,
-      );
-      const valid = incoming.filter(
-        (f) =>
-          ALLOWED_IMAGE_TYPES.includes(f.type as typeof ALLOWED_IMAGE_TYPES[number]) &&
-          f.size <= maxBytes,
-      );
+      // FIX IMAGE-PICK-01: slots المتبقية تحسب الملفات الجديدة الحالية أيضًا
+      const slotsLeft = Math.max(0, maxFiles - existingUrls.length - value.length);
+      if (slotsLeft <= 0) {
+        toast.error(`الحد الأقصى ${maxFiles} صور`);
+        return;
+      }
 
-      // Cap at remainingSlots so existing + new never exceeds maxFiles.
-      const accepted = valid.slice(0, remainingSlots);
-      const overLimit = valid.length - accepted.length;
+      const wrongType: File[] = [];
+      const candidates: File[] = [];
+      for (const f of incoming) {
+        if (isAllowedImageFile(f)) candidates.push(f);
+        else wrongType.push(f);
+      }
 
       if (wrongType.length > 0) {
         toast.error(
           wrongType.length === 1
-            ? `الملف "${wrongType[0]?.name}" غير مدعوم (JPG، PNG، أو WEBP فقط)`
-            : `${wrongType.length} ملفات غير مدعومة (JPG، PNG، أو WEBP فقط)`,
+            ? `الملف "${wrongType[0]?.name}" غير مدعوم (JPG، PNG، أو WEBP)`
+            : `${wrongType.length} ملفات غير مدعومة (JPG، PNG، أو WEBP)`,
         );
-      }
-      if (tooLarge.length > 0) {
-        toast.error(
-          tooLarge.length === 1
-            ? `الملف "${tooLarge[0]?.name}" أكبر من ${MAX_FILE_SIZE_MB} ميجابايت`
-            : `${tooLarge.length} ملفات أكبر من ${MAX_FILE_SIZE_MB} ميجابايت`,
-        );
-      }
-      if (overLimit > 0) {
-        toast.error(`الحد الأقصى ${maxFiles} صور — تم تجاهل ${overLimit} ${overLimit === 1 ? 'صورة' : 'صور'} إضافية`);
       }
 
-      onChange([...value, ...accepted]);
+      // FIX IMAGE-PICK-01: صور الاستوديو غالبًا >5MB — كانت تُرفض بصمت
+      // فيبدو أن الاختيار «لم يعمل» ويُعاد فتح الاستوديو. نضغطها بدل الرفض.
+      const prepared: File[] = [];
+      for (const f of candidates.slice(0, slotsLeft)) {
+        try {
+          if (f.size > maxBytes || f.type === 'image/heic' || f.type === 'image/heif') {
+            const compressed = await compressImageForPublish(f);
+            if (compressed.size > maxBytes) {
+              toast.error(`تعذّر تصغير "${f.name}" تحت ${MAX_FILE_SIZE_MB} ميجابايت`);
+              continue;
+            }
+            prepared.push(compressed);
+          } else {
+            prepared.push(f);
+          }
+        } catch {
+          if (f.size <= maxBytes) prepared.push(f);
+          else toast.error(`تعذّر معالجة "${f.name}"`);
+        }
+      }
+
+      const overLimit = candidates.length - Math.min(candidates.length, slotsLeft);
+      if (overLimit > 0) {
+        toast.error(
+          `الحد الأقصى ${maxFiles} صور — تم تجاهل ${overLimit} ${overLimit === 1 ? 'صورة' : 'صور'} إضافية`,
+        );
+      }
+
+      if (prepared.length > 0) {
+        onChange([...value, ...prepared]);
+      }
     },
-    [value, onChange, remainingSlots, maxBytes, maxFiles],
+    [value, onChange, existingUrls.length, maxBytes, maxFiles],
   );
 
   async function handleNativeCapture() {
@@ -253,16 +287,23 @@ export function ImageUpload({
       <input
         id={inputId} ref={inputRef}
         type="file"
-        accept={ALLOWED_IMAGE_TYPES.join(',')}
+        accept={[...ALLOWED_IMAGE_TYPES, 'image/heic', 'image/heif', '.heic', '.heif'].join(',')}
         multiple
         className="hidden"
-        onChange={(e) => addFiles(e.target.files)}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => {
+          // FIX IMAGE-PICK-01: صفّر القيمة بعد القراءة حتى إعادة اختيار
+          // نفس الملف من الاستوديو تُطلق onChange مرة أخرى.
+          const list = e.target.files;
+          void addFiles(list);
+          e.target.value = '';
+        }}
       />
 
       {/* Native camera/gallery sheet — Capacitor shell only (Android/iOS
           app). Additive to the drop zone above, which stays the only
           option on the web build. */}
-      {isNative && remainingSlots - value.length > 0 && (
+      {isNative && remainingSlots > 0 && (
         <button
           type="button"
           onClick={handleNativeCapture}

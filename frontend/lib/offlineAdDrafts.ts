@@ -62,8 +62,8 @@ const MAX_PUBLISH_FILES = 10;
 // with it. A single oversized upload is skipped, and the total is
 // hard-capped at 12MB — comfortably above the ~4-8MB of a few
 // browser-compressed JPEGs, comfortably below any realistic quota.
-const MAX_PUBLISH_FILE_BYTES = 4 * 1024 * 1024;   // 4 MB per file
-const MAX_PUBLISH_TOTAL_BYTES = 12 * 1024 * 1024; // 12 MB per draft
+const MAX_PUBLISH_FILE_BYTES = 6 * 1024 * 1024;   // 6 MB per file (FIX OFFLINE-QUEUE-RELIABILITY-01)
+const MAX_PUBLISH_TOTAL_BYTES = 18 * 1024 * 1024; // 18 MB per draft
 
 /** يحوّل File[] إلى شكل قابل للتخزين في IndexedDB، بحد أقصى عدداً وحجماً. */
 export function filesToPublishFiles(files: File[]): AdDraftPublishFile[] {

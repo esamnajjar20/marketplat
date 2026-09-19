@@ -81,6 +81,19 @@ export function OfflineBootstrap() {
     };
   }, []);
 
+  // FIX OFFLINE-QUEUE-RELIABILITY-01: مستمع online يجب أن يعمل دائمًا
+  // (حتى قبل اكتمال auth hydration) وإلا طابور العمليات يبقى معلّقًا
+  // إذا تأخر isAuthenticated أو كان false لحظيًا عند عودة النت.
+  useEffect(() => {
+    const onOnline = () => {
+      replayThenPublishDrafts();
+      void warmCoreBundle();
+      void warmRouteShells();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     void warmPersonalShells();
@@ -93,11 +106,7 @@ export function OfflineBootstrap() {
       }
     })();
 
-    const onOnline = () => {
-      replayThenPublishDrafts();
-      void warmCoreBundle();
-      void warmRouteShells();
-      if (!isAuthenticated) return;
+    const onOnlineAuth = () => {
       void warmPersonalShells();
       void (async () => {
         if (await supportsWebPush()) {
@@ -108,8 +117,8 @@ export function OfflineBootstrap() {
         }
       })();
     };
-    window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+    window.addEventListener('online', onOnlineAuth);
+    return () => window.removeEventListener('online', onOnlineAuth);
   }, [isAuthenticated]);
 
   return <WarmupIndicator />;

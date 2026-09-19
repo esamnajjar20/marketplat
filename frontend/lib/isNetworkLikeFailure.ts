@@ -9,7 +9,15 @@ import type { ParsedError } from '@/lib/errorParser';
 
 export function isNetworkLikeFailure(parsed: ParsedError): boolean {
   if (parsed.queued) return true;
-  if (parsed.code === 'NETWORK_ERROR' || parsed.code === 'OFFLINE_QUEUED') return true;
+  if (
+    parsed.code === 'NETWORK_ERROR' ||
+    parsed.code === 'OFFLINE_QUEUED' ||
+    // FIX OFFLINE-QUEUE-RELIABILITY-01: SW refused to store body (quota / size)
+    parsed.code === 'QUEUE_STORE_FAILED' ||
+    parsed.code === 'QUEUE_BODY_TOO_LARGE'
+  ) {
+    return true;
+  }
   // 0 = لا رد من السيرفر (انقطاع، DNS، CORS، timeout axios…)
   if (parsed.statusCode === 0) return true;
   // بوابات / مهلة / خدمة غير متاحة — ليست validation

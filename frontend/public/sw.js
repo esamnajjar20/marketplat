@@ -97,7 +97,12 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v34';
+const CACHE_VERSION = 'v35';
+// FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
+// (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
+// still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
+// JSON واضح بدل Response.error() حتى تحفظ الواجهة مسودة. (3) حد جسم
+// للطابور مع مسار احتياطي للمسودات.
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
@@ -194,6 +199,37 @@ const MAX_QUEUE_SERVER_RETRIES = 3
 
 /** Minimum gap between replay attempts on the same entry (ms). Backoff base. */
 const QUEUE_RETRY_MIN_GAP_MS = 30_000;
+
+/** FIX OFFLINE-QUEUE-RELIABILITY-01: سقف جسم الطلب في طابور IndexedDB.
+ * فوق هذا الحد نرفض الطابور ونُرجع خطأ واضحًا لتأخذ المسودة (publishFiles)
+ * المسار الاحتياطي — أفضل من QuotaExceeded صامت أو still-offline أبدي. */
+const MAX_QUEUE_BODY_BYTES = 6 * 1024 * 1024; // 6 MB
+
+/** Headers must not be replayed verbatim — content-length especially
+ * breaks fetch() when the Blob size differs slightly after IDB round-trip. */
+const QUEUE_STRIP_HEADERS = new Set([
+  'content-length',
+  'host',
+  'connection',
+  'keep-alive',
+  'transfer-encoding',
+  'te',
+  'trailer',
+  'upgrade',
+  'proxy-connection',
+  'accept-encoding',
+]);
+
+function sanitizeQueueHeaders(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [key, value] of Object.entries(raw)) {
+    if (QUEUE_STRIP_HEADERS.has(String(key).toLowerCase())) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 
 /** يرفض بعد ms مللي ثانية بخطأ SwTimeoutError، بدون التأثير على
  * fetchPromise نفسه (يستمر بالخلفية بمعزل عن نتيجة هذا السباق). */
@@ -1116,12 +1152,20 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds) {
     // "no csrfToken cookie → Bearer-only client" path — which is the
     // correct behavior for an expired session anyway (it'll 401 or 403
     // and replayOne will handle it below).
-    let sendHeaders = entry.headers;
+    // FIX OFFLINE-QUEUE-RELIABILITY-01: sanitize every replay — entries
+    // queued before this fix may still carry content-length/host.
+    let sendHeaders = sanitizeQueueHeaders(entry.headers || {});
     if (entry.needsCsrf && freshCreds) {
       sendHeaders = {
-        ...entry.headers,
+        ...sendHeaders,
         authorization: `Bearer ${freshCreds.accessToken}`,
         ...(freshCreds.csrfToken ? { 'x-csrf-token': freshCreds.csrfToken } : {}),
+      };
+    } else if (freshCreds && freshCreds.accessToken) {
+      // Always prefer fresh access token when we already refreshed for this drain
+      sendHeaders = {
+        ...sendHeaders,
+        authorization: `Bearer ${freshCreds.accessToken}`,
       };
     }
     const response = await fetch(entry.url, {
@@ -1533,32 +1577,45 @@ async function handleMutation(request) {
     try {
       const blob = await requestForQueue.blob();
       body = blob.size > 0 ? blob : null;
-    } catch {
+    } catch (blobErr) {
+      console.warn('[SW] queue body read failed:', blobErr && blobErr.message);
       body = null;
     }
+
+    // FIX OFFLINE-QUEUE-RELIABILITY-01: جسم أكبر من السقف → لا نُحاول
+    // IndexedDB (غالبًا يفشل Quota). نُرجع خطأ واضح لتأخذ الواجهة
+    // مسار المسودة + publishFiles وتعيد الرفع عند عودة النت.
+    if (body && body.size > MAX_QUEUE_BODY_BYTES) {
+      console.warn('[SW] body too large for offline queue:', body.size);
+      return new Response(
+        JSON.stringify({
+          queued: false,
+          code: 'QUEUE_BODY_TOO_LARGE',
+          message:
+            'حجم المرفقات كبير للأوفلاين — حُفظت مسودة محلية وستُرفع عند عودة الاتصال.',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
     const headers = {};
     // FIX QUEUE-CSRF-STALE-01: strip x-csrf-token at queue time and
-    // record only that the entry needs one. The CSRF token is
-    // session-scoped: it's reissued on every /auth/refresh, and the
-    // axios request interceptor always attaches whatever value is
-    // current *at the moment the request is issued*. Freezing it into
-    // the queued headers means a replay hours later sends the old
-    // value, while the browser's csrfToken cookie has since been
-    // rotated — backend's csrf.middleware.ts compares the two and
-    // rejects with 403, which replayOne's 4xx branch then marks as a
-    // permanent failure. Keeping just the *need* (a boolean) here lets
-    // replayOne fetch a fresh token right before it actually sends.
+    // record only that the entry needs one.
     let needsCsrf = false;
     requestForQueue.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'x-csrf-token') {
+      const lower = key.toLowerCase();
+      if (lower === 'x-csrf-token') {
         needsCsrf = true;
         return;
       }
+      // FIX OFFLINE-QUEUE-RELIABILITY-01: لا نخزّن headers تُكسر الـ replay
+      if (QUEUE_STRIP_HEADERS.has(lower)) return;
       headers[key] = value;
     });
 
     // FIX AD-DRAFT-QUEUE-LINK-01: X-Offline-Op-Id → حقل operationId مستقل.
-    const operationId = headers['x-offline-op-id'] || null;
+    const operationId =
+      headers['x-offline-op-id'] || headers['X-Offline-Op-Id'] || null;
 
     try {
       const priority = inferQueuePriority(requestForQueue.url, requestForQueue.method);
@@ -1570,19 +1627,28 @@ async function handleMutation(request) {
         queuedAt: Date.now(),
         operationId,
         priority,
-        // See the FIX QUEUE-CSRF-STALE-01 comment above — replayOne uses
-        // this to know it must refresh and inject a fresh X-CSRF-Token
-        // before sending, rather than trusting a stale value that was
-        // captured at enqueue time.
         needsCsrf,
+        retryCount: 0,
       };
       // PHASE-4: merge offline analytics beacons into one queue row
       const coalesced = await tryCoalesceAnalyticsEntry(entry);
       if (!coalesced) {
         await queueRequestEntry(entry);
       }
-    } catch {
-      return Response.error();
+    } catch (storeErr) {
+      // FIX OFFLINE-QUEUE-RELIABILITY-01: كان Response.error() صامتًا —
+      // الواجهة ما تعرف تحفظ مسودة بسياق "طابور فشل"، والمستخدم يظن
+      // أن العملية اختفت. 503 + code واضح → isNetworkLikeFailure + onError.
+      console.warn('[SW] queueRequestEntry failed:', storeErr && storeErr.message);
+      return new Response(
+        JSON.stringify({
+          queued: false,
+          code: 'QUEUE_STORE_FAILED',
+          message:
+            'تعذّر حفظ العملية في طابور الأوفلاين — حُفظت مسودة محلية إن أمكن وستُرفع عند عودة الاتصال.',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      );
     }
 
     if (self.registration && self.registration.sync) {
@@ -1596,10 +1662,6 @@ async function handleMutation(request) {
     return new Response(
       JSON.stringify({
         queued: true,
-        // FIX MUTATION-SOFT-OFFLINE-01: لا نجزم "لا يوجد اتصال" لو
-        // navigator.onLine لم يقل ذلك صراحة — قد يكون الاتصال بطيئًا/
-        // متقطعًا لا معدومًا. نفس مبدأ ONLINE_DRAFT_TOAST بـ
-        // isNetworkLikeFailure.ts (لا ندّعي انقطاعًا غير مؤكّد).
         message: isOffline
           ? 'لا يوجد اتصال — سيُعاد إرسال العملية تلقائيًا عند عودة الاتصال.'
           : 'تعذّر إرسال الطلب — سيُعاد المحاولة تلقائيًا.',

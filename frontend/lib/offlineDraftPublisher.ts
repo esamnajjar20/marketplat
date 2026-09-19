@@ -48,6 +48,17 @@ const MAX_AUTO_RETRIES = 5;
  * a user whose queued entry is genuinely stuck sees progress within
  * a minute of hitting مزامنة الآن rather than never.
  */
+// FIX QUEUE-HANDOFF-SAFETY-01: reverted from a brief 15s experiment.
+// The SW's own QUEUE_RETRY_MIN_GAP_MS is 30s — a 15s handoff could fire
+// between the SW's first and second retry attempts, so the Publisher
+// would send the same operationId while the SW still had the entry in
+// its queue, and once the SW retried (from 30s onward) it would re-send
+// the same request → duplicate ad/product/service on the server. 60s
+// guarantees the SW has at least one full retry gap (30s) plus margin
+// to either succeed or give up before the Publisher takes over. Users
+// hitting مزامنة الآن with a genuinely stuck entry wait one extra
+// minute; users in the normal case (SW healthy) never hit this path at
+// all, because the SW clears the entry within seconds.
 const STALE_QUEUE_HANDOFF_MS = 60_000;
 
 export type DraftPublishResult = {
@@ -78,6 +89,11 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
   try {
     if (draft.mode === 'create') {
       if (kind === 'ad') {
+        const storeIdRaw = draft.payload.storeId;
+        const storeId =
+          typeof storeIdRaw === 'string' && storeIdRaw.trim()
+            ? storeIdRaw.trim()
+            : undefined;
         const payload: CreateAdPayload = {
           title: str(draft.payload.title),
           description: str(draft.payload.description),
@@ -89,6 +105,8 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
           latitude: num(draft.payload.latitude),
           longitude: num(draft.payload.longitude),
           images: files.length ? files : undefined,
+          // FIX OFFLINE-STORE-AD-01: إعادة نشر باسم المتجر عند وجود storeId
+          ...(storeId ? { storeId } : {}),
         };
         await adsApi.create(payload, undefined, opId);
       } else if (kind === 'product') {
@@ -302,14 +320,26 @@ export async function syncPendingOfflineDrafts(options?: {
           // Otherwise: fall through and send from the draft.
         }
 
-        // إنشاء بصور مطلوبة للمنتج/الخدمة بلا publishFiles → لا نقدر نرفع
+        // FIX OFFLINE-QUEUE-RELIABILITY-01: منتج/خدمة بلا publishFiles كانت
+        // تُتخطّى بصمت إلى الأبد. الآن نعلّمها failed برسالة واضحة حتى
+        // يظهر للمستخدم في مركز المزامنة ويستطيع إعادة المحاولة بعد إضافة صور.
         const kind = draft.kind ?? 'ad';
         if (
           draft.mode === 'create' &&
           (kind === 'product' || kind === 'service') &&
           !(draft.publishFiles && draft.publishFiles.length > 0)
         ) {
-          result.skipped += 1;
+          try {
+            await saveAdDraft({
+              ...draft,
+              status: 'failed',
+              lastError:
+                'الصور غير متوفرة محليًا لإعادة الرفع — افتح المسودة وأعد إرفاق الصور ثم زامن.',
+            });
+          } catch (e) {
+            console.warn('[draft-publisher] mark missing-images failed:', e);
+          }
+          result.failed += 1;
           continue;
         }
 

@@ -115,6 +115,11 @@ export interface CreateAdPayload {
   longitude?:    number;
   categoryId?:   string;
   images?:       File[];
+  /**
+   * FIX OFFLINE-STORE-AD-01: عند النشر باسم المتجر يُرسل storeId.
+   * بدونه يُنشأ الإعلان كإعلان شخصي للبائع حتى لو اختار المستخدم «متجر».
+   */
+  storeId?:      string;
 }
 
 /**

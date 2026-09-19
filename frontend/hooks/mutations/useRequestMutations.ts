@@ -11,6 +11,7 @@ import { toastMutationError } from '@/lib/mutationFeedback';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
+import { compressImageForPublish } from '@/lib/imageOffline';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
@@ -26,7 +27,7 @@ export function useCreateRequest() {
   const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (input: CreateRequestBody & { files?: File[] }) => {
+    mutationFn: async (input: CreateRequestBody & { files?: File[] }) => {
       operationIdRef.current = newOfflineOperationId();
       // FIX REQ-IMAGE-OFFLINE-01: the mutation now takes the raw File[]
       // alongside the JSON fields, and lets createWithImages run the
@@ -34,7 +35,24 @@ export function useCreateRequest() {
       // failure lands in onError below (which saves the draft) instead
       // of short-circuiting at the form layer (which used to just
       // toast + return, losing everything).
-      const { files, ...body } = input;
+      let { files, ...body } = input;
+      // FIX OFFLINE-QUEUE-RELIABILITY-01: ضغط صور الطلب أوفلاين قبل الرفع
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.onLine === false &&
+        files &&
+        files.length > 0
+      ) {
+        files = await Promise.all(
+          files.map(async (f) => {
+            try {
+              return await compressImageForPublish(f);
+            } catch {
+              return f;
+            }
+          }),
+        );
+      }
       return requestsApi
         .createWithImages(body, files, operationIdRef.current ?? undefined)
         .then((r) => r.data.data);
@@ -74,7 +92,19 @@ export function useCreateRequest() {
             // when connectivity returns. Same publishFiles mechanism that
             // ads/products/services already use.
             publishFiles:
-              files && files.length > 0 ? filesToPublishFiles(files) : undefined,
+              files && files.length > 0
+              ? filesToPublishFiles(
+                  await Promise.all(
+                    files.map(async (f) => {
+                      try {
+                        return await compressImageForPublish(f);
+                      } catch {
+                        return f;
+                      }
+                    }),
+                  ),
+                )
+              : undefined,
             publishRetryCount: 0,
           });
           if (offline || parsed.queued) {

@@ -29,7 +29,7 @@ import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
 import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
-import { compressImageForOffline } from '@/lib/imageOffline';
+import { compressImageForOffline, compressImageForPublish } from '@/lib/imageOffline';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
   getActiveOfflineDraftId,
@@ -43,6 +43,16 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
  * فقط تُستبعَد من المعاينة. النشر الفعلي بجودة كاملة غير متأثر إطلاقًا،
  * لأنه يمر بطابور الـ SW لا بهذا المسار.
  */
+async function bestEffortCompressPublish(files: File[]): Promise<File[]> {
+  return Promise.all(files.map(async (f) => {
+    try {
+      return await compressImageForPublish(f);
+    } catch {
+      return f;
+    }
+  }));
+}
+
 async function bestEffortCompressPreviews(
   files: File[],
 ): Promise<{ name: string; blob: Blob }[]> {
@@ -73,9 +83,23 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
   const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (payload: Parameters<typeof adsApi.create>[0]) => {
+    mutationFn: async (payload: Parameters<typeof adsApi.create>[0]) => {
       operationIdRef.current = newOfflineOperationId();
-      return adsApi.create(payload, onUploadProgress, operationIdRef.current).then((r) => r.data.data);
+      let body = payload;
+      // FIX OFFLINE-QUEUE-RELIABILITY-01: اضغط الصور قبل الإرسال أوفلاين
+      // حتى يدخل الطلب طابور الـ SW (حد 6MB) بدل الفشل الصامت.
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.onLine === false &&
+        Array.isArray(payload.images) &&
+        payload.images.length > 0
+      ) {
+        body = {
+          ...payload,
+          images: await bestEffortCompressPublish(payload.images as File[]),
+        };
+      }
+      return adsApi.create(body, onUploadProgress, operationIdRef.current).then((r) => r.data.data);
     },
     onSuccess: (ad) => {
       clearActiveOfflineDraftId();
@@ -120,6 +144,8 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               city: (payload as { city?: string }).city ?? null,
               condition: (payload as { condition?: string }).condition ?? null,
               isNegotiable: Boolean((payload as { isNegotiable?: boolean }).isNegotiable),
+              // FIX OFFLINE-STORE-AD-01: حفظ متجر النشر أوفلاين
+              storeId: (payload as { storeId?: string }).storeId ?? null,
               imageLabels: files.map((f) => f.name),
             },
             status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
@@ -129,7 +155,9 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
             images,
             // FIX OFFLINE-DRAFT-PUBLISH-01: حفظ الصور الأصلية لإعادة النشر
             // من المسودة لو طابور الـ SW لم يعترض الطلب.
-            publishFiles: files.length ? filesToPublishFiles(files) : undefined,
+            publishFiles: files.length
+              ? filesToPublishFiles(await bestEffortCompressPublish(files))
+              : undefined,
             publishRetryCount: 0,
           });
           if (offline || parsed.queued) {

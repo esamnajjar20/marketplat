@@ -86,3 +86,54 @@ export function shouldCacheImageResponse(response: Response): boolean {
   const tooLarge = Number.isFinite(lenNum) && lenNum > 2.5 * 1024 * 1024;
   return !tooLarge;
 }
+
+
+/**
+ * FIX OFFLINE-QUEUE-RELIABILITY-01: ضغط معتدل للنشر أوفلاين (ليس مجرد معاينة).
+ * صور الهاتف غالبًا 8–12MB — تتجاوز حد الطابور/المسودة. نُنتج JPEG بجودة
+ * جيدة وأبعاد كافية للإعلان، تحت ~1.5MB غالبًا، قابلة لإعادة الرفع الحقيقي.
+ */
+const PUBLISH_MAX_DIMENSION = 1600;
+const PUBLISH_JPEG_QUALITY = 0.82;
+const PUBLISH_MAX_OUTPUT_BYTES = 2 * 1024 * 1024; // 2 MB
+
+export async function compressImageForPublish(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  if (file.size <= 1.5 * 1024 * 1024) return file; // already small enough
+  if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') {
+    return file;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const scale = Math.min(1, PUBLISH_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+      const width = Math.max(1, Math.round(bitmap.width * scale));
+      const height = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return file;
+      ctx.drawImage(bitmap, 0, 0, width, height);
+
+      let quality = PUBLISH_JPEG_QUALITY;
+      let blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/jpeg', quality),
+      );
+      if (blob && blob.size > PUBLISH_MAX_OUTPUT_BYTES) {
+        quality = 0.7;
+        blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', quality),
+        );
+      }
+      if (!blob || blob.size >= file.size) return file;
+      const base = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+      return new File([blob], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return file;
+  }
+}
