@@ -57,7 +57,7 @@ export function useCreateRequest() {
             userId,
             operationId: operationIdRef.current ?? undefined,
           });
-          if (offline) {
+          if (offline || parsed.queued) {
             toast.message('محفوظ محليًا — بانتظار الاتصال', {
               description: 'يمكنك متابعته من مركز المزامنة',
             });

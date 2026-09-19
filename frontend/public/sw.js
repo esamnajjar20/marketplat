@@ -1452,15 +1452,18 @@ async function replayQueueImpl() {
  *   أوفلاين → طابور + 202 {queued:true} (SW-QUEUE-ONLY-OFFLINE-01).
  */
 async function handleMutation(request) {
+  // FIX MUTATION-SOFT-OFFLINE-01: navigator.onLine يعكس فقط وجود واجهة
+  // شبكة نشطة، لا اتصال إنترنت فعلي شغّال — قيد موثّق بالـAPI نفسه. كان
+  // فرع "أونلاين" هنا (navigator.onLine !== false) يُنفّذ fetch(request)
+  // بلا try/catch إطلاقًا ويُعيد أي فشل شبكة كما هو للواجهة — أي طلب
+  // (وأهمها: رسائل المحادثة، critical priority) يفشل ويُفقد نهائيًا بدل
+  // أن يُقيَّد بالطابور، تحديدًا بالحالة الأكثر شيوعًا للجمهور المستهدف:
+  // شبكة "متصلة" حسب المتصفح لكن بطيئة/متقطعة فعليًا. الحل: استنساخ
+  // الطلب واعتماد try/catch دائمًا بغض النظر عن navigator.onLine —
+  // أي استثناء (لا رد HTTP إطلاقًا) يُعامَل كـ"يحتاج طابور"، تمامًا
+  // كما تُصنَّف نفس الحالة أصلًا بـreplayOne (catch → 'still-offline').
   const isOffline =
     typeof navigator !== 'undefined' && navigator.onLine === false;
-
-  // ── أونلاين: لا نتدخل ───────────────────────────────────────────
-  if (!isOffline) {
-    return fetch(request);
-  }
-
-  // ── أوفلاين: طابور ─────────────────────────────────────────────
   const requestForQueue = request.clone();
   try {
     return await fetch(request);
@@ -1513,7 +1516,13 @@ async function handleMutation(request) {
     return new Response(
       JSON.stringify({
         queued: true,
-        message: 'لا يوجد اتصال — سيُعاد إرسال العملية تلقائيًا عند عودة الاتصال.',
+        // FIX MUTATION-SOFT-OFFLINE-01: لا نجزم "لا يوجد اتصال" لو
+        // navigator.onLine لم يقل ذلك صراحة — قد يكون الاتصال بطيئًا/
+        // متقطعًا لا معدومًا. نفس مبدأ ONLINE_DRAFT_TOAST بـ
+        // isNetworkLikeFailure.ts (لا ندّعي انقطاعًا غير مؤكّد).
+        message: isOffline
+          ? 'لا يوجد اتصال — سيُعاد إرسال العملية تلقائيًا عند عودة الاتصال.'
+          : 'تعذّر إرسال الطلب — سيُعاد المحاولة تلقائيًا.',
       }),
       { status: 202, headers: { 'Content-Type': 'application/json' } },
     );

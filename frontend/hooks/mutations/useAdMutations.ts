@@ -93,6 +93,16 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       // أوفلاين → مسودة + رسالة انتظار النت.
       // أونلاين + فشل شبكة → مسودة status failed بلا ادعاء انقطاع نت.
       // 400/403/… → خطأ فقط، بلا مسودة شبكة.
+      //
+      // FIX MUTATION-SOFT-OFFLINE-01 (تابع): بعد أن صار sw.js's
+      // handleMutation يُقيِّد الطلب بالطابور حتى لو navigator.onLine
+      // كان true (fetch فشل فعليًا رغم ذلك)، الرد يرجع بنفس شكل
+      // {queued:true} — parsed.queued يلتقطه بغض النظر عن `offline`
+      // هنا. لو اعتمدنا `offline` وحدها لتصنيف الحالة كان الطلب
+      // سيُحفَظ محليًا بحالة 'failed' (يوحي بإعادة إرسال يدوية) رغم أن
+      // sw.js أصلًا قيّده وسيُرسله تلقائيًا — ازدواج إرسال محتمل لو
+      // المستخدم أعاد الإرسال يدويًا من المسودة. `parsed.queued` يغطي
+      // هذه الحالة أيضًا.
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = (payload as { images?: File[] }).images ?? [];
@@ -111,13 +121,13 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               isNegotiable: Boolean((payload as { isNegotiable?: boolean }).isNegotiable),
               imageLabels: files.map((f) => f.name),
             },
-            status: offline ? 'pending_sync' : 'failed',
-            lastError: offline ? undefined : parsed.message,
+            status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
+            lastError: (offline || parsed.queued) ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
             images,
           });
-          if (offline) {
+          if (offline || parsed.queued) {
             toast.message('محفوظ محليًا — بانتظار الاتصال', {
               description:
                 'سيُرسل تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
@@ -174,12 +184,12 @@ export function useUpdateAd(adId: string) {
               condition: (payload as { condition?: string }).condition ?? null,
               isNegotiable: Boolean((payload as { isNegotiable?: boolean }).isNegotiable),
             },
-            status: offline ? 'pending_sync' : 'failed',
-            lastError: offline ? undefined : parsed.message,
+            status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
+            lastError: (offline || parsed.queued) ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
           });
-          if (offline) {
+          if (offline || parsed.queued) {
             toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
               description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
             });

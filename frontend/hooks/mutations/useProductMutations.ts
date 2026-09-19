@@ -90,13 +90,13 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
               stockQuantity: payload.stockQuantity,
               imageLabels: files.map((f) => f.name),
             },
-            status: offline ? 'pending_sync' : 'failed',
-            lastError: offline ? undefined : parsed.message,
+            status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
+            lastError: (offline || parsed.queued) ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
             images,
           });
-          if (offline) {
+          if (offline || parsed.queued) {
             toast.message('محفوظ محليًا — بانتظار الاتصال', {
               description:
                 'سيُرسل المنتج تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
@@ -158,12 +158,12 @@ export function useUpdateProduct(productId: string) {
               stockQuantity: payload.stockQuantity,
               status: payload.status,
             },
-            status: offline ? 'pending_sync' : 'failed',
-            lastError: offline ? undefined : parsed.message,
+            status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
+            lastError: (offline || parsed.queued) ? undefined : parsed.message,
             operationId: operationIdRef.current,
             userId,
           });
-          if (offline) {
+          if (offline || parsed.queued) {
             toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
               description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
             });
