@@ -2062,14 +2062,39 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   if (action === 'dismiss') return;
 
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  const rawUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  // FIX SW-CLICK-URL-MATCH-01: previous matching used
+  // `client.url.includes(url)`, which:
+  //   1. mismatched when url was '/': every client URL contains '/',
+  //      so the loop focused the FIRST open window regardless of what
+  //      page it was showing. A notification that should have opened
+  //      /notifications could land the user on any random tab.
+  //   2. matched prefixes falsely: url='/messages/abc' would also match
+  //      a client at '/messages/abc-def', skipping the real target.
+  // Now normalize both sides to pathname and compare exactly. Same
+  // query string on the client is ignored — a user at
+  // /notifications?filter=unread should still be reused when the
+  // notification targets /notifications.
+  const targetPath = (() => {
+    try {
+      return new URL(rawUrl, self.location.origin).pathname;
+    } catch {
+      return '/';
+    }
+  })();
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
       for (const client of clientsList) {
-        if (client.url.includes(url) && 'focus' in client) return client.focus();
+        try {
+          const clientPath = new URL(client.url).pathname;
+          if (clientPath === targetPath && 'focus' in client) return client.focus();
+        } catch {
+          /* malformed client URL — skip */
+        }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
+      if (self.clients.openWindow) return self.clients.openWindow(rawUrl);
       return undefined;
     }),
   );
