@@ -63,6 +63,15 @@ export const mediaApi = {
       } catch (err) {
         lastErr = err;
         if (!isNetworkFailure(err)) throw err;
+        // FIX OFFLINE-FAST-FAIL (media side): don't waste the
+        // 1.5s + 4s backoff retrying while the device has already
+        // told us it's offline — every retry would fail instantly
+        // with the same fast-fail error, and the caller (image
+        // upload in a form's mutation) is better served by an
+        // immediate "محفوظ محليًا" toast than a 5.5s pause.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          throw err;
+        }
         if (attempt < UPLOAD_RETRY_DELAYS_MS.length) {
           const delayMs = UPLOAD_RETRY_DELAYS_MS[attempt] ?? 0;
           console.warn(

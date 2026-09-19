@@ -41,6 +41,7 @@ import { getCsrfToken } from '@/lib/csrf';
 import { toast } from 'sonner';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
+import { makeOfflineError } from '@/lib/offlineError';
 
 export const apiClient = axios.create({
   baseURL:         API_BASE_URL,
@@ -53,6 +54,30 @@ const SAFE_METHODS = new Set(['get', 'head', 'options']);
 
 // ── Request interceptor — attach access token + CSRF token ────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const method = (config.method ?? 'get').toLowerCase();
+
+  // FIX OFFLINE-FAST-FAIL: when navigator.onLine is definitively
+  // false, reject state-changing requests immediately instead of
+  // waiting up to 15s for axios's own timeout. On several mobile
+  // network stacks (Android/Chrome behind Gaza carrier NATs
+  // especially), an offline POST doesn't fail fast — the request
+  // just hangs until axios's timeout fires. That's exactly the
+  // "يطول كثير وهو يحاول يحفظ" symptom: the user waits 15s of
+  // nothing before the onError path finally runs and shows the
+  // "محفوظ محليًا" toast. Throwing here drops that to ~0ms.
+  //
+  // Safe methods (GET/HEAD/OPTIONS) are NOT touched: an offline GET
+  // should still fall through so the SW's cache strategy can serve
+  // a cached response if one exists. Only the mutations the SW
+  // can't help with get the fast-fail.
+  if (
+    !SAFE_METHODS.has(method) &&
+    typeof navigator !== 'undefined' &&
+    navigator.onLine === false
+  ) {
+    throw makeOfflineError();
+  }
+
   // PHASE-1 UX: sample RTT for connection quality indicator
   (config as InternalAxiosRequestConfig & { metadata?: { start: number } }).metadata = {
     start: typeof performance !== 'undefined' ? performance.now() : Date.now(),
@@ -69,7 +94,6 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // OPTIONS are exempt there too). Harmless to omit on safe methods,
   // but adding it unconditionally would mean every single GET request
   // pays a document.cookie read for no reason.
-  const method = (config.method ?? 'get').toLowerCase();
   if (!SAFE_METHODS.has(method)) {
     const csrfToken = getCsrfToken();
     if (csrfToken) {
