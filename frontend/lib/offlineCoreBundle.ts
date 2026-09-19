@@ -153,13 +153,16 @@ function extractThumbnailUrls(items: unknown[]): string[] {
   return urls;
 }
 
-async function cachePut(cache: Cache, url: string, response: Response): Promise<void> {
+async function cachePut(cache: Cache, url: string, response: Response): Promise<boolean> {
   try {
     if (response.ok) {
       await cache.put(url, response.clone());
+      return true;
     }
+    return false;
   } catch {
     // تخزين فاشل لعنصر واحد (مساحة ممتلئة، مثلًا) لا يجب يوقف بقية الحزمة.
+    return false;
   }
 }
 
@@ -196,6 +199,14 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
   const urls = buildCoreUrls();
   let completed = 0;
   let total = urls.length; // يُحدَّث لاحقًا ليشمل الصور المصغّرة بعد معرفة عددها الفعلي.
+  // FIX WARM-FALSE-SUCCESS-01: كان LAST_WARMED_KEY يُسجَّل دائمًا بعد
+  // الحلقتين بلا شرط، حتى لو فشل تخزين كل عنصر (fetch فشل، أو ok:false،
+  // أو cache.put رمى استثناء) — Promise.allSettled يبلع كل هذا صامتًا.
+  // النتيجة: فشل كامل مرة واحدة (شبكة، CORS، مسار خاطئ...) = "نجاح"
+  // مسجَّل زورًا يقفل إعادة المحاولة 6 ساعات كاملة بلا أي أثر بالواجهة.
+  // succeeded يتتبّع عدد عناصر cache.put الناجحة فعليًا؛ لا نكتب
+  // LAST_WARMED_KEY إلا لو succeeded > 0.
+  let succeeded = 0;
   notifyWarmup({ active: true, completed, total });
 
   try {
@@ -205,7 +216,7 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
       urls.map(async ({ url }) => {
         try {
           const response = await fetch(url); // بدون credentials — نقاط عامة (public browse)
-          await cachePut(cache, url, response.clone());
+          if (await cachePut(cache, url, response.clone())) succeeded += 1;
           return response.ok ? response.json() : null;
         } finally {
           completed += 1;
@@ -234,7 +245,7 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
       thumbnails.map(async (url) => {
         try {
           const response = await fetch(url);
-          await cachePut(cache, url, response);
+          if (await cachePut(cache, url, response)) succeeded += 1;
         } catch {
           // صورة واحدة فاشلة لا توقف الباقي.
         } finally {
@@ -244,7 +255,9 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
       }),
     );
 
-    localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
+    if (succeeded > 0) {
+      localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
+    }
   } catch {
     // فشل الحزمة كاملة (مثلًا الشبكة انقطعت أثناء الجلب) — لا مشكلة،
     // سيُعاد المحاولة بأول فتح تطبيق أونلاين تالي (لم نحدّث LAST_WARMED_KEY).

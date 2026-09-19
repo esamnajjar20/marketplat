@@ -67,6 +67,7 @@ import { usersApi }   from '@/api/users.api';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
+import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 
 /**
  * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
@@ -184,6 +185,18 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         });
         // Set role cookie for middleware admin check.
         setCookie('app_user_role', user.role, cookieMaxAge);
+
+        // Best-effort: prefetch this user's own seller/store/provider
+        // profiles so the create-page gates (CreateAdGate,
+        // CreateProductGate, CreateServiceListingGate) can render their
+        // real forms on the very first offline visit — without needing
+        // the user to have visited /dashboard or /my-services once first
+        // to populate offlineJsonCache. See lib/offlineSelfWarm.ts's
+        // own header for the exact gap this closes. Fire-and-forget:
+        // intentionally NOT threaded through `controller.signal`, so a
+        // slow network doesn't extend this effect's own 8s window and
+        // an early unmount doesn't cancel the warmup for nothing.
+        void warmSelfDataForOffline(queryClient);
 
         // AUDIT-FIX M-1: prefetch page 1 of favorites so the ids Set is
         // populated app-wide before the user visits /dashboard or

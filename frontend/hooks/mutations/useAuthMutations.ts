@@ -19,6 +19,8 @@ import { queryKeys }     from '@/lib/queryKeys';
 import { ROUTES }        from '@/lib/constants';
 import { track }         from '@/lib/analytics';
 import { clearSensitiveLocalData, clearServiceWorkerApiCache } from '@/lib/authCleanup';
+import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
+import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
@@ -85,6 +87,20 @@ export function useLogin() {
       authApi.login(payload).then((r) => ({ ...unwrapData(r), redirectTo })),
 
     onSuccess: async (data) => {
+      // FIX SHARED-DEVICE-LOGIN-LEAK-01: مسح دفاعي قبل أي شيء آخر — لا
+      // نفترض أن الجلسة السابقة على هذا الجهاز انتهت بـlogout نظيف
+      // (تطبيق أُغلق قسرًا/تعطّل). API_CACHE بالـSW (Cache Storage) و
+      // notificationsCache (localStorage) يعيشان عبر إعادة تشغيل
+      // التطبيق، وغير مرتبطين بهوية مستخدم بمفتاح الكاش — لو انقطع
+      // النت لحظيًا بعد هذا الدخول (سيناريو شائع بهذا التطبيق)،
+      // networkFirstApi's fallback (sw.js) قد يرجّع ردود API مخزَّنة
+      // تخص مستخدم سابق على نفس الجهاز. عمدًا لا نستخدم
+      // clearSensitiveLocalData() الكاملة هنا — تمسح أيضًا طابور
+      // العمليات المعلّقة وتُلغي اشتراك push، وهذان صحيحان عند *إنهاء*
+      // جلسة (logout) لا عند *بدء* واحدة.
+      clearServiceWorkerApiCache();
+      clearNotificationsCache();
+
       // FIX T-01: data.user is AuthResultUser (id/name/email/role only).
       // CROSS-ORIGIN-CSRF-FIX: also pass csrfToken from the response
       // body — see auth.store.ts's csrfToken field / lib/csrf.ts for why
@@ -94,6 +110,14 @@ export function useLogin() {
 
       // Set cookies for middleware route protection.
       setAuthCookies(data.user, data.tokens);
+
+      // Best-effort warmup: seed offlineJsonCache + React Query with
+      // this user's own seller/store/provider profiles so the create-
+      // page gates work offline on their first visit without needing
+      // a prior stop at /dashboard or /my-services. See
+      // lib/offlineSelfWarm.ts's header for the exact gap this closes.
+      // Fire-and-forget — must not delay the toast/navigate below.
+      void warmSelfDataForOffline(queryClient);
 
       // Background fetch to enrich user with avatarUrl/city.
       usersApi.getMe()
@@ -135,15 +159,28 @@ export function useRegister() {
   // PERF-05 FIX: targeted selector.
   const setAuth   = useAuthStore(selectSetAuth);
   const router      = useRouter();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ redirectTo, ...payload }: RegisterPayload & { redirectTo?: string }) =>
       authApi.register(payload).then((r) => ({ ...unwrapData(r), redirectTo })),
 
     onSuccess: (data) => {
+      // FIX SHARED-DEVICE-LOGIN-LEAK-01: نفس منطق useLogin أعلاه — حساب
+      // جديد لا يعني جهازًا نظيفًا؛ قد يحمل بقايا جلسة سابقة انتهت بلا
+      // logout نظيف.
+      clearServiceWorkerApiCache();
+      clearNotificationsCache();
+
       // CROSS-ORIGIN-CSRF-FIX: see the matching comment in useLogin above.
       setAuth(data.user, data.tokens, data.csrfToken);
       setAuthCookies(data.user, data.tokens);
+      // Same best-effort warmup as useLogin above — a fresh account
+      // almost never has a profile yet, but if the user completed
+      // profile setup in a prior session and is re-registering on a
+      // shared device, this still saves a network round trip on the
+      // first visit to any create page. Harmless when it 404s.
+      void warmSelfDataForOffline(queryClient);
       // Gap #7 (product analytics): completes the signup funnel this
       // event pairs with (see RegisterForm.tsx's SIGNUP_STARTED on
       // mount, and backend's analyticsRepository.signupFunnelSessions).
