@@ -142,6 +142,15 @@ export interface AdDraft {
   versions?: DraftVersion[];
   status: AdDraftStatus;
   lastError?: string;
+  // FIX LASTERROR-CODE-01: structured fields that make the
+  // stored error re-translatable. `lastError` is the frozen
+  // human-readable string as it stood at save time; it becomes
+  // stale after any change to i18n/ar/errors.ts. The UI
+  // re-translates from lastErrorCode when present (with
+  // lastError as a legacy fallback for drafts written before
+  // these fields existed).
+  lastErrorCode?: string;
+  lastErrorStatus?: number;
   createdAt: string;
   updatedAt: string;
   /**
@@ -273,6 +282,15 @@ export async function saveAdDraft(
     payload: AdDraftPayload;
     status?: AdDraftStatus;
     lastError?: string;
+  // FIX LASTERROR-CODE-01: structured fields that make the
+  // stored error re-translatable. `lastError` is the frozen
+  // human-readable string as it stood at save time; it becomes
+  // stale after any change to i18n/ar/errors.ts. The UI
+  // re-translates from lastErrorCode when present (with
+  // lastError as a legacy fallback for drafts written before
+  // these fields existed).
+  lastErrorCode?: string;
+  lastErrorStatus?: number;
     operationId?: string | null;
     userId?: string | null;
     images?: AdDraftPreviewImage[];
@@ -301,6 +319,8 @@ export async function saveAdDraft(
     versions,
     status: input.status ?? existing?.status ?? 'draft',
     lastError: input.lastError,
+    lastErrorCode: input.lastErrorCode,
+    lastErrorStatus: input.lastErrorStatus,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     operationId: input.operationId ?? existing?.operationId ?? null,

@@ -42,6 +42,7 @@ import {
   type AdDraftPreviewImage,
 } from '@/lib/offlineAdDrafts';
 import { resumeHrefForDraft } from '@/lib/offlineDraftResume';
+import { getErrorMessage } from '@/lib/i18n/ar/errors';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 
@@ -253,7 +254,17 @@ export function SyncCenterClient() {
                       الفعلية بجودتها الكاملة تُرسَل عبر طابور الـ SW. */}
                   {d.images && d.images.length > 0 ? <DraftThumbnails images={d.images} /> : null}
                   {d.lastError ? (
-                    <p className="mt-1 text-xs text-destructive">{d.lastError}</p>
+                    <p className="mt-1 text-xs text-destructive">
+                      {/* FIX LASTERROR-CODE-01: prefer a fresh translation
+                          from the stored code so an i18n change actually
+                          reaches existing drafts. Falls back to the frozen
+                          `lastError` string for legacy drafts written
+                          before the code fields existed, and for codes
+                          missing from the dictionary. */}
+                      {d.lastErrorCode
+                        ? getErrorMessage(d.lastErrorCode) ?? d.lastError
+                        : d.lastError}
+                    </p>
                   ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">

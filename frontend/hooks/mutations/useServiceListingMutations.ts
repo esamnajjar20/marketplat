@@ -114,6 +114,14 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
             },
             status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
             lastError: (offline || parsed.queued) ? undefined : parsed.message,
+            // FIX LASTERROR-CODE-01: store the machine-readable
+            // code + status so the sync center re-translates the
+            // message on every render — a frozen Arabic string
+            // keeps showing old wording after any i18n update
+            // (this is why 'لا تملك صلاحية' kept appearing even
+            // after STORE_NOT_ACTIVE was added).
+            lastErrorCode: (offline || parsed.queued) ? undefined : parsed.code,
+            lastErrorStatus: (offline || parsed.queued) ? undefined : parsed.statusCode,
             operationId: operationIdRef.current,
             userId,
             images,
@@ -185,6 +193,14 @@ export function useUpdateServiceListing(listingId: string) {
             },
             status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
             lastError: (offline || parsed.queued) ? undefined : parsed.message,
+            // FIX LASTERROR-CODE-01: store the machine-readable
+            // code + status so the sync center re-translates the
+            // message on every render — a frozen Arabic string
+            // keeps showing old wording after any i18n update
+            // (this is why 'لا تملك صلاحية' kept appearing even
+            // after STORE_NOT_ACTIVE was added).
+            lastErrorCode: (offline || parsed.queued) ? undefined : parsed.code,
+            lastErrorStatus: (offline || parsed.queued) ? undefined : parsed.statusCode,
             operationId: operationIdRef.current,
             userId,
           });

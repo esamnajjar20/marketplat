@@ -257,6 +257,11 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
       lastError: permanent
         ? `فشل دائم (${parsed.statusCode}): ${parsed.message}`
         : parsed.message,
+      // FIX LASTERROR-CODE-01: same rationale as the mutation hooks —
+      // store the code so the sync center shows current Arabic wording
+      // instead of the (possibly stale) string above.
+      lastErrorCode: parsed.code,
+      lastErrorStatus: parsed.statusCode,
       operationId: draft.operationId,
       userId: draft.userId,
       images: draft.images,
