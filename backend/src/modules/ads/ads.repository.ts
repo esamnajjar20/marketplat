@@ -454,6 +454,20 @@ export const adsRepository = {
   // then re-aggregates with an explicit row number so the final array order
   // is deterministic rather than relying on unspecified aggregate behavior.
   addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<AdWithAuthor> => {
+    // FIX RAW-SQL-MAXIMAGES-GUARD-01: maxImages is interpolated
+    // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
+    // be a bound parameter without restructuring the whole statement,
+    // and a future caller passing an attacker-controlled number would
+    // be a SQL injection vector. Every current call site uses the
+    // module constant, but the guard here means this function can
+    // never become an injection sink even if that changes. The 100 cap
+    // is generous (MAX_IMAGES_PER_ENTITY is 10) and matches the same
+    // "trust nothing that lands in the SQL string" discipline as
+    // queryTimeout.ts's safeTimeoutMs.
+    const safeMaxImages =
+      Number.isInteger(maxImages) && maxImages > 0 && maxImages <= 100
+        ? maxImages
+        : MAX_IMAGES_PER_ENTITY;
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
     await prisma.$executeRawUnsafe(
@@ -470,7 +484,7 @@ export const adsRepository = {
              FROM unnest(ARRAY[${placeholders}]::text[]) WITH ORDINALITY AS t(img, ord)
            ) combined
            ORDER BY src, ord
-           LIMIT ${maxImages}
+           LIMIT ${safeMaxImages}
          ) limited
        )
        WHERE "id" = $1`,
