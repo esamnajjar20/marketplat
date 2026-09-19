@@ -140,6 +140,52 @@ async function isInQuietHoursBlockingPush(userId: string, urgent?: boolean): Pro
   }
 }
 
+/**
+ * FIX PUSH-RETRY-01: one-shot retry around webpush.sendNotification.
+ * Returns:
+ *   'sent'   — delivered to the push service (not to the device — that
+ *              part depends on TTL/urgency, see below)
+ *   'gone'   — 404/410; caller should prune this endpoint
+ *   'failed' — non-retryable or second failure; caller just logs
+ *
+ * 'gone' short-circuits the retry — retrying a permanently-dead
+ * endpoint only burns quota. Everything else (5xx, 429, network/timeout)
+ * is treated as transient and retried once after 1.5s. Non-transient
+ * status codes (4xx other than 429) are payload/key/config problems a
+ * retry can't fix.
+ */
+async function sendWithRetry(
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+  body: string,
+  options: { TTL: number; urgency: 'very-low' | 'low' | 'normal' | 'high'; topic?: string },
+): Promise<'sent' | 'gone' | 'failed'> {
+  try {
+    await webpush.sendNotification(subscription, body, options);
+    return 'sent';
+  } catch (err) {
+    if (isGoneError(err)) return 'gone';
+
+    const statusCode = (err as WebPushError)?.statusCode;
+    const isTransient =
+      statusCode === undefined || statusCode === 429 || (statusCode >= 500 && statusCode < 600);
+
+    if (!isTransient) {
+      logger.warn('Push send failed (non-retryable)', { statusCode, err });
+      return 'failed';
+    }
+
+    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      await webpush.sendNotification(subscription, body, options);
+      return 'sent';
+    } catch (retryErr) {
+      if (isGoneError(retryErr)) return 'gone';
+      logger.warn('Push send failed after retry', { err: retryErr });
+      return 'failed';
+    }
+  }
+}
+
 export const pushService = {
   /**
    * Sends one push to every subscription row the given user has (one
@@ -204,31 +250,59 @@ export const pushService = {
         urgent: payload.urgent,
       });
 
+      // FIX PUSH-TTL-AND-URGENCY-01: web-push's default TTL is 0, which
+      // means the push service is instructed to *discard the message*
+      // if it can't be delivered to the device immediately. That default
+      // silently breaks the entire purpose of push for this app: on
+      // Gaza's mobile networks the phone is frequently offline, in
+      // deep sleep, or behind a NAT the push service can't reach right
+      // away. With TTL: 0, every notification that arrives during any
+      // of those states is dropped and never retried. WhatsApp/Telegram
+      // and every other production push implementation set a real TTL
+      // for exactly this reason.
+      //
+      // 24 hours for normal notifications (matches the "next time you
+      // open the app, you want to see what you missed" mental model),
+      // 3 hours for urgent ones (chat messages — a 24h-old "you have a
+      // new message" is worse than not sending it at all). Urgency maps
+      // to RFC 8030's `Urgency` hint so the push service knows whether
+      // to wake a sleeping radio immediately (`high`) or batch it with
+      // other traffic (`normal`).
+      const ttlSeconds = payload.urgent ? 3 * 60 * 60 : 24 * 60 * 60;
+      const urgency: 'high' | 'normal' = payload.urgent ? 'high' : 'normal';
+
+      // FIX PUSH-TOPIC-COLLAPSE-01: when a caller provides `tag`, use it
+      // as the RFC 8030 `Topic` so multiple pushes of the same kind
+      // ("you have a new message in conversation X") collapse into one
+      // on the device, instead of stacking a wall of identical banners.
+      // web-push requires the topic be ≤32 chars from the URL-safe
+      // Base64 alphabet, so it's sanitized conservatively.
+      const safeTopic = (payload.tag ?? '')
+        .replace(/[^A-Za-z0-9_-]/g, '')
+        .slice(0, 32);
+
       const staleEndpoints: string[] = [];
 
       await Promise.all(
         subscriptions.map(async (sub) => {
-          try {
-            await webpush.sendNotification(
-              {
-                endpoint: sub.endpoint,
-                keys: { p256dh: sub.p256dh, auth: sub.auth },
-              },
-              body
-            );
-          } catch (err) {
-            if (isGoneError(err)) {
-              // Expected/routine, not an error worth alerting on — every
-              // uninstall or cleared-site-data event produces exactly
-              // this. Pruned below rather than logged at error level.
-              staleEndpoints.push(sub.endpoint);
-              return;
+          const result = await sendWithRetry(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            body,
+            {
+              TTL: ttlSeconds,
+              urgency,
+              ...(safeTopic ? { topic: safeTopic } : {}),
             }
-            // Any other failure (network blip, malformed payload,
-            // misconfigured VAPID keys) is unexpected and worth
-            // surfacing, but must not propagate — see doc comment above
-            // on why this stays fire-and-forget.
-            logger.warn('Push send failed', { userId, endpoint: sub.endpoint, err });
+          );
+
+          if (result === 'gone') {
+            // Expected/routine, not an error worth alerting on — every
+            // uninstall or cleared-site-data event produces exactly
+            // this. Pruned below rather than logged at error level.
+            staleEndpoints.push(sub.endpoint);
           }
         })
       );
@@ -255,6 +329,24 @@ export const pushService = {
    * since each recipient's subscriptions and payload are independent. */
   notifyUsers: async (userIds: string[], payload: PushPayload): Promise<void> => {
     if (userIds.length === 0) return;
-    await Promise.all(userIds.map((userId) => pushService.notifyUser(userId, payload)));
+    // FIX PUSH-FANOUT-CONCURRENCY-01: bound the parallel fan-out. A
+    // broadcast to every user (e.g. an admin announcement) can pass
+    // thousands of ids; the previous Promise.all spawned all of them
+    // at once — thousands of concurrent DB reads plus thousands of
+    // concurrent webpush.sendNotification calls, exhausting both the
+    // Prisma connection pool and libuv's sockets. Same class of
+    // problem bulkRunner.ts caps at 10; using the same chunked pattern
+    // here keeps memory bounded and lets a failing provider back off
+    // naturally instead of piling every request on at once.
+    //
+    // Deduped first for the same reason bulkRunner does: a single user
+    // appearing twice in the input would otherwise get two push
+    // deliveries for one logical event.
+    const FANOUT_CONCURRENCY = 10;
+    const unique = Array.from(new Set(userIds));
+    for (let i = 0; i < unique.length; i += FANOUT_CONCURRENCY) {
+      const chunk = unique.slice(i, i + FANOUT_CONCURRENCY);
+      await Promise.all(chunk.map((userId) => pushService.notifyUser(userId, payload)));
+    }
   },
 };

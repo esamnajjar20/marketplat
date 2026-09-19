@@ -38,6 +38,15 @@ export const fcmDeviceTokensRepository = {
   // Used by fcmPushService.ts to prune tokens FCM has permanently
   // rejected (uninstall, app data cleared, token expired) — same
   // pattern as pushSubscriptionsRepository.deleteByEndpoints.
-  deleteByTokens: (tokens: string[]): Promise<Prisma.BatchPayload> =>
-    prisma.fcmDeviceToken.deleteMany({ where: { token: { in: tokens } } }),
+  // FIX PUSH-REPO-EMPTY-ARRAY-GUARD-01: an empty `in` array is a
+  // full-table delete in some ORMs and a no-op in others — Prisma
+  // happens to treat it as "match nothing", but that's implicit
+  // behavior that shouldn't be relied on. Callers already guard with
+  // `if (tokens.length > 0)`, and this explicit early return makes the
+  // contract local to the repository so a future caller can't
+  // accidentally wipe every row with an empty list.
+  deleteByTokens: async (tokens: string[]): Promise<Prisma.BatchPayload> => {
+    if (tokens.length === 0) return { count: 0 };
+    return prisma.fcmDeviceToken.deleteMany({ where: { token: { in: tokens } } });
+  },
 };

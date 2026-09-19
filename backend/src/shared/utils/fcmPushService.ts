@@ -39,7 +39,18 @@ async function ensureConfigured(): Promise<boolean> {
       credential: cert({
         projectId: env.fcm.projectId,
         clientEmail: env.fcm.clientEmail,
-        privateKey: env.fcm.privateKey,
+        // FIX FCM-PRIVATE-KEY-NEWLINES: Firebase Console provides the
+        // private key with literal "\n" sequences (PEM format expects
+        // real newlines). When pasted into Render's env UI — which
+        // doesn't unescape backslash sequences — the raw string arrives
+        // here with "\n" as two literal characters, and firebase-admin's
+        // cert() throws "Failed to parse private key: error:0909006C:PEM
+        // routines" on every initializeApp. This replaces those literal
+        // sequences with real newlines before the SDK sees the value.
+        // Idempotent: if the key already has real newlines (loaded from
+        // a .env file, a local JSON file, or anywhere else that
+        // preserved them), the regex matches nothing and nothing changes.
+        privateKey: env.fcm.privateKey.replace(/\\n/g, '\n'),
       }),
     });
   return true;
@@ -83,22 +94,56 @@ export const fcmPushService = {
       if (tokens.length === 0) return;
 
       const { getMessaging } = await import('firebase-admin/messaging');
+      const messaging = getMessaging(app!);
       const staleTokens: string[] = [];
 
       await Promise.all(
         tokens.map(async (deviceToken) => {
+          const sendArgs = {
+            token: deviceToken.token,
+            notification: { title: payload.title, body: payload.body },
+            data: { url: payload.url ?? '', tag: payload.tag ?? '' },
+          };
+
           try {
-            await getMessaging(app!).send({
-              token: deviceToken.token,
-              notification: { title: payload.title, body: payload.body },
-              data: { url: payload.url ?? '', tag: payload.tag ?? '' },
-            });
+            await messaging.send(sendArgs);
+            return;
           } catch (err) {
             if (isDeadTokenError(err)) {
               staleTokens.push(deviceToken.token);
               return;
             }
-            logger.warn('FCM push send failed', { userId, err });
+
+            // FIX PUSH-FCM-RETRY-01: one retry on FCM's own documented
+            // transient failure codes. Before this, a single 503 from
+            // FCM's edge silently dropped the notification — the most
+            // common failure mode on Gaza's flaky mobile networks, where
+            // "notification never arrived" is otherwise indistinguishable
+            // from "no notification was sent." Anything else (bad
+            // payload, mismatched credentials, quota) is not retryable
+            // and logged without a second attempt.
+            const code = (err as FcmSendError)?.errorInfo?.code;
+            const isTransient =
+              code === 'messaging/server-unavailable' ||
+              code === 'messaging/internal-error' ||
+              code === 'messaging/unavailable' ||
+              code === 'messaging/unknown-error';
+
+            if (!isTransient) {
+              logger.warn('FCM push send failed (non-retryable)', { userId, code, err });
+              return;
+            }
+
+            await new Promise((r) => setTimeout(r, 1500));
+            try {
+              await messaging.send(sendArgs);
+            } catch (retryErr) {
+              if (isDeadTokenError(retryErr)) {
+                staleTokens.push(deviceToken.token);
+                return;
+              }
+              logger.warn('FCM push send failed after retry', { userId, err: retryErr });
+            }
           }
         })
       );
