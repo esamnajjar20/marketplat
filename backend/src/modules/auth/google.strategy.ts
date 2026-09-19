@@ -44,7 +44,31 @@ export interface GoogleProfileData {
  * key (see auth.service.ts's loginWithGoogle()).
  */
 export function extractGoogleProfile(profile: Profile): GoogleProfileData {
-  const email = profile.emails?.find(e => e.verified !== false)?.value ?? profile.emails?.[0]?.value;
+  // FIX GOOGLE-EMAIL-VERIFIED-01: require that Google itself has marked
+  // the email as verified. The previous logic (`e.verified !== false`)
+  // accepted both `verified: true` and `verified: undefined`, and fell
+  // back to `profile.emails?.[0]?.value` when nothing matched — so an
+  // attacker who could produce a Google account carrying the victim's
+  // email as unverified (possible in some Google Workspace setups where
+  // the domain admin hasn't proven ownership of the address) could
+  // reach authService.loginWithGoogle() with that email, match the
+  // victim's existing marketplace account through Case 2's link-by-
+  // email branch, and take it over. loginWithGoogle() has no other
+  // proof that the Google account is the legitimate owner of that
+  // email, so THIS check is the trust boundary.
+  //
+  // Google's `email_verified` claim is what we rely on; requiring it
+  // strictly (`=== true`) closes the unverified-email surface without
+  // affecting the standard case (a normal Gmail address is always
+  // verified) or Workspace accounts whose domain has been verified.
+  const email = profile.emails?.find(e => e.verified === true)?.value;
+  if (!email) {
+    const err = new Error(
+      'Google did not provide a verified email address for this account. Please verify your email with Google and try again.',
+    );
+    (err as Error & { code?: string }).code = 'GOOGLE_EMAIL_NOT_VERIFIED';
+    throw err;
+  }
 
   if (!email) {
     throw new Error('Google account has no accessible email address');

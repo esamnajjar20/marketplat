@@ -1,7 +1,7 @@
 import { authRepository } from './auth.repository';
 import { prisma } from '../../config/prisma';
 import crypto from 'crypto';
-import { hashPassword, comparePassword } from '../../shared/utils/hash';
+import { hashPassword, comparePassword, comparePasswordOrDummy } from '../../shared/utils/hash';
 import {
   signTokenPair,
   rotateTokenPair,
@@ -146,7 +146,24 @@ export const authService = {
 
     const user = await authRepository.findByEmail(input.email);
 
-    if (!user) {
+    // FIX LOGIN-TIMING-01: run a bcrypt compare unconditionally, using a
+    // fixed dummy hash when the target user (or that user's passwordHash)
+    // does not exist. Before this, the "no such user" branch returned
+    // in a few milliseconds while "user exists, password wrong" cost a
+    // full bcrypt comparison (~250ms at SALT_ROUNDS=12). The gap is
+    // trivially measurable over the wire and lets an unauthenticated
+    // attacker enumerate registered emails by submitting candidates and
+    // reading response latency — CWE-208. See comparePasswordOrDummy's
+    // own docblock in hash.ts for the exact mechanism.
+    //
+    // Note the OAUTH-01 "Google-only account" case (user exists, but
+    // passwordHash is null) now takes the same wall-clock time as a
+    // wrong-password attempt, closing the same leak for that branch
+    // too.
+    const hashToCheck = user?.passwordHash ?? null;
+    const isPasswordValid = await comparePasswordOrDummy(input.password, hashToCheck);
+
+    if (!user || !user.passwordHash) {
       const { emailAttempts } = await tokenStore.incrementFailedLogins(input.email, ip);
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(input.email, LOCKOUT_DURATION);
@@ -155,22 +172,6 @@ export const authService = {
     }
 
     if (!user.isActive) throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
-
-    // FIX OAUTH-01: passwordHash is now nullable (a Google-only account
-    // that never linked/set a local password has none). Treat this
-    // exactly like a wrong password — same generic error, same
-    // failed-login counting/lockout — rather than a distinct error
-    // that would leak "this email exists but is Google-only" to an
-    // unauthenticated caller.
-    if (!user.passwordHash) {
-      const { emailAttempts } = await tokenStore.incrementFailedLogins(input.email, ip);
-      if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
-        await tokenStore.lockAccount(input.email, LOCKOUT_DURATION);
-      }
-      throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
-    }
-
-    const isPasswordValid = await comparePassword(input.password, user.passwordHash);
 
     if (!isPasswordValid) {
       const { emailAttempts } = await tokenStore.incrementFailedLogins(input.email, ip);

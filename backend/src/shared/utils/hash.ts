@@ -59,3 +59,41 @@ export const hashPassword = async (password: string): Promise<string> =>
 
 export const comparePassword = async (password: string, hashed: string): Promise<boolean> =>
   bcrypt.compare(password, hashed);
+
+/**
+ * FIX LOGIN-TIMING-01: always run a bcrypt compare, even when `hashed`
+ * is missing (nonexistent user, or a Google-only account with no local
+ * password). On those paths, a fixed "dummy" hash of the same
+ * SALT_ROUNDS cost is compared instead, and the boolean result is
+ * discarded — what matters is that the same ~SALT_ROUNDS worth of CPU
+ * time gets spent, identically to a real wrong-password attempt.
+ * Without this, an unauthenticated caller could distinguish "no such
+ * email" (returns in ~5ms) from "email exists, password wrong"
+ * (returns after ~250ms of bcrypt). That delta is a reliable email-
+ * enumeration oracle: an attacker submits candidate emails and, by
+ * measuring response time alone, learns which ones are registered —
+ * CWE-208 (Observable Timing Discrepancy).
+ *
+ * The dummy hash is generated lazily on first miss and cached for the
+ * process lifetime, so the one-time ~250ms cost is paid at most once
+ * per cold start and only if someone actually hits the no-user path.
+ */
+let dummyTimingHashPromise: Promise<string> | null = null;
+
+export async function comparePasswordOrDummy(
+  password: string,
+  hashed: string | null | undefined,
+): Promise<boolean> {
+  if (hashed) {
+    return bcrypt.compare(password, hashed);
+  }
+  if (!dummyTimingHashPromise) {
+    dummyTimingHashPromise = bcrypt.hash(
+      'dummy-timing-constant-never-matches-any-real-password',
+      SALT_ROUNDS,
+    );
+  }
+  const dummy = await dummyTimingHashPromise;
+  await bcrypt.compare(password, dummy);
+  return false;
+}
