@@ -7,12 +7,24 @@ const optionalQueryBoolean = z.preprocess(
 );
 
 /** أنواع Prisma NotificationType — تُبقى متوافقة مع الـ enum في schema. */
+// FIX NOTIF-TYPE-ENUM-SYNC-01: this enum was out of sync with
+// schema.prisma's NotificationType and with the types actually
+// produced by notifications.service.ts. Four were missing:
+//   - NEW_REQUEST_OFFER / REQUEST_OFFER_ACCEPTED — created by the
+//     Open Requests marketplace flow, so ?type=NEW_REQUEST_OFFER
+//     returned a 400 ("Invalid enum value") instead of the user's
+//     offers.
+//   - WEEKLY_STORE_VIEWS_REPORT / WEEKLY_SERVICE_VIEWS_REPORT —
+//     written by the weekly report scripts, same 400 on filter.
+// Kept in the same order as schema.prisma's enum for visual diffing.
 const notificationTypeEnum = z.enum([
   'NEW_MESSAGE',
   'FAV_AD_PRICE_CHANGED',
   'FAV_AD_SOLD',
   'PROMOTION',
   'WEEKLY_AD_VIEWS_REPORT',
+  'WEEKLY_STORE_VIEWS_REPORT',
+  'WEEKLY_SERVICE_VIEWS_REPORT',
   'SAVED_SEARCH_MATCH',
   'PROMOTION_STATUS_CHANGE',
   'STORE_NEW_PRODUCT',
@@ -20,6 +32,8 @@ const notificationTypeEnum = z.enum([
   'STORE_PRODUCT_RESTOCKED',
   'NEW_SERVICE_QUOTE',
   'SERVICE_QUOTE_ACCEPTED',
+  'NEW_REQUEST_OFFER',
+  'REQUEST_OFFER_ACCEPTED',
   'STORE_MEMBER_INVITED',
 ]);
 
@@ -34,7 +48,16 @@ export const NOTIFICATION_CATEGORY_TYPES = {
     'PROMOTION_STATUS_CHANGE',
     'STORE_MEMBER_INVITED',
   ],
-  services: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED'],
+  // FIX NOTIF-TYPE-ENUM-SYNC-01: requests-marketplace events also
+  // belong under the 'services' UI category — a customer filtering
+  // their notifications by 'services' should see an offer on their
+  // open request alongside any service-quote activity.
+  services: [
+    'NEW_SERVICE_QUOTE',
+    'SERVICE_QUOTE_ACCEPTED',
+    'NEW_REQUEST_OFFER',
+    'REQUEST_OFFER_ACCEPTED',
+  ],
   system: ['PROMOTION', 'WEEKLY_AD_VIEWS_REPORT'],
 } as const;
 
@@ -103,8 +126,6 @@ export const registerFcmTokenSchema = z.object({
   }),
 });
 
-export const unregisterFcmTokenSchema = z.object({
-  body: z.object({
-    token: z.string().min(1),
-  }),
-});
+// FIX NOTIF-VALIDATION-DEDUP-01: unregisterFcmTokenSchema was a
+// byte-for-byte duplicate of deleteFcmTokenSchema (which is the one
+// notifications.controller.ts actually imports). Removed.

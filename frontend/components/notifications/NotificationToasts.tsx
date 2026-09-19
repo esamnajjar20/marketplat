@@ -12,12 +12,20 @@ import { useNotificationStream, type LiveStreamPayload } from '@/hooks/useNotifi
 import { ROUTES } from '@/lib/constants';
 import type { NotificationType } from '@/types/notification.types';
 
+// FIX NOTIF-TOAST-CRITICAL-SYNC-01: the Open Requests marketplace
+// produces NEW_REQUEST_OFFER (offer arrived on my request) and
+// REQUEST_OFFER_ACCEPTED (my offer was accepted) — the two most
+// time-sensitive events in that flow, since a customer or provider
+// waiting on the other side wants to know immediately. Missing from
+// the set, they only surfaced in the notification list page.
 const CRITICAL = new Set<string>([
   'NEW_MESSAGE',
   'NEW_SERVICE_QUOTE',
   'SERVICE_QUOTE_ACCEPTED',
   'FAV_AD_SOLD',
   'FAV_AD_PRICE_CHANGED',
+  'NEW_REQUEST_OFFER',
+  'REQUEST_OFFER_ACCEPTED',
 ]);
 
 export function NotificationToasts() {
