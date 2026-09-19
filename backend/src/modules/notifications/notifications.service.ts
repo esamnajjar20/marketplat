@@ -49,9 +49,22 @@ async function filterUserIdsByPref(userIds: string[], key: PrefKey): Promise<str
   return rows.filter((u) => readPref(u.notificationPreferences, key)).map((u) => u.id);
 }
 
+// FIX NOTIF-USER-PREF-HOT-PATH-01: dedicated single-user path instead
+// of reusing filterUserIdsByPref's batch shape (Array.from(new Set([x]))
+// + findMany + filter + map). This is called on every new message, new
+// quote, quote accepted, new offer, offer accepted, and store invite —
+// the six hottest notification paths in the app — so the small
+// inefficiencies added up. findUnique + readPref is one indexed lookup
+// plus a single key read; no Set construction, no array iteration,
+// no accidental "returns false for a missing user" being inferred from
+// an empty array after a full round trip through the batch helper.
 async function userAllowsPref(userId: string, key: PrefKey): Promise<boolean> {
-  const allowed = await filterUserIdsByPref([userId], key);
-  return allowed.length > 0;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { notificationPreferences: true },
+  });
+  if (!user) return false;
+  return readPref(user.notificationPreferences, key);
 }
 
 export const notificationsService = {
@@ -130,24 +143,53 @@ export const notificationsService = {
    */
   broadcastPromotion: async (userIds: string[], title: string, body: string): Promise<number> => {
     if (userIds.length === 0) return 0;
-    const recipients = await filterUserIdsByPref(userIds, 'promotions');
-    if (recipients.length === 0) return 0;
-    // Web Push + in-app — same fire-and-forget convention as notificationEvents.
-    // Admin broadcast is the PROMOTION path that previously only wrote in-app
-    // rows; weekly reports and store promotion lifecycle already call
-    // pushService from their scripts.
-    void pushService
-      .notifyUsers(recipients, {
-        title,
-        body,
-        url: '/notifications',
-        tag: 'platform-promotion',
-      })
-      .catch(() => {});
-    const result = await notificationsRepository.createMany(
-      recipients.map((userId) => ({ userId, type: 'PROMOTION' as const, title, body }))
-    );
-    return result.count;
+
+    // FIX NOTIF-BROADCAST-CHUNK-01: process in bounded slices instead
+    // of holding one giant recipients array and one giant INSERT. The
+    // caller (admin controller) resolves "all active users" into a
+    // concrete id list — realistic Gaza-market scale is thousands
+    // today, but the previous implementation would break at 100K:
+    //   - filterUserIdsByPref issued a single WHERE id IN (100K) query
+    //   - createMany inserted all 100K rows in one transaction (a
+    //     single failure rolled back the whole broadcast, and the
+    //     insert itself can exhaust the DB connection timeout on
+    //     Neon/Render Free)
+    //   - pushService.notifyUsers enqueued 100K/10 = 10K chunks back
+    //     to back
+    // 500 per slice keeps each query and insert small enough to finish
+    // inside the request timeout, keeps memory bounded (only one
+    // slice's worth of user rows resident at a time), and lets a
+    // failing slice surface in the returned count without losing the
+    // slices that already succeeded.
+    const BROADCAST_CHUNK_SIZE = 500;
+    const unique = Array.from(new Set(userIds));
+    let totalCreated = 0;
+
+    for (let i = 0; i < unique.length; i += BROADCAST_CHUNK_SIZE) {
+      const slice = unique.slice(i, i + BROADCAST_CHUNK_SIZE);
+      const recipients = await filterUserIdsByPref(slice, 'promotions');
+      if (recipients.length === 0) continue;
+
+      // Web Push + in-app — same fire-and-forget convention as
+      // notificationEvents. Admin broadcast is the PROMOTION path that
+      // previously only wrote in-app rows; weekly reports and store
+      // promotion lifecycle already call pushService from their scripts.
+      void pushService
+        .notifyUsers(recipients, {
+          title,
+          body,
+          url: '/notifications',
+          tag: 'platform-promotion',
+        })
+        .catch(() => {});
+
+      const result = await notificationsRepository.createMany(
+        recipients.map((userId) => ({ userId, type: 'PROMOTION' as const, title, body }))
+      );
+      totalCreated += result.count;
+    }
+
+    return totalCreated;
   },
 
   /** FIX PWA-PUSH-01: called from POST /notifications/push-subscriptions

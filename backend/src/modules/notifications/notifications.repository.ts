@@ -69,7 +69,25 @@ export const notificationsRepository = {
     // individual Redis failures, so one failed invalidation can't block
     // or fail the others.
     const recipientIds = Array.from(new Set(inputs.map(i => i.userId)));
-    await Promise.all(recipientIds.map(userId => unreadNotificationsCache.invalidate(userId)));
+
+    // FIX NOTIF-CREATEMANY-INVALIDATE-CHUNK-01: bound concurrent
+    // invalidation. Each invalidate is now a Redis DEL + PUBLISH (see
+    // the unreadNotificationsCache Pub/Sub fix), so an unbounded
+    // Promise.all over recipientIds meant an admin broadcast to 100K
+    // users issued 200K Redis commands in a single tick — saturating
+    // the Valkey connection, stalling the Node event loop, and
+    // pressuring the plan's command quota. 50 concurrent invalidations
+    // per batch keeps the pipeline warm without flooding. Remaining
+    // entries drain in subsequent batches before createMany returns,
+    // so no cache entry is left stale by the time the response goes out.
+    const INVALIDATE_CONCURRENCY = 50;
+    for (let i = 0; i < recipientIds.length; i += INVALIDATE_CONCURRENCY) {
+      await Promise.all(
+        recipientIds
+          .slice(i, i + INVALIDATE_CONCURRENCY)
+          .map(userId => unreadNotificationsCache.invalidate(userId)),
+      );
+    }
 
     // FIX NOTIF-CREATEMANY-SSE-CONTENT-01: fan-out over SSE must
     // respect per-recipient content. The previous implementation
