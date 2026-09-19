@@ -1098,14 +1098,35 @@ async function refreshAccessToken(sampleUrl) {
   }
 }
 
-async function replayOne(entry, hasRetriedAfterRefresh) {
+async function replayOne(entry, hasRetriedAfterRefresh, freshCreds) {
   // FIX SW-PROCESSING-01: علّم العنصر قيد المعالجة لتفادي retry متوازي
   // عبر RETRY_QUEUE_ITEM أثناء عمل replayQueue.
   await markQueuedEntry(entry.id, { processing: true });
   try {
+    // FIX QUEUE-CSRF-STALE-01: build the actual headers for THIS send.
+    // entry.headers was stripped of x-csrf-token at enqueue time (see
+    // handleMutation); if the entry needs one, it comes from freshCreds
+    // which replayQueueImpl obtained once at the top of the drain — the
+    // token there is guaranteed fresh (minted seconds ago), so the
+    // csrfToken cookie the browser is about to attach matches what we
+    // send in X-CSRF-Token and csrf.middleware.ts's double-submit check
+    // passes on the first try. If freshCreds is null (refresh failed,
+    // or we're offline and the caller reached here anyway), the request
+    // goes out without a CSRF header and the backend falls through its
+    // "no csrfToken cookie → Bearer-only client" path — which is the
+    // correct behavior for an expired session anyway (it'll 401 or 403
+    // and replayOne will handle it below).
+    let sendHeaders = entry.headers;
+    if (entry.needsCsrf && freshCreds) {
+      sendHeaders = {
+        ...entry.headers,
+        authorization: `Bearer ${freshCreds.accessToken}`,
+        ...(freshCreds.csrfToken ? { 'x-csrf-token': freshCreds.csrfToken } : {}),
+      };
+    }
     const response = await fetch(entry.url, {
       method: entry.method,
-      headers: entry.headers,
+      headers: sendHeaders,
       body: entry.body ?? undefined,
       // FIX SW-CREDENTIALS-01: 'include' بدل 'same-origin' — Backend على
       // origin مختلف (Render)، فلزم إرسال cookies (refreshToken في httpOnly
@@ -1139,7 +1160,11 @@ async function replayOne(entry, hasRetriedAfterRefresh) {
         }
         const updatedEntry = await markQueuedEntry(entry.id, { headers: updatedHeaders });
         if (updatedEntry) {
-          return replayOne(updatedEntry, true);
+          // Pass fresh credentials through — the retry after a 401 also
+          // needs a matching CSRF for the same reason the initial send
+          // did. `fresh` here is exactly what replayQueueImpl would have
+          // supplied, so this stays consistent.
+          return replayOne(updatedEntry, true, fresh);
         }
       }
       // فشل التجديد نفسه (refreshToken بالكوكي منتهي/غير موجود) — جلسة
@@ -1270,7 +1295,24 @@ async function tryCoalesceAnalyticsEntry(entry) {
       : Array.isArray(oldParsed)
         ? oldParsed
         : [];
-    const merged = [...oldEvents, ...newEvents].slice(0, 40);
+    // FIX ANALYTICS-BATCH-CAP-01: cap strictly at the backend's own
+    // maximum (analytics.validation.ts's trackEventsSchema events max
+    // is 20 — matches the frontend tracker's own MAX_BATCH_SIZE). The
+    // previous 40 here produced batches the backend rejected with
+    // "Validation failed", which replayOne's 4xx branch then marked as
+    // a permanent failure — silently dropping every event in the
+    // batch. Crucially, when the merged total would exceed the cap,
+    // this now returns false WITHOUT mutating the existing entry: the
+    // caller (handleMutation) then falls through to queueRequestEntry
+    // and the incoming events go into their own separate row, which
+    // the next drain will coalesce further if space permits. Returning
+    // true here in the overflow case would instead lose the newEvents
+    // — the exact silent data-loss mode this function exists to avoid.
+    const MAX_ANALYTICS_EVENTS = 20;
+    if (oldEvents.length + newEvents.length > MAX_ANALYTICS_EVENTS) {
+      return false;
+    }
+    const merged = [...oldEvents, ...newEvents];
     const newBody = JSON.stringify(
       oldParsed && !Array.isArray(oldParsed) && typeof oldParsed === 'object'
         ? { ...oldParsed, events: merged }
@@ -1344,6 +1386,23 @@ async function replayQueueImpl() {
     return;
   }
 
+  // FIX QUEUE-CSRF-STALE-01: if ANY live entry was queued with a CSRF
+  // token (needsCsrf), obtain fresh credentials ONCE for this entire
+  // drain rather than per-entry — /auth/refresh rotates both the
+  // access token and the csrfToken, and calling it N times would
+  // thrash that rotation for no benefit. Failed entries are excluded
+  // (they're skipped below anyway) so a dead entry doesn't force an
+  // otherwise-unnecessary refresh on every drain tick.
+  let freshCreds = null;
+  const anyNeedsCsrf = entries.some((e) => e.status !== 'failed' && e.needsCsrf);
+  if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    try {
+      freshCreds = await refreshAccessToken(entries[0].url);
+    } catch {
+      freshCreds = null;
+    }
+  }
+
   // FIX QUEUE-HOL-01/02/03:
   //  - still-offline  → no HTTP response (network)
   //  - server-error   → 5xx while connected
@@ -1381,7 +1440,7 @@ async function replayQueueImpl() {
       continue; // try later items that may be eligible
     }
 
-    const result = await replayOne(entry, false);
+    const result = await replayOne(entry, false, freshCreds);
 
     if (result === 'sent' || result === 'failed') {
       continue;
@@ -1478,7 +1537,23 @@ async function handleMutation(request) {
       body = null;
     }
     const headers = {};
+    // FIX QUEUE-CSRF-STALE-01: strip x-csrf-token at queue time and
+    // record only that the entry needs one. The CSRF token is
+    // session-scoped: it's reissued on every /auth/refresh, and the
+    // axios request interceptor always attaches whatever value is
+    // current *at the moment the request is issued*. Freezing it into
+    // the queued headers means a replay hours later sends the old
+    // value, while the browser's csrfToken cookie has since been
+    // rotated — backend's csrf.middleware.ts compares the two and
+    // rejects with 403, which replayOne's 4xx branch then marks as a
+    // permanent failure. Keeping just the *need* (a boolean) here lets
+    // replayOne fetch a fresh token right before it actually sends.
+    let needsCsrf = false;
     requestForQueue.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'x-csrf-token') {
+        needsCsrf = true;
+        return;
+      }
       headers[key] = value;
     });
 
@@ -1495,6 +1570,11 @@ async function handleMutation(request) {
         queuedAt: Date.now(),
         operationId,
         priority,
+        // See the FIX QUEUE-CSRF-STALE-01 comment above — replayOne uses
+        // this to know it must refresh and inject a fresh X-CSRF-Token
+        // before sending, rather than trusting a stale value that was
+        // captured at enqueue time.
+        needsCsrf,
       };
       // PHASE-4: merge offline analytics beacons into one queue row
       const coalesced = await tryCoalesceAnalyticsEntry(entry);
