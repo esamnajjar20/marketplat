@@ -66,14 +66,26 @@ export const rotateTokenPair = (
   expiresIn: env.jwt.expiresInSeconds,
 });
 
+// FIX JWT-ALG-PIN-01: pass an explicit algorithms allow-list on every
+// verify. jsonwebtoken already refuses `alg: none` unconditionally,
+// but without a pinned algorithm it will accept whichever HMAC variant
+// the token header advertises (HS256/384/512). That's not exploitable
+// today — all our tokens are signed with HS256 — but it becomes a
+// real algorithm-confusion vector the day any part of the system is
+// migrated to an asymmetric algorithm (RS256/ES256) while this
+// symmetric secret is still accepted as if it were the public key.
+// Pinning to HS256 keeps the contract explicit and refuses anything
+// else at the verify layer.
 export const verifyAccessToken = (token: string): JwtPayload =>
   jwt.verify(token, env.jwt.secret, {
+    algorithms: ['HS256'],
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
   }) as JwtPayload;
 
 export const verifyRefreshToken = (token: string): JwtPayload =>
   jwt.verify(token, env.jwt.refreshSecret, {
+    algorithms: ['HS256'],
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
   }) as JwtPayload;

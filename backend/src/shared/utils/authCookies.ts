@@ -195,7 +195,16 @@ const SESSION_HINT_COOKIE_NAME = 'app_has_session';
 
 export function setSessionHintCookie(res: Response): void {
   res.cookie(SESSION_HINT_COOKIE_NAME, '1', {
-    httpOnly: false,
+    // FIX SESSION-HINT-HTTPONLY-01: was httpOnly:false on the (incorrect)
+    // assumption that the frontend needed to read this value via
+    // document.cookie. It does not — Next.js middleware runs on the
+    // Edge server, reads cookies from the incoming request, and never
+    // executes client JS to do so. The only consumer is the middleware,
+    // which is a server process. httpOnly:true removes a small but free
+    // information-disclosure surface (any XSS on the page could
+    // previously confirm "this visitor is logged in" without a network
+    // round-trip).
+    httpOnly: true,
     // DEPLOY-FIX-01: must cross the same up.railway.app subdomain
     // boundary as refreshToken above, for the same reason — see that
     // cookie's comment. This one matters doubly: middleware.ts's Edge
@@ -210,7 +219,10 @@ export function setSessionHintCookie(res: Response): void {
 
 export function clearSessionHintCookie(res: Response): void {
   res.clearCookie(SESSION_HINT_COOKIE_NAME, {
-    httpOnly: false,
+    // FIX SESSION-HINT-HTTPONLY-01: must match setSessionHintCookie's
+    // attributes exactly, or the browser creates a second cookie
+    // instead of clearing the existing one.
+    httpOnly: true,
     // DEPLOY-FIX-01: must match setSessionHintCookie's attributes above.
     secure: true,
     sameSite: 'none',
