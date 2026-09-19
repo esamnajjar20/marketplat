@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState }        from 'react';
+import { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools }  from '@tanstack/react-query-devtools';
 import { Toaster }             from 'sonner';
@@ -33,6 +33,7 @@ import { NotificationToasts }  from '@/components/notifications/NotificationToas
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { NavigationProgress } from '@/components/shared/NavigationProgress';
 import { BackgroundRefetchIndicator } from '@/components/shared/BackgroundRefetchIndicator';
+import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -70,6 +71,18 @@ function ThemedToaster() {
 export function AppProviders({ children, nonce }: AppProvidersProps) {
   // useState ensures QueryClient is not recreated on every render.
   const [queryClient] = useState(() => makeQueryClient());
+
+  // FIX GLOBAL-ERROR-LISTENERS-01: install window.onerror +
+  // window.onunhandledrejection handlers on first mount. Those catch
+  // the error classes React error boundaries cannot — throws in event
+  // handlers, timer callbacks, un-caught promise chains, and errors in
+  // non-React modules — and route them through the same
+  // reportClientError() pipeline the error.tsx boundaries already use.
+  // The installer is idempotent, so React StrictMode's double-mount in
+  // dev is a no-op on the second pass.
+  useEffect(() => {
+    installGlobalErrorHandlers();
+  }, []);
 
   return (
     // FIX UX-03: ThemeProvider existed as a standalone wrapper around
