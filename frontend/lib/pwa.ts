@@ -145,12 +145,28 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       window.location.reload();
     });
 
-    // فحص دوري لوجود تحديث (كل ساعة) — يضمن ظهور زر التحديث حتى لو
-    // فُتح التطبيق قبل نشر النسخة الجديدة.
-    const UPDATE_CHECK_MS = 60 * 60 * 1000;
+    // FIX SW-UPDATE-DETECTION-01: تشغيل فحص التحديث الآن فورًا، بلا انتظار
+    // نافذة الـ 24 ساعة التي يفرضها المتصفح على register() عند وجود تسجيل
+    // قائم. بدون هذا الاستدعاء الفوري، أول فحص يحدث بعد ساعة كاملة (كان
+    // UPDATE_CHECK_MS = 60 دقيقة) — طويل جدًا ليكتشف النشر الجديد في
+    // جلسة استخدام عادية. هذا هو السبب الفعلي الذي جعل شريط "تحديث متوفر"
+    // لا يظهر في الاختبار بعد كل نشر جديد.
+    void registration.update().catch(() => undefined);
+
+    // فحص دوري — الآن كل 5 دقائق بدل ساعة. trade-off: طلب واحد صغير من
+    // المتصفح لـ /sw.js (الرد 304 عادةً) كل 5 دقائق لكل مستخدم نشط. على
+    // شبكة غزة الضعيفة هذا مقبول (few hundred bytes for If-None-Match +
+    // 304 Not Modified response) مقابل ضمان وصول التحديثات خلال دقائق
+    // لا ساعات.
+    const UPDATE_CHECK_MS = 5 * 60 * 1000;
     const checkUpdate = () => {
       // لا تفحص أثناء نافذة ما بعد التفعيل — يقلل حلقة waiting من sw.js غير المستقر
       if (wasJustUpdated()) return;
+      // FIX SW-UPDATE-DETECTION-01 (تابع): بدون هذا الشرط، طلب الفحص
+      // أثناء offline يُلقي خطأ صامتًا، ويفوت على المستخدم فرصة اكتشاف
+      // تحديث نُشِر ثم عاد الاتصال. الآن نفحص فوراً عند 'online' بدل
+      // انتظار 5 دقائق.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       void registration.update().catch(() => undefined);
     };
     window.setInterval(checkUpdate, UPDATE_CHECK_MS);
@@ -158,7 +174,11 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       if (document.visibilityState === 'visible') checkUpdate();
     };
     document.addEventListener('visibilitychange', onVisible);
-    // تنظيف عند إلغاء التسجيل نادرًا ما يحدث؛ نتركه بسيطًا.
+    // FIX SW-UPDATE-DETECTION-01: حدث 'online' — أهم trigger في سيناريو
+    // شبكة غزة (المستخدم يفقد الاتصال ويرجع كثيرًا). كان UPDATE_CHECK ينتظر
+    // 5 دقائق كاملة رغم أن الفرصة الآن مثالية. نفس نمط useOnlineStatus
+    // بباقي التطبيق.
+    window.addEventListener('online', checkUpdate);
 
     return registration;
   } catch (err) {
