@@ -91,7 +91,21 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+      // FIX SW-UPDATE-STALENESS-01: without updateViaCache:'none', the
+      // browser is free to satisfy its periodic SW byte-check from the
+      // HTTP cache instead of the network. In production the /sw.js
+      // response arrives with cf-cache-status: HIT from Cloudflare, so
+      // an update pushed hours ago can stay invisible to every client
+      // — the app never sees a new sw.js, updatefound never fires, and
+      // UpdatePrompt never appears. 'none' tells the browser to bypass
+      // HTTP cache specifically for the SW script itself (the regular
+      // request path is unaffected), which is the documented way to
+      // ensure SW update discovery is not gated on an intermediary
+      // cache.
+      updateViaCache: 'none',
+    });
 
     // نسخة جديدة تنتظر التفعيل.
     // FIX PWA-UPDATE-LOOP-01: لو المستخدم فعّل تحديثًا للتو وما زال waiting
