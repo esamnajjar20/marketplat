@@ -32,6 +32,13 @@ export interface RegisterFcmTokenInput {
   platform: string;
 }
 
+// FIX NOTIF-COUNT-SINGLEFLIGHT-01: per-user in-flight map for the
+// countUnreadForUser single-flight above. Kept as a module-level Map
+// rather than a WeakMap keyed on userId because userIds are strings,
+// not objects. Bounded implicitly by concurrent requests (a user can
+// only have as many in-flight calls as they issue in parallel).
+const countInflight = new Map<string, Promise<number>>();
+
 export const notificationsRepository = {
   create: async (input: CreateNotificationInput): Promise<Notification> => {
     const notification = await prisma.notification.create({ data: input });
@@ -63,13 +70,57 @@ export const notificationsRepository = {
     // or fail the others.
     const recipientIds = Array.from(new Set(inputs.map(i => i.userId)));
     await Promise.all(recipientIds.map(userId => unreadNotificationsCache.invalidate(userId)));
-    void publishNotificationEventToMany(recipientIds, {
-      type: 'notification',
-      action: 'created',
-      notificationType: inputs[0]?.type,
-      title: inputs[0]?.title,
-      body: inputs[0]?.body,
-    });
+
+    // FIX NOTIF-CREATEMANY-SSE-CONTENT-01: fan-out over SSE must
+    // respect per-recipient content. The previous implementation
+    // always published inputs[0]'s { type, title, body } to every
+    // recipient — correct today, because every existing call site
+    // (admin broadcast, favorite-price-change alert) sends identical
+    // content to all recipients. But the moment any future caller
+    // sends *different* content per user through createMany (e.g. "X
+    // favorited YOUR ad"), every recipient after the first would see
+    // the wrong title/body in their live toast until a manual refresh
+    // pulled the correct row from the DB.
+    //
+    // Detect the two cases explicitly so the common (uniform) case
+    // stays a single publish call, and the mixed case degrades to
+    // per-user publishes with each user's real content. Comparison is
+    // on the three fields the SSE payload actually carries — if any
+    // future field is added to the payload, update the comparison too.
+    const allSameContent =
+      inputs.length > 0 &&
+      inputs.every(
+        (i) =>
+          i.type === inputs[0].type &&
+          i.title === inputs[0].title &&
+          i.body === inputs[0].body,
+      );
+
+    if (allSameContent) {
+      void publishNotificationEventToMany(recipientIds, {
+        type: 'notification',
+        action: 'created',
+        notificationType: inputs[0].type,
+        title: inputs[0].title,
+        body: inputs[0].body,
+      });
+    } else {
+      // Mixed content: one publish per recipient with their own data.
+      // Kept synchronous-looking (void + Promise.all) so createMany
+      // keeps its "fire-and-forget fan-out" contract.
+      void Promise.all(
+        inputs.map((input) =>
+          publishNotificationEvent(input.userId, {
+            type: 'notification',
+            action: 'created',
+            notificationType: input.type,
+            title: input.title,
+            body: input.body,
+          }),
+        ),
+      );
+    }
+
     return result;
   },
 
@@ -97,13 +148,34 @@ export const notificationsRepository = {
     return { notifications, total };
   },
 
+  // FIX NOTIF-COUNT-SINGLEFLIGHT-01: mirror userCache's inflightMap
+  // pattern (see shared/utils/userCache.ts) to collapse concurrent
+  // misses on the same user into one count() query. Without this, a
+  // page with multiple useUnreadCount() consumers mounting at the
+  // same tick (bell in header, dashboard, notification toast,
+  // Service Worker's periodic check) fired N identical count queries
+  // whenever the cache was cold or just invalidated — e.g. right
+  // after every mark-read, exactly when traffic is already spiking.
+  // The result is per-user only; different users never share an entry.
   countUnreadForUser: async (userId: string): Promise<number> => {
     const cached = await unreadNotificationsCache.get(userId);
     if (cached !== null) return cached;
 
-    const count = await prisma.notification.count({ where: { userId, readAt: null } });
-    await unreadNotificationsCache.set(userId, count);
-    return count;
+    const existing = countInflight.get(userId);
+    if (existing) return existing;
+
+    const promise = (async (): Promise<number> => {
+      try {
+        const count = await prisma.notification.count({ where: { userId, readAt: null } });
+        await unreadNotificationsCache.set(userId, count);
+        return count;
+      } finally {
+        countInflight.delete(userId);
+      }
+    })();
+
+    countInflight.set(userId, promise);
+    return promise;
   },
 
   /** Marks one notification read — scoped to userId so a caller can
