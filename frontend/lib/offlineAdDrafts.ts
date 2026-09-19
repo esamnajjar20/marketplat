@@ -6,10 +6,11 @@
  * المستخدم يكتب بدون نت → يُحفظ محليًا بحالة draft/pending_sync
  * وليس «تم النشر». عند عودة الاتصال: الرفع من مركز المزامنة أو تلقائيًا.
  *
- * لا نخزّن ملفات الصور الأصلية بجودتها الكاملة (تلك تُرسَل فعليًا عبر
- * طابور الـ SW نفسه — نفس الطلب الأصلي). هنا فقط بيانات النص + نسخ
- * معاينة مضغوطة صغيرة اختيارية (FIX IMAGEOFFLINE-WIRE-01، انظر
- * AdDraftPreviewImage أدناه) لعرضها بمركز المزامنة، لا للنشر.
+ * FIX OFFLINE-DRAFT-PUBLISH-01: نخزّن أيضًا ملفات النشر الأصلية
+ * (publishFiles) عند فشل الشبكة حتى يستطيع offlineDraftPublisher
+ * إعادة الرفع عند عودة النت حتى لو طابور الـ SW لم يعترض الطلب
+ * (SW غير مفعّل، origin مختلف، إلخ). المعاينات المضغوطة (images)
+ * تبقى للعرض فقط في مركز المزامنة.
  *
  * الاسم التاريخي offlineAdDrafts بقي للتوافق مع الاستيرادات الحالية؛
  * الحقل kind يميّز النوع فعليًا.
@@ -40,6 +41,65 @@ export type OfflineDraftKind = 'ad' | 'product' | 'service' | 'service-broadcast
 export interface AdDraftPreviewImage {
   name: string;
   blob: Blob;
+}
+
+/**
+ * FIX OFFLINE-DRAFT-PUBLISH-01: ملف جاهز لإعادة البناء كـ File عند النشر
+ * من المسودة. يُخزَّن في IndexedDB كـ Blob + اسم + MIME.
+ */
+export interface AdDraftPublishFile {
+  name: string;
+  type: string;
+  blob: Blob;
+}
+
+/** حد أقصى لملفات النشر المحفوظة مع المسودة (صور أصلية). */
+const MAX_PUBLISH_FILES = 10;
+// FIX DRAFT-PUBLISH-SIZE-CAP: count cap alone is not enough — ten 5MB
+// phone photos would consume 50MB of IndexedDB per draft, easily
+// blowing the per-origin quota on a low-end Android device (often
+// ~10-20% of free disk in practice) and taking every other draft down
+// with it. A single oversized upload is skipped, and the total is
+// hard-capped at 12MB — comfortably above the ~4-8MB of a few
+// browser-compressed JPEGs, comfortably below any realistic quota.
+const MAX_PUBLISH_FILE_BYTES = 4 * 1024 * 1024;   // 4 MB per file
+const MAX_PUBLISH_TOTAL_BYTES = 12 * 1024 * 1024; // 12 MB per draft
+
+/** يحوّل File[] إلى شكل قابل للتخزين في IndexedDB، بحد أقصى عدداً وحجماً. */
+export function filesToPublishFiles(files: File[]): AdDraftPublishFile[] {
+  const out: AdDraftPublishFile[] = [];
+  let total = 0;
+  for (const f of files.slice(0, MAX_PUBLISH_FILES)) {
+    if (f.size > MAX_PUBLISH_FILE_BYTES) {
+      console.warn(
+        '[offline-drafts] skipping oversized publish file',
+        f.name,
+        f.size,
+      );
+      continue;
+    }
+    if (total + f.size > MAX_PUBLISH_TOTAL_BYTES) {
+      console.warn(
+        '[offline-drafts] publish files total cap reached, dropping remaining',
+        { total, cap: MAX_PUBLISH_TOTAL_BYTES },
+      );
+      break;
+    }
+    out.push({
+      name: f.name || 'image.jpg',
+      type: f.type || 'application/octet-stream',
+      blob: f,
+    });
+    total += f.size;
+  }
+  return out;
+}
+
+/** يعيد بناء File[] من publishFiles المخزّنة — للتمرير إلى adsApi/productsApi/… */
+export function publishFilesToFiles(files: AdDraftPublishFile[]): File[] {
+  return files.map(
+    (f) => new File([f.blob], f.name, { type: f.type || 'application/octet-stream' }),
+  );
 }
 
 /**
@@ -106,6 +166,13 @@ export interface AdDraft {
    * يمنع حفظ المسودة نفسها ولا يؤثر على النشر الفعلي.
    */
   images?: AdDraftPreviewImage[];
+  /**
+   * FIX OFFLINE-DRAFT-PUBLISH-01: الصور/الملفات الأصلية لإعادة النشر
+   * من المسودة عند عودة النت (مسار احتياطي مستقل عن طابور الـ SW).
+   */
+  publishFiles?: AdDraftPublishFile[];
+  /** عدد محاولات النشر التلقائي من المسودة — سقف لتجنّب حلقة لا نهائية. */
+  publishRetryCount?: number;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -209,6 +276,8 @@ export async function saveAdDraft(
     operationId?: string | null;
     userId?: string | null;
     images?: AdDraftPreviewImage[];
+    publishFiles?: AdDraftPublishFile[];
+    publishRetryCount?: number;
   },
 ): Promise<AdDraft> {
   const existing = input.id ? await getAdDraft(input.id) : null;
@@ -237,6 +306,14 @@ export async function saveAdDraft(
     operationId: input.operationId ?? existing?.operationId ?? null,
     userId: input.userId ?? existing?.userId ?? null,
     images: (input.images ?? existing?.images)?.slice(0, MAX_PREVIEW_IMAGES),
+    publishFiles:
+      input.publishFiles !== undefined
+        ? input.publishFiles.slice(0, MAX_PUBLISH_FILES)
+        : existing?.publishFiles,
+    publishRetryCount:
+      input.publishRetryCount !== undefined
+        ? input.publishRetryCount
+        : existing?.publishRetryCount,
   };
 
   const db = await openDb();
@@ -364,6 +441,8 @@ export async function restoreAdDraftVersion(
     operationId: existing.operationId,
     userId: existing.userId,
     images: existing.images,
+    publishFiles: existing.publishFiles,
+    publishRetryCount: existing.publishRetryCount,
   });
 }
 

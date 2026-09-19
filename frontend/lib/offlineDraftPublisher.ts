@@ -1,0 +1,304 @@
+/**
+ * FIX OFFLINE-DRAFT-PUBLISH-01: مسار احتياطي مؤكد لنشر المسودات عند عودة النت.
+ *
+ * المشكلة السابقة: الاعتماد الكلي على اعتراض Service Worker لطلب multipart
+ * cross-origin. إن لم يدخل الطلب طابور SW (SW غير مفعّل، أو فشل الحفظ)،
+ * تبقى المسودة "بانتظار الرفع" إلى الأبد بلا رفع فعلي.
+ *
+ * الحل: عند الحفظ أوفلاين نخزّن publishFiles (الصور الأصلية) مع المسودة.
+ * عند online / مزامنة يدوية:
+ *   1) requestQueueReplay() يعالج ما يملكه SW
+ *   2) هذه الدالة تنشر أي مسودة pending_sync/failed ما زالت معلّقة
+ *      وليست موجودة في طابور SW (تجنّب إرسال مزدوج)
+ *
+ * يغطي: إعلان / منتج / خدمة / طلب مفتوح (open-request).
+ */
+import { adsApi } from '@/api/ads.api';
+import { productsApi } from '@/api/products.api';
+import { serviceListingsApi } from '@/api/service-listings.api';
+import { requestsApi, type CreateRequestBody } from '@/api/requests.api';
+import {
+  listAdDrafts,
+  deleteAdDraft,
+  saveAdDraft,
+  publishFilesToFiles,
+  type AdDraft,
+} from '@/lib/offlineAdDrafts';
+import { listQueuedOperationIds } from '@/lib/offlineQueue';
+import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
+import type { CreateAdPayload } from '@/types/ad.types';
+import type { CreateProductPayload, UpdateProductPayload } from '@/types/product.types';
+import type {
+  CreateServiceListingPayload,
+  UpdateServiceListingPayload,
+  ServicePricingType,
+  ServiceLocationType,
+} from '@/types/service.types';
+import type { RequestType } from '@/types/request.types';
+
+const MAX_AUTO_RETRIES = 5;
+
+export type DraftPublishResult = {
+  sent: number;
+  failed: number;
+  skipped: number;
+};
+
+let syncInFlight: Promise<DraftPublishResult> | null = null;
+
+function num(v: unknown): number | undefined {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : v == null ? '' : String(v);
+}
+
+async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'> {
+  const kind = draft.kind ?? 'ad';
+  const opId = draft.operationId ?? undefined;
+  const files = draft.publishFiles?.length
+    ? publishFilesToFiles(draft.publishFiles)
+    : [];
+
+  try {
+    if (draft.mode === 'create') {
+      if (kind === 'ad') {
+        const payload: CreateAdPayload = {
+          title: str(draft.payload.title),
+          description: str(draft.payload.description),
+          city: str(draft.payload.city) || 'غير محدد',
+          price: num(draft.payload.price),
+          isNegotiable: Boolean(draft.payload.isNegotiable),
+          condition: (draft.payload.condition as CreateAdPayload['condition']) || undefined,
+          categoryId: draft.payload.categoryId ? str(draft.payload.categoryId) : undefined,
+          latitude: num(draft.payload.latitude),
+          longitude: num(draft.payload.longitude),
+          images: files.length ? files : undefined,
+        };
+        await adsApi.create(payload, undefined, opId);
+      } else if (kind === 'product') {
+        const payload: CreateProductPayload = {
+          categoryId: str(draft.payload.categoryId),
+          name: str(draft.payload.name || draft.payload.title),
+          description: str(draft.payload.description),
+          price: num(draft.payload.price) ?? 0,
+          discountPrice: num(draft.payload.discountPrice),
+          wholesalePrice: num(draft.payload.wholesalePrice),
+          wholesaleMinQty: num(draft.payload.wholesaleMinQty),
+          availability: draft.payload.availability as CreateProductPayload['availability'],
+          stockQuantity: num(draft.payload.stockQuantity),
+          images: files,
+        };
+        await productsApi.create(payload, undefined, opId);
+      } else if (kind === 'service') {
+        const payload: CreateServiceListingPayload = {
+          categoryId: str(draft.payload.categoryId),
+          title: str(draft.payload.title),
+          description: str(draft.payload.description),
+          pricingType: (draft.payload.pricingType as ServicePricingType) || 'NEGOTIABLE',
+          price: num(draft.payload.price),
+          durationEstimate: draft.payload.durationEstimate
+            ? str(draft.payload.durationEstimate)
+            : undefined,
+          serviceLocation:
+            (draft.payload.serviceLocation as ServiceLocationType) || 'AT_PROVIDER',
+          images: files,
+        };
+        await serviceListingsApi.create(payload, undefined, opId);
+      } else if (kind === 'open-request') {
+        const body: CreateRequestBody = {
+          type: (draft.payload.type as RequestType) || 'SERVICE',
+          categoryId: str(draft.payload.categoryId),
+          title: str(draft.payload.title),
+          description: str(draft.payload.description),
+          city: draft.payload.city ? str(draft.payload.city) : undefined,
+          budgetMin: num(draft.payload.budgetMin),
+          budgetMax: num(draft.payload.budgetMax),
+        };
+        // FIX REQ-OPID-01: same operationId that useCreateRequest
+        // attaches to the header — needed so that when the SW has
+        // already queued this exact request, the check against
+        // listQueuedOperationIds() below actually matches and skips
+        // this re-send.
+        await requestsApi.create(body, opId);
+      } else {
+        // service-broadcast وغيره — لا مسار API تلقائي هنا بعد
+        return 'skipped';
+      }
+    } else {
+      // edit — JSON بدون صور (الصور عبر endpoints منفصلة)
+      const remoteId = draft.remoteAdId;
+      if (!remoteId) return 'skipped';
+
+      if (kind === 'ad') {
+        await adsApi.update(
+          remoteId,
+          {
+            title: str(draft.payload.title) || undefined,
+            description: str(draft.payload.description) || undefined,
+            price: num(draft.payload.price),
+            isNegotiable:
+              draft.payload.isNegotiable !== undefined
+                ? Boolean(draft.payload.isNegotiable)
+                : undefined,
+            condition: (draft.payload.condition as CreateAdPayload['condition']) || undefined,
+            city: draft.payload.city ? str(draft.payload.city) : undefined,
+            categoryId: draft.payload.categoryId
+              ? str(draft.payload.categoryId)
+              : undefined,
+          },
+          opId,
+        );
+      } else if (kind === 'product') {
+        const payload: UpdateProductPayload = {
+          categoryId: draft.payload.categoryId
+            ? str(draft.payload.categoryId)
+            : undefined,
+          name: str(draft.payload.name || draft.payload.title) || undefined,
+          description: str(draft.payload.description) || undefined,
+          price: num(draft.payload.price),
+          discountPrice: num(draft.payload.discountPrice) ?? null,
+          wholesalePrice: num(draft.payload.wholesalePrice) ?? null,
+          wholesaleMinQty: num(draft.payload.wholesaleMinQty) ?? null,
+          availability: draft.payload.availability as UpdateProductPayload['availability'],
+          stockQuantity: num(draft.payload.stockQuantity) ?? null,
+          status: draft.payload.status as UpdateProductPayload['status'],
+        };
+        await productsApi.update(remoteId, payload, opId);
+      } else if (kind === 'service') {
+        const payload: UpdateServiceListingPayload = {
+          categoryId: draft.payload.categoryId
+            ? str(draft.payload.categoryId)
+            : undefined,
+          title: str(draft.payload.title) || undefined,
+          description: str(draft.payload.description) || undefined,
+          pricingType: draft.payload.pricingType as ServicePricingType | undefined,
+          price: num(draft.payload.price),
+          durationEstimate: draft.payload.durationEstimate
+            ? str(draft.payload.durationEstimate)
+            : undefined,
+          serviceLocation: draft.payload.serviceLocation as
+            | ServiceLocationType
+            | undefined,
+        };
+        await serviceListingsApi.update(remoteId, payload, opId);
+      } else {
+        return 'skipped';
+      }
+    }
+
+    await deleteAdDraft(draft.id);
+    return 'sent';
+  } catch (err) {
+    const parsed = parseApiError(err);
+    // FIX DRAFT-PUBLISH-PERMANENT-4XX: distinguish permanent failures
+    // from transient ones. A 4xx that isn't 408/429 means the server
+    // actively rejected the payload (validation error, business rule,
+    // forbidden) — retrying it four more times just burns quota and
+    // leaves the user staring at "جاري المحاولة" forever. Marking it
+    // permanent (publishRetryCount = MAX_AUTO_RETRIES) puts it in the
+    // terminal 'failed' state immediately, so the sync-center UI shows
+    // "راجع البيانات" instead of pretending the retry will eventually
+    // succeed. Real transient failures (statusCode 0 = no response,
+    // 5xx, 408 timeout, 429 rate limit) still get the full retry
+    // budget.
+    const is4xx = parsed.statusCode >= 400 && parsed.statusCode < 500;
+    const isTransient4xx = parsed.statusCode === 408 || parsed.statusCode === 429;
+    const permanent = is4xx && !isTransient4xx && !isNetworkLikeFailure(parsed);
+    const retries = permanent
+      ? MAX_AUTO_RETRIES
+      : (draft.publishRetryCount ?? 0) + 1;
+    await saveAdDraft({
+      id: draft.id,
+      mode: draft.mode,
+      kind: draft.kind,
+      remoteAdId: draft.remoteAdId,
+      payload: draft.payload,
+      status: 'failed',
+      lastError: permanent
+        ? `فشل دائم (${parsed.statusCode}): ${parsed.message}`
+        : parsed.message,
+      operationId: draft.operationId,
+      userId: draft.userId,
+      images: draft.images,
+      publishFiles: draft.publishFiles,
+      publishRetryCount: retries,
+    });
+    console.warn(
+      '[draft-publisher] publish failed:',
+      draft.id,
+      parsed.message,
+      permanent ? '(permanent)' : `(retry ${retries}/${MAX_AUTO_RETRIES})`,
+    );
+    return 'failed';
+  }
+}
+
+/**
+ * ينشر المسودات المعلّقة التي لا يملكها طابور الـ SW حاليًا.
+ * آمن للاستدعاء المتكرر (mutex داخلي).
+ */
+export async function syncPendingOfflineDrafts(options?: {
+  userId?: string | null;
+  /** إن true: يعيد محاولة failed أيضًا (زر «مزامنة الآن»). الافتراضي: pending_sync فقط + failed تحت سقف المحاولات */
+  includeFailed?: boolean;
+}): Promise<DraftPublishResult> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return { sent: 0, failed: 0, skipped: 0 };
+  }
+  if (syncInFlight) return syncInFlight;
+
+  syncInFlight = (async () => {
+    const result: DraftPublishResult = { sent: 0, failed: 0, skipped: 0 };
+    try {
+      const drafts = await listAdDrafts(options?.userId);
+      const queueOpIds = await listQueuedOperationIds();
+      const includeFailed = options?.includeFailed !== false;
+
+      const candidates = drafts.filter((d) => {
+        if (d.status === 'pending_sync') return true;
+        if (d.status === 'failed' && includeFailed) {
+          return (d.publishRetryCount ?? 0) < MAX_AUTO_RETRIES;
+        }
+        return false;
+      });
+
+      for (const draft of candidates) {
+        // SW ما زال يملك هذا الطلب → لا نرسل من المسودة (تجنّب ازدواج)
+        if (draft.operationId && queueOpIds.has(draft.operationId)) {
+          result.skipped += 1;
+          continue;
+        }
+
+        // إنشاء بصور مطلوبة للمنتج/الخدمة بلا publishFiles → لا نقدر نرفع
+        const kind = draft.kind ?? 'ad';
+        if (
+          draft.mode === 'create' &&
+          (kind === 'product' || kind === 'service') &&
+          !(draft.publishFiles && draft.publishFiles.length > 0)
+        ) {
+          result.skipped += 1;
+          continue;
+        }
+
+        const outcome = await publishOne(draft);
+        if (outcome === 'sent') result.sent += 1;
+        else if (outcome === 'failed') result.failed += 1;
+        else result.skipped += 1;
+      }
+    } catch (err) {
+      console.warn('[draft-publisher] syncPendingOfflineDrafts failed:', err);
+    }
+    return result;
+  })();
+
+  try {
+    return await syncInFlight;
+  } finally {
+    syncInFlight = null;
+  }
+}

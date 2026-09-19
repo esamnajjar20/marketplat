@@ -44,8 +44,19 @@ export const requestsApi = {
 
   getById: (id: string) => apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`),
 
-  create: (body: CreateRequestBody) =>
-    apiClient.post<ApiResponse<RequestListItem>>('/requests', body),
+  create: (body: CreateRequestBody, operationId?: string) =>
+    // FIX REQ-OPID-01: X-Offline-Op-Id matches the header that sw.js's
+    // handleMutation reads to link a queued entry to its local draft
+    // (entry.operationId). Without it, a create-request that goes
+    // through the SW queue stores operationId:null and
+    // listQueuedOperationIds() can't return it — so offlineDraftPublisher
+    // sees no overlap between "draft.operationId" and the SW queue and
+    // re-sends the same request, producing a duplicate on the server.
+    // Same convention as adsApi.create / productsApi.create /
+    // serviceListingsApi.create already use.
+    apiClient.post<ApiResponse<RequestListItem>>('/requests', body, {
+      headers: operationId ? { 'X-Offline-Op-Id': operationId } : undefined,
+    }),
 
   cancel: (id: string) => apiClient.patch<ApiResponse<RequestListItem>>(`/requests/${id}/cancel`),
 

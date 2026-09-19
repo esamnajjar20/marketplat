@@ -31,6 +31,8 @@ import {
   QUEUE_EVENT_TYPES,
   type QueuedRequestSummary,
 } from '@/lib/offlineQueue';
+import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
+import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { formatNumber } from '@/lib/formatters';
 import { formatSyncEta } from '@/lib/connectionQuality';
 
@@ -59,7 +61,13 @@ export default function OfflinePage() {
 
     const recoverToApp = () => {
       setIsOnline(true);
-      void requestQueueReplay();
+      void requestQueueReplay().finally(() => {
+        window.setTimeout(() => {
+          void syncPendingOfflineDrafts({ includeFailed: true }).then((r) => {
+            if (r.sent > 0 || r.failed > 0) toastDraftPublishResult(r);
+          });
+        }, 1500);
+      });
       // FIX OFFLINE-FALSE-TIMEOUT-01: /offline may appear after a navigate
       // soft-timeout while navigator.onLine is still true — the 'online'
       // event never fires. Same recovery path as a real online transition.

@@ -303,3 +303,23 @@ export function describeQueueFailure(item: QueuedRequestSummary): string {
   }
   return item.lastError?.message || 'فشل غير معروف';
 }
+
+/**
+ * FIX OFFLINE-DRAFT-PUBLISH-01: معرّفات العمليات **المعلّقة** بالطابور فقط
+ * (status !== failed). يُستخدم من offlineDraftPublisher لتجنّب إرسال مزدوج
+ * بينما SW ما زال سيُعيد المحاولة تلقائيًا. عناصر failed لا تُحتسب —
+ * الناشر من المسودة يمكنه تولّيها إن وُجدت publishFiles.
+ */
+export async function listQueuedOperationIds(): Promise<Set<string>> {
+  try {
+    const entries = await getAllEntries();
+    const ids = new Set<string>();
+    for (const e of entries) {
+      if (e.operationId && e.status !== 'failed') ids.add(e.operationId);
+    }
+    return ids;
+  } catch (err) {
+    console.warn('[queue] listQueuedOperationIds failed:', err);
+    return new Set();
+  }
+}

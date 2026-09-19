@@ -1,24 +1,33 @@
-# جميع تحسينات UI/UX (المراحل 1–5)
+# إصلاح الأوفلاين + ردود الفعل (OFFLINE-DRAFT-PUBLISH-01 + UX-01)
 
-انسخ محتويات `components/` و `lib/` و `hooks/` و `app/` إلى مشروع `frontend` مع الحفاظ على نفس المسارات.
+## ماذا يصلح؟
+1. حفظ المسودة مع الصور الأصلية عند النشر بدون نت (إعلان / منتج / خدمة / طلب).
+2. رفع تلقائي مؤكد عند عودة النت (حتى لو Service Worker لم يعترض الطلب).
+3. ردود فعل واضحة للمستخدم: توست مع شرح + زر «مركز المزامنة».
 
-## ملخص المراحل
+## تجربة المستخدم
+| الحدث | الرسالة |
+|--------|---------|
+| نشر أوفلاين | «الإعلان/المنتج/… محفوظ محليًا — لم يُنشر بعد» + زر مركز المزامنة |
+| فشل شبكة وأونلاين | «تعذّر الإرسال — حُفظت نسخة محلية» + توجيه |
+| عودة النت ونجح الرفع | «تم رفع العنصر المحفوظ محليًا بنجاح» |
+| فشل جزء من الرفع | «رُفع X وفشل Y» + رابط المزامنة |
+| زر مزامنة الآن | «جاري المزامنة…» ثم نتيجة واضحة |
 
-| مرحلة | أبرز ما فيها |
-|-------|----------------|
-| 1 | شريط تواصل ثابت، مفضلة 44px، BottomNav أكبر |
-| 2 | رئيسية أخف، معرض بالسحب، مسح فلاتر |
-| 3 | نشر إعلان بـ 3 خطوات، مشابهة أفقية، onboarding |
-| 4 | سجل بحث أخير، Lightbox للصور |
-| 5 | العودة للأعلى، تمييز «تم البيع»، عرض المزيد في البحث |
+## الملفات
+### جديدة
+- `frontend/lib/offlineDraftPublisher.ts`
+- `frontend/lib/offlinePublishFeedback.ts`
 
-## دمج سريع
+### معدّلة
+- `frontend/lib/offlineAdDrafts.ts`
+- `frontend/lib/offlineQueue.ts`
+- `frontend/hooks/mutations/useAdMutations.ts`
+- `frontend/hooks/mutations/useProductMutations.ts`
+- `frontend/hooks/mutations/useServiceListingMutations.ts`
+- `frontend/hooks/mutations/useRequestMutations.ts`
+- `frontend/components/pwa/OfflineBootstrap.tsx`
+- `frontend/components/settings/SyncCenterClient.tsx`
+- `frontend/app/offline/page.tsx`
 
-```bash
-cp -r components/* frontend/components/
-cp -r lib/*         frontend/lib/
-cp -r hooks/*       frontend/hooks/
-cp app/\(public\)/layout.tsx frontend/app/\(public\)/layout.tsx
-```
-
-ثم راجع البناء: `npm run type-check` داخل frontend.
+انسخ محتويات المجلد مع الحفاظ على المسارات تحت `frontend/`.

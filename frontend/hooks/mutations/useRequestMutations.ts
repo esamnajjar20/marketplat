@@ -9,8 +9,9 @@ import { queryKeys } from '@/lib/queryKeys';
 import { ROUTES } from '@/lib/constants';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { parseApiError } from '@/lib/errorParser';
-import { isNetworkLikeFailure, ONLINE_DRAFT_TOAST } from '@/lib/isNetworkLikeFailure';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
   getActiveOfflineDraftId,
@@ -27,7 +28,14 @@ export function useCreateRequest() {
   return useMutation({
     mutationFn: (body: CreateRequestBody) => {
       operationIdRef.current = newOfflineOperationId();
-      return requestsApi.create(body).then((r) => r.data.data);
+      // FIX REQ-OPID-01: pass the same operationId that onError below
+      // uses to write the draft — sw.js stores it as entry.operationId
+      // when it queues the request, which is how offlineDraftPublisher
+      // knows the draft is already in the SW queue and skips re-sending
+      // it (avoiding a duplicate create-request on the server).
+      return requestsApi
+        .create(body, operationIdRef.current ?? undefined)
+        .then((r) => r.data.data);
     },
     onSuccess: (created) => {
       clearActiveOfflineDraftId();
@@ -54,17 +62,20 @@ export function useCreateRequest() {
               budgetMin: body.budgetMin ?? null,
               budgetMax: body.budgetMax ?? null,
             },
+            status: (offline || parsed.queued) ? 'pending_sync' : 'failed',
+            lastError: (offline || parsed.queued) ? undefined : parsed.message,
             userId,
             operationId: operationIdRef.current ?? undefined,
+            publishRetryCount: 0,
           });
           if (offline || parsed.queued) {
-            toast.message('محفوظ محليًا — بانتظار الاتصال', {
-              description: 'يمكنك متابعته من مركز المزامنة',
+            toastOfflineSaved({
+              entity: 'الطلب',
+              mode: 'create',
+              queuedBySw: Boolean(parsed.queued) && !offline,
             });
           } else {
-            toast.message(ONLINE_DRAFT_TOAST.create.title, {
-              description: ONLINE_DRAFT_TOAST.create.description,
-            });
+            toastSoftNetworkDraft({ mode: 'create' });
           }
           return;
         } catch {

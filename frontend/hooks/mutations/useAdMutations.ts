@@ -23,11 +23,12 @@ import { useRouter }     from 'next/navigation';
 import { adsApi }        from '@/api/ads.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
-import { isNetworkLikeFailure, ONLINE_DRAFT_TOAST } from '@/lib/isNetworkLikeFailure';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast }         from 'sonner';
 import { ROUTES }        from '@/lib/constants';
-import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
+import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { compressImageForOffline } from '@/lib/imageOffline';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
@@ -126,16 +127,19 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
             operationId: operationIdRef.current,
             userId,
             images,
+            // FIX OFFLINE-DRAFT-PUBLISH-01: حفظ الصور الأصلية لإعادة النشر
+            // من المسودة لو طابور الـ SW لم يعترض الطلب.
+            publishFiles: files.length ? filesToPublishFiles(files) : undefined,
+            publishRetryCount: 0,
           });
           if (offline || parsed.queued) {
-            toast.message('محفوظ محليًا — بانتظار الاتصال', {
-              description:
-                'سيُرسل تلقائيًا مع الصور عند عودة الاتصال. يمكنك متابعة الحالة من الإعدادات → المزامنة.',
+            toastOfflineSaved({
+              entity: 'الإعلان',
+              mode: 'create',
+              queuedBySw: Boolean(parsed.queued) && !offline,
             });
           } else {
-            toast.message(ONLINE_DRAFT_TOAST.create.title, {
-              description: ONLINE_DRAFT_TOAST.create.description,
-            });
+            toastSoftNetworkDraft({ mode: 'create' });
           }
           return;
         } catch {
@@ -190,13 +194,13 @@ export function useUpdateAd(adId: string) {
             userId,
           });
           if (offline || parsed.queued) {
-            toast.message('التعديل محفوظ محليًا — بانتظار الاتصال', {
-              description: 'سيُرسل تلقائيًا عند عودة الاتصال. الإعدادات → المزامنة.',
+            toastOfflineSaved({
+              entity: 'الإعلان',
+              mode: 'edit',
+              queuedBySw: Boolean(parsed.queued) && !offline,
             });
           } else {
-            toast.message(ONLINE_DRAFT_TOAST.edit.title, {
-              description: ONLINE_DRAFT_TOAST.edit.description,
-            });
+            toastSoftNetworkDraft({ mode: 'edit' });
           }
           return;
         } catch {

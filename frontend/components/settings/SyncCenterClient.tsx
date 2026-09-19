@@ -31,6 +31,8 @@ import {
   describeQueueFailure,
   type QueuedRequestSummary,
 } from '@/lib/offlineQueue';
+import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
+import { toastDraftPublishResult, toastSyncStarted } from '@/lib/offlinePublishFeedback';
 import {
   listAdDrafts,
   deleteAdDraft,
@@ -83,9 +85,22 @@ export function SyncCenterClient() {
     }
     setSyncing(true);
     try {
+      toastSyncStarted();
       await requestQueueReplay();
-      toast.success('بدأت المزامنة — سيتم إرسال العناصر المعلّقة');
-      // أعطِ الـ SW لحظة ثم حدّث الأعداد
+      // FIX OFFLINE-DRAFT-PUBLISH-01: ارفع المسودات المحلية أيضًا
+      const draftResult = await syncPendingOfflineDrafts({
+        userId,
+        includeFailed: true,
+      });
+      if (draftResult.sent > 0 || draftResult.failed > 0) {
+        toastDraftPublishResult(draftResult);
+      } else {
+        toast.success('تمت المزامنة', {
+          description:
+            'لا توجد مسودات معلّقة. الطلبات في الطابور تُعالَج في الخلفية إن وُجدت.',
+          duration: 5000,
+        });
+      }
       window.setTimeout(() => void refresh(), 1500);
     } catch {
       toast.error('تعذّر بدء المزامنة');
@@ -130,6 +145,16 @@ export function SyncCenterClient() {
     <div dir="rtl" className="mx-auto max-w-2xl space-y-6 px-4 py-8">
       <div>
         <h1 className="text-xl font-bold">المزامنة</h1>
+        {!isOnline ? (
+          <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+            أنت غير متصل الآن. عند عودة الإنترنت ستُرفع العناصر المعلّقة تلقائيًا،
+            أو اضغط «مزامنة الآن» بعد الاتصال.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">
+            اضغط «مزامنة الآن» لإرسال الطلبات المعلّقة والمسودات المحلية فورًا.
+          </p>
+        )}
         <p className="mt-1 text-sm text-muted-foreground">
           إدارة العمليات والمسودات التي تنتظر الاتصال. الحالة الآن: {lastLabel}
         </p>
@@ -232,9 +257,9 @@ export function SyncCenterClient() {
           </ul>
         )}
         <p className="text-xs text-muted-foreground">
-          المسودات تُحفظ عند تعذّر النشر بدون إنترنت (إعلان، منتج، أو خدمة). استخدم «متابعة»
-          لفتح النموذج معبّأً بالحقول المحفوظة وتصحيحها ثم إعادة الإرسال — الصور الأصلية
-          قد تحتاج إعادة اختيار.
+          عند انقطاع النت تُحفظ المسودة (إعلان / منتج / خدمة / طلب) مع الصور إن وُجدت،
+          وتُرفع تلقائيًا عند عودة الاتصال أو عبر «مزامنة الآن». استخدم «متابعة» إن فشل
+          الرفع وتحتاج تعديل البيانات يدويًا.
         </p>
       </section>
 
