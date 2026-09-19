@@ -58,3 +58,59 @@ export function reportClientError(error: Error, context?: Record<string, unknown
     // that's not something the app's own error path should fail on.
   });
 }
+
+
+/**
+ * FIX CHUNK-LOAD-RECOVERY-01: Next.js emits a "ChunkLoadError" (or a
+ * message like "Loading chunk N failed") when the browser requests a
+ * JS chunk that no longer exists on the server — which happens on every
+ * deploy, because Next.js hashes chunk filenames and the old hashes
+ * vanish as soon as the new build replaces them. A user with a stale
+ * HTML document (typically cached by our own Service Worker) tries to
+ * load a page, the referenced chunk has rotated, and the route's error
+ * boundary renders "حدث خطأ أثناء تحميل هذه الصفحة" instead of the page.
+ *
+ * Fix: detect that specific failure, force ONE hard reload to fetch the
+ * new chunks, and — if the same failure recurs within a short window —
+ * stop looping and let the normal error UI show instead. The short
+ * window prevents a genuinely broken deployment (where the chunks
+ * never resolve) from reloading forever.
+ *
+ * Called from every error.tsx before it renders the fallback UI. If it
+ * returns true, a reload was triggered and the caller should render
+ * null (or a spinner); the reload will surface the fresh page.
+ */
+export function handleChunkLoadError(error: Error): boolean {
+  if (typeof window === 'undefined') return false;
+
+  const message = error?.message ?? '';
+  const isChunkError =
+    error?.name === 'ChunkLoadError' ||
+    message.includes('Loading chunk') ||
+    message.includes('Loading CSS chunk') ||
+    message.includes('Failed to fetch dynamically imported module');
+
+  if (!isChunkError) return false;
+
+  const KEY = 'chunk-load-reload-at';
+  const RELOAD_WINDOW_MS = 30_000;
+
+  try {
+    const last = Number(sessionStorage.getItem(KEY) ?? 0);
+    const now = Date.now();
+    if (last && now - last < RELOAD_WINDOW_MS) {
+      // Already reloaded recently and still failing — do not loop. Let
+      // the normal error UI render so the user can retry manually.
+      console.warn('[chunk-recovery] skipped: reload within last 30s, letting error UI show');
+      return false;
+    }
+    sessionStorage.setItem(KEY, String(now));
+  } catch {
+    // sessionStorage unavailable — still reload once, since the lack of
+    // a persistent marker only risks a loop in a narrow edge case.
+  }
+
+  console.warn('[chunk-recovery] stale chunk detected — forcing reload to fetch new build');
+  window.location.reload();
+  return true;
+}

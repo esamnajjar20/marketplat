@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError } from '@/lib/errorReporter';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -27,11 +27,22 @@ interface ErrorPageProps {
  * show as a support reference ID.
  */
 export default function ErrorBoundary({ error, reset }: ErrorPageProps) {
+  const [recovering, setRecovering] = useState(false);
+
   useEffect(() => {
+    // FIX CHUNK-LOAD-RECOVERY-01: a stale chunk reference (usually a
+    // cached HTML document pointing at JS chunks that rotated in a
+    // recent deploy) is auto-recovered with a single hard reload.
+    if (handleChunkLoadError(error)) {
+      setRecovering(true);
+      return;
+    }
     // error.digest is included so this client-side report can be
     // correlated with any server-side log entry for the same error.
     reportClientError(error, { boundary: 'RootError', digest: error.digest });
   }, [error]);
+
+  if (recovering) return null;
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 p-8 text-center">

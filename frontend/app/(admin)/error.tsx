@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError } from '@/lib/errorReporter';
 
 interface AdminErrorProps {
   error: Error & { digest?: string };
@@ -27,9 +27,18 @@ interface AdminErrorProps {
  * error.digest as a support reference. Reported via reportClientError.
  */
 export default function AdminError({ error, reset }: AdminErrorProps) {
+  const [recovering, setRecovering] = useState(false);
+
   useEffect(() => {
+    // FIX CHUNK-LOAD-RECOVERY-01: see app/error.tsx.
+    if (handleChunkLoadError(error)) {
+      setRecovering(true);
+      return;
+    }
     reportClientError(error, { boundary: 'AdminError', digest: error.digest });
   }, [error]);
+
+  if (recovering) return null;
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">

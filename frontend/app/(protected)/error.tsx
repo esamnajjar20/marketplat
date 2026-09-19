@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError } from '@/lib/errorReporter';
 
 interface ProtectedErrorProps {
   error: Error & { digest?: string };
@@ -31,9 +31,21 @@ interface ProtectedErrorProps {
  * error.digest as a support reference. Reported via reportClientError.
  */
 export default function ProtectedError({ error, reset }: ProtectedErrorProps) {
+  const [recovering, setRecovering] = useState(false);
+
   useEffect(() => {
+    // FIX CHUNK-LOAD-RECOVERY-01: see app/error.tsx for the full
+    // rationale. Protected pages are where the failure surfaces most
+    // often, because PERSONAL_SHELL_CACHE is what serves a stale HTML
+    // document after every deploy.
+    if (handleChunkLoadError(error)) {
+      setRecovering(true);
+      return;
+    }
     reportClientError(error, { boundary: 'ProtectedError', digest: error.digest });
   }, [error]);
+
+  if (recovering) return null;
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
