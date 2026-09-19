@@ -4,13 +4,46 @@ import { useQuery } from '@tanstack/react-query';
 import { serviceCategoriesApi } from '@/api/service-categories.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import {
+  getOfflineList,
+  saveOfflineList,
+  OFFLINE_LIST_KEYS,
+  OFFLINE_LIST_LIMITS,
+} from '@/lib/offlineListCache';
 
-/** All service categories. Long cache — admin-managed taxonomy, changes rarely. */
+/** All service categories. Long cache — admin-managed taxonomy, changes rarely.
+ *
+ * FIX CATEGORIES-OFFLINE-01: same offline snapshot handling as
+ * useProductCategories (and as useCategories already had). */
 export function useServiceCategories() {
+  const cached = getOfflineList<unknown>(OFFLINE_LIST_KEYS.serviceCategories);
+
   return useQuery({
     queryKey: queryKeys.serviceCategories.all(),
-    queryFn: () => serviceCategoriesApi.getAll().then((r) => r.data.data),
+    queryFn: async () => {
+      try {
+        const data = await serviceCategoriesApi.getAll().then((r) => r.data.data);
+        if (Array.isArray(data) && data.length) {
+          saveOfflineList(
+            OFFLINE_LIST_KEYS.serviceCategories,
+            data as unknown[],
+            OFFLINE_LIST_LIMITS.serviceCategories,
+          );
+        }
+        return data;
+      } catch (err) {
+        const local = getOfflineList<unknown>(OFFLINE_LIST_KEYS.serviceCategories);
+        if (local?.items?.length) return local.items as never;
+        throw err;
+      }
+    },
     staleTime: CACHE_TTL.categories,
+    ...(cached?.items?.length
+      ? {
+          initialData: cached.items as never,
+          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
+        }
+      : {}),
   });
 }
 

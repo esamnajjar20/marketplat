@@ -52,6 +52,13 @@ export const OFFLINE_LIST_KEYS = {
   servicesBrowse: 'services-browse',
   storesBrowse: 'stores-browse',
   categories: 'categories',
+  // FIX CATEGORIES-OFFLINE-01: product + service category trees were
+  // fetched live and never cached — offline, both create-product and
+  // create-service forms rendered an empty <select>, so the user saw
+  // "اختر الفئة" with no options to pick. Cache them like the
+  // general categories tree already is.
+  productCategories: 'product-categories',
+  serviceCategories: 'service-categories',
 } as const;
 
 export function clearAllOfflineLists(): void {
@@ -71,4 +78,6 @@ export const OFFLINE_LIST_LIMITS = {
   servicesBrowse: OFFLINE_DATA_LIMITS.servicesBrowse,
   storesBrowse: OFFLINE_DATA_LIMITS.storesBrowse,
   categories: OFFLINE_DATA_LIMITS.categories,
+  productCategories: OFFLINE_DATA_LIMITS.categories,
+  serviceCategories: OFFLINE_DATA_LIMITS.categories,
 } as const;

@@ -37,6 +37,13 @@ import { storesApi } from '@/api/stores.api';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { saveOfflineJson, OFFLINE_JSON_KEYS } from '@/lib/offlineJsonCache';
+import { productCategoriesApi } from '@/api/product-categories.api';
+import { serviceCategoriesApi } from '@/api/service-categories.api';
+import {
+  saveOfflineList,
+  OFFLINE_LIST_KEYS,
+  OFFLINE_LIST_LIMITS,
+} from '@/lib/offlineListCache';
 
 export async function warmSelfDataForOffline(queryClient: QueryClient): Promise<void> {
   await Promise.allSettled([
@@ -57,6 +64,32 @@ export async function warmSelfDataForOffline(queryClient: QueryClient): Promise<
       if (!data) return;
       saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data);
       queryClient.setQueryData(queryKeys.serviceProviders.me(), data);
+    })(),
+    // FIX CATEGORIES-OFFLINE-01: category trees are needed for EVERY
+    // create form (ad / product / service / request), regardless of
+    // which "self" profile the user has. Warming them here means the
+    // <select> is populated on the very first offline visit instead of
+    // rendering empty and blocking submit. Best-effort like the three
+    // above — a failure here just falls back to live fetch later.
+    (async () => {
+      const data = await productCategoriesApi.getAll().then((r) => r.data.data);
+      if (!Array.isArray(data) || data.length === 0) return;
+      saveOfflineList(
+        OFFLINE_LIST_KEYS.productCategories,
+        data as unknown[],
+        OFFLINE_LIST_LIMITS.productCategories,
+      );
+      queryClient.setQueryData(queryKeys.productCategories.all(), data);
+    })(),
+    (async () => {
+      const data = await serviceCategoriesApi.getAll().then((r) => r.data.data);
+      if (!Array.isArray(data) || data.length === 0) return;
+      saveOfflineList(
+        OFFLINE_LIST_KEYS.serviceCategories,
+        data as unknown[],
+        OFFLINE_LIST_LIMITS.serviceCategories,
+      );
+      queryClient.setQueryData(queryKeys.serviceCategories.all(), data);
     })(),
   ]);
 }
