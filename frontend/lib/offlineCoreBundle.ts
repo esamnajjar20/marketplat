@@ -48,7 +48,19 @@ import { API_BASE_URL } from '@/lib/constants';
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
 // fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
 export const CORE_CACHE = 'market-core-v35'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
-const LAST_WARMED_KEY = 'marketplat:core-bundle:last-warmed';
+// FIX WARM-MARKER-VERSION-01: append the cache version to this key so
+// a CACHE_VERSION bump automatically invalidates the "recently warmed"
+// marker. Without it, after every deploy the SW clears CORE_CACHE on
+// activate, but this key still says "warmed 3h ago" — warmCoreBundle()
+// sees it within WARM_INTERVAL_MS and returns immediately, leaving the
+// user with an empty cache for up to 6 hours, exactly when offline
+// coverage matters most (the window right after a fresh deploy).
+//
+// The suffix is derived from CORE_CACHE (which cacheVersionSync.test
+// already pins to sw.js's CACHE_VERSION) rather than a hardcoded
+// string, so it can never drift from the cache name it describes.
+const CACHE_VERSION_SUFFIX = CORE_CACHE.split('-').pop() ?? 'unknown';
+const LAST_WARMED_KEY = `marketplat:core-bundle:last-warmed:${CACHE_VERSION_SUFFIX}`;
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 ساعات — يكفي لبيانات "تصفح عام"
 
 // FEAT-WARMUP-UI: حالة تقدّم مشتركة يشترك بها WarmupIndicator.tsx — نفس

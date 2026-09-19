@@ -219,8 +219,21 @@ async function putTimestamped(cache: Cache, request: string, response: Response)
  * أي throttle، فكل فتح تطبيق يُطلق ~100-200 طلب. WARM_INTERVAL_MS يمنع
  * إعادة التسخين خلال 6 ساعات لكل مجموعة.
  */
-const LAST_ROUTE_WARMED_KEY = 'marketplat:route-shells:last-warmed';
-const LAST_PERSONAL_WARMED_KEY = 'marketplat:personal-shells:last-warmed';
+// FIX WARM-MARKER-VERSION-01: same rationale as offlineCoreBundle.ts's
+// versioned LAST_WARMED_KEY — append the cache version so a deploy's
+// CACHE_VERSION bump invalidates these markers as well. Otherwise the
+// SW clears STATIC_CACHE + PERSONAL_SHELL_CACHE on activate while these
+// timestamps still read as "warmed recently", and every warm call for
+// the next 6 hours returns early — the user's cache is empty right
+// after each deploy, which is precisely when the offline paths matter.
+//
+// The suffix is derived from STATIC_CACHE (pinned to sw.js's
+// CACHE_VERSION by cacheVersionSync.test), so it can never drift from
+// the caches it describes. PERSONAL_SHELL_CACHE is versioned the same
+// way — both get wiped together on activate, so one suffix covers both.
+const CACHE_VERSION_SUFFIX = STATIC_CACHE.split('-').pop() ?? 'unknown';
+const LAST_ROUTE_WARMED_KEY = `marketplat:route-shells:last-warmed:${CACHE_VERSION_SUFFIX}`;
+const LAST_PERSONAL_WARMED_KEY = `marketplat:personal-shells:last-warmed:${CACHE_VERSION_SUFFIX}`;
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 let isWarmingRouteShells = false;
