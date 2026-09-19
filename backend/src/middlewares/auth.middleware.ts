@@ -145,3 +145,27 @@ export const optionalAuthenticate = async (
     next();
   }
 };
+
+/**
+ * FIX BEARER-TOKEN-HELPER-01: single, safe extractor for the bearer
+ * token from an incoming request. Replaces the pattern
+ * `req.headers.authorization!.split(' ')[1]` that lived inline in
+ * auth.controller.ts (logout, logoutAll) and users.controller.ts
+ * (changePassword) — the non-null assertion there is technically safe
+ * because the `authenticate` middleware guarantees the header is
+ * present on those routes, but any future refactor that drops that
+ * middleware from a route turns the assertion into a runtime TypeError
+ * instead of a clean 401. This helper returns `undefined` for a
+ * missing or malformed header, letting callers decide whether that's
+ * an error (it always is on these routes) with explicit handling
+ * instead of an implicit crash.
+ *
+ * Returns the token WITHOUT the "Bearer " prefix, or undefined.
+ */
+export function getBearerToken(req: Request): string | undefined {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return undefined;
+  const token = header.slice('Bearer '.length).trim();
+  return token || undefined;
+}
+

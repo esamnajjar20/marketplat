@@ -43,10 +43,13 @@ export const collectionsRepository = {
   // Owner-facing list — includes inactive collections and the raw
   // product count, ordered the same way the owner last arranged them.
   findByStoreId: (storeId: string): Promise<StoreCollectionWithCount[]> =>
+    // FIX DB-DEFENSIVE-TAKE-01: same rationale as promotions'
+    // findByStoreId.
     prisma.storeCollection.findMany({
       where: { storeId },
       include: withProductCount,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      take: 500,
     }),
 
   // Public-facing list — active only, same ordering.

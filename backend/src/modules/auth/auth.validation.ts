@@ -85,13 +85,14 @@ export const resetPasswordSchema = z.object({
   }),
 });
 
-export const changePasswordSchema = z.object({
-  body: z.object({
-    currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword:     passwordSchema,
-  }),
-});
+// changePasswordSchema / ChangePasswordInput removed as dead code
+// (DEAD-AUTH-CHANGE-PW-01): users.controller.ts#changePassword parses
+// the LOCAL schema in modules/users/users.validation.ts, never this
+// one, so this copy was never reached at runtime. Keeping a second,
+// silently-divergable definition here was a trap — a future maintainer
+// editing this copy would see no effect and assume the endpoint was
+// broken. The canonical definition lives in users.validation.ts and
+// imports passwordSchema from this file for the weak-password check.
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>['body'];
 export type ResetPasswordInput  = z.infer<typeof resetPasswordSchema>['body'];
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];

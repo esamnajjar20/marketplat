@@ -3,6 +3,7 @@ import { usersService } from './users.service';
 import { updateProfileSchema, getUserByIdSchema, changePasswordSchema, updateNotificationPreferencesSchema, getPresenceSchema } from './users.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { getBearerToken } from '../../middlewares/auth.middleware';
 import { paginationQuerySchema } from '../../shared/utils/pagination';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 
@@ -106,7 +107,8 @@ export const usersController = {
       const { body } = changePasswordSchema.parse({ body: req.body });
       // FIX SEC-07: pass the current access token so changePassword can
       // blacklist it — same extraction pattern as authController.logoutAll.
-      const accessToken = req.headers.authorization?.split(' ')[1];
+      // FIX BEARER-TOKEN-HELPER-01: unified with auth.controller.
+      const accessToken = getBearerToken(req);
       await usersService.changePassword(user.userId, body.currentPassword, body.newPassword, accessToken);
       res.status(200).json(successResponse('Password changed successfully'));
     } catch (error) {

@@ -8,6 +8,7 @@ import {
 } from './auth.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { getBearerToken } from '../../middlewares/auth.middleware';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
 import { AppError } from '../../shared/errors/AppError';
@@ -135,7 +136,10 @@ export const authController = {
   logout: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const accessToken = req.headers.authorization!.split(' ')[1];
+      // FIX BEARER-TOKEN-HELPER-01: getBearerToken returns undefined
+      // for a missing/malformed header instead of throwing.
+      const accessToken = getBearerToken(req);
+      if (!accessToken) throw new UnauthorizedError('No token provided');
       await authService.logout(user.userId, user.sessionId, accessToken, getClientIp(req));
       clearRefreshTokenCookie(res);
       clearCsrfCookie(res);
@@ -149,7 +153,9 @@ export const authController = {
   logoutAll: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const accessToken = req.headers.authorization!.split(' ')[1];
+      // FIX BEARER-TOKEN-HELPER-01: see logout above.
+      const accessToken = getBearerToken(req);
+      if (!accessToken) throw new UnauthorizedError('No token provided');
       await authService.logoutAll(user.userId, accessToken, getClientIp(req));
       clearRefreshTokenCookie(res);
       clearCsrfCookie(res);

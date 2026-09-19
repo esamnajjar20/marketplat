@@ -54,7 +54,16 @@ export const promotionsRepository = {
     prisma.promotion.update({ where: { id }, data: { status: 'CANCELLED' } }),
 
   findByStoreId: (storeId: string): Promise<Promotion[]> =>
-    prisma.promotion.findMany({ where: { storeId }, orderBy: { createdAt: 'desc' } }),
+    // FIX DB-DEFENSIVE-TAKE-01: bound the store-promotions query.
+    // No real store approaches 500 promotions, but an unbounded
+    // findMany on a table with an ever-growing history is one
+    // accidental admin script away from loading tens of thousands
+    // of rows in one call.
+    prisma.promotion.findMany({
+      where: { storeId },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    }),
 
   findByProductId: (productId: string): Promise<Promotion[]> =>
     prisma.promotion.findMany({ where: { productId }, orderBy: { createdAt: 'desc' } }),
