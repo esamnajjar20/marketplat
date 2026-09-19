@@ -1613,6 +1613,27 @@ async function replayQueueImpl() {
  *   أوفلاين → طابور + 202 {queued:true} (SW-QUEUE-ONLY-OFFLINE-01).
  */
 async function handleMutation(request) {
+  // FIX PRESENCE-SKIP-QUEUE-01: never queue presence heartbeats.
+  // touchPresence fires roughly every 45s while the app is open (see
+  // useHeartbeat). On Gaza mobile networks a single failed PATCH is
+  // common — and every one that reached the queue stayed there, so an
+  // hour of flaky connectivity meant 80+ queue rows for a value nothing
+  // reads afterwards (the next successful tick supersedes it). Failing
+  // fast here lets the next tick try on its own; the queue stays for
+  // things that actually need replay (drafts, messages, likes).
+  try {
+    const presenceUrl = new URL(request.url);
+    if (presenceUrl.pathname.endsWith('/users/me/presence')) {
+      // Bypass the queueing logic entirely — the caller already treats
+      // a failed heartbeat as best-effort (see the client-side presence
+      // hook's own catch), so a thrown network error here is the correct
+      // shape.
+      return fetch(request);
+    }
+  } catch {
+    /* unparsable URL — fall through to normal handling */
+  }
+
   // FIX MUTATION-SOFT-OFFLINE-01: navigator.onLine يعكس فقط وجود واجهة
   // شبكة نشطة، لا اتصال إنترنت فعلي شغّال — قيد موثّق بالـAPI نفسه. كان
   // فرع "أونلاين" هنا (navigator.onLine !== false) يُنفّذ fetch(request)

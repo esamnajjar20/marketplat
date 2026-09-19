@@ -298,7 +298,52 @@ export async function saveAdDraft(
     publishRetryCount?: number;
   },
 ): Promise<AdDraft> {
-  const existing = input.id ? await getAdDraft(input.id) : null;
+  // FIX DRAFT-DEDUP-01: when called without an explicit id AND for a
+  // real submission attempt (pending_sync/failed — not a plain 'draft'),
+  // look for an existing same-user + same-kind + same-mode + same-payload
+  // draft from a recent attempt and update it instead of creating a new
+  // record. Before this, every offline retry made a fresh row because
+  // getActiveOfflineDraftId() is cleared whenever the form opens without
+  // ?draftId=, and each new attempt then had nothing to update — the
+  // visible symptom was duplicate drafts ("hhhhhhhh" × 2) in the sync
+  // center, with counters that double-counted a single user action.
+  //
+  // The window is 24h, and the payload comparison is exact (title +
+  // description + category + city + everything else the form submits).
+  // Two DIFFERENT submissions (different text, different images) never
+  // collapse — only repeat attempts at the same content do. 'draft'
+  // status is excluded on purpose: a user actively editing two items
+  // at once should keep two autosaved drafts separate.
+  let effectiveId = input.id;
+  if (!effectiveId && (input.status === 'pending_sync' || input.status === 'failed')) {
+    try {
+      const DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
+      const nowMs = Date.now();
+      const all = await listAdDrafts(input.userId ?? undefined);
+      const payloadJson = JSON.stringify(input.payload);
+      const match = all.find((d) => {
+        if ((d.kind ?? 'ad') !== (input.kind ?? 'ad')) return false;
+        if (d.mode !== input.mode) return false;
+        if (d.status === 'synced') return false;
+        const ageMs = nowMs - new Date(d.updatedAt).getTime();
+        if (!Number.isFinite(ageMs) || ageMs > DEDUP_WINDOW_MS) return false;
+        try {
+          return JSON.stringify(d.payload) === payloadJson;
+        } catch {
+          return false;
+        }
+      });
+      if (match) {
+        effectiveId = match.id;
+        console.info('[offline-drafts] dedup: updating existing draft', match.id);
+      }
+    } catch (err) {
+      // Never let dedup failure block the save — worst case, a duplicate.
+      console.warn('[offline-drafts] dedup lookup failed:', err);
+    }
+  }
+
+  const existing = effectiveId ? await getAdDraft(effectiveId) : null;
   const now = new Date().toISOString();
   let versions: DraftVersion[] = existing?.versions ? [...existing.versions] : [];
   if (
@@ -311,7 +356,7 @@ export async function saveAdDraft(
     ].slice(0, 5);
   }
   const draft: AdDraft = {
-    id: input.id ?? existing?.id ?? newId(),
+    id: effectiveId ?? existing?.id ?? newId(),
     mode: input.mode,
     kind: input.kind ?? existing?.kind ?? 'ad',
     remoteAdId: input.remoteAdId ?? existing?.remoteAdId ?? null,
