@@ -116,6 +116,15 @@ const CSRF_EXEMPT_PATHS = new Set([
   // this exemption every analytics event from an authenticated
   // session is silently 403'd.
   "/analytics/events",
+  // FIX OBSERVABILITY-CLIENT-ERROR-01: same class as /analytics/events
+  // — a public write endpoint that the frontend calls via a bare
+  // fetch (not apiClient), so the CSRF header is never attached.
+  // Without this exemption every client-error report from an
+  // authenticated browser would 403, which would be a perverse
+  // outcome: the errors we most need to see are the ones logged-in
+  // users hit, and the report payload grants an attacker nothing (it
+  // is only forwarded to our own logging pipeline).
+  "/observability/client-error",
 ]);
 
 export function csrfProtection(

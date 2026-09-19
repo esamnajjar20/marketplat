@@ -31,6 +31,7 @@ import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
 import { activityRouter } from './modules/activity';
 import { recommendationsRouter } from './modules/recommendations';
 import { fraudRouter } from './modules/fraud';
+import { observabilityRouter } from './modules/observability';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -78,6 +79,12 @@ router.use('/admin/audit-logs', auditLogsRouter);
 // repository-backed module, not raw Prisma calls in admin.service.ts.
 router.use('/analytics', analyticsRouter);
 router.use('/admin/analytics', analyticsAdminRouter);
+// FIX OBSERVABILITY-CLIENT-ERROR-01: receive side of the frontend's
+// reportClientError() pipeline. Public (no authenticate) and CSRF-
+// exempt — see observability.routes.ts's own comment for why. Sits
+// here next to /analytics because it is another public-write
+// beacon endpoint using the same rate limiter.
+router.use('/observability', observabilityRouter);
 router.use('/sellers', sellersRouter);
 router.use('/service-providers', serviceProvidersRouter);
 router.use('/service-categories', serviceCategoriesRouter);
