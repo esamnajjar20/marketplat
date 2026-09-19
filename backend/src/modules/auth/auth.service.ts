@@ -278,9 +278,8 @@ export const authService = {
         return result;
       }
 
-      // Case 2: no googleId match — but does this email already exist
-      // (a local account, or a Google account whose googleId lookup
-      // somehow missed — defensive)? If so, link rather than duplicate.
+      // Case 2: no googleId match — but does this email already exist?
+      // See the collision guard below for why we no longer link blindly.
       const byEmail = await authRepository.findByEmail(profile.email);
 
       if (byEmail) {
@@ -288,6 +287,60 @@ export const authService = {
           throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
         }
 
+        // FIX OAUTH-EMAIL-COLLISION-01: the previous behavior linked
+        // the Google identity to whatever account already held this
+        // email, on the assumption that "email exists in our DB"
+        // implied "the requester owns that email." That assumption is
+        // false here: register() has no email-verification step, so
+        // anyone can pre-register a LOCAL account under any email they
+        // like. An attacker who knows a victim's email could register
+        // locally with that email (choosing their own password), wait
+        // for the victim to click "Sign in with Google," and the
+        // victim's first Google sign-in would silently link their
+        // Google identity onto the attacker's local account. The
+        // attacker retains the local password they chose, giving
+        // permanent account access: read messages, change password,
+        // impersonate. Requiring proof of a prior Google link on the
+        // account closes this without breaking any legitimate flow.
+        if (byEmail.googleId && byEmail.googleId !== profile.googleId) {
+          // The account is already linked to a DIFFERENT Google identity.
+          // Silently replacing one Google identity with another is not
+          // something this app supports — googleId is a single-value
+          // link. Refuse and let an operator resolve manually.
+          logger.warn(
+            'Google sign-in blocked: account already linked to a different Google identity',
+            { userId: byEmail.id },
+          );
+          throw new UnauthorizedError(
+            'This account is already linked to a different Google identity',
+            'GOOGLE_ALREADY_LINKED_ELSEWHERE',
+          );
+        }
+
+        if (!byEmail.googleId) {
+          // Local-only account (no Google identity ever attached). The
+          // requester has proven ownership of the Google account with
+          // this email — but this local account was created without
+          // proving anything about email ownership, so we have no way
+          // to know the two belong to the same person. Refuse and
+          // redirect the legitimate owner to the password flow, then
+          // an explicit link from Settings.
+          logger.warn(
+            'Google sign-in blocked: local account exists with this email but has no Google link',
+            { userId: byEmail.id },
+          );
+          throw new UnauthorizedError(
+            'An account already exists with this email. Sign in with your password, then link Google from Settings.',
+            'OAUTH_EMAIL_ALREADY_REGISTERED',
+          );
+        }
+
+        // Defensive fallthrough — byEmail.googleId === profile.googleId
+        // would have been matched by Case 1's findByGoogleId above and
+        // returned early. Kept for the (theoretical) race where the two
+        // lookups see different DB states; if it does fire, the user
+        // has legitimately proven control of both identities, so
+        // linking is correct.
         const linked = await authRepository.linkGoogleAccount(byEmail.id, profile.googleId);
         const { result, sessionId } = await issueSession(linked, ip, userAgent);
 

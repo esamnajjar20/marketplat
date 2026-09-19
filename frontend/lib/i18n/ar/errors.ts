@@ -52,6 +52,16 @@ export const errorMessages: Record<string, ErrorMessageEntry> = {
   PHONE_ALREADY_EXISTS: 'رقم الهاتف مستخدم بالفعل',
   INVALID_RESET_TOKEN: 'رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية',
   CURRENT_PASSWORD_INVALID: 'كلمة المرور الحالية غير صحيحة',
+  // FIX OAUTH-EMAIL-COLLISION-01: two new codes from loginWithGoogle's
+  // collision guard. OAUTH_EMAIL_ALREADY_REGISTERED is the important
+  // one — the user tried to sign in with Google first, and the app
+  // needs to redirect them to the password flow without sounding like
+  // an error (they haven't done anything wrong; another account simply
+  // holds this email already).
+  OAUTH_EMAIL_ALREADY_REGISTERED:
+    'يوجد حساب مسجّل بهذا البريد مسبقًا. سجّل الدخول بكلمة المرور أولاً، ثم اربط Google من الإعدادات.',
+  GOOGLE_ALREADY_LINKED_ELSEWHERE:
+    'هذا الحساب مرتبط بحساب Google آخر بالفعل. تواصل مع الدعم لمراجعة الحالة.',
 
   // ── Users ────────────────────────────────────────────────────────
   USER_NOT_FOUND: 'المستخدم غير موجود',

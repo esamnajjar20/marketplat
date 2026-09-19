@@ -10,6 +10,7 @@ import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
+import { AppError } from '../../shared/errors/AppError';
 import {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
@@ -276,7 +277,16 @@ export const authController = {
       logger.error('Google OAuth callback failed', {
         error: error instanceof Error ? error.message : error,
       });
-      res.redirect(`${loginRedirect}?error=google_auth_failed`);
+      // FIX OAUTH-ERROR-CODE-PROPAGATION: pass the specific AppError.code
+      // through so the login page can show a targeted message. The key
+      // case is OAUTH_EMAIL_ALREADY_REGISTERED: without this, a user who
+      // tries Google first sees only "google_auth_failed" and has no
+      // way to know they should sign in with their existing password
+      // instead. Falls back to the generic error flag when the code is
+      // unknown, matching prior behavior for non-AppError throws.
+      const code = error instanceof AppError ? error.code : undefined;
+      const suffix = code ? `&code=${encodeURIComponent(code)}` : '';
+      res.redirect(`${loginRedirect}?error=google_auth_failed${suffix}`);
     }
   },
 };
