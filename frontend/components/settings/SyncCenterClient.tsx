@@ -233,7 +233,21 @@ export function SyncCenterClient() {
                   <p className="text-xs text-muted-foreground">
                     {draftKindLabel(d.kind)} · {d.mode === 'create' ? 'إنشاء' : 'تعديل'} ·{' '}
                     {statusLabel(d.status)} · {formatWhen(d.updatedAt)}
-                    {d.operationId ? ' · في طابور الإرسال' : ''}
+                    {/* FIX DRAFT-LABEL-HONEST-01: the old single
+                        condition (operationId present?) lied in the
+                        one case that matters most — a draft the
+                        Publisher gave up on (status='failed',
+                        publishRetryCount at the cap) still has its
+                        operationId attached (needed for the
+                        LINK side of the story), so it kept reading
+                        "في طابور الإرسال" while the pill right above
+                        it said "فشل الرفع". Show exactly one of the
+                        two states. */}
+                    {d.status === 'failed'
+                      ? ' · يحتاج مراجعة يدوية'
+                      : d.operationId
+                        ? ' · في طابور الإرسال'
+                        : ''}
                   </p>
                   {/* FIX IMAGEOFFLINE-WIRE-01: معاينة مضغوطة فقط — الصور
                       الفعلية بجودتها الكاملة تُرسَل عبر طابور الـ SW. */}

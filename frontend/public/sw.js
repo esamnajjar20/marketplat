@@ -1862,6 +1862,39 @@ self.addEventListener('message', (event) => {
       })(),
     );
   }
+
+  // FIX PERMANENT-4XX-CLEAR-QUEUE: discards a queued entry BY its
+  // operationId rather than its internal id. offlineDraftPublisher
+  // sends this when the server has returned a permanent 4xx for the
+  // operation (validation error, forbidden, etc.) — the request will
+  // never succeed, so keeping it in the queue only causes the sync
+  // center to keep counting it as "in queue" and every subsequent
+  // replay tick to keep re-attempting it. The Publisher doesn't know
+  // the entry's numeric id (that's SW-internal) — only the
+  // operationId it and the draft both carry — hence this variant.
+  if (type === 'DISCARD_QUEUE_ITEM_BY_OP_ID' && typeof event.data.operationId === 'string') {
+    event.waitUntil(
+      (async () => {
+        try {
+          const opId = event.data.operationId;
+          const all = await getAllQueuedEntries();
+          const matches = all.filter((e) => e.operationId === opId);
+          for (const m of matches) {
+            await deleteQueuedEntry(m.id);
+            await notifyClients({
+              type: 'QUEUE_ITEM_DISCARDED',
+              id: m.id,
+              operationId: opId,
+            });
+          }
+        } catch (err) {
+          // Never let a discard failure take down the SW — the
+          // server-side rejection is already recorded on the draft.
+          console.warn('[SW] DISCARD_QUEUE_ITEM_BY_OP_ID failed:', err);
+        }
+      })(),
+    );
+  }
 });
 
 self.addEventListener('sync', (event) => {

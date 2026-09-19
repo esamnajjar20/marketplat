@@ -64,6 +64,26 @@ export const errorMessages: Record<string, ErrorMessageEntry> = {
   CANNOT_DEMOTE_LAST_ADMIN: 'لا يمكن تخفيض صلاحيات آخر مشرف نشط بالنظام',
   CONCURRENT_UPDATE_CONFLICT: 'حدث تعارض مع عملية أخرى، يرجى المحاولة مرة أخرى',
 
+  // ── Stores ───────────────────────────────────────────────────────
+  // FIX STORE-NOT-ACTIVE-I18N-01: backend's requireOwnStoreForProducts
+  // (products.service.ts:75, and 6 other call sites across products /
+  // promotions / collections) throws this exact code when the caller's
+  // store is PENDING (awaiting admin approval) or BLOCKED. Without a
+  // translation here, errorParser fell back to the generic FORBIDDEN
+  // message ("لا تملك صلاحية لهذا الإجراء") — misleading, because the
+  // user DOES own the store; it just isn't approved yet.
+  STORE_NOT_ACTIVE:
+    'متجرك قيد المراجعة — لا يمكنك نشر المنتجات حتى يوافق عليه الأدمن',
+  STORE_NOT_FOUND:
+    'لم يتم العثور على متجرك. افتح متجراً من الإعدادات أولاً.',
+  STORE_BLOCKED:
+    'تم إيقاف متجرك. تواصل مع الدعم لمعرفة السبب.',
+  // Mirrors the backend's PRODUCT_IMAGE_REQUIRED at products.service.ts:82.
+  PRODUCT_IMAGE_REQUIRED: 'يجب إضافة صورة واحدة على الأقل للمنتج',
+  // Seller-ownership checks (both products.service.ts and stores.service.ts).
+  NOT_YOUR_PRODUCT: 'هذا المنتج ليس ملكك',
+  NOT_YOUR_STORE: 'هذا المتجر ليس ملكك',
+
   // ── Ads ──────────────────────────────────────────────────────────
   AD_NOT_FOUND: 'الإعلان غير موجود',
   AD_LIMIT_REACHED: (meta) =>

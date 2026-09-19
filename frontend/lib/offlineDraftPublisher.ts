@@ -263,11 +263,30 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
       publishFiles: draft.publishFiles,
       publishRetryCount: retries,
     });
+    // FIX PERMANENT-4XX-CLEAR-QUEUE: a permanent 4xx means the server
+    // has definitively rejected this operation — retrying (via SW or
+    // via the Publisher) is pointless. If the SW still has an entry
+    // for this operationId, ask it to drop it, or the sync center will
+    // keep counting the same dead operation as "in queue" forever and
+    // every sync tick will keep re-attempting it. Kept best-effort:
+    // if the SW is unreachable (dev, extension), the draft's own
+    // failed+retries state still surfaces the problem to the user.
+    if (permanent && draft.operationId) {
+      try {
+        const reg = await navigator.serviceWorker?.ready;
+        reg?.active?.postMessage({
+          type: 'DISCARD_QUEUE_ITEM_BY_OP_ID',
+          operationId: draft.operationId,
+        });
+      } catch {
+        /* SW unavailable — draft remains, user sees it in the list */
+      }
+    }
     console.warn(
       '[draft-publisher] publish failed:',
       draft.id,
       parsed.message,
-      permanent ? '(permanent)' : `(retry ${retries}/${MAX_AUTO_RETRIES})`,
+      permanent ? '(permanent — queue entry discarded)' : `(retry ${retries}/${MAX_AUTO_RETRIES})`,
     );
     return 'failed';
   }
