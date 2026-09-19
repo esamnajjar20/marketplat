@@ -70,17 +70,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
     mutationFn: async (payload: CreateServiceListingPayload) => {
       operationIdRef.current = newOfflineOperationId();
       let body = payload;
-      if (
-        typeof navigator !== 'undefined' &&
-        navigator.onLine === false &&
-        Array.isArray(payload.images) &&
-        payload.images.length > 0
-      ) {
-        body = {
-          ...payload,
-          images: await bestEffortCompressPublish(payload.images as File[]),
-        };
-      }
+      // FIX TRIPLE-COMPRESS-01: removed dead compression step (see useAdMutations.ts for full rationale). Compression now runs once, in onError.
       return serviceListingsApi
         .create(body, onUploadProgress, operationIdRef.current)
         .then((r) => r.data.data);
@@ -98,7 +88,16 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = payload.images ?? [];
-          const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
+          // FIX TRIPLE-COMPRESS-01: compress ONCE, reuse for both
+          // previews and publishFiles (see useAdMutations.ts for the
+          // full rationale — the duplicated pass was what made the form
+          // appear frozen at "جاري رفع الصور… 0%" on offline submit).
+          const compressedFiles =
+            files.length > 0 ? await bestEffortCompressPublish(files) : [];
+          const images =
+            compressedFiles.length > 0
+              ? await bestEffortCompressPreviews(compressedFiles)
+              : [];
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -118,8 +117,8 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
             operationId: operationIdRef.current,
             userId,
             images,
-            publishFiles: files.length
-              ? filesToPublishFiles(await bestEffortCompressPublish(files))
+            publishFiles: compressedFiles.length
+              ? filesToPublishFiles(compressedFiles)
               : undefined,
             publishRetryCount: 0,
           });

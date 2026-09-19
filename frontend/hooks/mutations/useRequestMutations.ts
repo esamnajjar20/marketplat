@@ -37,22 +37,15 @@ export function useCreateRequest() {
       // toast + return, losing everything).
       let { files, ...body } = input;
       // FIX OFFLINE-QUEUE-RELIABILITY-01: ضغط صور الطلب أوفلاين قبل الرفع
-      if (
-        typeof navigator !== 'undefined' &&
-        navigator.onLine === false &&
-        files &&
-        files.length > 0
-      ) {
-        files = await Promise.all(
-          files.map(async (f) => {
-            try {
-              return await compressImageForPublish(f);
-            } catch {
-              return f;
-            }
-          }),
-        );
-      }
+      // FIX TRIPLE-COMPRESS-01: removed the compress-every-File loop
+      // that used to run here. Its stated purpose was to keep the
+      // queued SW request under the 6MB cap, but the Service Worker
+      // never sees this request — it's a cross-origin POST to the
+      // backend, so the SW's fetch handler never runs for it. On every
+      // offline submit it burned 3-9s compressing images that then
+      // went nowhere (the fast-fail interceptor rejected the request
+      // immediately after). onError below compresses once, for
+      // publishFiles — that single pass is preserved.
       return requestsApi
         .createWithImages(body, files, operationIdRef.current ?? undefined)
         .then((r) => r.data.data);

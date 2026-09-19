@@ -83,23 +83,19 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
   const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: async (payload: Parameters<typeof adsApi.create>[0]) => {
+    mutationFn: (payload: Parameters<typeof adsApi.create>[0]) => {
       operationIdRef.current = newOfflineOperationId();
-      let body = payload;
-      // FIX OFFLINE-QUEUE-RELIABILITY-01: اضغط الصور قبل الإرسال أوفلاين
-      // حتى يدخل الطلب طابور الـ SW (حد 6MB) بدل الفشل الصامت.
-      if (
-        typeof navigator !== 'undefined' &&
-        navigator.onLine === false &&
-        Array.isArray(payload.images) &&
-        payload.images.length > 0
-      ) {
-        body = {
-          ...payload,
-          images: await bestEffortCompressPublish(payload.images as File[]),
-        };
-      }
-      return adsApi.create(body, onUploadProgress, operationIdRef.current).then((r) => r.data.data);
+      // FIX TRIPLE-COMPRESS-01: removed the compressImageForPublish call
+      // that briefly lived here. It was documented as "so the queued
+      // SW request stays under the 6MB cap", but the Service Worker
+      // never actually sees this request — it's a cross-origin POST to
+      // the backend, so the SW's fetch handler never runs for it. The
+      // call was pure dead weight: on every offline submit it burned
+      // 3-9s of CPU compressing images that then went nowhere, before
+      // the fast-fail interceptor rejected the request and handed
+      // control to onError. Compression now happens exactly once,
+      // inside onError, where its output is actually used.
+      return adsApi.create(payload, onUploadProgress, operationIdRef.current).then((r) => r.data.data);
     },
     onSuccess: (ad) => {
       clearActiveOfflineDraftId();
@@ -131,7 +127,20 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = (payload as { images?: File[] }).images ?? [];
-          const images = files.length > 0 ? await bestEffortCompressPreviews(files) : [];
+          // FIX TRIPLE-COMPRESS-01: compress ONCE, reuse the result for
+          // both the tiny previews (images) and the full publish payload
+          // (publishFiles). Previously previews and publishFiles each
+          // ran their own compression pass over the same File[]s — on a
+          // phone with a few 8-12MB photos that's 6-18 seconds of extra
+          // canvas work per offline submit, which is exactly what made
+          // the form appear frozen at "جاري رفع الصور... 0%" (it wasn't
+          // uploading; it was re-compressing the same bytes twice).
+          const compressedFiles =
+            files.length > 0 ? await bestEffortCompressPublish(files) : [];
+          const images =
+            compressedFiles.length > 0
+              ? await bestEffortCompressPreviews(compressedFiles)
+              : [];
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -155,8 +164,8 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
             images,
             // FIX OFFLINE-DRAFT-PUBLISH-01: حفظ الصور الأصلية لإعادة النشر
             // من المسودة لو طابور الـ SW لم يعترض الطلب.
-            publishFiles: files.length
-              ? filesToPublishFiles(await bestEffortCompressPublish(files))
+            publishFiles: compressedFiles.length
+              ? filesToPublishFiles(compressedFiles)
               : undefined,
             publishRetryCount: 0,
           });
