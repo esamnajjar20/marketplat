@@ -135,7 +135,13 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
         // already queued this exact request, the check against
         // listQueuedOperationIds() below actually matches and skips
         // this re-send.
-        await requestsApi.create(body, opId);
+        // FIX REQ-IMAGE-OFFLINE-01: mirror useCreateRequest's own
+        // flow — upload the preserved File[]s first, then create with
+        // the resulting URLs. Both steps happen inside this try{}, so
+        // a network hiccup here is caught by the surrounding catch and
+        // the draft stays in 'failed' with a fresh retryCount — no
+        // silent data loss.
+        await requestsApi.createWithImages(body, files.length ? files : undefined, opId);
       } else {
         // service-broadcast وغيره — لا مسار API تلقائي هنا بعد
         return 'skipped';

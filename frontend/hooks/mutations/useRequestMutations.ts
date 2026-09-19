@@ -10,7 +10,7 @@ import { ROUTES } from '@/lib/constants';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
-import { saveAdDraft } from '@/lib/offlineAdDrafts';
+import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
@@ -26,15 +26,17 @@ export function useCreateRequest() {
   const operationIdRef = useRef<string | null>(null);
 
   return useMutation({
-    mutationFn: (body: CreateRequestBody) => {
+    mutationFn: (input: CreateRequestBody & { files?: File[] }) => {
       operationIdRef.current = newOfflineOperationId();
-      // FIX REQ-OPID-01: pass the same operationId that onError below
-      // uses to write the draft — sw.js stores it as entry.operationId
-      // when it queues the request, which is how offlineDraftPublisher
-      // knows the draft is already in the SW queue and skips re-sending
-      // it (avoiding a duplicate create-request on the server).
+      // FIX REQ-IMAGE-OFFLINE-01: the mutation now takes the raw File[]
+      // alongside the JSON fields, and lets createWithImages run the
+      // /media/images upload INSIDE this mutation — so an upload
+      // failure lands in onError below (which saves the draft) instead
+      // of short-circuiting at the form layer (which used to just
+      // toast + return, losing everything).
+      const { files, ...body } = input;
       return requestsApi
-        .create(body, operationIdRef.current ?? undefined)
+        .createWithImages(body, files, operationIdRef.current ?? undefined)
         .then((r) => r.data.data);
     },
     onSuccess: (created) => {
@@ -44,11 +46,12 @@ export function useCreateRequest() {
       if (created?.id) router.push(ROUTES.request(created.id));
       else router.push(ROUTES.requests);
     },
-    onError: async (err, body) => {
+    onError: async (err, input) => {
       const parsed = parseApiError(err);
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
+          const { files, ...body } = input;
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -66,6 +69,12 @@ export function useCreateRequest() {
             lastError: (offline || parsed.queued) ? undefined : parsed.message,
             userId,
             operationId: operationIdRef.current ?? undefined,
+            // FIX REQ-IMAGE-OFFLINE-01: carry the picked File[]s so the
+            // Publisher can retry the image upload + create as one unit
+            // when connectivity returns. Same publishFiles mechanism that
+            // ads/products/services already use.
+            publishFiles:
+              files && files.length > 0 ? filesToPublishFiles(files) : undefined,
             publishRetryCount: 0,
           });
           if (offline || parsed.queued) {

@@ -12,13 +12,11 @@ import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import { Button } from '@/components/shared/ui/Button';
 import { CITIES } from '@/lib/constants';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
-import { mediaApi } from '@/api/media.api';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
   setActiveOfflineDraftId,
   clearActiveOfflineDraftId,
 } from '@/lib/offlineDraftResume';
-import { toast } from 'sonner';
 
 const TYPES: RequestType[] = ['SERVICE', 'PRODUCT', 'RENTAL'];
 
@@ -60,7 +58,6 @@ export function CreateRequestForm() {
   const [budgetMax, setBudgetMax] = useState(seed?.budgetMax ?? '');
   const [budgetMin, setBudgetMin] = useState(seed?.budgetMin ?? '');
   const [files, setFiles] = useState<File[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [draftLoading, setDraftLoading] = useState(Boolean(offlineDraftId));
 
   const { clearDraft, lastSavedAt } = useFormDraft<DraftValues>(
@@ -124,22 +121,15 @@ export function CreateRequestForm() {
     e.preventDefault();
     if (!categoryId.trim() || title.trim().length < 5 || description.trim().length < 10) return;
 
-    let attachedImages: string[] | undefined;
-    if (files.length > 0) {
-      try {
-        setUploadProgress(0);
-        const res = await mediaApi.uploadImages(files);
-        attachedImages = (res.data.data ?? []).map((x) => x.url);
-        setUploadProgress(100);
-      } catch {
-        toast.error('تعذّر رفع الصور');
-        setUploadProgress(null);
-        return;
-      } finally {
-        setUploadProgress(null);
-      }
-    }
-
+    // FIX REQ-IMAGE-OFFLINE-01: files are passed through to the
+    // mutation (which now runs the /media/images upload inside itself)
+    // rather than uploaded here first. The previous pre-upload step
+    // short-circuited on any failure — including a network blip —
+    // before create.mutate ever ran, so no draft, no queue entry, and
+    // no way to retry from the sync center. Moving the upload into the
+    // mutation means a failure at the upload stage takes the exact same
+    // offline path (saveAdDraft with publishFiles) that ads/products/
+    // services have used all along.
     create.mutate(
       {
         type,
@@ -149,7 +139,7 @@ export function CreateRequestForm() {
         city: city.trim() || undefined,
         budgetMin: budgetMin ? Number(budgetMin) : undefined,
         budgetMax: budgetMax ? Number(budgetMax) : undefined,
-        attachedImages,
+        files: files.length > 0 ? files : undefined,
       },
       {
         onSuccess: () => {
@@ -291,7 +281,7 @@ export function CreateRequestForm() {
 
       <div className="space-y-1.5">
         <p className="text-sm font-medium">صور (اختياري، حتى 5)</p>
-        <ImageUpload value={files} onChange={setFiles} maxFiles={5} uploadProgress={uploadProgress} />
+        <ImageUpload value={files} onChange={setFiles} maxFiles={5} />
       </div>
 
 
@@ -313,9 +303,9 @@ export function CreateRequestForm() {
       </div>
       <Button
         type="submit"
-        disabled={create.isPending || uploadProgress !== null || !categoryId || title.trim().length < 5}
+        disabled={create.isPending || !categoryId || title.trim().length < 5}
       >
-        {create.isPending || uploadProgress !== null ? 'جاري النشر…' : 'نشر الطلب'}
+        {create.isPending ? 'جاري النشر…' : 'نشر الطلب'}
       </Button>
     </form>
   );

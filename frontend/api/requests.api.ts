@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { mediaApi } from './media.api';
 import type { ApiResponse } from '@/types/api.types';
 import type {
   RequestDetail,
@@ -62,6 +63,34 @@ export const requestsApi = {
 
   submitOffer: (id: string, body: SubmitOfferBody) =>
     apiClient.post<ApiResponse<RequestOfferListItem>>(`/requests/${id}/offers`, body),
+
+  /**
+   * FIX REQ-IMAGE-OFFLINE-01: a compound helper that mirrors what the
+   * other three create flows (ads/products/services) get for free
+   * from their multipart endpoints. /requests accepts JSON only —
+   * the backend controller does not mount multer, and the schema's
+   * `attachedImages: string[]` is a list of already-uploaded URLs —
+   * so callers that want to attach images MUST first POST them to
+   * /media/images. Doing that inside this helper (instead of at the
+   * form layer, which is where it used to live) is what closes the
+   * offline gap: the upload step now runs inside the mutation's own
+   * try/catch, so a network failure there goes through the same
+   * onError → saveAdDraft → offlineDraftPublisher path that ads and
+   * products already use, and the picked File[]s get stashed as
+   * publishFiles for a later retry.
+   */
+  createWithImages: async (
+    body: CreateRequestBody,
+    files: File[] | undefined,
+    operationId?: string,
+  ) => {
+    let attachedImages = body.attachedImages;
+    if (files && files.length > 0) {
+      const res = await mediaApi.uploadImages(files);
+      attachedImages = (res.data.data ?? []).map((x) => x.url);
+    }
+    return requestsApi.create({ ...body, attachedImages }, operationId);
+  },
 
   withdrawOffer: (id: string, offerId: string) =>
     apiClient.delete<ApiResponse<RequestOfferListItem>>(`/requests/${id}/offers/${offerId}`),
