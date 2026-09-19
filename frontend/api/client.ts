@@ -78,6 +78,18 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     throw makeOfflineError();
   }
 
+  // FIX MUTATION-TIMEOUT-01: cap state-changing requests at 8s instead
+  // of the global 15s. On Gaza mobile networks (this app's target
+  // audience) a POST the browser thinks is "online" can sit silently
+  // for the full 15s before axios gives up and onError fires — during
+  // which the user sees "جاري الحفظ..." with zero progress. 8s halves
+  // the worst perceived hang. Multipart uploads (which need real
+  // bandwidth) override this via mediaApi's own 30s budget; GETs keep
+  // the 15s global since they have no fallback.
+  if (!SAFE_METHODS.has(method) && config.timeout === undefined) {
+    config.timeout = 8_000;
+  }
+
   // PHASE-1 UX: sample RTT for connection quality indicator
   (config as InternalAxiosRequestConfig & { metadata?: { start: number } }).metadata = {
     start: typeof performance !== 'undefined' ? performance.now() : Date.now(),

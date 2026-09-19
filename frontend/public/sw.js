@@ -1104,6 +1104,26 @@ async function notifyClients(message) {
  * أصلًا محاولة ثانية بعد تجديد سابق، يسقط للمسار القديم: 'failed' نهائي
  * بنفس منطق أي 4xx — هذا صحيح الآن لأنه فشل مصادقة حقيقي، لا عيب بالتصميم.
  */
+/**
+ * FIX SW-CSRF-REFRESH-CLASSIFY-01: returns a discriminated union so the
+ * caller can tell failure modes apart — they need very different
+ * responses:
+ *   { ok: true, accessToken, csrfToken }   →  fresh creds
+ *   { ok: false, reason: 'auth' }          →  server answered 401/403;
+ *                                             session is genuinely gone.
+ *   { ok: false, reason: 'network' }       →  no HTTP response, timeout,
+ *                                             DNS, unparsable body, 5xx;
+ *                                             session may be perfectly valid.
+ *   null                                   →  URL unparseable (treated
+ *                                             like network by callers).
+ *
+ * Before this, all failures collapsed to `null`, and every caller read
+ * that as "session ended". A single transient network blip during one
+ * refresh call therefore caused the whole queue to be replayed without
+ * a CSRF header, the backend 403'd each entry with "Invalid or missing
+ * CSRF token", and replayOne marked them `failed` permanently — for a
+ * weak network moment, on precisely the audience this app was built for.
+ */
 async function refreshAccessToken(sampleUrl) {
   let origin;
   try {
@@ -1111,8 +1131,9 @@ async function refreshAccessToken(sampleUrl) {
   } catch {
     return null;
   }
+  let response;
   try {
-    const response = await fetch(`${origin}${API_PATH_PREFIX}/auth/refresh`, {
+    response = await fetch(`${origin}${API_PATH_PREFIX}/auth/refresh`, {
       method: 'POST',
       // لازم include لا same-origin — الباك-إند والفرونت-إند على origins
       // مختلفة فعليًا بهذا النشر (انظر تعليق CROSS-ORIGIN-CSRF-FIX
@@ -1121,24 +1142,58 @@ async function refreshAccessToken(sampleUrl) {
       // عبر الكوكيز فعليًا.
       credentials: 'include',
     });
-    if (!response.ok) return null;
-    const body = await response.json();
-    const accessToken = body?.data?.tokens?.accessToken;
-    const csrfToken = body?.data?.csrfToken;
-    if (typeof accessToken !== 'string' || !accessToken) return null;
-    return { accessToken, csrfToken: typeof csrfToken === 'string' ? csrfToken : null };
   } catch (err) {
-    // FIX SW-LOGGING: تسجيل الفشل للتشخيص (كان صامتًا).
-    console.warn('[SW] refreshAccessToken failed:', err && err.message);
-    return null;
+    console.warn('[SW] refreshAccessToken network failure:', err && err.message);
+    return { ok: false, reason: 'network' };
   }
+
+  if (response.status === 401 || response.status === 403) {
+    return { ok: false, reason: 'auth' };
+  }
+  if (!response.ok) {
+    return { ok: false, reason: 'network' };
+  }
+
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    return { ok: false, reason: 'network' };
+  }
+  const accessToken = body?.data?.tokens?.accessToken;
+  const csrfToken = body?.data?.csrfToken;
+  if (typeof accessToken !== 'string' || !accessToken) {
+    return { ok: false, reason: 'network' };
+  }
+  return { ok: true, accessToken, csrfToken: typeof csrfToken === 'string' ? csrfToken : null };
 }
 
-async function replayOne(entry, hasRetriedAfterRefresh, freshCreds) {
+async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReason) {
   // FIX SW-PROCESSING-01: علّم العنصر قيد المعالجة لتفادي retry متوازي
   // عبر RETRY_QUEUE_ITEM أثناء عمل replayQueue.
   await markQueuedEntry(entry.id, { processing: true });
   try {
+    // FIX SW-CSRF-REFRESH-CLASSIFY-01: never send an entry that needs a
+    // CSRF token without one. Before this guard, freshCreds===null made
+    // the sendHeaders block below fall through to "no x-csrf-token", the
+    // backend 403'd with "Invalid or missing CSRF token", and the 4xx
+    // branch marked the entry `failed` permanently — for what was often
+    // just a transient network blip during the refresh. Stay pending
+    // instead; the next tick retries, and MAX_QUEUE_RETRIES still bounds
+    // the genuinely-dead cases.
+    if (entry.needsCsrf && !freshCreds) {
+      if (refreshReason === 'auth') {
+        // Session truly gone — tell the UI to prompt re-login. Do NOT
+        // discard the entry; once the user logs back in it should go
+        // through unchanged.
+        await notifyClients({
+          type: 'QUEUE_NEEDS_RELOGIN',
+          operationId: entry.operationId || null,
+        });
+      }
+      return 'still-offline';
+    }
+
     // FIX QUEUE-CSRF-STALE-01: build the actual headers for THIS send.
     // entry.headers was stripped of x-csrf-token at enqueue time (see
     // handleMutation); if the entry needs one, it comes from freshCreds
@@ -1194,7 +1249,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds) {
     // كفشل نهائي فورًا.
     if (response.status === 401 && !hasRetriedAfterRefresh) {
       const fresh = await refreshAccessToken(entry.url);
-      if (fresh) {
+      if (fresh && fresh.ok) {
         // Headers.forEach (المستخدَم بـ handleMutation) يُرجِع أسماء
         // الحقول بأحرف صغيرة دومًا (Fetch spec) — entry.headers هنا
         // بنفس الصيغة، فالمطابقة المباشرة صحيحة بلا حاجة لفحص case.
@@ -1204,11 +1259,9 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds) {
         }
         const updatedEntry = await markQueuedEntry(entry.id, { headers: updatedHeaders });
         if (updatedEntry) {
-          // Pass fresh credentials through — the retry after a 401 also
-          // needs a matching CSRF for the same reason the initial send
-          // did. `fresh` here is exactly what replayQueueImpl would have
-          // supplied, so this stays consistent.
-          return replayOne(updatedEntry, true, fresh);
+          // Pass 'ok' as the reason — we just successfully refreshed,
+          // so any needsCsrf guard must see valid creds and NOT trigger.
+          return replayOne(updatedEntry, true, fresh, 'ok');
         }
       }
       // فشل التجديد نفسه (refreshToken بالكوكي منتهي/غير موجود) — جلسة
@@ -1438,12 +1491,17 @@ async function replayQueueImpl() {
   // (they're skipped below anyway) so a dead entry doesn't force an
   // otherwise-unnecessary refresh on every drain tick.
   let freshCreds = null;
+  // FIX SW-CSRF-REFRESH-CLASSIFY-01: track *why* refresh produced nothing
+  // — replayOne uses this to decide between "stay pending, retry on next
+  // tick" (network) and "session actually ended, prompt re-login" (auth).
+  let refreshReason = null; // 'auth' | 'network' | null
   const anyNeedsCsrf = entries.some((e) => e.status !== 'failed' && e.needsCsrf);
   if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
-    try {
-      freshCreds = await refreshAccessToken(entries[0].url);
-    } catch {
-      freshCreds = null;
+    const r = await refreshAccessToken(entries[0].url);
+    if (r && r.ok) {
+      freshCreds = r;
+    } else {
+      refreshReason = r?.reason ?? 'network';
     }
   }
 
@@ -1484,7 +1542,7 @@ async function replayQueueImpl() {
       continue; // try later items that may be eligible
     }
 
-    const result = await replayOne(entry, false, freshCreds);
+    const result = await replayOne(entry, false, freshCreds, refreshReason);
 
     if (result === 'sent' || result === 'failed') {
       continue;
@@ -1839,7 +1897,12 @@ self.addEventListener('message', (event) => {
         if (entry.status === 'failed') {
           await markQueuedEntry(entry.id, { status: 'pending' });
         }
-        await replayOne({ ...entry, status: 'pending' }, false);
+        // Refresh reason unknown in this manual-retry path — pass null
+        // so the needsCsrf guard falls through and the entry uses
+        // whatever creds the head-of-queue refresh already produced
+        // (or stays pending if none). Replay from the queue loop will
+        // resolve creds properly on the next tick.
+        await replayOne({ ...entry, status: 'pending' }, false, null, null);
         await notifyClients({ type: 'QUEUE_REPLAYED' });
       })(),
     );
