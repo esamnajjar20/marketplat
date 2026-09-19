@@ -390,6 +390,18 @@ function isImageRequest(request, url) {
 
 /** طلب RSC (تنقّل SPA ناعم) — Next.js App Router يرسله برأس RSC:'1' بدل
  * navigate كامل. انظر PHASE-3-B في lib/offlineRouteShells.ts للتفصيل. */
+/** FIX QUEUE-CSRF-OFFLINE-SESSION-01: كل طلب كتابة يحتاج CSRF عند الإرسال —
+ * لا فقط ما حمل ترويسة x-csrf-token وقت الحفظ. في جلسة "أوفلاين بصرية"
+ * (الصفحة فُتحت بلا نت فلم يجرِ /auth/refresh) يكون توكن الـCSRF بالذاكرة
+ * فارغًا، فيُحفظ الطلب بلا x-csrf-token و needsCsrf=false؛ عند الإعادة
+ * يُرسَل بلا الترويسة بينما كوكي csrfToken الخاص بالباك-إند يلحقه المتصفح
+ * تلقائيًا (credentials:'include') فيرفضه csrfProtection بـ 403 ويُعلَّم
+ * "failed" نهائيًا. */
+function isUnsafeMethod(method) {
+  const m = String(method || 'POST').toUpperCase();
+  return m !== 'GET' && m !== 'HEAD' && m !== 'OPTIONS';
+}
+
 function isRscShellRequest(request) {
   return request.headers.get('RSC') === '1';
 }
@@ -1210,7 +1222,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     // FIX OFFLINE-QUEUE-RELIABILITY-01: sanitize every replay — entries
     // queued before this fix may still carry content-length/host.
     let sendHeaders = sanitizeQueueHeaders(entry.headers || {});
-    if (entry.needsCsrf && freshCreds) {
+    if ((entry.needsCsrf || isUnsafeMethod(entry.method)) && freshCreds) {
       sendHeaders = {
         ...sendHeaders,
         authorization: `Bearer ${freshCreds.accessToken}`,
@@ -1247,7 +1259,21 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     // FIX OFFLINE-AUTH-01: انظر التعليق الطويل فوق هذه الدالة. عمدًا قبل
     // فحص "4xx عام" أدناه — 401 وحده يستحق محاولة تجديد، لا يُعامَل
     // كفشل نهائي فورًا.
-    if (response.status === 401 && !hasRetriedAfterRefresh) {
+    // FIX QUEUE-CSRF-OFFLINE-SESSION-01: 403 "Invalid or missing CSRF token"
+    // is a stale/missing-token problem, not a definitive rejection —
+    // /auth/refresh (CSRF-exempt) re-issues the token, so treat it like a
+    // 401: refresh once and retry.
+    let csrfRejected = false;
+    if (response.status === 403) {
+      try {
+        const body403 = await response.clone().json();
+        csrfRejected = /csrf/i.test(String(body403?.message ?? ''));
+      } catch {
+        csrfRejected = false;
+      }
+    }
+
+    if ((response.status === 401 || csrfRejected) && !hasRetriedAfterRefresh) {
       const fresh = await refreshAccessToken(entry.url);
       if (fresh && fresh.ok) {
         // Headers.forEach (المستخدَم بـ handleMutation) يُرجِع أسماء
@@ -1267,6 +1293,15 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       // فشل التجديد نفسه (refreshToken بالكوكي منتهي/غير موجود) — جلسة
       // منتهية فعليًا، لا عيب بالتصميم. يسقط للمنطق أدناه فيُعامَل كـ
       // 401 عادي (يبقى بالطابور 'failed' مع رسالة الباك-إند الحقيقية).
+    }
+
+    // Still CSRF-rejected after the refresh attempt (or refresh failed):
+    // keep the entry pending — the next tick retries, and
+    // MAX_QUEUE_RETRIES still bounds a genuinely dead case. Marking it
+    // 'failed' here is what used to strand offline-created drafts in
+    // "فشل الرفع / يحتاج مراجعة يدوية".
+    if (csrfRejected) {
+      return 'still-offline';
     }
 
     if (response.status >= 400 && response.status < 500) {
@@ -1495,7 +1530,9 @@ async function replayQueueImpl() {
   // — replayOne uses this to decide between "stay pending, retry on next
   // tick" (network) and "session actually ended, prompt re-login" (auth).
   let refreshReason = null; // 'auth' | 'network' | null
-  const anyNeedsCsrf = entries.some((e) => e.status !== 'failed' && e.needsCsrf);
+  const anyNeedsCsrf = entries.some(
+    (e) => e.status !== 'failed' && (e.needsCsrf || isUnsafeMethod(e.method)),
+  );
   if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
     const r = await refreshAccessToken(entries[0].url);
     if (r && r.ok) {

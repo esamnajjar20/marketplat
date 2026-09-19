@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError, handleChunkLoadError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError, isChunkLoadError } from '@/lib/errorReporter';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -44,20 +44,28 @@ export default function ErrorBoundary({ error, reset }: ErrorPageProps) {
 
   if (recovering) return null;
 
+  const chunkFailed = isChunkLoadError(error);
+
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 p-8 text-center">
       <span className="text-6xl">⚠️</span>
       <h1 className="text-2xl font-semibold">حدث خطأ غير متوقع</h1>
       {/* SEC-06: Show generic message only — never error.message (may contain internals) */}
       <p className="max-w-sm text-sm text-muted-foreground">
-        يرجى المحاولة مرة أخرى. إذا استمر الخطأ، تواصل مع الدعم الفني.
+        {chunkFailed
+          ? 'تعذّر تحميل ملفات هذه الصفحة. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.'
+          : 'يرجى المحاولة مرة أخرى. إذا استمر الخطأ، تواصل مع الدعم الفني.'}
       </p>
       {error.digest && (
         <code className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
           رمز الخطأ: {error.digest}
         </code>
       )}
-      <Button onClick={reset}>حاول مجدداً</Button>
+      {/* FIX CHUNK-OFFLINE-01: reset() only re-renders — it can keep hitting
+          the same failed chunk. A full reload re-requests it. */}
+      <Button onClick={chunkFailed ? () => window.location.reload() : reset}>
+        حاول مجدداً
+      </Button>
     </div>
   );
 }

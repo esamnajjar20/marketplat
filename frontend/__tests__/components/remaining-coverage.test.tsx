@@ -68,6 +68,9 @@ vi.mock('@/store/auth.store', () => ({
   selectIsAuthenticated: (s: any) => s.isAuthenticated,
 }));
 
+// PresenceHeartbeat skips its beat while no CSRF token is available.
+vi.mock('@/lib/csrf', () => ({ getCsrfToken: vi.fn(() => 'csrf-token') }));
+
 vi.mock('@/hooks/mutations/useProductCategoryMutations', () => ({
   useCreateProductCategory: () => ({ mutate: vi.fn(), isPending: false }),
 }));
@@ -220,6 +223,13 @@ describe('PresenceHeartbeat / WebVitals', () => {
   it('PresenceHeartbeat pings when authenticated', () => {
     render(<PresenceHeartbeat />);
     expect(usersApi.touchPresence).toHaveBeenCalled();
+  });
+
+  it('PresenceHeartbeat skips the ping while no CSRF token is available', async () => {
+    const { getCsrfToken } = await import('@/lib/csrf');
+    vi.mocked(getCsrfToken).mockReturnValueOnce(null);
+    render(<PresenceHeartbeat />);
+    expect(usersApi.touchPresence).not.toHaveBeenCalled();
   });
 
   it('WebVitals tracks a sample metric', () => {

@@ -216,6 +216,52 @@ describe('api/client.ts — silent refresh on 401', () => {
     expect(response.data.data.ok).toBe(true);
   });
 
+  it('FIX CSRF-403-REFRESH-01: a 403 "Invalid or missing CSRF token" triggers refresh and a retry carrying the fresh X-CSRF-Token', async () => {
+    setAuthenticatedState('some-access-token');
+    let callCount = 0;
+    let csrfHeaderOnRetry: string | null = null;
+
+    getMswServer()?.use(
+      http.post(REFRESH_URL, () =>
+        HttpResponse.json({
+          success: true,
+          data: { tokens: { accessToken: 'new-access-token' }, csrfToken: 'csrf-fresh' },
+        }),
+      ),
+      http.patch(`${API_BASE_URL}/users/me/presence`, ({ request }) => {
+        callCount += 1;
+        if (callCount === 1) {
+          return HttpResponse.json(
+            { success: false, message: 'Invalid or missing CSRF token' },
+            { status: 403 },
+          );
+        }
+        csrfHeaderOnRetry = request.headers.get('x-csrf-token');
+        return HttpResponse.json({ success: true });
+      }),
+    );
+
+    await apiClient.patch('/users/me/presence');
+
+    expect(callCount).toBe(2);
+    expect(csrfHeaderOnRetry).toBe('csrf-fresh');
+  });
+
+  it('a 403 that is NOT about CSRF is not retried', async () => {
+    setAuthenticatedState('some-access-token');
+    let callCount = 0;
+
+    getMswServer()?.use(
+      http.get(PROTECTED_URL, () => {
+        callCount += 1;
+        return HttpResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+      }),
+    );
+
+    await expect(apiClient.get('/users/me')).rejects.toMatchObject({ statusCode: 403 });
+    expect(callCount).toBe(1);
+  });
+
   it('updates the in-memory access token in the auth store after a successful refresh', async () => {
     setAuthenticatedState('expired-access-token');
 

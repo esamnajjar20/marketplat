@@ -216,7 +216,29 @@ apiClient.interceptors.response.use(
     // instead of the session-refresh path hijacking it.
     const isAuthEntryCall = original?.url?.includes('/auth/login') || original?.url?.includes('/auth/register');
 
-    if (error.response?.status !== 401 || original._retry || isRefreshCall || isAuthEntryCall) {
+    // FIX CSRF-403-REFRESH-01: backend's csrfProtection answers 403
+    // ("Invalid or missing CSRF token") when the browser still holds the
+    // csrfToken cookie but this page's in-memory copy is empty/stale —
+    // e.g. a request fired right after an offline → online transition
+    // (offline visual session) or before AuthHydrationProvider's
+    // /auth/refresh finished. Without this, offline-draft publishing
+    // treated that 403 as a *permanent* rejection and parked the draft
+    // in the terminal "failed / needs manual review" state. /auth/refresh
+    // is CSRF-exempt and re-issues the token, so route this case through
+    // the same refresh-and-replay path below as a 401 (the replay strips
+    // the stale X-CSRF-Token so the interceptor re-attaches the fresh one).
+    const rawBody = error.response?.data as { message?: unknown } | undefined;
+    const isCsrfRejection =
+      error.response?.status === 403 &&
+      typeof rawBody?.message === 'string' &&
+      /csrf/i.test(rawBody.message);
+
+    if (
+      (error.response?.status !== 401 && !isCsrfRejection) ||
+      original._retry ||
+      isRefreshCall ||
+      isAuthEntryCall
+    ) {
       return Promise.reject(parseApiError(error));
     }
 

@@ -80,17 +80,30 @@ export function reportClientError(error: Error, context?: Record<string, unknown
  * returns true, a reload was triggered and the caller should render
  * null (or a spinner); the reload will surface the fresh page.
  */
-export function handleChunkLoadError(error: Error): boolean {
-  if (typeof window === 'undefined') return false;
-
+export function isChunkLoadError(error: Error | null | undefined): boolean {
   const message = error?.message ?? '';
-  const isChunkError =
+  return (
     error?.name === 'ChunkLoadError' ||
     message.includes('Loading chunk') ||
     message.includes('Loading CSS chunk') ||
-    message.includes('Failed to fetch dynamically imported module');
+    message.includes('Failed to fetch dynamically imported module')
+  );
+}
 
-  if (!isChunkError) return false;
+export function handleChunkLoadError(error: Error): boolean {
+  if (typeof window === 'undefined') return false;
+
+  if (!isChunkLoadError(error)) return false;
+
+  // FIX CHUNK-OFFLINE-01: a reload cannot fix a chunk that failed because
+  // the device is offline (the chunk was simply never cached) — it only
+  // re-serves the same cached shell, fails again, and burns the one-shot
+  // 30s recovery window. Return false so the error UI renders (and can
+  // explain the offline cause) instead of reloading pointlessly.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    console.warn('[chunk-recovery] skipped: device is offline');
+    return false;
+  }
 
   const KEY = 'chunk-load-reload-at';
   const RELOAD_WINDOW_MS = 30_000;

@@ -718,6 +718,46 @@ describe('sw.js — service worker logic', () => {
       expect(updated.status).toBe('failed');
     });
 
+    it('FIX QUEUE-CSRF-OFFLINE-SESSION-01: an entry queued without x-csrf-token that gets a CSRF 403 refreshes once and retries WITH the fresh x-csrf-token', async () => {
+      const entry = await seedOne({ headers: {} }); // offline-session entry: no csrf header, needsCsrf unset
+
+      const seenCsrf: Array<string | undefined> = [];
+      ctx.setFetch(async (input: any, init: any) => {
+        const url = typeof input === 'string' ? input : input.url;
+        if (url.includes('/auth/refresh')) {
+          return new Response(
+            JSON.stringify({ data: { tokens: { accessToken: 'fresh-token' }, csrfToken: 'fresh-csrf' } }),
+            { status: 200 },
+          );
+        }
+        const csrf = init?.headers?.['x-csrf-token'];
+        seenCsrf.push(csrf);
+        if (!csrf) {
+          return new Response(JSON.stringify({ message: 'Invalid or missing CSRF token' }), { status: 403 });
+        }
+        return new Response('{}', { status: 200 });
+      });
+
+      const result = await ctx.sandbox.replayOne(entry, false);
+
+      expect(result).toBe('sent');
+      expect(seenCsrf).toEqual([undefined, 'fresh-csrf']);
+      expect(await ctx.sandbox.getAllQueuedEntries()).toHaveLength(0);
+    });
+
+    it('a CSRF 403 that persists after the refresh attempt stays pending instead of being marked permanently failed', async () => {
+      const entry = await seedOne({ headers: {} });
+      ctx.setFetch(async () =>
+        new Response(JSON.stringify({ message: 'Invalid or missing CSRF token' }), { status: 403 }),
+      );
+
+      const result = await ctx.sandbox.replayOne(entry, true);
+
+      expect(result).toBe('still-offline');
+      const [unchanged] = await ctx.sandbox.getAllQueuedEntries();
+      expect(unchanged.status).toBe('pending');
+    });
+
     it('does not attempt a second refresh when hasRetriedAfterRefresh is already true', async () => {
       const entry = await seedOne({ headers: { authorization: 'Bearer still-expired' } });
       let refreshCalls = 0;
