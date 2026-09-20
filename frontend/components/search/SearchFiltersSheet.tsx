@@ -12,7 +12,17 @@ import {
 } from '@/components/shared/ui/Sheet';
 import { SearchFilters } from './SearchFilters';
 
-const FILTER_KEYS = ['city', 'categoryId', 'lat', 'lng'] as const;
+// FIX SHEET-BADGE-SORT-01: this list used to be FILTER_KEYS.filter(get)
+// minus a lat/lng dedup, and it silently ignored `sort`. On mobile the
+// sort control lives in SearchSortBar (above the results, not inside
+// the sheet) -- so a user who set sort=newest would open the filter
+// sheet, see a badge of 0, and reasonably conclude nothing was
+// filtered. SearchResults' own hasActiveFilters already counts
+// sort !== 'relevance' -- mirroring that here keeps the desktop reset
+// button and the mobile badge in agreement. `q` is still deliberately
+// excluded: it is the query, not a filter, and SearchFilters' own
+// reset button preserves it for the same reason.
+const IS_SORT_ACTIVE = (v: string | null) => v !== null && v !== 'relevance';
 
 /**
  * Mobile filter entry — short trigger + sheet. Closing the sheet is the
@@ -23,8 +33,10 @@ export function SearchFiltersSheet() {
   const sp = useSearchParams();
 
   const activeCount =
-    FILTER_KEYS.filter((key) => sp.get(key)).length -
-    (sp.get('lat') && sp.get('lng') ? 1 : 0);
+    (sp.get('city')            ? 1 : 0) +
+    (sp.get('categoryId')      ? 1 : 0) +
+    (sp.get('lat') && sp.get('lng') ? 1 : 0) +
+    (IS_SORT_ACTIVE(sp.get('sort'))  ? 1 : 0);
 
   return (
     <div className="lg:hidden">
