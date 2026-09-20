@@ -6,6 +6,9 @@
  * FIX API-02: useSearchAds calls adsApi.searchAds with 'q' param.
  * FIX Q-03: staleTime unified across all ad queries via CACHE_TTL constants.
  */
+// FIX ADS-OFFLINE-CACHE-SCOPE-01: offline cache slots for adsBrowse/myAds
+// are only populated for the truly unfiltered first page. Previously a
+// filtered page-1 fetch overwrote them.
 'use client';
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -54,10 +57,24 @@ function offlineMeta(count: number): PaginationMeta {
  * keeps its default always-on behavior unchanged.
  */
 export function useAds(params?: AdSearchParams, options?: { enabled?: boolean }) {
-  // كاش أوفلاين للصفحة الأولى فقط بدون فلاتر معقّدة
+  // FIX ADS-OFFLINE-CACHE-SCOPE-01: the comment already said "بدون فلاتر"
+  // but the code only checked page — so landing on /search?city=غزة with
+  // page 1 wrote the FILTERED result set into the generic adsBrowse
+  // offline key. Later, an unfiltered offline open (or a filterless
+  // first render online) served those filtered items as if they were
+  // "all ads". The same drift class we just closed for paymentStorage,
+  // just on a read-mostly path. Now the offline slot is populated only
+  // when the request really is the unfiltered first page.
+  // AdSearchParams only exposes city/categoryId as discrete filter
+  // fields (q/lat/lng live on AdSearchQuery, used by useSearchAds).
+  // These two cover every filtered entry point that actually hits
+  // useAds in the app.
+  const hasRealFilter =
+    Boolean(params?.city) ||
+    Boolean(params?.categoryId);
   const isBaseBrowse =
-    !params?.page ||
-    params.page === 1;
+    (!params?.page || params.page === 1) &&
+    !hasRealFilter;
   const cached = isBaseBrowse
     ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse)
     : null;
@@ -145,7 +162,13 @@ export function useRelatedAds(id: string) {
  * FIX C-06: URL is /ads/me (was /ads/my in old code — fixed in ads.api.ts).
  */
 export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>) {
-  const isBase = !params?.page || params.page === 1;
+  // FIX ADS-OFFLINE-CACHE-SCOPE-01 (same as useAds above): a
+  // status-filtered first page (e.g. my SOLD ads) was being written
+  // into the generic myAds offline slot, so a later unfiltered offline
+  // open showed only sold ads under "إعلاناتي".
+  const isBase =
+    (!params?.page || params.page === 1) &&
+    params?.status === undefined;
   const cached = isBase ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds) : null;
 
   return useQuery({
