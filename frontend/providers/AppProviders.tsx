@@ -9,7 +9,6 @@
 
 import { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools }  from '@tanstack/react-query-devtools';
 import { Toaster }             from 'sonner';
 import { useTheme }            from 'next-themes';
 import { makeQueryClient }     from '@/lib/queryClient';
@@ -25,6 +24,28 @@ const CapacitorBootstrap = dynamic(
     import('@/components/pwa/CapacitorBootstrap').then((m) => m.CapacitorBootstrap),
   { ssr: false },
 );
+
+// RQ-DEVTOOLS-DYNAMIC-01: ReactQueryDevtools used to be a top-level
+// static import, guarded by `process.env.NODE_ENV === 'development'`
+// at the JSX level. That guard runs at build time (the env var is
+// replaced by the literal 'production'/'development' string), so the
+// JSX block was correctly dead-code-eliminated in production — but
+// the static IMPORT above it was not. @tanstack/react-query-devtools
+// has side effects webpack can't safely tree-shake away, so ~150KB
+// gzipped was shipped in every production bundle for a component that
+// never rendered. On Gaza's mobile networks that's a real cost.
+//
+// A ternary keyed off the same NODE_ENV is what actually lets the
+// bundler drop it: in production the expression evaluates to
+// `false ? dynamic(...) : null` = `null`, the dynamic call is
+// unreachable, and webpack omits the resulting chunk entirely.
+const ReactQueryDevtools =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(
+        () => import('@tanstack/react-query-devtools').then((m) => m.ReactQueryDevtools),
+        { ssr: false },
+      )
+    : null;
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
@@ -141,9 +162,10 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
             above. */}
         <GlobalSearchShortcut />
 
-        {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools initialIsOpen={false} />
-        )}
+        {/* RQ-DEVTOOLS-DYNAMIC-01: the const above is already null in
+            production, so the guard lives in the declaration instead
+            of being duplicated here. */}
+        {ReactQueryDevtools && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </ThemeProvider>
   );
