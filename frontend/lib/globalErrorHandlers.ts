@@ -44,7 +44,32 @@ function shouldReport(signature: string): boolean {
     const oldest = recent.keys().next().value;
     if (oldest !== undefined) recent.delete(oldest);
   }
+
   return true;
+}
+
+/**
+ * FIX GLOBAL-ERROR-ABORT-FILTER-01: fetch() aborts -- from navigation
+ * away from a page, a cancelled TanStack Query, a component unmount
+ * mid-flight, or the browser's own lifecycle -- surface as DOMException
+ * AbortError rejections. They are not bugs; they are the intended
+ * outcome of aborting. Before this filter every navigation that
+ * cancelled an in-flight request produced a Sentry event, and on a
+ * mobile SPA with routes as chatty as this one that is dozens per
+ * session per user.
+ *
+ * Detection covers both the modern shape (DOMException.name ===
+ * 'AbortError') and the message variants some browsers/transports
+ * still emit ('The user aborted a request', 'The operation was
+ * aborted', 'signal is aborted without reason').
+ */
+function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const name = (err as { name?: unknown }).name;
+  if (name === 'AbortError') return true;
+  const message = (err as { message?: unknown }).message;
+  if (typeof message !== 'string') return false;
+  return message.includes('aborted') || message.includes('user aborted');
 }
 
 let installed = false;
@@ -66,6 +91,11 @@ export function installGlobalErrorHandlers(): void {
   window.addEventListener('error', (event) => {
     const error = event.error;
     if (!error) return; // resource load failure, not a JS error — skip
+    // FIX GLOBAL-ERROR-ABORT-FILTER-01: same filter as the rejection
+    // handler below -- rare here (AbortErrors almost always surface
+    // as promise rejections), but cheap insurance against the same
+    // false-positive class if a caller ever throws one synchronously.
+    if (isAbortError(error)) return;
 
     const signature = `error:${error.name}:${error.message}:${event.filename}:${event.lineno}`;
     if (!shouldReport(signature)) return;
@@ -84,6 +114,12 @@ export function installGlobalErrorHandlers(): void {
   // to a bug in a fire-and-forget background task lands here.
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
+
+    // FIX GLOBAL-ERROR-ABORT-FILTER-01: abort rejections are the
+    // expected outcome of a cancelled request, not bugs. Filter before
+    // the dedup/error-wrap path so we don't spend map slots or
+    // reporter bandwidth on them (see isAbortError above).
+    if (isAbortError(reason)) return;
 
     // The rejection value isn't always an Error — apps reject with
     // plain objects, strings, or API error shapes all the time. Wrap

@@ -104,6 +104,21 @@ const CSRF_EXEMPT_PATHS = new Set([
   "/auth/register",
   // CROSS-ORIGIN-CSRF-FIX: see this const's own header comment above.
   "/auth/refresh",
+  // FIX CSRF-FORGOT-PASSWORD-01: forgot-password + reset-password are
+  // anonymous-by-design endpoints -- a user who has lost access to
+  // their account has no session and therefore no csrfToken cookie to
+  // send, so CSRF cannot protect anything here and can only reject the
+  // legitimate recovery flow. The production /forgot-password page was
+  // returning "لا تملك صلاحية لهذا الإجراء" (403 from this middleware)
+  // for exactly that case. Same reasoning as login/register above.
+  //
+  // Security note: neither endpoint is CSRF-exploitable. Attacker
+  // cannot trigger a useful reset because (a) a forgot-password CSRF
+  // only sends an email to the attacker's own inbox, and (b)
+  // reset-password requires the victim's reset token, which the
+  // attacker does not have.
+  "/auth/forgot-password",
+  "/auth/reset-password",
   // Public, unauthenticated-by-design product-analytics beacon (see
   // analytics.routes.ts). Not a sensitive state-changing action, so
   // there's nothing here for CSRF to protect — but the frontend
