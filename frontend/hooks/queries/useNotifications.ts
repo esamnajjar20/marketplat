@@ -89,7 +89,7 @@ export function useUnreadNotificationCount() {
     staleTime: CACHE_TTL.notifications,
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 4),
     enabled: isAuthenticated && (hasToken || !isOnline),
-    ...(cached
+      ...(cached && typeof cached.unreadCount === 'number'
       ? {
           initialData: cached.unreadCount,
           initialDataUpdatedAt: new Date(cached.savedAt).getTime(),

@@ -164,9 +164,14 @@ export function useUnreadConversationCount() {
         throw err;
       }
     },
-    staleTime: CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations,
+    // FIX CONV-TTL-FALLBACK-CLEANUP-01: was
+    // CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations.
+    // conversationUnreadCount is a real constant (15_000) --
+    // the ?? could only fire if someone renamed/deleted it,
+    // silently falling back to a different semantic TTL.
+    staleTime: CACHE_TTL.conversationUnreadCount,
     refetchInterval: () =>
-      pollingInterval(CACHE_TTL.conversationUnreadCount ?? CACHE_TTL.conversations, 3),
+      pollingInterval(CACHE_TTL.conversationUnreadCount, 3),
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
 }
