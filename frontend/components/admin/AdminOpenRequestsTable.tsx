@@ -8,12 +8,14 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ApiError } from '@/components/shared/ApiError';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { useAdminOpenRequests } from '@/hooks/queries/useAdmin';
 import { useAdminCancelOpenRequest } from '@/hooks/mutations/useAdminMutations';
 import { formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { parseApiError } from '@/lib/errorParser';
 import { REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import type { RequestStatus, RequestType } from '@/types/request.types';
 
@@ -43,7 +45,7 @@ export function AdminOpenRequestsTable() {
       ? typeParam
       : undefined;
 
-  const { data, isLoading, isError, refetch } = useAdminOpenRequests({
+  const { data, isLoading, isError, error, refetch } = useAdminOpenRequests({
     page,
     limit: 20,
     q: q || undefined,
@@ -71,14 +73,14 @@ export function AdminOpenRequestsTable() {
         ]}
       />
 
-      {isLoading && <TableSkeleton rows={8} columns={5} />}
+      {/* FIX OPEN-REQ-POLISH-01: rows={8} was the default anyway; columns={5}
+          mismatched this table's actual six columns. */}
+      {isLoading && <TableSkeleton columns={6} />}
+      {/* FIX OPEN-REQ-POLISH-01 (part 2): same treatment every other
+          admin table already has -- ApiError differentiates 401/403/
+          404/500+ with consistent icons. */}
       {isError && (
-        <EmptyState
-          icon={<ClipboardList className="h-10 w-10" />}
-          title="تعذّر التحميل"
-          description="حاول مرة أخرى"
-          action={<Button onClick={() => refetch()}>إعادة المحاولة</Button>}
-        />
+        <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
       )}
       {!isLoading && !isError && items.length === 0 && (
         <EmptyState icon={<ClipboardList className="h-10 w-10" />} title="لا طلبات" description="لا نتائج للفلتر الحالي" />
@@ -130,6 +132,8 @@ export function AdminOpenRequestsTable() {
         </div>
       )}
 
+      {/* FIX OPEN-REQ-POLISH-01 (part 3): {totalPages > 1 && ...} gate */}
+      {Number(totalPages) > 1 && (
       <Pagination
         totalPages={Number(totalPages) || 1}
         currentPage={page}
@@ -140,6 +144,7 @@ export function AdminOpenRequestsTable() {
           type: type,
         }}
       />
+      )}
 
       <ConfirmDialog
         open={Boolean(cancelId)}

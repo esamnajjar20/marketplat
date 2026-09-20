@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAdminPlatformTrends } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { Button } from '@/components/shared/ui/Button';
 import { AlertTriangle } from 'lucide-react';
 import { formatNumber } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -37,9 +38,10 @@ export function AdminPlatformTrends() {
       <div className="flex flex-col items-center gap-2 rounded-xl border py-8">
         <AlertTriangle className="h-7 w-7 text-muted-foreground" />
         <p className="text-sm text-destructive">تعذّر تحميل الاتجاهات</p>
-        <button type="button" className="text-sm text-primary hover:underline" onClick={() => refetch()}>
+        {/* FIX POLISH-NATIVE-BUTTON-01: shared Button primitive. */}
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
           إعادة المحاولة
-        </button>
+        </Button>
       </div>
     );
   }

@@ -2,6 +2,7 @@
 
 import { useAdminStats } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { Button } from '@/components/shared/ui/Button';
 import { formatNumber } from '@/lib/formatters';
 import { ShoppingBag, Users, Flag, Eye, AlertTriangle, UserPlus, CalendarDays, CalendarRange } from 'lucide-react';
 
@@ -19,9 +20,10 @@ export function AdminStatsGrid() {
       <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
         <AlertTriangle className="h-8 w-8 text-muted-foreground" />
         <p className="text-destructive">حدث خطأ أثناء تحميل الإحصائيات</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+        {/* FIX POLISH-NATIVE-BUTTON-01: shared Button primitive. */}
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
           إعادة المحاولة
-        </button>
+        </Button>
       </div>
     );
   }
