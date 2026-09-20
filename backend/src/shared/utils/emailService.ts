@@ -168,7 +168,185 @@ async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
   return false;
 }
 
+// ── Gmail OAuth sender ───────────────────────────────────────────────
+
+/**
+ * FIX GMAIL-OAUTH-EMAIL-01: Gmail REST API sender -- no SMTP, no
+ * domain verification, no restricted OAuth scopes. Sends via HTTPS on
+ * port 443 (allowed on Render Free; 25/465/587 are blocked). Unlike
+ * Resend's onboarding@resend.dev sandbox, this accepts ANY recipient
+ * once GMAIL_USER + GOOGLE_REFRESH_TOKEN are configured.
+ *
+ * Access token cache: Gmail's access tokens live 1 hour. Cached
+ * in-process; refreshed 5 minutes before expiry. On a 401 (stale
+ * cached token) the send retries once with a fresh token.
+ */
+
+let cachedGmailAccessToken: { token: string; expiresAt: number } | null = null;
+
+async function getGmailAccessToken(): Promise<string> {
+  const now = Date.now();
+  if (cachedGmailAccessToken && cachedGmailAccessToken.expiresAt - now > 5 * 60_000) {
+    return cachedGmailAccessToken.token;
+  }
+
+  const body = new URLSearchParams({
+    client_id: env.googleOAuth.clientId,
+    client_secret: env.googleOAuth.clientSecret,
+    refresh_token: env.email.googleRefreshToken,
+    grant_type: 'refresh_token',
+  });
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Gmail token refresh failed (${res.status}): ${text}`);
+  }
+
+  const json = (await res.json()) as { access_token: string; expires_in: number };
+  cachedGmailAccessToken = {
+    token: json.access_token,
+    expiresAt: now + json.expires_in * 1000,
+  };
+  return json.access_token;
+}
+
+function base64UrlEncode(input: string | Buffer): string {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input, 'utf-8');
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function encodeMimeHeader(value: string): string {
+  // eslint-disable-next-line no-control-regex
+  if (/^[\x00-\x7F]*$/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value, 'utf-8').toString('base64')}?=`;
+}
+
+function buildMimeMessage(options: SendEmailOptions): string {
+  const fromHeader = env.email.fromName
+    ? `"${encodeMimeHeader(env.email.fromName)}" <${env.email.fromEmail}>`
+    : env.email.fromEmail;
+
+  const boundary = `b_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+  const headers = [
+    `From: ${fromHeader}`,
+    `To: ${options.to}`,
+    `Subject: ${encodeMimeHeader(options.subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ].join('\r\n');
+
+  const textPart = [
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(options.text, 'utf-8').toString('base64'),
+  ].join('\r\n');
+
+  const htmlPart = [
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(options.html, 'utf-8').toString('base64'),
+  ].join('\r\n');
+
+  const closing = `--${boundary}--`;
+
+  return [headers, '', textPart, '', htmlPart, '', closing].join('\r\n');
+}
+
+async function sendViaGmailOAuth(options: SendEmailOptions): Promise<boolean> {
+  let lastError: unknown = null;
+  const attempts = 1 + EMAIL_RETRY_DELAYS_MS.length;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const accessToken = await getGmailAccessToken();
+      const raw = base64UrlEncode(buildMimeMessage(options));
+
+      const res = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/${encodeURIComponent(env.email.gmailUser)}/messages/send`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ raw }),
+        },
+      );
+
+      if (res.ok) return true;
+
+      const body = await res.text().catch(() => '');
+
+      // 401 = cached access token invalidated or expired mid-send.
+      // Drop cache and retry even if out of generic retries, because
+      // the failure is our staleness, not an upstream problem.
+      if (res.status === 401 && cachedGmailAccessToken) {
+        cachedGmailAccessToken = null;
+        logger.warn('[GMAIL OAUTH] 401 -- clearing cached token, retrying', {
+          to: options.to,
+          attempt: attempt + 1,
+        });
+        lastError = new Error(`Gmail 401: ${body}`);
+        continue;
+      }
+
+      if (res.status >= 400 && res.status < 500) {
+        logger.error('[GMAIL OAUTH ERROR] Deterministic failure, not retrying', {
+          to: options.to,
+          status: res.status,
+          body,
+        });
+        return false;
+      }
+
+      logger.warn('[GMAIL OAUTH RETRY] Transient failure', {
+        to: options.to,
+        status: res.status,
+        body,
+        attempt: attempt + 1,
+      });
+      lastError = new Error(`Gmail ${res.status}: ${body}`);
+    } catch (err) {
+      lastError = err;
+      logger.warn('[GMAIL OAUTH RETRY] Network/token failure', {
+        to: options.to,
+        attempt: attempt + 1,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    const delay = EMAIL_RETRY_DELAYS_MS[attempt];
+    if (delay !== undefined) await sleep(delay);
+  }
+
+  logger.error('[GMAIL OAUTH FAILED] All attempts exhausted', {
+    to: options.to,
+    lastError: lastError instanceof Error ? lastError.message : String(lastError),
+  });
+  return false;
+}
+
 async function sendEmail(options: SendEmailOptions): Promise<boolean> {
+  // FIX GMAIL-OAUTH-EMAIL-01: Gmail OAuth is the primary path when
+  // GMAIL_USER + GOOGLE_REFRESH_TOKEN are set. It accepts any recipient
+  // (unlike Resend's sandbox) and needs no domain (unlike Resend
+  // production). Resend stays as a fallback; SMTP remains the last
+  // resort.
+  if (env.email.gmailUser && env.email.googleRefreshToken) {
+    return sendViaGmailOAuth(options);
+  }
+
   // FIX RENDER-SMTP-BLOCK-01: prefer Resend over HTTPS when
   // RESEND_API_KEY is set. Render's Free tier blocks outbound
   // SMTP ports, so nodemailer times out with ETIMEDOUT before it

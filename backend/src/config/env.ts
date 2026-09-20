@@ -147,6 +147,12 @@ const envSchema = z.object({
   // uses Resend over HTTPS; otherwise it falls through to the legacy
   // SMTP path (which still works on Render's paid tiers and in dev).
   RESEND_API_KEY: z.string().optional(),
+  // FIX GMAIL-OAUTH-EMAIL-01: Gmail REST API over HTTPS (port 443).
+  // No domain required, accepts any recipient. Refresh token is
+  // generated once via OAuth Playground / a local script, then stored
+  // here as an env var.
+  GMAIL_USER: z.string().email().optional(),
+  GOOGLE_REFRESH_TOKEN: z.string().optional(),
 
   // FIX FORGOT-PW-LIMIT-CONFIG-01: rate limit max for /auth/forgot-password.
   // Default 5/hour per IP -- up from the previous hardcoded 3, which was
@@ -541,6 +547,12 @@ export const env = {
 
   email: {
     resendApiKey: _env.RESEND_API_KEY || "",
+    // FIX GMAIL-OAUTH-EMAIL-01: Gmail OAuth sender takes priority over
+    // Resend when both are set -- it accepts any recipient, whereas
+    // Resend's sandbox only delivers to the account owner until a
+    // custom domain is verified.
+    gmailUser: (_env.GMAIL_USER || "").trim(),
+    googleRefreshToken: (_env.GOOGLE_REFRESH_TOKEN || "").trim(),
     smtpHost: _env.SMTP_HOST || "",
     smtpPort: _env.SMTP_PORT ? parseInt(_env.SMTP_PORT, 10) : 587,
     smtpSecure: _env.SMTP_SECURE ?? false,
@@ -551,8 +563,12 @@ export const env = {
     // Email sending is considered "configured" only once host+user+password
     // are all present — partial config (e.g. just a from-address) isn't
     // enough to attempt a real SMTP connection.
+    // FIX GMAIL-OAUTH-EMAIL-01: "configured" now means any of the
+    // three senders is usable: Gmail OAuth, Resend, or legacy SMTP.
     isConfigured: Boolean(
-      _env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD,
+      (_env.GMAIL_USER && _env.GOOGLE_REFRESH_TOKEN) ||
+      _env.RESEND_API_KEY ||
+      (_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD),
     ),
   },
   // FIX PWA-PUSH-01: same isConfigured pattern as email above —
