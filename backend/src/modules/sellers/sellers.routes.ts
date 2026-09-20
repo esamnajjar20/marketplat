@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sellersController } from './sellers.controller';
 import { sellersRankingController } from './sellers-ranking.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import {
   createSellerProfileRateLimit,
@@ -18,7 +19,7 @@ sellersRouter.patch('/me/profile', authenticate, CACHE.NONE, sellersController.u
 sellersRouter.get('/me/attention', authenticate, CACHE.NONE, sellersController.getMyAttention);
 sellersRouter.post(
   '/me/profile',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   createSellerProfileRateLimit,
   sellersController.createSellerProfile
 );
@@ -29,7 +30,7 @@ sellersRouter.post(
 // this one can never set `verified` itself.
 sellersRouter.post(
   '/me/profile/verification-request',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   requestVerificationRateLimit,
   sellersController.requestVerification
 );
@@ -42,7 +43,7 @@ sellersRouter.get('/:id', CACHE.MEDIUM, sellersController.getPublicSellerProfile
 
 sellersRouter.post(
   '/:id/ratings',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   sellerRatingRateLimit,
   sellersController.createRating
 );

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { usersController } from './users.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { usersRateLimit, changePasswordRateLimit } from '../../middlewares/rateLimit.middleware';
 import { uploadMiddleware } from '../../middlewares/upload.middleware';
 
@@ -16,7 +17,7 @@ usersRouter.delete('/me', authenticate, usersController.deleteMe);
 // FIX SEC-09: stricter, fail-closed rate limit on top of the general
 // usersRateLimit — see changePasswordRateLimit's definition for why.
 usersRouter.post('/me/password', authenticate, changePasswordRateLimit, usersController.changePassword);
-usersRouter.post('/me/avatar', authenticate, uploadMiddleware, usersController.uploadAvatar);
+usersRouter.post('/me/avatar', authenticate, requireVerifiedEmail, uploadMiddleware, usersController.uploadAvatar);
 usersRouter.patch('/me/notifications', authenticate, usersController.updateNotificationPreferences);
 usersRouter.patch('/me/presence', authenticate, usersController.touchPresence);
 

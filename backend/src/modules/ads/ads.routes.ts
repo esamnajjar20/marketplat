@@ -3,6 +3,7 @@ import { adsController } from './ads.controller';
 import { adsPinController } from './ads-pin.controller';
 import { adsRepublishController } from './ads-republish.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { uploadMultipleMiddleware } from '../../middlewares/upload.middleware';
 import { createAdRateLimit, addAdImagesRateLimit } from '../../middlewares/rateLimit.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
@@ -24,13 +25,13 @@ adsRouter.get('/:id/related', CACHE.SHORT, adsController.getRelatedAds);
 // Protected
 adsRouter.post(
   '/',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   createAdRateLimit,
   uploadMultipleMiddleware,
   adsController.createAd
 );
 adsRouter.patch('/:id', authenticate, adsController.updateAd);
-adsRouter.post('/:id/images', authenticate, addAdImagesRateLimit, uploadMultipleMiddleware, adsController.addImages);
+adsRouter.post('/:id/images', authenticate, requireVerifiedEmail, addAdImagesRateLimit, uploadMultipleMiddleware, adsController.addImages);
 adsRouter.delete('/:id/images', authenticate, adsController.removeImage);
 // Gap #11: JSON body only (no files), so no multer/upload rate limit —
 // just auth, same as PATCH /:id above.
@@ -43,7 +44,7 @@ adsRouter.patch('/:id/pin', authenticate, adsPinController.setPinned);
 // TRACK-REPUBLISH — clone SOLD/DELETED into a new ACTIVE ad
 adsRouter.post(
   '/:id/republish',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   createAdRateLimit,
   adsRepublishController.republish
 );

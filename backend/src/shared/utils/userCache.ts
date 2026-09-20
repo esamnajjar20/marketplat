@@ -22,6 +22,11 @@ export interface CachedUser {
   id: string;
   role: string;
   isActive: boolean;
+  // FIX FEAT-EMAIL-VERIFY: optional so cache entries written
+  // before this field existed read as undefined instead of
+  // crashing the reader; the gating middleware treats that as
+  // "stale, refetch once" so a deploy does not lock everyone out.
+  emailVerified?: boolean;
 }
 
 function l1Get(userId: string): CachedUser | null {
@@ -186,7 +191,7 @@ export const userCache = {
       try {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { id: true, role: true, isActive: true },
+          select: { id: true, role: true, isActive: true, emailVerified: true },
         });
         if (!user) return null;
 
@@ -194,6 +199,7 @@ export const userCache = {
           id: user.id,
           role: user.role as string,
           isActive: user.isActive,
+          emailVerified: user.emailVerified,
         };
 
         await userCache.set(cachedUser);

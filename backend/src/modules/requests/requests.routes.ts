@@ -1,3 +1,4 @@
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { Router } from 'express';
 import { requestsController } from './requests.controller';
 import { authenticate, optionalAuthenticate } from '../../middlewares/auth.middleware';
@@ -13,12 +14,12 @@ requestsRouter.get('/me', authenticate, CACHE.NONE, requestsController.getMyRequ
 requestsRouter.get('/offers/me', authenticate, CACHE.NONE, requestsController.getMyOffers);
 requestsRouter.get('/:id', optionalAuthenticate, CACHE.NONE, requestsController.getById);
 
-requestsRouter.post('/', authenticate, createOpenRequestRateLimit, requestsController.create);
+requestsRouter.post('/', authenticate, requireVerifiedEmail, createOpenRequestRateLimit, requestsController.create);
 requestsRouter.patch('/:id/cancel', authenticate, requestsController.cancel);
 
 requestsRouter.post(
   '/:id/offers',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   submitRequestOfferRateLimit,
   requestsController.submitOffer,
 );

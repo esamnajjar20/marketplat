@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { storesController } from './stores.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { requireAdmin } from '../../middlewares/admin.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import { uploadMiddleware } from '../../middlewares/upload.middleware';
@@ -26,21 +27,21 @@ storesRouter.get('/me/followed', authenticate, CACHE.NONE, storesController.getM
 // STORE-ANALYTICS (Foundation v1): owner-only, same registration-order
 // reasoning as /me/followed above.
 storesRouter.get('/me/analytics', authenticate, CACHE.NONE, storesController.getMyStoreAnalytics);
-storesRouter.post('/me/feature-request', authenticate, CACHE.NONE, storesController.requestFeature);
+storesRouter.post('/me/feature-request', authenticate, requireVerifiedEmail, CACHE.NONE, storesController.requestFeature);
 
 // Logo/cover upload — same single-image pattern as POST /users/me/avatar.
 // Registered alongside the other /me routes for the same "never
 // swallowed as :id" reason.
 storesRouter.post(
   '/me/logo',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   storeImagesRateLimit,
   uploadMiddleware,
   storesController.uploadLogo
 );
 storesRouter.post(
   '/me/cover',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   storeImagesRateLimit,
   uploadMiddleware,
   storesController.uploadCover
@@ -61,7 +62,7 @@ storesRouter.post(
   storeMembersController.acceptInvite
 );
 
-storesRouter.post('/', authenticate, createStoreRateLimit, storesController.createStore);
+storesRouter.post('/', authenticate, requireVerifiedEmail, createStoreRateLimit, storesController.createStore);
 
 // Members of a store — before generic /:id sub-routes that might conflict is fine;
 // path is /:id/members so must stay after /me/* only.
@@ -111,7 +112,7 @@ storesRouter.post(
 storesRouter.get('/:id/reviews', CACHE.SHORT, storesController.getStoreReviews);
 storesRouter.post(
   '/:id/reviews',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   storeReviewRateLimit,
   storesController.createReview
 );

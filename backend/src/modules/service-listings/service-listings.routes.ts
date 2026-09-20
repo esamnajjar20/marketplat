@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { serviceListingsController } from './service-listings.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { uploadMultipleMiddleware } from '../../middlewares/upload.middleware';
 import {
   createServiceListingRateLimit,
@@ -24,7 +25,7 @@ serviceListingsRouter.get('/:id', CACHE.MEDIUM, serviceListingsController.getSer
 // Protected — owner-only, enforced in service-listings.service.ts
 serviceListingsRouter.post(
   '/',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   createServiceListingRateLimit,
   uploadMultipleMiddleware,
   serviceListingsController.createServiceListing
@@ -34,7 +35,7 @@ serviceListingsRouter.patch('/:id', authenticate, serviceListingsController.upda
 // POST/DELETE /:id/images exactly.
 serviceListingsRouter.post(
   '/:id/images',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   addServiceListingImagesRateLimit,
   uploadMultipleMiddleware,
   serviceListingsController.addImages

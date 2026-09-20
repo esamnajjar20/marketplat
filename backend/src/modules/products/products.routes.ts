@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { productsController } from './products.controller';
 import { productsStockController } from './products-stock.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { uploadMultipleMiddleware } from '../../middlewares/upload.middleware';
 import {
   createProductRateLimit,
@@ -20,7 +21,7 @@ productsRouter.get('/:id', CACHE.MEDIUM, productsController.getProductById);
 // Protected — owner-only, enforced in products.service.ts
 productsRouter.post(
   '/',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   createProductRateLimit,
   uploadMultipleMiddleware,
   productsController.createProduct
@@ -33,7 +34,7 @@ productsRouter.patch('/:id/stock', authenticate, productsStockController.adjustS
 // limit, multer, then controller).
 productsRouter.post(
   '/:id/images',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   addProductImagesRateLimit,
   uploadMultipleMiddleware,
   productsController.addImages

@@ -2,6 +2,7 @@ import { uploadMiddleware } from '../../middlewares/upload.middleware';
 import { Router } from 'express';
 import { conversationsController } from './conversations.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import { startConversationRateLimit, sendMessageRateLimit, typingRateLimit } from '../../middlewares/rateLimit.middleware';
 
@@ -20,7 +21,7 @@ conversationsRouter.get(
 );
 conversationsRouter.post(
   '/',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   startConversationRateLimit,
   conversationsController.startConversation
 );

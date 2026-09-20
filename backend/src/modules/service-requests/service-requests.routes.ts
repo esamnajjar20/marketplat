@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { serviceRequestsController } from './service-requests.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import { createServiceRequestRateLimit } from '../../middlewares/rateLimit.middleware';
 
@@ -24,7 +25,7 @@ serviceRequestsRouter.get('/:id', authenticate, CACHE.NONE, serviceRequestsContr
 
 serviceRequestsRouter.post(
   '/',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   createServiceRequestRateLimit,
   serviceRequestsController.createRequest
 );
