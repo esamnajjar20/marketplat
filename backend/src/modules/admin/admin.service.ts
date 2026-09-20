@@ -905,92 +905,19 @@ export const adminService = {
     return { openReports, pendingStores, pendingSellers, unreviewedFraud, total };
   },
 
-  /**
-   * Epic 6 / Feature 4: admin list of service-request broadcasts
-   * (سوق الطلبات). MODERATOR+ can view all broadcasts with filters.
-   */
-  getAdminServiceBroadcasts: async (query: {
-    page?: number;
-    limit?: number;
-    status?: ServiceBroadcastStatus;
-    q?: string;
-  }): Promise<{ items: unknown[]; meta: ReturnType<typeof buildPaginationMeta> }> => {
-    const page = Math.max(1, query.page ?? 1);
-    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
-    const skip = (page - 1) * limit;
-
-    const where: Prisma.ServiceRequestBroadcastWhereInput = {};
-    if (query.status) where.status = query.status;
-    if (query.q && query.q.trim()) {
-      const q = query.q.trim();
-      where.OR = [
-        { title: { contains: q, mode: 'insensitive' } },
-        { description: { contains: q, mode: 'insensitive' } },
-        { city: { contains: q, mode: 'insensitive' } },
-      ];
-    }
-
-    const [items, total] = await Promise.all([
-      prisma.serviceRequestBroadcast.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          customer: { select: { id: true, name: true, phone: true, city: true } },
-          category: { select: { id: true, name: true, nameAr: true } },
-          _count: { select: { quotes: true } },
-        },
-      }),
-      prisma.serviceRequestBroadcast.count({ where }),
-    ]);
-
-    return { items, meta: buildPaginationMeta(total, page, limit) };
-  },
-
-  /**
-   * Epic 6 / Feature 4: admin cancel of a service broadcast.
-   * Only OPEN broadcasts can be cancelled by an admin — ACCEPTED
-   * broadcasts must go through the normal resolution flow, and
-   * already-CANCELLED ones are a no-op.
-   */
-  adminCancelServiceBroadcast: async (
-    id: string,
-    adminUserId: string,
-    reason?: string,
-  ): Promise<unknown> => {
-    const existing = await prisma.serviceRequestBroadcast.findUnique({
-      where: { id },
-      select: { id: true, status: true, customerId: true },
-    });
-    if (!existing) throw new NotFoundError('Service broadcast not found');
-    if (existing.status === 'CANCELLED') return existing;
-    if (existing.status === 'ACCEPTED') {
-      throw new BadRequestError(
-        'Cannot cancel an ACCEPTED broadcast — resolve the accepted quote first',
-      );
-    }
-
-    const updated = await prisma.serviceRequestBroadcast.update({
-      where: { id },
-      data: { status: 'CANCELLED' },
-      include: {
-        customer: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true, nameAr: true } },
-      },
-    });
-
-    await auditLog({
-      event: AuditEventType.ADMIN_SERVICE_BROADCAST_CANCELLED,
-      userId: adminUserId,
-      details: {
-        broadcastId: id,
-        reason: reason ?? null,
-      },
-    });
-
-    return updated;
-  },
+  // FIX DEAD-CODE-SERVICE-BROADCASTS-01: removed
+  // getAdminServiceBroadcasts + adminCancelServiceBroadcast.
+  // These backed an "Epic 6 / Feature 4" service-only broadcast
+  // feed that was superseded by the newer /open-requests
+  // marketplace (Request / RequestOffer). Neither method was ever
+  // wired to a controller or route, and no frontend UI ever called
+  // the matching admin.api.ts client methods -- the full chain on
+  // both ends was dead. The Prisma ServiceRequestBroadcast model
+  // stays in place (migration history + zero-risk), just no
+  // service-layer access to it from admin.
+  //
+  // getAdminOpenRequests / adminCancelOpenRequest below are the live
+  // successor paths; unchanged.
 
   /**
    * Open Requests marketplace admin list (SERVICE | PRODUCT | RENTAL).

@@ -51,6 +51,11 @@ import type { ApiResponse } from '@/types/api.types';
  * below returns — see admin.types.ts's BulkActionMeta doc comment. */
 type BulkApiResponse<T> = Omit<ApiResponse<T[]>, 'data'> & { data: T[]; meta: BulkActionMeta };
 
+// FIX DEAD-CODE-SERVICE-BROADCASTS-01: removed getAdminServiceBroadcasts
+// + cancelServiceBroadcast -- no UI component ever called these, no
+// route/controller existed on the backend, and the newer /open-requests
+// marketplace (Request / RequestOffer) covers the same functionality.
+// See admin.service.ts's own removal comment for the full reasoning.
 export const adminApi = {
   /**
    * FIX FEAT-05: GET /admin/stats — replaces the previous client-side
@@ -70,11 +75,6 @@ export const adminApi = {
   setServiceListingStatus: (id: string, body: { status: string; reason?: string }) =>
     apiClient.patch(`/admin/service-listings/${id}/status`, body),
 
-  getAdminServiceBroadcasts: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
-    apiClient.get('/admin/service-broadcasts', { params }),
-
-  cancelServiceBroadcast: (id: string, body?: { reason?: string }) =>
-    apiClient.patch(`/admin/service-broadcasts/${id}/cancel`, body ?? {}),
 
   getAdminOpenRequests: (params?: {
     page?: number;

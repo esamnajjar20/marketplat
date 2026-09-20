@@ -212,16 +212,6 @@ export function useAdminServiceListings(params?: { page?: number; limit?: number
   });
 }
 
-export function useAdminServiceBroadcasts(params?: { page?: number; limit?: number; status?: string; q?: string }) {
-  return useQuery({
-    queryKey: queryKeys.admin.serviceBroadcasts(params),
-    queryFn: () => adminApi.getAdminServiceBroadcasts(params).then((r) => r.data),
-    staleTime: CACHE_TTL.adminList,
-    placeholderData: keepPreviousData,
-  });
-}
-
-
 export function useAdminOpenRequests(params?: {
   page?: number;
   limit?: number;

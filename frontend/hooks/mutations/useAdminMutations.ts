@@ -639,19 +639,10 @@ export function useAdminSetServiceListingStatus() {
   });
 }
 
-/** إلغاء إداري لطلب خدمة مفتوح في سوق الطلبات */
-export function useAdminCancelServiceBroadcast() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      adminApi.cancelServiceBroadcast(id, { reason }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'service-broadcasts'] });
-    },
-  });
-}
-
-
+// FIX DEAD-CODE-SERVICE-BROADCASTS-01: useAdminCancelServiceBroadcast
+// removed -- its only caller was the (also-removed) frontend API method
+// adminApi.cancelServiceBroadcast, and no component ever imported this
+// hook. The live successor is useAdminCancelOpenRequest below.
 export function useAdminCancelOpenRequest() {
   const queryClient = useQueryClient();
   return useMutation({
