@@ -88,7 +88,98 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * FIX RENDER-SMTP-BLOCK-01: HTTPS-based send via Resend. See the
+ * RENDER-SMTP-BLOCK-01 marker inside sendEmail for the full rationale
+ * (Render Free tier blocks SMTP ports; Resend uses port 443).
+ *
+ * Kept as a separate function so the retry loop and the Resend body
+ * shape stay isolated from the nodemailer path. Uses the global fetch
+ * (Node 18+) -- no extra dependency.
+ *
+ * Retries mirror EMAIL_RETRY_DELAYS_MS's pattern: short, bounded, and
+ * well under any request timeout. A 4xx (bad API key, unverified
+ * sender, invalid recipient) is NOT retried -- those failures are
+ * deterministic and will keep failing; only 5xx and network errors
+ * retry.
+ */
+async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
+  const from = env.email.fromName
+    ? `${env.email.fromName} <${env.email.fromEmail}>`
+    : env.email.fromEmail;
+
+  let lastError: unknown = null;
+  const attempts = 1 + EMAIL_RETRY_DELAYS_MS.length;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.email.resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: [options.to],
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+        }),
+      });
+
+      if (res.ok) return true;
+
+      const body = await res.text().catch(() => "");
+      // 4xx is deterministic; do not waste a retry.
+      if (res.status >= 400 && res.status < 500) {
+        logger.error("[RESEND ERROR] Deterministic failure, not retrying", {
+          to: options.to,
+          status: res.status,
+          body,
+        });
+        return false;
+      }
+
+      logger.warn("[RESEND RETRY] Transient failure", {
+        to: options.to,
+        status: res.status,
+        body,
+        attempt: attempt + 1,
+      });
+      lastError = new Error(`Resend ${res.status}: ${body}`);
+    } catch (err) {
+      lastError = err;
+      logger.warn("[RESEND RETRY] Network failure", {
+        to: options.to,
+        attempt: attempt + 1,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    const delay = EMAIL_RETRY_DELAYS_MS[attempt];
+    if (delay !== undefined) await sleep(delay);
+  }
+
+  logger.error("[RESEND FAILED] All attempts exhausted", {
+    to: options.to,
+    lastError: lastError instanceof Error ? lastError.message : String(lastError),
+  });
+  return false;
+}
+
 async function sendEmail(options: SendEmailOptions): Promise<boolean> {
+  // FIX RENDER-SMTP-BLOCK-01: prefer Resend over HTTPS when
+  // RESEND_API_KEY is set. Render's Free tier blocks outbound
+  // SMTP ports, so nodemailer times out with ETIMEDOUT before it
+  // can even reach Gmail. Resend's HTTP API goes over port 443
+  // (always allowed) and is the primary path whenever a key is
+  // configured. If Resend fails, we fall through to the SMTP
+  // path below (which works on paid Render and in dev).
+  if (env.email.resendApiKey) {
+    return sendViaResend(options);
+  }
+
   const t = getTransporter();
 
   if (!t) {

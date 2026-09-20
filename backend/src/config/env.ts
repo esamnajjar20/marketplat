@@ -138,6 +138,16 @@ const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
 
+  // FIX RENDER-SMTP-BLOCK-01: Render's Free tier blocks outbound
+  // connections on the standard SMTP ports (25/465/587), which makes
+  // nodemailer time out with ETIMEDOUT regardless of how the SMTP
+  // credentials are set. Resend is an HTTPS (port 443) email API --
+  // always allowed -- and its free tier (3000/month, 100/day) is
+  // more than enough. When RESEND_API_KEY is present the email service
+  // uses Resend over HTTPS; otherwise it falls through to the legacy
+  // SMTP path (which still works on Render's paid tiers and in dev).
+  RESEND_API_KEY: z.string().optional(),
+
   // FIX FORGOT-PW-LIMIT-CONFIG-01: rate limit max for /auth/forgot-password.
   // Default 5/hour per IP -- up from the previous hardcoded 3, which was
   // too strict for two real cases: (a) a single user who mistypes their
@@ -521,6 +531,7 @@ export const env = {
   },
 
   email: {
+    resendApiKey: _env.RESEND_API_KEY || "",
     smtpHost: _env.SMTP_HOST || "",
     smtpPort: _env.SMTP_PORT ? parseInt(_env.SMTP_PORT, 10) : 587,
     smtpSecure: _env.SMTP_SECURE ?? false,
