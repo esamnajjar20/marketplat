@@ -60,23 +60,28 @@ const normalizeRow = (row: RawSearchRow): SearchResult => ({
 
 export const searchService = {
   search: async (query: SearchQuery): Promise<UnifiedSearchResponse> => {
-    const { rows, total } = await searchRepository.search(query);
+    // FIX SEARCH-PREFERRED-TYPES-SQL-01: analyze once, pass preferredTypes
+    // into the repository so the boost is applied in the SQL ORDER BY
+    // CASE — before OFFSET/LIMIT. The previous version re-sorted the
+    // already-paginated page in JS, which meant a preferred-type match
+    // on page 2 could never outrank a non-preferred match on page 1:
+    // the entire feature only reordered items within whatever page the
+    // user happened to be looking at.
+    //
+    // Only computed when there's an actual query string (a pure browse
+    // with no q has no intent to detect) and only for relevance sort
+    // (explicit newest/rating/views/distance must not be overridden).
+    const sort = query.sort ?? 'relevance';
+    const preferredTypes =
+      sort === 'relevance' && query.q?.trim()
+        ? analyzeSearchQuery(query.q).preferredTypes
+        : [];
+
+    const { rows, total } = await searchRepository.search(query, preferredTypes);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    let results = rows.map(normalizeRow);
-
-    // SEARCH-INTEL-01: soft boost for entity types implied by the query
-    // (e.g. "محل …" → stores first) only under relevance sort — never
-    // overrides explicit newest/distance/rating/views ordering.
-    const sort = query.sort ?? 'relevance';
-    if (sort === 'relevance' && query.q?.trim()) {
-      const { preferredTypes } = analyzeSearchQuery(query.q);
-      if (preferredTypes.length > 0) {
-        const weight = (t: string) => (preferredTypes.includes(t as (typeof preferredTypes)[number]) ? 0 : 1);
-        results = [...results].sort((a, b) => weight(a.type) - weight(b.type));
-      }
-    }
+    const results = rows.map(normalizeRow);
 
     return {
       results,

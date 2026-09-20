@@ -152,6 +152,38 @@ const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
   distance: Prisma.sql`distance_km ASC NULLS LAST, rank DESC, created_at DESC`,
 };
 
+// FIX SEARCH-PREFERRED-TYPES-SQL-01: soft boost for entity types implied
+// by the query (e.g. "محل …" → stores first) has to live in the SQL
+// ORDER BY, not in a JS re-sort after the repository has already applied
+// OFFSET/LIMIT. The previous JS re-sort in search.service.ts only
+// reordered items WITHIN the current page — a preferred-type match on
+// page 2 could never float above a non-preferred match on page 1,
+// which is exactly the case the boost was supposed to help with on any
+// query whose top hits span pages. CASE is safe here because every
+// branch's SELECT list carries `'<type>'::text AS type`, so the column
+// exists on the combined union.
+//
+// Only applied for sort=relevance (and only when the caller computed a
+// non-empty preferredTypes from a real query string). Explicit sorts
+// (newest/rating/views/distance) keep their own ordering — a user who
+// asked for newest results gets newest results, not "stores first,
+// then newest within stores".
+function buildOrderBySql(
+  sort: SearchQuery['sort'],
+  preferredTypes: Array<'store' | 'service' | 'product' | 'ad'>,
+): Prisma.Sql {
+  const baseOrder = SORT_ORDER_BY_SQL[sort];
+  if (sort !== 'relevance' || preferredTypes.length === 0) return baseOrder;
+
+  // Types in the DB column are: 'ad' | 'product' | 'store' | 'service'
+  // (see each branch's SELECT). preferredTypes uses the same vocabulary.
+  const preferredList = Prisma.join(
+    preferredTypes.map((tp) => Prisma.sql`${tp}`),
+    ', ',
+  );
+  return Prisma.sql`(CASE WHEN type IN (${preferredList}) THEN 0 ELSE 1 END), ${baseOrder}`;
+}
+
 // FIX M-022: previously each branch (adBranch/productBranch/...) ran
 // with no LIMIT of its own — every matching row from all four tables
 // was materialized, UNION ALL'd together, and only THEN sorted/offset/
@@ -535,7 +567,8 @@ const BRANCH_BUILDERS: Record<Exclude<SearchType, 'all'>, BranchBuilder> = {
 
 export const searchRepository = {
   search: async (
-    query: SearchQuery
+    query: SearchQuery,
+    preferredTypes: Array<'store' | 'service' | 'product' | 'ad'> = [],
   ): Promise<{ rows: RawSearchRow[]; total: number }> => {
     const { q, city, type, categoryId, sort, page = 1, limit = 20, lat, lng, radius } = query;
     const { skip, take } = getPaginationParams(page, limit);
@@ -562,7 +595,7 @@ export const searchRepository = {
       return { rows: [], total: 0 };
     }
 
-    const orderBySql = SORT_ORDER_BY_SQL[sort];
+    const orderBySql = buildOrderBySql(sort, preferredTypes);
 
     // FIX M-022: cap what each branch can contribute to the *result
     // rows* before the UNION ALL — see perBranchLimit's own comment

@@ -56,7 +56,7 @@ const SYNONYM_GROUPS: readonly (readonly string[])[] = [
   ['كاميرا', 'camera', 'تصوير', 'كانون', 'nikon', 'sony'],
   ['طابعة', 'printer', 'سكانر', 'scanner'],
   // سيارات ومركبات
-  ['سيارة', 'سياره', 'عربيه', 'عربية', 'اتومبيل', 'car', 'auto', 'مركبة', 'مركبه', 'عربية'],
+  ['سيارة', 'سياره', 'عربيه', 'عربية', 'اتومبيل', 'car', 'auto', 'مركبة', 'مركبه'],
   ['براد', 'بكب', 'بيك اب', 'pickup', 'وانيت', 'شاحنة', 'truck'],
   ['موتور', 'دراجةنارية', 'موتوسيكل', 'motorcycle', 'scooter', 'سكوتر'],
   ['قطع', 'قطعغيار', 'spare', 'parts', 'ميكانيك'],
@@ -75,7 +75,7 @@ const SYNONYM_GROUPS: readonly (readonly string[])[] = [
   ['ثلاجة', 'ثلاجه', 'fridge', 'refrigerator', 'غسالة', 'غساله', 'washer', 'فرن', 'ميكروويف', 'تكييف', 'مكيف', 'ac'],
   ['مروحة', 'fan', 'دفاية', 'heater', 'سخان'],
   // دراجات وأطفال
-  ['دراجة', 'دراجе', 'بسكليت', 'بسكليته', 'bike', 'bicycle', 'سكوتر'],
+  ['دراجة', 'دراجة', 'بسكليت', 'بسكليته', 'bike', 'bicycle', 'سكوتر'],
   ['طفل', 'اطفال', 'أطفال', 'بيبي', 'bebe', 'baby', 'العاب', 'ألعاب', 'toys', 'حضانة'],
   // أغذية ومواد
   ['طعام', 'اكل', 'مأكولات', 'food', 'خضار', 'فاكهة', 'لحمة', 'دجاج'],
@@ -371,6 +371,16 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
     concepts.push(variants);
   }
 
+  // FIX SEARCH-STOPWORDS-ONLY-01: when every token was a stop word
+  // (e.g. q="جديد" or q="بدي جديد"), concepts is empty. The previous
+  // behavior was to return tsQueryString: null — which the repository
+  // treats as "no full-text filter at all", silently turning a
+  // stop-words-only query into an unfiltered browse. This is
+  // deliberate (a query like "جديد" is more of a "show me things"
+  // gesture than a search term, and the client's own UX treats it as
+  // such), but it was previously undocumented and surprising. The
+  // explicit comment + expanded flag being false make the behavior
+  // discoverable at the call site.
   if (concepts.length === 0) {
     return { normalized, concepts: [], tsQueryString: null, preferredTypes, expanded: false };
   }
