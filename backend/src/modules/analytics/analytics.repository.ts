@@ -4,6 +4,10 @@ import { TrackEventInput } from './analytics.validation';
 import { env } from '../../config/env';
 import { runWithQueryTimeout } from '../../shared/utils/queryTimeout';
 
+// FIX ANALYTICS-FUNNEL-COUNT-01: the two funnel-count queries now use
+// COUNT(DISTINCT sessionId) + runWithQueryTimeout (was findMany +
+// distinct + .length, unbounded and timeout-unprotected).
+
 export interface EventCount {
   event: AnalyticsEventType;
   count: number;
@@ -102,48 +106,80 @@ export const analyticsRepository = {
     return rows.map(r => ({ categoryId: r.categoryId, count: Number(r.count) }));
   },
 
-  // Distinct sessions that logged a SEARCH event vs. distinct sessions
-  // that logged a CONTACT_CLICK event, in range — the two halves of the
-  // "search → contact" conversion rate. Session-based rather than
-  // event-count-based on purpose: a session searching 5 times and
-  // contacting once is one converted session, not a 20% rate.
+  // FIX ANALYTICS-FUNNEL-COUNT-01: was findMany + distinct + .length for
+  // each half — Prisma's distinct ran at the DB, then N distinct
+  // sessionIds were materialized into memory and shipped over the wire
+  // just to call .length on them. On a wide admin range (year-long), that
+  // is an unbounded number of rows for a single int result, and neither
+  // half was wrapped in runWithQueryTimeout (unlike trendByEvent and
+  // topCategories, which already are). COUNT(DISTINCT sessionId) returns
+  // one row, uses the same index class, and gets the same timeout
+  // treatment as the rest of this repository.
   searchToContactSessions: async (
     from: Date,
     to: Date
   ): Promise<{ searchSessions: number; contactSessions: number }> => {
     const [searchRows, contactRows] = await Promise.all([
-      prisma.analyticsEvent.findMany({
-        where: { event: AnalyticsEventType.SEARCH, createdAt: { gte: from, lt: to } },
-        distinct: ['sessionId'],
-        select: { sessionId: true },
-      }),
-      prisma.analyticsEvent.findMany({
-        where: { event: AnalyticsEventType.CONTACT_CLICK, createdAt: { gte: from, lt: to } },
-        distinct: ['sessionId'],
-        select: { sessionId: true },
-      }),
+      runWithQueryTimeout(
+        tx =>
+          tx.$queryRaw<{ count: bigint }[]>`
+            SELECT COUNT(DISTINCT "sessionId") AS count
+            FROM "analytics_events"
+            WHERE "event" = 'SEARCH'
+              AND "createdAt" >= ${from} AND "createdAt" < ${to}
+          `,
+        env.analytics.queryTimeoutMs
+      ),
+      runWithQueryTimeout(
+        tx =>
+          tx.$queryRaw<{ count: bigint }[]>`
+            SELECT COUNT(DISTINCT "sessionId") AS count
+            FROM "analytics_events"
+            WHERE "event" = 'CONTACT_CLICK'
+              AND "createdAt" >= ${from} AND "createdAt" < ${to}
+          `,
+        env.analytics.queryTimeoutMs
+      ),
     ]);
-    return { searchSessions: searchRows.length, contactSessions: contactRows.length };
+    return {
+      searchSessions: Number(searchRows[0]?.count ?? 0),
+      contactSessions: Number(contactRows[0]?.count ?? 0),
+    };
   },
 
-  // Signup funnel: distinct sessions that started vs. completed signup
-  // in range — the drop-off number the report flagged as missing.
+  // FIX ANALYTICS-FUNNEL-COUNT-01 (part 2): same shape/rationale as
+  // searchToContactSessions above -- COUNT(DISTINCT sessionId) + timeout
+  // instead of materializing N distinct sessionIds to call .length on
+  // them.
   signupFunnelSessions: async (
     from: Date,
     to: Date
   ): Promise<{ startedSessions: number; completedSessions: number }> => {
     const [startedRows, completedRows] = await Promise.all([
-      prisma.analyticsEvent.findMany({
-        where: { event: AnalyticsEventType.SIGNUP_STARTED, createdAt: { gte: from, lt: to } },
-        distinct: ['sessionId'],
-        select: { sessionId: true },
-      }),
-      prisma.analyticsEvent.findMany({
-        where: { event: AnalyticsEventType.SIGNUP_COMPLETED, createdAt: { gte: from, lt: to } },
-        distinct: ['sessionId'],
-        select: { sessionId: true },
-      }),
+      runWithQueryTimeout(
+        tx =>
+          tx.$queryRaw<{ count: bigint }[]>`
+            SELECT COUNT(DISTINCT "sessionId") AS count
+            FROM "analytics_events"
+            WHERE "event" = 'SIGNUP_STARTED'
+              AND "createdAt" >= ${from} AND "createdAt" < ${to}
+          `,
+        env.analytics.queryTimeoutMs
+      ),
+      runWithQueryTimeout(
+        tx =>
+          tx.$queryRaw<{ count: bigint }[]>`
+            SELECT COUNT(DISTINCT "sessionId") AS count
+            FROM "analytics_events"
+            WHERE "event" = 'SIGNUP_COMPLETED'
+              AND "createdAt" >= ${from} AND "createdAt" < ${to}
+          `,
+        env.analytics.queryTimeoutMs
+      ),
     ]);
-    return { startedSessions: startedRows.length, completedSessions: completedRows.length };
+    return {
+      startedSessions: Number(startedRows[0]?.count ?? 0),
+      completedSessions: Number(completedRows[0]?.count ?? 0),
+    };
   },
 };
