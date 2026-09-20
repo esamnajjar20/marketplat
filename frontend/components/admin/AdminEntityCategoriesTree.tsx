@@ -1,11 +1,15 @@
+// FIX ENTITY-TREE-APIERROR-01: error state uses the shared ApiError
+// component instead of a hand-rolled AlertTriangle + bare <button>.
 'use client';
 
-import { ChevronDown, ChevronRight, Trash2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 
 /**
  * FIX SEC-4.2: AdminProductCategoriesTree.tsx and
@@ -35,7 +39,7 @@ interface EditButtonProps<TCategory> {
 }
 
 export interface AdminEntityCategoriesTreeProps<TCategory extends BaseCategory> {
-  useCategories: () => { data: TCategory[] | undefined; isLoading: boolean; isError: boolean; refetch: () => void };
+  useCategories: () => { data: TCategory[] | undefined; isLoading: boolean; isError: boolean; error?: unknown; refetch: () => void };
   useDeleteCategory: () => { mutate: (id: string, opts?: { onSuccess?: () => void }) => void; isPending: boolean };
   useToggleActive: () => {
     mutate: (vars: { id: string; isActive: boolean }) => void;
@@ -66,7 +70,12 @@ export function AdminEntityCategoriesTree<TCategory extends BaseCategory>({
   emptyText,
   deleteBlockedDescription,
 }: AdminEntityCategoriesTreeProps<TCategory>) {
-  const { data: categories, isLoading, isError, refetch } = useCategories();
+  const { data: categories, isLoading, isError, error, refetch } = useCategories();
+  // FIX ENTITY-TREE-APIERROR-01 (part 2): `loadErrorText` prop remains on
+  // the public interface so both call sites don't need to change in the
+  // same commit, but the component no longer renders it (ApiError owns
+  // the error surface now). Explicit void keeps noUnusedLocals happy.
+  void loadErrorText;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<TCategory | null>(null);
   const deleteCategory = useDeleteCategory();
@@ -74,18 +83,12 @@ export function AdminEntityCategoriesTree<TCategory extends BaseCategory>({
 
   if (isLoading) return <div className="flex justify-center py-6"><LoadingSpinner size="sm" /></div>;
 
-  // Same UX-FIX P1-9 reasoning across all three category trees: a
-  // failed fetch must not render as an empty tree.
+  // FIX ENTITY-TREE-APIERROR-01: was a hand-rolled AlertTriangle +
+  // bare <button>. Shared ApiError now (401/403/404/500+), matching
+  // every other admin surface. `loadErrorText` prop retained for the
+  // page-specific fallback message on unknown error shapes.
   if (isError) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">{loadErrorText}</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-          إعادة المحاولة
-        </button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   // Admin "all" endpoints already return root categories with nested
