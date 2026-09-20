@@ -1,0 +1,49 @@
+/**
+ * FIX ARABIC-NORMALIZE-CLIENT-01: client-side counterpart of the
+ * backend's arabic_normalize() Postgres function
+ * (backend/prisma/migrations/20260805212538_arabic_search_normalization)
+ * and of searchTextMatch.ts's normalizeSearchText on the server.
+ *
+ * The full-text search path (backend search.repository.ts) applies
+ * arabic_normalize on BOTH the indexed columns and the incoming query
+ * term, so a user typing "سياره" finds listings stored with the
+ * canonical "سيارة" and vice versa. Before this file existed, the
+ * client had no equivalent — offlineSearchIndex.ts's local search
+ * compared lowercased strings with .includes(), so a user searching
+ * "سياره" while offline found nothing, while the exact same query
+ * online returned results. Same word, same user, different results
+ * depending on connectivity: exactly the kind of inconsistency that
+ * makes an offline-capable app feel broken.
+ *
+ * Also used by recentSearches.ts so "سيارة" and "سياره" collapse into
+ * one history entry instead of two near-duplicates, and so a history
+ * lookup while typing matches regardless of which variant the user
+ * typed on a previous visit.
+ *
+ * Scope intentionally matches the SQL function exactly:
+ *   - alef variants (أ إ آ ٱ) -> bare alef
+ *   - alef maksura (ى) -> yeh (ي)
+ *   - tatweel (U+0640) and the eight tashkeel marks (U+064B-U+0652) stripped
+ *   - NOT folded: ta marbuta (ة) <-> ha (ه) — see the migration's own
+ *     comment for why; the pair changes gender/meaning too often to
+ *     trade precision for a match
+ *   - NOT folded: Arabic-Indic digits (٠-٩) -> Latin (0-9). The SQL
+ *     function does not do this either. Adding it here would make the
+ *     client match strings the server never would — a client-only
+ *     augmentation, not a parity fix.
+ *
+ * Zero dependencies. Safe to call on undefined/null (returns '').
+ */
+export function arabicNormalize(input: string | null | undefined): string {
+  if (!input) return '';
+  return input
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u0640\u064B-\u0652]/g, '')
+    .toLowerCase();
+}
+
+/** Convenience: arabicNormalize then trim. */
+export function arabicNormalizeTrimmed(input: string | null | undefined): string {
+  return arabicNormalize(input).trim();
+}

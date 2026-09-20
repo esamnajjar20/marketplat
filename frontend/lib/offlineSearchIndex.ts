@@ -35,6 +35,8 @@ import { buildCoreUrls, CORE_CACHE } from '@/lib/offlineCoreBundle';
 import type { PaginationMeta } from '@/types/api.types';
 import type { SearchQuery, SearchResult, SearchResultType } from '@/types/search.types';
 
+import { arabicNormalize } from './arabicNormalize';
+
 const EMPTY_PAGINATION: PaginationMeta = {
   total: 0, page: 1, limit: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false,
 };
@@ -235,24 +237,32 @@ export async function searchOffline(
     filtered = mapped ? filtered.filter((r) => r.type === mapped) : [];
   }
 
-  const q = (query.q ?? '').trim().toLowerCase();
+  // FIX OFFLINE-SEARCH-ARABIC-01: normalize both sides via
+  // arabicNormalize (same folding the backend's arabic_normalize SQL
+  // function applies to FTS) so a user typing "سياره" while offline
+  // finds listings stored with "سيارة" and vice versa. Previously
+  // used raw .toLowerCase().includes(), meaning the same query
+  // returned results online and nothing offline — same word, same
+  // user, different behavior depending on connectivity. Only the
+  // comparison is normalized; r.title/r.description display as-is.
+  const q = arabicNormalize(query.q);
   if (q) {
-    filtered = filtered.filter(
-      (r) =>
-        r.title.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q) ||
-        (r.city ?? '').toLowerCase().includes(q),
-    );
+    filtered = filtered.filter((r) => {
+      const nTitle = arabicNormalize(r.title);
+      const nDesc = arabicNormalize(r.description);
+      const nCity = arabicNormalize(r.city ?? '');
+      return nTitle.includes(q) || nDesc.includes(q) || nCity.includes(q);
+    });
     filtered = [...filtered].sort((a, b) => {
-      const aStarts = a.title.toLowerCase().startsWith(q) ? 0 : 1;
-      const bStarts = b.title.toLowerCase().startsWith(q) ? 0 : 1;
+      const aStarts = arabicNormalize(a.title).startsWith(q) ? 0 : 1;
+      const bStarts = arabicNormalize(b.title).startsWith(q) ? 0 : 1;
       return aStarts - bStarts;
     });
   }
 
   if (query.city) {
-    const cityFilter = query.city.toLowerCase();
-    filtered = filtered.filter((r) => (r.city ?? '').toLowerCase().includes(cityFilter));
+    const cityFilter = arabicNormalize(query.city);
+    filtered = filtered.filter((r) => arabicNormalize(r.city ?? '').includes(cityFilter));
   }
 
   const total = filtered.length;

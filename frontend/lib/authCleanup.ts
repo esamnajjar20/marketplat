@@ -29,6 +29,7 @@ import { clearSavedPaymentMethods } from '@/lib/paymentStorage';
 import { getQueryClient } from '@/lib/queryClient';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
+import { clearRecentSearches } from '@/lib/recentSearches';
 
 /** يطلب من الـ SW مسح كاش API + PERSONAL_SHELL — نفس بروتوكول
  * CLEAR_API_CACHE الموجود أصلًا بـ public/sw.js (SECURITY FIX audit #2 +
@@ -91,6 +92,16 @@ export function clearSensitiveLocalData(): void {
   // يمنع ظهور إشعارات المستخدم السابق على جهاز مشترك بعد تسجيل الدخول
   // بحساب آخر.
   clearNotificationsCache();
+  // FIX AUTH-CLEAR-RECENT-SEARCHES-01: recentSearches.ts stores
+  // the user's history in its own localStorage key
+  // ('marketplat:recent-searches-v2'), which clearAllOfflineLists()
+  // does NOT cover — that only walks OFFLINE_LIST_KEYS from
+  // offlineListCache.ts. On a shared device, User B saw User A's
+  // search history on their first SearchBox focus until they
+  // clicked the manual clear button (SearchBox.tsx:134). Clearing
+  // here puts it in the same session-cleanup path as every other
+  // user-scoped local cache.
+  clearRecentSearches();
   clearAppBadge();
   clearAllOfflineLists();
   void clearDraftOnlyAdDrafts();
