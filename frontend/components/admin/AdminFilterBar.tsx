@@ -58,7 +58,11 @@ export function AdminFilterBar({
         else next.set(k, v);
       }
       // Reset page when filters change
-      if ('page' in patch === false) next.delete('page');
+      // FIX FILTER-BAR-DEFAULT-TAB-01 (part 2): `'page' in patch === false`
+      // worked (relational `in` binds tighter than equality `===`) but
+      // read as if it were `'page' in (patch === false)`. Same logic,
+      // clearer form.
+      if (!('page' in patch)) next.delete('page');
       const qs = next.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
@@ -93,7 +97,17 @@ export function AdminFilterBar({
             <button
               key={tab.value}
               type="button"
-              onClick={() => replaceParams({ [tabParam]: tab.value === defaultTab ? tab.value : tab.value })}
+              onClick={() => replaceParams({
+                // FIX FILTER-BAR-DEFAULT-TAB-01: both ternary branches
+                // returned tab.value, so clicking the tab that happens
+                // to be the default still wrote the param into the URL
+                // (e.g. /admin/reports?status=PENDING when PENDING is
+                // already the default). Returning null here lets
+                // replaceParams delete the key instead, keeping the
+                // URL minimal and letting shared deep links reload
+                // with the same view.
+                [tabParam]: tab.value === defaultTab ? null : tab.value,
+              })}
               className={cn(
                 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm',
                 active
