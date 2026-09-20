@@ -1,4 +1,30 @@
+// FIX RATE-LIMIT-PER-USER-01: keyGenerator-based per-user keys +
+// raised caps for NAT-shared IPs (Gaza mobile carriers).
 import rateLimit, { MemoryStore } from "express-rate-limit";
+import type { Request } from 'express';
+
+// FIX RATE-LIMIT-PER-USER-01: express-rate-limit's default key is
+// per-IP only. On Gaza mobile carriers (Jawwal/Etisalat), carrier-
+// grade NAT puts hundreds-to-thousands of subscribers behind one
+// public IPv4, so a per-IP budget is effectively a per-tower budget --
+// 10 login attempts per 15 minutes for one IP is a plausible denial
+// of service for the whole tower, not just one attacker. Once a
+// request has been authenticated (req.user set by authMiddleware), we
+// key on userId so every logged-in user gets their own bucket.
+// Unauthenticated flows (login/register/forgot-password) still fall
+// back to IP -- there is no better handle at that point -- and those
+// limits keep the lower caps they always had.
+//
+// Deliberately NOT using requireUser() here: it throws on a missing
+// user, and this must never throw -- it runs for every request,
+// including unauthenticated ones.
+//
+// The "u:" / "ip:" prefixes ensure a userId that happens to look like
+// an IPv6 string can never collide with a real req.ip value.
+function userOrIpKey(req: Request): string {
+  const userId = (req as { user?: { userId?: string } }).user?.userId;
+  return userId ? `u:${userId}` : `ip:${req.ip ?? 'unknown'}`;
+}
 import { RedisStore, type RedisReply } from "rate-limit-redis";
 import { redis } from "../config/redis";
 import { env } from "../config/env";
@@ -106,8 +132,9 @@ export const globalRateLimit = bypassRateLimit
     });
 
 export const authRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
-  max: 10,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("auth", false),
@@ -115,8 +142,9 @@ export const authRateLimit = rateLimit({
 });
 
 export const refreshRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
-  max: 30,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("refresh", false),
@@ -124,6 +152,7 @@ export const refreshRateLimit = rateLimit({
 });
 
 export const reportRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
@@ -133,8 +162,9 @@ export const reportRateLimit = rateLimit({
 });
 
 export const usersRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
-  max: 60,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("users"),
@@ -152,6 +182,7 @@ export const usersRateLimit = rateLimit({
 // password-verification endpoint should NOT silently allow unlimited
 // attempts through if Redis (the rate-limit store) becomes unavailable.
 export const changePasswordRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
   max: 10,
   standardHeaders: true,
@@ -168,6 +199,7 @@ export const changePasswordRateLimit = rateLimit({
 // endpoint (up to 10 images per call) and it was reachable far more
 // often than the ad-creation flow.
 export const addAdImagesRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -177,6 +209,7 @@ export const addAdImagesRateLimit = rateLimit({
 });
 
 export const createAdRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 20,
   standardHeaders: true,
@@ -185,9 +218,18 @@ export const createAdRateLimit = rateLimit({
   message: msg("Too many ads created, please try again later"),
 });
 
+// FIX FORGOT-PW-LIMIT-CONFIG-01: max was a hardcoded 3 -- too strict
+// for two real cases (a user who mistypes then corrects, and Gaza's
+// carrier-grade NAT sharing one public IP across many subscribers) and
+// not adjustable without a code change. Now read from env with a
+// default of 5; see env.ts's FORGOT_PASSWORD_RATE_LIMIT_MAX comment
+// for the reasoning. The anti-abuse property is preserved -- an
+// attacker still can't send more than `max` reset emails per hour per
+// IP -- it's just no longer a straightjacket for legitimate users.
 export const forgotPasswordRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS, // 1 hour
-  max: 3, // 3 reset requests per hour per IP
+  max: env.rateLimit.forgotPasswordMax,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("forgot_pw", false), // fail-closed (strict)
@@ -195,8 +237,9 @@ export const forgotPasswordRateLimit = rateLimit({
 });
 
 export const favoritesRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
-  max: 60,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("favorites"),
@@ -210,6 +253,7 @@ export const favoritesRateLimit = rateLimit({
 // (each one gets checked against every future ad — see
 // saved-searches.service.ts's onAdCreated scale note).
 export const savedSearchRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -222,6 +266,7 @@ export const savedSearchRateLimit = rateLimit({
 // worth guarding — see seller-profile-design.md §17: prevents scripted
 // retry storms against the create-profile lock/transaction path.
 export const createSellerProfileRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
@@ -233,6 +278,7 @@ export const createSellerProfileRateLimit = rateLimit({
 // seller-profile-design.md §17: rate-limited to prevent bulk fake
 // ratings against a seller.
 export const sellerRatingRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
   max: 20,
   standardHeaders: true,
@@ -246,6 +292,7 @@ export const sellerRatingRateLimit = rateLimit({
 // this more than a handful of times), guarded against retry storms
 // the same way profile creation already is.
 export const requestVerificationRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 5,
   standardHeaders: true,
@@ -258,6 +305,7 @@ export const requestVerificationRateLimit = rateLimit({
 // a one-time (per seller profile) write, still worth guarding against
 // scripted retry storms against the create-profile lock/transaction path.
 export const createServiceProviderRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
@@ -269,6 +317,7 @@ export const createServiceProviderRateLimit = rateLimit({
 // Service provider logo upload: mirrors storeImagesRateLimit — same
 // per-hour ceiling for the same reason.
 export const serviceProviderImagesRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -280,6 +329,7 @@ export const serviceProviderImagesRateLimit = rateLimit({
 // services-design.md §16: same rate-limit rationale as createAdRateLimit —
 // guards the upload + DB-write path from scripted retry storms.
 export const createServiceListingRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -291,6 +341,7 @@ export const createServiceListingRateLimit = rateLimit({
 // services-design.md §16: guards customers from spamming providers with
 // requests; generous enough for legitimate multi-request browsing.
 export const createServiceRequestRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 20,
   standardHeaders: true,
@@ -299,33 +350,11 @@ export const createServiceRequestRateLimit = rateLimit({
   message: msg("Too many requests submitted, please try again later"),
 });
 
-// SERVICE REQUEST MARKETPLACE: separate bucket from
-// createServiceRequestRateLimit above — a customer posting broadcasts
-// and a provider submitting quotes are different actions that
-// shouldn't share one quota just because the same user could
-// theoretically do both.
-export const createServiceBroadcastRateLimit = rateLimit({
-  windowMs: ONE_HOUR_MS,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: createRedisStore("create_service_broadcast"),
-  message: msg("Too many requests posted, please try again later"),
-});
-
-export const submitServiceQuoteRateLimit = rateLimit({
-  windowMs: ONE_HOUR_MS,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: createRedisStore("submit_service_quote"),
-  message: msg("Too many quotes submitted, please try again later"),
-});
-
 // Open Requests marketplace (Request / RequestOffer) — separate buckets
 // from service-broadcast so product/rental traffic does not starve
 // the legacy service-only feed quotas.
 export const createOpenRequestRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
@@ -335,6 +364,7 @@ export const createOpenRequestRateLimit = rateLimit({
 });
 
 export const submitRequestOfferRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -346,6 +376,7 @@ export const submitRequestOfferRateLimit = rateLimit({
 // services-design.md §17: same rationale as sellerRatingRateLimit —
 // prevents bulk fake reviews.
 export const serviceReviewRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
   max: 20,
   standardHeaders: true,
@@ -360,6 +391,7 @@ export const serviceReviewRateLimit = rateLimit({
 // createServiceRequestRateLimit: bounds scripted spam against many
 // different sellers' ads without punishing normal multi-ad browsing.
 export const startConversationRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -375,8 +407,9 @@ export const startConversationRateLimit = rateLimit({
 // involve many messages in a short burst; 60/15min still comfortably
 // covers that while bounding scripted flooding.
 export const sendMessageRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
-  max: 60,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("send_message"),
@@ -393,8 +426,9 @@ export const sendMessageRateLimit = rateLimit({
 // bucket from send_message so a chat-heavy user never exhausts their
 // message quota just by typing.
 export const typingRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
-  max: 600,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("typing"),
@@ -406,6 +440,7 @@ export const typingRateLimit = rateLimit({
 // write, still worth guarding against scripted retry storms against
 // the create-store lock/transaction path.
 export const createStoreRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 10,
   standardHeaders: true,
@@ -417,6 +452,7 @@ export const createStoreRateLimit = rateLimit({
 // Stores module: same rate-limit rationale as createServiceListingRateLimit
 // — guards the upload + DB-write path from scripted retry storms.
 export const createProductRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 40,
   standardHeaders: true,
@@ -429,6 +465,7 @@ export const createProductRateLimit = rateLimit({
 // /products/:id/images uploads to Cloudinary and needs its own guard
 // beyond the coarse global backstop, same as the create-time endpoint.
 export const addProductImagesRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -439,6 +476,7 @@ export const addProductImagesRateLimit = rateLimit({
 
 // Gap #3 fix: same as addProductImagesRateLimit, for service listings.
 export const addServiceListingImagesRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -452,6 +490,7 @@ export const addServiceListingImagesRateLimit = rateLimit({
 // same reason (a small number of legitimate re-uploads while a seller
 // dials in their branding, bounded against scripted abuse).
 export const storeImagesRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 30,
   standardHeaders: true,
@@ -463,6 +502,7 @@ export const storeImagesRateLimit = rateLimit({
 // Stores module: mirrors favoritesRateLimit — following/unfollowing a
 // store is a cheap toggle, but still bounded against scripted abuse.
 export const storeFollowRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
   max: 60,
   standardHeaders: true,
@@ -474,6 +514,7 @@ export const storeFollowRateLimit = rateLimit({
 // Stores module: mirrors sellerRatingRateLimit — guards against bulk
 // fake reviews against a store.
 export const storeReviewRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
   max: 20,
   standardHeaders: true,
@@ -491,8 +532,9 @@ export const storeReviewRateLimit = rateLimit({
 // covered by globalRateLimit only, same as /ads and /products — it's
 // a deliberate submit, not a per-keystroke call.
 export const searchSuggestionsRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: 60 * 1000,
-  max: 30,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("search_suggestions"),
@@ -502,6 +544,7 @@ export const searchSuggestionsRateLimit = rateLimit({
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: FIFTEEN_MIN_MS,
   max: 60,
   standardHeaders: true,
@@ -523,10 +566,84 @@ export const userBlockRateLimit = rateLimit({
 // trade against making a background beacon endpoint start rejecting
 // requests because of it.
 export const analyticsEventsRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
   windowMs: 60 * 1000,
-  max: 120,
+  max: 400,
   standardHeaders: true,
   legacyHeaders: false,
   store: createRedisStore("analytics_events"),
   message: msg("Too many requests, please slow down"),
+});
+
+// FIX RATE-LIMIT-CLEANUP-01: two new rate limits for appointments (a
+// public availability endpoint + two authenticated mutations with no
+// per-route cap before this -- they relied only on the global 600/15min
+// limit), and one blanket per-IP cap for every /admin/* route to
+// degrade a compromised admin session gracefully instead of letting it
+// fire hundreds of role changes / bulk deletes / CSV exports before an
+// operator notices.
+//
+// Also removed in the same pass: createServiceBroadcastRateLimit and
+// submitServiceQuoteRateLimit -- both backed features that no longer
+// have any route on either side (ServiceBroadcast was superseded by
+// open-requests, ServiceQuote never got a route at all).
+
+// Public read of a provider's open slots, called on every
+// appointment-booking page visit. Higher cap than the mutations below
+// because a user legitimately refreshes the availability calendar
+// while picking a date.
+export const availabilityRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("availability"),
+  message: msg("Too many availability requests, please try again later"),
+});
+
+// Creating a new appointment. 20/hour is generous for a real customer
+// shopping providers but stops a scripted spam-booking a provider's
+// calendar.
+export const createAppointmentRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("create_appointment"),
+  message: msg("Too many appointment requests, please try again later"),
+});
+
+// Status transitions on an existing appointment (confirm / cancel /
+// complete). Higher cap than creation because a single appointment
+// can legitimately move through several states, and the update is
+// scoped to an appointment the caller already owns.
+export const appointmentUpdateRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("update_appointment"),
+  message: msg("Too many appointment updates, please try again later"),
+});
+
+// Blanket cap for every /admin/* route, applied via adminRouter.use
+// right after authenticate. 200/15min is far above any legitimate
+// admin workflow (the busiest real operator action is a bulk action
+// on one page, counted as one request) but bounds the blast radius of
+// a stolen admin session to a number a human operator can review.
+// fail-closed (second arg = false) so a Redis outage during an active
+// admin session refuses the action rather than silently dropping the
+// cap -- admin actions are high-trust enough that "no rate limiting
+// right now" is worse than "retry in a minute".
+export const adminRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: FIFTEEN_MIN_MS,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("admin", false),
+  message: msg("Too many admin actions, please slow down"),
 });

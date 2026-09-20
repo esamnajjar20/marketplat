@@ -137,6 +137,24 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
+
+  // FIX FORGOT-PW-LIMIT-CONFIG-01: rate limit max for /auth/forgot-password.
+  // Default 5/hour per IP -- up from the previous hardcoded 3, which was
+  // too strict for two real cases: (a) a single user who mistypes their
+  // email, re-reads it, retries, and then submits the correct address
+  // burns through 3 requests without ever getting a reset email; and
+  // (b) Gaza mobile carriers run carrier-grade NAT, so an entire tower's
+  // worth of users share one public IP and the 3/hour was global-per-
+  // tower, not per-user. 5 is a middle ground that leaves the anti-abuse
+  // property intact (an attacker can still only send 5 emails per hour
+  // per IP) without making password recovery fragile for legitimate use.
+  // Configurable so testing can raise it (e.g. FORGOT_PASSWORD_RATE_LIMIT_MAX=20)
+  // without a code change.
+  FORGOT_PASSWORD_RATE_LIMIT_MAX: z
+    .preprocess(
+      (v) => (v == null ? undefined : String(v).trim()),
+      z.string().regex(/^\d+$/, "FORGOT_PASSWORD_RATE_LIMIT_MAX must be digits only").optional(),
+    ),
   // FIX PWA-PUSH-01: Web Push (VAPID) keys — same optional,
   // opt-in-only pattern as SMTP_*/CLOUDINARY_*/GOOGLE_CLIENT_* above.
   // Generated once per deployment via `npx web-push generate-vapid-
@@ -488,6 +506,20 @@ export const env = {
       _env.GOOGLE_CALLBACK_URL,
     ),
   },
+  // CENTRALIZE-04 + FIX FORGOT-PW-LIMIT-CONFIG-01
+  rateLimit: {
+    disabled: _env.DISABLE_RATE_LIMIT,
+    // FIX FORGOT-PW-LIMIT-CONFIG-01: configurable max for
+    // /auth/forgot-password. Default 5 (was hardcoded 3) -- too
+    // strict for Gaza's carrier-grade NAT (many subscribers share
+    // one public IP) and for the common "mistyped then corrected"
+    // pattern. Configurable so testing can raise it without a
+    // code change.
+    forgotPasswordMax: _env.FORGOT_PASSWORD_RATE_LIMIT_MAX
+      ? parseInt(_env.FORGOT_PASSWORD_RATE_LIMIT_MAX, 10)
+      : 5,
+  },
+
   email: {
     smtpHost: _env.SMTP_HOST || "",
     smtpPort: _env.SMTP_PORT ? parseInt(_env.SMTP_PORT, 10) : 587,
@@ -563,10 +595,6 @@ export const env = {
     sentryTracesSampleRate: parseFloat(_env.SENTRY_TRACES_SAMPLE_RATE),
     metricsToken: _env.METRICS_TOKEN || "",
     errorReporterWebhookUrl: _env.ERROR_REPORTER_WEBHOOK_URL || "",
-  },
-  // CENTRALIZE-04
-  rateLimit: {
-    disabled: _env.DISABLE_RATE_LIMIT,
   },
   // CENTRALIZE-04
   reports: {

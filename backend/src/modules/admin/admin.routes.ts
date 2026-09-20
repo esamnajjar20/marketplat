@@ -4,6 +4,9 @@ import { sellersController } from '../sellers/sellers.controller';
 import { storesController } from '../stores/stores.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireMinRole } from '../../middlewares/admin.middleware';
+// FIX RATE-LIMIT-ADMIN-01: blanket cap on every /admin/* route --
+// see adminRateLimit's own comment in rateLimit.middleware.ts.
+import { adminRateLimit } from '../../middlewares/rateLimit.middleware';
 import { ROLES } from '../../shared/constants/roles';
 
 export const adminRouter = Router();
@@ -17,6 +20,12 @@ export const adminRouter = Router();
 // ADMIN or above. `authenticate` alone stays router-level since every
 // route here needs it regardless of which role tier it requires.
 adminRouter.use(authenticate);
+// FIX RATE-LIMIT-ADMIN-01: applied after authenticate so the limiter
+// keys on the real caller (IP) and never consumes the operator's
+// budget on unauthenticated probes. Runs before every per-route
+// requireMinRole check so a compromised admin session can't reach
+// more than 200 actions per 15-minute window.
+adminRouter.use(adminRateLimit);
 
 // Dashboard stats — FIX FEAT-05. ADMIN+ rather than MODERATOR+: the
 // response includes totalUsers/activeUsers, the same user-management
