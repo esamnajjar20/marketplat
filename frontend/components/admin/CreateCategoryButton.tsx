@@ -1,3 +1,5 @@
+// FIX CREATE-CAT-RESET-01: useResettableDialog + drop the decorative
+// async on handleCreate.
 'use client';
 
 import { useState } from 'react';
@@ -8,14 +10,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/s
 import { toast }    from 'sonner';
 import { useCreateCategory } from '@/hooks/mutations/useCategoryMutations';
 import { slugify } from '@/lib/utils';
+import { useResettableDialog } from '@/hooks/useResettableDialog';
 
 export function CreateCategoryButton() {
-  const [open,    setOpen]    = useState(false);
   const [nameAr,  setNameAr]  = useState('');
   const [nameEn,  setNameEn]  = useState('');
   const createCategory = useCreateCategory();
 
-  async function handleCreate() {
+  // FIX CREATE-CAT-RESET-01 (part 2): replaced raw useState(open) with
+  // the shared useResettableDialog hook -- same pattern EditCategoryButton
+  // and EditEntityCategoryDialog use. Without it, fields kept whatever
+  // the admin had typed the last time they opened the dialog and then
+  // closed without saving. Now every fresh open starts blank.
+  const { open, setOpen, handleOpen } = useResettableDialog(() => {
+    setNameAr('');
+    setNameEn('');
+  });
+
+  function handleCreate() {
     if (!nameAr.trim()) { toast.error('الاسم بالعربي مطلوب'); return; }
     if (!nameEn.trim()) { toast.error('الاسم بالإنجليزي مطلوب'); return; }
 
@@ -25,9 +37,8 @@ export function CreateCategoryButton() {
       { name: nameEn.trim(), nameAr: nameAr.trim(), slug: slugify(nameEn, 'category') },
       {
         onSuccess: () => {
+          // Reset handled by useResettableDialog on next open.
           setOpen(false);
-          setNameAr('');
-          setNameEn('');
         },
       },
     );
@@ -46,7 +57,7 @@ export function CreateCategoryButton() {
 
   return (
     <>
-      <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
+      <Button size="sm" className="gap-1.5" onClick={handleOpen}>
         <Plus className="h-4 w-4" /> فئة جديدة
       </Button>
       <Dialog open={open} onOpenChange={handleOpenChange}>
