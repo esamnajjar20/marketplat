@@ -8,12 +8,14 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ApiError } from '@/components/shared/ApiError';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { useAdminServiceListings } from '@/hooks/queries/useAdmin';
 import { useAdminSetServiceListingStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { parseApiError } from '@/lib/errorParser';
 
 export function AdminServiceListingsTable() {
   const sp = useSearchParams();
@@ -22,13 +24,19 @@ export function AdminServiceListingsTable() {
   const statusParam = sp.get('status') ?? 'ACTIVE';
   const status = ['ACTIVE', 'PAUSED', 'DELETED', 'ALL'].includes(statusParam) ? statusParam : 'ACTIVE';
 
-  const { data, isLoading, isError, refetch } = useAdminServiceListings({
+  const { data, isLoading, isError, error, refetch } = useAdminServiceListings({
     page,
     limit: 20,
     q: q || undefined,
     status: status === 'ALL' ? undefined : status,
   });
   const setStatus = useAdminSetServiceListingStatus();
+
+  // FIX SERVICE-LISTINGS-POLISH-01: setStatus is a single shared mutation
+  // instance, so `setStatus.isPending` disabled EVERY row's Pause/Delete
+  // buttons while one row was in flight. Track the specific id in flight,
+  // same pattern as AdminUsersTable / AdminAdsTable / AdminProductsTable.
+  const pendingStatusId = setStatus.isPending ? setStatus.variables?.id : undefined;
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const envelope = data as {
@@ -40,16 +48,10 @@ export function AdminServiceListingsTable() {
     : (envelope?.data as { items?: Array<Record<string, unknown>> })?.items ?? [];
   const totalPages = envelope?.meta?.pagination?.totalPages ?? 1;
 
-  if (isLoading) return <TableSkeleton rows={8} />;
+  if (isLoading) return <TableSkeleton columns={6} />;
+  // FIX SERVICE-LISTINGS-POLISH-01 (part 2): shared ApiError (401/403/404/500+).
   if (isError) {
-    return (
-      <div className="py-8 text-center">
-        <p className="text-destructive">تعذّر تحميل الخدمات</p>
-        <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => refetch()}>
-          إعادة المحاولة
-        </Button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   return (
@@ -85,23 +87,34 @@ export function AdminServiceListingsTable() {
             </div>
           </div>
           <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
-            {row.status === 'ACTIVE' && (
-              <Button type="button" size="sm" variant="ghost" disabled={setStatus.isPending}
-                onClick={() =>
-                  setStatus.mutate(
-                    { id: String(row.id), status: 'PAUSED' },
-                    { onSuccess: () => toast.success('تم إيقاف الخدمة') },
-                  )
-                }>
-                <Pause className="h-4 w-4" />
-              </Button>
-            )}
-            {row.status !== 'DELETED' && (
-              <Button type="button" size="sm" variant="ghost" className="text-destructive"
-                onClick={() => setDeleteTarget({ id: String(row.id), title: String(row.title) })}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+              {row.status === 'ACTIVE' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`إيقاف الخدمة ${String(row.title)}`}
+                  disabled={pendingStatusId === String(row.id)}
+                  onClick={() =>
+                    setStatus.mutate(
+                      { id: String(row.id), status: 'PAUSED' },
+                      { onSuccess: () => toast.success('تم إيقاف الخدمة') },
+                    )
+                  }>
+                  <Pause className="h-4 w-4" />
+                </Button>
+              )}
+              {row.status !== 'DELETED' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  aria-label={`حذف الخدمة ${String(row.title)}`}
+                  onClick={() => setDeleteTarget({ id: String(row.id), title: String(row.title) })}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
           </div>
         </div>
         );
@@ -140,35 +153,37 @@ export function AdminServiceListingsTable() {
                   </td>
                   <td className="p-3">
                     <div className="flex gap-1">
-                      {row.status === 'ACTIVE' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          disabled={setStatus.isPending}
-                          onClick={() =>
-                            setStatus.mutate(
-                              { id: String(row.id), status: 'PAUSED' },
-                              { onSuccess: () => toast.success('تم إيقاف الخدمة') },
-                            )
-                          }
-                        >
-                          <Pause className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {row.status !== 'DELETED' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() =>
-                            setDeleteTarget({ id: String(row.id), title: String(row.title) })
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                        {row.status === 'ACTIVE' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`إيقاف الخدمة ${String(row.title)}`}
+                            disabled={pendingStatusId === String(row.id)}
+                            onClick={() =>
+                              setStatus.mutate(
+                                { id: String(row.id), status: 'PAUSED' },
+                                { onSuccess: () => toast.success('تم إيقاف الخدمة') },
+                              )
+                            }
+                          >
+                            <Pause className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {row.status !== 'DELETED' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            aria-label={`حذف الخدمة ${String(row.title)}`}
+                            onClick={() =>
+                              setDeleteTarget({ id: String(row.id), title: String(row.title) })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                     </div>
                   </td>
                 </tr>
