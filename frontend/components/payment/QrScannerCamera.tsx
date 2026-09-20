@@ -68,6 +68,13 @@ function getBarcodeDetector(): BarcodeDetectorLike | null {
   }
 }
 
+// FIX QR-SCANNER-HARDENING-01: batch of fixes to this scanner --
+// - reuse a single analysis canvas (was: fresh canvas per frame)
+// - downscale uploaded photos to 1920px max edge (was: full res)
+// - drop capture="environment" from the "from image" file picker
+// - guarantee stop() runs before a re-entrant start()
+// - translate every common getUserMedia error, not just NotAllowedError
+// - pass maxAnalysisDim to the on-file content-region detector
 export function QrScannerCamera({
   onScan,
   onPayParsed,
@@ -93,6 +100,13 @@ export function QrScannerCamera({
   const [showOcrOption, setShowOcrOption] = useState(false);
   const noMatchFramesRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // FIX QR-QUALITY-CANVAS-REUSE-01: analyzeFrameQuality used to call
+  // document.createElement('canvas') on every invocation -- ~3/s via
+  // the tick loop. Each allocation is width*height*4 bytes and a fresh
+  // 2D context per call defeats the willReadFrequently hint (that hint
+  // lives on the context, not the element). On low-end hardware this
+  // is enough GC churn to drop frames mid-scan.
+  const qualityCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // إضافات جديدة
   const [qualityHint, setQualityHint] = useState<string | null>(null);
@@ -401,12 +415,15 @@ export function QrScannerCamera({
     return canvas;
   }
 
-  function analyzeFrameQuality(v: HTMLVideoElement): { brightness: number; blur: number } {
-    const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth || 640;
-    canvas.height = v.videoHeight || 480;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return { brightness: 128, blur: 100 };
+    function analyzeFrameQuality(v: HTMLVideoElement): { brightness: number; blur: number } {
+      const canvas = qualityCanvasRef.current ?? document.createElement('canvas');
+      qualityCanvasRef.current = canvas;
+      const w = v.videoWidth || 640;
+      const h = v.videoHeight || 480;
+      if (canvas.width !== w) canvas.width = w;
+      if (canvas.height !== h) canvas.height = h;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return { brightness: 128, blur: 100 };
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
 
@@ -507,9 +524,15 @@ export function QrScannerCamera({
     if (!outcome.ok) applyOcrFailure(outcome);
   }
 
-  async function start() {
-    setError(null);
-    setStarting(true);
+    async function start() {
+      // FIX QR-START-DOUBLE-01: if start() is called twice in quick
+      // succession (double-tap on a laggy device), the second call
+      // overwrote streamRef.current with a new MediaStream while the old
+      // stream's tracks were still live -- the previous camera stayed
+      // open (battery, LED, contention) with no reference left to stop it.
+      stop();
+      setError(null);
+      setStarting(true);
     setScannedOnce(false);
     setOcrUnverified(false);
     setOcrFieldDiff(null);
@@ -624,13 +647,34 @@ export function QrScannerCamera({
     } catch (e) {
       setStarting(false);
       setActive(false);
-      const msg =
-        e instanceof Error
-          ? e.name === 'NotAllowedError'
-            ? 'يرجى السماح بالوصول إلى الكاميرا'
-            : e.message
-          : 'تعذّر تشغيل الكاميرا';
-      setError(msg);
+        // FIX QR-GUM-ERROR-MESSAGES-01: only NotAllowedError was translated;
+        // every other DOMException surfaced its raw English message
+        // ("Requested device not found", "Could not start video source")
+        // to an Arabic-only UI. Enumerate the failure modes a user can
+        // actually act on.
+        let msg: string;
+        if (e instanceof Error) {
+          switch (e.name) {
+            case 'NotAllowedError':
+              msg = 'تم رفض الوصول إلى الكاميرا — افتح إعدادات المتصفح واسمح للموقع باستخدامها';
+              break;
+            case 'NotFoundError':
+            case 'OverconstrainedError':
+              msg = 'لا توجد كاميرا متاحة على هذا الجهاز';
+              break;
+            case 'NotReadableError':
+              msg = 'الكاميرا مستخدمة من تطبيق آخر — أغلقه ثم حاول مجددًا';
+              break;
+            case 'SecurityError':
+              msg = 'فتح الكاميرا يتطلب اتصالًا آمنًا (HTTPS)';
+              break;
+            default:
+              msg = e.message || 'تعذّر تشغيل الكاميرا';
+          }
+        } else {
+          msg = 'تعذّر تشغيل الكاميرا';
+        }
+        setError(msg);
       setHint('تعذّر فتح الكاميرا');
     }
   }
@@ -758,13 +802,22 @@ export function QrScannerCamera({
     setError(null);
     setHint('جاري قراءة الصورة…');
     try {
-      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-      const canvas = document.createElement('canvas');
-      canvas.width = bmp.width;
-      canvas.height = bmp.height;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) throw new Error('Canvas');
-      ctx.drawImage(bmp, 0, 0);
+        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        // FIX QR-ONFILE-DOWNSCALE-01: phone photos are routinely 12MP+.
+        // A full-size canvas for a 4000x3000 JPEG allocates ~48MB of
+        // backing buffer; the toDataURL('image/jpeg', 0.92) call below
+        // then produces a multi-MB base64 string on the main thread. On
+        // low-end Android (this app's target) that peak (~55MB live at
+        // once) is enough to freeze the tab or trigger an OOM kill.
+        // 1920 on the long edge is generous for OCR and QR.
+        const MAX_DIM = 1920;
+        const scale = Math.min(1, MAX_DIM / Math.max(bmp.width, bmp.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bmp.width * scale);
+        canvas.height = Math.round(bmp.height * scale);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('Canvas');
+        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
 
       const decoded = await decodeCanvas(ctx, canvas.width, canvas.height);
       if (decoded) {
@@ -784,7 +837,11 @@ export function QrScannerCamera({
       // محاولة كشف منطقة النص/البطاقة تلقائيًا (كشف حواف) وقراءتها مباشرة
       // بدل إجبار المستخدم على تحديد المنطقة يدويًا في كل مرة.
       setHint('جاري تحديد منطقة النص تلقائيًا…');
-      const detected = detectContentRegion(canvas, { padding: 0.15 });
+      // FIX QR-DETECT-FULL-RES-01: was called without maxAnalysisDim
+        // on the full uploaded image. The internal downscale only kicks
+        // in when maxAnalysisDim is set; the live frame path uses 220.
+        // For a still we can afford 480 for better edge detection.
+        const detected = detectContentRegion(canvas, { padding: 0.15, maxAnalysisDim: 480 });
       if (detected) {
         setHint('جاري قراءة النص من المنطقة المكتشفة تلقائيًا…');
         const cropped = cropSourceToCanvas(canvas, detected);
@@ -985,7 +1042,7 @@ export function QrScannerCamera({
             <input
               type="file"
               accept="image/*"
-              capture="environment"
+
               className="hidden"
               onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
             />
