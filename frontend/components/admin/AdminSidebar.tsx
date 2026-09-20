@@ -1,3 +1,7 @@
+// FIX SIDEBAR-ROLE-GATE-01: nav link visibility now fails closed --
+// only a recognized admin-tier role (ADMIN/SUPER_ADMIN/MODERATOR) sees
+// any links; previously every non-MODERATOR role (including undefined
+// during loading) saw all of them.
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -56,13 +60,24 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const user     = useAuthStore(selectUser);
   const { data: queue } = useAdminOpsQueue();
   const [filter, setFilter] = useState('');
-  // A MODERATOR only sees links with no tierRequired (ads/reports);
-  // ADMIN and SUPER_ADMIN see everything — mirrors the backend's own
-  // requireMinRole(ADMIN) gate on every tierRequired route.
-  const isModerator = user?.role === 'MODERATOR';
-  const links = NAV_LINKS.filter((link) => !isModerator || !('tierRequired' in link)).filter(
-    (link) => !filter.trim() || link.label.includes(filter.trim()),
-  );
+  // FIX SIDEBAR-ROLE-GATE-01: the previous check was
+  // `!isModerator || !('tierRequired' in link)` -- which meant any role
+  // OTHER than MODERATOR (including USER, and including `undefined`
+  // during the brief pre-hydration window) saw every link. The
+  // middleware protects /admin so USER/undefined never actually land
+  // here, but "every link shows" is the wrong default for a nav whose
+  // own doc comment (lines 14-20) encodes the ADMIN/MODERATOR tier
+  // split. Fail closed instead: only show the nav to a recognized
+  // admin-tier role, mirroring the backend's requireMinRole gate.
+  const role = user?.role;
+  const isModerator = role === 'MODERATOR';
+  const isAdmin     = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const isAdminTier = isAdmin || isModerator;
+
+  const links = NAV_LINKS
+    .filter(() => isAdminTier)
+    .filter((link) => !isModerator || !('tierRequired' in link))
+    .filter((link) => !filter.trim() || link.label.includes(filter.trim()));
 
   return (
     <nav aria-label="قائمة الإدارة" className="space-y-1 p-3">
