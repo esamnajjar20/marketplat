@@ -19,7 +19,18 @@ function normalizeSearchText(input: string | null | undefined): string {
   return input
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
-    .replace(/ة/g, 'ه') // توحيد مبكر لتسهيل المطابقة داخل المرادفات
+  // FIX SEARCH-TA-MARBUTA-01: removed the ة -> ه fold. SQL's
+  // arabic_normalize (see migrations/20260805212538_arabic_search_
+  // normalization) deliberately does NOT fold ta marbuta -> ha —
+  // the two Arabic letters change gender and meaning often enough
+  // that folding trades a small precision loss for a larger one.
+  // The JS side folding it anyway meant 'سيارة' (the user's input,
+  // folded to 'سياره') went to to_tsquery as 'سياره' while the
+  // GIN index held the untouched 'سيارة' — every Arabic word
+  // ending in ta marbuta was unsearchable via FTS: cars, schools,
+  // stores, images, services, rooms, shirts, etc. Removing this
+  // line makes JS normalization a strict subset of SQL's, which
+  // is the invariant the query path requires.
     .replace(/[\u0640\u064B-\u0652]/g, '')
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .toLowerCase();
