@@ -11,6 +11,11 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { GetFlaggedAdsQuery, GetFraudSignalsQuery } from './fraud.validation';
 
+// FIX FRAUD-DUPLICATE-ENTITY-01: the DUPLICATE_LISTING heuristic now
+// explicitly skips product/service listings -- the underlying query is
+// ad-table-only, and every product/service create was paying for a
+// lookup that could never match. Ads are unchanged.
+
 // Off-platform-contact keyword/pattern heuristics for
 // SUSPICIOUS_CONTACT_PATTERN. Deliberately conservative (a URL or a
 // standalone digit run long enough to be a phone number) — this only
@@ -51,7 +56,10 @@ interface ComputedSignal {
   metadata?: Record<string, unknown>;
 }
 
-async function computeSignals(input: ScoreAdInput): Promise<ComputedSignal[]> {
+async function computeSignals(
+  input: ScoreAdInput,
+  options: { skipDuplicateCheck?: boolean } = {},
+): Promise<ComputedSignal[]> {
   const signals: ComputedSignal[] = [];
 
   // --- RAPID_POSTING -------------------------------------------------
@@ -121,18 +129,28 @@ async function computeSignals(input: ScoreAdInput): Promise<ComputedSignal[]> {
   }
 
   // --- DUPLICATE_LISTING --------------------------------------------
-  const duplicates = await fraudRepository.findPotentialDuplicates(
-    input.userId,
-    input.title,
-    input.city,
-    input.id
-  );
-  if (duplicates.length > 0) {
-    signals.push({
-      type: 'DUPLICATE_LISTING',
-      weight: 20,
-      metadata: { duplicateAdId: duplicates[0].id },
-    });
+  // FIX FRAUD-DUPLICATE-ENTITY-01: findPotentialDuplicates queries the
+  // Ad table only (schema has no cross-entity duplicate check), and
+  // scoreListing passes city: '' because products/services have no city
+  // in the ScoreAdInput shape. Both facts together meant the old code
+  // ran a per-creation DB query that could never match anything for
+  // products/service listings. Skipping the check entirely for those
+  // callers is honest about the actual coverage (ads only) and avoids
+  // a wasted query on every product/service create.
+  if (!options.skipDuplicateCheck) {
+    const duplicates = await fraudRepository.findPotentialDuplicates(
+      input.userId,
+      input.title,
+      input.city,
+      input.id
+    );
+    if (duplicates.length > 0) {
+      signals.push({
+        type: 'DUPLICATE_LISTING',
+        weight: 20,
+        metadata: { duplicateAdId: duplicates[0].id },
+      });
+    }
   }
 
   // --- NEW_ACCOUNT_HIGH_ACTIVITY --------------------------------------
@@ -227,15 +245,18 @@ export const fraudService = {
       // Reuse ad scoring input shape; RAPID_POSTING still counts ads for this
       // user (account-level velocity) which is intentional — a user spamming
       // products after many ads still trips velocity.
-      const signals = await computeSignals({
-        id: input.id,
-        userId: input.userId,
-        title: input.title,
-        description: input.description,
-        city: '',
-        price: input.price,
-        categoryId: input.categoryId,
-      });
+      const signals = await computeSignals(
+        {
+          id: input.id,
+          userId: input.userId,
+          title: input.title,
+          description: input.description,
+          city: '',
+          price: input.price,
+          categoryId: input.categoryId,
+        },
+        { skipDuplicateCheck: true },
+      );
       if (signals.length === 0) return;
 
       const riskScore = Math.min(
