@@ -1,3 +1,6 @@
+// FIX ADMIN-HEADER-USER-NULL-01: report.user accessed without optional
+// chain in the bell dropdown preview -- crashed the admin header when a
+// report's reporter record was missing.
 'use client';
 
 import Link from 'next/link';
@@ -119,7 +122,17 @@ export function AdminHeader() {
                         {REPORT_REASON_LABELS[report.reason] ?? report.reason}
                       </p>
                       <p className="text-xs text-muted-foreground line-clamp-1">
-                        {report.targetType === 'AD' && report.ad ? report.ad.title : report.user.name}
+                        {/* FIX ADMIN-HEADER-USER-NULL-01: report.user was
+                            accessed without an optional chain -- same field
+                            already handled defensively as report.user?.name
+                            ?? '—' in AdminReportsTable. If the reporter's
+                            user record is missing (deleted account, stale
+                            report row, or a target type where `user` isn't
+                            populated), the header crashed mid-render inside
+                            the bell dropdown, breaking every admin page. */}
+                        {report.targetType === 'AD' && report.ad
+                          ? report.ad.title
+                          : (report.user?.name ?? '—')}
                       </p>
                       <p className="text-[10px] text-muted-foreground">{formatRelativeTime(report.createdAt)}</p>
                     </div>
