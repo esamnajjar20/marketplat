@@ -1,6 +1,7 @@
+// FIX ADMIN-CAT-TREE-APIERROR-01: shared ApiError for the error state.
 'use client';
 
-import { ChevronDown, ChevronRight, Tag, Trash2, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useDeleteCategory } from '@/hooks/mutations/useCategoryMutations';
@@ -8,6 +9,8 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EditCategoryButton } from '@/components/admin/EditCategoryButton';
 import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 import type { Category } from '@/types/category.types';
 
 /**
@@ -19,26 +22,22 @@ import type { Category } from '@/types/category.types';
  * consistent with the rest of the admin UI (see MyAdsList, AdminAdsTable).
  */
 export function AdminCategoriesTree() {
-  const { data: categories, isLoading, isError, refetch } = useCategories();
+  const { data: categories, isLoading, isError, error, refetch } = useCategories();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const deleteCategory = useDeleteCategory();
 
   if (isLoading) return <div className="flex justify-center py-6"><LoadingSpinner size="sm" /></div>;
 
-  // UX-FIX P1-9 (admin variant): a failed fetch must not render as an
-  // empty tree — an admin seeing zero categories could be misled into
-  // thinking the taxonomy was wiped and try to recreate it from scratch.
+  // FIX ADMIN-CAT-TREE-APIERROR-01: shared ApiError instead of the
+  // hand-rolled AlertTriangle + bare <button>. Same reasoning as the
+  // UX-FIX P1-9 note that used to live here: a failed fetch must not
+  // render as an empty tree (an admin could mistake it for a wiped
+  // taxonomy and try to recreate it from scratch). ApiError makes the
+  // failure obvious with a real retry button and 401/403/404/500
+  // differentiation.
   if (isError) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل الفئات</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-          إعادة المحاولة
-        </button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   const roots = (categories ?? []).filter((c) => !c.parentId);

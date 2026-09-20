@@ -1,3 +1,5 @@
+// FIX CREATE-ENTITY-RESET-01: useResettableDialog (reset on each open)
+// + drop the decorative async keyword on handleCreate.
 'use client';
 
 /**
@@ -22,6 +24,7 @@ import { Input }    from '@/components/shared/ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
 import { toast }    from 'sonner';
 import { slugify }  from '@/lib/utils';
+import { useResettableDialog } from '@/hooks/useResettableDialog';
 
 interface CreateCategoryPayload {
   name: string;
@@ -52,13 +55,22 @@ export function CreateEntityCategoryDialog({
   namePlaceholderEn,
   iconPlaceholder,
 }: CreateEntityCategoryDialogProps) {
-  const [open,   setOpen]   = useState(false);
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [icon,   setIcon]   = useState('');
   const createCategory = useCreateCategory();
 
-  async function handleCreate() {
+  // FIX CREATE-ENTITY-RESET-01: replaced raw useState(open) with the
+  // shared useResettableDialog hook -- same pattern EditEntityCategoryDialog
+  // uses. Without it, fields kept whatever the admin had typed the last
+  // time they opened the dialog and then closed without saving.
+  const { open, setOpen, handleOpen } = useResettableDialog(() => {
+    setNameAr('');
+    setNameEn('');
+    setIcon('');
+  });
+
+  function handleCreate() {
     if (!nameAr.trim()) { toast.error('الاسم بالعربي مطلوب'); return; }
     if (!nameEn.trim()) { toast.error('الاسم بالإنجليزي مطلوب'); return; }
 
@@ -71,10 +83,8 @@ export function CreateEntityCategoryDialog({
       },
       {
         onSuccess: () => {
+          // Reset is handled by useResettableDialog on next open.
           setOpen(false);
-          setNameAr('');
-          setNameEn('');
-          setIcon('');
         },
       },
     );
@@ -89,7 +99,7 @@ export function CreateEntityCategoryDialog({
 
   return (
     <>
-      <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
+      <Button size="sm" className="gap-1.5" onClick={handleOpen}>
         <Plus className="h-4 w-4" /> {entityLabel}
       </Button>
       <Dialog open={open} onOpenChange={handleOpenChange}>
