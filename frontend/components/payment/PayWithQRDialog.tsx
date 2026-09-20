@@ -31,6 +31,7 @@ import {
   type PayMethod,
   PAY_METHOD_LABELS,
   buildUssd,
+  ussdTelHref,
   listSavedPayees,
   savePayee,
   type SavedPayee,
@@ -64,6 +65,9 @@ const METHODS: {
   { id: 'bank', label: 'بنك فلسطين', icon: Building2, desc: 'امسح بالكاميرا لكشف الاسم ورقم الحساب' },
 ];
 
+// FIX PAY-QR-USSD-TEL-DRIFT-01: USSD href routed through ussdTelHref
+// (whitelist-to-[0-9*#+.-] before # encode) so hardening lives in one place.
+// FIX PAY-QR-AMOUNT-VALIDATION-01: amount gate requires finite and > 0.
 export function PayWithQRDialog({
   open,
   onOpenChange,
@@ -378,7 +382,11 @@ export function PayWithQRDialog({
               <Button
                 type="button"
                 className="flex-1"
-                disabled={!amount || Number(amount) <= 0}
+                disabled={
+                    !amount.trim() ||
+                    !Number.isFinite(Number(amount)) ||
+                    Number(amount) <= 0
+                  }
                 onClick={() => setStep('ussd-type')}
               >
                 التالي <ArrowRight className="h-4 w-4" />
@@ -424,7 +432,7 @@ export function PayWithQRDialog({
             </p>
             <CopyField label="كود USSD" value={ussdCode} mono />
             <a
-              href={`tel:${ussdCode.replace(/#/g, '%23')}`}
+              href={ussdTelHref(ussdCode)}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
             >
               <Smartphone className="h-4 w-4" /> اتصال بالكود
