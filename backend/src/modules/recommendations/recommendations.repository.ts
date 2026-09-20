@@ -231,6 +231,8 @@ export const productRecommendationsRepository = {
     const favoriteRows = await prisma.favorite.findMany({
       where: { userId, entityType: 'PRODUCT' },
       select: { entityId: true },
+      orderBy: { createdAt: 'desc' },
+      take: FAVORITE_SIGNAL_TAKE,
     });
     if (favoriteRows.length === 0) return [];
     const products = await prisma.product.findMany({
@@ -384,6 +386,8 @@ export const serviceListingRecommendationsRepository = {
     const favoriteRows = await prisma.favorite.findMany({
       where: { userId, entityType: 'SERVICE_LISTING' },
       select: { entityId: true },
+      orderBy: { createdAt: 'desc' },
+      take: FAVORITE_SIGNAL_TAKE,
     });
     if (favoriteRows.length === 0) return [];
     const listings = await prisma.serviceListing.findMany({
@@ -525,6 +529,23 @@ export const serviceListingRecommendationsRepository = {
   },
 };
 
+// FIX RECO-FAVORITE-BOUND-01: the three *signal* uses of
+// favorite.findMany (favoritedCategoryIds for products/services/ads)
+// were unbounded -- a power user with thousands of favorites had every
+// row loaded into memory, then a second findMany did an IN over the
+// full id list, all to derive a set of categoryIds that top out at the
+// number of active categories on the platform. 200 most-recent favorites
+// is more than enough signal for "which categories do you lean toward",
+// and stops the rail from paying O(favorites) on every request.
+//
+// Deliberately NOT applied to the *exclusion* uses (excludedIds /
+// excludedAdIds): those must be complete, otherwise the rail starts
+// recommending items the user already favorited. Correctness beats
+// memory there; a separate optimization (exclusion index or a
+// favorite-count cap) is the right fix if that ever becomes a
+// bottleneck.
+const FAVORITE_SIGNAL_TAKE = 200;
+
 export const recommendationsRepository = {
   // Signal #1 (strongest): categories of ads the user has favorited.
   // Mirrors favoritesRepository.findManyByUserId's live-ad filter — a
@@ -542,6 +563,8 @@ export const recommendationsRepository = {
     const favoriteRows = await prisma.favorite.findMany({
       where: { userId, entityType: 'AD' },
       select: { entityId: true },
+      orderBy: { createdAt: 'desc' },
+      take: FAVORITE_SIGNAL_TAKE,
     });
     if (favoriteRows.length === 0) return [];
 
