@@ -8,16 +8,16 @@
  *
  * FIX Q-04: queryKeys use parameterised keys so invalidation works correctly.
  */
-// FIX ADMIN-HOOKS-ENVELOPE-FIX-01: four admin hooks (products,
-// service-listings, service-broadcasts, open-requests) were returning
-// the raw envelope `r.data` -- {success, message, data} -- while every
-// other hook in this file (and the file's own header comment, FIX Q-01)
-// unwraps `r.data.data`. Consumers reading `data.items` therefore got
-// undefined and rendered an empty admin table with no error. Also
-// replaced inline raw-array query keys with queryKeys.admin.* so
-// mutation-triggered invalidation actually matches, and dropped
-// `?? 30_000` fallbacks that only masked a would-be undefined
-// CACHE_TTL.adminList (it is a real constant = 30_000).
+// FIX ADMIN-HOOKS-KEYS-ONLY-01: applying only the parts of the earlier
+// 1f583d0 commit that were correct -- queryKeys.admin.* replacements
+// (they make mutation-driven invalidation actually match) plus removal
+// of dead `?? 30_000` / `?? 120_000` fallbacks and the missing
+// staleTime/placeholderData on useAdminOpenRequests. The four
+// `.then((r) => r.data)` envelope-passing hooks are LEFT AS-IS -- this
+// project's list hooks are NOT uniform about unwrapping ApiResponse.
+// Confirmed via AdminProductsTable, AdminServiceListingsTable and
+// AdminOpenRequestsTable, all of which read `data.data` (the envelope)
+// from the hook result. Same lesson as useRequests.
 'use client';
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -140,7 +140,7 @@ export function useAdminOpsQueue() {
   return useQuery({
     queryKey: queryKeys.admin.opsQueue(),
     queryFn: () => adminApi.getOpsQueue().then((r) => r.data.data),
-    staleTime: CACHE_TTL.adminList ?? 30_000,
+    staleTime: CACHE_TTL.adminList,
     refetchInterval: 60_000,
   });
 }
@@ -197,7 +197,7 @@ export function useAdminAnalyticsSummary(params?: GetAnalyticsSummaryParams) {
 export function useAdminProducts(params?: { page?: number; limit?: number; status?: string; q?: string }) {
   return useQuery({
     queryKey: queryKeys.admin.products(params),
-    queryFn: () => adminApi.getAdminProducts(params).then((r) => r.data.data),
+    queryFn: () => adminApi.getAdminProducts(params).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
@@ -206,7 +206,7 @@ export function useAdminProducts(params?: { page?: number; limit?: number; statu
 export function useAdminServiceListings(params?: { page?: number; limit?: number; status?: string; q?: string }) {
   return useQuery({
     queryKey: queryKeys.admin.serviceListings(params),
-    queryFn: () => adminApi.getAdminServiceListings(params).then((r) => r.data.data),
+    queryFn: () => adminApi.getAdminServiceListings(params).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
@@ -215,7 +215,7 @@ export function useAdminServiceListings(params?: { page?: number; limit?: number
 export function useAdminServiceBroadcasts(params?: { page?: number; limit?: number; status?: string; q?: string }) {
   return useQuery({
     queryKey: queryKeys.admin.serviceBroadcasts(params),
-    queryFn: () => adminApi.getAdminServiceBroadcasts(params).then((r) => r.data.data),
+    queryFn: () => adminApi.getAdminServiceBroadcasts(params).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
@@ -231,7 +231,7 @@ export function useAdminOpenRequests(params?: {
 }) {
   return useQuery({
     queryKey: queryKeys.admin.openRequests(params),
-    queryFn: () => adminApi.getAdminOpenRequests(params).then((r) => r.data.data),
+    queryFn: () => adminApi.getAdminOpenRequests(params).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });

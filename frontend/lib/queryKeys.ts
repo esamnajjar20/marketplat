@@ -327,13 +327,11 @@ export const queryKeys = {
     // all — see AdminFraudTable.tsx.
     fraudAds:     (params?: AdminGetFlaggedAdsParams)    => ['admin', 'fraud', 'ads',     params ?? {}] as const,
     fraudSignals: (params?: AdminGetFraudSignalsParams)  => ['admin', 'fraud', 'signals', params ?? {}] as const,
-    // FIX ADMIN-KEYS-COMPLETE-01: four admin hooks + two more were using
-    // raw array literals inline in useAdmin.ts, bypassing this file. That
-    // made prefix invalidation silently skip them: mutate-then-invalidate
-    // calls elsewhere (approving a product, cancelling a broadcast)
-    // targeted queryKeys.admin.* and never matched a literal
-    // ['admin','products',...]. Consolidated here so every admin key
-    // lives in one place, same as the rest of this file.
+    // FIX ADMIN-KEYS-COMPLETE-01: six admin keys were built as inline raw
+    // array literals in useAdmin.ts, bypassing this file. Prefix
+    // invalidation from admin mutations targeted queryKeys.admin.* and
+    // never matched those literals, so the cache went stale after every
+    // action. Consolidated here so every admin key lives in one place.
     products:          (params?: object) => ['admin', 'products',           params ?? {}] as const,
     serviceListings:   (params?: object) => ['admin', 'service-listings',   params ?? {}] as const,
     serviceBroadcasts: (params?: object) => ['admin', 'service-broadcasts', params ?? {}] as const,
