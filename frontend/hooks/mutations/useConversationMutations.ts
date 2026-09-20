@@ -87,7 +87,14 @@ export function useSendMessage(conversationId: string) {
       });
 
       const optimisticMessage: Message = {
-        id: `optimistic-${Date.now()}`,
+        // FIX OPTIMISTIC-ID-COLLISION-01: append a short random
+        // suffix so two messages sent in the same millisecond don't
+        // collide on React key + optimistic entry lookups. The
+        // previous `optimistic-${Date.now()}` was sufficient for a
+        // single human user (sub-ms send rate is implausible) but
+        // would break for a scripted send or a fast multi-message
+        // paste-and-enter sequence.
+        id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         conversationId,
         senderId: currentUser.id,
         body: payload.body?.trim() || (payload.imageUrl ? '📷' : ''),

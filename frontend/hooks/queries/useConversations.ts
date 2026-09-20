@@ -8,6 +8,7 @@ import {
   useAuthStore,
   selectIsAuthenticated,
   selectHasAccessToken,
+  selectUser,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { pollingInterval } from '@/lib/polling';
@@ -37,6 +38,7 @@ function offlineMeta(count: number): PaginationMeta {
 export function useMyConversations(params?: ConversationsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
+  const userId = useAuthStore(selectUser)?.id ?? null;
   const isOnline = useOnlineStatus();
 
   return useQuery({
@@ -47,11 +49,13 @@ export function useMyConversations(params?: ConversationsQuery) {
         // احفظ دائمًا عند نجاح الشبكة — بما فيها القائمة الفارغة —
         // حتى لا تبقى محادثات محذوفة ظاهرة أوفلاين (FIX OFFLINE-MSG-EMPTY-01).
         if (data?.items) {
-          void saveConversationsList(data.items);
+          // FIX MSG-STORE-USER-PASS-MY-CONV-SAVE-01: userId passed so
+          // the store's write-side user check actually runs.
+          void saveConversationsList(data.items, userId);
         }
         return data;
       } catch (err) {
-        const cached = await getConversationsList();
+        const cached = await getConversationsList(userId);
         if (cached.length > 0) {
           return { items: cached, meta: offlineMeta(cached.length) };
         }
@@ -69,6 +73,7 @@ export function useMyConversations(params?: ConversationsQuery) {
 export function useConversation(id: string) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
+  const userId = useAuthStore(selectUser)?.id ?? null;
   const isOnline = useOnlineStatus();
 
   return useQuery({
@@ -77,7 +82,9 @@ export function useConversation(id: string) {
       try {
         return await conversationsApi.getById(id).then((r) => r.data.data);
       } catch (err) {
-        const list = await getConversationsList();
+        // FIX MSG-STORE-USER-PASS-CONV-DETAIL-01: userId passed so the
+        // store's read-side user check actually runs.
+        const list = await getConversationsList(userId);
         const hit = list.find((c) => c.id === id);
         if (hit) return hit;
         throw err;
@@ -95,6 +102,7 @@ export function useConversation(id: string) {
 export function useMessages(conversationId: string, params?: MessagesQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
+  const userId = useAuthStore(selectUser)?.id ?? null;
   const isOnline = useOnlineStatus();
 
   return useQuery({
@@ -110,11 +118,15 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
             };
             return { ...payload, items: [...payload.items].reverse() };
           });
+        // FIX MSG-STORE-USER-PASS-MESSAGES-SAVE-01: userId passed so
+        // the store's write-side user check actually runs.
         // حفظ حتى القائمة الفارغة لمسح رسائل محلّية قديمة بعد الحذف من السيرفر.
-        void saveMessagesForConversation(conversationId, data.items);
+        void saveMessagesForConversation(conversationId, data.items, userId);
         return data;
       } catch (err) {
-        const cached = await getMessagesForConversation(conversationId);
+        // FIX MSG-STORE-USER-PASS-MESSAGES-GET-01: userId passed to the
+        // read so the store's read-side user check actually runs.
+        const cached = await getMessagesForConversation(conversationId, userId);
         if (cached && cached.length > 0) {
           return { items: cached, meta: offlineMeta(cached.length) };
         }
@@ -131,6 +143,7 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
 export function useUnreadConversationCount() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
+  const userId = useAuthStore(selectUser)?.id ?? null;
   const isOnline = useOnlineStatus();
 
   return useQuery({
@@ -140,10 +153,13 @@ export function useUnreadConversationCount() {
         const count = await conversationsApi
           .getUnreadCount()
           .then((r) => r.data.data?.count ?? 0);
-        void saveUnreadConversationCount(count);
+        // FIX MSG-STORE-USER-PASS-UNREAD-SAVE-01: userId passed so the
+        // store's write-side user check actually runs.
+        void saveUnreadConversationCount(count, userId);
         return count;
       } catch (err) {
-        const cached = await getUnreadConversationCount();
+        // FIX MSG-STORE-USER-PASS-UNREAD-GET-01: userId passed on read too.
+        const cached = await getUnreadConversationCount(userId);
         if (cached != null) return cached;
         throw err;
       }

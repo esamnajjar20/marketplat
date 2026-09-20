@@ -28,7 +28,22 @@ export default async function ConversationPage({ params }: Props) {
   return (
     <div className="h-[calc(100vh-8rem)] lg:h-full rounded-lg border overflow-hidden lg:rounded-none lg:border-0">
       <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
-        <ChatWindow conversationId={id} />
+        {/* FIX CHAT-SWITCH-STATE-LEAK-01: key={id} forces React to
+            unmount the previous ChatWindow instance and mount a fresh
+            one when the user navigates from /messages/X to
+            /messages/Y. Without it, React reuses the same component
+            instance and its internal state — olderMessages (the
+            "load older" accumulator), olderPage, retryingQueueId,
+            confirmBlockOpen, confirmDeleteMessageId, partyTyping —
+            survives the switch. The visible bug: after loading older
+            messages in thread X and then opening thread Y, the
+            ChatWindow rendered X's oldest messages as if they belonged
+            to Y. Not an auth leak (the user is the same), but a real
+            visual correctness bug that would be very confusing in an
+            active conversation. key is React's documented idiom for
+            "reset all state when this identity changes" — cleaner
+            than adding a useEffect per state variable. */}
+        <ChatWindow key={id} conversationId={id} />
       </Suspense>
     </div>
   );

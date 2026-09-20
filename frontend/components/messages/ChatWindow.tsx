@@ -229,10 +229,37 @@ export function ChatWindow({ conversationId }: Props) {
     });
   }
 
+  // FIX CHAT-AUTOSCROLL-CONTEXT-01: only auto-scroll to the newest
+  // message when the user is already near the bottom. The previous
+  // version called scrollIntoView unconditionally on every new-message
+  // event, which in an active conversation yanked the user away from
+  // whatever they were reading — e.g. scrolling back through a long
+  // negotiation while the other party keeps sending. That's the same
+  // bug Slack/WhatsApp/Telegram all solved long ago with exactly this
+  // guard. Refs (not state) so the scroll listener doesn't cause a
+  // re-render on every scroll event.
+  const isNearBottomRef = useRef(true);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      // 150px threshold — generous enough that a small accidental
+      // scroll doesn't disable the "follow new messages" behaviour,
+      // tight enough that reading history definitely does.
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      isNearBottomRef.current = distanceFromBottom < 150;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (isNearBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
     // FEAT-OFFLINE-MSG: a message queued while offline (usePendingMessages)
-    // should scroll into view the same way a normally-sent one does.
+    // should scroll into view the same way a normally-sent one does —
+    // still gated by the same near-bottom check above.
   }, [liveMessages.length, queuedMessages.length]);
 
   if (conversationLoading) {

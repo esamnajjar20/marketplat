@@ -111,8 +111,28 @@ export async function saveConversationsList(
   }
 }
 
-/** قراءة قائمة المحادثات المحفوظة (قد تكون فارغة). */
-export async function getConversationsList(): Promise<ConversationListItem[]> {
+// FIX MSG-STORE-USER-META-READ-01: read-side counterpart of the
+// save-side user check. Reads now take the caller's userId and refuse
+// to return data belonging to a different user. Previously the check
+// only existed on the write path — User A could crash without a clean
+// logout, User B logs in on the same device, and B's very first
+// getConversationsList() would return A's cached list until A's next
+// write attempt cleared it. The auth store already calls
+// clearOfflineMessagesStore() on logout, but a crash skips that; this
+// makes the leak impossible regardless of how the previous session
+// ended.
+export async function getConversationsList(
+  userId?: string | null,
+): Promise<ConversationListItem[]> {
+  if (userId !== undefined) {
+    const stored = await getMeta(META_USER_ID);
+    if (stored !== null && stored !== userId) {
+      // Different user's data — refuse to serve it. Do NOT clear here
+      // (that's saveConversationsList's job, which knows it's about to
+      // write fresh data); this is a pure read, so we just return empty.
+      return [];
+    }
+  }
   try {
     const db = await openDb();
     const tx = db.transaction(STORE_CONVERSATIONS, 'readonly');
@@ -135,11 +155,28 @@ export async function getConversationsList(): Promise<ConversationListItem[]> {
 }
 
 /** حفظ رسائل محادثة واحدة (أحدث N رسالة بعد الترتيب الزمني التصاعدي للعرض). */
+// FIX MSG-STORE-USER-META-MSGS-SAVE-01: same save-side user check as
+// saveConversationsList. Previously this function had no userId
+// parameter at all — the defensively-imported META_USER_ID was only
+// ever written by saveConversationsList, so a crash-then-login as a
+// different user could have left this store serving the previous
+// user's message history from getMessagesForConversation's fallback
+// path.
 export async function saveMessagesForConversation(
   conversationId: string,
   items: Message[],
+  userId?: string | null,
 ): Promise<void> {
   if (!conversationId) return;
+
+  if (userId !== undefined) {
+    const stored = await getMeta(META_USER_ID);
+    if (stored !== null && stored !== userId) {
+      await clearOfflineMessagesStore();
+    }
+    await setMeta(META_USER_ID, userId ?? null);
+  }
+
   try {
     const db = await openDb();
     // items هنا بالترتيب التصاعدي (كما يعيدها useMessages بعد reverse)
@@ -163,10 +200,18 @@ export async function saveMessagesForConversation(
   }
 }
 
+// FIX MSG-STORE-USER-META-MSGS-READ-01: same read-side user check as
+// getConversationsList above — refuse to serve another user's cached
+// messages.
 export async function getMessagesForConversation(
   conversationId: string,
+  userId?: string | null,
 ): Promise<Message[] | null> {
   if (!conversationId) return null;
+  if (userId !== undefined) {
+    const stored = await getMeta(META_USER_ID);
+    if (stored !== null && stored !== userId) return null;
+  }
   try {
     const db = await openDb();
     const tx = db.transaction(STORE_MESSAGES, 'readonly');
@@ -181,11 +226,30 @@ export async function getMessagesForConversation(
   }
 }
 
-export async function saveUnreadConversationCount(count: number): Promise<void> {
+// FIX MSG-STORE-USER-META-UNREAD-SAVE-01: same user-scope treatment
+// as the other save functions here.
+export async function saveUnreadConversationCount(
+  count: number,
+  userId?: string | null,
+): Promise<void> {
+  if (userId !== undefined) {
+    const stored = await getMeta(META_USER_ID);
+    if (stored !== null && stored !== userId) {
+      await clearOfflineMessagesStore();
+    }
+    await setMeta(META_USER_ID, userId ?? null);
+  }
   await setMeta(META_UNREAD, count);
 }
 
-export async function getUnreadConversationCount(): Promise<number | null> {
+// FIX MSG-STORE-USER-META-UNREAD-READ-01: same read-side user check.
+export async function getUnreadConversationCount(
+  userId?: string | null,
+): Promise<number | null> {
+  if (userId !== undefined) {
+    const stored = await getMeta(META_USER_ID);
+    if (stored !== null && stored !== userId) return null;
+  }
   const v = await getMeta(META_UNREAD);
   return typeof v === 'number' ? v : null;
 }
