@@ -506,14 +506,23 @@ export const env = {
   // google.strategy.ts (whether to register the Passport strategy at
   // all) and auth.routes.ts / auth.controller.ts (whether to accept
   // requests to /auth/google at all, vs. returning a clear 503).
+  // FIX GOOGLE-OAUTH-TRIM-01: trim() all three values -- same class of
+  // bug cloudinary's own comment above documents (a trailing newline
+  // or space picked up when pasting from a dashboard into an env UI).
+  // Without this, the app still considers OAuth "configured" (the
+  // un-trimmed strings are truthy), Passport builds a Google auth
+  // request, and Google responds 401 invalid_client: "The OAuth client
+  // was not found" -- because the client_id it received literally has
+  // a space on the end. Reproduction seen in production on
+  // /auth/google after a Render Dashboard paste.
   googleOAuth: {
-    clientId: _env.GOOGLE_CLIENT_ID || "",
-    clientSecret: _env.GOOGLE_CLIENT_SECRET || "",
-    callbackUrl: _env.GOOGLE_CALLBACK_URL || "",
+    clientId: (_env.GOOGLE_CLIENT_ID || "").trim(),
+    clientSecret: (_env.GOOGLE_CLIENT_SECRET || "").trim(),
+    callbackUrl: (_env.GOOGLE_CALLBACK_URL || "").trim(),
     isConfigured: Boolean(
-      _env.GOOGLE_CLIENT_ID &&
-      _env.GOOGLE_CLIENT_SECRET &&
-      _env.GOOGLE_CALLBACK_URL,
+      (_env.GOOGLE_CLIENT_ID || "").trim() &&
+      (_env.GOOGLE_CLIENT_SECRET || "").trim() &&
+      (_env.GOOGLE_CALLBACK_URL || "").trim(),
     ),
   },
   // CENTRALIZE-04 + FIX FORGOT-PW-LIMIT-CONFIG-01
