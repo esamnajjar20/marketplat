@@ -141,6 +141,7 @@ export function AdminSellersTable() {
 
       <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
         <Button variant="outline" size="sm" className="h-7"
+          disabled={bulkSetVerified.isPending}
           onClick={() => bulkSetVerified.mutate(
             { sellerProfileIds: Array.from(selectedIds), verified: true },
             { onSuccess: () => setSelectedIds(new Set()) },

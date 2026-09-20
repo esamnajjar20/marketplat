@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { savedSearchesApi } from '@/api/savedSearches.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -11,6 +10,13 @@ import {
   selectHasAccessToken,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+// FIX SAVED-SEARCHES-DOUBLE-SAVE-01: the offline list was written
+// twice per successful fetch -- once inside queryFn and once in a
+// useEffect keyed on query.data. Both writes take the same array and
+// same limit, so the effect added a second JSON.stringify +
+// localStorage.setItem per fetch, and could fire late enough to
+// clobber a newer write from a follow-up fetch. Same pattern as the
+// useActivity fix.
 import type { SavedSearch } from '@/types/savedSearch.types';
 import {
   getOfflineList,
@@ -52,16 +58,6 @@ export function useSavedSearches() {
         }
       : {}),
   });
-
-  useEffect(() => {
-    if (query.data) {
-      saveOfflineList(
-        OFFLINE_LIST_KEYS.savedSearches,
-        query.data,
-        OFFLINE_LIST_LIMITS.savedSearches,
-      );
-    }
-  }, [query.data]);
 
   return query;
 }

@@ -1,3 +1,6 @@
+// FIX BULK-BTN-DISABLED-01: same treatment as AdminAdsTable/AdminSellersTable
+// -- the bulk action buttons had no disabled state during isPending, so
+// a double-click could fire the same batch twice.
 'use client';
 
 /**
@@ -188,6 +191,7 @@ export function AdminStoresTable() {
 
       <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
         <Button variant="outline" size="sm" className="h-7 text-success"
+          disabled={bulkUpdateStatus.isPending}
           onClick={() => bulkUpdateStatus.mutate(
             { storeIds: Array.from(selectedIds), status: 'ACTIVE' },
             { onSuccess: () => setSelectedIds(new Set()) },
@@ -195,6 +199,7 @@ export function AdminStoresTable() {
           <CheckCircle2 className="h-3.5 w-3.5 me-1" />الموافقة على المحدد
         </Button>
         <Button variant="outline" size="sm" className="h-7 text-destructive"
+          disabled={bulkUpdateStatus.isPending}
           onClick={() => setBulkBlockConfirmOpen(true)}>
           <Ban className="h-3.5 w-3.5 me-1" />حظر المحدد
         </Button>
