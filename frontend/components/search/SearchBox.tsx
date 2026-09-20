@@ -14,6 +14,7 @@ import {
   getRecentSearches,
   clearRecentSearches,
 } from '@/lib/recentSearches';
+import { arabicNormalize } from '@/lib/arabicNormalize';
 
 interface Props {
   defaultValue?: string;
@@ -59,12 +60,20 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
 
   function navigate(q: string) {
     const params = new URLSearchParams(sp.toString());
-    // تطبيع خفيف قبل الإرسال: مسافات زائدة، توحيد ي/ى شائع في الكتابة
-    const trimmed = q
-      .trim()
+    // FIX SEARCHBOX-NORMALIZE-DRIFT-01: reuse lib/arabicNormalize (the
+    // client-side mirror of SQL arabic_normalize) instead of an inline
+    // partial copy. The inline version handled alef/yeh fold but missed
+    // tatweel + tashkeel stripping, so "سيـارة" (with tatweel) went to
+    // the API as-is while offlineSearchIndex would have folded it to
+    // "سيارة" -- same query, different results depending on
+    // connectivity. lowercase:false because the URL `q` is also what
+    // SearchResults renders in the "بحثاً عن ..." line; folding
+    // "iPhone" to "iphone" there is not a matching concern and only
+    // hurts readability. The server applies its own lowercase for
+    // matching regardless.
+    const trimmed = arabicNormalize(q, { lowercase: false })
       .replace(/\s+/g, ' ')
-      .replace(/[أإآٱ]/g, 'ا')
-      .replace(/ى/g, 'ي');
+      .trim();
     if (trimmed) {
       params.set('q', trimmed);
       addRecentSearch(trimmed);

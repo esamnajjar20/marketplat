@@ -34,13 +34,28 @@
  *
  * Zero dependencies. Safe to call on undefined/null (returns '').
  */
-export function arabicNormalize(input: string | null | undefined): string {
+export interface ArabicNormalizeOptions {
+  /**
+   * When false, skip the final toLowerCase(). Set this for call sites
+   * that persist the result for *display* (URL q params, form values)
+   * while still wanting the Arabic fold (alef/yeh/tatweel/tashkeel).
+   * Matching paths (offlineSearchIndex, recentSearches dedup) should
+   * leave this default (true) for parity with the SQL function, which
+   * also lowercases.
+   */
+  lowercase?: boolean;
+}
+
+export function arabicNormalize(
+  input: string | null | undefined,
+  opts?: ArabicNormalizeOptions,
+): string {
   if (!input) return '';
-  return input
+  const folded = input
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
-    .replace(/[\u0640\u064B-\u0652]/g, '')
-    .toLowerCase();
+    .replace(/[\u0640\u064B-\u0652]/g, '');
+  return opts?.lowercase === false ? folded : folded.toLowerCase();
 }
 
 /** Convenience: arabicNormalize then trim. */
