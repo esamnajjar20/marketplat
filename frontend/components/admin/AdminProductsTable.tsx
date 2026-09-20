@@ -30,6 +30,13 @@ export function AdminProductsTable() {
   });
   const setStatus = useAdminSetProductStatus();
 
+  // FIX PRODUCTS-TABLE-POLISH-01: setStatus is a single shared mutation
+  // instance, so `setStatus.isPending` disabled EVERY row's Pause/Delete
+  // buttons while one row was in flight. Track which product id is
+  // mid-mutation so only that row's controls disable (same pattern as
+  // AdminUsersTable's pendingStatusUserId / AdminAdsTable's pendingToggle).
+  const pendingStatusId = setStatus.isPending ? setStatus.variables?.id : undefined;
+
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const envelope = data as {
@@ -96,17 +103,31 @@ export function AdminProductsTable() {
             </div>
           </div>
           <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
-            {p.status === 'ACTIVE' && (
-              <Button type="button" size="sm" variant="ghost" onClick={() => pause(String(p.id))} disabled={setStatus.isPending}>
-                <Pause className="h-4 w-4" />
-              </Button>
-            )}
-            {p.status !== 'DELETED' && (
-              <Button type="button" size="sm" variant="ghost" className="text-destructive"
-                onClick={() => setDeleteTarget({ id: String(p.id), name: String(p.name) })}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+              {p.status === 'ACTIVE' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`إيقاف المنتج ${String(p.name)}`}
+                  onClick={() => pause(String(p.id))}
+                  disabled={pendingStatusId === String(p.id)}
+                >
+                  <Pause className="h-4 w-4" />
+                </Button>
+              )}
+              {p.status !== 'DELETED' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  aria-label={`حذف المنتج ${String(p.name)}`}
+                  onClick={() => setDeleteTarget({ id: String(p.id), name: String(p.name) })}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+              {/* FIX PRODUCTS-TABLE-POLISH-01 (mobile): per-row disable */}
           </div>
         </div>
         );
@@ -143,28 +164,30 @@ export function AdminProductsTable() {
                   </td>
                   <td className="p-3">
                     <div className="flex gap-1">
-                      {p.status === 'ACTIVE' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => pause(String(p.id))}
-                          disabled={setStatus.isPending}
-                        >
-                          <Pause className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {p.status !== 'DELETED' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => setDeleteTarget({ id: String(p.id), name: String(p.name) })}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                        {p.status === 'ACTIVE' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`إيقاف المنتج ${String(p.name)}`}
+                            onClick={() => pause(String(p.id))}
+                            disabled={pendingStatusId === String(p.id)}
+                          >
+                            <Pause className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {p.status !== 'DELETED' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            aria-label={`حذف المنتج ${String(p.name)}`}
+                            onClick={() => setDeleteTarget({ id: String(p.id), name: String(p.name) })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                     </div>
                   </td>
                 </tr>
