@@ -55,3 +55,7 @@ frontend/test-results/
 backend/scripts/make-admin.ts
 frontend-full.txt
 .backup_*/
+
+# Python script backups (added by routine review passes)
+.backup_*/
+**/.backup_*/
