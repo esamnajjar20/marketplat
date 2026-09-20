@@ -13,7 +13,13 @@ export function useFavoriteLists() {
   return useQuery({
     queryKey: favoriteListsQueryKey,
     queryFn: () => favoriteListsApi.list(),
-    staleTime: CACHE_TTL.favorites ?? 60_000,
+    // FIX FAV-LISTS-TTL-CLEANUP-01: was CACHE_TTL.favorites ?? 60_000.
+    // CACHE_TTL.favorites is a real constant; the ?? could only fire if
+    // someone renamed/deleted it, at which point falling back to a
+    // DIFFERENT semantic value (a literal 60_000) would silently mask
+    // the mistake. Same cleanup as the adminList and
+    // conversationUnreadCount ?? removals.
+    staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated,
   });
 }

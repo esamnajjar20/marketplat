@@ -32,9 +32,23 @@ export function useMyBlockedUsers(params?: BlockedUsersQuery) {
     const data = query.data;
     if (!data) return;
 
-    queryClient.setQueryData<Set<string>>(queryKeys.blockedUsers.ids(), (prev) => {
-      const idSet = new Set(prev ?? []);
-      data.items.forEach((row) => idSet.add(row.blockedId));
+    // FIX BLOCKED-USERS-EFFECT-GUARD-01: same guard useFavorites already
+    // has (FAVORITES-EFFECT-RERENDER). Without the early-return, every
+    // background refetch that returns the same page of blocked users
+    // built a brand-new Set, which re-rendered every subscriber of
+    // useIsUserBlocked() -- one per chat header / profile action in the
+    // tree. Compare first, allocate only when there's actually a new id.
+    const newIds = data.items
+      .map((row) => row.blockedId)
+      .filter((id): id is string => typeof id === 'string');
+    if (newIds.length === 0) return;
+
+    const prev = queryClient.getQueryData<Set<string>>(queryKeys.blockedUsers.ids());
+    if (prev && newIds.every((id) => prev.has(id))) return;
+
+    queryClient.setQueryData<Set<string>>(queryKeys.blockedUsers.ids(), (existing) => {
+      const idSet = new Set(existing ?? []);
+      newIds.forEach((id) => idSet.add(id));
       return idSet;
     });
   }, [query.data, queryClient]);
