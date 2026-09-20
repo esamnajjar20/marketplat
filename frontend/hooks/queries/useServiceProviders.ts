@@ -98,15 +98,26 @@ export function useIsProvider(): {
   isLoaded: boolean;
   showRoleSkeleton: boolean;
 } {
+  // FIX ROLE-HOOK-GUEST-01: same shape as useIsSeller's fix (see its
+  // comment for the full rationale). A logged-out visitor used to get
+  // an infinite showRoleSkeleton because useMyServiceProvider is
+  // enabled:isAuthenticated and TanStack reports a disabled query as
+  // status:'pending'. The correct answer for a guest is definitive:
+  // not a provider.
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const { data, isSuccess, isPending } = useMyServiceProvider();
   const lastKnown = useAuthStore((s) => s.lastKnownRoles);
   const setLastKnownRoles = useAuthStore((s) => s.setLastKnownRoles);
 
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess && isAuthenticated) {
       setLastKnownRoles({ isProvider: Boolean(data) });
     }
-  }, [isSuccess, data, setLastKnownRoles]);
+  }, [isSuccess, isAuthenticated, data, setLastKnownRoles]);
+
+  if (!isAuthenticated) {
+    return { isProvider: false, isLoaded: true, showRoleSkeleton: false };
+  }
 
   const isLoaded = isSuccess;
   const isProvider = isSuccess ? Boolean(data) : Boolean(lastKnown?.isProvider);

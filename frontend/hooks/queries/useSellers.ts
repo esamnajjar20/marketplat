@@ -96,15 +96,33 @@ export function useIsSeller(): {
   /** True while the query has no answer yet and no local role hint */
   showRoleSkeleton: boolean;
 } {
+  // FIX ROLE-HOOK-GUEST-01: a logged-out visitor used to get
+  // showRoleSkeleton = true forever. useMySellerProfile is
+  // enabled:isAuthenticated -- TanStack reports a disabled query as
+  // status:'pending' / fetchStatus:'idle', so isPending stayed true,
+  // isSuccess stayed false, and a brand-new guest has no lastKnownRoles
+  // to short-circuit on. Any of the 7 nav/layout consumers that
+  // render `if (showRoleSkeleton) return <Skeleton />` therefore
+  // showed an infinite skeleton where the "become a seller" CTA
+  // belonged. A guest is conclusively not a seller: answer that
+  // definitively rather than leaving the caller guessing.
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const { data, isSuccess, isPending } = useMySellerProfile();
   const lastKnown = useAuthStore((s) => s.lastKnownRoles);
   const setLastKnownRoles = useAuthStore((s) => s.setLastKnownRoles);
 
   useEffect(() => {
-    if (isSuccess) {
+    // Guard on isAuthenticated too -- otherwise a logout (which flips
+    // isSuccess stale-true for one render in some TanStack versions)
+    // could briefly write isSeller:false over the real last-known value.
+    if (isSuccess && isAuthenticated) {
       setLastKnownRoles({ isSeller: Boolean(data) });
     }
-  }, [isSuccess, data, setLastKnownRoles]);
+  }, [isSuccess, isAuthenticated, data, setLastKnownRoles]);
+
+  if (!isAuthenticated) {
+    return { isSeller: false, isLoaded: true, showRoleSkeleton: false };
+  }
 
   const isLoaded = isSuccess;
   // Prefer server truth; while pending, paint from lastKnownRoles (slow-net).
