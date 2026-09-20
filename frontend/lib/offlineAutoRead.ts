@@ -164,3 +164,34 @@ export async function autoSaveVisitedAd(ad: Ad): Promise<void> {
     /* ignore */
   }
 }
+
+/**
+ * FIX AUTOREAD-CLEAR-ON-LOGOUT-01: the auto-read index keyed visited ad
+ * ids and titles into localStorage, and the corresponding API responses
+ * + thumbnails into a Cache Storage bucket -- both WITHOUT any user
+ * scoping. AdDetail.tsx calls autoSaveVisitedAd for every viewer
+ * (guests included), and EmptySearchSuggestions renders
+ * listAutoReadAds() under "شوهد مؤخرًا". On a shared device, User B
+ * logging in after User A would open a zero-result search and see A's
+ * browsing history. This is a privacy leak, not just a cache hygiene
+ * issue, so the fix is to wipe both on any identity change, matching
+ * clearSavedPaymentMethods' pattern rather than trying to per-user
+ * scope a cache whose URL keys can't express identity.
+ *
+ * Fire-and-forget (the Cache Storage half is async); authCleanup calls
+ * it without awaiting, so logout UX stays synchronous.
+ */
+export async function clearAutoReadCache(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(INDEX_KEY);
+  } catch {
+    /* ignore */
+  }
+  if (typeof caches === 'undefined') return;
+  try {
+    await caches.delete(CACHE_NAME);
+  } catch {
+    /* ignore */
+  }
+}

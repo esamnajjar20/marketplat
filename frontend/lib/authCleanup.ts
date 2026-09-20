@@ -30,6 +30,7 @@ import { getQueryClient } from '@/lib/queryClient';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
 import { clearRecentSearches } from '@/lib/recentSearches';
+import { clearAutoReadCache } from '@/lib/offlineAutoRead';
 
 /** يطلب من الـ SW مسح كاش API + PERSONAL_SHELL — نفس بروتوكول
  * CLEAR_API_CACHE الموجود أصلًا بـ public/sw.js (SECURITY FIX audit #2 +
@@ -101,7 +102,18 @@ export function clearSensitiveLocalData(): void {
   // clicked the manual clear button (SearchBox.tsx:134). Clearing
   // here puts it in the same session-cleanup path as every other
   // user-scoped local cache.
-  clearRecentSearches();
+    clearRecentSearches();
+    // FIX AUTOREAD-CLEAR-ON-LOGOUT-01: auto-read index
+    // (localStorage 'marketplat:auto-read-ads') + its Cache Storage
+    // bucket ('market-auto-read-ads') hold every visited ad id + title
+    // + API response + thumbnail, with NO user scoping. AdDetail.tsx
+    // calls autoSaveVisitedAd for every viewer (guests included), and
+    // EmptySearchSuggestions renders listAutoReadAds() under
+    // "شوهد مؤخرًا". On a shared device User B saw User A's browsing
+    // history the moment a search returned zero results. Fire-and-forget
+    // because the Cache Storage half is async and logout UX shouldn't
+    // block on it.
+    void clearAutoReadCache();
   clearAppBadge();
   clearAllOfflineLists();
   void clearDraftOnlyAdDrafts();

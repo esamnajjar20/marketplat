@@ -6,15 +6,20 @@ import L from 'leaflet';
 import type { MapPoint } from './SearchResultsMap';
 import Link from 'next/link';
 
-// Default marker icons break under webpack; use CDN icons.
-const defaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+// FIX MAP-SELFHOST-MARKER-01: the previous L.icon() pointed at three
+// unpkg.com PNGs. middleware.ts's CSP img-src does NOT include unpkg
+// (see its own comment -- it was tightened to Cloudinary + placehold.co
+// only), so every marker rendered as a blank/broken image on the map.
+// Even if we added unpkg, the app targets weak Gaza networks -- making
+// the map depend on a foreign CDN for its primary UI is the wrong
+// direction. L.divIcon with an inline SVG costs zero requests and
+// can't be CSP-blocked.
+const defaultIcon = L.divIcon({
+  className: '',
+  html: '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41" aria-hidden="true"><path d="M12.5 0C5.6 0 0 5.6 0 12.5C0 21.875 12.5 41 12.5 41C12.5 41 25 21.875 25 12.5C25 5.6 19.4 0 12.5 0Z" fill="#2563eb"/><circle cx="12.5" cy="12.5" r="4.5" fill="white"/></svg>',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
-  shadowSize: [41, 41],
 });
 
 const userIcon = L.divIcon({
