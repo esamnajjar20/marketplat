@@ -1,3 +1,6 @@
+// FIX FRAUD-FRAGMENT-KEY-01: the row + its expandable signals row were
+// wrapped in a keyless Fragment, so React saw an array of unkeyed
+// same-shaped elements.
 'use client';
 
 /**
@@ -19,7 +22,7 @@
  * produce — it doesn't trigger scoring itself.
  */
 
-import { useState, useMemo } from 'react';
+import { Fragment, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ExternalLink, ChevronDown, ChevronUp, ShieldCheck, Flag as FlagIcon } from 'lucide-react';
@@ -196,8 +199,8 @@ export function AdminFraudTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((ad) => (
-                <>
-                  <tr key={ad.id} className="hover:bg-muted/30 transition-colors">
+                <Fragment key={ad.id}>
+                  <tr className="hover:bg-muted/30 transition-colors">
                     <td className="p-3 max-w-xs">
                       <Link href={ROUTES.adDetail(ad.id)} target="_blank"
                         className="flex items-center gap-1 text-primary hover:underline text-xs">
@@ -237,13 +240,13 @@ export function AdminFraudTable() {
                     </td>
                   </tr>
                   {expandedId === ad.id && (
-                    <tr key={`${ad.id}-signals`} className="bg-muted/20">
+                    <tr className="bg-muted/20">
                       <td colSpan={5} className="p-0">
                         <AdSignalsPanel adId={ad.id} />
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
               {items.length === 0 && (
                 <tr><td colSpan={5}>
