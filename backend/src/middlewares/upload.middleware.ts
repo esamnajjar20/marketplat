@@ -1,3 +1,7 @@
+// FIX UPLOAD-DRIFT-LIMIT-01: the hardcoded "10" in upload.array() and in
+// the two "Maximum 10 images allowed" strings is now derived from
+// MAX_IMAGES_PER_ENTITY -- the same constant multer.limits.files already
+// reads -- so raising the cap is a one-line change in config/limits.ts.
 import multer, { FileFilterCallback } from "multer";
 import { Request, Response, NextFunction } from "express";
 import { BadRequestError } from "../shared/errors/BadRequestError";
@@ -188,7 +192,7 @@ export const uploadMultipleMiddleware = (
 ): void => {
   rejectOversizedContentLength(req, res, (err?: unknown) => {
     if (err) return next(err);
-    upload.array("images", 10)(req, res, (uploadErr: unknown) => {
+    upload.array("images", MAX_IMAGES_PER_ENTITY)(req, res, (uploadErr: unknown) => {
       if (uploadErr instanceof multer.MulterError) {
         if (uploadErr.code === "LIMIT_FILE_SIZE")
           return next(
@@ -202,11 +206,11 @@ export const uploadMultipleMiddleware = (
         // message despite each being a distinct, nameable failure.
         if (uploadErr.code === "LIMIT_UNEXPECTED_FILE")
           return next(
-            new BadRequestError("Maximum 10 images allowed", "TOO_MANY_FILES"),
+            `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
           );
         if (uploadErr.code === "LIMIT_FILE_COUNT")
           return next(
-            new BadRequestError("Maximum 10 images allowed", "TOO_MANY_FILES"),
+            `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
           );
         if (uploadErr.code === "LIMIT_FIELD_COUNT")
           return next(
