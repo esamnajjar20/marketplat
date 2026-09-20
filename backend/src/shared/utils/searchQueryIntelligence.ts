@@ -242,7 +242,16 @@ function morphologicalVariants(token: string): string[] {
   const out = new Set<string>([token]);
   if (token.length < 2) return [...out];
 
-  // ة ↔ ه (بعد التطبيع غالبًا ه، لكن نبقي الاثنين)
+  // ة ↔ ه: arabic_normalize deliberately does NOT fold this pair (see
+  // migration 20260805212538 and searchTextMatch.ts's own header), so
+  // neither does JS. These two lines are what makes FTS still match
+  // either form bidirectionally — "سيارة" expands to include "سياره"
+  // and vice versa — without the SQL function having to give up its
+  // meaning-preserving precision. If you find yourself wanting to fold
+  // ة→ه in normalizeSearchText to "simplify" this, don't: that's the
+  // exact bug SEARCH-TA-MARBUTA-01 fixed, and it broke autocomplete's
+  // prefix matching in a way FTS's bidirectional expansion couldn't
+  // paper over.
   if (token.endsWith('ة')) out.add(token.slice(0, -1) + 'ه');
   if (token.endsWith('ه') && token.length > 2) out.add(token.slice(0, -1) + 'ة');
 
@@ -386,14 +395,15 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
   };
 }
 
-export function buildIntelligentTsQuerySql(
-  Prisma: { sql: (strings: TemplateStringsArray, ...values: unknown[]) => unknown },
-  raw: string | undefined | null,
-): unknown | null {
-  const { tsQueryString } = analyzeSearchQuery(raw ?? undefined);
-  if (!tsQueryString) return null;
-  return Prisma.sql`to_tsquery('simple', arabic_normalize(${tsQueryString}))`;
-}
+// FIX SEARCH-DEAD-CODE-01: removed buildIntelligentTsQuerySql — a
+// public export that was never called anywhere in src/ or tests/
+// (verified: only the definition site matched). search.repository.ts
+// already calls analyzeSearchQuery directly and builds its own
+// Prisma.sql wrapper, so this helper was a dead second path that
+// risked silently diverging from the real one if either was edited.
+// A public surface that nothing uses is worse than no surface at all:
+// it invites a future caller to adopt it, at which point two tsquery
+// construction sites exist and any fix to one misses the other.
 
 /**
  * توسيع للاستدعاء من matchesSearchQuery — بدون لاحقات :*

@@ -92,8 +92,25 @@ export const searchService = {
   suggest: async (query: SearchSuggestionsQuery): Promise<string[]> => {
     const cacheKey = suggestionsCacheKey(query.q);
 
+    // FIX SEARCH-L1-LRU-01: same LRU touch as userCache.ts / unread
+    // NotificationsCache.ts. Without it, the eviction on `_suggestL1.size
+    // > 500` below is FIFO — a hot prefix that was inserted early gets
+    // evicted before a cold one inserted moments later. Under any
+    // realistic autocomplete traffic the same small set of prefixes
+    // (the top brands/categories typed repeatedly) is what actually
+    // benefits from L1, and those are exactly what a FIFO policy
+    // throws away first. Also cleans up expired entries on read here
+    // rather than leaving them to occupy a slot until the size cap
+    // forces a delete of a possibly-fresher entry.
     const l1 = _suggestL1.get(cacheKey);
-    if (l1 && Date.now() - l1.at < SUGGEST_L1_MS) return l1.value;
+    if (l1) {
+      if (Date.now() - l1.at < SUGGEST_L1_MS) {
+        _suggestL1.delete(cacheKey);
+        _suggestL1.set(cacheKey, l1);
+        return l1.value;
+      }
+      _suggestL1.delete(cacheKey);
+    }
 
     try {
       const cached = await redis.get(cacheKey);
