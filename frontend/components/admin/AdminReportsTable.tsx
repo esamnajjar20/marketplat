@@ -15,7 +15,7 @@ import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import { useAdminReports }   from '@/hooks/queries/useAdmin';
 import { useAdminUpdateReportStatus, useAdminBulkUpdateReportStatus } from '@/hooks/mutations/useAdminMutations';
-import { REPORT_REASON_LABELS, ROUTES } from '@/lib/constants';
+import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
@@ -250,7 +250,9 @@ export function AdminReportsTable() {
                     <Badge variant="outline" className="text-xs">
                       {REPORT_REASON_LABELS[report.reason] ?? report.reason}
                     </Badge>
-                    <Badge variant="secondary" className="text-[10px]">{report.status}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">
+                        {REPORT_STATUS_LABELS[report.status] ?? report.status}
+                      </Badge>
                   </div>
                   {report.notes && <p className="line-clamp-2 text-xs text-muted-foreground">{report.notes}</p>}
                   <p className="text-[11px] text-muted-foreground">

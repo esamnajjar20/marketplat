@@ -75,14 +75,25 @@ export function AdminAuditLogsTable() {
   const router = useRouter();
 
   const page = Number(sp.get('page') ?? 1);
-  const event = sp.get('event') ?? '';
+  // FIX AUDIT-EVENT-PARAM-01: validate the event param against the known
+  // list -- same pattern AdminStoresTable uses for its statusParam (FIX
+  // SEC-3.9). `?event=hacked` used to flow through the `as AuditEventType`
+  // cast into the API, which rejected it as a 400; the previous `?? ''`
+  // also turned "no event filter" into a literal empty string that ended
+  // up in the query key. Now an unknown or missing value falls back to
+  // undefined, which the hook forwards as "no filter".
+  const eventParam = sp.get('event');
+  const event: AuditEventType | undefined =
+    eventParam && AUDIT_EVENT_TYPES.includes(eventParam as AuditEventType)
+      ? (eventParam as AuditEventType)
+      : undefined;
   const userId = sp.get('userId') ?? '';
   const from = sp.get('from') ?? '';
   const to = sp.get('to') ?? '';
 
   const { data, isLoading, isError, error, refetch } = useAdminAuditLogs({
     page,
-    event: event ? (event as AuditEventType) : undefined,
+    event,
     userId: userId || undefined,
     from: from || undefined,
     to: to || undefined,

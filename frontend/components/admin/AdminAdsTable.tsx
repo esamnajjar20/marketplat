@@ -1,3 +1,6 @@
+// FIX BULK-BTN-DISABLED-01: bulk action buttons in the admin tables
+// had no disabled state during their mutation's isPending -- a
+// double-click could fire the same batch twice.
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -160,6 +163,7 @@ export function AdminAdsTable() {
           this doesn't need a status-view guard. */}
       <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
         <Button variant="outline" size="sm" className="h-7"
+          disabled={bulkFeatureAds.isPending}
           onClick={() => bulkFeatureAds.mutate(
             { adIds: Array.from(selectedIds), isFeatured: true },
             { onSuccess: () => setSelectedIds(new Set()) },
@@ -167,6 +171,7 @@ export function AdminAdsTable() {
           <Star className="h-3.5 w-3.5 me-1" />تمييز المحدد
         </Button>
         <Button variant="outline" size="sm" className="h-7"
+          disabled={bulkPinAds.isPending}
           onClick={() => bulkPinAds.mutate(
             { adIds: Array.from(selectedIds), isPinned: true },
             { onSuccess: () => setSelectedIds(new Set()) },

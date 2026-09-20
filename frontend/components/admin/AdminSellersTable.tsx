@@ -148,6 +148,7 @@ export function AdminSellersTable() {
           <BadgeCheck className="h-3.5 w-3.5 me-1 text-success" />توثيق المحدد
         </Button>
         <Button variant="outline" size="sm" className="h-7 text-destructive"
+          disabled={bulkSetSuspended.isPending}
           onClick={() => setBulkSuspendConfirmOpen(true)}>
           <ShieldOff className="h-3.5 w-3.5 me-1" />إيقاف المحدد
         </Button>
