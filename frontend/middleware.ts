@@ -215,10 +215,17 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // there's nothing left that needs either host allow-listed.
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
-    // img-src: Cloudinary + placeholders + QR image fallbacks (payment/net-cards).
-    // Primary QR path is local Canvas (no network); these hosts are allow-listed
-    // only so <img> fallbacks are not blocked by CSP if local generation fails.
-    "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co https://api.qrserver.com https://quickchart.io",
+    // FIX QR-CSP-CLEANUP-01: api.qrserver.com and quickchart.io removed.
+    // They were allow-listed for QrCodeImage.tsx's <img> fallback path,
+    // but that component had zero importers -- the only working QR image
+    // was the local canvas render, which never touches the network. Every
+    // external host kept in img-src is attack surface for any future code
+    // that reaches an <img src>: leaving a public text-encoding endpoint
+    // allow-listed (qrserver accepts arbitrary ?data=) means any later
+    // component could exfiltrate through it without a CSP change being
+    // noticed. QrCodeImage + its qrcode-generator vendor are deleted too.
+    // img-src: Cloudinary (uploads) + placehold.co (placeholder fallback).
+    "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co",
     // FIX OCR-01: cdn.jsdelivr.net مضاف — Tesseract.js يجلب عبره ملفات
     // WASM وبيانات اللغة (eng.traineddata) بعد تحميل السكربت نفسه.
     `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com`,
