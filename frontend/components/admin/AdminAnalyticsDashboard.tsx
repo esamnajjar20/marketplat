@@ -1,3 +1,5 @@
+// FIX ANALYTICS-DASH-POLISH-01: shared ApiError + uniform ?? 0 on the
+// totals fields (was inconsistent).
 'use client';
 
 import { NotificationStatsCard } from '@/components/admin/NotificationStatsCard';
@@ -13,7 +15,9 @@ import { NotificationStatsCard } from '@/components/admin/NotificationStatsCard'
 import { useMemo, useState } from 'react';
 import { useAdminAnalyticsSummary } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { AlertTriangle, Eye, Search, Tag, MessageSquare, UserPlus, FileText } from 'lucide-react';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
+import { Eye, Search, Tag, MessageSquare, UserPlus, FileText } from 'lucide-react';
 import type { AnalyticsEventType } from '@/lib/analytics';
 import { formatNumber } from '@/lib/formatters';
 
@@ -61,30 +65,28 @@ export function AdminAnalyticsDashboard() {
   );
   const bucket = rangeDays > 30 ? 'week' : 'day';
 
-  const { data, isLoading, isError, refetch } = useAdminAnalyticsSummary({ from, bucket });
+  const { data, isLoading, isError, error, refetch } = useAdminAnalyticsSummary({ from, bucket });
 
   if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
 
+  // FIX ANALYTICS-DASH-POLISH-01: shared ApiError instead of a
+  // hand-rolled block + bare <button>.
   if (isError || !data) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center rounded-lg border">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل بيانات التحليلات</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-          إعادة المحاولة
-        </button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
+  // FIX ANALYTICS-DASH-POLISH-01 (part 2): uniform ?? 0 on every
+  // totals field (was inconsistent -- only PRODUCT_VIEW /
+  // SERVICE_VIEW had one, the other five would pass undefined into
+  // formatNumber if the backend ever renamed a field).
   const totalsCards = [
-    { label: EVENT_LABELS.PAGE_VIEW, value: data.totals.PAGE_VIEW, icon: FileText },
-    { label: EVENT_LABELS.AD_VIEW, value: data.totals.AD_VIEW, icon: Eye },
-    { label: EVENT_LABELS.PRODUCT_VIEW, value: data.totals.PRODUCT_VIEW ?? 0, icon: Eye },
-    { label: EVENT_LABELS.SERVICE_VIEW, value: data.totals.SERVICE_VIEW ?? 0, icon: Eye },
-    { label: EVENT_LABELS.SEARCH, value: data.totals.SEARCH, icon: Search },
-    { label: EVENT_LABELS.CATEGORY_BROWSE, value: data.totals.CATEGORY_BROWSE, icon: Tag },
-    { label: EVENT_LABELS.CONTACT_CLICK, value: data.totals.CONTACT_CLICK, icon: MessageSquare },
+    { label: EVENT_LABELS.PAGE_VIEW,       value: data.totals.PAGE_VIEW       ?? 0, icon: FileText },
+    { label: EVENT_LABELS.AD_VIEW,         value: data.totals.AD_VIEW         ?? 0, icon: Eye },
+    { label: EVENT_LABELS.PRODUCT_VIEW,    value: data.totals.PRODUCT_VIEW    ?? 0, icon: Eye },
+    { label: EVENT_LABELS.SERVICE_VIEW,    value: data.totals.SERVICE_VIEW    ?? 0, icon: Eye },
+    { label: EVENT_LABELS.SEARCH,          value: data.totals.SEARCH          ?? 0, icon: Search },
+    { label: EVENT_LABELS.CATEGORY_BROWSE, value: data.totals.CATEGORY_BROWSE ?? 0, icon: Tag },
+    { label: EVENT_LABELS.CONTACT_CLICK,   value: data.totals.CONTACT_CLICK   ?? 0, icon: MessageSquare },
   ];
 
   // Group trend rows by bucket date so each column in the chart can
