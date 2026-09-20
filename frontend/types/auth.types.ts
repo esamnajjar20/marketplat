@@ -39,6 +39,12 @@ export interface AuthUser {
   // returning Google user — see backend's schema.prisma comment on
   // the column this mirrors.
   needsProfileCompletion?: boolean;
+  // FIX FEAT-EMAIL-VERIFY: mirrors the backend's User.emailVerified.
+  // true once the user clicked the link in the signup email, or
+  // immediately for Google signups (Google already verified the
+  // address). The banner in (protected)/layout reads this to decide
+  // whether to nag about verification.
+  emailVerified?: boolean;
 }
 
 /**
@@ -119,6 +125,11 @@ export interface AuthResultUser {
   name:  string;
   email: string;
   role:  string; // backend types as string, we narrow to UserRole after validation
+  // FIX FEAT-EMAIL-VERIFY: carried through from the backend's
+  // AuthResult.user -- register()/login() include it so the frontend
+  // knows whether to show the verification banner right away.
+  needsProfileCompletion?: boolean;
+  emailVerified?: boolean;
 }
 
 export interface LoginResponseData {

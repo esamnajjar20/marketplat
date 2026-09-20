@@ -350,3 +350,25 @@ export function useChangePassword() {
     // session on failure, unlike onSuccess above.
   });
 }
+
+/**
+ * FIX FEAT-EMAIL-VERIFY: re-sends the verification email for the
+ * currently-authenticated user. 3/hour rate limit lives on the backend
+ * (resendVerificationRateLimit); this hook just surfaces the outcome
+ * as a toast so the banner does not need its own error UI.
+ *
+ * The error path is meaningful: EMAIL_ALREADY_VERIFIED (the user
+ * verified elsewhere between the banner render and the click) and
+ * the 429 rate limit are both worth telling the user about.
+ */
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: () => authApi.resendVerification(),
+    onSuccess: () => {
+      toast.success('تم إرسال رابط التأكيد إلى بريدك الإلكتروني');
+    },
+    onError: (err) => {
+      toast.error(parseApiError(err).message);
+    },
+  });
+}

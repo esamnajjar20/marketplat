@@ -67,6 +67,18 @@ export const authApi = {
     apiClient.post<ApiResponse<null>>('/auth/reset-password', payload),
 
   /**
+   * FIX FEAT-EMAIL-VERIFY: POST /auth/verify-email — public, no auth.
+   * The token in the URL is the proof of ownership; the visitor may
+   * not be logged in (e.g. clicked from their phone's mail app).
+   */
+  verifyEmail: (payload: { token: string }) =>
+    apiClient.post<ApiResponse<{ emailVerified: boolean }>>('/auth/verify-email', payload),
+
+  /** FIX FEAT-EMAIL-VERIFY: POST /auth/resend-verification — auth required. */
+  resendVerification: () =>
+    apiClient.post<ApiResponse<null>>('/auth/resend-verification'),
+
+  /**
    * POST /users/me/password — changes the authenticated user's password.
    * FIX INTEG-04: the actually-used definition — see useChangePassword
    * in useAuthMutations.ts for why this lives here rather than being

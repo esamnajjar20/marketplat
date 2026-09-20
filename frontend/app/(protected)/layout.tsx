@@ -38,6 +38,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ProtectedHeader }  from '@/components/layout/ProtectedHeader';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
 import { BottomNav }        from '@/components/layout/BottomNav';
+import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { PageTransition }   from '@/components/shared/PageTransition';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -121,6 +122,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     // instead of being bypassed by an ancestor refusing to shrink.
     <div className="flex min-h-screen min-w-0 flex-col">
       <ProtectedHeader />
+      {/* FIX FEAT-EMAIL-VERIFY: shows a yellow bar when the signed-in
+          user hasn't verified their email yet. Auto-hides for guests
+          and for verified users. Dismissible per-session. */}
+      <EmailVerificationBanner />
       <div className="flex min-w-0 flex-1">
         <ProtectedSidebar />
         {/* FIX P1-3: pb-20 reserves space for BottomNav on mobile, same
