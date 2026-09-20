@@ -125,7 +125,8 @@ export function useLogin() {
           const u = unwrapData(r);
           setUser({ id: u.id, name: u.name, email: u.email,
                     role: u.role as 'USER' | 'ADMIN',
-                    avatarUrl: u.avatarUrl, city: u.city });
+                    avatarUrl: u.avatarUrl, city: u.city,
+                    emailVerified: u.emailVerified });
           queryClient.setQueryData(queryKeys.auth.me(), u);
         })
         .catch(() => { /* non-critical — minimal user still set */ });

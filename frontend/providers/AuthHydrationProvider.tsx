@@ -182,6 +182,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           // is also what covers a returning session on a later visit
           // before the form is ever submitted.
           needsProfileCompletion: user.needsProfileCompletion,
+          emailVerified: user.emailVerified,
         });
         // Set role cookie for middleware admin check.
         setCookie('app_user_role', user.role, cookieMaxAge);

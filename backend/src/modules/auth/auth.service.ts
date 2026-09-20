@@ -85,7 +85,7 @@ export interface AuthResult {
  * shared setup is factored out rather than duplicated in both places.
  */
 async function issueSession(
-  user: { id: string; name: string; email: string; role: string; needsProfileCompletion?: boolean },
+  user: { id: string; name: string; email: string; role: string; needsProfileCompletion?: boolean; emailVerified?: boolean },
   ip: string,
   userAgent: string,
 ): Promise<{ result: AuthResult; sessionId: string }> {
@@ -99,13 +99,13 @@ async function issueSession(
     lastSeen: new Date().toISOString(),
   });
 
-  await userCache.set({ id: user.id, role: user.role, isActive: true });
+  await userCache.set({ id: user.id, role: user.role, isActive: true, emailVerified: user.emailVerified });
 
   return {
     sessionId: tokens.sessionId,
     result: {
       tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn },
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, needsProfileCompletion: user.needsProfileCompletion },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, needsProfileCompletion: user.needsProfileCompletion, emailVerified: user.emailVerified },
     },
   };
 }

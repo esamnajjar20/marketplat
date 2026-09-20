@@ -185,6 +185,8 @@ export const useAuthStore = create<AuthStore>()(
             // avatarUrl and city filled in by /users/me — null until then
             avatarUrl: null,
             city:      null,
+            emailVerified: authResultUser.emailVerified,
+            needsProfileCompletion: authResultUser.needsProfileCompletion,
           },
           accessToken:     tokens.accessToken,
           // CROSS-ORIGIN-CSRF-FIX: only overwrite if a value was passed —

@@ -58,6 +58,15 @@ export interface User {
   // same name — see types/auth.types.ts's AuthUser.needsProfileCompletion
   // comment.
   needsProfileCompletion: boolean;
+  // FIX FEAT-EMAIL-VERIFY-PROPAGATION: mirrors SafeUser.emailVerified
+  // and .emailVerifiedAt — both already returned by the backend
+  // (users.repository.ts safeUserSelect) but never mirrored here, so
+  // TS rejected u.emailVerified in useLogin / AuthHydrationProvider
+  // even though the runtime response carried it. Safe to add: the
+  // backend select is the single source of truth for what /users/me
+  // returns, and these two fields are on every response.
+  emailVerified: boolean;
+  emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
