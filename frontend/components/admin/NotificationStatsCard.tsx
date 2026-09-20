@@ -1,9 +1,13 @@
+// FIX NOTIF-STATS-ERROR-01: error state now uses the shared ApiError
+// component instead of a flat "تعذّر تحميل" box.
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { adminApi } from '@/api/admin.api';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 import { formatNumber } from '@/lib/formatters';
 
 type NotificationStats = {
@@ -13,7 +17,7 @@ type NotificationStats = {
 };
 
 export function NotificationStatsCard() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'notifications', 'stats', 30],
     queryFn: async (): Promise<NotificationStats> => {
       const r = await adminApi.getNotificationStats({ days: 30 });
@@ -30,12 +34,10 @@ export function NotificationStatsCard() {
     );
   }
 
+  // FIX NOTIF-STATS-ERROR-01: shared ApiError (401/403/404/500+) +
+  // retry button, matching every other admin surface.
   if (isError || !data) {
-    return (
-      <div className="rounded-xl border p-4 text-sm text-muted-foreground">
-        تعذّر تحميل إحصاءات الإشعارات
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   return (

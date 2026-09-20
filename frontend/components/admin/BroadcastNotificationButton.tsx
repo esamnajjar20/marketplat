@@ -1,3 +1,7 @@
+// FIX BROADCAST-STRUCTURE-01: preview block was rendered OUTSIDE the
+// Dialog (as a fragment sibling), so it appeared floating on any page
+// this component mounted on. Also removed the decorative audience
+// selector -- its state was never forwarded to the mutation.
 'use client';
 
 /**
@@ -28,7 +32,6 @@ export function BroadcastNotificationButton() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [audience, setAudience] = useState<'all' | 'sellers'>('all');
   const broadcast = useAdminBroadcastNotification();
 
   // UX-FIX P1-2: the inner ConfirmDialog was already pending-aware (via
@@ -104,6 +107,20 @@ export function BroadcastNotificationButton() {
               />
               <p className="text-xs text-muted-foreground text-end">{body.length}/{BODY_MAX}</p>
             </div>
+
+            {/* FIX BROADCAST-STRUCTURE-01: the preview block was rendered
+                OUTSIDE the <Dialog> in the previous code (as a sibling of
+                the outer trigger + Dialog on the fragment), so it appeared
+                as floating text on whatever page this component was
+                mounted on, regardless of whether the broadcast dialog was
+                even open. Moved inside DialogContent so it actually
+                previews the message about to be sent. */}
+            <div className="space-y-2 rounded-lg border bg-muted/40 p-3 text-sm">
+              <p className="font-medium text-muted-foreground">معاينة</p>
+              <p className="font-semibold">{title.trim() || '—'}</p>
+              <p className="text-muted-foreground whitespace-pre-wrap">{body.trim() || '—'}</p>
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={broadcast.isPending}>
                 إلغاء
@@ -116,33 +133,16 @@ export function BroadcastNotificationButton() {
         </DialogContent>
       </Dialog>
 
-      
-        <div className="space-y-2 rounded-lg border bg-muted/40 p-3 text-sm">
-          <p className="font-medium text-muted-foreground">معاينة</p>
-          <p className="font-semibold">{title.trim() || '—'}</p>
-          <p className="text-muted-foreground whitespace-pre-wrap">{body.trim() || '—'}</p>
-          <p className="text-xs text-muted-foreground">
-            الجمهور: {audience === 'all' ? 'كل المستخدمين النشطين' : 'البائعون فقط (قريباً عبر allUsers)'}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={`rounded-md border px-3 py-1.5 text-xs ${audience === 'all' ? 'bg-primary text-primary-foreground' : ''}`}
-            onClick={() => setAudience('all')}
-          >
-            الكل
-          </button>
-          <button
-            type="button"
-            className={`rounded-md border px-3 py-1.5 text-xs ${audience === 'sellers' ? 'bg-primary text-primary-foreground' : ''}`}
-            onClick={() => setAudience('sellers')}
-          >
-            البائعون
-          </button>
-        </div>
+      {/* FIX BROADCAST-STRUCTURE-01 (part 2): removed the audience
+          selector + its `audience` state entirely. The state was set
+          but never forwarded to broadcast.mutate() -- the mutation
+          only receives {title, body}, and the backend endpoint only
+          supports allUsers:true. So the two buttons were decorative,
+          and the "البائعون (قريباً)" branch told the admin an
+          audience option existed that the code would silently drop.
+          Better to expose only what actually works. */}
 
-        <ConfirmDialog
+      <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="تأكيد الإرسال"
