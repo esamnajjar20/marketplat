@@ -12,16 +12,19 @@ import {
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { Appointment, AppointmentsQuery } from '@/types/service.types';
 import type { PaginationMeta } from '@/types/api.types';
-
-type MyAppointmentsData = {
-  items: Appointment[];
-  meta: PaginationMeta;
-};
 import {
   getOfflineJson,
   saveOfflineJson,
   OFFLINE_JSON_KEYS,
 } from '@/lib/offlineJsonCache';
+
+// FIX APPT-IMPORT-ORDER-01: this type was declared BETWEEN two import
+// blocks -- legal (imports are hoisted) but reads as if it belongs to
+// the first import group. Moved below so the imports form one block.
+type MyAppointmentsData = {
+  items: Appointment[];
+  meta: PaginationMeta;
+};
 
 /** GET /appointments/me — مع كاش أوفلاين محدود للصفحة الأولى. */
 export function useMyAppointments(params?: AppointmentsQuery) {

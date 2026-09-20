@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { activityApi } from '@/api/activity.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -41,7 +40,16 @@ export function useMyActivity(params?: ActivityQuery) {
     ? getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity)
     : null;
 
-  const query = useQuery({
+  // FIX ACTIVITY-DOUBLE-SAVE-01: the offline list was being written
+  // twice on every successful fetch -- once inside queryFn and once in
+  // a useEffect keyed on query.data. Both write the exact same items
+  // with the same limit, so the second pass is pure waste (a second
+  // JSON.stringify + localStorage.setItem per fetch), and worse, the
+  // effect can fire late enough to overwrite a newer write from an
+  // in-flight follow-up fetch. Every other offline-cached list hook in
+  // this project (useAds, useStores, useMyFollowedStores) writes only
+  // from queryFn; the effect was unique to this file and redundant.
+  return useQuery({
     queryKey: queryKeys.activity.mine(params),
     queryFn: async () => {
       try {
@@ -79,16 +87,4 @@ export function useMyActivity(params?: ActivityQuery) {
         }
       : {}),
   });
-
-  useEffect(() => {
-    if (isBase && query.data?.items) {
-      saveOfflineList(
-        OFFLINE_LIST_KEYS.activity,
-        query.data.items,
-        OFFLINE_LIST_LIMITS.activity,
-      );
-    }
-  }, [isBase, query.data]);
-
-  return query;
 }
