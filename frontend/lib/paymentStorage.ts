@@ -70,44 +70,60 @@ function migrateLegacy<T>(legacyKey: string, newKey: string): T[] {
   return [];
 }
 
+/**
+ * FIX PAYMENT-MULTI-USER-WRITE-01: raw (unfiltered) readers for mutation
+ * paths. localSet replaces the WHOLE array, so any write MUST start from
+ * the full list -- using listSavedPayees()/listSavedNetCards() (already
+ * filtered to the current user) as a mutation base silently deleted
+ * every other user's rows on the same device. Every writer below reads
+ * through these now. Public list*() stay filtered for UI.
+ */
+function allPayees(): SavedPayee[] {
+  return migrateLegacy<SavedPayee>(LEGACY_PAYEES, PAYEES_KEY);
+}
+function allNetCards(): SavedNetCard[] {
+  return migrateLegacy<SavedNetCard>(LEGACY_CARDS, CARDS_KEY);
+}
+
 export function listSavedPayees(): SavedPayee[] {
-  const all = migrateLegacy<SavedPayee>(LEGACY_PAYEES, PAYEES_KEY);
   // FIX PAYMENT-USER-SCOPE: فلترة — عناصر قديمة بلا userId تُعرَض لو
   // ما في userId حالي (زائر).
   const uid = getCurrentUserId();
-  return all.filter((p) => (p.userId ?? null) === uid);
+  return allPayees().filter((p) => (p.userId ?? null) === uid);
 }
 
 export function savePayee(payee: Omit<SavedPayee, 'id' | 'savedAt'>): SavedPayee {
-  const list = listSavedPayees();
-  const existing = list.find(
-    (p) => p.number === payee.number && p.method === payee.method,
+  const uid = getCurrentUserId();
+  const all = allPayees();
+  const existingIdx = all.findIndex(
+    (p) => (p.userId ?? null) === uid && p.number === payee.number && p.method === payee.method,
   );
-  if (existing) {
-    existing.name = payee.name;
-    existing.savedAt = new Date().toISOString();
-    localSet(PAYEES_KEY, list);
-    return existing;
+  if (existingIdx >= 0) {
+    const existing = all[existingIdx];
+    if (existing) {
+      existing.name = payee.name;
+      existing.savedAt = new Date().toISOString();
+      localSet(PAYEES_KEY, all);
+      return existing;
+    }
   }
   const entry: SavedPayee = {
     ...payee,
-    userId: getCurrentUserId(),
+    userId: uid,
     id: crypto.randomUUID(),
     savedAt: new Date().toISOString(),
   };
-  // FIX PAYMENT-LIST-CAP: احتفظ بـ 30 مدخل لكل مستخدم — لكن نكتب الكل
-  // (list مأخوذة من filtered لـ user الحالي، والكامل ليس متاحاً بسهولة).
-  // نستخدم localSet على merged list من migrateLegacy الكامل.
-  const allRaw = migrateLegacy<SavedPayee>(LEGACY_PAYEES, PAYEES_KEY);
-  const merged = [entry, ...allRaw];
-  localSet(PAYEES_KEY, merged.slice(0, 60));  // 30 × مستخدمين محتملين
+  // FIX PAYMENT-LIST-CAP: 60 سقف عام (30 × مستخدمين محتملين على نفس الجهاز).
+  const merged = [entry, ...all];
+  localSet(PAYEES_KEY, merged.slice(0, 60));
   return entry;
 }
 
 export function removePayee(id: string) {
+  const uid = getCurrentUserId();
   localSet(
     PAYEES_KEY,
-    listSavedPayees().filter((p) => p.id !== id),
+    allPayees().filter((p) => !(p.id === id && (p.userId ?? null) === uid)),
   );
 }
 
@@ -116,10 +132,11 @@ export function updatePayee(
   id: string,
   patch: Partial<Omit<SavedPayee, 'id' | 'savedAt'>>,
 ): SavedPayee | null {
-  const list = listSavedPayees();
-  const idx = list.findIndex((p) => p.id === id);
+  const uid = getCurrentUserId();
+  const all = allPayees();
+  const idx = all.findIndex((p) => p.id === id && (p.userId ?? null) === uid);
   if (idx < 0) return null;
-  const existing = list[idx];
+  const existing = all[idx];
   if (!existing) return null;
   const updated: SavedPayee = {
     ...existing,
@@ -128,47 +145,51 @@ export function updatePayee(
     id: existing.id,
     savedAt: new Date().toISOString(),
   };
-  list[idx] = updated;
-  localSet(PAYEES_KEY, list);
+  all[idx] = updated;
+  localSet(PAYEES_KEY, all);
   return updated;
 }
 
 export function listSavedNetCards(): SavedNetCard[] {
-  const all = migrateLegacy<SavedNetCard>(LEGACY_CARDS, CARDS_KEY);
   // FIX PAYMENT-USER-SCOPE
   const uid = getCurrentUserId();
-  return all.filter((c) => (c.userId ?? null) === uid);
+  return allNetCards().filter((c) => (c.userId ?? null) === uid);
 }
 
 export function saveNetCard(
   card: Omit<SavedNetCard, 'id' | 'savedAt'>,
 ): SavedNetCard {
-  const list = listSavedNetCards();
-  const existing = list.find((c) => c.username === card.username);
-  if (existing) {
-    existing.password = card.password;
-    existing.label = card.label;
-    existing.savedAt = new Date().toISOString();
-    localSet(CARDS_KEY, list);
-    return existing;
+  const uid = getCurrentUserId();
+  const all = allNetCards();
+  const existingIdx = all.findIndex(
+    (c) => (c.userId ?? null) === uid && c.username === card.username,
+  );
+  if (existingIdx >= 0) {
+    const existing = all[existingIdx];
+    if (existing) {
+      existing.password = card.password;
+      existing.label = card.label;
+      existing.savedAt = new Date().toISOString();
+      localSet(CARDS_KEY, all);
+      return existing;
+    }
   }
   const entry: SavedNetCard = {
     ...card,
-    userId: getCurrentUserId(),
+    userId: uid,
     id: crypto.randomUUID(),
     savedAt: new Date().toISOString(),
   };
-  // FIX PAYMENT-LIST-CAP (نفس savePayee)
-  const allRaw = migrateLegacy<SavedNetCard>(LEGACY_CARDS, CARDS_KEY);
-  const merged = [entry, ...allRaw];
+  const merged = [entry, ...all];
   localSet(CARDS_KEY, merged.slice(0, 60));
   return entry;
 }
 
 export function removeNetCard(id: string) {
+  const uid = getCurrentUserId();
   localSet(
     CARDS_KEY,
-    listSavedNetCards().filter((c) => c.id !== id),
+    allNetCards().filter((c) => !(c.id === id && (c.userId ?? null) === uid)),
   );
 }
 
@@ -177,10 +198,11 @@ export function updateNetCard(
   id: string,
   patch: Partial<Omit<SavedNetCard, 'id' | 'savedAt'>>,
 ): SavedNetCard | null {
-  const list = listSavedNetCards();
-  const idx = list.findIndex((c) => c.id === id);
+  const uid = getCurrentUserId();
+  const all = allNetCards();
+  const idx = all.findIndex((c) => c.id === id && (c.userId ?? null) === uid);
   if (idx < 0) return null;
-  const existing = list[idx];
+  const existing = all[idx];
   if (!existing) return null;
   const updated: SavedNetCard = {
     ...existing,
@@ -189,8 +211,8 @@ export function updateNetCard(
     id: existing.id,
     savedAt: new Date().toISOString(),
   };
-  list[idx] = updated;
-  localSet(CARDS_KEY, list);
+  all[idx] = updated;
+  localSet(CARDS_KEY, all);
   return updated;
 }
 
@@ -201,10 +223,8 @@ export function updateNetCard(
  */
 export function clearSavedPaymentMethods(): void {
   const uid = getCurrentUserId();
-  const payees = migrateLegacy<SavedPayee>(LEGACY_PAYEES, PAYEES_KEY);
-  const cards = migrateLegacy<SavedNetCard>(LEGACY_CARDS, CARDS_KEY);
-  localSet(PAYEES_KEY, payees.filter((p) => (p.userId ?? null) !== uid));
-  localSet(CARDS_KEY, cards.filter((c) => (c.userId ?? null) !== uid));
+  localSet(PAYEES_KEY, allPayees().filter((p) => (p.userId ?? null) !== uid));
+  localSet(CARDS_KEY, allNetCards().filter((c) => (c.userId ?? null) !== uid));
 }
 
 export function buildUssd(
@@ -234,7 +254,15 @@ export const PAY_METHOD_LABELS: Record<PayMethod, string> = {
 
 export function ussdTelHref(ussdCode: string): string {
   if (!ussdCode) return '';
-  return `tel:${ussdCode.replace(/#/g, '%23')}`;
+  // FIX USSD-TEL-HREF-HARDEN-01: previously only `#` was escaped, so any
+  // reserved character that slipped through a caller (username/password
+  // in buildNetCardUssd, e.g.) could inject into the tel: URL -- a `?`
+  // becomes a pause on Android dialers, and spaces/control chars are
+  // undefined behavior in the href parser. Whitelist to the character
+  // set that a USSD code can legitimately contain, then encode # for
+  // href safety.
+  const safe = ussdCode.replace(/[^\d*#+\-.]/g, '');
+  return `tel:${safe.replace(/#/g, '%23')}`;
 }
 
 
