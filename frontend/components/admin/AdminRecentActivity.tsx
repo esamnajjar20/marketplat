@@ -1,3 +1,4 @@
+// FIX RECENT-ACTIVITY-APIERROR-01: shared ApiError.
 'use client';
 
 import Link from 'next/link';
@@ -5,27 +6,22 @@ import { useAdminAds } from '@/hooks/queries/useAdmin';
 import { ROUTES }      from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { AlertTriangle } from 'lucide-react';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 
 export function AdminRecentActivity() {
-  const { data, isLoading, isError, refetch } = useAdminAds({ page: 1, limit: 8 });
+  const { data, isLoading, isError, error, refetch } = useAdminAds({ page: 1, limit: 8 });
   const items = data?.items ?? [];
 
   if (isLoading) return <div className="flex justify-center py-6"><LoadingSpinner size="sm" /></div>;
 
-  // UX-FIX P1-9 (admin variant): don't render "لا توجد نشاطات" on a
-  // failed fetch — an admin could wrongly read that as "the platform
-  // is quiet" rather than "this widget couldn't load".
+  // FIX RECENT-ACTIVITY-APIERROR-01: shared ApiError instead of a
+  // hand-rolled AlertTriangle + bare <button>. The UX-FIX P1-9
+  // rationale is preserved -- a failed fetch still doesn't render as
+  // "لا توجد نشاطات" -- and it now includes 401/403/404/500+
+  // differentiation.
   if (isError) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-6 text-center text-sm rounded-lg border">
-        <AlertTriangle className="h-6 w-6 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل النشاط الأخير</p>
-        <button type="button" onClick={() => refetch()} className="text-primary hover:underline">
-          إعادة المحاولة
-        </button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   return (

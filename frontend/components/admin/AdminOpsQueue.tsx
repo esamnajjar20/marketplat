@@ -1,11 +1,15 @@
+// FIX OPS-QUEUE-FIX-01: shared ApiError + deduplicated icon className
+// (was "h-4.5 w-4.5 h-4 w-4" -- Tailwind kept only the last pair).
 'use client';
 
 import Link from 'next/link';
-import { Flag, Store, UserCheck, ShieldAlert, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Flag, Store, UserCheck, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ROUTES } from '@/lib/constants';
 import { formatNumber } from '@/lib/formatters';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 
 type QueueKey = 'openReports' | 'pendingStores' | 'pendingSellers' | 'unreviewedFraud';
@@ -53,7 +57,7 @@ const ITEMS: {
 ];
 
 export function AdminOpsQueue() {
-  const { data, isLoading, isError, refetch } = useAdminOpsQueue();
+  const { data, isLoading, isError, error, refetch } = useAdminOpsQueue();
 
   if (isLoading) {
     return (
@@ -63,16 +67,10 @@ export function AdminOpsQueue() {
     );
   }
 
+  // FIX OPS-QUEUE-FIX-01: shared ApiError instead of a hand-rolled
+  // AlertTriangle + bare <button>.
   if (isError || !data) {
-    return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border py-8 text-center">
-        <AlertTriangle className="h-7 w-7 text-muted-foreground" />
-        <p className="text-sm text-destructive">تعذّر تحميل طابور العمل</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-          إعادة المحاولة
-        </button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   const total = data.total ?? 0;
@@ -105,7 +103,7 @@ export function AdminOpsQueue() {
               )}
             >
               <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', accent)}>
-                <Icon className="h-4.5 w-4.5 h-4 w-4" />
+                <Icon className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
