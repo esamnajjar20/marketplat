@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service';
 import {
-  registerSchema,
-  loginSchema,
   forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resendVerificationSchema,
   resetPasswordSchema,
+  verifyEmailSchema,
 } from './auth.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -293,6 +295,35 @@ export const authController = {
       const code = error instanceof AppError ? error.code : undefined;
       const suffix = code ? `&code=${encodeURIComponent(code)}` : '';
       res.redirect(`${loginRedirect}?error=google_auth_failed${suffix}`);
+    }
+  },
+  /**
+   * FIX FEAT-EMAIL-VERIFY: POST /auth/verify-email — public, no auth
+   * required. The token itself IS the proof of ownership; the user
+   * might not be logged in (e.g. clicked the link from a phone).
+   */
+  verifyEmail: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { body } = verifyEmailSchema.parse({ body: req.body });
+      await authService.verifyEmail(body.token);
+      res.status(200).json(successResponse('Email verified', { emailVerified: true }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * FIX FEAT-EMAIL-VERIFY: POST /auth/resend-verification — requires
+   * auth. Rate-limited at the route layer. The service rejects with
+   * EMAIL_ALREADY_VERIFIED if the user is already verified.
+   */
+  resendVerification: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      await authService.resendVerification(user.userId);
+      res.status(200).json(successResponse('Verification email sent'));
+    } catch (error) {
+      next(error);
     }
   },
 };

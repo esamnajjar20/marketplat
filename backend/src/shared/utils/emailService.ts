@@ -447,6 +447,37 @@ function passwordResetEmail(resetUrl: string): { html: string; text: string } {
   };
 }
 
+// FIX FEAT-EMAIL-VERIFY: template for the "confirm your email" link.
+// Mirrors passwordResetEmail's shape (text + RTL HTML, single CTA).
+function verificationEmail(verifyUrl: string): { html: string; text: string } {
+  return {
+    text: [
+      'تأكيد البريد الإلكتروني — سوق غزة',
+      '',
+      'شكراً لتسجيلك في سوق غزة.',
+      `لتأكيد بريدك الإلكتروني، افتح هذا الرابط: ${verifyUrl}`,
+      '',
+      'هذا الرابط صالح لمدة 24 ساعة.',
+      'إذا لم تكن أنت من سجّل هذا الحساب، يمكنك تجاهل هذه الرسالة.',
+    ].join('\n'),
+    html: `
+      <div dir="rtl" style="font-family: Tahoma, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
+        <h2 style="margin-bottom: 16px;">تأكيد البريد الإلكتروني</h2>
+        <p>شكراً لتسجيلك في <strong>سوق غزة</strong>.</p>
+        <p>لتأكيد بريدك الإلكتروني، اضغط الزر أدناه:</p>
+        <p style="margin: 24px 0;">
+          <a href="${verifyUrl}"
+             style="background:#16a34a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">
+            تأكيد البريد الإلكتروني
+          </a>
+        </p>
+        <p style="color:#666;font-size:14px;">هذا الرابط صالح لمدة 24 ساعة.</p>
+        <p style="color:#666;font-size:14px;">إذا لم تكن أنت من سجّل هذا الحساب، يمكنك تجاهل هذه الرسالة بأمان.</p>
+      </div>
+    `,
+  };
+}
+
 function securityAlertEmail(event: string, details: Record<string, unknown>): { html: string; text: string } {
   const eventLabels: Record<string, string> = {
     TOKEN_REUSE: 'تم اكتشاف إعادة استخدام رمز الجلسة — تم إلغاء جميع الجلسات',
@@ -492,6 +523,23 @@ export const emailService = {
     await sendEmail({
       to: toEmail,
       subject: 'إعادة تعيين كلمة المرور — سوق غزة',
+      html,
+      text,
+    });
+  },
+
+  /**
+   * FIX FEAT-EMAIL-VERIFY: called from auth.service.ts's register()
+   * and resendVerification(). The verify URL points at the frontend's
+   * /verify-email page, which reads ?token= and POSTs back to
+   * /auth/verify-email. 24h TTL enforced at the service layer.
+   */
+  sendVerificationEmail: async (toEmail: string, token: string): Promise<void> => {
+    const verifyUrl = `${env.frontendUrl}/verify-email?token=${encodeURIComponent(token)}`;
+    const { html, text } = verificationEmail(verifyUrl);
+    await sendEmail({
+      to: toEmail,
+      subject: 'تأكيد البريد الإلكتروني — سوق غزة',
       html,
       text,
     });

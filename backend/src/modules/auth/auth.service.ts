@@ -62,7 +62,19 @@ export interface AuthResult {
   // it's simply absent/falsy there, matching those accounts always
   // having needsProfileCompletion=false. authController.googleCallback
   // reads this to pick the post-login redirect target.
-  user: { id: string; name: string; email: string; role: string; needsProfileCompletion?: boolean };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    needsProfileCompletion?: boolean;
+    // FIX FEAT-EMAIL-VERIFY: present on every response. Frontend uses
+    // this to render a "verify your email" banner. Google-signup
+    // users come through as true (see authRepository.createWithGoogle);
+    // local registrations default to false until the verify-email
+    // link is clicked.
+    emailVerified?: boolean;
+  };
 }
 
 /**
@@ -152,6 +164,34 @@ export const authService = {
     }
 
     auditLog({ event: AuditEvent.REGISTER, userId: user.id, ip, userAgent }).catch(() => {});
+
+    // FIX FEAT-EMAIL-VERIFY: fire-and-forget (same contract as
+    // forgotPassword's dispatch) — a slow or failing verification
+    // email must never block the registration response. Failure is
+    // logged; the user can request a re-send from the banner.
+    void (async () => {
+      try {
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+        // Clear any prior unused tokens for this user — same
+        // bounded-table pattern as forgotPassword.
+        await prisma.emailVerificationToken.deleteMany({
+          where: { userId: user.id, used: false },
+        });
+        await prisma.emailVerificationToken.create({
+          data: { token, userId: user.id, expiresAt: expiry },
+        });
+
+        await emailService.sendVerificationEmail(user.email, token);
+        logger.info('Verification email dispatched', { userId: user.id });
+      } catch (err) {
+        logger.error('Failed to dispatch verification email', {
+          userId: user.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    })();
 
     return result;
   },
@@ -717,4 +757,85 @@ export const authService = {
     await tokenStore.deleteAllRefreshTokens(record.userId);
     logger.info('Password reset completed', { userId: record.userId });
   },
+  /**
+   * FIX FEAT-EMAIL-VERIFY: consumes a token from the verification
+   * email. Mirrors resetPassword's shape (single-use token, TTL
+   * enforced at the row level). On success marks the user's
+   * emailVerified = true and emailVerifiedAt = now. The token row is
+   * marked used=true (kept as an audit trail, same as password reset).
+   */
+  verifyEmail: async (token: string): Promise<void> => {
+    const record = await prisma.emailVerificationToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!record || record.expiresAt < new Date() || record.used) {
+      throw new BadRequestError(
+        'Verification link is invalid or has expired',
+        'INVALID_VERIFICATION_TOKEN',
+      );
+    }
+
+    // Idempotency: an already-verified user who re-clicks the link
+    // should see success, not a confusing error. Consume the token
+    // either way so it can't be reused.
+    await prisma.$transaction([
+      prisma.emailVerificationToken.update({
+        where: { id: record.id },
+        data: { used: true },
+      }),
+      prisma.user.update({
+        where: { id: record.userId },
+        data: {
+          emailVerified: true,
+          emailVerifiedAt: record.user.emailVerified
+            ? record.user.emailVerifiedAt
+            : new Date(),
+        },
+      }),
+    ]);
+
+    userCache.invalidate(record.userId).catch(() => {});
+    auditLog({
+      event: AuditEvent.EMAIL_VERIFIED,
+      userId: record.userId,
+    }).catch(() => {});
+  },
+
+  /**
+   * FIX FEAT-EMAIL-VERIFY: re-sends the verification email for the
+   * authenticated user. 3/hour rate limit applied at the route layer.
+   * Idempotent for unverified users (clears old unused tokens, creates
+   * a fresh one). Rejects with a clear error if the user is already
+   * verified, rather than silently no-op'ing — the frontend banner
+   * wouldn't be shown in that case anyway.
+   */
+  resendVerification: async (userId: string): Promise<void> => {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, emailVerified: true, isActive: true },
+    });
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (!user.isActive) {
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+    }
+    if (user.emailVerified) {
+      throw new BadRequestError('Email is already verified', 'EMAIL_ALREADY_VERIFIED');
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await prisma.emailVerificationToken.deleteMany({
+      where: { userId: user.id, used: false },
+    });
+    await prisma.emailVerificationToken.create({
+      data: { token, userId: user.id, expiresAt: expiry },
+    });
+
+    await emailService.sendVerificationEmail(user.email, token);
+    logger.info('Verification email re-sent', { userId: user.id });
+  },
+
 };

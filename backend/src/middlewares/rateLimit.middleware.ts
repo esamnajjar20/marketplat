@@ -647,3 +647,17 @@ export const adminRateLimit = rateLimit({
   store: createRedisStore("admin", false),
   message: msg("Too many admin actions, please slow down"),
 });
+
+// FIX FEAT-EMAIL-VERIFY: 3/hour per IP for the "resend verification
+// email" action. Same shape and rationale as forgotPasswordRateLimit
+// (fail-closed -- a Redis outage refuses the action rather than
+// allowing a spam loop). Prevents a single client from generating
+// hundreds of verification emails to a victim's inbox.
+export const resendVerificationRateLimit = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("resend_verification", false),
+  message: msg("Too many verification requests, please try again in an hour"),
+});

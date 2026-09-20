@@ -1,6 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authController } from './auth.controller';
-import { authRateLimit, refreshRateLimit, forgotPasswordRateLimit } from '../../middlewares/rateLimit.middleware';
+import {
+  authRateLimit,
+  forgotPasswordRateLimit,
+  refreshRateLimit,
+  resendVerificationRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { passport } from './google.strategy';
 import type { GoogleProfileData } from './google.strategy';
@@ -167,6 +172,18 @@ authRouter.post('/forgot-password', forgotPasswordRateLimit, authController.forg
  * Rate-limited at 10/hr.
  */
 authRouter.post('/reset-password', authRateLimit, authController.resetPassword);
+
+// FIX FEAT-EMAIL-VERIFY: /verify-email is public (the token is the
+// proof of ownership; a user clicking the link from their phone may
+// not be logged in). /resend-verification requires auth so the
+// endpoint knows which user's email to re-send to.
+authRouter.post('/verify-email', authRateLimit, authController.verifyEmail);
+authRouter.post(
+  '/resend-verification',
+  authenticate,
+  resendVerificationRateLimit,
+  authController.resendVerification,
+);
 
 /**
  * @swagger

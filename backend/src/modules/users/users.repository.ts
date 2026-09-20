@@ -43,6 +43,13 @@ const safeUserSelect = {
   // result is structurally missing them.
   provider: true,
   googleId: true,
+  // FIX FEAT-EMAIL-VERIFY: added to the User model by the
+  // 20260921120000_add_email_verification migration. SafeUser is
+  // Omit<User, 'passwordHash'>, so every SafeUser-typed query result
+  // must carry these two columns or TypeScript rejects the assignment
+  // (the compiler caught exactly that on the first type-check).
+  emailVerified: true,
+  emailVerifiedAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;

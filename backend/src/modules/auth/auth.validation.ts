@@ -78,6 +78,23 @@ export const forgotPasswordSchema = z.object({
   }),
 });
 
+// FIX FEAT-EMAIL-VERIFY: consumed by POST /auth/verify-email. Token
+// is the 64-char hex string generated in auth.service.ts's register()
+// and resendVerification(); min(1) is defensive — the service checks
+// existence in DB anyway.
+export const verifyEmailSchema = z.object({
+  body: z.object({
+    token: z.string().trim().min(1, 'Verification token is required'),
+  }),
+});
+
+// FIX FEAT-EMAIL-VERIFY: POST /auth/resend-verification takes no body
+// — the user is identified by their auth token. Empty schema for
+// symmetry with the middleware chain.
+export const resendVerificationSchema = z.object({
+  body: z.object({}).optional(),
+});
+
 export const resetPasswordSchema = z.object({
   body: z.object({
     token:       z.string().min(1, 'Reset token is required'),

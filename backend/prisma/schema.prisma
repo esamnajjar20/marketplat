@@ -103,6 +103,14 @@ model User {
   // on passwordHash being present before comparing (an OAuth-only
   // account has none to compare against).
   passwordHash                String?
+  // FIX FEAT-EMAIL-VERIFY: true once the user has clicked the link in
+  // the verification email. New local registrations default to false;
+  // Google-signup users are created with true (Google already verified
+  // their address). Pre-existing users were backfilled to true by the
+  // 20260921120000_add_email_verification migration. Gating rules live
+  // in middlewares/requireVerifiedEmail.middleware.ts.
+  emailVerified               Boolean                   @default(false)
+  emailVerifiedAt             DateTime?
   // FIX OAUTH-01: which identity provider created this account.
   // 'local' (default) = registered via email/password. 'google' = the
   // account either originated from Google Sign-In or had a Google
@@ -147,6 +155,7 @@ model User {
   pushSubscriptions           PushSubscription[]
   fcmDeviceTokens              FcmDeviceToken[]
   passwordResetTokens         PasswordResetToken[]
+  emailVerificationTokens     EmailVerificationToken[]
   reports                     Report[]
   sellerProfile               SellerProfile?
   sellerRatingsGiven          SellerRating[]
@@ -1308,6 +1317,25 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+// FIX FEAT-EMAIL-VERIFY: mirror of PasswordResetToken for the email
+// verification flow. Kept as a separate table (not a `type` column on
+// the reset table) so the two flows can evolve independently and so
+// `used=false` cleanup queries stay trivially scoped. 24h TTL applies
+// at the service layer, not the DB. Cascade delete on user.
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
 // FIX M-011 / M-012: this app has no message queue (BullMQ or
 // otherwise) — fire-and-forget side effects (notifications, fraud
 // scoring, ...) that fail transiently just log an error and vanish,
@@ -1680,6 +1708,8 @@ enum AuditEventType {
   ADMIN_STORE_PLAN_CHANGED
   // FIX OAUTH-01
   OAUTH_LOGIN
+  // FIX FEAT-EMAIL-VERIFY
+  EMAIL_VERIFIED
   OAUTH_ACCOUNT_LINKED
   OAUTH_SIGNUP
   // Fraud-detection (item 12): admin actions taken against the

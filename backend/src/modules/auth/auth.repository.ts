@@ -63,6 +63,14 @@ export const authRepository = {
           // the column) — cleared once they submit it via the
           // existing PATCH /users/me.
           needsProfileCompletion: true,
+          // FIX FEAT-EMAIL-VERIFY: Google already verified this
+          // address before the OAuth flow completed
+          // (google.strategy.ts's extractGoogleProfile requires
+          // email_verified === true), so we never send a second
+          // "confirm your email" round trip. Local registrations
+          // default to false and go through the /verify-email flow.
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
         },
       });
     } catch (error) {
