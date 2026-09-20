@@ -31,7 +31,12 @@ export function AdminCategoryTypeTabs() {
   return (
     <div role="tablist" aria-label="نوع الفئات" className="flex gap-1 overflow-x-auto border-b">
       {TABS.map((tab) => {
-        const isActive = pathname === tab.href;
+        // FIX CAT-TABS-ACTIVE-PARITY-01: matches the isActive rule
+        // AdminSidebar already uses (exact OR prefix), so a future
+        // subroute under one of these three would highlight both
+        // surfaces consistently.
+        const isActive =
+          pathname === tab.href || pathname.startsWith(tab.href + '/');
         return (
           <Link
             key={tab.href}
