@@ -31,7 +31,16 @@ export function useMyAppointments(params?: AppointmentsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const isBase = !params?.page || params.page === 1;
+  // FIX APPT-OFFLINE-CACHE-SCOPE-01: `isBase` only checked page,
+  // so a date-range-filtered first page (?from=2026-09-01&to=...) was
+  // written into the generic appointmentsMine offline slot. A later
+  // offline open of /appointments with no filter then showed only
+  // that date range's appointments — same class of bug the ADS
+  // sibling hook closed under ADS-OFFLINE-CACHE-SCOPE-01/-02, and
+  // AppointmentsQuery (types/service.types.ts) carries from/to
+  // filters exactly like AdSearchParams carries its own.
+  const hasRealFilter = Boolean(params?.from) || Boolean(params?.to);
+  const isBase = (!params?.page || params.page === 1) && !hasRealFilter;
 
   const cached = isBase
     ? getOfflineJson<MyAppointmentsData>(
