@@ -32,7 +32,14 @@ export const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
               className="relative h-4 w-4 shrink-0"
               aria-hidden
             >
-              <span className="absolute inset-0 rounded-full border-2 border-current/25" />
+              {/* FIX BORDER-CURRENT-OPACITY: `border-current/25` relies on
+                  a Tailwind opacity modifier on `currentColor`, which is
+                  unreliable on the project's Tailwind version — the /25 was
+                  silently dropped, so the track ring rendered at full
+                  intensity and the two rings (track + spinning) looked
+                  identical, killing the visual depth. Used a real muted
+                  colour instead. */}
+              <span className="absolute inset-0 rounded-full border-2 border-muted-foreground/25" />
               <span className="absolute inset-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
             </span>
             <span>{loadingText ?? 'جارٍ التنفيذ…'}</span>

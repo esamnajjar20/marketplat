@@ -455,8 +455,15 @@ export function ImageUpload({
       {/* New (not-yet-uploaded) image previews */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2">
+          {/* FIX IMAGE-PREVIEW-KEY: was `key={i}` — index-based keys
+              with a removable list cause React to reuse the wrong DOM
+              node on deletion from the middle (the blob shown for slot
+              N after removing slot 2 belongs to what was slot N+1
+              until the browser repaints). Stable per-file identity:
+              name+size+lastModified is unique for anything the user
+              picks from the camera or gallery in a single batch. */}
           {value.map((file, i) => (
-            <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-md bg-muted">
+            <div key={`${file.name}-${file.size}-${file.lastModified}`} className="group relative h-20 w-20 overflow-hidden rounded-md bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={getObjectUrl(file)}
