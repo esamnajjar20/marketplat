@@ -242,7 +242,19 @@ export function ImageUpload({
   );
 
   async function handleNativeCapture() {
-    if (remainingSlots - value.length <= 0) return;
+    // FIX NATIVE-CAP-DOUBLE-COUNT: `remainingSlots` is already
+    // `maxFiles - existingUrls.length - value.length` (see its
+    // declaration above). Subtracting value.length again here
+    // double-counted the staged files, so the native camera button
+    // (Capacitor shell only) silently no-op'd once value.length
+    // exceeded half of the remaining capacity — e.g. with maxFiles=5
+    // and no existing URLs, at 3 staged photos remainingSlots is 2
+    // and 2-3 evaluated <= 0, blocking the button even though two
+    // slots were still genuinely free. The button is still rendered
+    // in that state (its own visibility check uses the correct
+    // `remainingSlots > 0`), so the user saw a live-looking button
+    // that did nothing on tap.
+    if (remainingSlots <= 0) return;
     try {
       const result = await takeOrPickNativePhoto();
       // null = user cancelled the native sheet, or (defensively) not
