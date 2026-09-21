@@ -10,6 +10,7 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
@@ -44,28 +45,52 @@ function RequestActions({
   onBookAppointment: () => void;
 }) {
   const respond = useRespondToServiceRequest(id);
+  const [confirmReject, setConfirmReject] = useState(false);
 
   if (status === 'PENDING') {
+    // FIX REJECT-NO-CONFIRM: rejecting a pending request is a
+    // terminal transition — the customer cannot re-send the same
+    // request, only file a new one. Before this, the REJECT button
+    // (adjacent to ACCEPT, same size, same row, one tap away on
+    // mobile) fired the mutation on first click with no undo.
+    // MyServiceRequestsList already guards its CANCELLED transition
+    // behind a ConfirmDialog; this is the mirror side of the same
+    // flow and deserves the same protection. Same component, same
+    // prop shape as that file, so the two stay symmetric.
     return (
-      <div className="flex gap-1.5 shrink-0">
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1 text-destructive hover:text-destructive"
-          disabled={respond.isPending}
-          onClick={() => respond.mutate({ action: 'REJECTED' })}
-        >
-          <X className="h-3.5 w-3.5" />رفض
-        </Button>
-        <Button
-          size="sm"
-          className="gap-1"
-          disabled={respond.isPending}
-          onClick={() => respond.mutate({ action: 'ACCEPTED' })}
-        >
-          <Check className="h-3.5 w-3.5" />قبول
-        </Button>
-      </div>
+      <>
+        <div className="flex gap-1.5 shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1 text-destructive hover:text-destructive"
+            disabled={respond.isPending}
+            onClick={() => setConfirmReject(true)}
+          >
+            <X className="h-3.5 w-3.5" />رفض
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1"
+            disabled={respond.isPending}
+            onClick={() => respond.mutate({ action: 'ACCEPTED' })}
+          >
+            <Check className="h-3.5 w-3.5" />قبول
+          </Button>
+        </div>
+        <ConfirmDialog
+          open={confirmReject}
+          onOpenChange={setConfirmReject}
+          title="رفض الطلب؟"
+          description="لن يتمكن العميل من إعادة إرسال الطلب نفسه، بل سيتعيّن عليه إنشاء طلب جديد. لا يمكن التراجع بعد التأكيد."
+          confirmLabel="رفض الطلب"
+          destructive
+          isPending={respond.isPending}
+          onConfirm={() => {
+            respond.mutate({ action: 'REJECTED' }, { onSuccess: () => setConfirmReject(false) });
+          }}
+        />
+      </>
     );
   }
 
