@@ -247,7 +247,7 @@ function useClearLocalSession() {
   const router        = useRouter();
   const queryClient  = useQueryClient();
 
-  return () => {
+  return (options?: { destination?: string; toastMessage?: string }) => {
     logout();
     clearAuthCookies();
     // FIX AUTH-CLEANUP-CENTRALIZE-01: القائمة الكاملة موحّدة الآن بـ
@@ -257,7 +257,13 @@ function useClearLocalSession() {
     // AD-DRAFT-LOGOUT-DATALOSS-01).
     clearSensitiveLocalData();
     queryClient.clear();
-    router.push(ROUTES.home);
+    // FIX CLEAR-SESSION-PARAMETERIZED: the two call-site differences
+    // between logout (home, silent) and changePassword (login, toast)
+    // used to live as 4 hand-copied lines inside useChangePassword
+    // itself. Both are optional so useLogout / useLogoutAll keep their
+    // existing behavior unchanged when called with no arguments.
+    if (options?.toastMessage) toast.success(options.toastMessage);
+    router.push(options?.destination ?? ROUTES.home);
   };
 }
 
@@ -267,7 +273,11 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => authApi.logout(),
     // Always clear local state regardless of server response.
-    onSettled: clearLocalSession,
+    // Wrapped in an arrow because clearLocalSession now takes an
+    // optional positional arg — onSettled passes (data, error,
+    // variables, context) positionally, so the bare reference would
+    // bind React Query's `data` to `options`.
+    onSettled: () => clearLocalSession(),
   });
 }
 
@@ -291,7 +301,8 @@ export function useLogoutAll() {
     // Always clear local state regardless of server response — this
     // browser's own session should end either way, even if the
     // server-side revocation of *other* devices failed.
-    onSettled: clearLocalSession,
+    // Wrapped in an arrow for the same reason as useLogout above.
+    onSettled: () => clearLocalSession(),
   });
 }
 
@@ -333,9 +344,7 @@ export function useRevokeSession() {
  * /login instead of home since the user must re-authenticate anyway.
  */
 export function useChangePassword() {
-  const logout = useAuthStore(selectLogout);
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const clearLocalSession = useClearLocalSession();
 
   return useMutation({
     mutationFn: (payload: { currentPassword: string; newPassword: string }) =>
@@ -345,12 +354,17 @@ export function useChangePassword() {
       // The access token used to make this very request is now
       // blacklisted server-side and every refresh token has been
       // revoked — there is no valid session left to keep locally.
-      logout();
-      clearAuthCookies();
-      clearSensitiveLocalData();
-      queryClient.clear();
-      toast.success('تم تغيير كلمة المرور بنجاح، يرجى تسجيل الدخول من جديد');
-      router.push(ROUTES.login);
+      // FIX CLEAR-SESSION-PARITY: was 4 hand-copied lines from what
+      // useClearLocalSession now encapsulates. That's exactly the
+      // class of drift FIX AUTH-CLEANUP-CENTRALIZE-01 closed between
+      // this function and useLogout — a comment claimed parity while
+      // the code ran a shorter list. Same helper now, parameterized
+      // for this path's two differences: redirect target (login vs
+      // home) and the success toast (useLogout is silent by design).
+      clearLocalSession({
+        destination: ROUTES.login,
+        toastMessage: 'تم تغيير كلمة المرور بنجاح، يرجى تسجيل الدخول من جديد',
+      });
     },
 
     // Deliberately no onError here — SecuritySettingsForm distinguishes
