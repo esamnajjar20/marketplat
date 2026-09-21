@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchApi } from '@/api/search.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -58,10 +58,35 @@ export function useSequentialGeoSearch(
   const canRun = Boolean(enabled && lat != null && lng != null);
   const [step, setStep] = useState(0);
 
-  // إعادة من 1 كم عند تغيّر الإحداثيات/النوع
-  useEffect(() => {
+  // FIX GEOSEQ-STEP-RESET-RACE: this used to be a useEffect that
+  // called setStep(0) on input change. That works the first time,
+  // but on a change with warm cache (query resolves from cache on
+  // the same commit, so the probe effect below sees isLoading=false
+  // immediately) both effects fired in the same commit — reset
+  // scheduled step=0, probe scheduled step=old+1, React batched
+  // them into a single update that landed on step=1. The 1km
+  // radius was skipped entirely: with cached results at the OLD
+  // radius (say 25km) below the accept threshold, the probe ran on
+  // that same commit and jumped straight to 5km for the NEW
+  // coordinates — defeating the whole point of expanding from 1km
+  // up. Fixed by moving the reset to render time (React's own
+  // documented pattern for adjusting state when a prop changes):
+  // the check runs before the query key is computed for this
+  // render, and React discards the current render's output and
+  // re-runs before effects fire, so the probe never observes a
+  // stale step against fresh inputs.
+  const prevInputsRef = useRef({ lat, lng, type, q, categoryId, enabled });
+  if (
+    prevInputsRef.current.lat !== lat ||
+    prevInputsRef.current.lng !== lng ||
+    prevInputsRef.current.type !== type ||
+    prevInputsRef.current.q !== q ||
+    prevInputsRef.current.categoryId !== categoryId ||
+    prevInputsRef.current.enabled !== enabled
+  ) {
+    prevInputsRef.current = { lat, lng, type, q, categoryId, enabled };
     setStep(0);
-  }, [lat, lng, type, q, categoryId, enabled]);
+  }
 
   const radius = PROGRESSIVE_RADIUS_KM[
     Math.min(step, PROGRESSIVE_RADIUS_KM.length - 1)

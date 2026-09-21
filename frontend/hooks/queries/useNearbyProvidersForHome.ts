@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useServiceProviders } from '@/hooks/queries/useServiceProviders';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
@@ -27,10 +27,23 @@ export function useNearbyProvidersForHome() {
   const lat = location.latitude;
   const lng = location.longitude;
 
+  // FIX NEARBY-HOME-STEP-RESET-RACE: same bug as
+  // useSequentialGeoSearch's GEOSEQ-STEP-RESET-RACE — see that
+  // hook's comment for the full analysis. The previous useEffect
+  // resetting step on [lat, lng, isGps] change raced with the probe
+  // effect below on cache-warm input changes, causing the 1km
+  // radius to be skipped and expansion to start from 5km. React's
+  // documented render-time reset pattern replaces it.
   const [step, setStep] = useState(0);
-  useEffect(() => {
+  const prevInputsRef = useRef({ lat, lng, isGps });
+  if (
+    prevInputsRef.current.lat !== lat ||
+    prevInputsRef.current.lng !== lng ||
+    prevInputsRef.current.isGps !== isGps
+  ) {
+    prevInputsRef.current = { lat, lng, isGps };
     setStep(0);
-  }, [lat, lng, isGps]);
+  }
 
   const radius = PROGRESSIVE_RADIUS_KM[Math.min(step, PROGRESSIVE_RADIUS_KM.length - 1)]!;
 
