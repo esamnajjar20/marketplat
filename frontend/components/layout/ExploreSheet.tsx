@@ -47,6 +47,15 @@ export function ExploreSheet({
             <Link
               key={href}
               href={href}
+              // FIX RSC-PREFETCH-STORM-01: this list renders 8
+              // discovery links in one sheet. Next.js auto-prefetches
+              // every <Link> that enters the viewport, so simply
+              // mounting the sheet fired 8 concurrent RSC fetches for
+              // pages the user hasn't decided to visit — each queued
+              // behind Chrome's 6-connections-per-origin limit and
+              // competing with the actual content on a weak network.
+              // The click still works, it just fetches on demand.
+              prefetch={false}
               onClick={() => onOpenChange(false)}
               className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >

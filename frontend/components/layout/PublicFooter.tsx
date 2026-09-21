@@ -49,6 +49,10 @@ export function PublicFooter() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
+                      // FIX RSC-PREFETCH-STORM-01: multi-section footer
+                      // link list — see ExploreSheet.tsx for the full
+                      // rationale.
+                      prefetch={false}
                       className="text-sm text-muted-foreground transition-colors hover:text-primary"
                     >
                       {link.label}

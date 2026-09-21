@@ -267,6 +267,9 @@ export function ProtectedMobileNav() {
             <li key={link.href}>
               <Link
                 href={link.href}
+                // FIX RSC-PREFETCH-STORM-01: 9-item discovery list —
+                // see ExploreSheet.tsx for the full rationale.
+                prefetch={false}
                 onClick={close}
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
               >

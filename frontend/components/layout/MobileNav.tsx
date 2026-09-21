@@ -154,6 +154,9 @@ function NavSection({
           <li key={href}>
             <Link
               href={href}
+              // FIX RSC-PREFETCH-STORM-01: mapped list in the mobile
+              // drawer — see ExploreSheet.tsx for the full rationale.
+              prefetch={false}
               onClick={onNavigate}
               className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
             >
