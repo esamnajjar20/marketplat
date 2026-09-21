@@ -78,6 +78,22 @@ function clearPushBindingsOnSessionEnd(): void {
 }
 
 export function clearSensitiveLocalData(): void {
+  // FIX REFRESH-QUEUE-LOGOUT: reject any requests currently parked in
+  // api/client.ts's refresh queue. Their retry would ship the revoked
+  // access token to the server, get another 401, and re-enter the
+  // refresh flow against a refresh cookie this same cleanup is about
+  // to delete — surfacing a "session expired" toast and a hard
+  // redirect to /login for a user who just clicked Logout.
+  //
+  // Dynamic import rather than a top-level one: api/client.ts already
+  // imports clearSensitiveLocalData from this module at top level, so
+  // a direct import here would be circular. By the time this function
+  // is ever called, both modules are fully initialised, so the
+  // dynamic import resolves synchronously from the module cache.
+  void import('@/api/client').then(({ invalidateRefreshSession }) => {
+    invalidateRefreshSession();
+  }).catch(() => { /* client not loaded — no queue to clear */ });
+
   // FIX AUTH-CLEAR-QUERY-CACHE: كان TanStack Query cache يبقى بعد logout
   // — User B يرى ['auth', 'me'], ['favorites', 'list'], ['notifications']
   // وغيرها من User A. استخدام clear() (وليس invalidate) — لأن

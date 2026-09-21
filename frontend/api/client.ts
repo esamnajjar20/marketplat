@@ -142,6 +142,45 @@ let isRefreshing  = false;
 type QueueItem    = { resolve: (token: string) => void; reject: (err: unknown) => void };
 let refreshQueue: QueueItem[] = [];
 
+// FIX REFRESH-QUEUE-LOGOUT: set to true by invalidateRefreshSession()
+// when the local session ends (logout / logout-all / password change /
+// account deletion). While true, the 401 handler short-circuits to
+// rejection instead of firing /auth/refresh — the refresh cookie is
+// gone, and a doomed refresh would land in the failure branch below
+// and surface a "session expired" toast + hard redirect to /login for
+// a user who just clicked Logout. Reset by resumeSession() when a new
+// session starts (see useAuthMutations.ts's setAuthCookies).
+let sessionRevoked = false;
+
+/**
+ * FIX REFRESH-QUEUE-LOGOUT: called from lib/authCleanup.ts's
+ * clearSensitiveLocalData, which every session-ending path routes
+ * through (useClearLocalSession, useChangePassword, useDeleteAccount).
+ * Rejects every request currently parked in refreshQueue so their
+ * retry doesn't ship the revoked access token to the server (getting
+ * another 401 and re-entering this same refresh path against a
+ * refresh cookie that just got deleted), and flips the sessionRevoked
+ * flag so any 401 arriving after this point rejects immediately.
+ */
+export function invalidateRefreshSession(): void {
+  sessionRevoked = true;
+  const queued = refreshQueue;
+  refreshQueue = [];
+  for (const item of queued) {
+    item.reject(new Error('Session ended — request cancelled'));
+  }
+}
+
+/**
+ * FIX REFRESH-QUEUE-LOGOUT: called from useAuthMutations.ts's
+ * setAuthCookies when a new session is established (login/register).
+ * Clears the sessionRevoked flag so subsequent 401s resume the normal
+ * /auth/refresh path.
+ */
+export function resumeSession(): void {
+  sessionRevoked = false;
+}
+
 function processQueue(error: unknown, token: string | null) {
   refreshQueue.forEach(({ resolve, reject }) =>
     error ? reject(error) : resolve(token!),
@@ -251,6 +290,12 @@ apiClient.interceptors.response.use(
       return Promise.reject(parseApiError(error));
     }
 
+    // FIX REFRESH-QUEUE-LOGOUT: if the session was just ended, don't
+    // even try /auth/refresh. See sessionRevoked's own comment.
+    if (sessionRevoked) {
+      return Promise.reject(parseApiError(error));
+    }
+
     // FIX AUTH-401-STORM-01: بلا accessToken والجهاز أوفلاين — لا تُحاول
     // refresh (سيفشل شبكة) ولا logout. ارفض بهدوء؛ الـ UI يعتمد على الكاش.
     const currentToken = useAuthStore.getState().accessToken;
@@ -354,6 +399,14 @@ apiClient.interceptors.response.use(
           (refreshError as { response?: unknown }).response != null);
 
       if (offlineOrNoResponse) {
+        return Promise.reject(parseApiError(error));
+      }
+
+      // FIX REFRESH-QUEUE-LOGOUT: if the user already logged out while
+      // this refresh was in flight, don't redundantly log them out
+      // again or surface a "session expired" toast + hard redirect
+      // they didn't ask for. Just reject.
+      if (!useAuthStore.getState().isAuthenticated) {
         return Promise.reject(parseApiError(error));
       }
 

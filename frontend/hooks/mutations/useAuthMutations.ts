@@ -22,6 +22,7 @@ import { clearSensitiveLocalData, clearServiceWorkerApiCache } from '@/lib/authC
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
+import { resumeSession } from '@/api/client';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { parseApiError } from '@/lib/errorParser';
 import { unwrapData }    from '@/lib/apiPagination';
@@ -40,6 +41,12 @@ import type { AuthResultUser, AuthTokens, LoginPayload, RegisterPayload } from '
  * lifetime lives server-side regardless.
  */
 function setAuthCookies(user: AuthResultUser, tokens: AuthTokens) {
+  // FIX REFRESH-QUEUE-LOGOUT: a new session just started — clear the
+  // sessionRevoked flag that invalidateRefreshSession() set when the
+  // previous session ended. Called exactly once per login/register
+  // (this helper is only invoked from those two paths), so it's the
+  // natural reset point.
+  resumeSession();
   // FIX BUG-06: derives maxAge from the backend's own tokens.expiresIn
   // instead of the old fixed AUTH_COOKIE_MAX_AGE constant.
   const maxAge = cookieMaxAgeFromExpiresIn(tokens.expiresIn);

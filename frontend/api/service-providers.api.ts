@@ -9,7 +9,7 @@
  *     endpoint with no equivalent in the original plan at all.
  */
 import { apiClient } from './client';
-import type { ApiResponse, PaginationMeta } from '@/types/api.types';
+import type { ApiResponse } from '@/types/api.types';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   ServiceProviderDetails,
