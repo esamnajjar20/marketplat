@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -113,11 +114,38 @@ export function MyServiceListingsList() {
   }
 
   async function bulkStatus(next: 'ACTIVE' | 'PAUSED') {
-    for (const id of selected) {
-      await toggleStatus.mutateAsync({ id, status: next });
+    // FIX BULK-STATUS-UNHANDLED: the loop previously ran with no
+    // try/catch and no toast. A single failure (403, 500, network
+    // drop) aborted the loop, leaked an unhandled promise rejection
+    // into the console, and left the user with a partially-applied
+    // bulk operation and no explanation — some rows updated, some
+    // not, selection still populated. Now the loop is wrapped, a
+    // summary toast surfaces the failure, and selection is
+    // deliberately preserved on failure so the user can see which
+    // items they still need to retry.
+    const ids = Array.from(selected);
+    try {
+      for (const id of ids) {
+        await toggleStatus.mutateAsync({ id, status: next });
+      }
+    } catch {
+      toast.error('تعذّر تحديث بعض الخدمات، حاول مرة أخرى');
+      return;
     }
     setSelected(new Set());
+    toast.success(`تم تحديث ${ids.length} خدمة`);
   }
+
+  // FIX SELECTION-ACROSS-FILTERS: the visible set changes whenever
+  // the user switches a status tab, runs a new search, or moves to
+  // a different page, but `selected` was never cleared. A user who
+  // ticked five rows on the ACTIVE tab and then switched to PAUSED
+  // still had those five ticked — invisible, but the bulk buttons
+  // would silently mutate them anyway. Reset on every parameter
+  // change that alters what the list is showing.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [status, searchQ, page]);
 
   if (isLoading || isOutOfRange) {
     return (
@@ -320,7 +348,17 @@ export function MyServiceListingsList() {
                           : `إيقاف ${listing.title} مؤقتاً`
                       }
                       title={listing.status === 'PAUSED' ? 'إعادة تفعيل' : 'إيقاف مؤقت'}
-                      disabled={toggleStatus.isPending && toggleStatus.variables?.id === listing.id}
+                      // FIX BULK-RACE: previously this disabled the
+                      // button only for the id currently mutating,
+                      // which allowed clicking a different row's
+                      // toggle while a bulk loop was in flight — two
+                      // overlapping mutations on the same useMutation
+                      // instance, whose shared isPending/variables
+                      // state cannot represent both. Disable all
+                      // toggles whenever any toggle is pending; the
+                      // whole point of a bulk action is that the user
+                      // waits for it before doing anything else.
+                      disabled={toggleStatus.isPending}
                       onClick={() =>
                         toggleStatus.mutate({
                           id: listing.id,
