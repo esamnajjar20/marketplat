@@ -11,7 +11,7 @@ import { toastMutationError } from '@/lib/mutationFeedback';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
-import { compressImageForPublish } from '@/lib/imageOffline';
+import { bestEffortCompressPublish } from '@/lib/imageOfflineHelpers';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
@@ -94,17 +94,7 @@ export function useCreateRequest() {
             // ads/products/services already use.
             publishFiles:
               files && files.length > 0
-              ? filesToPublishFiles(
-                  await Promise.all(
-                    files.map(async (f) => {
-                      try {
-                        return await compressImageForPublish(f);
-                      } catch {
-                        return f;
-                      }
-                    }),
-                  ),
-                )
+              ? filesToPublishFiles(await bestEffortCompressPublish(files))
               : undefined,
             publishRetryCount: 0,
           });

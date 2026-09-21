@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
 import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
-import { compressImageForOffline, compressImageForPublish } from '@/lib/imageOffline';
+import { bestEffortCompressPublish, bestEffortCompressPreviews } from '@/lib/imageOfflineHelpers';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
   getActiveOfflineDraftId,
@@ -22,31 +22,6 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { CreateProductPayload, UpdateProductPayload, Product } from '@/types/product.types';
 import type { PaginatedResponse } from '@/types/api.types';
 
-/**
- * FIX IMAGEOFFLINE-WIRE-01: يضغط أفضل جهد ممكن — صورة واحدة تفشل لا توقف
- * البقية ولا تمنع حفظ المسودة؛ فقط تُستبعَد من المعاينة. النشر الفعلي
- * بجودة كاملة غير متأثر (يمر بطابور الـ SW).
- */
-async function bestEffortCompressPublish(files: File[]): Promise<File[]> {
-  return Promise.all(files.map(async (f) => {
-    try {
-      return await compressImageForPublish(f);
-    } catch {
-      return f;
-    }
-  }));
-}
-
-async function bestEffortCompressPreviews(
-  files: File[],
-): Promise<{ name: string; blob: Blob }[]> {
-  const results = await Promise.allSettled(
-    files.slice(0, 4).map(async (f) => ({ name: f.name, blob: await compressImageForOffline(f) })),
-  );
-  return results
-    .filter((r): r is PromiseFulfilledResult<{ name: string; blob: Blob }> => r.status === 'fulfilled')
-    .map((r) => r.value);
-}
 
 /**
  * Accepts an optional onUploadProgress callback, same pattern as
