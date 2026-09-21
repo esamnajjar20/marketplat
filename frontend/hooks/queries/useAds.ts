@@ -56,7 +56,23 @@ function offlineMeta(count: number): PaginationMeta {
  * (enabled: !isSearch) while every other caller (FeaturedAds, RecentAds)
  * keeps its default always-on behavior unchanged.
  */
-export function useAds(params?: AdSearchParams, options?: { enabled?: boolean }) {
+export function useAds(
+  params?: AdSearchParams,
+  options?: {
+    enabled?: boolean;
+    /** FIX ADS-OFFLINE-CACHE-SCOPE-03: opt out of writing into the
+     * shared adsBrowse offline slot even when the request is
+     * technically an unfiltered first page. useAdsForHome's general
+     * fallback used {limit: 6} to keep the home feed small, but its
+     * request still qualified as isBaseBrowse, so visiting Home last
+     * left only 6 ads cached under adsBrowse — a later offline open
+     * of the full /ads page (normally 20+ per page) then showed those
+     * 6 back to the user. The slot is meant for the browse page's own
+     * request shape, not for any component that happens to call
+     * useAds() with no filters at a smaller limit. */
+    disableOfflineCache?: boolean;
+  },
+) {
   // FIX ADS-OFFLINE-CACHE-SCOPE-01: the comment already said "بدون فلاتر"
   // but the code only checked page — so landing on /search?city=غزة with
   // page 1 wrote the FILTERED result set into the generic adsBrowse
@@ -87,7 +103,10 @@ export function useAds(params?: AdSearchParams, options?: { enabled?: boolean })
     Boolean(params?.userId) ||
     Boolean(params?.storeId) ||
     params?.isFeatured !== undefined;
+  // FIX ADS-OFFLINE-CACHE-SCOPE-03: also honor disableOfflineCache — see
+  // the option's own comment on the signature above.
   const isBaseBrowse =
+    !options?.disableOfflineCache &&
     (!params?.page || params.page === 1) &&
     !hasRealFilter;
   const cached = isBaseBrowse

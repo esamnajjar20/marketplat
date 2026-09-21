@@ -47,11 +47,21 @@ export function useAdsForHome(): AdsForHomeResult {
     { enabled: isCity },
   );
 
-  const generalQuery = useAds({
-    limit: HOME_LIMIT,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-  });
+  // FIX ADS-OFFLINE-CACHE-SCOPE-03: this query's {limit: 6} with no
+  // filters otherwise qualified as isBaseBrowse, so visiting Home
+  // last left only 6 ads in the shared adsBrowse offline slot — a
+  // later offline open of the full /ads page (which fetches 20+ per
+  // page) showed those 6 back to the user. The offline slot belongs
+  // to the browse page's own request shape, not to this small
+  // home-feed fallback. disableOfflineCache opts out explicitly.
+  const generalQuery = useAds(
+    {
+      limit: HOME_LIMIT,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    },
+    { disableOfflineCache: true },
+  );
 
   const isChecking = location.isLoading;
   const generalItems = generalQuery.data?.items ?? [];
