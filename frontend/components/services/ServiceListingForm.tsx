@@ -227,6 +227,19 @@ export function ServiceListingForm({ mode, listing }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isSubmittingRef.current) return;
+    // FIX WIZARD-ENTER-BYPASS: pressing Enter in any text field
+    // fires the form's submit handler regardless of which wizard
+    // step is currently visible. The submit button only renders on
+    // the final step, but the browser does not care. Without this
+    // guard, Enter on step 1 ran validate() (passes, because the
+    // required-image gate is disabled) and fired create.mutate()
+    // with whatever the two unseen steps' defaults happened to be.
+    // Forward to the next step instead — same action as the Next
+    // button — so the wizard flow is preserved.
+    if (isWizard && step < totalSteps) {
+      goNextStep();
+      return;
+    }
     if (!validate()) return;
 
     if (mode === 'create') {
@@ -250,7 +263,21 @@ export function ServiceListingForm({ mode, listing }: Props) {
           },
           // PHASE-OFFLINE-DRAFTS: لا داعي لمسودة بعد نجاح النشر الفعلي.
           onSuccess: () => clearDraft(),
-          onSettled: () => setUploadProgress(null),
+          // FIX SUBMIT-REF-STUCK: onError already cleared the ref,
+          // but onSuccess left it true. Normally invisible — the
+          // mutation's own onSuccess pushes to /my-services, which
+          // unmounts the form and takes the ref with it. But if
+          // that navigation itself fails (offline blip right after
+          // a successful create), the user lands back on a live
+          // form where every subsequent submit silently no-ops
+          // because the guard at the top of handleSubmit sees a
+          // stale true. Reset it in onSettled so both paths clear
+          // it — the ref is for in-flight de-duplication only, not
+          // for "has this form ever submitted."
+          onSettled: () => {
+            setUploadProgress(null);
+            isSubmittingRef.current = false;
+          },
         }
       );
       return;
@@ -297,7 +324,15 @@ export function ServiceListingForm({ mode, listing }: Props) {
       if (reorderChanged && values.existingImages.length > 1) {
         await reorderImages.mutateAsync({ id: currentListing.id, images: values.existingImages });
       }
-    } catch {
+    } catch (err) {
+      // FIX SUBMIT-EDIT-SILENT-FAIL: previously the image mutation
+      // errors were swallowed with a bare `return` — the user saw
+      // the button re-enable and nothing else, with the field
+      // values still showing their edits and the listing silently
+      // not updated. Mutations already surface their own generic
+      // onError toast, but this branch short-circuits before
+      // update.mutate runs, so no error reaches the user at all.
+      toast.error(parseApiError(err).message || 'فشل حفظ الصور، حاول مرة أخرى');
       return;
     } finally {
       setIsSavingImages(false);
