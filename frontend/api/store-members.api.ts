@@ -1,6 +1,8 @@
 /**
  * Store Members API — maps to backend /api/v1/stores/* member routes.
- * Merge these methods into stores.api.ts OR import this module from hooks.
+ * Kept as its own module rather than folded into stores.api.ts — same
+ * reasoning as promotions/collections/reviews: a distinct concern with
+ * its own hook (useStoreMembers), imported independently where needed.
  */
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';

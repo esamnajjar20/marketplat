@@ -55,18 +55,16 @@ export const storesApi = {
   uploadLogo: (file: File) => {
     const form = new FormData();
     form.append('image', file);
-    return apiClient.post<ApiResponse<StoreDetails>>('/stores/me/logo', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // FIX MULTIPART-BOUNDARY-01: see api/users.api.ts's comment.
+    return apiClient.post<ApiResponse<StoreDetails>>('/stores/me/logo', form);
   },
 
   /** POST /stores/me/cover — multipart upload, same shape as usersApi.uploadAvatar. */
   uploadCover: (file: File) => {
     const form = new FormData();
     form.append('image', file);
-    return apiClient.post<ApiResponse<StoreDetails>>('/stores/me/cover', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // FIX MULTIPART-BOUNDARY-01: see api/users.api.ts's comment.
+    return apiClient.post<ApiResponse<StoreDetails>>('/stores/me/cover', form);
   },
 
   /** GET /stores/me/followed — the caller's followed stores, paginated. */

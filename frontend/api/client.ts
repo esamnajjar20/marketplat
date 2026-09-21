@@ -235,6 +235,15 @@ apiClient.interceptors.response.use(
 
     if (
       (error.response?.status !== 401 && !isCsrfRejection) ||
+      // FIX OFFLINE-FAST-FAIL-CRASH: makeOfflineError() (thrown
+      // from the request interceptor) is a plain ParsedError
+      // object, not an AxiosError — axios passes it through with
+      // no .config. Reading original._retry on undefined works
+      // today only because the first clause already short-circuits
+      // to `true` for those rejections. Guard explicitly so a
+      // future reorder of these conditions can't turn a network
+      // failure into a TypeError inside the interceptor.
+      !original ||
       original._retry ||
       isRefreshCall ||
       isAuthEntryCall

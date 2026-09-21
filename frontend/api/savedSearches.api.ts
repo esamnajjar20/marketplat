@@ -7,6 +7,7 @@
  * as why GET /favorites needed pagination but this doesn't need it yet.
  */
 import { apiClient } from './client';
+import { unwrapData } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { SavedSearch, CreateSavedSearchInput } from '@/types/savedSearch.types';
 
@@ -15,13 +16,13 @@ export const savedSearchesApi = {
   getAll: () =>
     apiClient
       .get<ApiResponse<SavedSearch[]>>('/saved-searches')
-      .then((r) => r.data.data as SavedSearch[]),
+      .then((r) => unwrapData(r)),
 
   /** POST /saved-searches — create a new saved search. */
   create: (input: CreateSavedSearchInput) =>
     apiClient
       .post<ApiResponse<SavedSearch>>('/saved-searches', input)
-      .then((r) => r.data.data as SavedSearch),
+      .then((r) => unwrapData(r)),
 
   /** DELETE /saved-searches/:id */
   delete: (id: string) => apiClient.delete<ApiResponse<null>>(`/saved-searches/${id}`),

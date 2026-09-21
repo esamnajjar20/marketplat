@@ -6,6 +6,7 @@
  * every other admin endpoint (admin.api.ts, auditLogs, etc.).
  */
 import { apiClient } from './client';
+import { unwrapData } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { AnalyticsEventType } from '@/lib/analytics';
 
@@ -50,5 +51,9 @@ export const analyticsApi = {
   getSummary: (params?: GetAnalyticsSummaryParams) =>
     apiClient
       .get<ApiResponse<AnalyticsSummary>>('/admin/analytics/summary', { params })
-      .then((r) => r.data.data!),
+      // FIX UNWRAPDATA-CONSISTENCY: was `r.data.data!` — a silent
+      // undefined if the backend ever returns a body without
+      // `data`, consumed as a valid AnalyticsSummary downstream.
+      // unwrapData throws with the message instead.
+      .then((r) => unwrapData(r)),
 };

@@ -85,15 +85,18 @@ export function MyServiceProviderCard({ provider }: Props) {
     const error = validateWorkingHours(workingHours);
     setHoursError(error);
     if (error) return;
-    // Local `workingHours` state won't pick up the refetched
-    // provider.workingHours automatically after invalidateQueries
-    // (same class of staleness as the uncontrolled-input fix elsewhere
-    // in this codebase) — sync it explicitly on success so
-    // `hoursChanged` correctly goes back to false and the save button
-    // disappears once the save actually lands.
+    // FIX DEAD-SETSTATE: previously called
+    // `setWorkingHours(workingHours)` in onSuccess — a no-op, since
+    // passing the same reference back to useState trips React's
+    // Object.is bail-out and skips the re-render entirely. The
+    // original comment claimed this was required to resync after
+    // invalidateQueries; it wasn't — the button's own
+    // `hoursChanged` check recomputes to false once the mutation's
+    // refetch updates the `provider` prop from the parent, which is
+    // what actually hides the save button. Removed the dead call.
     updateProvider.mutate(
       { workingHours },
-      { onSuccess: () => { setWorkingHours(workingHours); toast.success('تم الحفظ'); } }
+      { onSuccess: () => { toast.success('تم الحفظ'); } }
     );
   }
 

@@ -7,6 +7,11 @@ import { ROUTES } from '@/lib/constants';
 interface Props {
   title: string;
   categoryName?: string | null;
+  // Accepted but not currently read. The caller in
+  // app/(public)/services/[id]/page.tsx still passes it — keeping
+  // the prop here (optional) preserves that contract and allows the
+  // category name to eventually link to /services?categoryId=...
+  // without a second plumbing pass through every caller.
   categoryId?: string | null;
 }
 

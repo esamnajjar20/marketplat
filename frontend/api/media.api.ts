@@ -55,10 +55,9 @@ export const mediaApi = {
         return await apiClient.post<ApiResponse<UploadedImage[]>>(
           '/media/images',
           form,
-          {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: UPLOAD_TIMEOUT_MS,
-          },
+          // FIX MULTIPART-BOUNDARY-01: no manual Content-Type — see
+          // api/users.api.ts's comment. Retry loop stays.
+          { timeout: UPLOAD_TIMEOUT_MS },
         );
       } catch (err) {
         lastErr = err;

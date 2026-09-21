@@ -69,9 +69,12 @@ export const usersApi = {
   uploadAvatar: (file: File) => {
     const form = new FormData();
     form.append('image', file);
-    return apiClient.post<ApiResponse<User>>('/users/me/avatar', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // FIX MULTIPART-BOUNDARY-01: no manual Content-Type — the
+    // request interceptor in api/client.ts strips any preset value
+    // on FormData bodies so axios can set the real
+    // 'multipart/form-data; boundary=...'. Same convention as
+    // ads.api.ts / products.api.ts / service-listings.api.ts.
+    return apiClient.post<ApiResponse<User>>('/users/me/avatar', form);
   },
 
   /** PATCH /users/me/presence — heartbeat, called on an interval by

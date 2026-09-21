@@ -55,9 +55,8 @@ export const serviceProvidersApi = {
   uploadLogo: (file: File) => {
     const form = new FormData();
     form.append('image', file);
-    return apiClient.post<ApiResponse<ServiceProviderDetails>>('/service-providers/me/logo', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // FIX MULTIPART-BOUNDARY-01: see api/users.api.ts's comment.
+    return apiClient.post<ApiResponse<ServiceProviderDetails>>('/service-providers/me/logo', form);
   },
 
   /** GET /service-providers/:id — public provider page, no auth required. */
@@ -71,5 +70,3 @@ export const serviceProvidersApi = {
       .then((r) => unwrapPaginated<NearbyServiceProviderRow>(r)),
 };
 
-// Re-exported for callers that only need the meta type alongside this file.
-export type { PaginationMeta };

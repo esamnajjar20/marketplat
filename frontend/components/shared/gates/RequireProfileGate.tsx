@@ -35,6 +35,12 @@ interface Props<T> {
   title: string;
   description: string;
   ctaLabel: string;
+  // FIX GENERIC-ICON: this gate is shared by store, service-provider,
+  // and seller profile setups, but the empty state always showed a
+  // Store icon — misleading on the service-provider / seller pages.
+  // Optional override; Store remains the default for callers that
+  // don't care.
+  icon?: ReactNode;
   children: ReactNode;
 }
 
@@ -74,7 +80,7 @@ interface Props<T> {
  * distinct retry state instead, matching MyStoreHub's own handling.
  */
 export function RequireProfileGate<T>({
-  query, setupHref, from, title, description, ctaLabel, children,
+  query, setupHref, from, title, description, ctaLabel, icon, children,
 }: Props<T>) {
   const { data, isLoading, isError, error, refetch } = query;
 
@@ -105,7 +111,7 @@ export function RequireProfileGate<T>({
   if (isError || !data) {
     return (
       <EmptyState
-        icon={<Store className="h-8 w-8" />}
+        icon={icon ?? <Store className="h-8 w-8" />}
         title={title}
         description={description}
         action={
