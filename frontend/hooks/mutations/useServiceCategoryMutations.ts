@@ -87,12 +87,14 @@ export function useToggleServiceCategoryActive() {
       const snapshot = queryClient.getQueryData<ServiceCategory[]>(key);
       queryClient.setQueryData<ServiceCategory[]>(key, (old) => {
         if (!old) return old;
-        const patchOne = (c: ServiceCategory): ServiceCategory =>
-          c.id === id ? { ...c, isActive } : c;
-        return old.map((c) => ({
-          ...patchOne(c),
+        // FIX RECURSIVE-TREE-PATCH: see the matching comment in
+        // useProductCategoryMutations.ts — ServiceCategory.children
+        // is recursive, not two-level.
+        const patchOne = (c: ServiceCategory): ServiceCategory => ({
+          ...(c.id === id ? { ...c, isActive } : c),
           children: c.children?.map(patchOne),
-        }));
+        });
+        return old.map(patchOne);
       });
       await queryClient.cancelQueries({ queryKey: key });
       return { snapshot };
@@ -100,10 +102,13 @@ export function useToggleServiceCategoryActive() {
     onSuccess: (_data, { isActive }) =>
       toast.success(isActive ? 'تم تفعيل الفئة' : 'تم إخفاء الفئة'),
     onError: (err, _vars, context) => {
-      if (context?.snapshot) {
+      const parsed = parseApiError(err);
+      // FIX CATEGORY-QUEUED-ROLLBACK: see the matching comment in
+      // useProductCategoryMutations.ts.
+      if (!parsed.queued && context?.snapshot) {
         queryClient.setQueryData(queryKeys.serviceCategories.adminAll(), context.snapshot);
       }
-      toast.error(parseApiError(err).message);
+      toast.error(parsed.message);
     },
     onSettled: () => invalidateServiceCategoryQueries(queryClient),
   });

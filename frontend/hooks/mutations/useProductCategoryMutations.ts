@@ -90,12 +90,16 @@ export function useToggleProductCategoryActive() {
       const snapshot = queryClient.getQueryData<ProductCategory[]>(key);
       queryClient.setQueryData<ProductCategory[]>(key, (old) => {
         if (!old) return old;
-        const patchOne = (c: ProductCategory): ProductCategory =>
-          c.id === id ? { ...c, isActive } : c;
-        return old.map((c) => ({
-          ...patchOne(c),
+        // FIX RECURSIVE-TREE-PATCH: ProductCategory.children is
+        // typed ProductCategory[] (recursive), not a fixed
+        // two-level tree — the previous patch only descended one
+        // level, so a toggled grandchild looked unchanged until
+        // the onSettled refetch landed. Walk the whole tree.
+        const patchOne = (c: ProductCategory): ProductCategory => ({
+          ...(c.id === id ? { ...c, isActive } : c),
           children: c.children?.map(patchOne),
-        }));
+        });
+        return old.map(patchOne);
       });
       await queryClient.cancelQueries({ queryKey: key });
       return { snapshot };
@@ -103,10 +107,18 @@ export function useToggleProductCategoryActive() {
     onSuccess: (_data, { isActive }) =>
       toast.success(isActive ? 'تم تفعيل الفئة' : 'تم إخفاء الفئة'),
     onError: (err, _vars, context) => {
-      if (context?.snapshot) {
+      const parsed = parseApiError(err);
+      // FIX CATEGORY-QUEUED-ROLLBACK: an offline-queued mutation
+      // (sw.js's 202 {queued:true}) arrives here with
+      // parsed.queued=true — same non-failure that the favorites
+      // hook already skips rollback for. Without this, an admin
+      // toggling a category while offline saw the checkbox flip
+      // back to its old state immediately, then flip again once
+      // the SW replay actually landed — pure noise.
+      if (!parsed.queued && context?.snapshot) {
         queryClient.setQueryData(queryKeys.productCategories.adminAll(), context.snapshot);
       }
-      toast.error(parseApiError(err).message);
+      toast.error(parsed.message);
     },
     onSettled: () => invalidateProductCategoryQueries(queryClient),
   });
