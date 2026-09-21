@@ -26,11 +26,30 @@ import { requireUser } from '../shared/utils/requireUser';
  * 403 with code EMAIL_NOT_VERIFIED so the frontend can show a
  * targeted message / trigger the banner instead of a generic error.
  */
+// TEMP-DISABLED (2026-09-21): gating is OFF by default because
+// Gmail OAuth is stuck on Google Cloud's OAuth consent screen in
+// Testing mode — sends to anyone other than the operator's own
+// Gmail are dropped silently, and refresh tokens expire weekly.
+// With the gate on, real users were blocked from every write
+// action (posting ads, products, service listings, reviews, ...).
+//
+// Re-enable later by setting EMAIL_VERIFICATION_GATING=true on
+// Render (or removing this guard entirely once the sender is
+// fixed). The UI banner is intentionally NOT disabled by this:
+// users still see the reminder and can still trigger a re-send;
+// only the server-side 403 EMAIL_NOT_VERIFIED is bypassed.
+const GATING_ENABLED = process.env.EMAIL_VERIFICATION_GATING === 'true';
+
 export const requireVerifiedEmail = async (
   req: Request,
   _res: Response,
   next: NextFunction,
 ): Promise<void> => {
+  if (!GATING_ENABLED) {
+    next();
+    return;
+  }
+
   try {
     const user = requireUser(req);
 
