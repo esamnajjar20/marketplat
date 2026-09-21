@@ -52,64 +52,102 @@ function toastWithUndo(message: string, onUndo: () => void) {
 }
 
 /**
- * Shared shape for "toggle one boolean field on an ad in the admin list,
- * optimistically, with rollback on error." Used by both featured and pinned.
+ * FIX ADMIN-TOGGLE-FACTORY: shared shape for "toggle one boolean field
+ * on a row of an admin list, optimistically, with rollback on error and
+ * one-tap undo in the success toast". Generalised from useToggleAdField
+ * (which this replaces) so the same implementation covers featured,
+ * pinned, user-active, seller-verified, and seller-suspended — five
+ * hooks that had drifted into five copies of the same onMutate /
+ * onSuccess-with-undo / onError-rollback / onSettled-invalidate shape.
+ *
+ * The TArgs generic + getId/getValue/makeUndoArgs trio is what lets each
+ * caller keep its own public arg names (adId/value, userId/isActive,
+ * sellerProfileId/verified, sellerProfileId/suspended) without any
+ * call-site changes — the factory normalises to `{ id, value }`
+ * internally.
  */
-function useToggleAdField(
+interface AdminToggleFieldConfig<TItem extends { id: string }, TArgs> {
+  /** The exact query key prefix this toggle patches, e.g. ['admin', 'ads']. */
+  queryKey: readonly unknown[];
+  /** The field on the row item that carries the new boolean value. */
+  itemField: keyof TItem;
+  /** The API call: id + resolved boolean value (+ original args for
+   *  cases like suspend that carry a reason) → promise. */
+  setField: (id: string, value: boolean, args: TArgs) => Promise<unknown>;
+  getId: (args: TArgs) => string;
+  getValue: (args: TArgs) => boolean;
+  makeUndoArgs: (args: TArgs) => TArgs;
+  successMessage: (value: boolean) => string;
+}
+
+function useAdminToggleField<TItem extends { id: string }, TArgs>(
   queryClient: QueryClient,
-  field: 'isFeatured' | 'isPinned',
-  setField: (adId: string, value: boolean) => Promise<unknown>,
-  successMessage: (value: boolean) => string,
+  config: AdminToggleFieldConfig<TItem, TArgs>,
 ) {
   const mutation = useMutation({
-    mutationFn: ({ adId, value }: { adId: string; value: boolean }) =>
-      setField(adId, value),
-    onMutate: async ({ adId, value }) => {
-      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminAd>>({
-        queryKey: ['admin', 'ads'],
+    mutationFn: (args: TArgs) =>
+      config.setField(config.getId(args), config.getValue(args), args),
+    onMutate: async (args) => {
+      const id = config.getId(args);
+      const value = config.getValue(args);
+      const snapshots = queryClient.getQueriesData<PaginatedResponse<TItem>>({
+        queryKey: config.queryKey,
       });
-      queryClient.setQueriesData<PaginatedResponse<AdminAd>>(
-        { queryKey: ['admin', 'ads'] },
+      queryClient.setQueriesData<PaginatedResponse<TItem>>(
+        { queryKey: config.queryKey },
         (old) => {
           if (!old?.items) return old;
-          return { ...old, items: old.items.map((ad) => ad.id === adId ? { ...ad, [field]: value } : ad) };
+          return {
+            ...old,
+            items: old.items.map((item) =>
+              item.id === id ? { ...item, [config.itemField]: value } : item,
+            ),
+          };
         },
       );
-      await queryClient.cancelQueries({ queryKey: ['admin', 'ads'] });
+      await queryClient.cancelQueries({ queryKey: config.queryKey });
       return { snapshots };
     },
-    onSuccess: (_data, { adId, value }) =>
+    onSuccess: (_data, args) =>
       // FIX P1-7: re-invokes mutate() (not a bare setField call) so
       // undo goes through the same optimistic-update/rollback/
       // invalidation path as the original toggle.
-      toastWithUndo(successMessage(value), () => mutation.mutate({ adId, value: !value })),
+      toastWithUndo(config.successMessage(config.getValue(args)), () =>
+        mutation.mutate(config.makeUndoArgs(args)),
+      ),
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: config.queryKey }),
   });
   return mutation;
 }
 
 export function useAdminSetFeatured() {
   const queryClient = useQueryClient();
-  return useToggleAdField(
-    queryClient,
-    'isFeatured',
-    (adId, isFeatured) => adminApi.setFeatured(adId, { isFeatured }),
-    (value) => (value ? 'تم تمييز الإعلان' : 'تم إلغاء التمييز'),
-  );
+  return useAdminToggleField<AdminAd, { adId: string; value: boolean }>(queryClient, {
+    queryKey: ['admin', 'ads'],
+    itemField: 'isFeatured',
+    setField: (id, value) => adminApi.setFeatured(id, { isFeatured: value }),
+    getId: (a) => a.adId,
+    getValue: (a) => a.value,
+    makeUndoArgs: (a) => ({ ...a, value: !a.value }),
+    successMessage: (v) => (v ? 'تم تمييز الإعلان' : 'تم إلغاء التمييز'),
+  });
 }
 
 export function useAdminSetPinned() {
   const queryClient = useQueryClient();
-  return useToggleAdField(
-    queryClient,
-    'isPinned',
-    (adId, isPinned) => adminApi.setPinned(adId, { isPinned }),
-    (value) => (value ? 'تم تثبيت الإعلان' : 'تم إلغاء التثبيت'),
-  );
+  return useAdminToggleField<AdminAd, { adId: string; value: boolean }>(queryClient, {
+    queryKey: ['admin', 'ads'],
+    itemField: 'isPinned',
+    setField: (id, value) => adminApi.setPinned(id, { isPinned: value }),
+    getId: (a) => a.adId,
+    getValue: (a) => a.value,
+    makeUndoArgs: (a) => ({ ...a, value: !a.value }),
+    successMessage: (v) => (v ? 'تم تثبيت الإعلان' : 'تم إلغاء التثبيت'),
+  });
 }
 
 export function useAdminForceDeleteAd() {
@@ -176,40 +214,15 @@ export function useAdminBulkDeleteAds() {
 
 export function useAdminToggleUserActive() {
   const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
-      adminApi.toggleUserActive(userId, { isActive }).then((r) => r.data.data),
-    onMutate: async ({ userId, isActive }) => {
-      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminUser>>({
-        queryKey: ['admin', 'users'],
-      });
-      queryClient.setQueriesData<PaginatedResponse<AdminUser>>(
-        { queryKey: ['admin', 'users'] },
-        (old) => {
-          if (!old?.items) return old;
-          return { ...old, items: old.items.map((u) => u.id === userId ? { ...u, isActive } : u) };
-        },
-      );
-      await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
-      return { snapshots };
-    },
-    onSuccess: (_data, { userId, isActive }) =>
-      // FIX P1-7: re-invokes mutate() itself (not a bare adminApi call)
-      // so undo goes through the same optimistic-update/rollback path
-      // as the original action, not a fire-and-forget request the
-      // cached list would only pick up after its own onSettled
-      // invalidation.
-      toastWithUndo(
-        isActive ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب',
-        () => mutation.mutate({ userId, isActive: !isActive }),
-      ),
-    onError: (err, _vars, context) => {
-      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast.error(parseApiError(err).message);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  return useAdminToggleField<AdminUser, { userId: string; isActive: boolean }>(queryClient, {
+    queryKey: ['admin', 'users'],
+    itemField: 'isActive',
+    setField: (id, value) => adminApi.toggleUserActive(id, { isActive: value }).then((r) => r.data.data),
+    getId: (a) => a.userId,
+    getValue: (a) => a.isActive,
+    makeUndoArgs: (a) => ({ ...a, isActive: !a.isActive }),
+    successMessage: (v) => (v ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب'),
   });
-  return mutation;
 }
 
 /**
@@ -240,41 +253,19 @@ export function useAdminBulkToggleUserActive() {
  */
 export function useAdminSetSellerVerified() {
   const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: ({ sellerProfileId, verified }: { sellerProfileId: string; verified: boolean }) =>
-      adminApi.setSellerVerified(sellerProfileId, { verified }).then((r) => r.data.data),
-    onMutate: async ({ sellerProfileId, verified }) => {
-      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminSeller>>({
-        queryKey: ['admin', 'sellers'],
-      });
-      queryClient.setQueriesData<PaginatedResponse<AdminSeller>>(
-        { queryKey: ['admin', 'sellers'] },
-        (old) => {
-          if (!old?.items) return old;
-          return {
-            ...old,
-            items: old.items.map((s) => (s.id === sellerProfileId ? { ...s, verified } : s)),
-          };
-        },
-      );
-      await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
-      return { snapshots };
-    },
-    onSuccess: (_data, { sellerProfileId, verified }) =>
-      // FIX P1-7: see useAdminToggleUserActive's comment — undo
-      // re-invokes mutate() so it goes through the same optimistic
-      // path as the original toggle.
-      toastWithUndo(
-        verified ? 'تم توثيق البائع' : 'تم إلغاء توثيق البائع',
-        () => mutation.mutate({ sellerProfileId, verified: !verified }),
-      ),
-    onError: (err, _vars, context) => {
-      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast.error(parseApiError(err).message);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+  return useAdminToggleField<
+    AdminSeller,
+    { sellerProfileId: string; verified: boolean }
+  >(queryClient, {
+    queryKey: ['admin', 'sellers'],
+    itemField: 'verified',
+    setField: (id, value) =>
+      adminApi.setSellerVerified(id, { verified: value }).then((r) => r.data.data),
+    getId: (a) => a.sellerProfileId,
+    getValue: (a) => a.verified,
+    makeUndoArgs: (a) => ({ ...a, verified: !a.verified }),
+    successMessage: (v) => (v ? 'تم توثيق البائع' : 'تم إلغاء توثيق البائع'),
   });
-  return mutation;
 }
 
 /**
@@ -285,38 +276,26 @@ export function useAdminSetSellerVerified() {
  */
 export function useAdminSetSellerSuspended() {
   const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: ({ sellerProfileId, suspended, reason }: { sellerProfileId: string; suspended: boolean; reason?: string }) =>
-      adminApi.setSellerSuspended(sellerProfileId, { suspended, reason }).then((r) => r.data.data),
-    onMutate: async ({ sellerProfileId, suspended }) => {
-      const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminSeller>>({
-        queryKey: ['admin', 'sellers'],
-      });
-      queryClient.setQueriesData<PaginatedResponse<AdminSeller>>(
-        { queryKey: ['admin', 'sellers'] },
-        (old) => {
-          if (!old?.items) return old;
-          return {
-            ...old,
-            items: old.items.map((s) => (s.id === sellerProfileId ? { ...s, suspended } : s)),
-          };
-        },
-      );
-      await queryClient.cancelQueries({ queryKey: ['admin', 'sellers'] });
-      return { snapshots };
-    },
-    onSuccess: (_data, { sellerProfileId, suspended }) =>
-      toastWithUndo(
-        suspended ? 'تم إيقاف البائع' : 'تم رفع الإيقاف عن البائع',
-        () => mutation.mutate({ sellerProfileId, suspended: !suspended }),
-      ),
-    onError: (err, _vars, context) => {
-      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast.error(parseApiError(err).message);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+  return useAdminToggleField<
+    AdminSeller,
+    { sellerProfileId: string; suspended: boolean; reason?: string }
+  >(queryClient, {
+    queryKey: ['admin', 'sellers'],
+    itemField: 'suspended',
+    // reason is preserved from the original args on the initial call
+    // (the backend records why a seller was suspended); the undo
+    // path below deliberately omits it — the reverse action's own
+    // operation doesn't carry a reason, matching the pre-refactor
+    // behavior where the undo closure only passed the flipped flag.
+    setField: (id, value, args) =>
+      adminApi
+        .setSellerSuspended(id, { suspended: value, reason: args.reason })
+        .then((r) => r.data.data),
+    getId: (a) => a.sellerProfileId,
+    getValue: (a) => a.suspended,
+    makeUndoArgs: (a) => ({ sellerProfileId: a.sellerProfileId, suspended: !a.suspended }),
+    successMessage: (v) => (v ? 'تم إيقاف البائع' : 'تم رفع الإيقاف عن البائع'),
   });
-  return mutation;
 }
 
 /**
