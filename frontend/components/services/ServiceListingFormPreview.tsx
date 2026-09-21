@@ -10,6 +10,7 @@
  * account facts, not listing facts) aren't part of this preview.
  */
 
+import { useEffect, useMemo } from 'react';
 import { Clock } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -28,8 +29,32 @@ function formatServicePrice(values: ServiceListingFormValues): string {
 }
 
 export function ServiceListingFormPreview({ values, className }: Props) {
-  const filePreview =
-    values.images[0] instanceof File ? URL.createObjectURL(values.images[0]) : null;
+  // FIX OBJECT-URL-LEAK: URL.createObjectURL was called inline in
+  // the component body, which allocated a fresh blob URL on every
+  // render — and this component re-renders on every keystroke in
+  // the parent form, because `values` is passed down as a single
+  // object. Worse, nothing ever called URL.revokeObjectURL, so each
+  // of those URLs (each holding a reference to the underlying
+  // File's data, not just the string) stayed alive for the lifetime
+  // of the tab. Writing a 200-character title cost 200 leaked
+  // handles; on mobile Safari this is the classic way to hit the
+  // per-tab blob URL limit and get a blank preview.
+  //
+  // useMemo keyed on the File itself allocates a URL only when the
+  // image actually changes, and the effect below revokes it on the
+  // next change or on unmount — the documented ownership pair for
+  // createObjectURL/revokeObjectURL. Existing URLs (edit mode) and
+  // the placeholder are plain strings, not blobs, so they skip the
+  // whole dance deliberately.
+  const firstImage = values.images[0];
+  const filePreview = useMemo(
+    () => (firstImage instanceof File ? URL.createObjectURL(firstImage) : null),
+    [firstImage],
+  );
+  useEffect(() => {
+    if (!filePreview) return;
+    return () => URL.revokeObjectURL(filePreview);
+  }, [filePreview]);
   const imageSrc = filePreview || values.existingImages[0] || PLACEHOLDER_SVG;
 
   return (
