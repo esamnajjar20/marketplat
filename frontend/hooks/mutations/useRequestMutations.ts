@@ -161,6 +161,12 @@ export function useWithdrawRequestOffer() {
       requestsApi.withdrawOffer(id, offerId).then((r) => r.data.data),
     onSuccess: (_data, { id }) => {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
+      // FIX WITHDRAW-OFFER-MISSING-INVALIDATION: submitOffer invalidated
+      // myOffers() but withdrawOffer did not — so a withdrawn offer kept
+      // showing on /my-offers until the page was reloaded or its own
+      // staleTime lapsed. Both endpoints mutate the same list, both must
+      // invalidate it.
+      void qc.invalidateQueries({ queryKey: queryKeys.requests.myOffers() });
       toast.success('تم سحب العرض');
     },
     onError: toastMutationError,

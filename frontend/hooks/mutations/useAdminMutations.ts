@@ -624,7 +624,15 @@ export function useAdminSetProductStatus() {
       adminApi.setProductStatus(id, { status, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      // FIX ADMIN-SILENT-FAIL: was missing both a success toast and an
+      // onError handler, unlike every other admin mutation in this file.
+      // A failed product approval (5xx, permission blip, network) looked
+      // identical to a successful one from the admin's seat — the row
+      // simply did not change, with no explanation. Same feedback shape
+      // as useAdminForceDeleteAd above.
+      toast.success('تم تحديث حالة المنتج');
     },
+    onError: (err) => toast.error(parseApiError(err).message),
   });
 }
 
@@ -635,7 +643,10 @@ export function useAdminSetServiceListingStatus() {
       adminApi.setServiceListingStatus(id, { status, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'service-listings'] });
+      // FIX ADMIN-SILENT-FAIL: see useAdminSetProductStatus above.
+      toast.success('تم تحديث حالة الخدمة');
     },
+    onError: (err) => toast.error(parseApiError(err).message),
   });
 }
 
@@ -650,6 +661,9 @@ export function useAdminCancelOpenRequest() {
       adminApi.cancelOpenRequest(id, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'open-requests'] });
+      // FIX ADMIN-SILENT-FAIL: see useAdminSetProductStatus above.
+      toast.success('تم إلغاء الطلب المفتوح');
     },
+    onError: (err) => toast.error(parseApiError(err).message),
   });
 }

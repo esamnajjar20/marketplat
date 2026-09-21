@@ -28,8 +28,8 @@ import { ROUTES }        from '@/lib/constants';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import { useAuthStore, selectPatchUser, selectLogout } from '@/store/auth.store';
-import { clearAuthCookies, clearServiceWorkerApiCache } from './useAuthMutations';
-import { clearNotificationsCache } from '@/lib/notificationsCache';
+import { clearAuthCookies } from './useAuthMutations';
+import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { unwrapData } from '@/lib/apiPagination';
 import type { UpdateProfilePayload, NotificationPreferences } from '@/types/user.types';
 
@@ -86,7 +86,11 @@ export function useUpdateNotificationPreferences() {
  * send the (now-anonymous) visitor home.
  */
 export function useDeleteAccount() {
-  const queryClient = useQueryClient();
+  // queryClient was only used for queryClient.clear(), which
+  // clearSensitiveLocalData() now does internally (see
+  // lib/authCleanup.ts's clear() call). Removed here to avoid an
+  // unused-variable warning; useQueryClient is still imported for
+  // the other hooks in this file.
   const logout       = useAuthStore(selectLogout);
   const router        = useRouter();
 
@@ -95,9 +99,20 @@ export function useDeleteAccount() {
     onSuccess: () => {
       logout();
       clearAuthCookies();
-      clearServiceWorkerApiCache();
-      clearNotificationsCache();
-      queryClient.clear();
+      // FIX ACCOUNT-DELETE-CLEANUP-PARITY: this block used to run a
+      // hand-picked subset (queryClient.clear + SW cache + notifications
+      // cache) while its own doc comment claimed it mirrored
+      // useChangePassword. useChangePassword had exactly the same
+      // comment/code drift before FIX AUTH-CLEANUP-CENTRALIZE-01
+      // collapsed both sides to one call; this branch was missed then.
+      // Account deletion is if anything a higher-severity event than a
+      // password change — a shared device that has just had an account
+      // deleted still carried recent searches, auto-read history,
+      // offline queues, catalog downloads, saved payment methods, and
+      // offline messages from that account. clearSensitiveLocalData()
+      // covers all of them (see lib/authCleanup.ts) plus the SW clear
+      // and notifications clear that were already here.
+      clearSensitiveLocalData();
       toast.success('تم حذف حسابك بنجاح');
       router.push(ROUTES.home);
     },
