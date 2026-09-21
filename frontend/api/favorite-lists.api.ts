@@ -6,6 +6,11 @@ import type {
   RenameFavoriteListPayload,
   MoveFavoritePayload,
 } from '@/types/favorite-list.types';
+// FIX MOVE-FAVORITE-TYPING: backend returns the moved Favorite record
+// (favorites.service.ts's moveToList resolves with the updated row),
+// same shape as GET /favorites' items — declared here rather than
+// retyped so a future field on FavoriteRecord propagates.
+import type { FavoriteRecord } from './favorites.api';
 
 export const favoriteListsApi = {
   /** GET /favorites/lists */
@@ -33,6 +38,6 @@ export const favoriteListsApi = {
   /** PATCH /favorites/items/:favoriteId/list */
   moveFavorite: (favoriteId: string, payload: MoveFavoritePayload) =>
     apiClient
-      .patch<ApiResponse<unknown>>(`/favorites/items/${favoriteId}/list`, payload)
+      .patch<ApiResponse<FavoriteRecord>>(`/favorites/items/${favoriteId}/list`, payload)
       .then((r) => r.data.data),
 };
