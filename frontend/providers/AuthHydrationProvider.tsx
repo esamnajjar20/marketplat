@@ -173,7 +173,10 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           id:        user.id,
           name:      user.name,
           email:     user.email,
-          role:      user.role as 'USER' | 'ADMIN',
+          // FIX ROLE-TYPE-WIDENING: see hooks/mutations/useAuthMutations.ts's
+          // matching comment — same narrowing cast, removed for the same
+          // reason.
+          role:      user.role,
           avatarUrl: user.avatarUrl,
           city:      user.city,
           // FEAT-GOOGLE-COMPLETE-PROFILE: needed so ProfileCompletionGate

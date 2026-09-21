@@ -69,10 +69,9 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
   return useMutation({
     mutationFn: async (payload: CreateServiceListingPayload) => {
       operationIdRef.current = newOfflineOperationId();
-      let body = payload;
       // FIX TRIPLE-COMPRESS-01: removed dead compression step (see useAdMutations.ts for full rationale). Compression now runs once, in onError.
       return serviceListingsApi
-        .create(body, onUploadProgress, operationIdRef.current)
+        .create(payload, onUploadProgress, operationIdRef.current)
         .then((r) => r.data.data);
     },
     onSuccess: () => {

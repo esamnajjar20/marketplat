@@ -123,8 +123,16 @@ export function useLogin() {
       usersApi.getMe()
         .then((r) => {
           const u = unwrapData(r);
+          // FIX ROLE-TYPE-WIDENING: was `role: u.role as 'USER' | 'ADMIN'`
+          // — a cast that narrowed from the actual UserRole
+          // ('USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN') to just two
+          // values. The runtime value was always stored correctly (the
+          // cast is compile-time only), but any later comparison like
+          // `user.role === 'MODERATOR'` would fail tsc even though the
+          // real value could match. AuthUser.role is already UserRole,
+          // so no cast is needed at all.
           setUser({ id: u.id, name: u.name, email: u.email,
-                    role: u.role as 'USER' | 'ADMIN',
+                    role: u.role,
                     avatarUrl: u.avatarUrl, city: u.city,
                     emailVerified: u.emailVerified });
           queryClient.setQueryData(queryKeys.auth.me(), u);
