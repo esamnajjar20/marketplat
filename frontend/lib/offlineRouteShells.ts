@@ -243,7 +243,16 @@ let isWarmingPersonalShells = false;
  * FIX OFFLINE-WARM-ABORT: مهلة لكل طلب — بدونها، طلب بطيء على شبكة غزة
  * قد يعلّق 30+ ثانية، فيوقف التسخين كله. 8s حد معقول لعنصر واحد.
  */
-const FETCH_TIMEOUT_MS = 8000;
+// FIX WARM-TIMEOUT-GAZA-01: was 8000ms. On a weak network (Gaza 4G/3G)
+// with 20 personal-shell fetches + ~100-200 asset fetches all queued
+// behind Chrome's 6-connection-per-origin ceiling, the tail of the
+// queue routinely sat past 8s and each of those got an AbortError
+// (= DOMException) — see the log line this produced. 15000ms covers
+// the queue dwell time on Gaza networks while still bounding total
+// warming time. AbortError itself is still a safe outcome (the shell
+// just doesn't warm this pass), so the tradeoff is purely about how
+// many of the 20 succeed per cycle.
+const FETCH_TIMEOUT_MS = 15000;
 
 function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
@@ -294,7 +303,16 @@ export async function warmRouteShells(): Promise<void> {
       CORE_ROUTES.map(async (path) => {
         try {
           const response = await fetchWithTimeout(path, { credentials: 'same-origin' });
-          if (!response.ok) return;
+          // FIX WARM-REDIRECT-GUARD-01: skip redirected responses.
+          // A protected route fetched without a valid session (guest
+          // visitor, expired cookie) is served the /login page after
+          // a redirect, with ok=true and the shell text of /login
+          // under the protected URL. Caching it would make the
+          // offline /messages (etc.) shell resolve to login HTML —
+          // exactly the wrong document to show an authenticated
+          // user later, and worth skipping for guests too (they
+          // can't usefully view the shell either way).
+          if (!response.ok || response.redirected) return;
           if (await putTimestamped(cache, path, response.clone())) succeeded += 1;
 
           const html = await response.clone().text();
@@ -394,7 +412,16 @@ export async function warmPersonalShells(): Promise<void> {
       PERSONAL_SHELL_ROUTES_ESSENTIAL.map(async (path) => {
         try {
           const response = await fetchWithTimeout(path, { credentials: 'same-origin' });
-          if (!response.ok) return;
+          // FIX WARM-REDIRECT-GUARD-01: skip redirected responses.
+          // A protected route fetched without a valid session (guest
+          // visitor, expired cookie) is served the /login page after
+          // a redirect, with ok=true and the shell text of /login
+          // under the protected URL. Caching it would make the
+          // offline /messages (etc.) shell resolve to login HTML —
+          // exactly the wrong document to show an authenticated
+          // user later, and worth skipping for guests too (they
+          // can't usefully view the shell either way).
+          if (!response.ok || response.redirected) return;
           if (await putTimestamped(cache, path, response.clone())) succeeded += 1;
 
           const html = await response.clone().text();
@@ -418,7 +445,17 @@ export async function warmPersonalShells(): Promise<void> {
             }),
           );
         } catch (err) {
-          console.warn('[route-shells] warmPersonalShells path failed:', path, err);
+          // FIX WARM-LOG-01: `err` prints as `DOMException {}` under
+          // Chrome remote debugging, which is unactionable. Log the
+          // distinguishing fields — name (AbortError vs
+          // QuotaExceededError vs TypeError are very different
+          // problems) and message when present.
+          const name = err instanceof DOMException
+            ? err.name
+            : err instanceof Error
+              ? `${err.name}: ${err.message}`
+              : String(err);
+          console.warn('[route-shells] warmPersonalShells path failed:', path, name);
         }
       }),
     );
@@ -442,7 +479,13 @@ export async function warmPersonalShells(): Promise<void> {
           await cache.put(rscShellKey(path), stored);
           succeeded += 1;
         } catch (err) {
-          console.warn('[route-shells] warmPersonalShells RSC failed:', path, err);
+          // FIX WARM-LOG-01: see the HTML-path logger above.
+          const name = err instanceof DOMException
+            ? err.name
+            : err instanceof Error
+              ? `${err.name}: ${err.message}`
+              : String(err);
+          console.warn('[route-shells] warmPersonalShells RSC failed:', path, name);
         }
       }),
     );
