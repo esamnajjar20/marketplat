@@ -66,14 +66,21 @@ export const adminApi = {
   getAdminProducts: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
     apiClient.get('/admin/products', { params }),
 
+  // FIX ADMIN-API-TYPING-01: explicit ApiResponse<unknown> instead of
+  // the implicit `any` — the write response body is not read by any
+  // current caller, and unknown documents that fact without
+  // pretending to know the shape. When a caller eventually needs to
+  // read the updated row, swap in the real type (see useAdminSetProduct
+  // Status's onSuccess, which currently only invalidates the list).
   setProductStatus: (id: string, body: { status: string; reason?: string }) =>
-    apiClient.patch(`/admin/products/${id}/status`, body),
+    apiClient.patch<ApiResponse<unknown>>(`/admin/products/${id}/status`, body),
 
   getAdminServiceListings: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
     apiClient.get('/admin/service-listings', { params }),
 
+  // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   setServiceListingStatus: (id: string, body: { status: string; reason?: string }) =>
-    apiClient.patch(`/admin/service-listings/${id}/status`, body),
+    apiClient.patch<ApiResponse<unknown>>(`/admin/service-listings/${id}/status`, body),
 
 
   getAdminOpenRequests: (params?: {
@@ -84,19 +91,26 @@ export const adminApi = {
     q?: string;
   }) => apiClient.get('/admin/open-requests', { params }),
 
+  // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   cancelOpenRequest: (id: string, body?: { reason?: string }) =>
-    apiClient.patch(`/admin/open-requests/${id}/cancel`, body ?? {}),
+    apiClient.patch<ApiResponse<unknown>>(`/admin/open-requests/${id}/cancel`, body ?? {}),
 
   getPlatformTrends: (days?: number) =>
     apiClient.get('/admin/trends', { params: { days } }),
 
   getSystemHealth: () => apiClient.get('/admin/system-health'),
 
+  // FIX ADMIN-API-TYPING-01: typed as Blob — axios with responseType
+  // 'blob' resolves with an actual Blob in .data, and TS otherwise
+  // widens to `any`. Consumers do `new Blob([response.data])` (or
+  // pass response.data straight to a URL.createObjectURL call) and
+  // silently accepted `any` before; now the type is honest.
   exportUsersCsv: () =>
-    apiClient.get('/admin/export/users.csv', { responseType: 'blob' }),
+    apiClient.get<Blob>('/admin/export/users.csv', { responseType: 'blob' }),
 
+  // FIX ADMIN-API-TYPING-01: see exportUsersCsv above.
   exportReportsCsv: () =>
-    apiClient.get('/admin/export/reports.csv', { responseType: 'blob' }),
+    apiClient.get<Blob>('/admin/export/reports.csv', { responseType: 'blob' }),
 
   getNotificationStats: (params?: { days?: number }) =>
     apiClient.get('/admin/notifications/stats', { params }),
