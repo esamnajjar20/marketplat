@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { APP_URL, API_BASE_URL } from '@/lib/constants';
+import type { PaginationMeta } from '@/types/api.types';
 
 /**
  * Dynamic sitemap — /sitemap.xml
@@ -90,12 +91,12 @@ interface AdApiItem {
   updatedAt: string;
 }
 
-interface PaginationMeta {
-  total:      number;
-  page:       number;
-  limit:      number;
-  totalPages: number;
-}
+// FIX PAGINATION-META-DEDUP: removed a local 4-field copy of
+// PaginationMeta that shadowed the real one in @/types/api.types
+// (which carries hasNextPage/hasPrevPage as well). sitemap.ts only
+// reads the four shared fields today, so the duplicate worked —
+// but a future field added to the canonical type would silently
+// not exist here. Imported below instead.
 
 /** FIX API-SHAPE-01: GET /categories returns a flat array in `data`, no pagination at all. */
 interface CategoryEnvelope {
