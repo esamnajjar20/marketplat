@@ -19,6 +19,32 @@ import { bumpAdsCacheVersion } from '../ads/ads.service';
 /** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
 let _systemHealthMem: { at: number; value: any } | null = null;
 
+/**
+ * RFC 4180 CSV cell escaping + formula-injection guard.
+ *
+ * Fixes a real CSV injection vulnerability: the previous inline
+ * .join(',') builders emitted raw values, so a user whose name (or a
+ * report's notes) starts with =, +, -, @, tab, or CR would execute as
+ * a formula when the exported file is opened in Excel / Google Sheets
+ * / LibreOffice Calc. Prefixing those with a single quote is the
+ * standard mitigation (OWASP: CSV Injection).
+ *
+ * Also fixes a structural escaping bug: JSON.stringify was used to
+ * quote name/notes, but JSON's escape rules do not match CSV's —
+ * a name containing a double quote produced invalid CSV, and a value
+ * containing a comma broke the column structure.
+ */
+function escapeCsvCell(value: unknown): string {
+  let s = value == null ? '' : String(value);
+  // Formula-injection guard (OWASP): prefix with a single quote so the
+  // spreadsheet engine treats the leading char as literal text.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  // RFC 4180 quoting: wrap in double quotes and escape internal quotes
+  // by doubling them, only when the value contains , " newline or CR.
+  if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
 export const adminService = {
   /**
    * FIX FEAT-05: previously the frontend's useAdminStats() computed this
@@ -852,7 +878,11 @@ export const adminService = {
     });
     const header = 'id,email,name,role,isActive,createdAt';
     const lines = users.map((u) =>
-      [u.id, u.email, JSON.stringify(u.name ?? ''), u.role, u.isActive, u.createdAt.toISOString()].join(','),
+      // FIX CSV-INJECTION-01: every cell goes through escapeCsvCell —
+      // see its own doc comment for the two bugs it fixes.
+      [u.id, u.email, u.name, u.role, u.isActive, u.createdAt.toISOString()]
+        .map(escapeCsvCell)
+        .join(','),
     );
     return [header, ...lines].join('\n');
   },
@@ -874,6 +904,7 @@ export const adminService = {
     });
     const header = 'id,reason,status,targetType,targetId,userId,notes,createdAt';
     const lines = reports.map((r) =>
+      // FIX CSV-INJECTION-01: see exportUsersCsv above.
       [
         r.id,
         r.reason,
@@ -881,9 +912,11 @@ export const adminService = {
         r.targetType,
         r.targetId,
         r.userId,
-        JSON.stringify(r.notes ?? ''),
+        r.notes,
         r.createdAt.toISOString(),
-      ].join(','),
+      ]
+        .map(escapeCsvCell)
+        .join(','),
     );
     return [header, ...lines].join('\n');
   },
