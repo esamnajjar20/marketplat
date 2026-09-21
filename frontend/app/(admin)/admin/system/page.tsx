@@ -1,11 +1,45 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { AdminSystemHealth } from '@/components/admin/AdminSystemHealth';
-import { AdminSystemTools } from '@/components/admin/AdminSystemTools';
+import dynamic from 'next/dynamic';
 import { ROUTES } from '@/lib/constants';
 import { buildMetadata } from '@/lib/seo';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 export const metadata: Metadata = buildMetadata({ title: 'صحة النظام', noIndex: true });
+
+// FIX ADMIN-STORM-LAZY-01: both sections were imported statically.
+// The page's own heading + quick-links block renders instantly; the
+// two heavy sections below fold the actual queries (health probes,
+// export tools) — loading them as dynamic chunks keeps them out of
+// the initial JS payload and gives each its own Suspense-driven
+// loading state instead of a blank page while both resolve. Same
+// pattern as app/(admin)/admin/analytics/page.tsx. Note this does
+// not by itself cap the number of concurrent queries — the browser
+// still mounts both sections once their chunks land — but it does
+// cut what has to ship before the first paint.
+const AdminSystemHealth = dynamic(
+  () =>
+    import('@/components/admin/AdminSystemHealth').then(
+      (m) => m.AdminSystemHealth,
+    ),
+  {
+    loading: () => (
+      <PageLoadingState variant="cards" title="جارٍ فحص الخدمات" description="…" />
+    ),
+  },
+);
+
+const AdminSystemTools = dynamic(
+  () =>
+    import('@/components/admin/AdminSystemTools').then(
+      (m) => m.AdminSystemTools,
+    ),
+  {
+    loading: () => (
+      <PageLoadingState variant="minimal" title="جارٍ تحميل الأدوات" description="…" />
+    ),
+  },
+);
 
 export default function AdminSystemPage() {
   return (
