@@ -65,13 +65,28 @@ export function useAds(params?: AdSearchParams, options?: { enabled?: boolean })
   // "all ads". The same drift class we just closed for paymentStorage,
   // just on a read-mostly path. Now the offline slot is populated only
   // when the request really is the unfiltered first page.
-  // AdSearchParams only exposes city/categoryId as discrete filter
-  // fields (q/lat/lng live on AdSearchQuery, used by useSearchAds).
-  // These two cover every filtered entry point that actually hits
-  // useAds in the app.
+  //
+  // FIX ADS-OFFLINE-CACHE-SCOPE-02: the original fix only listed
+  // city/categoryId with a comment claiming those were the only
+  // discrete filter fields AdSearchParams exposes. That was wrong —
+  // AdSearchParams (types/ad.types.ts:141) also carries condition,
+  // minPrice, maxPrice, search, userId, storeId, and isFeatured, any
+  // of which changes the result set. The bug therefore came back for
+  // every one of those: e.g. /search?minPrice=100 still populated the
+  // generic adsBrowse slot, so a later offline unfiltered open saw
+  // only the ≥100 listings. sortBy/sortOrder are deliberately NOT
+  // listed — they change the order of the same set, not which items
+  // belong to it.
   const hasRealFilter =
     Boolean(params?.city) ||
-    Boolean(params?.categoryId);
+    Boolean(params?.categoryId) ||
+    Boolean(params?.condition) ||
+    params?.minPrice !== undefined ||
+    params?.maxPrice !== undefined ||
+    Boolean(params?.search) ||
+    Boolean(params?.userId) ||
+    Boolean(params?.storeId) ||
+    params?.isFeatured !== undefined;
   const isBaseBrowse =
     (!params?.page || params.page === 1) &&
     !hasRealFilter;
