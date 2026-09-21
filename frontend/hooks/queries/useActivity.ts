@@ -35,7 +35,20 @@ export function useMyActivity(params?: ActivityQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const isBase = !params?.page || params.page === 1;
+  // FIX ACTIVITY-OFFLINE-CACHE-SCOPE-01: `isBase` only checked page,
+  // but ActivityQuery (types/activity.types.ts) also carries three
+  // filter fields — type, group, and q. A type-filtered or
+  // search-filtered first page was therefore written into the
+  // generic activity offline slot, so a later unfiltered offline
+  // open of /activity served only that subset back to the user.
+  // Same class as ADS-OFFLINE-CACHE-SCOPE-01/-02 in useAds and
+  // APPT-OFFLINE-CACHE-SCOPE-01 in useMyAppointments — third
+  // instance of the same pattern, closed the same way.
+  const hasRealFilter =
+    Boolean(params?.type) ||
+    Boolean(params?.group) ||
+    Boolean(params?.q);
+  const isBase = (!params?.page || params.page === 1) && !hasRealFilter;
   const cached = isBase
     ? getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity)
     : null;
