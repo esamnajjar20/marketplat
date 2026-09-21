@@ -47,7 +47,19 @@ export function useMyNotifications(params?: NotificationsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const isBaseView = !params?.unreadOnly;
+  // FIX NOTIFICATIONS-OFFLINE-CACHE-SCOPE-01: the cache-seeding
+  // guard only checked unreadOnly, but NotificationsQuery
+  // (types/notification.types.ts) also carries type and category
+  // filters. A type-filtered first page (?type=MESSAGE, page 1) or
+  // a category-filtered one (?category=messages, page 1) was being
+  // written into the generic notifications cache, so a later
+  // unfiltered offline open of /notifications showed only that
+  // subset. Same class as ADS-OFFLINE-CACHE-SCOPE-01/-02 and
+  // APPT-OFFLINE-CACHE-SCOPE-01.
+  const isBaseView =
+    !params?.unreadOnly &&
+    !params?.type &&
+    !params?.category;
   const cached = isBaseView ? getNotificationsCache() : null;
 
   const query = useQuery({

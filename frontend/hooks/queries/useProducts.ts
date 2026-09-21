@@ -40,11 +40,27 @@ function offlinePage(items: ProductWithStore[]): ProductsPage {
 
 /** GET /products — public browse/search. */
 export function useProducts(params?: ProductsQuery, options?: { enabled?: boolean }) {
+  // FIX PRODUCTS-OFFLINE-CACHE-SCOPE-01: the isBaseBrowse check
+  // only listed page/search/categoryId/storeId, but ProductsQuery
+  // (types/product.types.ts) also carries city, availability,
+  // minPrice, maxPrice, and hasPromotion — any of which changes the
+  // result set. A price-filtered, city-filtered, or promotion-only
+  // first page (?hasPromotion=true, page 1) was being written into
+  // the generic productsBrowse offline slot, so a later unfiltered
+  // offline open of /products served that subset back to the user.
+  // Same class as ADS-OFFLINE-CACHE-SCOPE-01/-02 and
+  // APPT-OFFLINE-CACHE-SCOPE-01. sortBy/sortOrder stay excluded
+  // (they reorder the same set, not filter it).
   const isBaseBrowse =
     (!params?.page || params.page === 1) &&
     !params?.search &&
     !params?.categoryId &&
-    !params?.storeId;
+    !params?.storeId &&
+    !params?.city &&
+    !params?.availability &&
+    params?.minPrice === undefined &&
+    params?.maxPrice === undefined &&
+    params?.hasPromotion === undefined;
   const cached = isBaseBrowse
     ? getOfflineList<ProductWithStore>(OFFLINE_LIST_KEYS.productsBrowse)
     : null;
