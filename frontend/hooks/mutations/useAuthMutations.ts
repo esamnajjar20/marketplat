@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { authApi }       from '@/api/auth.api';
 import { usersApi }      from '@/api/users.api';
 import { queryKeys }     from '@/lib/queryKeys';
-import { ROUTES }        from '@/lib/constants';
+import { ROUTES, CACHE_TTL } from '@/lib/constants';
 import { track }         from '@/lib/analytics';
 import { clearSensitiveLocalData, clearServiceWorkerApiCache } from '@/lib/authCleanup';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
@@ -127,22 +127,28 @@ export function useLogin() {
       void warmSelfDataForOffline(queryClient);
 
       // Background fetch to enrich user with avatarUrl/city.
-      usersApi.getMe()
-        .then((r) => {
-          const u = unwrapData(r);
-          // FIX ROLE-TYPE-WIDENING: was `role: u.role as 'USER' | 'ADMIN'`
-          // — a cast that narrowed from the actual UserRole
-          // ('USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN') to just two
-          // values. The runtime value was always stored correctly (the
-          // cast is compile-time only), but any later comparison like
-          // `user.role === 'MODERATOR'` would fail tsc even though the
-          // real value could match. AuthUser.role is already UserRole,
-          // so no cast is needed at all.
+      // FIX ME-QUERY-UNIFY-01: was a direct usersApi.getMe() call here,
+      // outside React Query — see the matching fix in
+      // AuthHydrationProvider.tsx. On any page that also mounts a
+      // useMe() consumer, that hook fired its own /users/me in
+      // parallel because it couldn't see this request. Now routed
+      // through queryClient.fetchQuery on the same auth.me() key, so
+      // the hook dedupes with this one and the cache write below is
+      // implicit (fetchQuery already populates the cache).
+      void queryClient
+        .fetchQuery({
+          queryKey: queryKeys.auth.me(),
+          queryFn: () => usersApi.getMe().then((r) => r.data.data),
+          staleTime: CACHE_TTL.userProfile,
+        })
+        .then((u) => {
+          if (!u) return;
+          // FIX ROLE-TYPE-WIDENING: see AuthHydrationProvider.tsx's
+          // matching comment.
           setUser({ id: u.id, name: u.name, email: u.email,
                     role: u.role,
                     avatarUrl: u.avatarUrl, city: u.city,
                     emailVerified: u.emailVerified });
-          queryClient.setQueryData(queryKeys.auth.me(), u);
         })
         .catch(() => { /* non-critical — minimal user still set */ });
 

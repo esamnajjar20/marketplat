@@ -66,6 +66,7 @@ import { authApi }    from '@/api/auth.api';
 import { usersApi }   from '@/api/users.api';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
+import { CACHE_TTL }    from '@/lib/constants';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 
@@ -166,8 +167,26 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         setCookie('app_has_session', '1', SESSION_HINT_COOKIE_MAX_AGE);
 
         // 3. Fetch full profile to get avatarUrl, city, and confirm role.
-        const meRes  = await usersApi.getMe({ signal: controller.signal });
-        const user   = meRes.data.data;
+        // FIX ME-QUERY-UNIFY-01: was a direct usersApi.getMe() call
+        // here, outside React Query. Three consequences on any page
+        // that also mounts a useMe() consumer (ProfileSettingsForm,
+        // NotificationSettingsForm) — a second /users/me fired in
+        // parallel from useMe() because it couldn't see this request,
+        // and the store write below landed the same data into two
+        // independent paths. Now routed through
+        // queryClient.fetchQuery on the same auth.me() key, so the
+        // hook's own request dedupes with this one and the query
+        // cache stays in sync from a single source.
+        // controller.signal is still passed through the queryFn so
+        // the outer abort semantics are preserved.
+        const user = await queryClient.fetchQuery({
+          queryKey: queryKeys.auth.me(),
+          queryFn: () =>
+            usersApi
+              .getMe({ signal: controller.signal })
+              .then((r) => r.data.data),
+          staleTime: CACHE_TTL.userProfile,
+        });
         if (!user) throw new Error('empty /users/me response');
         setUser({
           id:        user.id,
@@ -209,21 +228,37 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // its own try/catch and awaited (not fire-and-forget) only to
         // keep it inside this function's existing 8s abort window.
         try {
-          // FIX AUTH-05b: pass the same signal used for refresh/getMe so
-          // this call is actually cancelled by the 8s timeout or an
-          // unmount, instead of running to completion in the background
-          // regardless (see favoritesApi.getAll's doc comment).
-          const favRes = await favoritesApi.getAll({ page: 1 }, { signal: controller.signal });
-          const favData = favRes.data.data; // { items: FavoriteRecord[]; meta: PaginationMeta }
+          // FIX ME-QUERY-UNIFY-02: was a direct favoritesApi.getAll()
+          // call here, outside React Query — the same class of bug as
+          // the getMe fix a few lines above. Any page that mounted a
+          // useFavorites({ page: 1 }) consumer (FavoritesList) fired a
+          // second /favorites request in parallel because the hook
+          // couldn't see this one. Now routed through
+          // queryClient.fetchQuery on the exact key
+          // queryKeys.favorites.all({ page: 1 }) produces, so the
+          // hook's own request dedupes with this prefetch. The
+          // controller.signal is still passed through the queryFn so
+          // the outer abort semantics are preserved.
+          //
+          // Note the previous comment here claimed the key would be
+          // dead cache because FavoritesList and DashboardStats call
+          // useFavorites() with different params. Only FavoritesList
+          // is in play for this prefetch's page — DashboardStats uses
+          // the separate ids()/check() paths. Populating the page:1
+          // key is exactly what dedups FavoritesList.
+          const favData = await queryClient.fetchQuery({
+            queryKey: queryKeys.favorites.all({ page: 1 }),
+            queryFn: () =>
+              favoritesApi
+                .getAll({ page: 1 }, { signal: controller.signal })
+                .then((r) => r.data.data),
+            staleTime: CACHE_TTL.favorites,
+          });
           if (!favData) throw new Error('empty /favorites response');
-          const idSet   = new Set(favData.items.map((fav) => fav.ad.id));
-          // Only seed the ids Set (the actual source of useIsFavorited()).
-          // Deliberately NOT seeding queryKeys.favorites.all(...) here:
-          // FavoritesList/DashboardStats call useFavorites() with different
-          // params ({ page } vs none), producing different cache keys than
-          // whatever this prefetch would use — seeding the wrong key would
-          // just be dead cache, not a correctness issue, but there's no
-          // reason to carry it.
+          const idSet = new Set(favData.items.map((fav) => fav.ad.id));
+          // Seed the ids Set (the actual source of useIsFavorited()).
+          // fetchQuery already populated the list cache above, so the
+          // Set and the cache are now sourced from one request.
           queryClient.setQueryData(queryKeys.favorites.ids(), idSet);
         } catch {
           // Non-fatal: heart icons just fall back to the old
