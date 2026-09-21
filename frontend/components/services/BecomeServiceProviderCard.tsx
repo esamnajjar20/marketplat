@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
@@ -75,6 +75,20 @@ export function BecomeServiceProviderCard() {
   const [contactPhone, setContactPhone] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+  // FIX SUBMIT-DOUBLE: the submit button already carries
+  // `disabled={isFormIncomplete || createProvider.isPending}`, but
+  // that only covers clicks on the button itself. Pressing Enter
+  // inside any text field fires the form's submit handler directly,
+  // bypassing that disabled state entirely — and React Query does
+  // not flip isPending synchronously, so two rapid Enters (a tap
+  // that registered twice, an autocorrect confirm followed by a
+  // Return) both pass the isFormIncomplete check and both fire
+  // mutate(). On the slower connections this app targets, the
+  // window between the first submit and the pending update is
+  // easily a few hundred milliseconds. The ref is a synchronous
+  // guard that does not depend on React's render cycle; mirrors
+  // the same pattern in ServiceListingForm.
+  const isSubmittingRef = useRef(false);
 
   function fieldError(field: keyof Errors): string | undefined {
     return errors[field] ?? serverErrors?.[field]?.[0];
@@ -128,7 +142,9 @@ export function BecomeServiceProviderCard() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!validate()) return;
+    isSubmittingRef.current = true;
 
     const serviceAreaCities = citiesInput.split(',').map((c) => c.trim()).filter(Boolean);
 
@@ -143,9 +159,20 @@ export function BecomeServiceProviderCard() {
       },
       {
         onSuccess: () => {
+          // Reset even though the parent swaps this card out on
+          // success (useCreateServiceProvider invalidates the
+          // serviceProviders.me() query, and both mount sites
+          // render BecomeServiceProviderCard only while !provider).
+          // The reset costs nothing and stays correct if that
+          // unmount ever stops being guaranteed — e.g. if the
+          // invalidation fails silently and the card lingers.
+          isSubmittingRef.current = false;
           if (from) router.push(getSafeRedirectPath(from));
         },
-        onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+        onError: (err) => {
+          isSubmittingRef.current = false;
+          setServerErrors(parseApiError(err).fieldErrors);
+        },
       }
     );
   }
