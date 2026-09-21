@@ -43,7 +43,15 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
   const shareUrl = `${APP_URL}${ROUTES.serviceDetail(listing.id)}`;
-  const thumbnailImages = images.slice(0, 3);
+  // FIX LIGHTBOX-THUMBNAILS-CLIP: was `images.slice(0, 3)` — only the
+  // first three thumbnails ever rendered, so navigating to image 4+
+  // via the arrows left no thumbnail highlighted (the `i === imgIdx`
+  // check could never match a thumbnail that didn't exist). Users on
+  // a listing with more than three photos had no visual indication
+  // of which image they were viewing beyond the “n / total” counter.
+  // The thumbnail container already has overflow-x-auto, so the full
+  // strip fits and scrolls on narrow screens.
+  const thumbnailImages = images;
 
   const goPrev = useCallback(() => setImgIdx((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
