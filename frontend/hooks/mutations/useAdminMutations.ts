@@ -399,13 +399,27 @@ export function useAdminChangeRole() {
  */
 export function useAdminUpdateStoreStatus() {
   const queryClient = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ storeId, status, reason }: { storeId: string; status: 'ACTIVE' | 'PENDING' | 'BLOCKED'; reason?: string }) =>
       adminApi.updateStoreStatus(storeId, { status, reason }).then((r) => r.data.data),
     onMutate: async ({ storeId, status }) => {
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
         queryKey: ['admin', 'stores'],
       });
+      // FIX STORE-STATUS-UNDO: capture the store's status from the
+      // snapshot BEFORE the optimistic write below overwrites it in
+      // the cache, so onSuccess can offer an undo back to the real
+      // previous value. Not found in any cached page → undefined,
+      // and the undo path falls through to a plain toast rather
+      // than guessing.
+      let previousStatus: 'ACTIVE' | 'PENDING' | 'BLOCKED' | undefined;
+      for (const [, data] of snapshots) {
+        const hit = data?.items?.find((s) => s.id === storeId);
+        if (hit) {
+          previousStatus = hit.status as 'ACTIVE' | 'PENDING' | 'BLOCKED';
+          break;
+        }
+      }
       queryClient.setQueriesData<PaginatedResponse<AdminStore>>(
         { queryKey: ['admin', 'stores'] },
         (old) => {
@@ -417,15 +431,24 @@ export function useAdminUpdateStoreStatus() {
         },
       );
       await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
-      return { snapshots };
+      return { snapshots, previousStatus };
     },
-    onSuccess: (_data, { status }) => {
+    onSuccess: (_data, { storeId, status }, context) => {
       const messages: Record<string, string> = {
         ACTIVE:  'تمت الموافقة على المتجر',
         BLOCKED: 'تم حظر المتجر',
         PENDING: 'تم إرجاع المتجر إلى قيد المراجعة',
       };
-      toast.success(messages[status] ?? 'تم تحديث حالة المتجر');
+      const message = messages[status] ?? 'تم تحديث حالة المتجر';
+      // FIX STORE-STATUS-UNDO: same P1-7 treatment as every other
+      // reversible admin toggle — one-tap undo in the toast that
+      // re-fires the mutation with the status captured in onMutate.
+      const prev = context?.previousStatus;
+      if (prev && prev !== status) {
+        toastWithUndo(message, () => mutation.mutate({ storeId, status: prev }));
+      } else {
+        toast.success(message);
+      }
     },
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
@@ -433,6 +456,7 @@ export function useAdminUpdateStoreStatus() {
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
   });
+  return mutation;
 }
 
 // FIX BUG-02: makes StorePlan.FEATURED reachable from the admin stores
@@ -440,7 +464,7 @@ export function useAdminUpdateStoreStatus() {
 // useAdminUpdateStoreStatus above.
 export function useAdminUpdateStorePlan() {
   const queryClient = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ storeId, plan }: { storeId: string; plan: 'FREE' | 'FEATURED' }) =>
       adminApi.updateStorePlan(storeId, { plan }).then((r) => r.data.data),
     onMutate: async ({ storeId, plan }) => {
@@ -460,15 +484,21 @@ export function useAdminUpdateStorePlan() {
       await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
       return { snapshots };
     },
-    onSuccess: (_data, { plan }) => {
-      toast.success(plan === 'FEATURED' ? 'تم تمييز المتجر' : 'تم إلغاء تمييز المتجر');
-    },
+    onSuccess: (_data, { storeId, plan }) =>
+      // FIX STORE-PLAN-UNDO: same P1-7 treatment as every other
+      // reversible admin toggle — one-tap undo in the toast that
+      // re-fires the mutation with the plan flipped back.
+      toastWithUndo(
+        plan === 'FEATURED' ? 'تم تمييز المتجر' : 'تم إلغاء تمييز المتجر',
+        () => mutation.mutate({ storeId, plan: plan === 'FEATURED' ? 'FREE' : 'FEATURED' }),
+      ),
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
   });
+  return mutation;
 }
 
 /**
