@@ -8,6 +8,7 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyAppointments } from '@/hooks/queries/useAppointments';
 import { useUpdateAppointmentStatus } from '@/hooks/mutations/useAppointmentMutations';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
@@ -29,38 +30,72 @@ interface Props {
  * can change status"). */
 function AppointmentActions({ id, status }: { id: string; status: string }) {
   const updateStatus = useUpdateAppointmentStatus();
+  // FIX CANCEL-NO-CONFIRM: CANCELLED is a terminal transition — once
+  // applied the appointment is gone and cannot be reverted, and this
+  // is a real commitment the provider made to a customer. It was the
+  // only CANCELLED-equivalent transition in components/services/ not
+  // gated behind a ConfirmDialog: MyServiceRequestsList guards its
+  // customer-side CANCELLED, IncomingServiceRequestsList guards
+  // REJECTED (same REJECT/CANCEL terminal family). Here the button
+  // sits adjacent to NO_SHOW and COMPLETED — same size, same row,
+  // one tap apart on mobile — and fired the mutation on first click.
+  //
+  // NO_SHOW and COMPLETED stay as they are on purpose: NO_SHOW is
+  // informational (records that the customer did not turn up — a
+  // mis-tap hurts the provider's own record, not the customer's
+  // appointment), and COMPLETED is the positive completion of a
+  // fulfilled appointment. Neither carries the same "lose an
+  // appointment your customer is counting on" risk.
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   if (status !== 'SCHEDULED') return null;
 
   return (
-    <div className="flex gap-1.5 shrink-0">
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1"
-        disabled={updateStatus.isPending}
-        onClick={() => updateStatus.mutate({ id, payload: { status: 'NO_SHOW' } })}
-      >
-        <UserX className="h-3.5 w-3.5" />لم يحضر
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1 text-destructive hover:text-destructive"
-        disabled={updateStatus.isPending}
-        onClick={() => updateStatus.mutate({ id, payload: { status: 'CANCELLED' } })}
-      >
-        <X className="h-3.5 w-3.5" />إلغاء
-      </Button>
-      <Button
-        size="sm"
-        className="gap-1"
-        disabled={updateStatus.isPending}
-        onClick={() => updateStatus.mutate({ id, payload: { status: 'COMPLETED' } })}
-      >
-        <CheckCheck className="h-3.5 w-3.5" />إنهاء
-      </Button>
-    </div>
+    <>
+      <div className="flex gap-1.5 shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1"
+          disabled={updateStatus.isPending}
+          onClick={() => updateStatus.mutate({ id, payload: { status: 'NO_SHOW' } })}
+        >
+          <UserX className="h-3.5 w-3.5" />لم يحضر
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1 text-destructive hover:text-destructive"
+          disabled={updateStatus.isPending}
+          onClick={() => setConfirmCancel(true)}
+        >
+          <X className="h-3.5 w-3.5" />إلغاء
+        </Button>
+        <Button
+          size="sm"
+          className="gap-1"
+          disabled={updateStatus.isPending}
+          onClick={() => updateStatus.mutate({ id, payload: { status: 'COMPLETED' } })}
+        >
+          <CheckCheck className="h-3.5 w-3.5" />إنهاء
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        title="إلغاء الموعد؟"
+        description="سيُلغى الموعد نهائياً ولن يتمكن العميل من الاعتماد عليه. لا يمكن التراجع بعد التأكيد."
+        confirmLabel="إلغاء الموعد"
+        destructive
+        isPending={updateStatus.isPending}
+        onConfirm={() => {
+          updateStatus.mutate(
+            { id, payload: { status: 'CANCELLED' } },
+            { onSuccess: () => setConfirmCancel(false) },
+          );
+        }}
+      />
+    </>
   );
 }
 
