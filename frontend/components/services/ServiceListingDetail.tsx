@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { MapPin, Clock, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
@@ -50,6 +50,36 @@ export function ServiceListingDetail({ listing, action }: Props) {
     () => setImgIdx((i) => Math.min(images.length - 1, i + 1)),
     [images.length],
   );
+
+  // FIX LIGHTBOX-A11Y: the lightbox only had an explicit close
+  // button before. Three small gaps, all closed by one effect:
+  //
+  //   1. Escape did nothing — a keyboard user could open the
+  //      viewer but not dismiss it without a mouse (WAI-ARIA's
+  //      dialog pattern requires Escape).
+  //   2. The page behind the overlay kept scrolling on touch,
+  //      which both looked wrong and made the page position after
+  //      closing unpredictable on a phone.
+  //   3. Backdrop clicks did nothing (handled on the wrapper's
+  //      own onClick below).
+  //
+  // prevOverflow is captured/restored rather than set to '' —
+  // another library or a parent effect could legitimately own
+  // that style at unmount time, and clobbering it here would
+  // leave the page scroll-locked permanently.
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(false);
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [lightbox]);
 
   return (
     <>
@@ -222,6 +252,14 @@ export function ServiceListingDetail({ listing, action }: Props) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
           role="dialog"
           aria-modal
+          // FIX LIGHTBOX-A11Y: e.target !== e.currentTarget keeps
+          // clicks on the image or the close button from bubbling
+          // up and dismissing the lightbox unexpectedly — the
+          // pattern matches every other dismiss-on-backdrop modal
+          // in the app.
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLightbox(false);
+          }}
         >
           <button
             type="button"
