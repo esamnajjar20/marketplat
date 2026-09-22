@@ -442,6 +442,13 @@ export const notificationEvents = {
     // matching saved searches gets two pushes, each naming its own
     // search label, not one generic push. AUDIT-FIX 2.1: safe to leave
     // un-awaited, same reasoning as fanOutSameContentNotification above.
+    // FIX NOTIF-PUSH-CATCH: every other fire-and-forget push call in
+    // this file terminates with .catch(() => {}) — this one did not,
+    // so a rejection from any of the notifyUser promises would surface
+    // as an unhandled rejection at the process level (Node 15+ warns;
+    // some deployments configure it to crash). Same contract as the
+    // other handlers: push failure must never affect the notification
+    // row we are about to write.
     void Promise.all(
       matches.map(({ userId, savedSearchId, label }) =>
         pushService.notifyUser(userId, {
@@ -451,7 +458,7 @@ export const notificationEvents = {
           tag: `saved-search-${savedSearchId}`,
         })
       )
-    );
+    ).catch(() => {});
     return notificationsRepository.createMany(
       matches.map(({ userId, savedSearchId, label }) => ({
         userId,
@@ -549,10 +556,18 @@ export const notificationEvents = {
     if (!(await userAllowsPref(customerId, 'serviceQuotes'))) return null;
     const title = 'عرض سعر جديد';
     const body = `${providerName} أرسل عرض سعر على طلبك "${broadcastTitle}"`;
+    // FIX NOTIF-BROADCAST-URL-DEAD: the ServiceBroadcast feature was
+    // removed (see admin.service.ts's DEAD-CODE-SERVICE-BROADCASTS
+    // comment), so /service-broadcasts/:id no longer has a frontend
+    // route — tapping the push landed on a 404. Falls back to
+    // /notifications, which is always valid and lets the user open
+    // the underlying broadcast if/when a replacement page lands.
+    // broadcastId is still carried in the in-app row's `data` so the
+    // notification history can deep-link correctly once a route exists.
     void pushService.notifyUser(customerId, {
       title,
       body,
-      url: `/service-broadcasts/${broadcastId}`,
+      url: '/notifications',
       tag: `broadcast-${broadcastId}`,
     }).catch(() => {});
     return notificationsRepository.create({
@@ -602,10 +617,11 @@ export const notificationEvents = {
     if (!(await userAllowsPref(providerUserId, 'serviceQuotes'))) return null;
     const title = 'تم قبول عرضك';
     const body = `تم قبول عرض السعر الخاص بك على طلب "${broadcastTitle}"`;
+    // FIX NOTIF-BROADCAST-URL-DEAD: same as onNewServiceQuote above.
     void pushService.notifyUser(providerUserId, {
       title,
       body,
-      url: `/service-broadcasts/${broadcastId}`,
+      url: '/notifications',
       tag: `broadcast-${broadcastId}`,
     }).catch(() => {});
     return notificationsRepository.create({
