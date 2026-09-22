@@ -396,11 +396,52 @@ export async function warmPersonalShells(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!navigator.onLine) return;
   if (typeof caches === 'undefined') return;
+
+  // FIX OFFLINE-WARM-NET-AWARE: this function pre-fetches 8 personal
+  // routes (HTML + assets + RSC each). On a fast link that is cheap
+  // background work; on a slow or metered link it competes directly
+  // with the actual page data the user is waiting for — observed on
+  // Gaza's 3G-ish links as ~40-60 extra requests in the first few
+  // seconds of any protected page, most of them above the fold in the
+  // Network panel. Skip warming entirely when the browser reports
+  // data-saver, or an effective type of slow-2g/2g/3g. The offline
+  // benefit is unchanged for users on Wi-Fi/4G; users on slow links
+  // still get the shell cached the first time they actually visit the
+  // route (warmRouteShells + normal SW caching).
+  const conn =
+    typeof navigator !== 'undefined'
+      ? (navigator as Navigator & {
+          connection?: { saveData?: boolean; effectiveType?: string };
+        }).connection
+      : undefined;
+  if (conn) {
+    if (conn.saveData) return;
+    const et = conn.effectiveType;
+    if (et === 'slow-2g' || et === '2g' || et === '3g') return;
+  }
+
   // FIX OFFLINE-WARM-THROTTLE
   if (isWarmingPersonalShells) return;
   const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
   if (Date.now() - last < WARM_INTERVAL_MS) return;
   isWarmingPersonalShells = true;
+
+  // FIX OFFLINE-WARM-IDLE: even on fast links, defer the warm start
+  // until the browser is idle — never compete with the first paint or
+  // the initial data fetch. requestIdleCallback with a 5s timeout
+  // ensures warming still runs if the page stays busy (e.g. long list
+  // rendering), but the common case (page settles in <1s) wins back
+  // the entire first-3s window for real traffic.
+  await new Promise<void>((resolve) => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      w.requestIdleCallback(() => resolve(), { timeout: 5000 });
+    } else {
+      window.setTimeout(resolve, 1500);
+    }
+  });
   // FIX WARM-FALSE-SUCCESS-01: نفس الإصلاح المطبَّق بـwarmRouteShells أعلاه.
   let succeeded = 0;
 
