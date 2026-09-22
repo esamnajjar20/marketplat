@@ -47,6 +47,34 @@ import type {
 } from '@/types/admin.types';
 import type { ApiResponse } from '@/types/api.types';
 
+/**
+ * FIX ADMIN-API-TYPING-01: platform-trends response shape (admin.api.ts's
+ * getPlatformTrends). Consumers read `.series` directly off the envelope
+ * (see AdminPlatformTrends.tsx's own typed local), so the field must be
+ * a real property, not an index-signature lookup. The index signature
+ * is kept so any future field is still readable without a cast — the
+ * trade-off being that a typo on an undefined key reads as unknown
+ * rather than erroring.
+ */
+export interface AdminPlatformTrendsResponse {
+  series?: Array<{ date: string; users: number; ads: number; reports: number }>;
+  [key: string]: unknown;
+}
+
+/**
+ * FIX ADMIN-API-TYPING-01: system-health response shape (admin.api.ts's
+ * getSystemHealth). checkedAt is the only field the component reads
+ * without a cast (AdminSystemHealth.tsx line 73 uses it in a Date
+ * constructor). redis and db are cast by the component itself, so
+ * they stay unknown here.
+ */
+export interface AdminSystemHealthResponse {
+  checkedAt?: string;
+  redis?: unknown;
+  db?: unknown;
+  [key: string]: unknown;
+}
+
 /** BULK-ADMIN (item 17): shared response shape every bulk endpoint
  * below returns — see admin.types.ts's BulkActionMeta doc comment. */
 type BulkApiResponse<T> = Omit<ApiResponse<T[]>, 'data'> & { data: T[]; meta: BulkActionMeta };
@@ -63,8 +91,16 @@ export const adminApi = {
    * to read each response's meta.total.
    */
   
+  // FIX ADMIN-API-TYPING-01: explicit ApiResponse<unknown[]>. The
+  // controller wraps the items array in successResponse(...) with a
+  // separate meta.pagination field (see admin.controller.ts:50-52),
+  // and the consumer (AdminProductsTable) reads data.data directly
+  // as the envelope — same pattern as the other paginated admin
+  // lists. unknown[] is honest about the element shape (Product is
+  // not exported from the frontend types yet) while still giving
+  // Array.isArray(data.data) meaning.
   getAdminProducts: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
-    apiClient.get('/admin/products', { params }),
+    apiClient.get<ApiResponse<unknown[]>>('/admin/products', { params }),
 
   // FIX ADMIN-API-TYPING-01: explicit ApiResponse<unknown> instead of
   // the implicit `any` — the write response body is not read by any
@@ -75,30 +111,38 @@ export const adminApi = {
   setProductStatus: (id: string, body: { status: string; reason?: string }) =>
     apiClient.patch<ApiResponse<unknown>>(`/admin/products/${id}/status`, body),
 
+  // FIX ADMIN-API-TYPING-01: see getAdminProducts above.
   getAdminServiceListings: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
-    apiClient.get('/admin/service-listings', { params }),
+    apiClient.get<ApiResponse<unknown[]>>('/admin/service-listings', { params }),
 
   // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   setServiceListingStatus: (id: string, body: { status: string; reason?: string }) =>
     apiClient.patch<ApiResponse<unknown>>(`/admin/service-listings/${id}/status`, body),
 
 
+  // FIX ADMIN-API-TYPING-01: see getAdminProducts above.
   getAdminOpenRequests: (params?: {
     page?: number;
     limit?: number;
     status?: string;
     type?: string;
     q?: string;
-  }) => apiClient.get('/admin/open-requests', { params }),
+  }) => apiClient.get<ApiResponse<unknown[]>>('/admin/open-requests', { params }),
 
   // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   cancelOpenRequest: (id: string, body?: { reason?: string }) =>
     apiClient.patch<ApiResponse<unknown>>(`/admin/open-requests/${id}/cancel`, body ?? {}),
 
+  // FIX ADMIN-API-TYPING-01: single-object response, no items/meta
+  // wrapper. Type is defined above (AdminPlatformTrendsResponse)
+  // so the .series read in AdminPlatformTrends.tsx is typed end to
+  // end; the index signature keeps any future field readable.
   getPlatformTrends: (days?: number) =>
-    apiClient.get('/admin/trends', { params: { days } }),
+    apiClient.get<ApiResponse<AdminPlatformTrendsResponse>>('/admin/trends', { params: { days } }),
 
-  getSystemHealth: () => apiClient.get('/admin/system-health'),
+  // FIX ADMIN-API-TYPING-01: type defined above (AdminSystemHealthResponse).
+  getSystemHealth: () =>
+    apiClient.get<ApiResponse<AdminSystemHealthResponse>>('/admin/system-health'),
 
   // FIX ADMIN-API-TYPING-01: typed as Blob — axios with responseType
   // 'blob' resolves with an actual Blob in .data, and TS otherwise
@@ -112,8 +156,9 @@ export const adminApi = {
   exportReportsCsv: () =>
     apiClient.get<Blob>('/admin/export/reports.csv', { responseType: 'blob' }),
 
+  // FIX ADMIN-API-TYPING-01: see getPlatformTrends above.
   getNotificationStats: (params?: { days?: number }) =>
-    apiClient.get('/admin/notifications/stats', { params }),
+    apiClient.get<ApiResponse<Record<string, unknown>>>('/admin/notifications/stats', { params }),
 
   getOpsQueue: () =>
     apiClient.get<
