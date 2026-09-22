@@ -132,7 +132,9 @@ export const uploadImage = async (buffer: Buffer, folder: string): Promise<Uploa
                     : 'no error object, but no result either',
                 });
                 return reject(
-                  new Error(`Image upload failed: ${error?.message ?? 'no result from Cloudinary'}`)
+                  new ServiceUnavailableError(
+                    'Image upload is temporarily unavailable, please try again shortly'
+                  )
                 );
               }
               resolve({ url: result.secure_url, publicId: result.public_id });
@@ -204,8 +206,8 @@ export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
                     : 'no error object, but no result either',
                 });
                 return reject(
-                  new Error(
-                    `Avatar upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  new ServiceUnavailableError(
+                    'Image upload is temporarily unavailable, please try again shortly'
                   )
                 );
               }
@@ -272,8 +274,8 @@ export const uploadStoreLogo = async (buffer: Buffer): Promise<UploadResult> => 
                     : 'no error object, but no result either',
                 });
                 return reject(
-                  new Error(
-                    `Store logo upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  new ServiceUnavailableError(
+                    'Image upload is temporarily unavailable, please try again shortly'
                   )
                 );
               }
@@ -336,8 +338,8 @@ export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> =>
                     : 'no error object, but no result either',
                 });
                 return reject(
-                  new Error(
-                    `Store cover upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  new ServiceUnavailableError(
+                    'Image upload is temporarily unavailable, please try again shortly'
                   )
                 );
               }
@@ -400,8 +402,8 @@ export const uploadServiceProviderLogo = async (buffer: Buffer): Promise<UploadR
                     : 'no error object, but no result either',
                 });
                 return reject(
-                  new Error(
-                    `Service provider logo upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  new ServiceUnavailableError(
+                    'Image upload is temporarily unavailable, please try again shortly'
                   )
                 );
               }

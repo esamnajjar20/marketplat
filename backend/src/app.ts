@@ -159,6 +159,35 @@ if (env.nodeEnv !== 'production') {
   });
 }
 
+// ── Logging ───────────────────────────────────────────
+// FIX MORGAN-ORDER-01: morgan was previously registered AFTER
+// globalRateLimit, with a comment claiming that ordering logged 429s.
+// The opposite is true — express-rate-limit writes the 429 response
+// and terminates the chain, so morgan (which sits below it) never runs
+// for the requests most worth seeing. That was especially costly on
+// Gaza's shared-NAT mobile links, where a per-IP 429 is the signal
+// that a legitimate user is hitting the tower-wide bucket, and that
+// signal was previously invisible in the logs. Registered here, before
+// globalRateLimit, with an explicit skip for the infra endpoints that
+// are meant to be hit on a fixed schedule (probes / scraping) rather
+// than by users.
+//
+// M-09: 'combined' in production (no ANSI colors, structured for
+// ELK/Datadog); 'dev' everywhere else.
+const morganFormat = env.nodeEnv === 'production' ? 'combined' : 'dev';
+const morganSkip = (req: Request): boolean =>
+  req.path === '/health' ||
+  req.path === '/ready' ||
+  req.path === '/live' ||
+  req.path === '/metrics' ||
+  req.path.startsWith('/api/docs');
+app.use(
+  morgan(morganFormat, {
+    stream: { write: (msg: string) => logger.info(msg.trim()) },
+    skip: morganSkip,
+  })
+);
+
 // ── Rate Limiting (API only) ──────────────────────────
 // M-03: scoped to /api only — health endpoints excluded
 app.use('/api', globalRateLimit);
@@ -168,16 +197,6 @@ app.use('/api', globalRateLimit);
 // Multipart (images) is handled separately by multer with its own limits
 app.use(express.json({ limit: '50kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
-
-// ── Logging ───────────────────────────────────────────
-// M-09: use 'combined' in production (no ANSI colors, structured for ELK/Datadog)
-// morgan registered AFTER rate limit so 429s are logged too
-const morganFormat = env.nodeEnv === 'production' ? 'combined' : 'dev';
-app.use(
-  morgan(morganFormat, {
-    stream: { write: (msg: string) => logger.info(msg.trim()) },
-  })
-);
 
 // ── API Routes ────────────────────────────────────────
 app.use('/api/v1', router);

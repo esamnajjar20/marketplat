@@ -532,7 +532,15 @@ export const env = {
   },
 
   email: {
-    resendApiKey: _env.RESEND_API_KEY || '',
+    // FIX RESEND-TRIM-01: same trailing-whitespace/\n class of bug
+    // cloudinary.apiKey and googleOAuth.clientId already trim() for
+    // (their own comments document the production incident). A key
+    // pasted from Resend's dashboard into Render's Variables UI
+    // commonly picks up a trailing newline, which makes the string
+    // truthy (so the service looks "configured") but produces a 401
+    // from Resend on every send, with no clue in the error that the
+    // problem is whitespace. .trim() is a no-op on a clean key.
+    resendApiKey: (_env.RESEND_API_KEY || '').trim(),
     // FIX GMAIL-OAUTH-EMAIL-01: Gmail OAuth sender takes priority over
     // Resend when both are set -- it accepts any recipient, whereas
     // Resend's sandbox only delivers to the account owner until a
