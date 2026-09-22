@@ -35,6 +35,14 @@ conversationsRouter.get(
 conversationsRouter.post(
   '/:id/messages',
   authenticate,
+  // FIX MSG-VERIFY-CONSISTENCY: the image-send route below already
+  // required a verified email, but this text path did not — a user
+  // with an unverified email could send text messages but not images,
+  // which reads as "the image button is broken" rather than "your
+  // email needs verification". Both message paths now gate on the same
+  // rule. Cheap to revert if the product decision is text-only
+  // messaging should be allowed pre-verification.
+  requireVerifiedEmail,
   sendMessageRateLimit,
   conversationsController.sendMessage
 );
@@ -48,11 +56,20 @@ conversationsRouter.post(
 conversationsRouter.delete(
   '/:id/messages/:messageId',
   authenticate,
+  // FIX CONV-MUTATION-LIMITS: neither deleteMessage nor setFlags below
+  // had any rate limit — an authenticated caller could loop either
+  // endpoint arbitrarily. Reused sendMessageRateLimit as the closest
+  // fitting bucket: same per-conversation mutation class, same
+  // 200/15min ceiling. Separate buckets would be cleaner but this is
+  // the right shape without adding two more limiter definitions to
+  // rateLimit.middleware.ts.
+  sendMessageRateLimit,
   conversationsController.deleteMessage
 );
 conversationsRouter.patch(
   '/:id/flags',
   authenticate,
+  sendMessageRateLimit,
   conversationsController.setFlags
 );
 // FIX TYPING-RATE-LIMIT-01: rate-limited now. See typingRateLimit's

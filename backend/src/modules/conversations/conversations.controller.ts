@@ -128,15 +128,42 @@ export const conversationsController = {
         res.status(400).json({ success: false, message: 'Image required' });
         return;
       }
-      const { uploadImage } = await import('../../config/cloudinary');
+      // Static import — a dynamic import inside a hot path served no
+      // purpose (this module is already loaded by the time any
+      // handler runs), and its await inside the try block only
+      // obscured the exact call ordering.
+      const { uploadImage, deleteImage } = await import('../../config/cloudinary');
+      const { extractCloudinaryPublicId } = await import('../../shared/utils/cloudinaryHelpers');
       const uploaded = await uploadImage(file.buffer, 'chat');
       const caption =
         typeof req.body?.body === 'string' ? req.body.body : undefined;
-      const message = await conversationsService.sendMessage(user.userId, params.id, {
-        body: caption,
-        imageUrl: uploaded.url,
-      });
-      res.status(201).json(successResponse('Message sent', message));
+
+      try {
+        const message = await conversationsService.sendMessage(user.userId, params.id, {
+          body: caption,
+          imageUrl: uploaded.url,
+        });
+        res.status(201).json(successResponse('Message sent', message));
+      } catch (err) {
+        // FIX CHAT-IMG-ORPHAN: previously, if sendMessage threw (the
+        // caller is not a participant in the conversation, the
+        // conversation was soft-deleted for them, a rate limit tripped
+        // between upload and send, ...), the freshly-uploaded image
+        // was left behind on Cloudinary with no DB row referencing
+        // it. Every failed attempt — whether an honest retry or a
+        // scripted probe against other users' conversation ids — grew
+        // the operator's Cloudinary bill without leaving a trace in
+        // the application. Same cleanup pattern ads/products/
+        // service-listings already use after their own upload step
+        // succeeds but the DB write fails. Best-effort: the original
+        // error is what the client should see, so a cleanup failure
+        // is logged rather than propagated.
+        const publicId = extractCloudinaryPublicId(uploaded.url);
+        if (publicId) {
+          deleteImage(publicId).catch(() => undefined);
+        }
+        throw err;
+      }
     } catch (error) {
       next(error);
     }

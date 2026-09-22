@@ -227,10 +227,37 @@ export const conversationsService = {
     }
     if (body) assertMessageBodySafe(body);
 
-    const [message] = await Promise.all([
-      messagesRepository.create(conversationId, userId, body || (imageUrl ? '📷' : ''), imageUrl),
-      conversationsRepository.touchUpdatedAt(conversationId),
-    ]);
+    // FIX MSG-CREATE-NONTRANSACTIONAL: previously Promise.all of
+    // create + touchUpdatedAt. If the touch failed (transient Redis/
+    // DB blip) while create succeeded, Promise.all rejects — but the
+    // message row is already committed. The client sees a 500 for a
+    // message it actually sent, retries, and the user ends up with
+    // two copies in the thread. touchUpdatedAt is pure bookkeeping
+    // (last-activity timestamp on the conversation row); the message
+    // is the thing that must not be lost. Split them: create first,
+    // then touch is awaited but wrapped so a touch failure only logs
+    // rather than masking the successful send.
+    const message = await messagesRepository.create(
+      conversationId,
+      userId,
+      body || (imageUrl ? '📷' : ''),
+      imageUrl
+    );
+
+    // Best-effort: the conversation's updatedAt drives sorting in the
+    // list view, so a lost touch means the thread briefly appears at
+    // the wrong position — visibly minor, and the next message (or a
+    // successful retry of this one's touch) corrects it. Never fails
+    // the send.
+    try {
+      await conversationsRepository.touchUpdatedAt(conversationId);
+    } catch (err) {
+      logger.warn('Failed to touch conversation updatedAt after message send', {
+        conversationId,
+        messageId: message.id,
+        err,
+      });
+    }
 
     // Fire-and-forget per notificationEvents' own contract: a
     // notification failing to write must never fail message sending,
