@@ -20,27 +20,17 @@ export interface UploadResult {
  * timeout at all — a slow or hung Cloudinary connection kept the
  * underlying HTTP request open indefinitely, tying up the Express
  * request handler (and, for createAd/addImages, the withAdImagesLock
- * distributed lock) for as long as Cloudinary took to respond. There
- * is no app-level request timeout anywhere in server.ts/app.ts, so
- * nothing else would have cut this off either.
+ * distributed lock) for as long as Cloudinary took to respond.
  *
  * Two layers, since either one alone can fail to actually stop things:
  *   1. `timeout` passed to Cloudinary's own upload/destroy options —
- *      this asks the underlying HTTP client to abort the socket after
- *      this many ms, which is the real fix (frees the outbound
- *      connection, not just this Promise).
+ *      asks the underlying HTTP client to abort the socket.
  *   2. withTimeout() wraps the returned Promise as a fallback in case
- *      a given SDK version/edge case ignores its own `timeout` option
- *      (e.g. hangs during DNS resolution before the timer inside the
- *      SDK's own request even starts) — this guarantees the Promise
- *      this module hands back to callers always settles within the
- *      bound, even if the underlying socket takes longer to actually
- *      close.
+ *      the SDK ignores its own `timeout` option (e.g. hangs during DNS
+ *      resolution before the SDK's internal timer even starts).
  *
- * 20s for uploads (larger — image processing + upload of up to 5MB
- * over a potentially slow connection is legitimately slower than a
- * trivial API call), 10s for delete (a small, fast API call with no
- * file body).
+ * 20s for uploads (image processing + up to 5MB over a slow connection
+ * is legitimately slow), 10s for delete (small, fast API call).
  */
 const UPLOAD_TIMEOUT_MS = 20_000;
 const DELETE_TIMEOUT_MS = 10_000;
@@ -52,22 +42,11 @@ class CloudinaryTimeoutError extends Error {
   }
 }
 
-// FIX CLOUDINARY-TIMEOUT-LOG-01: the five upload helpers below each
-// have their own try/catch that logs only CloudinaryTimeoutError.
-// That is fine today, but the pattern is easy to forget in a future
-// helper — and the shared timeout that actually produces the error
-// has no logging of its own. Documenting the invariant here (rather
-// than sprinkling logger.error calls) keeps the shared helper pure
-// so tests can exercise it without mocking the logger; a refactor
-// that extracts a single generic upload helper (pending) will make
-// this moot, since there will be exactly one try/catch to keep
-// honest.
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new CloudinaryTimeoutError(operation, timeoutMs));
     }, timeoutMs);
-    // Don't let this timer alone keep the process alive.
     timer.unref();
 
     promise.then(
@@ -86,21 +65,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: strin
 /**
  * PROD-FIX-12: two independent circuit breakers — one for uploads, one
  * for deletes. Kept separate deliberately: a Cloudinary account issue
- * that specifically breaks destroy() (e.g. a permissions problem
- * affecting deletion but not upload) shouldn't also block new ad
- * creation, and vice versa. Both trip after 5 consecutive failures
- * (not spurious — a single blip shouldn't open the circuit, but 5 in a
- * row is a real pattern, not noise) and stay OPEN for 30s before
- * allowing a trial call — short enough that a resolved transient
- * outage recovers quickly, long enough to actually stop hammering a
- * struggling upstream for a meaningful window.
- *
- * When OPEN, callers get CircuitBreakerOpenError immediately instead
- * of waiting out UPLOAD_TIMEOUT_MS/DELETE_TIMEOUT_MS on every single
- * request during a sustained outage — this is the actual point of a
- * circuit breaker on top of the per-call timeout already added in
- * PROD-FIX-02: bounding how many failing/hanging calls pile up
- * in-flight at once, not just how long any one of them can take.
+ * that specifically breaks destroy() (e.g. a permissions problem)
+ * shouldn't also block new ad creation, and vice versa. Both trip
+ * after 5 consecutive failures and stay OPEN for 30s before allowing
+ * a trial call.
  */
 const uploadBreaker = new CircuitBreaker({
   name: 'cloudinary-upload',
@@ -114,24 +82,64 @@ const deleteBreaker = new CircuitBreaker({
   resetTimeoutMs: 30_000,
 });
 
-export const uploadImage = async (buffer: Buffer, folder: string): Promise<UploadResult> => {
+// ── Transformation presets ────────────────────────────────────────
+// Extracted so the five upload helpers below stay one-liners. Same
+// values as before the refactor — ad photos fit within 1200×800
+// (limit, preserves aspect ratio); avatars get a face-aware square
+// crop for circular thumbnails; store logos are a non-face square
+// crop; store covers are a 3:1 banner; service-provider logos match
+// store logos. All use auto:good quality and WebP output.
+const TRANSFORM_IMAGE: object[] = [
+  { width: 1200, height: 800, crop: 'limit' },
+  { quality: 'auto:good' },
+  { format: 'webp' },
+];
+const TRANSFORM_AVATAR: object[] = [
+  { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+  { quality: 'auto:good' },
+  { format: 'webp' },
+];
+const TRANSFORM_SQUARE: object[] = [
+  { width: 400, height: 400, crop: 'fill' },
+  { quality: 'auto:good' },
+  { format: 'webp' },
+];
+const TRANSFORM_COVER: object[] = [
+  { width: 1200, height: 400, crop: 'fill' },
+  { quality: 'auto:good' },
+  { format: 'webp' },
+];
+
+// ── Generic upload helper ─────────────────────────────────────────
+// FIX T66: previously each of the five upload helpers (image, avatar,
+// store logo, store cover, service-provider logo) repeated ~60 lines
+// of identical boilerplate — the same upload_stream callback, the same
+// CloudinaryTimeoutError catch-and-log, the same CircuitBreakerOpenError
+// → ServiceUnavailableError mapping. Only two values ever differed:
+// the destination folder and the transformation preset. That made
+// every change to the error/timeout handling a five-site edit, and
+// each new entity type added another ~60 lines. This collapses all of
+// it into a single helper; the five exported wrappers below are now
+// two lines each.
+async function uploadWithTransform(
+  buffer: Buffer,
+  folder: string,
+  transformation: object[],
+  label: string
+): Promise<UploadResult> {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
         cloudinary.uploader
           .upload_stream(
             {
-              folder: `classifieds/${folder}`,
+              folder,
               timeout: UPLOAD_TIMEOUT_MS,
-              transformation: [
-                { width: 1200, height: 800, crop: 'limit' },
-                { quality: 'auto:good' },
-                { format: 'webp' },
-              ],
+              transformation,
             },
             (error, result) => {
               if (error || !result) {
-                logger.error('Cloudinary upload_stream returned an error', {
+                logger.error(`Cloudinary ${label} returned an error`, {
                   folder,
                   cloudinaryError: error
                     ? {
@@ -154,10 +162,10 @@ export const uploadImage = async (buffer: Buffer, folder: string): Promise<Uploa
       });
 
       try {
-        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'image upload');
+        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, label);
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
-          logger.error('Cloudinary upload timed out', {
+          logger.error(`Cloudinary ${label} timed out`, {
             folder,
             timeoutMs: UPLOAD_TIMEOUT_MS,
           });
@@ -167,7 +175,7 @@ export const uploadImage = async (buffer: Buffer, folder: string): Promise<Uploa
     })
     .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
-        logger.error('Cloudinary upload rejected — circuit breaker is open', {
+        logger.error(`Cloudinary ${label} rejected — circuit breaker is open`, {
           folder,
         });
         throw new ServiceUnavailableError(
@@ -176,274 +184,31 @@ export const uploadImage = async (buffer: Buffer, folder: string): Promise<Uploa
       }
       throw err;
     });
-};
+}
 
-/**
- * uploadAvatar — same upload mechanism as uploadImage, but with avatar-
- * appropriate transformations: a square face-aware crop instead of the
- * "fit within a box" limit used for ad photos, since avatars are always
- * displayed in circular/square thumbnails, not full-width galleries.
- *
- * Shares uploadBreaker with uploadImage — both go through Cloudinary's
- * same upload_stream API, so a failure pattern affecting one is a
- * genuine signal about the other too (unlike upload vs. delete, which
- * are different API operations that can fail independently).
- */
-export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
-  return uploadBreaker
-    .execute(async () => {
-      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder: 'classifieds/avatars',
-              timeout: UPLOAD_TIMEOUT_MS,
-              transformation: [
-                { width: 400, height: 400, crop: 'fill', gravity: 'face' },
-                { quality: 'auto:good' },
-                { format: 'webp' },
-              ],
-            },
-            (error, result) => {
-              if (error || !result) {
-                logger.error('Cloudinary avatar upload returned an error', {
-                  cloudinaryError: error
-                    ? {
-                        message: error.message,
-                        name: error.name,
-                        http_code: (error as { http_code?: number }).http_code,
-                      }
-                    : 'no error object, but no result either',
-                });
-                return reject(
-                  new ServiceUnavailableError(
-                    'Image upload is temporarily unavailable, please try again shortly'
-                  )
-                );
-              }
-              resolve({ url: result.secure_url, publicId: result.public_id });
-            }
-          )
-          .end(buffer);
-      });
+// ── Public upload helpers (thin wrappers) ─────────────────────────
 
-      try {
-        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'avatar upload');
-      } catch (err) {
-        if (err instanceof CloudinaryTimeoutError) {
-          logger.error('Cloudinary avatar upload timed out', {
-            timeoutMs: UPLOAD_TIMEOUT_MS,
-          });
-        }
-        throw err;
-      }
-    })
-    .catch(err => {
-      if (err instanceof CircuitBreakerOpenError) {
-        logger.error('Cloudinary avatar upload rejected — circuit breaker is open');
-        throw new ServiceUnavailableError(
-          'Avatar upload is temporarily unavailable, please try again shortly'
-        );
-      }
-      throw err;
-    });
-};
+export const uploadImage = (buffer: Buffer, folder: string): Promise<UploadResult> =>
+  uploadWithTransform(buffer, `classifieds/${folder}`, TRANSFORM_IMAGE, 'image upload');
 
-/**
- * uploadStoreLogo — same upload mechanism as uploadAvatar, square
- * crop for consistent display in circular/square thumbnails
- * (StoreHeader/StoreCard/MyStoreCard). Unlike uploadAvatar, no
- * gravity: "face" — a store logo is a brand mark, not a person's
- * photo, so a face-aware crop would misbehave on the common case of
- * a logo with no face in it at all.
- */
-export const uploadStoreLogo = async (buffer: Buffer): Promise<UploadResult> => {
-  return uploadBreaker
-    .execute(async () => {
-      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder: 'classifieds/store-logos',
-              timeout: UPLOAD_TIMEOUT_MS,
-              transformation: [
-                { width: 400, height: 400, crop: 'fill' },
-                { quality: 'auto:good' },
-                { format: 'webp' },
-              ],
-            },
-            (error, result) => {
-              if (error || !result) {
-                logger.error('Cloudinary store logo upload returned an error', {
-                  cloudinaryError: error
-                    ? {
-                        message: error.message,
-                        name: error.name,
-                        http_code: (error as { http_code?: number }).http_code,
-                      }
-                    : 'no error object, but no result either',
-                });
-                return reject(
-                  new ServiceUnavailableError(
-                    'Image upload is temporarily unavailable, please try again shortly'
-                  )
-                );
-              }
-              resolve({ url: result.secure_url, publicId: result.public_id });
-            }
-          )
-          .end(buffer);
-      });
+export const uploadAvatar = (buffer: Buffer): Promise<UploadResult> =>
+  uploadWithTransform(buffer, 'classifieds/avatars', TRANSFORM_AVATAR, 'avatar upload');
 
-      try {
-        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'store logo upload');
-      } catch (err) {
-        if (err instanceof CloudinaryTimeoutError) {
-          logger.error('Cloudinary store logo upload timed out', {
-            timeoutMs: UPLOAD_TIMEOUT_MS,
-          });
-        }
-        throw err;
-      }
-    })
-    .catch(err => {
-      if (err instanceof CircuitBreakerOpenError) {
-        logger.error('Cloudinary store logo upload rejected — circuit breaker is open');
-        throw new ServiceUnavailableError(
-          'Image upload is temporarily unavailable, please try again shortly'
-        );
-      }
-      throw err;
-    });
-};
+export const uploadStoreLogo = (buffer: Buffer): Promise<UploadResult> =>
+  uploadWithTransform(buffer, 'classifieds/store-logos', TRANSFORM_SQUARE, 'store logo upload');
 
-/**
- * uploadStoreCover — wide banner crop for StoreHeader's cover photo,
- * same mechanism as uploadStoreLogo/uploadAvatar otherwise.
- */
-export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> => {
-  return uploadBreaker
-    .execute(async () => {
-      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder: 'classifieds/store-covers',
-              timeout: UPLOAD_TIMEOUT_MS,
-              transformation: [
-                { width: 1200, height: 400, crop: 'fill' },
-                { quality: 'auto:good' },
-                { format: 'webp' },
-              ],
-            },
-            (error, result) => {
-              if (error || !result) {
-                logger.error('Cloudinary store cover upload returned an error', {
-                  cloudinaryError: error
-                    ? {
-                        message: error.message,
-                        name: error.name,
-                        http_code: (error as { http_code?: number }).http_code,
-                      }
-                    : 'no error object, but no result either',
-                });
-                return reject(
-                  new ServiceUnavailableError(
-                    'Image upload is temporarily unavailable, please try again shortly'
-                  )
-                );
-              }
-              resolve({ url: result.secure_url, publicId: result.public_id });
-            }
-          )
-          .end(buffer);
-      });
+export const uploadStoreCover = (buffer: Buffer): Promise<UploadResult> =>
+  uploadWithTransform(buffer, 'classifieds/store-covers', TRANSFORM_COVER, 'store cover upload');
 
-      try {
-        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'store cover upload');
-      } catch (err) {
-        if (err instanceof CloudinaryTimeoutError) {
-          logger.error('Cloudinary store cover upload timed out', {
-            timeoutMs: UPLOAD_TIMEOUT_MS,
-          });
-        }
-        throw err;
-      }
-    })
-    .catch(err => {
-      if (err instanceof CircuitBreakerOpenError) {
-        logger.error('Cloudinary store cover upload rejected — circuit breaker is open');
-        throw new ServiceUnavailableError(
-          'Image upload is temporarily unavailable, please try again shortly'
-        );
-      }
-      throw err;
-    });
-};
+export const uploadServiceProviderLogo = (buffer: Buffer): Promise<UploadResult> =>
+  uploadWithTransform(
+    buffer,
+    'classifieds/service-provider-logos',
+    TRANSFORM_SQUARE,
+    'service provider logo upload'
+  );
 
-/**
- * uploadServiceProviderLogo — same mechanism/crop as uploadStoreLogo,
- * separate Cloudinary folder to keep the two entity types apart.
- */
-export const uploadServiceProviderLogo = async (buffer: Buffer): Promise<UploadResult> => {
-  return uploadBreaker
-    .execute(async () => {
-      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder: 'classifieds/service-provider-logos',
-              timeout: UPLOAD_TIMEOUT_MS,
-              transformation: [
-                { width: 400, height: 400, crop: 'fill' },
-                { quality: 'auto:good' },
-                { format: 'webp' },
-              ],
-            },
-            (error, result) => {
-              if (error || !result) {
-                logger.error('Cloudinary service provider logo upload returned an error', {
-                  cloudinaryError: error
-                    ? {
-                        message: error.message,
-                        name: error.name,
-                        http_code: (error as { http_code?: number }).http_code,
-                      }
-                    : 'no error object, but no result either',
-                });
-                return reject(
-                  new ServiceUnavailableError(
-                    'Image upload is temporarily unavailable, please try again shortly'
-                  )
-                );
-              }
-              resolve({ url: result.secure_url, publicId: result.public_id });
-            }
-          )
-          .end(buffer);
-      });
-
-      try {
-        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'service provider logo upload');
-      } catch (err) {
-        if (err instanceof CloudinaryTimeoutError) {
-          logger.error('Cloudinary service provider logo upload timed out', {
-            timeoutMs: UPLOAD_TIMEOUT_MS,
-          });
-        }
-        throw err;
-      }
-    })
-    .catch(err => {
-      if (err instanceof CircuitBreakerOpenError) {
-        logger.error('Cloudinary service provider logo upload rejected — circuit breaker is open');
-        throw new ServiceUnavailableError(
-          'Image upload is temporarily unavailable, please try again shortly'
-        );
-      }
-      throw err;
-    });
-};
+// ── Delete ────────────────────────────────────────────────────────
 
 export const deleteImage = async (publicId: string): Promise<void> => {
   await deleteBreaker
@@ -452,14 +217,8 @@ export const deleteImage = async (publicId: string): Promise<void> => {
         await withTimeout(
           cloudinary.uploader.destroy(publicId, {
             // Cloudinary's own destroy() *does* accept `timeout` at
-            // runtime (same two-layer design as uploadImage/uploadAvatar
-            // above), but this SDK version's TypeScript definitions omit
-            // it from the destroy() options type — hence the cast. The
-            // destroy() options parameter type is a union with an
-            // incompatible function-shaped overload member (its optional
-            // ResponseCallback), so a direct cast to that parameter type
-            // is rejected; going through `unknown` first is the safe,
-            // narrow way to bypass just this one missing-field gap.
+            // runtime, but this SDK version's TypeScript definitions
+            // omit it from the destroy() options type — hence the cast.
             timeout: DELETE_TIMEOUT_MS,
           } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]),
           DELETE_TIMEOUT_MS,

@@ -1,1 +1,6 @@
 .backup_*/
+
+# Cleanup 2026-09-22 (round 2)
+*.backup[0-9]*
+*.backup[0-9]_*
+*.backup-[0-9]*
