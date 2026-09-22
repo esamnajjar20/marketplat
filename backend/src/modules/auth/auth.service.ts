@@ -652,7 +652,12 @@ export const authService = {
    * change state by proving Google ownership alone.
    */
   verifyEmailViaGoogle: async (email: string): Promise<{ alreadyVerified: boolean }> => {
-    const user = await prisma.user.findUnique({ where: { email } });
+    // FIX EMAIL-NORMALIZE-03: same normalization as forgotPassword —
+    // direct prisma call, no repository boundary, and a mixed-case
+    // registration would otherwise silently miss.
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
 
     if (!user) {
       throw new UnauthorizedError(
@@ -706,7 +711,12 @@ export const authService = {
    * enumeration protection forgotPassword's timing floor provides.
    */
   issueResetTokenViaGoogle: async (email: string): Promise<string | null> => {
-    const user = await prisma.user.findUnique({ where: { email } });
+    // FIX EMAIL-NORMALIZE-04: same reasoning as verifyEmailViaGoogle
+    // above — direct prisma call, mixed-case registration would
+    // otherwise be unreachable via the Google reset flow.
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
 
     if (!user || !user.isActive) {
       return null;
@@ -741,7 +751,16 @@ export const authService = {
     // already spent. See FORGOT_PASSWORD_MIN_MS's own comment.
     const startedAt = Date.now();
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    // FIX EMAIL-NORMALIZE-02: this is a direct prisma call, so it does
+    // not pass through authRepository's normalizeEmail(). Without
+    // this, a user who registered as "User@Example.com" (or whose
+    // phone auto-capitalized the first letter) would never receive a
+    // reset email — the lookup would miss even though
+    // authRepository.findByEmail was already normalized. Kept inline
+    // rather than routed through the repository so the timing-floor
+    // measurement stays on the same code path as before.
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user || !user.isActive) {
       // Silent — do not reveal existence. Enforce the timing floor
       // before returning so this branch is indistinguishable from the
