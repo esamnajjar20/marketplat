@@ -2,7 +2,6 @@
 // totals fields (was inconsistent).
 'use client';
 
-import { NotificationStatsCard } from '@/components/admin/NotificationStatsCard';
 
 /**
  * Gap #7 (product analytics): admin dashboard for GET
@@ -111,7 +110,6 @@ export function AdminAnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      <NotificationStatsCard />
       {/* Range selector */}
       <div className="flex gap-2">
         {RANGE_OPTIONS.map((opt) => (

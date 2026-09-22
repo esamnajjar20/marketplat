@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { BroadcastNotificationButton } from '@/components/admin/BroadcastNotificationButton';
-import { NotificationStatsCard } from '@/components/admin/NotificationStatsCard';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'إدارة الإشعارات', noIndex: true });
@@ -17,7 +16,6 @@ export default function AdminNotificationsPage() {
         </div>
         <BroadcastNotificationButton />
       </div>
-      <NotificationStatsCard />
     </div>
   );
 }

@@ -157,8 +157,6 @@ export const adminApi = {
     apiClient.get<Blob>('/admin/export/reports.csv', { responseType: 'blob' }),
 
   // FIX ADMIN-API-TYPING-01: see getPlatformTrends above.
-  getNotificationStats: (params?: { days?: number }) =>
-    apiClient.get<ApiResponse<Record<string, unknown>>>('/admin/notifications/stats', { params }),
 
   getOpsQueue: () =>
     apiClient.get<
