@@ -273,7 +273,7 @@ export const adminService = {
     }
   },
 
-  forceDeleteAd: async (adId: string, adminUserId = 'unknown') => {
+  forceDeleteAd: async (adId: string, adminUserId = 'unknown', reason?: string) => {
     try {
       await prisma.ad.update({ where: { id: adId }, data: { status: AdStatus.DELETED } });
       // FIX AUDIT-BEFORE-CACHE-BUMP: same reordering as setAdFeatured
@@ -281,10 +281,17 @@ export const adminService = {
       // takedown (fraud, legal) is exactly when the audit trail
       // matters most, so the durable row must not be lost to a
       // transient Redis blip on the cache-bump call.
+      //
+      // FIX ADMIN-DELETE-REASON: carry the caller-supplied reason (if
+      // any) into the audit row so a fraud takedown, a legal request,
+      // and a routine policy cleanup are distinguishable months later
+      // without cross-referencing other systems. Optional for now —
+      // the frontend doesn't send it yet — but the plumbing is done
+      // so adding it is a frontend-only change.
       auditLog({
         event: AuditEventType.ADMIN_AD_DELETED,
         userId: adminUserId,
-        details: { adId },
+        details: { adId, reason: reason ?? null },
       }).catch(() => {});
       // BUGFIX (found during a post-implementation code audit):
       // previously missing entirely — the regular, user-initiated

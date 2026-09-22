@@ -6,10 +6,16 @@ import { runBulk } from '../../shared/utils/bulkRunner';
 import {
   adminGetAdsSchema,
   adminGetUsersSchema,
+  adminGetProductsSchema,
+  adminGetServiceListingsSchema,
+  adminGetOpenRequestsSchema,
   setFeaturedSchema,
   setPinnedSchema,
   toggleActiveSchema,
   changeRoleSchema,
+  setProductStatusSchema,
+  setServiceListingStatusSchema,
+  deleteAdSchema,
   bulkSetAdFeaturedSchema,
   bulkSetAdPinnedSchema,
   bulkDeleteAdsSchema,
@@ -42,11 +48,8 @@ export const adminController = {
 
   getAdminProducts: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const page = req.query.page ? Number(req.query.page) : 1;
-      const limit = req.query.limit ? Number(req.query.limit) : 20;
-      const status = req.query.status as 'ACTIVE' | 'PAUSED' | 'DELETED' | undefined;
-      const q = typeof req.query.q === 'string' ? req.query.q : undefined;
-      const result = await adminService.getAdminProducts({ page, limit, status, q });
+      const { query } = adminGetProductsSchema.parse({ query: req.query });
+      const result = await adminService.getAdminProducts(query);
       res.status(200).json(successResponse('Products fetched', result.items, {
         pagination: result.meta,
       }));
@@ -58,9 +61,13 @@ export const adminController = {
   setProductStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const status = req.body?.status as 'ACTIVE' | 'PAUSED' | 'DELETED';
-      const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
-      const product = await adminService.setProductStatus(req.params.id, status, user.userId, reason);
+      const { body } = setProductStatusSchema.parse({ body: req.body });
+      const product = await adminService.setProductStatus(
+        req.params.id,
+        body.status,
+        user.userId,
+        body.reason,
+      );
       res.status(200).json(successResponse('Product status updated', product));
     } catch (error) {
       next(error);
@@ -69,11 +76,8 @@ export const adminController = {
 
   getAdminServiceListings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const page = req.query.page ? Number(req.query.page) : 1;
-      const limit = req.query.limit ? Number(req.query.limit) : 20;
-      const status = req.query.status as 'ACTIVE' | 'PAUSED' | 'DELETED' | undefined;
-      const q = typeof req.query.q === 'string' ? req.query.q : undefined;
-      const result = await adminService.getAdminServiceListings({ page, limit, status, q });
+      const { query } = adminGetServiceListingsSchema.parse({ query: req.query });
+      const result = await adminService.getAdminServiceListings(query);
       res.status(200).json(successResponse('Service listings fetched', result.items, {
         pagination: result.meta,
       }));
@@ -85,13 +89,12 @@ export const adminController = {
   setServiceListingStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const status = req.body?.status as 'ACTIVE' | 'PAUSED' | 'DELETED';
-      const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+      const { body } = setServiceListingStatusSchema.parse({ body: req.body });
       const listing = await adminService.setServiceListingStatus(
         req.params.id,
-        status,
+        body.status,
         user.userId,
-        reason,
+        body.reason,
       );
       res.status(200).json(successResponse('Service listing status updated', listing));
     } catch (error) {
@@ -104,12 +107,8 @@ export const adminController = {
 
   getAdminOpenRequests: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const page = req.query.page ? Number(req.query.page) : 1;
-      const limit = req.query.limit ? Number(req.query.limit) : 20;
-      const status = req.query.status as 'OPEN' | 'ACCEPTED' | 'CANCELLED' | 'EXPIRED' | undefined;
-      const type = req.query.type as 'SERVICE' | 'PRODUCT' | 'RENTAL' | undefined;
-      const q = typeof req.query.q === 'string' ? req.query.q : undefined;
-      const result = await adminService.getAdminOpenRequests({ page, limit, status, type, q });
+      const { query } = adminGetOpenRequestsSchema.parse({ query: req.query });
+      const result = await adminService.getAdminOpenRequests(query);
       res.status(200).json(successResponse('Open requests fetched', result.items, {
         pagination: result.meta,
       }));
@@ -217,7 +216,8 @@ export const adminController = {
   deleteAd: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const admin = requireUser(req);
-      await adminService.forceDeleteAd(req.params.id, admin.userId);
+      const { body } = deleteAdSchema.parse({ body: req.body ?? {} });
+      await adminService.forceDeleteAd(req.params.id, admin.userId, body.reason);
       res.status(200).json(successResponse('Ad deleted by admin'));
     } catch (error) {
       next(error);
@@ -274,7 +274,7 @@ export const adminController = {
       // array is only used for its length/count here, not its
       // contents, so a bare per-id success marker is enough.
       const result = await runBulk(body.adIds, async (id) => {
-        await adminService.forceDeleteAd(id, admin.userId);
+        await adminService.forceDeleteAd(id, admin.userId, body.reason);
         return id;
       });
       res.status(200).json(

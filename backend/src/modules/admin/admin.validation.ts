@@ -56,6 +56,93 @@ export const changeRoleSchema = z.object({
   body: z.object({ role: assignableRoleSchema }),
 });
 
+// FIX ADMIN-VALIDATION-PARITY: the three catalog endpoints
+// (products / service-listings / open-requests) were parsing their
+// query strings by hand in the controller — `req.query.limit ? Number(...)`
+// with no upper bound, `req.query.status as ...` with a TypeScript
+// cast but no runtime check, and `q` with no length cap. The service
+// layer has since gained its own Math.min(100, ...) on limit, but the
+// status/q casts still mean an unknown status or an oversized q would
+// flow straight into the Prisma where clause. Added proper Zod schemas
+// matching the shape of adminGetAdsSchema / adminGetUsersSchema so
+// those three endpoints reject bad input at the edge instead of
+// relying on the service to be defensive.
+const productStatusEnum = z.enum(['ACTIVE', 'PAUSED', 'DELETED']);
+const serviceListingStatusEnum = z.enum(['ACTIVE', 'PAUSED', 'DELETED']);
+const openRequestStatusEnum = z.enum(['OPEN', 'ACCEPTED', 'CANCELLED', 'EXPIRED']);
+const openRequestTypeEnum = z.enum(['SERVICE', 'PRODUCT', 'RENTAL']);
+
+export const adminGetProductsSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    status: productStatusEnum.optional(),
+    q: z.string().trim().min(1).max(200).optional(),
+  }),
+});
+
+export const adminGetServiceListingsSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    status: serviceListingStatusEnum.optional(),
+    q: z.string().trim().min(1).max(200).optional(),
+  }),
+});
+
+export const adminGetOpenRequestsSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    status: openRequestStatusEnum.optional(),
+    type: openRequestTypeEnum.optional(),
+    q: z.string().trim().min(1).max(200).optional(),
+  }),
+});
+
+// FIX ADMIN-VALIDATION-PARITY: same reasoning applied to the two
+// status-mutating endpoints. Both used a bare TypeScript cast on
+// req.body.status (`as 'ACTIVE' | 'PAUSED' | 'DELETED'`) which the
+// compiler accepted but enforced nothing at runtime — an admin client
+// (or a future script) could send `{ status: 'HACKED' }` and it would
+// reach Prisma's update call. Zod native-enum rejects it with a clear
+// 400 instead of an opaque 500 from the DB driver. Also declares the
+// optional reason, same shape already used by adminCancelOpenRequest.
+export const setProductStatusSchema = z.object({
+  body: z.object({
+    status: productStatusEnum,
+    reason: z.string().trim().min(3).max(500).optional(),
+  }),
+});
+
+export const setServiceListingStatusSchema = z.object({
+  body: z.object({
+    status: serviceListingStatusEnum,
+    reason: z.string().trim().min(3).max(500).optional(),
+  }),
+});
+
+// FIX ADMIN-DELETE-REASON: admin ad deletion (single and bulk) is the
+// one admin action whose audit trail benefits most from a reason —
+// a fraud takedown, a legal request, or a policy violation should all
+// be distinguishable in the audit log without cross-referencing other
+// systems. Currently the audit row carries only the adId, so all three
+// cases look identical months later. Reason is optional for now (the
+// frontend doesn't send it yet), but the schema is in place so the
+// plumbing is a frontend-only change when that's added.
+export const deleteAdSchema = z.object({
+  body: z.object({
+    reason: z.string().trim().min(3).max(500).optional(),
+  }),
+});
+
+export type AdminGetProductsQuery = z.infer<typeof adminGetProductsSchema>['query'];
+export type AdminGetServiceListingsQuery = z.infer<typeof adminGetServiceListingsSchema>['query'];
+export type AdminGetOpenRequestsQuery = z.infer<typeof adminGetOpenRequestsSchema>['query'];
+export type SetProductStatusInput = z.infer<typeof setProductStatusSchema>['body'];
+export type SetServiceListingStatusInput = z.infer<typeof setServiceListingStatusSchema>['body'];
+export type DeleteAdInput = z.infer<typeof deleteAdSchema>['body'];
+
 export type AdminGetAdsQuery = z.infer<typeof adminGetAdsSchema>['query'];
 export type AdminGetUsersQuery = z.infer<typeof adminGetUsersSchema>['query'];
 
@@ -75,7 +162,13 @@ export const bulkSetAdPinnedSchema = z.object({
 });
 
 export const bulkDeleteAdsSchema = z.object({
-  body: z.object({ adIds: bulkIdsSchema }),
+  body: z.object({
+    adIds: bulkIdsSchema,
+    // FIX ADMIN-DELETE-REASON: optional for now — see deleteAdSchema
+    // above for the full reasoning. When the frontend starts
+    // supplying a reason on the bulk bar, this is where it lands.
+    reason: z.string().trim().min(3).max(500).optional(),
+  }),
 });
 
 export const bulkToggleUserActiveSchema = z.object({
