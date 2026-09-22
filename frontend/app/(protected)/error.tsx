@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 import { reportClientError, handleChunkLoadError, isChunkLoadError } from '@/lib/errorReporter';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface ProtectedErrorProps {
   error: Error & { digest?: string };
@@ -32,6 +33,7 @@ interface ProtectedErrorProps {
  */
 export default function ProtectedError({ error, reset }: ProtectedErrorProps) {
   const [recovering, setRecovering] = useState(false);
+  const isOnline = useOnlineStatus();
 
   useEffect(() => {
     // FIX CHUNK-LOAD-RECOVERY-01: see app/error.tsx for the full
@@ -46,6 +48,29 @@ export default function ProtectedError({ error, reset }: ProtectedErrorProps) {
   }, [error]);
 
   if (recovering) return null;
+
+  // OFFLINE-ERROR-01: on Gaza's intermittent links the most common
+  // cause of a route-level throw is a failed fetch, not a bug in the
+  // page. React Query's suspense boundary surfaces the network error
+  // as a thrown Error, and the previous generic "حدث خطأ" copy read
+  // as "the app is broken" — misleading when the user simply has no
+  // signal. Detect offline and show a network-specific message with a
+  // reload action; reconnecting fires the browser 'online' event, but
+  // the cleanest recovery is a full reload, which reissues both the
+  // RSC payload and any in-flight query.
+  if (!isOnline) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
+        <span className="text-5xl" aria-hidden>📶</span>
+        <h2 className="text-xl font-semibold">لا يتوفر اتصال بالإنترنت</h2>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          تحقّق من اتصالك بالشبكة ثم حاول مجدداً. أي بيانات محفوظة محلياً
+          ستبقى كما هي.
+        </p>
+        <Button onClick={() => window.location.reload()}>حاول مجدداً</Button>
+      </div>
+    );
+  }
 
   const chunkFailed = isChunkLoadError(error);
 
