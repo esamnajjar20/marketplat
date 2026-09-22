@@ -33,7 +33,7 @@ export function ProtectedHeader() {
       {/* AUDIT-FIX (protected #1): hamburger trigger for ProtectedMobileNav,
           the only way to reach ProtectedSidebar's destinations below `lg`. */}
       <ProtectedMobileNav />
-      <Link href={ROUTES.home}>
+      <Link prefetch={false} href={ROUTES.home}>
         <Logo />
       </Link>
 
@@ -49,16 +49,16 @@ export function ProtectedHeader() {
             lib/navigation.ts's BROWSE_LINKS comment for why ads gets a
             standing link here (and products deliberately doesn't). */}
         <Button asChild variant="ghost" size="sm">
-          <Link href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
+          <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link href={ROUTES.stores}>المتاجر</Link>
+          <Link prefetch={false} href={ROUTES.stores}>المتاجر</Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link href={ROUTES.services}>الخدمات</Link>
+          <Link prefetch={false} href={ROUTES.services}>الخدمات</Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
+          <Link prefetch={false} href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
         </Button>
       </nav>
 

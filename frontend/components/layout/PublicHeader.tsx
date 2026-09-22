@@ -70,7 +70,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           while staying on the same theme tokens as the rest of the
           header so it needs no separate dark-mode treatment. */}
       <div className="flex h-14 items-center justify-between px-4 md:hidden">
-        <Link href={ROUTES.home} className="shrink-0">
+        <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo size="sm" />
         </Link>
         <div className="flex items-center gap-1">
@@ -81,7 +81,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
       </div>
 
       <div className="container mx-auto hidden h-16 max-w-7xl items-center gap-4 px-4 md:flex">
-        <Link href={ROUTES.home} className="shrink-0">
+        <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo />
         </Link>
 
@@ -103,16 +103,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
               been its own literal list, not sourced from that shared
               array (only the mobile drawers read BROWSE_LINKS). */}
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
+            <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link href={ROUTES.stores}>المتاجر</Link>
+            <Link prefetch={false} href={ROUTES.stores}>المتاجر</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link href={ROUTES.services}>الخدمات</Link>
+            <Link prefetch={false} href={ROUTES.services}>الخدمات</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
+            <Link prefetch={false} href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
           </Button>
         </nav>
 
@@ -147,10 +147,10 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
                 أضف
               </Button>
               <Button asChild variant="ghost" size="sm" className="transition-colors">
-                <Link href={ROUTES.login}>تسجيل الدخول</Link>
+                <Link prefetch={false} href={ROUTES.login}>تسجيل الدخول</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href={ROUTES.register}>إنشاء حساب</Link>
+                <Link prefetch={false} href={ROUTES.register}>إنشاء حساب</Link>
               </Button>
             </>
           )}

@@ -106,6 +106,15 @@ function NavLink({
   return (
     <Link
       href={href}
+      // FIX RSC-PREFETCH-STORM-02: every nav row this renders (top-level
+      // items + all disclosure children) is a Link. Next.js auto-prefetches
+      // every one of them on mount, so a signed-in page load fired RSC
+      // fetches for /messages, /my-ads, /my-store, /favorites, /activity,
+      // /settings/*, /admin/dashboard — the full sidebar — before the user
+      // picked any destination. On a weak network each prefetch competes
+      // with the current page's own data. Click still works: Next.js
+      // fetches on navigation, just not ahead of time.
+      prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors',

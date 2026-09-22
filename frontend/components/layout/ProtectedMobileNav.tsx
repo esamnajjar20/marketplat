@@ -112,6 +112,8 @@ function DrawerDisclosureGroup({
               <li key={child.href}>
                 <Link
                   href={child.href}
+                  // FIX RSC-PREFETCH-STORM-02: see ProtectedSidebar.
+                  prefetch={false}
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
@@ -287,6 +289,8 @@ export function ProtectedMobileNav() {
               <li key={link.href}>
                 <Link
                   href={link.href}
+                  // FIX RSC-PREFETCH-STORM-02: see ProtectedSidebar.
+                  prefetch={false}
                   onClick={close}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
@@ -310,6 +314,7 @@ export function ProtectedMobileNav() {
             <li>
               <Link
                 href={ROUTES.myAds}
+                prefetch={false}
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.myAds) ? 'page' : undefined}
                 className={cn(
@@ -325,6 +330,7 @@ export function ProtectedMobileNav() {
             <li>
               <Link
                 href={ROUTES.settings.seller}
+                prefetch={false}
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.settings.seller) ? 'page' : undefined}
                 className={cn(
@@ -346,6 +352,7 @@ export function ProtectedMobileNav() {
             <li>
               <Link
                 href={ROUTES.storeDetail(myStore.id)}
+                prefetch={false}
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.storeDetail(myStore.id)) ? 'page' : undefined}
                 className={cn(
@@ -373,6 +380,7 @@ export function ProtectedMobileNav() {
             <li>
               <Link
                 href={ROUTES.userProfile(user.id)}
+                prefetch={false}
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
                 className={cn(
@@ -394,6 +402,7 @@ export function ProtectedMobileNav() {
             <li>
               <Link
                 href={ROUTES.admin.dashboard}
+                prefetch={false}
                 onClick={close}
                 className="block rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
               >
