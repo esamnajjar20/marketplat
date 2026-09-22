@@ -15,6 +15,7 @@ import {
   getOAuthStateFromCookie,
   clearOAuthStateCookie,
   setOAuthPurpose,
+  clearOAuthPurpose,
 } from '../../shared/utils/authCookies';
 
 type GoogleProfileDataOrFalse = GoogleProfileData | false;
@@ -227,6 +228,17 @@ authRouter.get(
     const purpose = req.query.purpose;
     if (purpose === 'verify' || purpose === 'reset') {
       setOAuthPurpose(res, purpose);
+    } else {
+      // FIX OAUTH-PURPOSE-LEAK: explicitly clear any purpose cookie
+      // left over from an abandoned verify/reset flow. Without this,
+      // a user who started "reset via Google" and closed the tab
+      // before consent — so the cookie was never cleared by the
+      // callback — would have the next plain sign-in (on the same
+      // device, any account) silently routed into the reset branch
+      // when the cookie is still within its 10-minute TTL. Same for
+      // verify. The flow the user actually started always wins; a
+      // stale cookie cannot.
+      clearOAuthPurpose(res);
     }
     const state = generateAndSetOAuthState(res);
     passport.authenticate('google', {

@@ -133,6 +133,20 @@ export const authController = {
       const tokens = await authService.refresh(refreshToken);
       respondWithSession(res, 200, 'Token refreshed', { tokens });
     } catch (error) {
+      // FIX REFRESH-COOKIE-CLEANUP: on any refresh failure (expired,
+      // revoked, reused token, or a DB error), clear the three session
+      // cookies. Without this, a device whose refresh token had
+      // already become invalid kept sending it on every page load —
+      // AuthHydrationProvider fires /auth/refresh from the root
+      // layout — so every one of those requests hit the blacklist/
+      // Redis path and failed with 401, and the browser retained a
+      // session-hint cookie that made the edge proxy believe a session
+      // existed (redirecting /login → /dashboard → 401 → /login → …).
+      // Clearing here puts the client into a clean unauthenticated
+      // state and lets the login form render on the first try.
+      clearRefreshTokenCookie(res);
+      clearCsrfCookie(res);
+      clearSessionHintCookie(res);
       next(error);
     }
   },
@@ -247,7 +261,25 @@ export const authController = {
    * called here).
    */
   googleCallback: async (req: Request, res: Response): Promise<void> => {
-    const loginRedirect = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}login`;
+    const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}`;
+    const loginRedirect = `${base}login`;
+
+    // FIX OAUTH-ERROR-CONTEXT: read purpose before the try block so
+    // the failure path can return the user to the page they started
+    // from. Previously a failed verify — e.g. the Google account's
+    // email does not match any marketplace account, or a transient DB
+    // error — redirected to /login even though the user was on
+    // /verify-email, so a click on "verify via Google" could drop them
+    // on a login page they never asked for. Same for reset. The
+    // default sign-in flow keeps using loginRedirect.
+    const purpose = getOAuthPurpose(req);
+    clearOAuthPurpose(res);
+
+    const errorRedirect = (query: string): string => {
+      if (purpose === 'verify') return `${base}verify-email${query}`;
+      if (purpose === 'reset') return `${base}forgot-password${query}`;
+      return `${loginRedirect}${query}`;
+    };
 
     try {
       const profile = req.googleProfile;
@@ -261,22 +293,14 @@ export const authController = {
         // fail-safe/fail-visible treatment as every other unexpected
         // case below.
         logger.warn('Google OAuth callback reached with no profile on req.googleProfile');
-        res.redirect(`${loginRedirect}?error=google_auth_failed`);
+        res.redirect(errorRedirect('?error=google_auth_failed'));
         return;
       }
 
-      // FEAT-GOOGLE-VERIFY-RESET: an oauth_purpose cookie (set by
-      // auth.routes.ts when the flow was started with ?purpose=verify
-      // or ?purpose=reset) routes this callback into one of the two
-      // auxiliary flows instead of the default sign-in. Always cleared
-      // here regardless of branch so a replay of the callback URL
-      // cannot re-enter the same purpose — matching the state cookie's
-      // single-use treatment just above.
-      const purpose = getOAuthPurpose(req);
-      clearOAuthPurpose(res);
-
-      const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}`;
-
+      // (purpose and base are read above, before the try, so the
+      // failure path can be context-aware — see errorRedirect's own
+      // comment. The purpose cookie was cleared there too, so a
+      // replayed callback URL cannot re-enter the same branch.)
       if (purpose === 'verify') {
         // Google has already proven the email is verified
         // (extractGoogleProfile only accepts email_verified === true).
@@ -336,7 +360,7 @@ export const authController = {
       // unknown, matching prior behavior for non-AppError throws.
       const code = error instanceof AppError ? error.code : undefined;
       const suffix = code ? `&code=${encodeURIComponent(code)}` : '';
-      res.redirect(`${loginRedirect}?error=google_auth_failed${suffix}`);
+      res.redirect(errorRedirect(`?error=google_auth_failed${suffix}`));
     }
   },
   /**
