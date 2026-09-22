@@ -177,33 +177,82 @@ export const storeMembersService = {
       );
     }
 
-    const existing = await storeMembersRepository.findActiveOrPending(store.id, targetUser.id);
-    if (existing) {
-      throw new ConflictError(
-        existing.status === 'PENDING'
-          ? 'An invitation is already pending for this user.'
-          : 'This user is already a member of the store.',
-        'ALREADY_MEMBER'
-      );
-    }
+    // FIX STORE-INVITE-RACE: the pre-insert check (findActiveOrPending)
+    // and the createWithUser are two separate reads/writes with no
+    // unique constraint on (storeId, userId) to catch a concurrent
+    // insert — two simultaneous invite calls for the same target email
+    // both see "no existing row", both pass the member cap check, and
+    // both insert, leaving two PENDING rows for the same person. A
+    // partial unique index would be the definitive fix (unique where
+    // status != 'REMOVED') but requires a migration; running the
+    // read+guard+insert in a Serializable transaction makes Postgres
+    // reject the second attempt with P2034 instead of silently
+    // succeeding alongside the first. The P2034 is surfaced as the
+    // same ALREADY_MEMBER conflict the pre-check would have produced,
+    // so the client UX is unchanged.
+    let member;
+    try {
+      member = await prisma.$transaction(
+        async (tx) => {
+          const existing = await tx.storeMember.findFirst({
+            where: {
+              storeId: store.id,
+              userId: targetUser.id,
+              status: { in: ['PENDING', 'ACTIVE'] },
+            },
+          });
+          if (existing) {
+            throw new ConflictError(
+              existing.status === 'PENDING'
+                ? 'An invitation is already pending for this user.'
+                : 'This user is already a member of the store.',
+              'ALREADY_MEMBER'
+            );
+          }
 
-    // Soft-cap: free plan stores get a small team; featured can be higher later.
-    const activeCount = await storeMembersRepository.countActiveByStoreId(store.id);
-    const maxMembers = store.plan === 'FEATURED' ? 20 : 5;
-    if (activeCount >= maxMembers) {
-      throw new BadRequestError(
-        `This store has reached its member limit (${maxMembers}).`,
-        'STORE_MEMBER_LIMIT'
-      );
-    }
+          const activeCount = await tx.storeMember.count({
+            where: { storeId: store.id, status: 'ACTIVE' },
+          });
+          const maxMembers = store.plan === 'FEATURED' ? 20 : 5;
+          if (activeCount >= maxMembers) {
+            throw new BadRequestError(
+              `This store has reached its member limit (${maxMembers}).`,
+              'STORE_MEMBER_LIMIT'
+            );
+          }
 
-    const member = await storeMembersRepository.createWithUser({
-      storeId: store.id,
-      userId: targetUser.id,
-      role: input.role,
-      invitedById: actorUserId,
-      status: 'PENDING',
-    });
+          return tx.storeMember.create({
+            data: {
+              storeId: store.id,
+              userId: targetUser.id,
+              role: input.role,
+              invitedById: actorUserId,
+              status: 'PENDING',
+            },
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, avatarUrl: true, city: true },
+              },
+              invitedBy: { select: { id: true, name: true } },
+            },
+          });
+        },
+        { isolationLevel: 'Serializable' },
+      );
+    } catch (e: unknown) {
+      if (
+        typeof e === 'object' &&
+        e !== null &&
+        'code' in e &&
+        (e as { code?: string }).code === 'P2034'
+      ) {
+        throw new ConflictError(
+          'An invitation is already pending for this user.',
+          'ALREADY_MEMBER',
+        );
+      }
+      throw e;
+    }
 
     // AuditEventType.STORE_MEMBER_INVITED must exist in schema (see
     // schema-patch.md + migration). Without it this file won't compile.

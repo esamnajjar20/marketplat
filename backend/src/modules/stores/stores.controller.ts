@@ -159,8 +159,21 @@ updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promis
     try {
       const admin = requireUser(req);
       const { body } = bulkUpdateStoreStatusSchema.parse({ body: req.body });
+      // FIX BULK-STORE-REASON-DROP: previously passed only
+      // `{ status: body.status }` to the service, silently dropping
+      // body.reason. The single-store PATCH /:id/status path already
+      // passes the full body — this bulk path diverged, so an admin
+      // blocking 100 stores with a clear reason saw the reason land
+      // in the request, pass schema validation (which requires it for
+      // status=BLOCKED), and then vanish before the audit log was
+      // written. Undermines the entire point of the required-reason
+      // check the schema enforces two layers up.
       const result = await runBulk(body.storeIds, (id) =>
-        storesService.updateStoreStatus(id, { status: body.status }, admin.userId)
+        storesService.updateStoreStatus(
+          id,
+          { status: body.status, reason: body.reason },
+          admin.userId,
+        )
       );
       res.status(200).json(
         successResponse('Bulk store status update processed', result.updated, {
