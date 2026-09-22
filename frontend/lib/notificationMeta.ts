@@ -178,15 +178,15 @@ export { Bell };
 
 /** PHASE-2: collapse consecutive same-type notifications that share an entity key. */
 export function groupNotificationsByContext(
-  items: import('@/types/notification.types').Notification[],
-): { key: string; items: import('@/types/notification.types').Notification[]; label: string }[] {
+  items: Notification[],
+): { key: string; items: Notification[]; label: string }[] {
   const groups: {
     key: string;
-    items: import('@/types/notification.types').Notification[];
+    items: Notification[];
     label: string;
   }[] = [];
 
-  function entityKey(n: import('@/types/notification.types').Notification): string {
+  function entityKey(n: Notification): string {
     const d = n.data ?? {};
     const id =
       d.adId ||

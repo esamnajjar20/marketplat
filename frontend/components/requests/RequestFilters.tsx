@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { ROUTES, CITIES } from '@/lib/constants';
 import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';

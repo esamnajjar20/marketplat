@@ -59,3 +59,11 @@ frontend-full.txt
 # Python script backups (added by routine review passes)
 .backup_*/
 **/.backup_*/
+
+# FIX GITIGNORE-BACKUP-FILES-01: directory patterns above only match
+# .backup_* folders; files named X.backup_TIMESTAMP (or -TIMESTAMP)
+# were slipping through and getting committed accidentally in earlier
+# sessions. These two wildcards cover both flavors of the rep1-script
+# backup naming in this project.
+*.backup_*
+*.backup-*

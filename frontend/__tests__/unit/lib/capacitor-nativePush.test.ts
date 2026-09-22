@@ -7,7 +7,6 @@ import {
   registerNativePush,
   unregisterNativePush,
   ensureNativePushSynced,
-  NATIVE_FCM_TOKEN_STORAGE_KEY,
 } from '@/lib/capacitor/nativePush';
 import { isNativePlatform, getNativePlatformName } from '@/lib/capacitor/platform';
 

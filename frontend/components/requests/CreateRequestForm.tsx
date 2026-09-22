@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useCreateRequest } from '@/hooks/mutations/useRequestMutations';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';

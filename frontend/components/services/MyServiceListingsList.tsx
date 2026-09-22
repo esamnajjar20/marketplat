@@ -82,6 +82,26 @@ export function MyServiceListingsList() {
     searchParams: sp,
   });
 
+  // FIX HOOK-ORDER-01: this useEffect was previously placed below the
+  // early return in `if (!hasProvider) return null;` — which is a
+  // rules-of-hooks violation (React requires every hook to run in the
+  // same order on every render, and a conditional early return before
+  // a hook means the hook does not run when the condition is met).
+  // The effect itself only depends on values available before the
+  // return (status, searchQ, page — all destructured/derived above),
+  // so it is safe to move up.
+  //
+  // FIX SELECTION-ACROSS-FILTERS: the visible set changes whenever
+  // the user switches a status tab, runs a new search, or moves to
+  // a different page, but `selected` was never cleared. A user who
+  // ticked five rows on the ACTIVE tab and then switched to PAUSED
+  // still had those five ticked — invisible, but the bulk buttons
+  // would silently mutate them anyway. Reset on every parameter
+  // change that alters what the list is showing.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [status, searchQ, page]);
+
   // Hub shows BecomeServiceProviderCard; hide list until a provider exists.
   if (!hasProvider) return null;
 
@@ -135,17 +155,6 @@ export function MyServiceListingsList() {
     setSelected(new Set());
     toast.success(`تم تحديث ${ids.length} خدمة`);
   }
-
-  // FIX SELECTION-ACROSS-FILTERS: the visible set changes whenever
-  // the user switches a status tab, runs a new search, or moves to
-  // a different page, but `selected` was never cleared. A user who
-  // ticked five rows on the ACTIVE tab and then switched to PAUSED
-  // still had those five ticked — invisible, but the bulk buttons
-  // would silently mutate them anyway. Reset on every parameter
-  // change that alters what the list is showing.
-  useEffect(() => {
-    setSelected(new Set());
-  }, [status, searchQ, page]);
 
   if (isLoading || isOutOfRange) {
     return (

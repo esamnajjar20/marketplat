@@ -134,7 +134,7 @@ export async function autoSaveVisitedAd(ad: Ad): Promise<void> {
 
     const now = Date.now();
     const pruned = await pruneExpiredAndCleanCache(listRaw());
-    let list = pruned.filter((e) => e.id !== ad.id);
+    const list = pruned.filter((e) => e.id !== ad.id);
     list.unshift({
       id: ad.id,
       title: ad.title,

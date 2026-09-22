@@ -35,7 +35,7 @@ export function useCreateRequest() {
       // failure lands in onError below (which saves the draft) instead
       // of short-circuiting at the form layer (which used to just
       // toast + return, losing everything).
-      let { files, ...body } = input;
+      const { files, ...body } = input;
       // FIX OFFLINE-QUEUE-RELIABILITY-01: ضغط صور الطلب أوفلاين قبل الرفع
       // FIX TRIPLE-COMPRESS-01: removed the compress-every-File loop
       // that used to run here. Its stated purpose was to keep the

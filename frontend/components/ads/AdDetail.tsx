@@ -136,7 +136,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   useEffect(() => {
     setIsSavedOffline(isAdSavedOffline(ad.id, userId));
-  }, [ad.id]);
+  }, [ad.id, userId]);
 
   // PHASE-2: auto offline snapshot for 24h (does not replace manual save)
   useEffect(() => {

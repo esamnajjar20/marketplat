@@ -1,3 +1,4 @@
+import type * as OfflineAdDraftsModule from '@/lib/offlineAdDrafts';
 /**
  * __tests__/unit/lib/offlineAdDrafts.test.ts
  *
@@ -125,7 +126,12 @@ function installMemoryIndexedDB() {
 
 describe('offlineAdDrafts', () => {
   let cleanup: () => void;
-  let lib: typeof import('@/lib/offlineAdDrafts');
+  // FIX TEST-TYPE-IMPORT-01: was `typeof import('@/lib/offlineAdDrafts')`
+  // — the eslint rule @typescript-eslint/consistent-type-imports forbids
+  // import() type annotations in favor of a top-level `import type`.
+  // The runtime import is still dynamic (vi.resetModules + dynamic
+  // import() in beforeEach); this only replaces the *type* reference.
+  let lib: typeof OfflineAdDraftsModule;
 
   beforeEach(async () => {
     cleanup = installMemoryIndexedDB();
