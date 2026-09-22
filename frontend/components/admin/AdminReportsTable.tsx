@@ -258,7 +258,7 @@ export function AdminReportsTable() {
                   <p className="text-[11px] text-muted-foreground">
                     {report.user?.name ?? '—'} · {formatRelativeTime(report.createdAt)}
                   </p>
-                  <Link
+                  <Link prefetch={false}
                     href={targetHref(report.targetType, report.targetId)}
                     target="_blank"
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
@@ -338,7 +338,7 @@ export function AdminReportsTable() {
                     </div>
                   </td>
                   <td className="p-3 hidden md:table-cell">
-                    <Link href={targetHref(report.targetType, report.targetId)} target="_blank"
+                    <Link prefetch={false} href={targetHref(report.targetType, report.targetId)} target="_blank"
                       className="flex items-center gap-1 text-primary hover:underline text-xs">
                       <ExternalLink className="h-3 w-3" />
                       <span className="text-muted-foreground">[{TARGET_TYPE_LABELS[report.targetType]}]</span>

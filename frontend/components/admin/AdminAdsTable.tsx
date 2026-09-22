@@ -232,7 +232,7 @@ export function AdminAdsTable() {
                 <div className="mt-2 flex flex-wrap justify-end gap-1 border-t border-border/60 pt-2">
                   {/* actions reused via existing row menu if complex — link to ad */}
                   <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-                    <Link href={ROUTES.adDetail(ad.id)}>عرض</Link>
+                    <Link prefetch={false} href={ROUTES.adDetail(ad.id)}>عرض</Link>
                   </Button>
                 </div>
               </div>
@@ -275,7 +275,7 @@ export function AdminAdsTable() {
                           <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="48px" />
                         </div>
                         <div className="min-w-0">
-                          <Link href={ROUTES.adDetail(ad.id)} className="font-medium hover:underline line-clamp-1"
+                          <Link prefetch={false} href={ROUTES.adDetail(ad.id)} className="font-medium hover:underline line-clamp-1"
                             target="_blank">{ad.title}</Link>
                           {ad.isFeatured && <Badge variant="outline" className="text-xs border-warning text-warning">مميز</Badge>}
                           {ad.isPinned   && <Badge variant="outline" className="text-xs me-1">مثبّت</Badge>}

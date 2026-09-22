@@ -53,7 +53,7 @@ export function AdminHeader() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border/80 bg-background/90 px-4 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
-      <Link href="/admin/dashboard" className="font-bold text-sm text-primary">
+      <Link prefetch={false} href="/admin/dashboard" className="font-bold text-sm text-primary">
         سوق غزة — إدارة
       </Link>
       <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export function AdminHeader() {
          * signed into.
          */}
         <Button asChild variant="ghost" size="sm" className="gap-1.5" title="العودة للموقع">
-          <Link href={ROUTES.home}>
+          <Link prefetch={false} href={ROUTES.home}>
             <ExternalLink className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">العودة للموقع</span>
           </Link>
@@ -109,7 +109,7 @@ export function AdminHeader() {
             ) : (
               <div className="divide-y">
                 {recentReports.map((report) => (
-                  <Link
+                  <Link prefetch={false}
                     key={report.id}
                     href={ROUTES.admin.reports}
                     className="flex items-start gap-2.5 p-3 text-start transition-colors hover:bg-muted/50"
@@ -141,7 +141,7 @@ export function AdminHeader() {
               </div>
             )}
             <DropdownMenuSeparator className="m-0" />
-            <Link href={ROUTES.admin.reports} className="block p-3 text-center text-sm text-primary hover:underline">
+            <Link prefetch={false} href={ROUTES.admin.reports} className="block p-3 text-center text-sm text-primary hover:underline">
               عرض كل البلاغات
             </Link>
           </DropdownMenuContent>

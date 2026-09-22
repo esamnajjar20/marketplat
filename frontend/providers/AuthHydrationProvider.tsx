@@ -227,44 +227,62 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // user out or block the rest of hydration, so it's isolated in
         // its own try/catch and awaited (not fire-and-forget) only to
         // keep it inside this function's existing 8s abort window.
-        try {
-          // FIX ME-QUERY-UNIFY-02: was a direct favoritesApi.getAll()
-          // call here, outside React Query — the same class of bug as
-          // the getMe fix a few lines above. Any page that mounted a
-          // useFavorites({ page: 1 }) consumer (FavoritesList) fired a
-          // second /favorites request in parallel because the hook
-          // couldn't see this one. Now routed through
-          // queryClient.fetchQuery on the exact key
-          // queryKeys.favorites.all({ page: 1 }) produces, so the
-          // hook's own request dedupes with this prefetch. The
-          // controller.signal is still passed through the queryFn so
-          // the outer abort semantics are preserved.
-          //
-          // Note the previous comment here claimed the key would be
-          // dead cache because FavoritesList and DashboardStats call
-          // useFavorites() with different params. Only FavoritesList
-          // is in play for this prefetch's page — DashboardStats uses
-          // the separate ids()/check() paths. Populating the page:1
-          // key is exactly what dedups FavoritesList.
-          const favData = await queryClient.fetchQuery({
-            queryKey: queryKeys.favorites.all({ page: 1 }),
-            queryFn: () =>
-              favoritesApi
-                .getAll({ page: 1 }, { signal: controller.signal })
-                .then((r) => r.data.data),
-            staleTime: CACHE_TTL.favorites,
-          });
-          if (!favData) throw new Error('empty /favorites response');
-          const idSet = new Set(favData.items.map((fav) => fav.ad.id));
-          // Seed the ids Set (the actual source of useIsFavorited()).
-          // fetchQuery already populated the list cache above, so the
-          // Set and the cache are now sourced from one request.
-          queryClient.setQueryData(queryKeys.favorites.ids(), idSet);
-        } catch {
-          // Non-fatal: heart icons just fall back to the old
-          // "populate on first visit to /dashboard or /favorites"
-          // behavior for this session.
-        }
+        // FAVORITES-PREFETCH-IDLE: used to run synchronously inside
+        // the hydration effect, blocking the 8s abort window and
+        // sending a 6.2KB /favorites?page=1 request on every route
+        // (public pages included, since this provider mounts at the
+        // root). On Gaza's links that competed directly with the
+        // page's own data for one of Chrome's six connections, and
+        // was wasted entirely on guests who never open /favorites or
+        // the dashboard hearts. Deferred to requestIdleCallback so it
+        // runs after the first paint settles, still within a 5s
+        // deadline, and skips entirely on saveData/slow links where
+        // the race was worst. Same ME-QUERY-UNIFY-02 reasoning still
+        // applies once it does run: fetchQuery on the exact key the
+        // hook reads, so no duplicate request later.
+        const prefetchFavoritesIdle = () => {
+          if (typeof window === 'undefined') return;
+          const conn =
+            (navigator as Navigator & {
+              connection?: { saveData?: boolean; effectiveType?: string };
+            }).connection;
+          if (conn?.saveData) return;
+          const et = conn?.effectiveType;
+          if (et === 'slow-2g' || et === '2g' || et === '3g') return;
+
+          const run = () => {
+            void (async () => {
+              try {
+                const favData = await queryClient.fetchQuery({
+                  queryKey: queryKeys.favorites.all({ page: 1 }),
+                  queryFn: () =>
+                    favoritesApi
+                      .getAll({ page: 1 })
+                      .then((r) => r.data.data),
+                  staleTime: CACHE_TTL.favorites,
+                });
+                if (!favData) return;
+                const idSet = new Set(favData.items.map((fav) => fav.ad.id));
+                queryClient.setQueryData(queryKeys.favorites.ids(), idSet);
+              } catch {
+                // Non-fatal: hearts fall back to first-visit population.
+              }
+            })();
+          };
+
+          const w = window as Window & {
+            requestIdleCallback?: (
+              cb: () => void,
+              opts?: { timeout: number },
+            ) => number;
+          };
+          if (typeof w.requestIdleCallback === 'function') {
+            w.requestIdleCallback(run, { timeout: 5000 });
+          } else {
+            window.setTimeout(run, 1500);
+          }
+        };
+        prefetchFavoritesIdle();
 
       } catch (err) {
         // FIX AUTH-OFFLINE-01: this used to call logout() unconditionally
