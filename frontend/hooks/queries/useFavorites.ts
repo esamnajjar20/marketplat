@@ -161,9 +161,13 @@ export function useIsFavorited(adId: string): boolean {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient = useQueryClient();
 
-  const [isFavorited, setIsFavorited] = useState<boolean>(() =>
-    getFavoriteIdsSnapshot(queryClient).has(adId),
-  );
+  // HYDRATION FIX (#418): starting from the cache snapshot on the
+  // client produced isFavorited=true for favorited ads while the SSR
+  // pass (empty queryClient) rendered false — the heart's className
+  // and aria-pressed flipped on hydration. Starting at false keeps the
+  // initial render byte-identical to the server; the effect below
+  // already syncs to the real value on mount.
+  const [isFavorited, setIsFavorited] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isAuthenticated) {

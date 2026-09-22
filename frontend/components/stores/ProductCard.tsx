@@ -81,6 +81,7 @@ export function ProductCard({ product, className, priority = false }: Props) {
     >
       <Link
         href={detailHref}
+        prefetch={false}
         onPointerEnter={warmDetail}
         onFocus={warmDetail}
         className={cn(

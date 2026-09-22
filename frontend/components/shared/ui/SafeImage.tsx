@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { PLACEHOLDER_SVG, PLACEHOLDER_AVATAR_SVG } from '@/lib/cloudinary';
 import { isDataSaverEnabled } from '@/lib/dataSaver';
@@ -49,7 +49,19 @@ export function SafeImage({
 
   // Data-saver: skip blur-up placeholders (extra network request for
   // a tiny LQIP) — the final image alone is enough on slow links.
-  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
+  //
+  // HYDRATION FIX (#418): reading isDataSaverEnabled() during render
+  // returned false on the server (no window) and true on the client
+  // when the user had data-saver on, which flipped blurProps between
+  // the SSR HTML and the first client render of every SafeImage. Since
+  // AdCard renders two SafeImages per card, /ads alone produced dozens
+  // of mismatches. Starting at false (matches SSR) and flipping in a
+  // mount-only effect keeps the two renders identical without losing
+  // the data-saver behaviour after hydration.
+  const [saver, setSaver] = useState(false);
+  useEffect(() => {
+    setSaver(isDataSaverEnabled());
+  }, []);
   const blurProps = errored || saver ? {} : { placeholder, blurDataURL };
 
   return (

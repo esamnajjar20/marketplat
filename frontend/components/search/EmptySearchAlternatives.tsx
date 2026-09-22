@@ -25,6 +25,7 @@ export function EmptySearchAlternatives() {
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">أحدث الإعلانات بدلاً من ذلك</h2>
         <Link href={`${ROUTES.search}?type=ads`} className="text-xs font-medium text-primary hover:underline">
+        prefetch={false}
           عرض الكل
         </Link>
       </div>

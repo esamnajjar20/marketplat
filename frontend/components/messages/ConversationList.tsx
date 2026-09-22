@@ -125,6 +125,7 @@ export function ConversationList({ selectedId }: Props = {}) {
           <div className="flex flex-col items-center gap-2 sm:flex-row">
             <Button asChild size="sm">
               <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
+              prefetch={false}
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href={ROUTES.home}>العودة للرئيسية</Link>

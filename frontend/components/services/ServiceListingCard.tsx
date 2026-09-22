@@ -94,6 +94,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
     >
       <Link
         href={detailHref}
+        prefetch={false}
         onPointerEnter={warmDetail}
         onFocus={warmDetail}
         className={cn(

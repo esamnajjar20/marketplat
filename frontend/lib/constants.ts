@@ -245,7 +245,7 @@ export const CACHE_TTL = {
   myAds:       45_000,   //  45 s — N2
   categories:  300_000,  //   5 m
   userProfile: 120_000,  //   2 m
-  sellerProfile: 60_000, //  60 s
+  sellerProfile: 300_000, //   5 m — raised from 60s to stop duplicate /sellers/me/profile fetches when SellerVerificationBanner, BecomeStoreOwnerCard and BecomeServiceProviderCard mount together. Invalidated explicitly by useSellerMutations, so raise is safe.
   publicProfile: 120_000, //  2 m — matches userProfile's TTL for one's own profile
   sessions:    60_000,   //  60 s
   favorites:   60_000,   //  60 s
