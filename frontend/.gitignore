@@ -2,3 +2,13 @@
 # Local OCR/Scan runtime files
 public/tesseract/
 public/tessdata/
+*.bak
+*.backup
+*.backup_*
+*.backup-*
+/coverage/
+/playwright-report/
+/test-results/
+/test-errors.log
+/main
+/hooks/{mutations}/
