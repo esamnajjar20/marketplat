@@ -1,5 +1,5 @@
 /**
- * Next.js Middleware — Edge Runtime.
+ * Next.js Proxy (formerly Middleware) — Edge Runtime.
  *
  * Auth strategy (cookies set by AuthHydrationProvider after hydration,
  * AND — as of AUDIT-FIX C-1 — by the backend itself at login/register/
@@ -246,7 +246,12 @@ function buildCsp(nonce: string, isDev: boolean): string {
 
 // ── Middleware ────────────────────────────────────────────────────
 
-export function middleware(request: NextRequest) {
+// FIX NEXT-16-PROXY: Next.js 16 deprecates the 'middleware' file
+// convention in favor of 'proxy'. Both the filename and the
+// exported function name change — the automatic codemod
+// (npx @next/codemod middleware-to-proxy) does exactly this.
+// Nothing about the function body changes; this is a rename.
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const tokenCookie = request.cookies.get('app_access_token')?.value ?? null;

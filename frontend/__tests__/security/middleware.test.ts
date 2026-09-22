@@ -11,7 +11,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
-import { middleware } from '@/middleware';
+import { proxy } from '@/proxy';
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ describe('SEC-05: Role cookie injection', () => {
         token: VALID_USER_TOKEN,
         role,
       });
-      const res = middleware(req);
+      const res = proxy(req);
       // Either /login (token not decoded as admin) or /dashboard (role rejected)
       // The critical assertion is: status is NOT 200 (not allowed through)
       expect(res.status).toBe(307);
@@ -83,7 +83,7 @@ describe('SEC-05: Role cookie injection', () => {
       token: VALID_ADMIN_TOKEN,
       role:  'ADMIN',
     });
-    expect(middleware(req).status).toBe(200);
+    expect(proxy(req).status).toBe(200);
   });
 
   it('rejects "ADMIN" role when token is expired', () => {
@@ -91,7 +91,7 @@ describe('SEC-05: Role cookie injection', () => {
       token: EXPIRED_TOKEN,
       role:  'ADMIN',
     });
-    const res = middleware(req);
+    const res = proxy(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/login');
   });
@@ -111,7 +111,7 @@ describe('SEC: Token manipulation / forgery', () => {
     // middleware's role check still requires the cookie, which adds a second
     // barrier for unauthenticated users (but NOT for authenticated ones who can
     // freely set the cookie — see the security note in middleware.ts).
-    const res = middleware(req);
+    const res = proxy(req);
     // With a forged valid-looking token + ADMIN role cookie → middleware allows it
     // (documented limitation — backend validates on each API call)
     // This is not a bug — it's the documented two-layer model.
@@ -120,7 +120,7 @@ describe('SEC: Token manipulation / forgery', () => {
 
   it('rejects token with exp in the past', () => {
     const req = makeRequest('/dashboard', { token: EXPIRED_TOKEN });
-    expect(middleware(req).status).toBe(307);
+    expect(proxy(req).status).toBe(307);
   });
 
   it('rejects token with missing exp field (treated as expired)', () => {
@@ -129,18 +129,18 @@ describe('SEC: Token manipulation / forgery', () => {
     // decoded.exp would be undefined → undefined * 1000 = NaN → NaN < now+10000 = false
     // isTokenExpired returns false for NaN comparison, meaning no exp = not expired
     // Document actual behavior to prevent regression if logic changes.
-    const res = middleware(req);
+    const res = proxy(req);
     expect(typeof res.status).toBe('number');
   });
 
   it('rejects token where payload segment is base64 gibberish', () => {
     const req = makeRequest('/dashboard', { token: 'header.!!!notbase64!!!.sig' });
-    expect(middleware(req).status).toBe(307);
+    expect(proxy(req).status).toBe(307);
   });
 
   it('rejects completely empty token', () => {
     const req = makeRequest('/dashboard', { token: '' });
-    expect(middleware(req).status).toBe(307);
+    expect(proxy(req).status).toBe(307);
   });
 
   it('rejects token with only 2 parts (missing signature)', () => {
@@ -148,7 +148,7 @@ describe('SEC: Token manipulation / forgery', () => {
     const payload = btoa(JSON.stringify({ userId: 'u', exp: futureExp() })).replace(/=/g, '');
     // 2-part token — no signature
     const req = makeRequest('/dashboard', { token: `${header}.${payload}` });
-    const res = middleware(req);
+    const res = proxy(req);
     // middleware uses token.split('.')[1] → still gets the payload → may decode successfully
     // Document actual behavior
     expect(typeof res.status).toBe('number');
@@ -164,7 +164,7 @@ describe('SEC: Path traversal in route classification', () => {
       token: VALID_USER_TOKEN,
       role:  'USER',
     });
-    const res = middleware(req);
+    const res = proxy(req);
     // Should either redirect or block — not 200 for admin content
     // In practice Next.js normalizes to /admin, but we assert non-200
     expect(res.status).toBe(307);
@@ -175,7 +175,7 @@ describe('SEC: Path traversal in route classification', () => {
     // exact match '/my-ads' → false
     // So this should pass through as a public route
     const req = makeRequest('/my-adsXYZ');
-    const res = middleware(req);
+    const res = proxy(req);
     expect(res.status).toBe(200);
   });
 
@@ -183,7 +183,7 @@ describe('SEC: Path traversal in route classification', () => {
     // Exact match '/dashboard' and startsWith('/dashboard/') only
     // '/dashboard-extra' should not be protected
     const req = makeRequest('/dashboard-extra');
-    const res = middleware(req);
+    const res = proxy(req);
     expect(res.status).toBe(200);
   });
 });
@@ -193,7 +193,7 @@ describe('SEC: Path traversal in route classification', () => {
 describe('SEC: Request ID header', () => {
   it('X-Request-Id does not contain path information', () => {
     const req = makeRequest('/admin');
-    const res = middleware(req);
+    const res = proxy(req);
     const id = res.headers.get('X-Request-Id');
     // Redirect response may not have the header (only pass-throughs do)
     // For pass-throughs: verify no path leakage
@@ -205,14 +205,14 @@ describe('SEC: Request ID header', () => {
 
   it('X-Request-Id is a valid UUID on pass-through', () => {
     const req = makeRequest('/');
-    const res = middleware(req);
+    const res = proxy(req);
     const id = res.headers.get('X-Request-Id');
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   it('does not expose token value in any response header', () => {
     const req = makeRequest('/dashboard', { token: VALID_USER_TOKEN });
-    const res = middleware(req);
+    const res = proxy(req);
     const headers = Object.fromEntries(res.headers.entries());
     const headerValues = Object.values(headers).join(' ');
     expect(headerValues).not.toContain(VALID_USER_TOKEN);
@@ -224,7 +224,7 @@ describe('SEC: Request ID header', () => {
 describe('SEC: ?from= redirect parameter', () => {
   it('includes the original path in from= on redirect to /login', () => {
     const req = makeRequest('/my-ads');
-    const res = middleware(req);
+    const res = proxy(req);
     const location = res.headers.get('Location') ?? '';
     expect(location).toContain('from=');
     expect(location).toContain(encodeURIComponent('/my-ads'));
@@ -232,7 +232,7 @@ describe('SEC: ?from= redirect parameter', () => {
 
   it('from= value is URL-encoded (not raw)', () => {
     const req = makeRequest('/ads/create');
-    const res = middleware(req);
+    const res = proxy(req);
     const location = res.headers.get('Location') ?? '';
     // The raw path '/ads/create' should be encoded in the from param
     const url = new URL(location, 'http://localhost');

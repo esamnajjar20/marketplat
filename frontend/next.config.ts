@@ -108,7 +108,7 @@ const nextConfig: NextConfig = {
     // build time and has no way to generate a fresh value per request,
     // so a real nonce was never possible from this file alone.
     // CSP generation (with a per-request nonce) has moved to
-    // middleware.ts, which runs on every request and can both mint a
+    // proxy.ts (formerly middleware.ts), which runs on every request and
     // nonce and forward it to Next.js's own script injection via the
     // `x-nonce` request header. All other static security headers
     // remain here since they don't need to vary per request.
