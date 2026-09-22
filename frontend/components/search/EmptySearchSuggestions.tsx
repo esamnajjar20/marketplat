@@ -82,6 +82,7 @@ export function EmptySearchSuggestions() {
           <div className="flex flex-wrap justify-center gap-2">
             {recent.map((q) => (
               <Link
+                prefetch={false}
                 key={q}
                 href={searchHref(q)}
                 className={cn(
@@ -104,6 +105,7 @@ export function EmptySearchSuggestions() {
         <div className="flex flex-wrap justify-center gap-2">
           {POPULAR_QUERIES.map(({ q, icon: Icon }) => (
             <Link
+              prefetch={false}
               key={q}
               href={searchHref(q)}
               className={cn(
@@ -128,6 +130,7 @@ export function EmptySearchSuggestions() {
           <div className="flex flex-col gap-1.5 text-start">
             {viewed.map((ad) => (
               <Link
+                prefetch={false}
                 key={ad.id}
                 href={ROUTES.adDetail(ad.id)}
                 className="rounded-lg border bg-card px-3 py-2 text-sm hover:border-primary/40 hover:bg-primary/5"
@@ -149,6 +152,7 @@ export function EmptySearchSuggestions() {
             const active = currentType === type;
             return (
               <Link
+                prefetch={false}
                 key={type}
                 href={typeHref(type)}
                 className={cn(
@@ -182,6 +186,7 @@ export function EmptySearchSuggestions() {
           <div className="flex flex-wrap justify-center gap-2">
             {top.map((cat) => (
               <Link
+                prefetch={false}
                 key={cat.id}
                 href={ROUTES.category(cat.slug)}
                 className="inline-flex min-h-[36px] items-center rounded-full border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:bg-primary/5"

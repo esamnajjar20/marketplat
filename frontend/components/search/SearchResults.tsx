@@ -275,7 +275,7 @@ export function SearchResults() {
                 </Button>
               )}
               <Button variant="default" size="sm" asChild>
-                <Link href={ROUTES.adCreate}>انشر إعلاناً بدلاً من ذلك</Link>
+                <Link href={ROUTES.adCreate} prefetch={false}>انشر إعلاناً بدلاً من ذلك</Link>
               </Button>
             </div>
           }

@@ -14,6 +14,7 @@ export function AdListItem({ ad, className }: Props) {
 
   return (
     <Link href={ROUTES.adDetail(ad.id)}
+      prefetch={false}
       className={cn('flex gap-3 p-3 rounded-lg border bg-card hover:shadow-sm transition-shadow', className)}>
       <div className="relative w-28 h-20 shrink-0 rounded overflow-hidden bg-muted">
         <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="112px" />
