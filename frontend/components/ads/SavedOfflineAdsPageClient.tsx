@@ -85,6 +85,7 @@ export function SavedOfflineAdsPageClient() {
               className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm"
             >
               <Link
+                prefetch={false}
                 href={ROUTES.adDetail(ad.id)}
                 className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
               >

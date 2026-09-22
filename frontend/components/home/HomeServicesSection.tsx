@@ -111,6 +111,7 @@ export function HomeServicesSection() {
         {useGeo
           ? geo.items.map((item) => (
               <Link
+                prefetch={false}
                 key={item.id}
                 href={ROUTES.serviceDetail(item.id)}
                 className={cn(

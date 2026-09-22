@@ -305,6 +305,7 @@ export function ChatWindow({ conversationId }: Props) {
           ConversationList already uses for its "محادثة عامة" fallback. */}
       {conversation.ad && (
         <Link
+          prefetch={false}
           href={ROUTES.adDetail(conversation.ad.id)}
           className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-card px-3 py-2.5 transition-colors hover:bg-muted/40"
         >
@@ -346,12 +347,14 @@ export function ChatWindow({ conversationId }: Props) {
 
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/70 bg-card/90 px-3 py-3 shadow-xs backdrop-blur-md">
         <Link
+          prefetch={false}
           href={ROUTES.messages}
           className="lg:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
         >
           <ChevronRight className="h-5 w-5" />
         </Link>
         <Link
+          prefetch={false}
           href={ROUTES.userProfile(party.id)}
           className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity"
         >

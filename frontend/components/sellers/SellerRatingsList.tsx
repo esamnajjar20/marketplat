@@ -108,6 +108,7 @@ export function SellerRatingsList({ sellerProfileId, baseUrl }: Props) {
                 {rating.comment && <p className="text-sm text-muted-foreground">{rating.comment}</p>}
                 {rating.ad && (
                   <Link
+                    prefetch={false}
                     href={ROUTES.adDetail(rating.ad.id)}
                     className="block text-xs text-primary hover:underline line-clamp-1"
                   >

@@ -180,7 +180,7 @@ export function MyAdsList() {
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <Link href={ROUTES.adDetail(ad.id)} className="font-medium text-sm hover:underline line-clamp-1">{ad.title}</Link>
+                    <Link href={ROUTES.adDetail(ad.id)} prefetch={false} className="font-medium text-sm hover:underline line-clamp-1">{ad.title}</Link>
                     <Badge variant={AD_STATUS_VARIANT[ad.status]} className="shrink-0 text-xs">
                       {STATUS_LABELS[ad.status]}
                     </Badge>
@@ -216,7 +216,7 @@ export function MyAdsList() {
                     <PinAdButton adId={ad.id} isPinned={Boolean(ad.isPinned)} />
                   )}
                   <RepublishAdButton adId={ad.id} status={ad.status} />
-                  <Link href={ROUTES.adEdit(ad.id)}>
+                  <Link href={ROUTES.adEdit(ad.id)} prefetch={false}>
                     <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${ad.title}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
