@@ -44,7 +44,6 @@ import { WebVitals }                  from '@/components/shared/WebVitals';
 // TEMP-DEBUG: أداة تصحيح مؤقتة لتشخيص مشكلة الصفحة الفاضية عند الـ refresh —
 // آمنة بالإنتاج (بوابة ?debug=1 + localStorage، انظر ErudaDebug.tsx). احذف
 // هذا الاستيراد + استدعاءه أدناه بعد انتهاء التشخيص.
-import { ErudaDebug }                 from '@/components/debug/ErudaDebug';
 import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
 import '@/app/globals.css';
@@ -117,6 +116,12 @@ export const metadata: Metadata = {
   },
   other: {
     'mobile-web-app-capable': 'yes',
+    // GOOGLE-TRANSLATE-418: Chrome's auto-translate rewrites <html lang>/class
+    // mid-flight (translated-ltr etc.) and React sees a mismatch on the root
+    // element on hydration — #418 with args[]=HTML. The app is already Arabic;
+    // there is nothing meaningful to translate. This meta is the documented
+    // opt-out (alongside the same hint any multilingual site needs).
+    google: 'notranslate',
   },
 };
 
@@ -185,7 +190,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SkipLink />
         <AppProviders nonce={nonce}>
           <WebVitals />
-          <ErudaDebug />
           <DeferredFonts />
         {children}
         </AppProviders>
