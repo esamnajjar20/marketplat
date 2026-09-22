@@ -127,6 +127,30 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
       }
 
       return withLock(entityId, async () => {
+        // FIX MIN-IMG-RACE-FACTORY: re-read the entity inside the lock
+        // and re-apply the "must keep at least one image" guard, plus
+        // the "image present" check. Without this, the pre-lock guard
+        // above is a TOCTOU: two concurrent removeImage calls on the
+        // same two-image entity — each on a different image — both
+        // read length=2 at pre-check time, both pass the guard, then
+        // serialize through the lock and remove both images, leaving a
+        // live entity with zero photos and breaking the
+        // MIN_IMAGES_REQUIRED rule addImages/updateProduct/reorderImages
+        // all separately enforce. Same class of bug already fixed on
+        // the ads path (see ads.service.ts's removeImage); the shared
+        // factory carried a copy of the pre-fix logic, so both
+        // consumers (products and service-listings) were affected.
+        const fresh = await findActiveOrThrow(entityId);
+        if (!fresh.images.includes(imageUrl)) {
+          throw new BadRequestError(`Image not found in this ${entityLabel}`);
+        }
+        if (fresh.images.length <= 1) {
+          throw new BadRequestError(
+            `Cannot remove the last image — a ${entityLabel} must have at least one image. Add a replacement image first.`,
+            ErrorCode.MIN_IMAGES_REQUIRED
+          );
+        }
+
         try {
           const publicId = extractCloudinaryPublicId(imageUrl);
           if (publicId) await deleteImage(publicId);

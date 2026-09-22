@@ -8,6 +8,13 @@ import {
   createProductRateLimit,
   addProductImagesRateLimit,
 } from '../../middlewares/rateLimit.middleware';
+// FIX PRODUCTS-MUTATION-LIMITS: PATCH/DELETE/reorder/stock-adjust had
+// no rate limit at all — an authenticated owner (or a compromised
+// session) could loop any of them arbitrarily (product churn,
+// Cloudinary reorder spam, stock-flip spam). Reusing createProductRateLimit
+// (40/hr) as the closest fitting bucket, same shape as ads.service.ts's
+// mutation set. No new limiter definition needed.
+const productMutationRateLimit = createProductRateLimit;
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 
 export const productsRouter = Router();
@@ -26,9 +33,27 @@ productsRouter.post(
   uploadMultipleMiddleware,
   productsController.createProduct
 );
-productsRouter.patch('/:id', authenticate, productsController.updateProduct);
+// FIX PRODUCTS-VERIFY-CONSISTENCY: PATCH/DELETE/stock/reorder did not
+// require a verified email while POST / (create) and POST /:id/images
+// did — an unverified user could edit or delete existing products but
+// not create new ones, which reads as a broken UI rather than a
+// verification prompt. Matched every mutating route in this router to
+// the same gate.
+productsRouter.patch(
+  '/:id',
+  authenticate,
+  requireVerifiedEmail,
+  productMutationRateLimit,
+  productsController.updateProduct
+);
 // TRACK-INVENTORY: quick stock adjust (absolute quantity)
-productsRouter.patch('/:id/stock', authenticate, productsStockController.adjustStock);
+productsRouter.patch(
+  '/:id/stock',
+  authenticate,
+  requireVerifiedEmail,
+  productMutationRateLimit,
+  productsStockController.adjustStock
+);
 // Gap #3 fix: closes the audit finding — mirrors ads.routes.ts's
 // POST/DELETE /:id/images exactly (same middleware order: auth, rate
 // limit, multer, then controller).
@@ -39,7 +64,25 @@ productsRouter.post(
   uploadMultipleMiddleware,
   productsController.addImages
 );
-productsRouter.delete('/:id/images', authenticate, productsController.removeImage);
+productsRouter.delete(
+  '/:id/images',
+  authenticate,
+  requireVerifiedEmail,
+  productMutationRateLimit,
+  productsController.removeImage
+);
 // Gap #11: JSON body only (no files) — mirrors ads.routes.ts's reorder route.
-productsRouter.put('/:id/images/reorder', authenticate, productsController.reorderImages);
-productsRouter.delete('/:id', authenticate, productsController.deleteProduct);
+productsRouter.put(
+  '/:id/images/reorder',
+  authenticate,
+  requireVerifiedEmail,
+  productMutationRateLimit,
+  productsController.reorderImages
+);
+productsRouter.delete(
+  '/:id',
+  authenticate,
+  requireVerifiedEmail,
+  productMutationRateLimit,
+  productsController.deleteProduct
+);

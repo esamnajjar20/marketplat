@@ -110,3 +110,32 @@ export type GetMyProductsQuery = z.infer<typeof getMyProductsSchema>['query'];
 export const productIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Product ID is required') }),
 });
+
+// FIX PRODUCTS-INLINE-ZOD: two Zod schemas were defined inline in
+// products.controller.ts (mirroring ads.controller.ts's own inline
+// shape) instead of living here with every other schema in this
+// module. Beyond consistency, the inline versions had no upper bound
+// on the array size, so a client could send an images array with
+// arbitrarily many URLs — a small but real DoS surface, and one that
+// cannot be caught by tests that load the validation module.
+//
+// Cap chosen to match the module's own MAX_IMAGES_PER_ENTITY (10) —
+// a reorder must be a permutation of the entity's current images, so
+// any list longer than the cap is necessarily invalid and can be
+// rejected at the edge.
+export const removeProductImageSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    imageUrl: z.string().url(),
+  }),
+});
+
+export const reorderProductImagesSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    images: z.array(z.string().url()).min(1).max(20),
+  }),
+});
+
+export type RemoveProductImageInput = z.infer<typeof removeProductImageSchema>['body'];
+export type ReorderProductImagesInput = z.infer<typeof reorderProductImagesSchema>['body'];
