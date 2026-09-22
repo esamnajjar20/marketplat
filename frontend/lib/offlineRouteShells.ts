@@ -426,21 +426,42 @@ export async function warmPersonalShells(): Promise<void> {
   if (Date.now() - last < WARM_INTERVAL_MS) return;
   isWarmingPersonalShells = true;
 
-  // FIX OFFLINE-WARM-IDLE: even on fast links, defer the warm start
-  // until the browser is idle — never compete with the first paint or
-  // the initial data fetch. requestIdleCallback with a 5s timeout
-  // ensures warming still runs if the page stays busy (e.g. long list
-  // rendering), but the common case (page settles in <1s) wins back
-  // the entire first-3s window for real traffic.
+  // FIX OFFLINE-WARM-HIDDEN: previously deferred to requestIdleCallback
+  // with a 5s deadline — but on 4G/WiFi the net-aware gate above let
+  // it through, and a 5s window was short enough that the warm fired
+  // during the same session as the navigation, still adding ~40KB of
+  // RSC payloads (my-ads / favorites / messages / my-store / analytics
+  // / my-services / products) to a page the user had already finished
+  // reading. Warming is by definition background work the user did not
+  // ask for; the safest time to do it is when the tab is no longer
+  // visible (user switched apps, locked the phone, opened another tab).
+  // Wait for the first hidden/visibilitychange, and give up entirely if
+  // the user stays engaged for 60s without ever leaving — a session
+  // that long implies they are actively using the app, not idly
+  // navigating away.
   await new Promise<void>((resolve) => {
-    const w = window as Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-    };
-    if (typeof w.requestIdleCallback === 'function') {
-      w.requestIdleCallback(() => resolve(), { timeout: 5000 });
-    } else {
-      window.setTimeout(resolve, 1500);
+    if (typeof document === 'undefined') {
+      resolve();
+      return;
     }
+    if (document.visibilityState === 'hidden') {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('visibilitychange', onVis);
+      resolve();
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') settle();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    // Safety valve: resolve after 60s even if the tab stays visible,
+    // so a long session still warms once for the next cold open.
+    window.setTimeout(settle, 60_000);
   });
   // FIX WARM-FALSE-SUCCESS-01: نفس الإصلاح المطبَّق بـwarmRouteShells أعلاه.
   let succeeded = 0;
