@@ -653,6 +653,15 @@ export const adminRateLimit = rateLimit({
 // allowing a spam loop). Prevents a single client from generating
 // hundreds of verification emails to a victim's inbox.
 export const resendVerificationRateLimit = rateLimit({
+  // FIX RESEND-VERIFY-NAT-01: missing keyGenerator meant this limiter
+  // was per-IP only, despite sitting on an authenticated endpoint
+  // (resendVerification is behind `authenticate` — req.user is always
+  // set). On Gaza's carrier-grade NAT, one user retrying 3 times
+  // exhausted the bucket for every other subscriber behind the same
+  // public IPv4 for a full hour. userOrIpKey gives each logged-in user
+  // their own 3/hour budget, matching forgotPasswordRateLimit's shape
+  // as the comment above already claimed it did.
+  keyGenerator: userOrIpKey,
   windowMs: ONE_HOUR_MS,
   max: 3,
   standardHeaders: true,

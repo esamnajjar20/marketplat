@@ -198,8 +198,38 @@ const bootstrap = async (): Promise<void> => {
       });
     };
 
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
+    // FIX SHUTDOWN-SSE-01: server.close() waits for every active
+    // connection to end before firing its callback. The
+    // /notifications/stream SSE endpoint is a long-lived
+    // text/event-stream connection with no natural end, so on a
+    // graceful shutdown Node stayed in server.close() until the 10s
+    // forceTimer fired and killed the process with exit code 1 — every
+    // deploy on Render was paying the full 10s and surfacing as an
+    // unclean shutdown in monitoring. closeIdleConnections() has been
+    // available since Node 18.2; closeAllConnections() is the
+    // documented nuclear option (drops in-flight sockets too). Called
+    // via optional chaining so a Node version without them still runs
+    // — the original forceTimer still bounds the worst case.
+    const drainConnections = (srv: typeof server) => {
+      const withIdle = srv as typeof server & {
+        closeIdleConnections?: () => void;
+        closeAllConnections?: () => void;
+      };
+      withIdle.closeIdleConnections?.();
+      // Give in-flight requests ~3s to finish, then drop everything
+      // (this is what actually ends the SSE stream). Force exit still
+      // guards the case where closeAllConnections itself hangs.
+      setTimeout(() => withIdle.closeAllConnections?.(), 3000).unref();
+    };
+
+    process.on('SIGTERM', () => {
+      drainConnections(server);
+      void shutdown('SIGTERM');
+    });
+    process.on('SIGINT', () => {
+      drainConnections(server);
+      void shutdown('SIGINT');
+    });
     process.on('unhandledRejection', reason => logger.error('Unhandled rejection', reason));
 
     // FIX D-13: previously this called process.exit(1) immediately with

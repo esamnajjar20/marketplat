@@ -162,10 +162,28 @@ export const uploadMultipleMiddleware = (req: Request, res: Response, next: Next
         // FIX UPLOAD-01: these three were bare BadRequestErrors with no
         // code, all falling back to the generic VALIDATION_ERROR
         // message despite each being a distinct, nameable failure.
+        // FIX UPLOAD-ERR-STRING-01: these two used to pass a bare
+        // string to next(), which Express routes to its own "skip to
+        // next handler" path — not the error middleware. The error
+        // middleware only handles Error instances, so a string fell
+        // through to the generic 500 INTERNAL_ERROR, hiding both the
+        // 400 status and the actual reason (too many images) from
+        // the client and generating a false "Unhandled error" Sentry
+        // alert on every over-limit upload attempt.
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
-          return next(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`);
+          return next(
+            new BadRequestError(
+              `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
+              'TOO_MANY_FILES'
+            )
+          );
         if (uploadErr.code === 'LIMIT_FILE_COUNT')
-          return next(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`);
+          return next(
+            new BadRequestError(
+              `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
+              'TOO_MANY_FILES'
+            )
+          );
         if (uploadErr.code === 'LIMIT_FIELD_COUNT')
           return next(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
         return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
