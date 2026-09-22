@@ -87,6 +87,7 @@ export function AdDetailSection({ id }: { id: string }) {
           description="ربما تم حذف هذا الإعلان أو أن الرابط غير صحيح"
           action={
             <Link href={ROUTES.search} className="text-sm text-primary hover:underline">
+            prefetch={false}
               تصفح الإعلانات
             </Link>
           }

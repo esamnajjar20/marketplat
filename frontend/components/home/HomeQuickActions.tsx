@@ -14,6 +14,7 @@ export function HomeQuickActions({ className }: { className?: string }) {
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <Link
           href={ROUTES.savedPayments}
+          prefetch={false}
           className="group flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-3.5 py-3.5 shadow-xs transition-all hover:border-primary/35 hover:shadow-sm active:scale-[0.99] sm:px-4 sm:py-4"
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
@@ -28,6 +29,7 @@ export function HomeQuickActions({ className }: { className?: string }) {
         </Link>
         <Link
           href={ROUTES.downloads}
+          prefetch={false}
           className="group flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-3.5 py-3.5 shadow-xs transition-all hover:border-primary/35 hover:shadow-sm active:scale-[0.99] sm:px-4 sm:py-4"
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">

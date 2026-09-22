@@ -100,6 +100,7 @@ export function RecentAds() {
       </div>
       <div className="flex justify-center">
         <Link href={ROUTES.search}>
+        prefetch={false}
           <Button variant="outline">عرض جميع الإعلانات</Button>
         </Link>
       </div>

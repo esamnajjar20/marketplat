@@ -155,6 +155,7 @@ export function SavedSearchesList() {
         action={
           <div className="flex flex-wrap justify-center gap-2">
             <Link href={ROUTES.search}><Button variant="outline">تصفح الإعلانات</Button></Link>
+            prefetch={false}
             <Link href={ROUTES.products}><Button variant="outline">تصفح المنتجات</Button></Link>
             <Link href={ROUTES.services}><Button variant="outline">تصفح الخدمات</Button></Link>
           </div>
