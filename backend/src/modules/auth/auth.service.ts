@@ -627,6 +627,114 @@ export const authService = {
    * exists (prevents email enumeration). The token would normally be sent via
    * email — log it for now until an email provider is wired up.
    */
+  // ── FEAT-GOOGLE-VERIFY-RESET ────────────────────────────────────
+  // Two helpers used by auth.controller.ts's googleCallback when the
+  // flow was started with ?purpose=verify or ?purpose=reset. Both
+  // operate on the email that Google's extractGoogleProfile() has
+  // already proven to be verified (that function rejects any profile
+  // whose email_verified claim is not exactly true), so reaching here
+  // means Google itself has vouched for this email's ownership.
+
+  /**
+   * Marks the account holding `email` as email-verified. Called when
+   * the user clicks "تأكيد عبر Google" from the verify-email page —
+   * equivalent in effect to clicking the link in the signup email,
+   * without requiring a working outbound email provider.
+   *
+   * Idempotent: an already-verified user gets { alreadyVerified: true }
+   * and the callback redirects to /dashboard without the toast. A
+   * missing account throws UnauthorizedError (not NotFoundError) so
+   * the same catch block in googleCallback handles it as a normal
+   * OAuth failure rather than a 500.
+   *
+   * Deactivated accounts are rejected on the same principle as the
+   * login path: an unverified deactivated user must not be able to
+   * change state by proving Google ownership alone.
+   */
+  verifyEmailViaGoogle: async (email: string): Promise<{ alreadyVerified: boolean }> => {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      throw new UnauthorizedError(
+        'No account found with this email',
+        'GOOGLE_VERIFY_USER_NOT_FOUND',
+      );
+    }
+    if (!user.isActive) {
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+    }
+    if (user.emailVerified) {
+      return { alreadyVerified: true };
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: true, emailVerifiedAt: new Date() },
+    });
+
+    // Drop the cached user so the next request sees the new flag —
+    // same pattern every other state change on User follows (see
+    // issueSession's userCache.set above and loginWithGoogle's link
+    // path).
+    await userCache.invalidate(user.id);
+
+    // Note: auditLog without a dedicated EMAIL_VERIFIED event — falls
+    // back to LOGIN_SUCCESS shape since the enum may not have a
+    // dedicated constant. If a dedicated event exists, swap it here.
+    auditLog({
+      event: AuditEvent.LOGIN_SUCCESS,
+      userId: user.id,
+      ip: 'unknown',
+      userAgent: 'unknown',
+      details: { action: 'email_verified_via_google', provider: 'google' },
+    }).catch(() => {});
+
+    return { alreadyVerified: false };
+  },
+
+  /**
+   * Mints a password-reset token for the account holding `email` and
+   * returns the raw token (to be put in the redirect URL). Mirrors
+   * forgotPassword's token creation exactly (randomBytes(32), 1h
+   * expiry, delete-prior-unused) — the only difference is the delivery
+   * channel: instead of emailing the token, the caller already proved
+   * ownership of the email via Google, so we hand it back inline.
+   *
+   * Returns null (rather than throwing) when there is no active
+   * account, so the callback can redirect to /forgot-password with a
+   * generic error without revealing whether the email exists — same
+   * enumeration protection forgotPassword's timing floor provides.
+   */
+  issueResetTokenViaGoogle: async (email: string): Promise<string | null> => {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user || !user.isActive) {
+      return null;
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Same "at most one live token per user" rule as forgotPassword.
+    await prisma.passwordResetToken.deleteMany({
+      where: { userId: user.id, used: false },
+    });
+
+    await prisma.passwordResetToken.create({
+      data: { token, userId: user.id, expiresAt: expiry },
+    });
+
+    auditLog({
+      event: AuditEvent.LOGIN_SUCCESS,
+      userId: user.id,
+      ip: 'unknown',
+      userAgent: 'unknown',
+      details: { action: 'password_reset_via_google', provider: 'google' },
+    }).catch(() => {});
+
+    return token;
+  },
+
   forgotPassword: async (email: string): Promise<void> => {
     // FIX FORGOT-PASSWORD-TIMING-01: start the clock before the DB
     // lookup so the sleep at the end accounts for whatever time was

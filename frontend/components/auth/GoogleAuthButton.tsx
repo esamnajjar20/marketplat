@@ -58,8 +58,13 @@ export function GoogleAuthButton({ label = 'المتابعة باستخدام Go
   );
 }
 
-/** Standard 4-color Google "G" mark. */
-function GoogleIcon() {
+/**
+ * FEAT-GOOGLE-VERIFY-RESET: exported so the verify-email and
+ * forgot-password pages can render the same button without
+ * duplicating the SVG (see verify-email/page.tsx and
+ * ForgotPasswordForm.tsx).
+ */
+export function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
       <path

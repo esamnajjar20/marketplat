@@ -14,6 +14,7 @@ import {
   generateAndSetOAuthState,
   getOAuthStateFromCookie,
   clearOAuthStateCookie,
+  setOAuthPurpose,
 } from '../../shared/utils/authCookies';
 
 type GoogleProfileDataOrFalse = GoogleProfileData | false;
@@ -216,6 +217,17 @@ authRouter.get(
   // authCookies.ts's generateAndSetOAuthState for the full threat
   // model this closes (OAuth CSRF).
   (req: Request, res: Response, next: NextFunction) => {
+    // FEAT-GOOGLE-VERIFY-RESET: ?purpose=verify asks the callback to
+    // mark the caller's email verified without signing in; ?purpose=reset
+    // asks it to mint a password-reset token and redirect into the
+    // existing /reset-password page. Absent/unknown values fall through
+    // to the original sign-in flow unchanged. The value is stored in a
+    // short-lived httpOnly cookie rather than round-tripped through
+    // Google, so a third party cannot alter the flow mid-consent.
+    const purpose = req.query.purpose;
+    if (purpose === 'verify' || purpose === 'reset') {
+      setOAuthPurpose(res, purpose);
+    }
     const state = generateAndSetOAuthState(res);
     passport.authenticate('google', {
       session: false,

@@ -297,3 +297,41 @@ export function clearOAuthStateCookie(res: Response): void {
     path: OAUTH_STATE_COOKIE_PATH,
   });
 }
+
+// ── OAuth purpose cookie ──────────────────────────────────────────
+// FEAT-GOOGLE-VERIFY-RESET: the same /auth/google + /auth/google/callback
+// endpoints now serve three flows: sign-in (the original), verify the
+// caller's email without signing in, and issue a password-reset token.
+// The flow is selected by a `?purpose=` query param on the initial
+// /auth/google call, mirrored into an httpOnly cookie for the same
+// reason and with the same attributes as OAUTH_STATE above (never read
+// by frontend JS, single-use, cleared on the callback). Kept separate
+// from the state cookie rather than encoded into it so the CSRF check
+// in auth.routes.ts's callback guard stays a plain string comparison
+// (constant-time irrelevant here — both values are 32 random bytes
+// compared for equality, not secrets an attacker can grind).
+const OAUTH_PURPOSE_COOKIE_NAME = 'oauth_purpose';
+
+export function setOAuthPurpose(res: Response, purpose: 'verify' | 'reset'): void {
+  res.cookie(OAUTH_PURPOSE_COOKIE_NAME, purpose, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: OAUTH_STATE_COOKIE_PATH,
+    maxAge: OAUTH_STATE_MAX_AGE_MS,
+  });
+}
+
+export function getOAuthPurpose(req: Request): 'verify' | 'reset' | undefined {
+  const value = req.cookies?.[OAUTH_PURPOSE_COOKIE_NAME];
+  return value === 'verify' || value === 'reset' ? value : undefined;
+}
+
+export function clearOAuthPurpose(res: Response): void {
+  res.clearCookie(OAUTH_PURPOSE_COOKIE_NAME, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: OAUTH_STATE_COOKIE_PATH,
+  });
+}

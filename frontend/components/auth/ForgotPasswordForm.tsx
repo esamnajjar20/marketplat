@@ -7,7 +7,8 @@ import { useForgotPassword } from '@/hooks/mutations/useAuthMutations';
 import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
-import { ROUTES } from '@/lib/constants';
+import { GoogleIcon } from '@/components/auth/GoogleAuthButton';
+import { ROUTES, API_BASE_URL } from '@/lib/constants';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
 
@@ -87,6 +88,29 @@ export function ForgotPasswordForm() {
 
       <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ الإرسال…' : 'إرسال رابط الاسترداد'}
+      </Button>
+
+      {/* FEAT-GOOGLE-VERIFY-RESET: alternative reset path that does
+          not depend on outbound email — the user proves ownership of
+          the account's email by completing a Google OAuth round trip
+          with the same address, and the backend's googleCallback
+          mints a reset token and redirects into /reset-password. Uses
+          a plain <a> for the same top-level-navigation reason
+          documented on GoogleAuthButton. */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-card px-2 text-muted-foreground">أو</span>
+        </div>
+      </div>
+
+      <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-xl">
+        <a href={`${API_BASE_URL}/auth/google?purpose=reset`}>
+          <GoogleIcon />
+          إعادة كلمة السر عبر Google
+        </a>
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">

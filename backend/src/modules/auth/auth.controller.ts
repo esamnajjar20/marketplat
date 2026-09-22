@@ -22,6 +22,8 @@ import {
   clearCsrfCookie,
   setSessionHintCookie,
   clearSessionHintCookie,
+  getOAuthPurpose,
+  clearOAuthPurpose,
 } from '../../shared/utils/authCookies';
 
 import { getClientIp } from '../../shared/utils/getClientIp';
@@ -263,6 +265,46 @@ export const authController = {
         return;
       }
 
+      // FEAT-GOOGLE-VERIFY-RESET: an oauth_purpose cookie (set by
+      // auth.routes.ts when the flow was started with ?purpose=verify
+      // or ?purpose=reset) routes this callback into one of the two
+      // auxiliary flows instead of the default sign-in. Always cleared
+      // here regardless of branch so a replay of the callback URL
+      // cannot re-enter the same purpose — matching the state cookie's
+      // single-use treatment just above.
+      const purpose = getOAuthPurpose(req);
+      clearOAuthPurpose(res);
+
+      const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}`;
+
+      if (purpose === 'verify') {
+        // Google has already proven the email is verified
+        // (extractGoogleProfile only accepts email_verified === true).
+        // Mark the account verified and drop the user on /dashboard
+        // with ?verified=1 so the banner can show a one-shot
+        // confirmation toast; no session is issued.
+        const { alreadyVerified } = await authService.verifyEmailViaGoogle(profile.email);
+        const suffix = alreadyVerified ? '' : '?verified=1';
+        res.redirect(`${base}dashboard${suffix}`);
+        return;
+      }
+
+      if (purpose === 'reset') {
+        // Issue a reset token and hand the user straight to
+        // /reset-password; the token in the URL is the only proof
+        // required, exactly as if they had clicked a link in a reset
+        // email. Null return (no such active account) redirects to a
+        // generic error without revealing whether the email exists.
+        const token = await authService.issueResetTokenViaGoogle(profile.email);
+        if (!token) {
+          res.redirect(`${base}forgot-password?error=email_not_found`);
+          return;
+        }
+        res.redirect(`${base}reset-password?token=${token}&via=google`);
+        return;
+      }
+
+      // Default flow: sign-in (or sign-up), unchanged.
       const result = await authService.loginWithGoogle(profile, getClientIp(req), getUserAgent(req));
       setSessionCookies(res, result.tokens.refreshToken);
 

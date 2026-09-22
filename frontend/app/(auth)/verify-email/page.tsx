@@ -27,6 +27,8 @@ import { ROUTES } from '@/lib/constants';
 import { parseApiError } from '@/lib/errorParser';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { GoogleIcon } from '@/components/auth/GoogleAuthButton';
+import { API_BASE_URL } from '@/lib/constants';
 
 type State =
   | { kind: 'idle' }            // no token in URL
@@ -63,6 +65,32 @@ function VerifyEmailInner() {
           <p className="text-sm text-muted-foreground">
             افتح الرابط الذي أرسلناه إلى بريدك الإلكتروني لتأكيد الحساب.
           </p>
+
+          {/* FEAT-GOOGLE-VERIFY-RESET: alternative verification path
+              that does not depend on outbound email. Goes to the same
+              Google OAuth flow as the sign-in button, but with
+              ?purpose=verify — the backend's googleCallback marks the
+              account verified and redirects back to /dashboard without
+              issuing a session. Uses a plain <a> (not Button onClick)
+              because the OAuth round trip must be a real top-level
+              navigation so the browser follows Google's redirect chain
+              and returns with any cookies the backend sets — same
+              reasoning as GoogleAuthButton's own comment. */}
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-card px-2 text-muted-foreground">أو</span>
+            </div>
+          </div>
+
+          <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-xl">
+            <a href={`${API_BASE_URL}/auth/google?purpose=verify`}>
+              <GoogleIcon />
+              تأكيد بريدي عبر Google
+            </a>
+          </Button>
         </div>
       )}
 
