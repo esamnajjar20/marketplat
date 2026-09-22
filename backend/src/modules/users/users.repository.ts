@@ -197,7 +197,12 @@ export const usersRepository = {
     return updated;
   },
 
-  deleteById: async (id: string): Promise<void> => {
-    await prisma.user.update({ where: { id }, data: { isActive: false } });
-  },
+  // FIX USERS-DEAD-CODE-01: deleteById removed. Full-repo grep
+  // confirmed zero callers — usersService.deleteMe does its own
+  // transaction (anonymize + ad cascade), and authRepository has its
+  // own deleteById for the register-orphan cleanup path. Leaving a
+  // second, subtly-different definition of "delete user" here was a
+  // trap: the next maintainer reaching for it would get a soft
+  // isActive-only flip with none of the anonymization or Cloudinary
+  // cleanup deleteMe now performs.
 };

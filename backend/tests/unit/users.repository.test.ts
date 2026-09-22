@@ -137,14 +137,4 @@ describe('usersRepository', () => {
     });
   });
 
-  describe('deleteById', () => {
-    it('soft-deletes by setting isActive to false', async () => {
-      (prisma.user.update as jest.Mock).mockResolvedValue({ id: userId, isActive: false });
-      await usersRepository.deleteById(userId);
-      expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: userId },
-        data: { isActive: false },
-      });
-    });
-  });
 });
