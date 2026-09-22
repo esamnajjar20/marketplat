@@ -552,7 +552,19 @@ export const env = {
     smtpSecure: _env.SMTP_SECURE ?? false,
     smtpUser: _env.SMTP_USER || '',
     smtpPassword: _env.SMTP_PASSWORD || '',
-    fromEmail: _env.SMTP_FROM_EMAIL || 'no-reply@example.com',
+    // FIX EMAIL-FROM-DEFAULT-01: previously hardcoded to a placeholder
+    // ('no-reply@example.com') when SMTP_FROM_EMAIL was unset, even
+    // when Gmail OAuth or Resend was the active sender. Every message
+    // then went out with a From address no provider recognized.
+    // Now derives from whichever provider is configured:
+    // SMTP_FROM_EMAIL, else GMAIL_USER, else the placeholder — with
+    // the same .trim() cloudinary.apiKey and googleOAuth.clientId
+    // already apply.
+    fromEmail: (
+      _env.SMTP_FROM_EMAIL ||
+      _env.GMAIL_USER ||
+      'no-reply@example.com'
+    ).trim(),
     fromName: _env.SMTP_FROM_NAME || 'سوق غزة',
     // Email sending is considered "configured" only once host+user+password
     // are all present — partial config (e.g. just a from-address) isn't

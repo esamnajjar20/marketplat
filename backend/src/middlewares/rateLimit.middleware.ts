@@ -7,7 +7,8 @@ import type { Request } from 'express';
 // per-IP only. On Gaza mobile carriers (Jawwal/Etisalat), carrier-
 // grade NAT puts hundreds-to-thousands of subscribers behind one
 // public IPv4, so a per-IP budget is effectively a per-tower budget --
-// 10 login attempts per 15 minutes for one IP is a plausible denial
+// even 50 attempts per 15 minutes for one IP (authRateLimit's current
+// max) is a plausible denial
 // of service for the whole tower, not just one attacker. Once a
 // request has been authenticated (req.user set by authMiddleware), we
 // key on userId so every logged-in user gets their own bucket.
@@ -403,7 +404,7 @@ export const startConversationRateLimit = rateLimit({
 // messages has no natural per-resource ceiling, so this is the primary
 // control against flooding another user's inbox. Tighter window (15min)
 // than most create-limits here since a real conversation can legitimately
-// involve many messages in a short burst; 60/15min still comfortably
+// involve many messages in a short burst; 200/15min still comfortably
 // covers that while bounding scripted flooding.
 export const sendMessageRateLimit = rateLimit({
   keyGenerator: userOrIpKey,
@@ -418,7 +419,7 @@ export const sendMessageRateLimit = rateLimit({
 // FIX TYPING-RATE-LIMIT-01: /conversations/:id/typing fires on every
 // keystroke-driven state change (typing=true on first key, typing=false
 // after the debounce), so a real user in a live conversation can
-// legitimately produce more events than sendMessageRateLimit's 60/15min
+// legitimately produce more events than sendMessageRateLimit's 200/15min
 // allows. 600/15min = 40/min average — well above any real typing rate,
 // still tight enough to bound a scripted flood that would otherwise
 // DoS the SSE fan-out on the recipient's stream. Deliberately its own

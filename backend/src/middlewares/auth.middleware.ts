@@ -137,6 +137,34 @@ export const optionalAuthenticate = async (
       next();
       return;
     }
+    // FIX OPTIONAL-AUTH-BLACKLIST-01: this path previously read only
+    // the L1 cache and never consulted Redis, unlike `authenticate`
+    // above. Between a logout (which writes the blacklist key to Redis
+    // and broadcasts the L1 invalidation to every worker) and the
+    // pub/sub message actually landing in this process, the revoked
+    // token stayed accepted on every public-read route — the ad
+    // detail page, the seller profile, the search results — for the
+    // duration of the broadcast latency, with no upper bound if a
+    // worker was partitioned from the pub/sub channel. Same pipeline
+    // check as `authenticate`, but degrading to anonymous on Redis
+    // failure rather than 401: the whole point of this middleware is
+    // to never block public reads, so a Redis blip must not turn
+    // every public page into a login wall for logged-in users.
+    if (localBl === undefined) {
+      try {
+        const revoked = await redis.get(getBlacklistKey(token));
+        if (revoked !== null) {
+          rememberBlacklistL1(token, true);
+          next();
+          return;
+        }
+        rememberBlacklistL1(token, false);
+      } catch {
+        // Redis unavailable — treat as anonymous (do not set req.user).
+        next();
+        return;
+      }
+    }
     const localUser = userCache.peek(payload.userId);
     if (localUser && localUser.isActive) {
       req.user = { ...payload, role: localUser.role };
