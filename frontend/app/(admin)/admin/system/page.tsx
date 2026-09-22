@@ -22,22 +22,22 @@ export default function AdminSystemPage() {
         <h2 className="font-semibold">روابط سريعة</h2>
         <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           <li>
-            <Link href={ROUTES.admin.auditLogs} className="text-primary hover:underline">
+            <Link prefetch={false} href={ROUTES.admin.auditLogs} className="text-primary hover:underline">
               سجل العمليات
             </Link>
           </li>
           <li>
-            <Link href={ROUTES.admin.analytics} className="text-primary hover:underline">
+            <Link prefetch={false} href={ROUTES.admin.analytics} className="text-primary hover:underline">
               التحليلات
             </Link>
           </li>
           <li>
-            <Link href={ROUTES.admin.notifications} className="text-primary hover:underline">
+            <Link prefetch={false} href={ROUTES.admin.notifications} className="text-primary hover:underline">
               إدارة الإشعارات
             </Link>
           </li>
           <li>
-            <Link href={ROUTES.admin.fraud} className="text-primary hover:underline">
+            <Link prefetch={false} href={ROUTES.admin.fraud} className="text-primary hover:underline">
               مكافحة الاحتيال
             </Link>
           </li>

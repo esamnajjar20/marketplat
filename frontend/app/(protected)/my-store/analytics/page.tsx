@@ -17,12 +17,12 @@ export default function MyStoreAnalyticsPage() {
         <h1 className="text-xl font-bold">إحصائيات المتجر</h1>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" asChild className="gap-1.5 font-semibold">
-            <Link href={ROUTES.myStoreProductCreate}>
+            <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
               <PackagePlus className="h-4 w-4" />إضافة منتج
             </Link>
           </Button>
           <Button size="sm" variant="outline" asChild className="gap-1.5">
-            <Link href={ROUTES.myStoreProducts}>
+            <Link prefetch={false} href={ROUTES.myStoreProducts}>
               <Package className="h-4 w-4" />إدارة منتجاتي
             </Link>
           </Button>

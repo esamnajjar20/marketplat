@@ -14,7 +14,7 @@ export default function MyServiceProviderAnalyticsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-xl font-bold">إحصائيات مقدم الخدمة</h1>
-        <Link href={ROUTES.myServices}>
+        <Link prefetch={false} href={ROUTES.myServices}>
           <Button size="sm" variant="outline" className="gap-1.5">
             <Wrench className="h-4 w-4" />خدماتي
           </Button>

@@ -14,7 +14,7 @@ export default function MyAdsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">إعلاناتي</h1>
-        <Link href={ROUTES.adCreate}>
+        <Link prefetch={false} href={ROUTES.adCreate}>
           <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />إعلان جديد</Button>
         </Link>
       </div>

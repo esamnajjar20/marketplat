@@ -15,16 +15,16 @@ export default function MyStoreProductsPage() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-xl font-bold">منتجاتي</h1>
         <div className="flex gap-2">
-          <Link href={ROUTES.myStore}>
+          <Link prefetch={false} href={ROUTES.myStore}>
             <Button size="sm" variant="outline" className="gap-1.5"><Store className="h-4 w-4" />إعدادات المتجر</Button>
           </Link>
-          <Link href={ROUTES.myStoreCollections}>
+          <Link prefetch={false} href={ROUTES.myStoreCollections}>
             <Button size="sm" variant="outline" className="gap-1.5"><Layers className="h-4 w-4" />المجموعات</Button>
           </Link>
-          <Link href={ROUTES.myStorePromotions}>
+          <Link prefetch={false} href={ROUTES.myStorePromotions}>
             <Button size="sm" variant="outline" className="gap-1.5"><Tag className="h-4 w-4" />العروض</Button>
           </Link>
-          <Link href={ROUTES.myStoreProductCreate}>
+          <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
             <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />منتج جديد</Button>
           </Link>
         </div>

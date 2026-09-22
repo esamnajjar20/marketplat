@@ -16,8 +16,7 @@ export default function MyStoreMembersPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Link
-          href={ROUTES.myStore}
+        <Link prefetch={false} href={ROUTES.myStore}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowRight className="h-3.5 w-3.5" />

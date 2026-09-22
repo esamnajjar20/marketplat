@@ -14,7 +14,7 @@ export default function MyStorePromotionsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-xl font-bold">العروض</h1>
-        <Link href={ROUTES.myStoreProducts}>
+        <Link prefetch={false} href={ROUTES.myStoreProducts}>
           <Button size="sm" variant="outline" className="gap-1.5">
             <Package className="h-4 w-4" />منتجاتي
           </Button>
