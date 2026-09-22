@@ -48,6 +48,27 @@ export function useCategories() {
   });
 }
 
+/**
+ * FIX ADMIN-CATEGORIES-FRESH-01: admin tree — live, uncached, with
+ * _count.ads. staleTime:0 matches the sibling admin hooks
+ * (useServiceCategoriesForAdmin, useProductCategoriesForAdmin) so
+ * every mount and focus refetches; the backend already guarantees
+ * no server-side cache (CACHE.NONE) so this just avoids the
+ * client-side staleness window on top of it.
+ *
+ * Not backed by the offline list cache that useCategories uses:
+ * that slot is populated by the public tree, and an admin working
+ * offline seeing yesterday's categories would be more misleading
+ * than seeing an explicit loading/error state.
+ */
+export function useCategoriesForAdmin() {
+  return useQuery({
+    queryKey: queryKeys.categories.adminAll(),
+    queryFn: () => categoriesApi.getAllForAdmin().then((r) => r.data.data),
+    staleTime: 0,
+  });
+}
+
 /** Single category by slug. */
 export function useCategoryBySlug(slug: string) {
   return useQuery({

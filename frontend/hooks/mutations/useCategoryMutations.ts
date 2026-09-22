@@ -21,7 +21,11 @@ export function useCreateCategory() {
     mutationFn: (payload: CreateCategoryPayload) =>
       categoriesApi.create(payload).then((r) => r.data.data),
     onSuccess: () => {
+      // FIX ADMIN-CATEGORIES-FRESH-01: invalidate the admin key too —
+      // without it, the admin tree (which reads from adminAll) would
+      // not refresh after a create, even though the public tree did.
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.adminAll() });
       toast.success('تم إنشاء الفئة');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -35,7 +39,9 @@ export function useUpdateCategory(id: string) {
     mutationFn: (payload: UpdateCategoryPayload) =>
       categoriesApi.update(id, payload).then((r) => r.data.data),
     onSuccess: () => {
+      // FIX ADMIN-CATEGORIES-FRESH-01: see useCreateCategory.
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.adminAll() });
       toast.success('تم حفظ التعديلات');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -48,7 +54,9 @@ export function useDeleteCategory() {
   return useMutation({
     mutationFn: (id: string) => categoriesApi.delete(id),
     onSuccess: () => {
+      // FIX ADMIN-CATEGORIES-FRESH-01: see useCreateCategory.
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.adminAll() });
       toast.success('تم حذف الفئة');
     },
     onError: (err) => toast.error(parseApiError(err).message),

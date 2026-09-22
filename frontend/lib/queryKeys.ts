@@ -243,6 +243,12 @@ export const queryKeys = {
     all:  ()             => ['categories']           as const,
     slug: (slug: string) => ['categories', 'slug', slug] as const,
     id:   (id: string)   => ['categories', 'id', id]    as const,
+    // FIX ADMIN-CATEGORIES-FRESH-01: separate key from `all` above
+    // — admin.all() includes _count.ads and is never cached
+    // server-side (see categories.service.ts's
+    // getCategoriesForAdmin). Same convention as
+    // serviceCategories.adminAll / productCategories.adminAll.
+    adminAll: ()         => ['categories', 'admin-all'] as const,
   },
 
   // ── Favorites ──────────────────────────────────────────────────

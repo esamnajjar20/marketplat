@@ -33,6 +33,18 @@ export const categoriesApi = {
 
   // ── Admin operations ─────────────────────────────────────────────
 
+  /**
+   * FIX ADMIN-CATEGORIES-FRESH-01: GET /categories/admin/all — the
+   * live, uncached tree with _count.ads at both levels. Returns the
+   * same Category[] shape as getAll() but with counts populated and
+   * no server-side caching (CACHE.NONE + no Redis); used by
+   * AdminCategoriesTree so an admin who edits a category sees the
+   * change without waiting up to an hour for the public Redis cache
+   * to expire.
+   */
+  getAllForAdmin: () =>
+    apiClient.get<ApiResponse<Category[]>>('/categories/admin/all'),
+
   create: (payload: CreateCategoryPayload) =>
     apiClient.post<ApiResponse<Category>>('/categories', payload),
 
