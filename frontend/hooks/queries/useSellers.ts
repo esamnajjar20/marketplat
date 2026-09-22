@@ -75,6 +75,16 @@ export function useMySellerProfile() {
       }
     },
     staleTime: CACHE_TTL.sellerProfile,
+    // HYDRATION-DEDUP: without this, every mount of a component that
+    // reads useMySellerProfile (SellerVerificationBanner,
+    // BecomeStoreOwnerCard, BecomeServiceProviderCard, OnboardingChecklist)
+    // fired its own fetch of /sellers/me/profile before the cache was
+    // populated — a mount race that showed up as profile x2 in the
+    // Network panel on every protected route. Fresh data is still
+    // fetched on a genuinely cold cache; re-mounts read the cache
+    // instead of refetching. Explicit invalidation from
+    // useSellerMutations still triggers an update after edits.
+    refetchOnMount: false,
     enabled: isAuthenticated,
     retry: false,
   });

@@ -172,6 +172,13 @@ export function useUnreadConversationCount() {
     staleTime: CACHE_TTL.conversationUnreadCount,
     refetchInterval: () =>
       pollingInterval(CACHE_TTL.conversationUnreadCount, 3),
+    // HYDRATION-DEDUP: ProtectedSidebar and MessagesLink (desktop) and
+    // BottomNav (mobile) all mount this hook on protected routes.
+    // Without this flag each one fetched independently before the cache
+    // had a value, showing unread-count x2 on every load. The
+    // refetchInterval below still refreshes the value periodically; the
+    // /notifications SSE channel still invalidates on new messages.
+    refetchOnMount: false,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
 }

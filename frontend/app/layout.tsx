@@ -189,7 +189,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AppProviders nonce={nonce}>
           <WebVitals />
           <ErudaDebug />
-          <ErudaDebug />
           <DeferredFonts />
         {children}
         </AppProviders>
