@@ -33,7 +33,7 @@
 // smoke test that's supposed to need zero backend secrets fail before
 // it even makes a request. Same class of exception as instrument.ts's
 // own documented reason for bypassing env.ts.
-const BASE_URL = process.env.SMOKE_TEST_BASE_URL || "http://localhost:5000";
+const BASE_URL = process.env.SMOKE_TEST_BASE_URL || 'http://localhost:5000';
 const TIMEOUT_MS = 10_000;
 
 interface Check {
@@ -41,10 +41,7 @@ interface Check {
   run: () => Promise<void>;
 }
 
-async function fetchWithTimeout(
-  url: string,
-  timeoutMs: number,
-): Promise<Response> {
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -58,7 +55,7 @@ const checks: Check[] = [
   {
     // Liveness — matches health.routes.ts's /health: process is up,
     // no dependency checks. If this fails, nothing else will pass either.
-    name: "GET /health returns 200",
+    name: 'GET /health returns 200',
     run: async () => {
       const res = await fetchWithTimeout(`${BASE_URL}/health`, TIMEOUT_MS);
       if (!res.ok) throw new Error(`Expected 200, got ${res.status}`);
@@ -68,11 +65,11 @@ const checks: Check[] = [
     // Readiness — actually checks Postgres + Redis connectivity
     // (see healthCache.ts / health.routes.ts), the real "is this
     // deployment usable" signal, not just "is the process alive."
-    name: "GET /ready returns 200 (DB + Redis reachable)",
+    name: 'GET /ready returns 200 (DB + Redis reachable)',
     run: async () => {
       const res = await fetchWithTimeout(`${BASE_URL}/ready`, TIMEOUT_MS);
       if (!res.ok) {
-        const body = await res.text().catch(() => "<unreadable body>");
+        const body = await res.text().catch(() => '<unreadable body>');
         throw new Error(`Expected 200, got ${res.status}. Body: ${body}`);
       }
     },
@@ -81,18 +78,13 @@ const checks: Check[] = [
     // A real, unauthenticated, read-only API route — confirms the
     // Express app + Prisma + the ads module's query path all actually
     // work end-to-end, not just that the process is listening.
-    name: "GET /api/v1/ads returns a paginated list",
+    name: 'GET /api/v1/ads returns a paginated list',
     run: async () => {
-      const res = await fetchWithTimeout(
-        `${BASE_URL}/api/v1/ads?page=1&limit=1`,
-        TIMEOUT_MS,
-      );
+      const res = await fetchWithTimeout(`${BASE_URL}/api/v1/ads?page=1&limit=1`, TIMEOUT_MS);
       if (!res.ok) throw new Error(`Expected 200, got ${res.status}`);
       const body = (await res.json()) as { success?: boolean; data?: unknown };
       if (body.success !== true) {
-        throw new Error(
-          `Expected success:true in response body, got: ${JSON.stringify(body)}`,
-        );
+        throw new Error(`Expected success:true in response body, got: ${JSON.stringify(body)}`);
       }
     },
   },
@@ -100,12 +92,9 @@ const checks: Check[] = [
     // Categories are read on nearly every page (AdForm's category
     // <select>, CategoryGrid) — a broken categories endpoint would
     // break the frontend even if /api/v1/ads itself were fine.
-    name: "GET /api/v1/categories returns a category tree",
+    name: 'GET /api/v1/categories returns a category tree',
     run: async () => {
-      const res = await fetchWithTimeout(
-        `${BASE_URL}/api/v1/categories`,
-        TIMEOUT_MS,
-      );
+      const res = await fetchWithTimeout(`${BASE_URL}/api/v1/categories`, TIMEOUT_MS);
       if (!res.ok) throw new Error(`Expected 200, got ${res.status}`);
     },
   },
@@ -115,16 +104,11 @@ const checks: Check[] = [
     // rejected with 401, not 500 (which would mean the auth stack
     // itself is broken) or 200 (which would mean auth isn't enforced
     // at all — far worse).
-    name: "GET /api/v1/ads/me without a token returns 401 (auth enforced)",
+    name: 'GET /api/v1/ads/me without a token returns 401 (auth enforced)',
     run: async () => {
-      const res = await fetchWithTimeout(
-        `${BASE_URL}/api/v1/ads/me`,
-        TIMEOUT_MS,
-      );
+      const res = await fetchWithTimeout(`${BASE_URL}/api/v1/ads/me`, TIMEOUT_MS);
       if (res.status !== 401) {
-        throw new Error(
-          `Expected 401 (auth should be enforced), got ${res.status}`,
-        );
+        throw new Error(`Expected 401 (auth should be enforced), got ${res.status}`);
       }
     },
   },
@@ -148,22 +132,18 @@ async function main(): Promise<void> {
     }
   }
 
-  const failed = results.filter((r) => !r.ok);
-  console.log(
-    `\n${results.length - failed.length}/${results.length} checks passed`,
-  );
+  const failed = results.filter(r => !r.ok);
+  console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
 
   if (failed.length > 0) {
-    console.error(
-      `\n${failed.length} smoke test(s) failed — deployment is likely unhealthy.`,
-    );
+    console.error(`\n${failed.length} smoke test(s) failed — deployment is likely unhealthy.`);
     process.exit(1);
   }
 
-  console.log("\nAll smoke tests passed.");
+  console.log('\nAll smoke tests passed.');
 }
 
-main().catch((err) => {
-  console.error("Smoke test runner crashed unexpectedly:", err);
+main().catch(err => {
+  console.error('Smoke test runner crashed unexpectedly:', err);
   process.exit(1);
 });

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from 'express';
 
 /**
  * Sets Cache-Control headers for public, cacheable responses.
@@ -12,7 +12,7 @@ export const cacheControl =
   (_req: Request, res: Response, next: NextFunction): void => {
     const directives = [`public`, `max-age=${maxAge}`];
     if (swr) directives.push(`stale-while-revalidate=${swr}`);
-    res.setHeader("Cache-Control", directives.join(", "));
+    res.setHeader('Cache-Control', directives.join(', '));
     // FIX CACHE-VARY-01: every `public` response must key its cache on
     // the Authorization header. Without this, a shared cache (browser
     // on a family/cafe device, a caching corporate proxy, or a
@@ -32,7 +32,7 @@ export const cacheControl =
     // computed for the current viewer). It does NOT fragment per
     // distinct token, so CDN efficiency for the anonymous case (the
     // overwhelming majority of these routes' traffic) is unchanged.
-    res.setHeader("Vary", "Authorization");
+    res.setHeader('Vary', 'Authorization');
     next();
   };
 
@@ -46,7 +46,7 @@ export const CACHE = {
   MEDIUM: cacheControl(120, 60),
   // No cache: authenticated or mutating routes
   NONE: (_req: Request, res: Response, next: NextFunction): void => {
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader('Cache-Control', 'no-store');
     next();
   },
 };

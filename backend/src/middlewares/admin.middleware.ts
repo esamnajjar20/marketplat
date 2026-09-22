@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from "express";
-import { ForbiddenError } from "../shared/errors/ForbiddenError";
-import { ROLE_RANK, Role, isAdminTier } from "../shared/constants/roles";
+import { Request, Response, NextFunction } from 'express';
+import { ForbiddenError } from '../shared/errors/ForbiddenError';
+import { ROLE_RANK, Role, isAdminTier } from '../shared/constants/roles';
 
 /**
  * requireAdmin — unchanged behavior, kept for existing call sites that
@@ -11,18 +11,10 @@ import { ROLE_RANK, Role, isAdminTier } from "../shared/constants/roles";
  * — isn't accidentally locked out of routes still gated by this
  * function specifically.
  */
-export const requireAdmin = (
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): void => {
+export const requireAdmin = (req: Request, _res: Response, next: NextFunction): void => {
   const role = req.user?.role;
-  if (
-    !role ||
-    !(role in ROLE_RANK) ||
-    ROLE_RANK[role as Role] < ROLE_RANK.ADMIN
-  ) {
-    return next(new ForbiddenError("Admin access required"));
+  if (!role || !(role in ROLE_RANK) || ROLE_RANK[role as Role] < ROLE_RANK.ADMIN) {
+    return next(new ForbiddenError('Admin access required'));
   }
   next();
 };
@@ -40,11 +32,7 @@ export const requireMinRole =
   (minRole: Role) =>
   (req: Request, _res: Response, next: NextFunction): void => {
     const role = req.user?.role;
-    if (
-      !role ||
-      !(role in ROLE_RANK) ||
-      ROLE_RANK[role as Role] < ROLE_RANK[minRole]
-    ) {
+    if (!role || !(role in ROLE_RANK) || ROLE_RANK[role as Role] < ROLE_RANK[minRole]) {
       return next(new ForbiddenError(`${minRole} access or higher required`));
     }
     next();
@@ -53,14 +41,10 @@ export const requireMinRole =
 /** Gate for "any admin-tier role" (MODERATOR/ADMIN/SUPER_ADMIN) — used
  * where a route has no finer-grained requirement than "logged in as
  * some kind of admin", e.g. a shared landing/summary endpoint. */
-export const requireAnyAdminTier = (
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): void => {
+export const requireAnyAdminTier = (req: Request, _res: Response, next: NextFunction): void => {
   const role = req.user?.role;
   if (!role || !isAdminTier(role)) {
-    return next(new ForbiddenError("Admin access required"));
+    return next(new ForbiddenError('Admin access required'));
   }
   next();
 };

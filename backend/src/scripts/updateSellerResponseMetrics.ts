@@ -44,8 +44,8 @@
  *   npm run build && npm run report:seller-response-metrics
  * (mirrors weeklyAdViewsReport.ts's build-then-run convention.)
  */
-import { PrismaClient } from "@prisma/client";
-import { logger } from "../shared/utils/logger";
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../shared/utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -67,9 +67,7 @@ interface SellerResponseAgg {
  * fold them in memory.
  */
 async function computeSellerResponseAggregates(): Promise<SellerResponseAgg[]> {
-  const windowStart = new Date(
-    Date.now() - RESPONSE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
-  );
+  const windowStart = new Date(Date.now() - RESPONSE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
   return prisma.$queryRaw<SellerResponseAgg[]>`
     WITH first_buyer_msg AS (
@@ -111,9 +109,7 @@ async function main(): Promise<void> {
   const aggregates = await computeSellerResponseAggregates();
 
   if (aggregates.length === 0) {
-    logger.info(
-      "[updateSellerResponseMetrics] nothing to update — no conversations in window",
-    );
+    logger.info('[updateSellerResponseMetrics] nothing to update — no conversations in window');
     return;
   }
 
@@ -146,21 +142,19 @@ async function main(): Promise<void> {
       // exist (ensureSellerProfileForAdCreation gates ad creation on
       // one), but a stale/orphaned conversation from before that gate
       // existed must not abort the whole run.
-      logger.error("[updateSellerResponseMetrics] failed to update seller", {
+      logger.error('[updateSellerResponseMetrics] failed to update seller', {
         err,
         sellerId: row.sellerId,
       });
     }
   }
 
-  logger.info(
-    `[updateSellerResponseMetrics] updated ${updated}/${aggregates.length} seller(s)`,
-  );
+  logger.info(`[updateSellerResponseMetrics] updated ${updated}/${aggregates.length} seller(s)`);
 }
 
 main()
-  .catch((err) => {
-    logger.error("[updateSellerResponseMetrics] run failed", err);
+  .catch(err => {
+    logger.error('[updateSellerResponseMetrics] run failed', err);
     process.exitCode = 1;
   })
   .finally(async () => {

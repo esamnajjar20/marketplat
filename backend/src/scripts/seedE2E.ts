@@ -24,8 +24,8 @@
  * so re-running doesn't create duplicate categories/admin users or
  * fail on unique-constraint conflicts from a previous run.
  */
-import { PrismaClient } from "@prisma/client";
-import { hashPassword } from "../shared/utils/hash";
+import { PrismaClient } from '@prisma/client';
+import { hashPassword } from '../shared/utils/hash';
 
 const prisma = new PrismaClient();
 
@@ -35,8 +35,8 @@ const DB_NAME_SAFETY_PATTERN = /test|e2e/i;
 // (see e2e/fixtures/seed-data.ts on the frontend side, which MUST be
 // kept in sync with the literals here). Never used outside a
 // throwaway E2E database, so there's no real secret to protect.
-export const E2E_ADMIN_EMAIL = "e2e-admin@example.test";
-export const E2E_ADMIN_PASSWORD = "E2eAdminPass123!";
+export const E2E_ADMIN_EMAIL = 'e2e-admin@example.test';
+export const E2E_ADMIN_PASSWORD = 'E2eAdminPass123!';
 
 // A minimal, fixed category tree — enough for AdForm's category
 // <select> (parent + one child, exercising the optgroup rendering) and
@@ -44,15 +44,15 @@ export const E2E_ADMIN_PASSWORD = "E2eAdminPass123!";
 // seeding all 8+ real production categories.
 const E2E_CATEGORIES = [
   {
-    name: "Vehicles",
-    nameAr: "مركبات",
-    slug: "e2e-vehicles",
-    children: [{ name: "Cars", nameAr: "سيارات", slug: "e2e-cars" }],
+    name: 'Vehicles',
+    nameAr: 'مركبات',
+    slug: 'e2e-vehicles',
+    children: [{ name: 'Cars', nameAr: 'سيارات', slug: 'e2e-cars' }],
   },
   {
-    name: "Real Estate",
-    nameAr: "عقارات",
-    slug: "e2e-real-estate",
+    name: 'Real Estate',
+    nameAr: 'عقارات',
+    slug: 'e2e-real-estate',
     children: [],
   },
 ];
@@ -66,16 +66,16 @@ async function assertSafeDatabase(): Promise<void> {
   // be present in that same shell or the script fails at import time
   // before this safety check even runs. Same class of exception as
   // instrument.ts's own documented reason for bypassing env.ts.
-  const url = process.env.DATABASE_URL ?? "";
+  const url = process.env.DATABASE_URL ?? '';
   const dbNameMatch = url.match(/\/([^/?]+)(\?|$)/);
-  const dbName = dbNameMatch?.[1] ?? "";
+  const dbName = dbNameMatch?.[1] ?? '';
 
   if (!DB_NAME_SAFETY_PATTERN.test(dbName)) {
     throw new Error(
       `Refusing to seed: DATABASE_URL's database name ("${dbName}") does not ` +
         `contain "test" or "e2e". This script is only safe to run against a ` +
         `throwaway E2E database — point DATABASE_URL at one (e.g. ` +
-        `classifieds_e2e) before running this.`,
+        `classifieds_e2e) before running this.`
     );
   }
 }
@@ -85,12 +85,12 @@ async function seedAdmin(): Promise<void> {
 
   await prisma.user.upsert({
     where: { email: E2E_ADMIN_EMAIL },
-    update: { role: "ADMIN", isActive: true, passwordHash },
+    update: { role: 'ADMIN', isActive: true, passwordHash },
     create: {
-      name: "E2E Admin",
+      name: 'E2E Admin',
       email: E2E_ADMIN_EMAIL,
       passwordHash,
-      role: "ADMIN",
+      role: 'ADMIN',
       isActive: true,
     },
   });
@@ -132,9 +132,9 @@ async function main(): Promise<void> {
 }
 
 main()
-  .catch((err) => {
+  .catch(err => {
     // eslint-disable-next-line no-console
-    console.error("[seedE2E] failed:", err);
+    console.error('[seedE2E] failed:', err);
     process.exitCode = 1;
   })
   .finally(async () => {

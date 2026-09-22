@@ -20,5 +20,14 @@
     "prettier/prettier": "error"
   },
   "env": { "node": true, "es2020": true },
+  "overrides": [
+    {
+      "files": ["src/scripts/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "no-console": "off"
+      }
+    }
+  ],
   "ignorePatterns": ["dist/", "node_modules/", "jest.config.ts"]
 }

@@ -1,11 +1,8 @@
-import { v2 as cloudinary } from "cloudinary";
-import { env } from "./env";
-import { logger } from "../shared/utils/logger";
-import {
-  CircuitBreaker,
-  CircuitBreakerOpenError,
-} from "../shared/utils/circuitBreaker";
-import { ServiceUnavailableError } from "../shared/errors/ServiceUnavailableError";
+import { v2 as cloudinary } from 'cloudinary';
+import { env } from './env';
+import { logger } from '../shared/utils/logger';
+import { CircuitBreaker, CircuitBreakerOpenError } from '../shared/utils/circuitBreaker';
+import { ServiceUnavailableError } from '../shared/errors/ServiceUnavailableError';
 
 cloudinary.config({
   cloud_name: env.cloudinary.cloudName,
@@ -51,15 +48,11 @@ const DELETE_TIMEOUT_MS = 10_000;
 class CloudinaryTimeoutError extends Error {
   constructor(operation: string, timeoutMs: number) {
     super(`Cloudinary ${operation} timed out after ${timeoutMs}ms`);
-    this.name = "CloudinaryTimeoutError";
+    this.name = 'CloudinaryTimeoutError';
   }
 }
 
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  operation: string,
-): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new CloudinaryTimeoutError(operation, timeoutMs));
@@ -68,14 +61,14 @@ function withTimeout<T>(
     timer.unref();
 
     promise.then(
-      (value) => {
+      value => {
         clearTimeout(timer);
         resolve(value);
       },
-      (err) => {
+      err => {
         clearTimeout(timer);
         reject(err);
-      },
+      }
     );
   });
 }
@@ -100,21 +93,18 @@ function withTimeout<T>(
  * in-flight at once, not just how long any one of them can take.
  */
 const uploadBreaker = new CircuitBreaker({
-  name: "cloudinary-upload",
+  name: 'cloudinary-upload',
   failureThreshold: 5,
   resetTimeoutMs: 30_000,
 });
 
 const deleteBreaker = new CircuitBreaker({
-  name: "cloudinary-delete",
+  name: 'cloudinary-delete',
   failureThreshold: 5,
   resetTimeoutMs: 30_000,
 });
 
-export const uploadImage = async (
-  buffer: Buffer,
-  folder: string,
-): Promise<UploadResult> => {
+export const uploadImage = async (buffer: Buffer, folder: string): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
@@ -124,14 +114,14 @@ export const uploadImage = async (
               folder: `classifieds/${folder}`,
               timeout: UPLOAD_TIMEOUT_MS,
               transformation: [
-                { width: 1200, height: 800, crop: "limit" },
-                { quality: "auto:good" },
-                { format: "webp" },
+                { width: 1200, height: 800, crop: 'limit' },
+                { quality: 'auto:good' },
+                { format: 'webp' },
               ],
             },
             (error, result) => {
               if (error || !result) {
-                logger.error("Cloudinary upload_stream returned an error", {
+                logger.error('Cloudinary upload_stream returned an error', {
                   folder,
                   cloudinaryError: error
                     ? {
@@ -139,29 +129,23 @@ export const uploadImage = async (
                         name: error.name,
                         http_code: (error as { http_code?: number }).http_code,
                       }
-                    : "no error object, but no result either",
+                    : 'no error object, but no result either',
                 });
                 return reject(
-                  new Error(
-                    `Image upload failed: ${error?.message ?? "no result from Cloudinary"}`,
-                  ),
+                  new Error(`Image upload failed: ${error?.message ?? 'no result from Cloudinary'}`)
                 );
               }
               resolve({ url: result.secure_url, publicId: result.public_id });
-            },
+            }
           )
           .end(buffer);
       });
 
       try {
-        return await withTimeout(
-          uploadPromise,
-          UPLOAD_TIMEOUT_MS,
-          "image upload",
-        );
+        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'image upload');
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
-          logger.error("Cloudinary upload timed out", {
+          logger.error('Cloudinary upload timed out', {
             folder,
             timeoutMs: UPLOAD_TIMEOUT_MS,
           });
@@ -169,13 +153,13 @@ export const uploadImage = async (
         throw err;
       }
     })
-    .catch((err) => {
+    .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
-        logger.error("Cloudinary upload rejected — circuit breaker is open", {
+        logger.error('Cloudinary upload rejected — circuit breaker is open', {
           folder,
         });
         throw new ServiceUnavailableError(
-          "Image upload is temporarily unavailable, please try again shortly",
+          'Image upload is temporarily unavailable, please try again shortly'
         );
       }
       throw err;
@@ -200,59 +184,53 @@ export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
         cloudinary.uploader
           .upload_stream(
             {
-              folder: "classifieds/avatars",
+              folder: 'classifieds/avatars',
               timeout: UPLOAD_TIMEOUT_MS,
               transformation: [
-                { width: 400, height: 400, crop: "fill", gravity: "face" },
-                { quality: "auto:good" },
-                { format: "webp" },
+                { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+                { quality: 'auto:good' },
+                { format: 'webp' },
               ],
             },
             (error, result) => {
               if (error || !result) {
-                logger.error("Cloudinary avatar upload returned an error", {
+                logger.error('Cloudinary avatar upload returned an error', {
                   cloudinaryError: error
                     ? {
                         message: error.message,
                         name: error.name,
                         http_code: (error as { http_code?: number }).http_code,
                       }
-                    : "no error object, but no result either",
+                    : 'no error object, but no result either',
                 });
                 return reject(
                   new Error(
-                    `Avatar upload failed: ${error?.message ?? "no result from Cloudinary"}`,
-                  ),
+                    `Avatar upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  )
                 );
               }
               resolve({ url: result.secure_url, publicId: result.public_id });
-            },
+            }
           )
           .end(buffer);
       });
 
       try {
-        return await withTimeout(
-          uploadPromise,
-          UPLOAD_TIMEOUT_MS,
-          "avatar upload",
-        );
+        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'avatar upload');
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
-          logger.error("Cloudinary avatar upload timed out", {
+          logger.error('Cloudinary avatar upload timed out', {
             timeoutMs: UPLOAD_TIMEOUT_MS,
           });
         }
         throw err;
       }
     })
-    .catch((err) => {
+    .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
-        logger.error(
-          "Cloudinary avatar upload rejected — circuit breaker is open",
-        );
+        logger.error('Cloudinary avatar upload rejected — circuit breaker is open');
         throw new ServiceUnavailableError(
-          "Avatar upload is temporarily unavailable, please try again shortly",
+          'Avatar upload is temporarily unavailable, please try again shortly'
         );
       }
       throw err;
@@ -267,68 +245,60 @@ export const uploadAvatar = async (buffer: Buffer): Promise<UploadResult> => {
  * photo, so a face-aware crop would misbehave on the common case of
  * a logo with no face in it at all.
  */
-export const uploadStoreLogo = async (
-  buffer: Buffer,
-): Promise<UploadResult> => {
+export const uploadStoreLogo = async (buffer: Buffer): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
         cloudinary.uploader
           .upload_stream(
             {
-              folder: "classifieds/store-logos",
+              folder: 'classifieds/store-logos',
               timeout: UPLOAD_TIMEOUT_MS,
               transformation: [
-                { width: 400, height: 400, crop: "fill" },
-                { quality: "auto:good" },
-                { format: "webp" },
+                { width: 400, height: 400, crop: 'fill' },
+                { quality: 'auto:good' },
+                { format: 'webp' },
               ],
             },
             (error, result) => {
               if (error || !result) {
-                logger.error("Cloudinary store logo upload returned an error", {
+                logger.error('Cloudinary store logo upload returned an error', {
                   cloudinaryError: error
                     ? {
                         message: error.message,
                         name: error.name,
                         http_code: (error as { http_code?: number }).http_code,
                       }
-                    : "no error object, but no result either",
+                    : 'no error object, but no result either',
                 });
                 return reject(
                   new Error(
-                    `Store logo upload failed: ${error?.message ?? "no result from Cloudinary"}`,
-                  ),
+                    `Store logo upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  )
                 );
               }
               resolve({ url: result.secure_url, publicId: result.public_id });
-            },
+            }
           )
           .end(buffer);
       });
 
       try {
-        return await withTimeout(
-          uploadPromise,
-          UPLOAD_TIMEOUT_MS,
-          "store logo upload",
-        );
+        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'store logo upload');
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
-          logger.error("Cloudinary store logo upload timed out", {
+          logger.error('Cloudinary store logo upload timed out', {
             timeoutMs: UPLOAD_TIMEOUT_MS,
           });
         }
         throw err;
       }
     })
-    .catch((err) => {
+    .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
-        logger.error(
-          "Cloudinary store logo upload rejected — circuit breaker is open",
-        );
+        logger.error('Cloudinary store logo upload rejected — circuit breaker is open');
         throw new ServiceUnavailableError(
-          "Image upload is temporarily unavailable, please try again shortly",
+          'Image upload is temporarily unavailable, please try again shortly'
         );
       }
       throw err;
@@ -339,72 +309,60 @@ export const uploadStoreLogo = async (
  * uploadStoreCover — wide banner crop for StoreHeader's cover photo,
  * same mechanism as uploadStoreLogo/uploadAvatar otherwise.
  */
-export const uploadStoreCover = async (
-  buffer: Buffer,
-): Promise<UploadResult> => {
+export const uploadStoreCover = async (buffer: Buffer): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
         cloudinary.uploader
           .upload_stream(
             {
-              folder: "classifieds/store-covers",
+              folder: 'classifieds/store-covers',
               timeout: UPLOAD_TIMEOUT_MS,
               transformation: [
-                { width: 1200, height: 400, crop: "fill" },
-                { quality: "auto:good" },
-                { format: "webp" },
+                { width: 1200, height: 400, crop: 'fill' },
+                { quality: 'auto:good' },
+                { format: 'webp' },
               ],
             },
             (error, result) => {
               if (error || !result) {
-                logger.error(
-                  "Cloudinary store cover upload returned an error",
-                  {
-                    cloudinaryError: error
-                      ? {
-                          message: error.message,
-                          name: error.name,
-                          http_code: (error as { http_code?: number })
-                            .http_code,
-                        }
-                      : "no error object, but no result either",
-                  },
-                );
+                logger.error('Cloudinary store cover upload returned an error', {
+                  cloudinaryError: error
+                    ? {
+                        message: error.message,
+                        name: error.name,
+                        http_code: (error as { http_code?: number }).http_code,
+                      }
+                    : 'no error object, but no result either',
+                });
                 return reject(
                   new Error(
-                    `Store cover upload failed: ${error?.message ?? "no result from Cloudinary"}`,
-                  ),
+                    `Store cover upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  )
                 );
               }
               resolve({ url: result.secure_url, publicId: result.public_id });
-            },
+            }
           )
           .end(buffer);
       });
 
       try {
-        return await withTimeout(
-          uploadPromise,
-          UPLOAD_TIMEOUT_MS,
-          "store cover upload",
-        );
+        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'store cover upload');
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
-          logger.error("Cloudinary store cover upload timed out", {
+          logger.error('Cloudinary store cover upload timed out', {
             timeoutMs: UPLOAD_TIMEOUT_MS,
           });
         }
         throw err;
       }
     })
-    .catch((err) => {
+    .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
-        logger.error(
-          "Cloudinary store cover upload rejected — circuit breaker is open",
-        );
+        logger.error('Cloudinary store cover upload rejected — circuit breaker is open');
         throw new ServiceUnavailableError(
-          "Image upload is temporarily unavailable, please try again shortly",
+          'Image upload is temporarily unavailable, please try again shortly'
         );
       }
       throw err;
@@ -415,72 +373,60 @@ export const uploadStoreCover = async (
  * uploadServiceProviderLogo — same mechanism/crop as uploadStoreLogo,
  * separate Cloudinary folder to keep the two entity types apart.
  */
-export const uploadServiceProviderLogo = async (
-  buffer: Buffer,
-): Promise<UploadResult> => {
+export const uploadServiceProviderLogo = async (buffer: Buffer): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
         cloudinary.uploader
           .upload_stream(
             {
-              folder: "classifieds/service-provider-logos",
+              folder: 'classifieds/service-provider-logos',
               timeout: UPLOAD_TIMEOUT_MS,
               transformation: [
-                { width: 400, height: 400, crop: "fill" },
-                { quality: "auto:good" },
-                { format: "webp" },
+                { width: 400, height: 400, crop: 'fill' },
+                { quality: 'auto:good' },
+                { format: 'webp' },
               ],
             },
             (error, result) => {
               if (error || !result) {
-                logger.error(
-                  "Cloudinary service provider logo upload returned an error",
-                  {
-                    cloudinaryError: error
-                      ? {
-                          message: error.message,
-                          name: error.name,
-                          http_code: (error as { http_code?: number })
-                            .http_code,
-                        }
-                      : "no error object, but no result either",
-                  },
-                );
+                logger.error('Cloudinary service provider logo upload returned an error', {
+                  cloudinaryError: error
+                    ? {
+                        message: error.message,
+                        name: error.name,
+                        http_code: (error as { http_code?: number }).http_code,
+                      }
+                    : 'no error object, but no result either',
+                });
                 return reject(
                   new Error(
-                    `Service provider logo upload failed: ${error?.message ?? "no result from Cloudinary"}`,
-                  ),
+                    `Service provider logo upload failed: ${error?.message ?? 'no result from Cloudinary'}`
+                  )
                 );
               }
               resolve({ url: result.secure_url, publicId: result.public_id });
-            },
+            }
           )
           .end(buffer);
       });
 
       try {
-        return await withTimeout(
-          uploadPromise,
-          UPLOAD_TIMEOUT_MS,
-          "service provider logo upload",
-        );
+        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'service provider logo upload');
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
-          logger.error("Cloudinary service provider logo upload timed out", {
+          logger.error('Cloudinary service provider logo upload timed out', {
             timeoutMs: UPLOAD_TIMEOUT_MS,
           });
         }
         throw err;
       }
     })
-    .catch((err) => {
+    .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
-        logger.error(
-          "Cloudinary service provider logo upload rejected — circuit breaker is open",
-        );
+        logger.error('Cloudinary service provider logo upload rejected — circuit breaker is open');
         throw new ServiceUnavailableError(
-          "Image upload is temporarily unavailable, please try again shortly",
+          'Image upload is temporarily unavailable, please try again shortly'
         );
       }
       throw err;
@@ -505,11 +451,11 @@ export const deleteImage = async (publicId: string): Promise<void> => {
             timeout: DELETE_TIMEOUT_MS,
           } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]),
           DELETE_TIMEOUT_MS,
-          "image delete",
+          'image delete'
         );
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
-          logger.error("Cloudinary delete timed out", {
+          logger.error('Cloudinary delete timed out', {
             publicId,
             timeoutMs: DELETE_TIMEOUT_MS,
           });
@@ -517,9 +463,9 @@ export const deleteImage = async (publicId: string): Promise<void> => {
         throw err;
       }
     })
-    .catch((err) => {
+    .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
-        logger.error("Cloudinary delete rejected — circuit breaker is open", {
+        logger.error('Cloudinary delete rejected — circuit breaker is open', {
           publicId,
         });
       }

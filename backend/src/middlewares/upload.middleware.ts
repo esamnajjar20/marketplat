@@ -2,15 +2,15 @@
 // the two "Maximum 10 images allowed" strings is now derived from
 // MAX_IMAGES_PER_ENTITY -- the same constant multer.limits.files already
 // reads -- so raising the cap is a one-line change in config/limits.ts.
-import multer, { FileFilterCallback } from "multer";
-import { Request, Response, NextFunction } from "express";
-import { BadRequestError } from "../shared/errors/BadRequestError";
-import { isAllowedImageContent } from "../shared/utils/fileSignature";
+import multer, { FileFilterCallback } from 'multer';
+import { Request, Response, NextFunction } from 'express';
+import { BadRequestError } from '../shared/errors/BadRequestError';
+import { isAllowedImageContent } from '../shared/utils/fileSignature';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   MAX_IMAGE_SIZE_BYTES,
   MAX_IMAGES_PER_ENTITY,
-} from "../config/limits";
+} from '../config/limits';
 
 /**
  * SEC FIX (MIME-01): the multer `fileFilter` above only ever sees
@@ -28,11 +28,7 @@ import {
  * changing the existing fileFilter, which still cheaply rejects obviously
  * wrong declared types before multer spends any effort buffering them.
  */
-const verifyFileContent = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void => {
+const verifyFileContent = (req: Request, res: Response, next: NextFunction): void => {
   const files: Express.Multer.File[] = req.file
     ? [req.file]
     : Array.isArray(req.files)
@@ -43,9 +39,9 @@ const verifyFileContent = (
     if (!isAllowedImageContent(file.buffer)) {
       next(
         new BadRequestError(
-          "Uploaded file is not a valid JPEG, PNG, or WebP image",
-          "INVALID_FILE_TYPE",
-        ),
+          'Uploaded file is not a valid JPEG, PNG, or WebP image',
+          'INVALID_FILE_TYPE'
+        )
       );
       return;
     }
@@ -66,20 +62,9 @@ const verifyFileContent = (
  * specific Arabic message instead of the declared-type check alone
  * being generic.
  */
-const fileFilter = (
-  _req: Request,
-  file: Express.Multer.File,
-  cb: FileFilterCallback,
-): void => {
-  if (
-    !(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(file.mimetype)
-  ) {
-    cb(
-      new BadRequestError(
-        "Only JPEG, PNG and WebP images are allowed",
-        "INVALID_FILE_TYPE",
-      ),
-    );
+const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
+  if (!(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(file.mimetype)) {
+    cb(new BadRequestError('Only JPEG, PNG and WebP images are allowed', 'INVALID_FILE_TYPE'));
     return;
   }
   cb(null, true);
@@ -128,46 +113,30 @@ export const MAX_TOTAL_REQUEST_BYTES =
 export const rejectOversizedContentLength = (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): void => {
-  const contentLength = req.headers["content-length"];
+  const contentLength = req.headers['content-length'];
   if (contentLength && Number(contentLength) > MAX_TOTAL_REQUEST_BYTES) {
     // FIX UPLOAD-01: was a bare BadRequestError with no code, falling
     // back to the generic VALIDATION_ERROR message.
-    next(new BadRequestError("Request too large", "REQUEST_TOO_LARGE"));
+    next(new BadRequestError('Request too large', 'REQUEST_TOO_LARGE'));
     return;
   }
   next();
 };
 
 // Single image (avatar uploads etc.)
-export const uploadMiddleware = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void => {
+export const uploadMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   rejectOversizedContentLength(req, res, (err?: unknown) => {
     if (err) return next(err);
-    upload.single("image")(req, res, (uploadErr: unknown) => {
+    upload.single('image')(req, res, (uploadErr: unknown) => {
       if (uploadErr instanceof multer.MulterError) {
-        if (uploadErr.code === "LIMIT_FILE_SIZE")
-          return next(
-            new BadRequestError(
-              "File size must be less than 5MB",
-              "FILE_TOO_LARGE",
-            ),
-          );
+        if (uploadErr.code === 'LIMIT_FILE_SIZE')
+          return next(new BadRequestError('File size must be less than 5MB', 'FILE_TOO_LARGE'));
         // FIX UPLOAD-01: was a bare BadRequestError with no code.
-        if (uploadErr.code === "LIMIT_UNEXPECTED_FILE")
-          return next(
-            new BadRequestError(
-              "Unexpected file field",
-              "UNEXPECTED_FILE_FIELD",
-            ),
-          );
-        return next(
-          new BadRequestError(uploadErr.message, "INVALID_FILE_TYPE"),
-        );
+        if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
+          return next(new BadRequestError('Unexpected file field', 'UNEXPECTED_FILE_FIELD'));
+        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       }
       // fileFilter's own BadRequestError (already coded) and any other
       // Error land here — the `instanceof BadRequestError` check keeps
@@ -176,57 +145,36 @@ export const uploadMiddleware = (
       // code fileFilter had just set).
       if (uploadErr instanceof BadRequestError) return next(uploadErr);
       if (uploadErr instanceof Error)
-        return next(
-          new BadRequestError(uploadErr.message, "INVALID_FILE_TYPE"),
-        );
+        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       verifyFileContent(req, res, next);
     });
   });
 };
 
 // Multiple images (up to 10) for ads
-export const uploadMultipleMiddleware = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void => {
+export const uploadMultipleMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   rejectOversizedContentLength(req, res, (err?: unknown) => {
     if (err) return next(err);
-    upload.array("images", MAX_IMAGES_PER_ENTITY)(req, res, (uploadErr: unknown) => {
+    upload.array('images', MAX_IMAGES_PER_ENTITY)(req, res, (uploadErr: unknown) => {
       if (uploadErr instanceof multer.MulterError) {
-        if (uploadErr.code === "LIMIT_FILE_SIZE")
-          return next(
-            new BadRequestError(
-              "Each file must be less than 5MB",
-              "FILE_TOO_LARGE",
-            ),
-          );
+        if (uploadErr.code === 'LIMIT_FILE_SIZE')
+          return next(new BadRequestError('Each file must be less than 5MB', 'FILE_TOO_LARGE'));
         // FIX UPLOAD-01: these three were bare BadRequestErrors with no
         // code, all falling back to the generic VALIDATION_ERROR
         // message despite each being a distinct, nameable failure.
-        if (uploadErr.code === "LIMIT_UNEXPECTED_FILE")
-          return next(
-            `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
-          );
-        if (uploadErr.code === "LIMIT_FILE_COUNT")
-          return next(
-            `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
-          );
-        if (uploadErr.code === "LIMIT_FIELD_COUNT")
-          return next(
-            new BadRequestError("Too many form fields", "TOO_MANY_FORM_FIELDS"),
-          );
-        return next(
-          new BadRequestError(uploadErr.message, "INVALID_FILE_TYPE"),
-        );
+        if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
+          return next(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`);
+        if (uploadErr.code === 'LIMIT_FILE_COUNT')
+          return next(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`);
+        if (uploadErr.code === 'LIMIT_FIELD_COUNT')
+          return next(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
+        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       }
       // See uploadMiddleware above for why BadRequestError is passed
       // through as-is rather than re-wrapped without its code.
       if (uploadErr instanceof BadRequestError) return next(uploadErr);
       if (uploadErr instanceof Error)
-        return next(
-          new BadRequestError(uploadErr.message, "INVALID_FILE_TYPE"),
-        );
+        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       verifyFileContent(req, res, next);
     });
   });

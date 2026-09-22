@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
-import { z } from "zod";
+import dotenv from 'dotenv';
+import { z } from 'zod';
 
 // TEST-DB SAFETY: without this, `npm test` reads the exact same
 // DATABASE_URL as `npm run dev`/`npm start` — but tests/setup.ts runs a
@@ -12,38 +12,34 @@ import { z } from "zod";
 // never overrides a process.env value that's already set, so the
 // second dotenv.config() call below only fills in anything `.env.test`
 // didn't define — it can't silently override what `.env.test` set.
-if (process.env.NODE_ENV === "test") {
-  dotenv.config({ path: ".env.test" });
+if (process.env.NODE_ENV === 'test') {
+  dotenv.config({ path: '.env.test' });
 }
 dotenv.config();
 
 const envSchema = z.object({
-  PORT: z.string().regex(/^\d+$/).default("5000"),
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
-  FRONTEND_URL: z.string().url().default("http://localhost:3000"),
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
-  JWT_REFRESH_SECRET: z
-    .string()
-    .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
-  JWT_EXPIRES_IN: z.string().default("15m"),
+  PORT: z.string().regex(/^\d+$/).default('5000'),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  JWT_EXPIRES_IN: z.string().default('15m'),
   // Refresh token TTL. Was hardcoded as '7d' directly in jwt.ts's
   // signRefreshToken call, with authCookies.ts separately hardcoding
   // the equivalent 7-day figure in milliseconds for the cookie's
   // maxAge and only a comment ("matches signRefreshToken's expiresIn")
   // keeping the two in sync. Centralizing here means both derive from
   // one value — same pattern already used for JWT_EXPIRES_IN below.
-  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   // TERMUX/PROOT SUPPORT: '127.0.0.1' rather than 'localhost' as the
   // default — proot-distro Ubuntu's /etc/hosts and localhost resolution
   // order can behave inconsistently inside the sandbox, and the literal
   // loopback address sidesteps that entirely. Real deployments should
   // still set REDIS_HOST explicitly; this only changes what happens if
   // it's left unset.
-  REDIS_HOST: z.string().default("127.0.0.1"),
-  REDIS_PORT: z.string().regex(/^\d+$/).default("6379"),
+  REDIS_HOST: z.string().default('127.0.0.1'),
+  REDIS_PORT: z.string().regex(/^\d+$/).default('6379'),
   // L-2 (audit fix): previously optional at every NODE_ENV, with the
   // requirement only enforced at the docker-compose level
   // (${REDIS_PASSWORD:?...} in docker-compose.full.yml). That meant any
@@ -74,8 +70,8 @@ const envSchema = z.object({
   // actually require it.
   REDIS_TLS: z
     .string()
-    .default("false")
-    .transform((v) => v === "true"),
+    .default('false')
+    .transform(v => v === 'true'),
   // TRUST_PROXY must be a number (1 = trust one proxy hop, e.g. nginx/Cloudflare).
   // String "1" is NOT equivalent to number 1 in Express trust proxy logic.
   //
@@ -98,16 +94,16 @@ const envSchema = z.object({
   // since that value is never correct there.
   TRUST_PROXY: z
     .string()
-    .regex(/^\d+$/, "TRUST_PROXY must be a number")
-    .refine((v) => {
+    .regex(/^\d+$/, 'TRUST_PROXY must be a number')
+    .refine(v => {
       const n = parseInt(v, 10);
       return Number.isFinite(n) && n >= 0 && n <= 5;
-    }, "TRUST_PROXY must be an integer between 0 and 5 (0 = no proxy, 1 = Render/nginx, 2 = Cloudflare+Render, etc.)")
-    .default("1"),
+    }, 'TRUST_PROXY must be an integer between 0 and 5 (0 = no proxy, 1 = Render/nginx, 2 = Cloudflare+Render, etc.)')
+    .default('1'),
   BLACKLIST_STRICT: z
     .string()
-    .transform((v) => v === "true")
-    .default("true"),
+    .transform(v => v === 'true')
+    .default('true'),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
@@ -131,7 +127,7 @@ const envSchema = z.object({
   SMTP_PORT: z.string().regex(/^\d+$/).optional(),
   SMTP_SECURE: z
     .string()
-    .transform((v) => v === "true")
+    .transform(v => v === 'true')
     .optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
@@ -166,11 +162,10 @@ const envSchema = z.object({
   // per IP) without making password recovery fragile for legitimate use.
   // Configurable so testing can raise it (e.g. FORGOT_PASSWORD_RATE_LIMIT_MAX=20)
   // without a code change.
-  FORGOT_PASSWORD_RATE_LIMIT_MAX: z
-    .preprocess(
-      (v) => (v == null ? undefined : String(v).trim()),
-      z.string().regex(/^\d+$/, "FORGOT_PASSWORD_RATE_LIMIT_MAX must be digits only").optional(),
-    ),
+  FORGOT_PASSWORD_RATE_LIMIT_MAX: z.preprocess(
+    v => (v == null ? undefined : String(v).trim()),
+    z.string().regex(/^\d+$/, 'FORGOT_PASSWORD_RATE_LIMIT_MAX must be digits only').optional()
+  ),
   // FIX PWA-PUSH-01: Web Push (VAPID) keys — same optional,
   // opt-in-only pattern as SMTP_*/CLOUDINARY_*/GOOGLE_CLIENT_* above.
   // Generated once per deployment via `npx web-push generate-vapid-
@@ -223,19 +218,16 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z
     .string()
-    .regex(
-      /^(0(\.\d+)?|1(\.0+)?)$/,
-      "SENTRY_TRACES_SAMPLE_RATE must be a number between 0 and 1",
-    )
-    .default("0.1"),
-  MAX_ADS_PER_USER: z.string().regex(/^\d+$/).default("50"),
+    .regex(/^(0(\.\d+)?|1(\.0+)?)$/, 'SENTRY_TRACES_SAMPLE_RATE must be a number between 0 and 1')
+    .default('0.1'),
+  MAX_ADS_PER_USER: z.string().regex(/^\d+$/).default('50'),
   // AUDIT-FIX 1.1: previously a hardcoded `30` inside adLock.ts. Made
   // configurable, same "opt-in tuning, sane default" pattern as
   // MAX_ADS_PER_USER above — deployments with slower Cloudinary
   // round-trips (more images per ad, slower network) can raise this
   // without a code change; default matches the prior hardcoded value
   // so existing behavior is unchanged unless the var is explicitly set.
-  IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
+  IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
   // FIX M-009: sellerLock/storeLock/serviceProviderLock previously used
   // a hardcoded 15s TTL each, unlike IMAGE_LOCK_TTL_SECONDS above which
   // was already made configurable. If the locked operation (which can
@@ -247,9 +239,9 @@ const envSchema = z.object({
   // IMAGE_LOCK_TTL_SECONDS's own default) and made configurable so
   // deployments with slower upload round-trips can raise it further
   // without a code change.
-  SELLER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
-  STORE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
-  SERVICE_PROVIDER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default("30"),
+  SELLER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
+  STORE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
+  SERVICE_PROVIDER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
   // FIX M-029: healthCache's CACHE_DURATION was a hardcoded 30_000ms
   // (30s), meaning /ready could keep reporting "healthy" from cache for
   // up to 30s after DB/Redis actually became unreachable — a
@@ -258,7 +250,7 @@ const envSchema = z.object({
   // 5-10s range the audit recommends) and made configurable so
   // deployments can tune the accuracy/DB-load tradeoff without a code
   // change.
-  HEALTH_CACHE_DURATION_MS: z.string().regex(/^\d+$/).default("8000"),
+  HEALTH_CACHE_DURATION_MS: z.string().regex(/^\d+$/).default('8000'),
   // Fraud-detection (item 12) tuning knobs — all optional with sane
   // defaults, same "opt-in tuning" pattern as MAX_ADS_PER_USER/
   // IMAGE_LOCK_TTL_SECONDS above, so existing deployments see no
@@ -266,13 +258,13 @@ const envSchema = z.object({
   //
   // RAPID_POSTING: more than FRAUD_RAPID_POSTING_MAX_POSTS ad creations
   // by the same user within FRAUD_RAPID_POSTING_WINDOW_SECONDS.
-  FRAUD_RAPID_POSTING_WINDOW_SECONDS: z.string().regex(/^\d+$/).default("60"),
-  FRAUD_RAPID_POSTING_MAX_POSTS: z.string().regex(/^\d+$/).default("5"),
+  FRAUD_RAPID_POSTING_WINDOW_SECONDS: z.string().regex(/^\d+$/).default('60'),
+  FRAUD_RAPID_POSTING_MAX_POSTS: z.string().regex(/^\d+$/).default('5'),
   // An account younger than this is treated as "new" for
   // NEW_ACCOUNT_HIGH_ACTIVITY weighting purposes.
-  FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default("24"),
+  FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default('24'),
   // Ad riskScore (0-100) at or above this auto-sets flaggedForReview.
-  FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default("60"),
+  FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default('60'),
   // AUDIT-FIX 1.3: analytics.repository.ts's trendByEvent/topCategories
   // run raw, unindexed-aggregate-friendly but potentially expensive
   // GROUP BY queries (date_trunc bucketing, JSON metadata extraction)
@@ -284,7 +276,7 @@ const envSchema = z.object({
   // site. Default (10s) is generous for a dashboard read, not a hard
   // architectural limit — tune per deployment if real query patterns
   // need more.
-  ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default("10000"),
+  ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default('10000'),
   // PROD-FIX-03: /metrics was previously unauthenticated at the
   // application level with only a code comment recommending a
   // reverse-proxy allowlist — no such reverse-proxy config exists
@@ -308,8 +300,8 @@ const envSchema = z.object({
   // for production.
   DISABLE_RATE_LIMIT: z
     .string()
-    .default("false")
-    .transform((v) => v === "true"),
+    .default('false')
+    .transform(v => v === 'true'),
   // CENTRALIZE-04: previously read directly via process.env in
   // capacityCheck.ts with no schema entry. Validated/documented here
   // for .env.example generation purposes, but NOT re-exported on the
@@ -336,12 +328,12 @@ const envSchema = z.object({
   // unlike seedE2E.ts/smokeTest.ts which are deliberately invoked
   // standalone with only 1-2 vars set — those two remain on direct
   // process.env access; see their own files for why.
-  FAILED_TASK_RETENTION_DAYS: z.string().regex(/^\d+$/).default("30"),
-  STALE_BOOST_DAYS: z.string().regex(/^\d+$/).default("60"),
+  FAILED_TASK_RETENTION_DAYS: z.string().regex(/^\d+$/).default('30'),
+  STALE_BOOST_DAYS: z.string().regex(/^\d+$/).default('60'),
   DRY_RUN: z
     .string()
-    .default("false")
-    .transform((v) => v === "1" || v === "true"),
+    .default('false')
+    .transform(v => v === '1' || v === 'true'),
 });
 
 // L-2 (audit fix): superRefine (not a required-by-default field on the
@@ -351,11 +343,11 @@ const envSchema = z.object({
 // at startup (same place JWT_SECRET/DATABASE_URL failures surface),
 // not silently at connection time.
 const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
-  if (data.NODE_ENV === "production" && !data.REDIS_PASSWORD) {
+  if (data.NODE_ENV === 'production' && !data.REDIS_PASSWORD) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["REDIS_PASSWORD"],
-      message: "REDIS_PASSWORD is required when NODE_ENV=production",
+      path: ['REDIS_PASSWORD'],
+      message: 'REDIS_PASSWORD is required when NODE_ENV=production',
     });
   }
 
@@ -373,14 +365,14 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
   // together — a partially-configured Cloudinary account is a
   // misconfiguration, not a valid opt-out.
   if (
-    data.NODE_ENV === "production" &&
+    data.NODE_ENV === 'production' &&
     (!data.CLOUDINARY_CLOUD_NAME || !data.CLOUDINARY_API_KEY || !data.CLOUDINARY_API_SECRET)
   ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["CLOUDINARY_CLOUD_NAME"],
+      path: ['CLOUDINARY_CLOUD_NAME'],
       message:
-        "CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are all required when NODE_ENV=production",
+        'CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are all required when NODE_ENV=production',
     });
   }
 });
@@ -388,7 +380,7 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
 const parsed = envSchemaWithRedisCheck.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("❌ Invalid environment variables:");
+  console.error('❌ Invalid environment variables:');
   console.error(parsed.error.flatten().fieldErrors);
   // Under Jest (and any other test runner that sets JEST_WORKER_ID /
   // VITEST), throw instead of process.exit(1). process.exit kills the
@@ -402,10 +394,10 @@ if (!parsed.success) {
   const runningUnderTest =
     process.env.JEST_WORKER_ID !== undefined ||
     process.env.VITEST !== undefined ||
-    process.env.NODE_ENV === "test";
+    process.env.NODE_ENV === 'test';
   if (runningUnderTest) {
     throw new Error(
-      `Invalid environment variables: ${JSON.stringify(parsed.error.flatten().fieldErrors)}`,
+      `Invalid environment variables: ${JSON.stringify(parsed.error.flatten().fieldErrors)}`
     );
   }
   process.exit(1);
@@ -436,15 +428,13 @@ function parseExpiresInToSeconds(value: string): number {
     // env.jwt.expiresIn string directly and does its own validation),
     // so a malformed value here shouldn't be able to crash startup.
     console.error(
-      `⚠️  Could not parse JWT_EXPIRES_IN="${value}" — defaulting expiresInSeconds to 900 (15m)`,
+      `⚠️  Could not parse JWT_EXPIRES_IN="${value}" — defaulting expiresInSeconds to 900 (15m)`
     );
     return 900;
   }
   const [, amountStr, unit] = match;
   const amount = Number(amountStr);
-  const multiplier = { s: 1, m: 60, h: 60 * 60, d: 60 * 60 * 24 }[
-    unit as "s" | "m" | "h" | "d"
-  ];
+  const multiplier = { s: 1, m: 60, h: 60 * 60, d: 60 * 60 * 24 }[unit as 's' | 'm' | 'h' | 'd'];
   return amount * multiplier;
 }
 
@@ -469,9 +459,7 @@ export const env = {
     // cookie's maxAge — both now read from this single value instead
     // of each hardcoding '7d' independently.
     refreshExpiresIn: _env.JWT_REFRESH_EXPIRES_IN,
-    refreshExpiresInSeconds: parseExpiresInToSeconds(
-      _env.JWT_REFRESH_EXPIRES_IN,
-    ),
+    refreshExpiresInSeconds: parseExpiresInToSeconds(_env.JWT_REFRESH_EXPIRES_IN),
   },
   redis: {
     host: _env.REDIS_HOST,
@@ -491,9 +479,9 @@ export const env = {
     // copy-pasting the secret from the Cloudinary dashboard into Railway's
     // Variables UI. The value still "looks" set (isConfigured stays true),
     // but the signature Cloudinary computes server-side won't match ours.
-    cloudName: (_env.CLOUDINARY_CLOUD_NAME || "").trim(),
-    apiKey: (_env.CLOUDINARY_API_KEY || "").trim(),
-    apiSecret: (_env.CLOUDINARY_API_SECRET || "").trim(),
+    cloudName: (_env.CLOUDINARY_CLOUD_NAME || '').trim(),
+    apiKey: (_env.CLOUDINARY_API_KEY || '').trim(),
+    apiSecret: (_env.CLOUDINARY_API_SECRET || '').trim(),
     // PROD-FIX: all three vars are `.optional()` in the schema above
     // (so a deploy with none set boots fine), but every upload/avatar/
     // logo/cover call unconditionally calls cloudinary.config() with
@@ -502,9 +490,7 @@ export const env = {
     // swallowed into a generic "Image upload failed" (see cloudinary.ts).
     // This flag lets index.ts fail loudly at startup instead.
     isConfigured: Boolean(
-      _env.CLOUDINARY_CLOUD_NAME &&
-      _env.CLOUDINARY_API_KEY &&
-      _env.CLOUDINARY_API_SECRET,
+      _env.CLOUDINARY_CLOUD_NAME && _env.CLOUDINARY_API_KEY && _env.CLOUDINARY_API_SECRET
     ),
   },
   // FIX OAUTH-01: same isConfigured pattern as email.isConfigured
@@ -522,13 +508,13 @@ export const env = {
   // a space on the end. Reproduction seen in production on
   // /auth/google after a Render Dashboard paste.
   googleOAuth: {
-    clientId: (_env.GOOGLE_CLIENT_ID || "").trim(),
-    clientSecret: (_env.GOOGLE_CLIENT_SECRET || "").trim(),
-    callbackUrl: (_env.GOOGLE_CALLBACK_URL || "").trim(),
+    clientId: (_env.GOOGLE_CLIENT_ID || '').trim(),
+    clientSecret: (_env.GOOGLE_CLIENT_SECRET || '').trim(),
+    callbackUrl: (_env.GOOGLE_CALLBACK_URL || '').trim(),
     isConfigured: Boolean(
-      (_env.GOOGLE_CLIENT_ID || "").trim() &&
-      (_env.GOOGLE_CLIENT_SECRET || "").trim() &&
-      (_env.GOOGLE_CALLBACK_URL || "").trim(),
+      (_env.GOOGLE_CLIENT_ID || '').trim() &&
+      (_env.GOOGLE_CLIENT_SECRET || '').trim() &&
+      (_env.GOOGLE_CALLBACK_URL || '').trim()
     ),
   },
   // CENTRALIZE-04 + FIX FORGOT-PW-LIMIT-CONFIG-01
@@ -546,20 +532,20 @@ export const env = {
   },
 
   email: {
-    resendApiKey: _env.RESEND_API_KEY || "",
+    resendApiKey: _env.RESEND_API_KEY || '',
     // FIX GMAIL-OAUTH-EMAIL-01: Gmail OAuth sender takes priority over
     // Resend when both are set -- it accepts any recipient, whereas
     // Resend's sandbox only delivers to the account owner until a
     // custom domain is verified.
-    gmailUser: (_env.GMAIL_USER || "").trim(),
-    googleRefreshToken: (_env.GOOGLE_REFRESH_TOKEN || "").trim(),
-    smtpHost: _env.SMTP_HOST || "",
+    gmailUser: (_env.GMAIL_USER || '').trim(),
+    googleRefreshToken: (_env.GOOGLE_REFRESH_TOKEN || '').trim(),
+    smtpHost: _env.SMTP_HOST || '',
     smtpPort: _env.SMTP_PORT ? parseInt(_env.SMTP_PORT, 10) : 587,
     smtpSecure: _env.SMTP_SECURE ?? false,
-    smtpUser: _env.SMTP_USER || "",
-    smtpPassword: _env.SMTP_PASSWORD || "",
-    fromEmail: _env.SMTP_FROM_EMAIL || "no-reply@example.com",
-    fromName: _env.SMTP_FROM_NAME || "سوق غزة",
+    smtpUser: _env.SMTP_USER || '',
+    smtpPassword: _env.SMTP_PASSWORD || '',
+    fromEmail: _env.SMTP_FROM_EMAIL || 'no-reply@example.com',
+    fromName: _env.SMTP_FROM_NAME || 'سوق غزة',
     // Email sending is considered "configured" only once host+user+password
     // are all present — partial config (e.g. just a from-address) isn't
     // enough to attempt a real SMTP connection.
@@ -568,7 +554,7 @@ export const env = {
     isConfigured: Boolean(
       (_env.GMAIL_USER && _env.GOOGLE_REFRESH_TOKEN) ||
       _env.RESEND_API_KEY ||
-      (_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD),
+      (_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD)
     ),
   },
   // FIX PWA-PUSH-01: same isConfigured pattern as email above —
@@ -576,26 +562,24 @@ export const env = {
   // logging instead of throwing when any piece is missing, so the app
   // keeps starting and running normally without real VAPID keys.
   webPush: {
-    publicKey: _env.VAPID_PUBLIC_KEY || "",
-    privateKey: _env.VAPID_PRIVATE_KEY || "",
-    subject: _env.VAPID_SUBJECT || "mailto:admin@example.com",
+    publicKey: _env.VAPID_PUBLIC_KEY || '',
+    privateKey: _env.VAPID_PRIVATE_KEY || '',
+    subject: _env.VAPID_SUBJECT || 'mailto:admin@example.com',
     isConfigured: Boolean(_env.VAPID_PUBLIC_KEY && _env.VAPID_PRIVATE_KEY),
   },
   // NEW — see FIREBASE_* doc comment above. Same graceful-degradation
   // convention as webPush: fcmPushService.ts logs instead of throwing
   // when unconfigured.
   fcm: {
-    projectId: _env.FIREBASE_PROJECT_ID || "",
-    clientEmail: _env.FIREBASE_CLIENT_EMAIL || "",
-    privateKey: (_env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+    projectId: _env.FIREBASE_PROJECT_ID || '',
+    clientEmail: _env.FIREBASE_CLIENT_EMAIL || '',
+    privateKey: (_env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
     isConfigured: Boolean(
-      _env.FIREBASE_PROJECT_ID &&
-      _env.FIREBASE_CLIENT_EMAIL &&
-      _env.FIREBASE_PRIVATE_KEY,
+      _env.FIREBASE_PROJECT_ID && _env.FIREBASE_CLIENT_EMAIL && _env.FIREBASE_PRIVATE_KEY
     ),
   },
   securityAlert: {
-    webhookUrl: _env.SECURITY_ALERT_WEBHOOK_URL || "",
+    webhookUrl: _env.SECURITY_ALERT_WEBHOOK_URL || '',
   },
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),
@@ -605,20 +589,14 @@ export const env = {
   locks: {
     sellerLockTtlSeconds: parseInt(_env.SELLER_LOCK_TTL_SECONDS, 10),
     storeLockTtlSeconds: parseInt(_env.STORE_LOCK_TTL_SECONDS, 10),
-    serviceProviderLockTtlSeconds: parseInt(
-      _env.SERVICE_PROVIDER_LOCK_TTL_SECONDS,
-      10,
-    ),
+    serviceProviderLockTtlSeconds: parseInt(_env.SERVICE_PROVIDER_LOCK_TTL_SECONDS, 10),
   },
   // FIX M-029
   health: {
     cacheDurationMs: parseInt(_env.HEALTH_CACHE_DURATION_MS, 10),
   },
   fraud: {
-    rapidPostingWindowSeconds: parseInt(
-      _env.FRAUD_RAPID_POSTING_WINDOW_SECONDS,
-      10,
-    ),
+    rapidPostingWindowSeconds: parseInt(_env.FRAUD_RAPID_POSTING_WINDOW_SECONDS, 10),
     rapidPostingMaxPosts: parseInt(_env.FRAUD_RAPID_POSTING_MAX_POSTS, 10),
     newAccountWindowHours: parseInt(_env.FRAUD_NEW_ACCOUNT_WINDOW_HOURS, 10),
     autoFlagThreshold: parseInt(_env.FRAUD_AUTO_FLAG_THRESHOLD, 10),
@@ -627,10 +605,10 @@ export const env = {
     queryTimeoutMs: parseInt(_env.ANALYTICS_QUERY_TIMEOUT_MS, 10),
   },
   observability: {
-    sentryDsn: _env.SENTRY_DSN || "",
+    sentryDsn: _env.SENTRY_DSN || '',
     sentryTracesSampleRate: parseFloat(_env.SENTRY_TRACES_SAMPLE_RATE),
-    metricsToken: _env.METRICS_TOKEN || "",
-    errorReporterWebhookUrl: _env.ERROR_REPORTER_WEBHOOK_URL || "",
+    metricsToken: _env.METRICS_TOKEN || '',
+    errorReporterWebhookUrl: _env.ERROR_REPORTER_WEBHOOK_URL || '',
   },
   // CENTRALIZE-04
   reports: {

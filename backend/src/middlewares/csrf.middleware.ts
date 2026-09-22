@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from "express";
-import crypto from "crypto";
-import { getCsrfCookieName } from "../shared/utils/authCookies";
-import { ForbiddenError } from "../shared/errors/ForbiddenError";
+import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import { getCsrfCookieName } from '../shared/utils/authCookies';
+import { ForbiddenError } from '../shared/errors/ForbiddenError';
 
 // AUDIT-FIX M-03 (defense-in-depth alongside metrics.ts): plain
 // `!==` string comparison is not constant-time. Real-world risk here
@@ -100,10 +100,10 @@ function safeTokenEquals(a: string, b: string): boolean {
  * an account-state change.
  */
 const CSRF_EXEMPT_PATHS = new Set([
-  "/auth/login",
-  "/auth/register",
+  '/auth/login',
+  '/auth/register',
   // CROSS-ORIGIN-CSRF-FIX: see this const's own header comment above.
-  "/auth/refresh",
+  '/auth/refresh',
   // FIX CSRF-FORGOT-PASSWORD-01: forgot-password + reset-password are
   // anonymous-by-design endpoints -- a user who has lost access to
   // their account has no session and therefore no csrfToken cookie to
@@ -117,8 +117,8 @@ const CSRF_EXEMPT_PATHS = new Set([
   // only sends an email to the attacker's own inbox, and (b)
   // reset-password requires the victim's reset token, which the
   // attacker does not have.
-  "/auth/forgot-password",
-  "/auth/reset-password",
+  '/auth/forgot-password',
+  '/auth/reset-password',
   // Public, unauthenticated-by-design product-analytics beacon (see
   // analytics.routes.ts). Not a sensitive state-changing action, so
   // there's nothing here for CSRF to protect — but the frontend
@@ -130,7 +130,7 @@ const CSRF_EXEMPT_PATHS = new Set([
   // navigator.sendBeacon can't set custom headers at all). Without
   // this exemption every analytics event from an authenticated
   // session is silently 403'd.
-  "/analytics/events",
+  '/analytics/events',
   // FIX OBSERVABILITY-CLIENT-ERROR-01: same class as /analytics/events
   // — a public write endpoint that the frontend calls via a bare
   // fetch (not apiClient), so the CSRF header is never attached.
@@ -139,15 +139,11 @@ const CSRF_EXEMPT_PATHS = new Set([
   // outcome: the errors we most need to see are the ones logged-in
   // users hit, and the report payload grants an attacker nothing (it
   // is only forwarded to our own logging pipeline).
-  "/observability/client-error",
+  '/observability/client-error',
 ]);
 
-export function csrfProtection(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
-  const isSafeMethod = ["GET", "HEAD", "OPTIONS"].includes(req.method);
+export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
+  const isSafeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
   if (isSafeMethod || CSRF_EXEMPT_PATHS.has(req.path)) {
     next();
     return;
@@ -165,15 +161,15 @@ export function csrfProtection(
     return;
   }
 
-  const headerToken = req.headers["x-csrf-token"];
+  const headerToken = req.headers['x-csrf-token'];
 
   if (
-    typeof cookieToken !== "string" ||
-    typeof headerToken !== "string" ||
+    typeof cookieToken !== 'string' ||
+    typeof headerToken !== 'string' ||
     cookieToken.length === 0 ||
     !safeTokenEquals(cookieToken, headerToken)
   ) {
-    next(new ForbiddenError("Invalid or missing CSRF token"));
+    next(new ForbiddenError('Invalid or missing CSRF token'));
     return;
   }
 

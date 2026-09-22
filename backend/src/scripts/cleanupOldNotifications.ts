@@ -5,8 +5,8 @@
  * Usage:
  *   npm run build && npm run report:cleanup-notifications
  */
-import { PrismaClient } from "@prisma/client";
-import { logger } from "../shared/utils/logger";
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../shared/utils/logger';
 
 const prisma = new PrismaClient();
 const RETENTION_DAYS = 90;
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
       createdAt: { lt: olderThan },
     },
   });
-  logger.info("cleanupOldNotifications finished", {
+  logger.info('cleanupOldNotifications finished', {
     deleted: result.count,
     olderThan: olderThan.toISOString(),
     retentionDays: RETENTION_DAYS,
@@ -27,8 +27,8 @@ async function main(): Promise<void> {
 }
 
 main()
-  .catch((err) => {
-    logger.error("cleanupOldNotifications failed", { err });
+  .catch(err => {
+    logger.error('cleanupOldNotifications failed', { err });
     process.exitCode = 1;
   })
   .finally(async () => {

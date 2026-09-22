@@ -4,8 +4,8 @@
  * Usage:
  *   npm run report:cleanup-tokens
  */
-import { PrismaClient } from "@prisma/client";
-import { logger } from "../shared/utils/logger";
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../shared/utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -16,15 +16,15 @@ async function main(): Promise<void> {
       OR: [{ expiresAt: { lt: now } }, { used: true }],
     },
   });
-  logger.info("cleanupExpiredTokens finished", {
+  logger.info('cleanupExpiredTokens finished', {
     deleted: result.count,
     at: now.toISOString(),
   });
 }
 
 main()
-  .catch((err) => {
-    logger.error("cleanupExpiredTokens failed", { err });
+  .catch(err => {
+    logger.error('cleanupExpiredTokens failed', { err });
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from "express";
-import { AppError } from "../shared/errors/AppError";
-import { logger } from "../shared/utils/logger";
-import { ZodError } from "zod";
-import { Prisma } from "@prisma/client";
+import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../shared/errors/AppError';
+import { logger } from '../shared/utils/logger';
+import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 
 interface ErrorResponse {
   success: false;
@@ -28,10 +28,7 @@ interface ErrorResponse {
   // from structure instead of pattern-matching English prose — which
   // breaks the moment a message here is reworded, and can't handle a
   // field with no custom message at all (Zod's own default English).
-  errorMeta?: Record<
-    string,
-    { code: string; params?: Record<string, unknown> }[]
-  >;
+  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>;
   // Structured values (e.g. a numeric limit) for errors whose Arabic
   // translation needs to interpolate data. Lets the frontend build the
   // localized message from `meta` instead of parsing it out of the
@@ -46,10 +43,7 @@ const buildErrorResponse = (
   requestId?: string,
   errors?: Record<string, string[]>,
   meta?: Record<string, unknown>,
-  errorMeta?: Record<
-    string,
-    { code: string; params?: Record<string, unknown> }[]
-  >,
+  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>
 ): ErrorResponse => ({
   success: false,
   message,
@@ -66,11 +60,11 @@ const buildErrorResponse = (
 // exception. Keeps `code` always present in the response body even when
 // no call site set one explicitly.
 const CODE_BY_STATUS: Record<number, string> = {
-  400: "VALIDATION_ERROR",
-  401: "UNAUTHORIZED",
-  403: "FORBIDDEN",
-  404: "RESOURCE_NOT_FOUND",
-  409: "CONFLICT",
+  400: 'VALIDATION_ERROR',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'RESOURCE_NOT_FOUND',
+  409: 'CONFLICT',
   // FIX SEC-3.4/5.9: the frontend's errorParser.ts already has a
   // dedicated `case 422` branch expecting a `code`, but nothing here
   // populated CODE_BY_STATUS for it — any AppError thrown with
@@ -80,16 +74,16 @@ const CODE_BY_STATUS: Record<number, string> = {
   // 422-throwing call site is added) means `code` is always present
   // for every status this API defines, closing the gap the frontend's
   // ErrorResponse contract already assumes.
-  422: "UNPROCESSABLE_ENTITY",
-  429: "RATE_LIMIT_EXCEEDED",
-  503: "SERVICE_UNAVAILABLE",
+  422: 'UNPROCESSABLE_ENTITY',
+  429: 'RATE_LIMIT_EXCEEDED',
+  503: 'SERVICE_UNAVAILABLE',
 };
 
 export const errorMiddleware = (
   err: Error,
   req: Request,
   res: Response,
-  _next: NextFunction,
+  _next: NextFunction
 ): void => {
   const requestId = req.requestId;
 
@@ -101,12 +95,9 @@ export const errorMiddleware = (
     // interface for why. Built in lockstep with `errors` (same field
     // key, same push order) so index i in one array always corresponds
     // to index i in the other for a given field.
-    const errorMeta: Record<
-      string,
-      { code: string; params?: Record<string, unknown> }[]
-    > = {};
-    err.errors.forEach((e) => {
-      const field = e.path.join(".") || "general";
+    const errorMeta: Record<string, { code: string; params?: Record<string, unknown> }[]> = {};
+    err.errors.forEach(e => {
+      const field = e.path.join('.') || 'general';
       if (!errors[field]) errors[field] = [];
       errors[field].push(e.message);
       if (!errorMeta[field]) errorMeta[field] = [];
@@ -115,10 +106,7 @@ export const errorMiddleware = (
       // validation/...). Spreading everything except the ones already
       // surfaced elsewhere (code, message, path) keeps this generic
       // across all ZodIssueCode variants without a per-type switch.
-      const { code: issueCode, ...params } = e as unknown as Record<
-        string,
-        unknown
-      >;
+      const { code: issueCode, ...params } = e as unknown as Record<string, unknown>;
       errorMeta[field].push({
         code: String(issueCode),
         ...(Object.keys(params).length > 0 && {
@@ -130,39 +118,30 @@ export const errorMiddleware = (
       .status(400)
       .json(
         buildErrorResponse(
-          "Validation failed",
+          'Validation failed',
           400,
-          "VALIDATION_ERROR",
+          'VALIDATION_ERROR',
           requestId,
           errors,
           undefined,
-          errorMeta,
-        ),
+          errorMeta
+        )
       );
     return;
   }
 
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
-      logger.error("Operational error", {
+      logger.error('Operational error', {
         message: err.message,
         stack: err.stack,
         requestId,
       });
     }
-    const code = err.code ?? CODE_BY_STATUS[err.statusCode] ?? "INTERNAL_ERROR";
+    const code = err.code ?? CODE_BY_STATUS[err.statusCode] ?? 'INTERNAL_ERROR';
     res
       .status(err.statusCode)
-      .json(
-        buildErrorResponse(
-          err.message,
-          err.statusCode,
-          code,
-          requestId,
-          undefined,
-          err.meta,
-        ),
-      );
+      .json(buildErrorResponse(err.message, err.statusCode, code, requestId, undefined, err.meta));
     return;
   }
 
@@ -173,7 +152,7 @@ export const errorMiddleware = (
   // service degrades to a clear 409/404, not an opaque 500 that looks
   // like a real incident in monitoring during ordinary concurrent usage.
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    logger.warn("Unhandled Prisma error reached error middleware", {
+    logger.warn('Unhandled Prisma error reached error middleware', {
       code: err.code,
       message: err.message,
       requestId,
@@ -181,60 +160,36 @@ export const errorMiddleware = (
       method: req.method,
     });
 
-    if (err.code === "P2002") {
+    if (err.code === 'P2002') {
       res
         .status(409)
         .json(
-          buildErrorResponse(
-            "A record with this value already exists",
-            409,
-            "CONFLICT",
-            requestId,
-          ),
+          buildErrorResponse('A record with this value already exists', 409, 'CONFLICT', requestId)
         );
       return;
     }
-    if (err.code === "P2025") {
+    if (err.code === 'P2025') {
       res
         .status(404)
-        .json(
-          buildErrorResponse(
-            "Record not found",
-            404,
-            "RESOURCE_NOT_FOUND",
-            requestId,
-          ),
-        );
+        .json(buildErrorResponse('Record not found', 404, 'RESOURCE_NOT_FOUND', requestId));
       return;
     }
-    if (err.code === "P2003") {
+    if (err.code === 'P2003') {
       res
         .status(409)
         .json(
-          buildErrorResponse(
-            "This action conflicts with related data",
-            409,
-            "CONFLICT",
-            requestId,
-          ),
+          buildErrorResponse('This action conflicts with related data', 409, 'CONFLICT', requestId)
         );
       return;
     }
 
     res
       .status(500)
-      .json(
-        buildErrorResponse(
-          "Internal server error",
-          500,
-          "INTERNAL_ERROR",
-          requestId,
-        ),
-      );
+      .json(buildErrorResponse('Internal server error', 500, 'INTERNAL_ERROR', requestId));
     return;
   }
 
-  logger.error("Unhandled error", {
+  logger.error('Unhandled error', {
     message: err.message,
     stack: err.stack,
     requestId,
@@ -244,12 +199,5 @@ export const errorMiddleware = (
 
   res
     .status(500)
-    .json(
-      buildErrorResponse(
-        "Internal server error",
-        500,
-        "INTERNAL_ERROR",
-        requestId,
-      ),
-    );
+    .json(buildErrorResponse('Internal server error', 500, 'INTERNAL_ERROR', requestId));
 };

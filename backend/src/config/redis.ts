@@ -1,6 +1,6 @@
-import Redis from "ioredis";
-import { logger } from "../shared/utils/logger";
-import { env } from "./env";
+import Redis from 'ioredis';
+import { logger } from '../shared/utils/logger';
+import { env } from './env';
 
 export const redis = new Redis({
   host: env.redis.host,
@@ -66,9 +66,9 @@ export const redis = new Redis({
   // Upstash's publicly-trusted certificate, no custom CA needed), now
   // applied only when REDIS_TLS=true is actually set.
   tls: env.redis.tls ? {} : undefined,
-  retryStrategy: (times) => Math.min(times * 50, 2000),
+  retryStrategy: times => Math.min(times * 50, 2000),
   maxRetriesPerRequest: 3,
 });
 
-redis.on("connect", () => logger.info("✅ Redis connected"));
-redis.on("error", (err) => logger.error("Redis error", { err: err.message }));
+redis.on('connect', () => logger.info('✅ Redis connected'));
+redis.on('error', err => logger.error('Redis error', { err: err.message }));

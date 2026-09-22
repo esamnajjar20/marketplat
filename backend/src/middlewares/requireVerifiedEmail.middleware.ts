@@ -43,7 +43,7 @@ const GATING_ENABLED = process.env.EMAIL_VERIFICATION_GATING === 'true';
 export const requireVerifiedEmail = async (
   req: Request,
   _res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   if (!GATING_ENABLED) {
     next();
@@ -71,10 +71,7 @@ export const requireVerifiedEmail = async (
 
     if (!cached.emailVerified) {
       next(
-        new ForbiddenError(
-          'يرجى تأكيد بريدك الإلكتروني لإتمام هذا الإجراء',
-          'EMAIL_NOT_VERIFIED',
-        ),
+        new ForbiddenError('يرجى تأكيد بريدك الإلكتروني لإتمام هذا الإجراء', 'EMAIL_NOT_VERIFIED')
       );
       return;
     }
