@@ -23,8 +23,16 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { withUserAdCreationLock } from '../../shared/utils/adLock';
 import { env } from '../../config/env';
 import { logger } from '../../shared/utils/logger';
+import { bumpAdsCacheVersion } from './ads.service';
+import { savedSearchEvents } from '../saved-searches';
+import { activityService, activityTemplates } from '../activity';
+import { fraudService } from '../fraud';
+import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
-const REPUBLISH_PER_DAY = 5;
+// FIX REPUBLISH-LIMITS-DOC: previous block had conflicting "soft cap"
+// comments and an unexplained +3. Kept to a single named value for
+// both sides of the check below.
+const REPUBLISH_DAILY_CAP = 5;
 const COOLDOWN_HOURS = 12;
 
 export const adsRepublishService = {
@@ -52,19 +60,29 @@ export const adsRepublishService = {
       throw new BadRequestError('Source ad has no images to copy.', 'AD_NO_IMAGES');
     }
 
-    // Daily cap
+    // FIX REPUBLISH-LIMITS-DOC: single clean set of checks — the
+    // previous version had three counters with conflicting comments
+    // and an unexplained "+3" on the daily cap. Behaviourally this
+    // keeps the same intent:
+    //
+    //   1. At most one republish per source title per user per 24h
+    //      (prevents a seller cycling a sold ad back to ACTIVE every
+    //      time it stops appearing at the top of /ads).
+    //   2. At most REPUBLISH_DAILY_CAP*2 total creates per 24h (soft
+    //      pressure — the authoritative cap is still maxPerUser below).
+    //
+    // Note the same-title check is still outside the per-user lock —
+    // two concurrent republish calls for the same title can both pass
+    // it before either commits. That race is bounded by the
+    // authoritative maxPerUser check inside the lock below; worst case
+    // is two ACTIVE clones instead of one, which the seller can clean
+    // up. Moving this into the lock would serialize every republish
+    // against every other write for the user, for a check that is
+    // purely a UX guardrail rather than a hard limit — deliberate
+    // tradeoff, recorded here so a future pass doesn't re-flag it
+    // without re-checking that reasoning.
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const republishedToday = await prisma.ad.count({
-      where: {
-        userId,
-        createdAt: { gte: dayAgo },
-        // Heuristic: new ads that share title with a prior sold/deleted one
-        // counted via all creates in window is simpler and stricter
-      },
-    });
-    // Count only true republish markers if we stamped description — use all creates as soft cap
-    // Better: count ads created in last 24h (any) against a higher limit is too strict.
-    // Use activity-style: count ACTIVE created in last 24h that match source title.
+
     const sameTitleToday = await prisma.ad.count({
       where: {
         userId,
@@ -83,8 +101,7 @@ export const adsRepublishService = {
     const createdLastDay = await prisma.ad.count({
       where: { userId, createdAt: { gte: dayAgo } },
     });
-    if (createdLastDay >= REPUBLISH_PER_DAY + 3) {
-      // soft overall create pressure; primary limit is maxPerUser below
+    if (createdLastDay >= REPUBLISH_DAILY_CAP * 2) {
       throw new BadRequestError(
         'Too many ads created today. Try again tomorrow.',
         'REPUBLISH_DAILY_LIMIT'
@@ -115,6 +132,13 @@ export const adsRepublishService = {
       }
 
       const created = await prisma.$transaction(async (tx) => {
+        // FIX REPUBLISH-CREATE-INCLUDE: `ad` is passed to
+        // savedSearchEvents.onAdCreated() after the transaction commits
+        // — that call site expects the AdWithAuthor shape (user +
+        // category included), matching what createAd passes. Without
+        // this include the freshly-created row had no user/category
+        // relations attached, and TypeScript caught it as a build
+        // error the moment the pipeline was wired in.
         const ad = await tx.ad.create({
           data: {
             title: source.title,
@@ -136,6 +160,10 @@ export const adsRepublishService = {
             sellerProfileId: sellerProfile.id,
             storeId: source.storeId,
           },
+          include: {
+            user: { select: { id: true, name: true, city: true, avatarUrl: true } },
+            category: { select: { id: true, name: true, nameAr: true } },
+          },
         });
         await tx.sellerProfile.update({
           where: { id: sellerProfile.id },
@@ -146,6 +174,64 @@ export const adsRepublishService = {
         });
         return ad;
       });
+
+      // FIX REPUBLISH-POST-CREATE-PIPELINE: createAd runs four
+      // post-commit side effects — cache invalidation, fraud scoring,
+      // saved-search fan-out, and activity recording. Republish
+      // creates an equally-live ad but ran none of them. Most
+      // importantly the missing fraud scoring was directly
+      // exploitable: a scam ad that got caught and taken down
+      // (status=DELETED) could be re-published as a fresh row with no
+      // scoring at all, silently bypassing the whole detector for the
+      // clone. Cache invalidation was a lesser but visible bug — the
+      // just-created ad didn't appear in /ads for up to 30s.
+      //
+      // All four run after the transaction commits, same contract as
+      // createAd: a failure in any of them must never fail the ad
+      // that already exists.
+      await bumpAdsCacheVersion();
+
+      savedSearchEvents.onAdCreated(created).catch((err) =>
+        logger.error('Failed to process saved-search matches for republished ad', {
+          err,
+          adId: created.id,
+        }),
+      );
+
+      activityService.record({
+        userId,
+        ...activityTemplates.adCreated(created.id, created.title),
+      });
+
+      fraudService
+        .scoreAd({
+          id: created.id,
+          userId: created.userId,
+          title: created.title,
+          description: created.description,
+          city: created.city,
+          price: created.price ? Number(created.price) : null,
+          categoryId: created.categoryId,
+        })
+        .catch((err) => {
+          logger.error('Fraud scoring failed to run for republished ad', {
+            err,
+            adId: created.id,
+          });
+          recordFailedTask(
+            'FRAUD_SCORE_AD',
+            {
+              adId: created.id,
+              userId: created.userId,
+              title: created.title,
+              description: created.description,
+              city: created.city,
+              price: created.price ? Number(created.price) : null,
+              categoryId: created.categoryId,
+            },
+            err,
+          ).catch(() => {});
+        });
 
       logger.info('Ad republished', {
         sourceAdId: source.id,

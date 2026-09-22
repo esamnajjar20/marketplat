@@ -2,7 +2,7 @@
  * SELLER-PIN — seller can pin ONE of their own ACTIVE ads.
  * Admin pins use pinnedByAdmin=true and must not be cleared by seller pin.
  */
-import { AdStatus } from '@prisma/client';
+import { AdStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
@@ -34,21 +34,47 @@ export const adsPinService = {
       });
     }
 
-    await prisma.$transaction([
-      prisma.ad.updateMany({
-        where: {
-          userId,
-          isPinned: true,
-          pinnedByAdmin: false,
-          id: { not: adId },
+    // FIX PIN-RACE-SERIALIZABLE: two concurrent pin requests for
+    // different ads owned by the same user could both pass the
+    // "unpin everyone else" step (each saw the other's ad still
+    // pinned-or-not in its own snapshot) and then both write
+    // isPinned=true — leaving the user with two pinned ads despite
+    // the single-pin rule. Serialized isolation makes Postgres detect
+    // the read-write conflict and forces one to fail with P2034.
+    // Same shape as admin.toggleUserActive's guard.
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.ad.updateMany({
+            where: {
+              userId,
+              isPinned: true,
+              pinnedByAdmin: false,
+              id: { not: adId },
+            },
+            data: { isPinned: false },
+          });
+          await tx.ad.update({
+            where: { id: adId },
+            data: { isPinned: true, pinnedByAdmin: false },
+          });
         },
-        data: { isPinned: false },
-      }),
-      prisma.ad.update({
-        where: { id: adId },
-        data: { isPinned: true, pinnedByAdmin: false },
-      }),
-    ]);
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (e: unknown) {
+      if (
+        typeof e === 'object' &&
+        e !== null &&
+        'code' in e &&
+        (e as { code?: string }).code === 'P2034'
+      ) {
+        throw new BadRequestError(
+          'Another pin change happened at the same time — please retry.',
+          'CONCURRENT_UPDATE_CONFLICT',
+        );
+      }
+      throw e;
+    }
 
     return prisma.ad.findUniqueOrThrow({ where: { id: adId } });
   },
