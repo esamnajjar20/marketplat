@@ -225,16 +225,24 @@ export const adminService = {
   setAdFeatured: async (adId: string, isFeatured: boolean, adminUserId = 'unknown') => {
     try {
       const ad = await prisma.ad.update({ where: { id: adId }, data: { isFeatured } });
-      // BUGFIX: without this, GET /ads keeps serving the pre-change
-      // isFeatured value from cache for up to its 30s TTL — a featured
-      // ad wouldn't actually appear "featured" to browsing users right
-      // away, and vice versa when un-featuring.
-      await bumpAdsCacheVersion();
+      // FIX AUDIT-BEFORE-CACHE-BUMP: fire the audit log first. If
+      // bumpAdsCacheVersion threw (Redis blip, quota), the previous
+      // ordering skipped the audit row entirely — but the DB write had
+      // already succeeded, so there is no trail of the change at all.
+      // Audit is the durable record; cache invalidation is
+      // best-effort (the version bump will retry implicitly on the
+      // next successful call's own bump, or the 30s cache TTL expires
+      // it anyway). Order swapped accordingly.
       auditLog({
         event: AuditEventType.ADMIN_AD_FEATURED,
         userId: adminUserId,
         details: { adId, isFeatured },
       }).catch(() => {});
+      // BUGFIX: without this, GET /ads keeps serving the pre-change
+      // isFeatured value from cache for up to its 30s TTL — a featured
+      // ad wouldn't actually appear "featured" to browsing users right
+      // away, and vice versa when un-featuring.
+      await bumpAdsCacheVersion();
       return ad;
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
@@ -249,13 +257,15 @@ export const adminService = {
         where: { id: adId },
         data: { isPinned, pinnedByAdmin: isPinned },
       });
-      // BUGFIX: same reasoning as setAdFeatured above.
-      await bumpAdsCacheVersion();
+      // FIX AUDIT-BEFORE-CACHE-BUMP: same reordering as setAdFeatured
+      // above — durable audit row first, best-effort cache bump after.
       auditLog({
         event: AuditEventType.ADMIN_AD_PINNED,
         userId: adminUserId,
         details: { adId, isPinned },
       }).catch(() => {});
+      // BUGFIX: same reasoning as setAdFeatured above.
+      await bumpAdsCacheVersion();
       return ad;
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
@@ -266,21 +276,24 @@ export const adminService = {
   forceDeleteAd: async (adId: string, adminUserId = 'unknown') => {
     try {
       await prisma.ad.update({ where: { id: adId }, data: { status: AdStatus.DELETED } });
+      // FIX AUDIT-BEFORE-CACHE-BUMP: same reordering as setAdFeatured
+      // above. Particularly important on this path — an urgent admin
+      // takedown (fraud, legal) is exactly when the audit trail
+      // matters most, so the durable row must not be lost to a
+      // transient Redis blip on the cache-bump call.
+      auditLog({
+        event: AuditEventType.ADMIN_AD_DELETED,
+        userId: adminUserId,
+        details: { adId },
+      }).catch(() => {});
       // BUGFIX (found during a post-implementation code audit):
       // previously missing entirely — the regular, user-initiated
       // deleteAd (ads.service.ts) already calls this, but this admin
       // path (forceDeleteAd) did not. An admin removing an ad for an
       // urgent reason (fraud, a policy violation, a legal takedown
       // request) is exactly the case where "still visible to other
-      // users for up to 30 more seconds" matters most — the whole
-      // point of an admin force-delete is that it needs to take effect
-      // immediately, not on the cache's own schedule.
+      // users for up to 30 more seconds" matters most.
       await bumpAdsCacheVersion();
-      auditLog({
-        event: AuditEventType.ADMIN_AD_DELETED,
-        userId: adminUserId,
-        details: { adId },
-      }).catch(() => {});
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       throw e;
@@ -605,8 +618,19 @@ export const adminService = {
     status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
     q?: string;
   }) => {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    // FIX ADMIN-LIMIT-CAP: previously `query.limit ?? 20` with no upper
+    // bound. The controller passed through whatever the caller sent, so
+    // GET /admin/products?limit=999999 produced a Prisma findMany with
+    // take=999999 against a table with no index on the (status,
+    // createdAt) shape the default sort uses — a full scan plus a
+    // response body that runs into hundreds of MB, all buffered in the
+    // single Render dyno before the client has even started reading.
+    // The same query shape already had a cap on the paginated
+    // /admin/open-requests list (Math.min(100, ...)); matched here for
+    // products and service listings so the three catalog lists are
+    // consistent.
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
     const skip = (page - 1) * limit;
     const where: Prisma.ProductWhereInput = {
       ...(query.status ? { status: query.status } : { status: { not: 'DELETED' } }),
@@ -661,8 +685,10 @@ export const adminService = {
     status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
     q?: string;
   }) => {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    // FIX ADMIN-LIMIT-CAP: see getAdminProducts above for the full
+    // reasoning — same missing upper bound, same fix.
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
     const skip = (page - 1) * limit;
     const where: Prisma.ServiceListingWhereInput = {
       ...(query.status ? { status: query.status } : { status: { not: 'DELETED' } }),
@@ -1022,7 +1048,17 @@ export const adminService = {
       },
     });
 
-    await auditLog({
+    // FIX CANCEL-AUDIT-NON-BLOCKING: was `await auditLog(...)`. Every
+    // other call site in this service writes the audit row as a
+    // fire-and-forget with `.catch(() => {})` — see setAdFeatured /
+    // setAdPinned / forceDeleteAd / broadcastPromotion. Awaiting here
+    // meant a transient Redis or DB blip inside auditLog (which writes
+    // to Postgres and does not throw on the write itself, but its
+    // initial logger.info can) could fail the whole cancel — the
+    // request is already cancelled by the time this runs, so the
+    // caller would see a 500 for an operation that fully succeeded.
+    // Aligned with the rest of the file.
+    auditLog({
       event: AuditEventType.ADMIN_OPEN_REQUEST_CANCELLED,
       userId: adminUserId,
       details: {
@@ -1030,7 +1066,7 @@ export const adminService = {
         reason: reason ?? null,
         kind: 'open-request',
       },
-    });
+    }).catch(() => {});
 
     return updated;
   },
