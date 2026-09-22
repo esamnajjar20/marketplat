@@ -113,6 +113,7 @@ export function BottomNav() {
       <Link
         key={href}
         href={href}
+        prefetch={false}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
           'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
@@ -194,6 +195,7 @@ export function BottomNav() {
         <div className="relative flex flex-1 flex-col items-center justify-center min-h-[48px]">
           <Link
             href={ROUTES.userProfile(user.id)}
+            prefetch={false}
             aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) || pathname.startsWith('/profile/') ? 'page' : undefined}
             className={cn(
               'flex w-full flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
@@ -208,6 +210,7 @@ export function BottomNav() {
           {queuedCount > 0 && (
             <Link
               href={ROUTES.settings.sync}
+              prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
               className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
             >
@@ -230,6 +233,7 @@ export function BottomNav() {
           {queuedCount > 0 && (
             <Link
               href={ROUTES.settings.sync}
+              prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
               className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
             >
