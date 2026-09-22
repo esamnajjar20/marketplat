@@ -3,7 +3,7 @@
 
 import { ChevronDown, ChevronRight, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { useCategories } from '@/hooks/queries/useCategories';
+import { useCategoriesForAdmin } from '@/hooks/queries/useCategories';
 import { useDeleteCategory } from '@/hooks/mutations/useCategoryMutations';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EditCategoryButton } from '@/components/admin/EditCategoryButton';
@@ -22,7 +22,14 @@ import type { Category } from '@/types/category.types';
  * consistent with the rest of the admin UI (see MyAdsList, AdminAdsTable).
  */
 export function AdminCategoriesTree() {
-  const { data: categories, isLoading, isError, error, refetch } = useCategories();
+  // FIX ADMIN-CATEGORIES-FRESH-01: use the admin hook — reads from
+  // GET /categories/admin/all (uncached, with _count.ads) instead of
+  // GET /categories (Redis-cached for an hour, no counts). Before
+  // this switch the tree rendered without the "N إعلان" badge
+  // (because _count was always undefined on the public shape) and
+  // an admin who edited a category saw the stale tree until the
+  // public cache expired.
+  const { data: categories, isLoading, isError, error, refetch } = useCategoriesForAdmin();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const deleteCategory = useDeleteCategory();
