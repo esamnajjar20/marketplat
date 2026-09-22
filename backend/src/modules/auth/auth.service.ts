@@ -26,7 +26,28 @@ import { logger } from '../../shared/utils/logger';
 import { GoogleProfileData } from './google.strategy';
 
 const MAX_EMAIL_ATTEMPTS = 5;
-const MAX_IP_ATTEMPTS = 50;
+// FIX IP-NAT-SMART-COUNTER: was 50. On Gaza's carrier-grade NAT a
+// single cell tower puts hundreds of subscribers behind one public
+// IPv4, so a 50-attempts-per-hour budget is effectively a per-tower
+// budget — the first 50 mistyped passwords from anyone on the tower
+// locked out everybody on it, which was reported in production as
+// "everyone in my neighborhood got 'Too many requests from this
+// network' for an hour". Raised to 500 (~10x) so a busy tower's
+// ordinary user churn never reaches the ceiling, and paired with
+// MAX_IP_DISTINCT_EMAILS below, which is what actually distinguishes
+// a spray from a legitimately busy tower.
+const MAX_IP_ATTEMPTS = 500;
+// FIX IP-NAT-SMART-COUNTER: lockout signal #2. A single attacker
+// spraying credentials against many victims' emails grows the
+// distinct-email Set very fast; a busy tower's legitimate failures
+// spread across a much smaller set of addresses (most users just
+// mistype their own email once and give up, and the tower's real
+// ceiling is the number of subscribers, not the number of attempts).
+// 300 was chosen to sit well above the realistic worst case for a
+// 1000-subscriber tower in one hour while still catching a spray
+// within seconds. See tokenStore.ts's FAILED_IP_EMAILS_PREFIX for
+// the counter this threshold is checked against.
+const MAX_IP_DISTINCT_EMAILS = 300;
 const LOCKOUT_DURATION = 30 * 60;
 
 /**
@@ -212,16 +233,47 @@ export const authService = {
     // (case-sensitive) lockout fires on any one key.
     const normalizedEmail = input.email.trim().toLowerCase();
 
-    const [isEmailLocked, ipAttempts] = await Promise.all([
+    const [isEmailLocked, ipStats] = await Promise.all([
       tokenStore.isAccountLocked(normalizedEmail),
-      tokenStore.getIpAttempts(ip),
+      tokenStore.getIpStats(ip),
     ]);
 
     if (isEmailLocked) {
       throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes', 'ACCOUNT_LOCKED');
     }
 
-    if (ipAttempts >= MAX_IP_ATTEMPTS) {
+    // FIX IP-NAT-SMART-COUNTER: two independent signals.
+    //
+    // 1) Volume — MAX_IP_ATTEMPTS (500). Same meaning as before, just
+    //    raised 10x. On a NAT tower the counter is cleared by any
+    //    successful login from that IP (see clearFailedLogins), so
+    //    ordinary user churn keeps it far below this ceiling.
+    //
+    // 2) Spray signature — MAX_IP_DISTINCT_EMAILS (300). The number
+    //    of DISTINCT emails that failed from this IP within the hour.
+    //    A busy tower's failures concentrate on a handful of
+    //    forgetful subscribers; a credential-stuffing run hits
+    //    hundreds of unrelated addresses. This is the signal the
+    //    plain counter cannot provide, and the only one that actually
+    //    catches spraying during a busy window.
+    //
+    // Both branches log the discriminating field so a real attack or
+    // a false positive leaves a visible trail in the app logs.
+    if (ipStats.attempts >= MAX_IP_ATTEMPTS) {
+      logger.warn('IP locked: volume threshold reached', {
+        ip,
+        attempts: ipStats.attempts,
+        distinctEmails: ipStats.distinctEmails,
+      });
+      throw new TooManyRequestsError('Too many requests from this network. Please try again later', 'TOO_MANY_ATTEMPTS_FROM_IP');
+    }
+
+    if (ipStats.distinctEmails >= MAX_IP_DISTINCT_EMAILS) {
+      logger.warn('IP locked: distinct-email spray signature', {
+        ip,
+        attempts: ipStats.attempts,
+        distinctEmails: ipStats.distinctEmails,
+      });
       throw new TooManyRequestsError('Too many requests from this network. Please try again later', 'TOO_MANY_ATTEMPTS_FROM_IP');
     }
 

@@ -9,6 +9,16 @@ const SESSION_ZSET_PREFIX = 'sessions_z:';
 const SESSION_META_PREFIX = 'session_meta:';
 const FAILED_EMAIL_PREFIX = 'failed_login_email:';
 const FAILED_IP_PREFIX = 'failed_login_ip:';
+// FIX IP-NAT-SMART-COUNTER: a per-IP Set of the distinct email
+// addresses that have failed login from that IP in the current
+// 1-hour window. This is the signal the plain counter cannot give:
+// a single user fumbling their own password drives ipAttempts up
+// without growing this Set, while credential stuffing against many
+// victims grows it very fast. See auth.service.ts's login() for how
+// the two are combined into a lockout decision that survives Gaza's
+// carrier-grade NAT (hundreds of legit users behind one IPv4) without
+// letting spray through.
+const FAILED_IP_EMAILS_PREFIX = 'failed_login_ips:';
 const ACCOUNT_LOCKED_PREFIX = 'account_locked:';
 // Cross-worker blacklist invalidation channel — see the
 // "Cross-worker blacklist L1 invalidation" block below.
@@ -262,7 +272,18 @@ export const tokenStore = {
     );
   },
 
-  // ── Validate ──────────────────────────────────────────
+  // ── Validate (TEST-ONLY — not on the production refresh path) ──
+  // The real refresh-token validation happens inside refreshLock.ts's
+  // atomicRefreshRotate(), which performs the compare-and-swap against
+  // the stored hash as part of the same Redis transaction that issues
+  // the new token — a standalone read-then-compare here would be both
+  // redundant and racy. This method exists for unit tests that need to
+  // assert "the token for (userId, sessionId) is X" after running some
+  // other tokenStore operation; see tests/unit/tokenStore.test.ts for
+  // every call site. Kept exported rather than inlined into the test
+  // file because it is a natural companion to saveRefreshToken and
+  // removing it would force the tests to reimplement the exact key
+  // shape (REFRESH_PREFIX + userId + ':' + sessionId) that lives here.
   validateRefreshToken: async (
     userId: string,
     sessionId: string,
@@ -414,16 +435,26 @@ export const tokenStore = {
   incrementFailedLogins: async (
     email: string,
     ip: string
-  ): Promise<{ emailAttempts: number; ipAttempts: number }> => {
+  ): Promise<{ emailAttempts: number; ipAttempts: number; ipDistinctEmails: number }> => {
     const pipeline = redis.pipeline();
+    // Email-scoped counter (15-min window; this is what MAX_EMAIL_ATTEMPTS locks on).
     pipeline.incr(`${FAILED_EMAIL_PREFIX}${email}`);
     pipeline.expire(`${FAILED_EMAIL_PREFIX}${email}`, 15 * 60);
+    // IP-scoped total attempts counter (1-hour window).
     pipeline.incr(`${FAILED_IP_PREFIX}${ip}`);
     pipeline.expire(`${FAILED_IP_PREFIX}${ip}`, 60 * 60);
+    // FIX IP-NAT-SMART-COUNTER: add this email to the per-IP Set of
+    // distinct failed addresses, then read the current cardinality.
+    // The Set is the spray signature — a legit user failing on their
+    // own account grows the counter but not the Set.
+    pipeline.sadd(`${FAILED_IP_EMAILS_PREFIX}${ip}`, email);
+    pipeline.expire(`${FAILED_IP_EMAILS_PREFIX}${ip}`, 60 * 60);
+    pipeline.scard(`${FAILED_IP_EMAILS_PREFIX}${ip}`);
     const results = await pipeline.exec();
     return {
       emailAttempts: (results?.[0]?.[1] as number) ?? 0,
       ipAttempts: (results?.[2]?.[1] as number) ?? 0,
+      ipDistinctEmails: (results?.[5]?.[1] as number) ?? 0,
     };
   },
 
@@ -436,6 +467,17 @@ export const tokenStore = {
   // warn log: a successful login must not fail because of this cleanup
   // step, and a stale counter is a much smaller problem than blocking
   // login outright.
+  //
+  // FIX IP-NAT-SMART-COUNTER: this deliberately does NOT delete the
+  // FAILED_IP_EMAILS Set. The Set is the spray signature; if it were
+  // cleared on any successful login, an attacker with one valid
+  // account could reset their own spray counter every time they
+  // topped it up — the entire point of tracking distinct addresses
+  // would be lost. The Set ages out on its own 1-hour TTL. The
+  // counter (FAILED_IP_PREFIX) is still cleared, which is what makes
+  // this whole scheme survive a busy NAT tower: a single legit login
+  // from that tower resets the counter, so the 500-attempt ceiling is
+  // never approached by ordinary user churn.
   clearFailedLogins: async (email: string, ip: string): Promise<void> => {
     try {
       await redis.del(`${FAILED_EMAIL_PREFIX}${email}`, `${FAILED_IP_PREFIX}${ip}`);
@@ -460,5 +502,26 @@ export const tokenStore = {
   getIpAttempts: async (ip: string): Promise<number> => {
     const val = await redis.get(`${FAILED_IP_PREFIX}${ip}`);
     return val ? parseInt(val) : 0;
+  },
+
+  // FIX IP-NAT-SMART-COUNTER: companion to getIpAttempts. Returns the
+  // number of distinct email addresses that have failed login from
+  // this IP in the current 1-hour window. auth.service.ts's login()
+  // reads this and getIpAttempts together to distinguish a busy NAT
+  // tower (high attempts, low distinct-email count) from a spray
+  // (high attempts, high distinct-email count). Both reads batched
+  // into one round-trip to keep the login path's Redis cost flat.
+  getIpStats: async (
+    ip: string
+  ): Promise<{ attempts: number; distinctEmails: number }> => {
+    const pipeline = redis.pipeline();
+    pipeline.get(`${FAILED_IP_PREFIX}${ip}`);
+    pipeline.scard(`${FAILED_IP_EMAILS_PREFIX}${ip}`);
+    const results = await pipeline.exec();
+    const attemptsRaw = results?.[0]?.[1];
+    return {
+      attempts: attemptsRaw ? parseInt(String(attemptsRaw), 10) : 0,
+      distinctEmails: (results?.[1]?.[1] as number) ?? 0,
+    };
   },
 };
