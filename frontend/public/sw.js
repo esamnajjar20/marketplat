@@ -2074,13 +2074,36 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+      // FIX SW-COLDOPEN-RACE: previously only an exact-path match was
+      // reused, so tapping a /notifications notification while the
+      // user's only open tab was on /dashboard opened a brand-new
+      // window — a cold start with no in-memory session state, where
+      // ProtectedLayout's auth gate can fire its /login redirect a
+      // fraction of a second before AuthHydrationProvider's
+      // /auth/refresh completes. The user sees /login once, hits
+      // refresh, and is suddenly back in as if nothing happened
+      // because by then the refresh has finished and the cookies are
+      // already there. Fix: prefer an exact path match, then fall
+      // back to any client on our own origin and navigate it there.
+      // Only when there is no tab at all is a new window opened.
+      let sameOriginFallback = null;
       for (const client of clientsList) {
         try {
-          const clientPath = new URL(client.url).pathname;
-          if (clientPath === targetPath && 'focus' in client) return client.focus();
+          const parsed = new URL(client.url);
+          if (parsed.origin !== self.location.origin) continue;
+          if (parsed.pathname === targetPath && 'focus' in client) {
+            return client.focus();
+          }
+          if (!sameOriginFallback) sameOriginFallback = client;
         } catch {
           /* malformed client URL — skip */
         }
+      }
+      if (sameOriginFallback && 'focus' in sameOriginFallback) {
+        if ('navigate' in sameOriginFallback) {
+          return sameOriginFallback.navigate(rawUrl);
+        }
+        return sameOriginFallback.focus();
       }
       if (self.clients.openWindow) return self.clients.openWindow(rawUrl);
       return undefined;

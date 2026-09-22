@@ -74,7 +74,26 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!isResolved) return;
-    if (!isAuthenticated && !canRenderOffline) {
+    if (isAuthenticated || canRenderOffline) return;
+
+    // FIX AUTH-COLDOPEN-GRACE: isResolved becomes true the moment the
+    // Zustand rehydrate callback fires, which on a fresh tab (e.g. one
+    // opened by a push notification) is before AuthHydrationProvider's
+    // /auth/refresh round trip has resolved. On Gaza's mobile links
+    // that gap is long enough for the unguarded redirect below to
+    // bounce the user to /login, where they see a login form even
+    // though their session is still valid — the exact scenario
+    // reported ("cold open from a notification lands on /login, a
+    // plain refresh then shows me signed in"). Wait briefly and
+    // re-check the live store before committing to the redirect; the
+    // 900ms is well under the provider's own 8s timeout and covers
+    // the realistic worst case even on a slow 3G round trip.
+    const timer = setTimeout(() => {
+      const live = useAuthStore.getState();
+      // Session arrived while we were waiting, or is still being
+      // resolved — either way, do not redirect.
+      if (live.isAuthenticated || live.isAuthResolving) return;
+
       // FIX AUTH-LOGIN-LOOP-01: امسح تلميح الجلسة القديم حتى لا يعيد
       // middleware توجيه /login → /dashboard بينما العميل غير مصادق.
       try {
@@ -85,7 +104,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         /* ignore */
       }
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
-    }
+    }, 900);
+
+    return () => clearTimeout(timer);
   }, [isAuthenticated, canRenderOffline, isResolved, router, pathname]);
 
   // Show skeleton while waiting for hydration or session restoration.

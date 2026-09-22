@@ -78,13 +78,25 @@ function ThemedToaster() {
   const { resolvedTheme } = useTheme();
   return (
     <Toaster
-      position="bottom-center"
+      // FIX NOTIF-TOAST-POSITION: was "bottom-center" with a
+      // safe-area-inset-bottom offset, which is a mobile-friendly
+      // choice for a generic toast but the wrong one for this app.
+      // The push/SSE-driven "new message" / "new offer" notifications
+      // land here (via NotificationToasts' toast() calls), and on a
+      // phone they were appearing underneath whatever the user was
+      // reading — frequently under the on-screen keyboard when a
+      // chat input was open, so they were missed entirely. The
+      // inline Toaster in components/shared/feedback/Toaster.tsx
+      // already defaults to top-center; this override was silently
+      // winning. Now top-center as well, with a top-safe-area-aware
+      // offset so it clears the notch/status bar.
+      position="top-center"
       dir="rtl"
       richColors
       duration={4000}
       closeButton
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-      offset="max(1rem, env(safe-area-inset-bottom))"
+      offset="max(1rem, env(safe-area-inset-top))"
     />
   );
 }
