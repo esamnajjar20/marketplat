@@ -29,6 +29,16 @@ export const categoriesController = {
     }
   },
 
+  // FIX ADMIN-CATEGORIES-FRESH-01: GET /categories/admin/all
+  getCategoriesForAdmin: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const categories = await categoriesService.getCategoriesForAdmin();
+      res.status(200).json(successResponse('Categories fetched', categories));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getCategoryById: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { params } = categoryIdSchema.parse({ params: req.params });

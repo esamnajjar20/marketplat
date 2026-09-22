@@ -69,6 +69,19 @@ export const categoriesService = {
     return categories;
   },
 
+  /**
+   * FIX ADMIN-CATEGORIES-FRESH-01: admin list — deliberately bypasses the
+   * Redis cache getCategories() uses (CATEGORIES_CACHE_KEY). That cache
+   * is public-facing and holds the shape public consumers need at an
+   * hour of staleness; an admin editing or deleting a category must see
+   * their change immediately. Same reasoning as
+   * service-categories.service.ts's getServiceCategoriesForAdmin and
+   * product-categories.service.ts's counterpart.
+   */
+  getCategoriesForAdmin: async () => {
+    return categoriesRepository.findManyForAdmin();
+  },
+
   getCategoryById: async (id: string): Promise<Category> => {
     const category = await categoriesRepository.findById(id);
     if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');

@@ -14,6 +14,41 @@ export const categoriesRepository = {
       orderBy: { name: 'asc' },
     }),
 
+  /**
+   * FIX ADMIN-CATEGORIES-FRESH-01: admin-only full tree with per-category
+   * ad counts. Mirrors service-categories.repository.ts's findManyForAdmin
+   * and product-categories.repository.ts's counterpart exactly — same
+   * include shape (children + _count at both levels), same rationale.
+   *
+   * Why a separate method instead of extending findMany: the public
+   * findMany feeds getCategories(), which is Redis-cached for an hour
+   * (CATEGORIES_CACHE_KEY, CATEGORIES_TTL). The admin tree needs the
+   * live, uncached state — an admin who edits a category and then
+   * refreshes the tree must see their change, not a 1-hour-old
+   * snapshot. Also, _count.ads is only ever needed by the admin UI;
+   * including it in the cached public response would enlarge the cache
+   * payload for zero benefit to any public reader.
+   */
+  findManyForAdmin: async (): Promise<
+    Array<
+      Category & {
+        children: Array<Category & { _count: { ads: number } }>;
+        _count: { ads: number };
+      }
+    >
+  > =>
+    prisma.category.findMany({
+      where: { parentId: null },
+      include: {
+        children: {
+          orderBy: { name: 'asc' },
+          include: { _count: { select: { ads: true } } },
+        },
+        _count: { select: { ads: true } },
+      },
+      orderBy: { name: 'asc' },
+    }),
+
   findById: async (id: string): Promise<Category | null> =>
     prisma.category.findUnique({ where: { id }, include: { children: true } }),
 
