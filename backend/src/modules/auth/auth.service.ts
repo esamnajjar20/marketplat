@@ -197,8 +197,23 @@ export const authService = {
   },
 
   login: async (input: LoginInput, ip = 'unknown', userAgent = 'unknown'): Promise<AuthResult> => {
+    // FIX LOGIN-EMAIL-NORMALIZE: the lockout/attempt machinery below
+    // keys off this string; authRepository.findByEmail normalizes
+    // internally but Redis keys do not. Without normalizing here, an
+    // attacker defeats MAX_EMAIL_ATTEMPTS entirely by cycling the
+    // case of a victim's email — "Victim@x.com", "victim@x.com",
+    // "VICTIM@X.COM" — each variant maps to a different Redis key,
+    // none of them ever reaches 5, and the account never locks. The
+    // same string is used for clearFailedLogins on success, so a
+    // legitimately-typed login with different casing from the stored
+    // form previously left the failure counter from another variant
+    // still standing. 256 case-permutations of an 8-char local part ×
+    // 5 attempts = ~1280 tries per 30-minute window before the real
+    // (case-sensitive) lockout fires on any one key.
+    const normalizedEmail = input.email.trim().toLowerCase();
+
     const [isEmailLocked, ipAttempts] = await Promise.all([
-      tokenStore.isAccountLocked(input.email),
+      tokenStore.isAccountLocked(normalizedEmail),
       tokenStore.getIpAttempts(ip),
     ]);
 
@@ -210,7 +225,7 @@ export const authService = {
       throw new TooManyRequestsError('Too many requests from this network. Please try again later', 'TOO_MANY_ATTEMPTS_FROM_IP');
     }
 
-    const user = await authRepository.findByEmail(input.email);
+    const user = await authRepository.findByEmail(normalizedEmail);
 
     // FIX LOGIN-TIMING-01: run a bcrypt compare unconditionally, using a
     // fixed dummy hash when the target user (or that user's passwordHash)
@@ -230,9 +245,44 @@ export const authService = {
     const isPasswordValid = await comparePasswordOrDummy(input.password, hashToCheck);
 
     if (!user || !user.passwordHash) {
-      const { emailAttempts } = await tokenStore.incrementFailedLogins(input.email, ip);
+      // FIX LOGIN-EMAIL-NORMALIZE + FIX LOGIN-AUDIT-NOUSER: two issues
+      // in this branch.
+      //
+      // 1) Used to key on the raw input email while findByEmail
+      //    normalized — see FIX LOGIN-EMAIL-NORMALIZE above. Now uses
+      //    the same normalized key throughout this handler so the
+      //    counter actually accumulates across case variants.
+      //
+      // 2) Used to skip auditLog entirely when the email did not
+      //    match any account. The wrong-password branch below DOES
+      //    log (with userId set). That left a monitoring blind spot:
+      //    an email-enumeration scan against unknown addresses was
+      //    invisible in the audit table, and a brute-force attempt
+      //    against a real email that happened to be typed slightly
+      //    wrong never triggered a security alert. Now emits a
+      //    LOGIN_FAILED row with no userId (the account genuinely
+      //    isn't known at this point) and fires the same security
+      //    alert as the wrong-password branch once the lockout
+      //    threshold is crossed.
+      const { emailAttempts } = await tokenStore.incrementFailedLogins(normalizedEmail, ip);
+
+      auditLog({
+        event: AuditEvent.LOGIN_FAILED,
+        ip,
+        userAgent,
+        details: { emailAttempts, reason: 'no_such_account' },
+      }).catch(() => {});
+
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
-        await tokenStore.lockAccount(input.email, LOCKOUT_DURATION);
+        await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
+        logger.warn('Account locked (no matching user)', { email: normalizedEmail, ip });
+        // No sendSecurityAlert here: without a userId there is no
+        // "account" to alert the owner of. The audit row above is the
+        // only durable record — which is exactly what was missing.
+        throw new TooManyRequestsError(
+          'Account temporarily locked. Try again in 30 minutes',
+          'ACCOUNT_LOCKED',
+        );
       }
       throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
@@ -240,7 +290,7 @@ export const authService = {
     if (!user.isActive) throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
 
     if (!isPasswordValid) {
-      const { emailAttempts } = await tokenStore.incrementFailedLogins(input.email, ip);
+      const { emailAttempts } = await tokenStore.incrementFailedLogins(normalizedEmail, ip);
 
       auditLog({
         event: AuditEvent.LOGIN_FAILED,
@@ -251,14 +301,14 @@ export const authService = {
       }).catch(() => {});
 
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
-        await tokenStore.lockAccount(input.email, LOCKOUT_DURATION);
-        logger.warn('Account locked', { email: input.email, ip });
+        await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
+        logger.warn('Account locked', { email: normalizedEmail, ip });
 
         sendSecurityAlert({
           userId: user.id,
           ip,
           event: 'ACCOUNT_LOCKED',
-          details: { email: input.email },
+          details: { email: normalizedEmail },
         }).catch(() => {});
 
         throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes', 'ACCOUNT_LOCKED');
@@ -266,7 +316,7 @@ export const authService = {
       throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
-    await tokenStore.clearFailedLogins(input.email, ip);
+    await tokenStore.clearFailedLogins(normalizedEmail, ip);
 
     const { result, sessionId } = await issueSession(user, ip, userAgent);
 
@@ -672,10 +722,25 @@ export const authService = {
       return { alreadyVerified: true };
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerified: true, emailVerifiedAt: new Date() },
-    });
+    // FIX VERIFY-GOOGLE-CLEANUP-TOKENS: also sweep any outstanding
+    // email-verification tokens for this user. Two reasons: (a) a
+    // verification email that was already in flight before the user
+    // chose the Google path is now pointless, and (b) leaving it
+    // marked used:false means the token lives until its 24h expiry —
+    // if it ever leaks, it still marks the account verified later,
+    // which is a no-op but writes an extra EMAIL_VERIFIED audit row
+    // with no cause. Same pattern as verifyEmail's own single-use
+    // treatment, just applied across all the user's pending tokens.
+    await prisma.$transaction([
+      prisma.emailVerificationToken.updateMany({
+        where: { userId: user.id, used: false },
+        data: { used: true },
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true, emailVerifiedAt: new Date() },
+      }),
+    ]);
 
     // Drop the cached user so the next request sees the new flag —
     // same pattern every other state change on User follows (see
@@ -683,15 +748,19 @@ export const authService = {
     // path).
     await userCache.invalidate(user.id);
 
-    // Note: auditLog without a dedicated EMAIL_VERIFIED event — falls
-    // back to LOGIN_SUCCESS shape since the enum may not have a
-    // dedicated constant. If a dedicated event exists, swap it here.
+    // FIX AUDIT-EVENT-VERIFY-GOOGLE: AuditEvent.EMAIL_VERIFIED already
+    // exists in the Prisma enum (see schema.prisma's AuditEventType),
+    // and verifyEmail() uses it for the email-link path. This helper
+    // was writing LOGIN_SUCCESS with an action tag when it was first
+    // added, on the assumption no dedicated constant existed. Aligned
+    // with the email-link path now so audit queries that filter on
+    // EMAIL_VERIFIED pick up both verification channels.
     auditLog({
-      event: AuditEvent.LOGIN_SUCCESS,
+      event: AuditEvent.EMAIL_VERIFIED,
       userId: user.id,
       ip: 'unknown',
       userAgent: 'unknown',
-      details: { action: 'email_verified_via_google', provider: 'google' },
+      details: { provider: 'google' },
     }).catch(() => {});
 
     return { alreadyVerified: false };
