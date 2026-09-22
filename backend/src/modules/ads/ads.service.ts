@@ -688,6 +688,31 @@ export const adsService = {
     // from interleaving in a way that could resurrect a just-removed
     // image or miscount against the 10-image cap.
     return withAdImagesLock(adId, async () => {
+      // FIX MIN-IMG-RACE: re-read the ad inside the lock and re-apply
+      // the "must keep at least one image" guard. Without this, the
+      // pre-lock guard above is a TOCTOU: two concurrent removeImage
+      // calls on the same ad — each on a different image of a
+      // two-image ad — both read length=2 at pre-check time, both pass
+      // the guard, then serialize through the lock and remove both
+      // images, leaving an ACTIVE ad with zero photos and breaking the
+      // MIN_IMAGES_REQUIRED rule that createAd, updateAd (via schema),
+      // and addImages all separately enforce. Same class of bug the
+      // addImages TOCTOU fix (FIX D-10) already closed on the add
+      // side; this closes the remove side.
+      const freshAd = await adsRepository.findById(adId);
+      if (!freshAd || freshAd.status === 'DELETED') {
+        throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      }
+      if (!freshAd.images.includes(imageUrl)) {
+        throw new BadRequestError('Image not found in this ad');
+      }
+      if (freshAd.images.length <= 1) {
+        throw new BadRequestError(
+          'Cannot remove the last image — an ad must have at least one image. Add a replacement image first.',
+          'MIN_IMAGES_REQUIRED'
+        );
+      }
+
       try {
         const publicId = extractCloudinaryPublicId(imageUrl);
         if (publicId) await deleteImage(publicId);
