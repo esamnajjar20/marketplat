@@ -112,13 +112,70 @@ export const usersService = {
   },
 
   // D-01: cascade ACTIVE ads to DELETED + S-04: revoke all tokens
+  // FIX GDPR-ANON + FIX GDPR-CLOUDINARY-CLEANUP: see below for both.
   deleteMe: async (userId: string): Promise<void> => {
     const user = await usersRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
-    // Deactivate user + hide all their active ads atomically
+    // FIX GDPR-CLOUDINARY-CLEANUP: collect every Cloudinary publicId
+    // this user owns — avatar + every image of every ad they have ever
+    // posted (not just ACTIVE ones; a SOLD ad's images also belong to
+    // them). Before this, account deletion only flipped isActive=false
+    // and DELETED their ACTIVE ads; the underlying images kept living
+    // on Cloudinary indefinitely, at the operator's cost and in
+    // violation of the deletion promise the user just made. Same
+    // best-effort treatment as uploadAvatar's own cleanup: a Cloudinary
+    // failure must never block the deletion itself (the DB state is
+    // the source of truth, the images are recoverable from the audit
+    // trail if a cleanup is ever needed later).
+    const [avatarPublicId, adImages] = await Promise.all([
+      user.avatarUrl ? Promise.resolve(extractCloudinaryPublicId(user.avatarUrl)) : Promise.resolve(null),
+      prisma.ad.findMany({
+        where: { userId },
+        select: { images: true },
+      }),
+    ]);
+    const adPublicIds: string[] = [];
+    for (const ad of adImages) {
+      for (const img of ad.images ?? []) {
+        const pid = extractCloudinaryPublicId(img);
+        if (pid) adPublicIds.push(pid);
+      }
+    }
+
+    // FIX GDPR-ANON: anonymize the account so the email/phone/name
+    // are gone from the database (kept: id, role, isActive, timestamps
+    // — the row stays for foreign-key integrity and aggregate counts,
+    // but nothing identifying survives). email and phone are the two
+    // natural keys this app uses for login and uniqueness checks, so
+    // the anonymized values must remain unique per deleted user —
+    // `deleted-<userId>@deleted.invalid` and `deleted-<userId>` do
+    // that without any collision risk, and `.invalid` is the IETF-
+    // reserved TLD for exactly this purpose (RFC 2606). Name is set to
+    // a generic Arabic placeholder so any historical audit row or
+    // admin list still reads as a user, not as a corrupted record.
+    // The passwordHash is left untouched — it was already unusable
+    // (the login path rejects isActive=false before it ever gets to
+    // bcrypt) and clearing it here would break the "is this account
+    // OAuth-only?" check in changePassword for a user who is deleted
+    // but somehow tries to log in again.
+    //
+    // Deactivate + anonymize + hide ads all in one transaction so
+    // there is no window where the account is "still half-alive".
+    const anonEmail = `deleted-${userId}@deleted.invalid`;
+    const anonPhone = `deleted-${userId}`;
     await prisma.$transaction([
-      prisma.user.update({ where: { id: userId }, data: { isActive: false } }),
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          isActive: false,
+          email: anonEmail,
+          phone: anonPhone,
+          name: 'مستخدم محذوف',
+          bio: null,
+          avatarUrl: null,
+        },
+      }),
       prisma.ad.updateMany({
         where: { userId, status: AdStatus.ACTIVE },
         data: { status: AdStatus.DELETED },
@@ -127,6 +184,18 @@ export const usersService = {
 
     // S-04: invalidate all active sessions + cache
     await Promise.all([userCache.invalidate(userId), tokenStore.deleteAllRefreshTokens(userId)]);
+
+    // Cloudinary cleanup is deliberately after the transaction (the
+    // DB state is authoritative; the images are orphaned-by-design
+    // once the row is anonymized) and best-effort (a Cloudinary
+    // failure must never fail a deletion that already succeeded).
+    const toDelete = [
+      ...(avatarPublicId ? [avatarPublicId] : []),
+      ...adPublicIds,
+    ];
+    if (toDelete.length > 0) {
+      await cleanupUploadedImages(toDelete).catch(() => undefined);
+    }
   },
 
 
