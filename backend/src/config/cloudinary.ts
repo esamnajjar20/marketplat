@@ -52,6 +52,16 @@ class CloudinaryTimeoutError extends Error {
   }
 }
 
+// FIX CLOUDINARY-TIMEOUT-LOG-01: the five upload helpers below each
+// have their own try/catch that logs only CloudinaryTimeoutError.
+// That is fine today, but the pattern is easy to forget in a future
+// helper — and the shared timeout that actually produces the error
+// has no logging of its own. Documenting the invariant here (rather
+// than sprinkling logger.error calls) keeps the shared helper pure
+// so tests can exercise it without mocking the logger; a refactor
+// that extracts a single generic upload helper (pending) will make
+// this moot, since there will be exactly one try/catch to keep
+// honest.
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {

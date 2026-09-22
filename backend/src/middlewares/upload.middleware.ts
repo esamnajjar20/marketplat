@@ -136,6 +136,13 @@ export const uploadMiddleware = (req: Request, res: Response, next: NextFunction
         // FIX UPLOAD-01: was a bare BadRequestError with no code.
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
           return next(new BadRequestError('Unexpected file field', 'UNEXPECTED_FILE_FIELD'));
+        // FIX UPLOAD-SINGLE-FIELD-LIMIT-01: mirror uploadMultipleMiddleware
+        // — the single-file variant has no file-count check (single always
+        // means one file), but a caller that sends >20 non-file fields in
+        // the same multipart request was previously rejected with the
+        // generic `uploadErr.message` string instead of a coded error.
+        if (uploadErr.code === 'LIMIT_FIELD_COUNT')
+          return next(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
         return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
       }
       // fileFilter's own BadRequestError (already coded) and any other

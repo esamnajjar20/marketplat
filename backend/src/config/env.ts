@@ -375,6 +375,26 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
         'CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are all required when NODE_ENV=production',
     });
   }
+
+  // FIX DISABLE-RATE-LIMIT-PROD-01: DISABLE_RATE_LIMIT is a dev/CI
+  // convenience switch that bypasses globalRateLimit entirely
+  // (rateLimit.middleware.ts's `bypassRateLimit` short-circuits every
+  // /api request). If it were ever set to true in production — by a
+  // mis-paste from a .env.example copy, a leftover CI env block, or
+  // an operator reaching for the wrong kill switch during an incident
+  // — the API would run with no per-route or global backstop. Fail
+  // fast at startup instead of silently booting into an unprotected
+  // state. Prod deployments that genuinely need to disable a specific
+  // limiter have env.rateLimit.disabled only affecting globalRateLimit
+  // (per-route limiters still apply); a blanket opt-out is never the
+  // right answer.
+  if (data.NODE_ENV === 'production' && data.DISABLE_RATE_LIMIT) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DISABLE_RATE_LIMIT'],
+      message: 'DISABLE_RATE_LIMIT must not be true when NODE_ENV=production',
+    });
+  }
 });
 
 const parsed = envSchemaWithRedisCheck.safeParse(process.env);
