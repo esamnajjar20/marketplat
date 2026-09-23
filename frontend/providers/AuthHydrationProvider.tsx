@@ -278,6 +278,17 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
                       .then((r) => r.data.data),
                   staleTime: CACHE_TTL.favorites,
                 });
+                // T750 — the requestIdleCallback above can fire up to 5s
+                // after the auth flow settled, and a logout may have run
+                // in that window. clearSensitiveLocalData() already
+                // called queryClient.clear() and set sessionRevoked via
+                // invalidateRefreshSession() — writing the favorites
+                // Set now would repopulate a cache entry the cleanup
+                // just wiped. Mirrors the T735 check earlier in this
+                // same file. Cost is tiny (Set of ad IDs), but the
+                // consistency matters: every "write after logout"
+                // path should respect the same signal.
+                if (isSessionRevoked()) return;
                 if (!favData) return;
                 const idSet = new Set(favData.items.map((fav) => fav.ad.id));
                 queryClient.setQueryData(queryKeys.favorites.ids(), idSet);
