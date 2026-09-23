@@ -4,6 +4,7 @@ import {
   createServiceCategorySchema,
   updateServiceCategorySchema,
   serviceCategoryIdSchema,
+  serviceCategorySlugParamSchema,
 } from './service-categories.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 
@@ -53,8 +54,10 @@ export const serviceCategoriesController = {
 
   getServiceCategoryBySlug: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const slug = req.params.slug;
-      const category = await serviceCategoriesService.getServiceCategoryBySlug(slug);
+      // T445 — was reading req.params.slug raw, bypassing the same
+      // slug rules createServiceCategorySchema enforces on write.
+      const { params } = serviceCategorySlugParamSchema.parse({ params: req.params });
+      const category = await serviceCategoriesService.getServiceCategoryBySlug(params.slug);
       res.status(200).json(successResponse('Service category fetched', category));
     } catch (error) {
       next(error);

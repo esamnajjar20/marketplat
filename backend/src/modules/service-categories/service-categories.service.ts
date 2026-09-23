@@ -37,6 +37,15 @@ export const serviceCategoriesService = {
     if (existingNameAr) throw new BadRequestError('Arabic service category name already exists');
     if (existingSlug) throw new BadRequestError('Service category slug already exists');
 
+    // T440 — reject unknown parentId before it falls through to a raw
+    // P2003 -> 500.
+    if (input.parentId) {
+      const parent = await serviceCategoriesRepository.findById(input.parentId);
+      if (!parent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+    }
+
     try {
       const category = await serviceCategoriesRepository.create(input);
       await invalidateServiceCategoriesCache();
@@ -103,6 +112,29 @@ export const serviceCategoriesService = {
     const category = await serviceCategoriesRepository.findById(id);
     if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
 
+    // T441 — cycle guard, mirroring categoriesService and
+    // productCategoriesService. This module shipped WITHOUT one, so a
+    // self-referential parentId was accepted silently and any code
+    // walking the chain would hang.
+    if (input.parentId && input.parentId !== category.parentId) {
+      if (input.parentId === id) {
+        throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
+      }
+      // T442 — verify the target parent exists first; an unknown id
+      // returned an empty chain and passed the cycle check silently.
+      const proposedParent = await serviceCategoriesRepository.findById(input.parentId);
+      if (!proposedParent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+      const ancestorChain = await serviceCategoriesRepository.findParentChain(input.parentId);
+      if (ancestorChain.includes(id)) {
+        throw new BadRequestError(
+          'Cannot set parent to one of this category\'s own subcategories',
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
+      }
+    }
+
     if (input.slug && input.slug !== category.slug) {
       const existing = await serviceCategoriesRepository.findBySlug(input.slug);
       if (existing) throw new BadRequestError('Slug already in use');
@@ -143,7 +175,32 @@ export const serviceCategoriesService = {
       throw new BadRequestError(`Cannot delete category with ${listingsCount} active listings`);
     }
 
-    await serviceCategoriesRepository.delete(id);
+    // T443 — same guard the sibling modules have: a category with
+    // subcategories (children.parentId) or referenced by a broadcast
+    // would hit the FK constraint on delete.
+    const childrenCount = await serviceCategoriesRepository.countChildren(id);
+    if (childrenCount > 0) {
+      throw new BadRequestError(`Cannot delete category with ${childrenCount} subcategories`);
+    }
+    const broadcastsCount = await serviceCategoriesRepository.countBroadcasts(id);
+    if (broadcastsCount > 0) {
+      throw new BadRequestError(`Cannot delete category referenced by ${broadcastsCount} broadcasts`);
+    }
+
+    try {
+      await serviceCategoriesRepository.delete(id);
+    } catch (err) {
+      // T444 — the counts above are advisory; a child/broadcast can
+      // appear between the count and the delete. P2003 -> 400,
+      // P2025 -> 404.
+      if (isPrismaError(err, 'P2003')) {
+        throw new BadRequestError('Cannot delete category — it is still referenced.');
+      }
+      if (isPrismaError(err, 'P2025')) {
+        throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
+      }
+      throw err;
+    }
     await invalidateServiceCategoriesCache();
   },
 };

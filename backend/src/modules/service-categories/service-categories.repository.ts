@@ -50,6 +50,42 @@ export const serviceCategoriesRepository = {
   findById: async (id: string): Promise<ServiceCategory | null> =>
     prisma.serviceCategory.findUnique({ where: { id }, include: { children: true } }),
 
+  // T441 — this module previously had NO cycle guard on update (unlike
+  // categoriesRepository and productCategoriesRepository which both
+  // ship findParentChain). A parentId pointing at the category itself
+  // or at one of its own descendants would introduce an infinite loop
+  // in any code that walks the chain or recurses into children.
+  // Capped at 100 hops as a defensive backstop.
+  findParentChain: async (startId: string): Promise<string[]> => {
+    const chain: string[] = [];
+    let currentId: string | null = startId;
+    let hops = 0;
+    while (currentId && hops < 100) {
+      const node: { id: string; parentId: string | null } | null =
+        await prisma.serviceCategory.findUnique({
+          where: { id: currentId },
+          select: { id: true, parentId: true },
+        });
+      if (!node) break;
+      chain.push(node.id);
+      currentId = node.parentId;
+      hops += 1;
+    }
+    return chain;
+  },
+
+  // T443 — same guard the sibling modules have: a category with
+  // subcategories must not be hard-deleted, or the FK constraint on
+  // children.parentId would surface as an unhandled 500.
+  countChildren: async (id: string): Promise<number> =>
+    prisma.serviceCategory.count({ where: { parentId: id } }),
+
+  // T443 companion — a category referenced by an active broadcast is
+  // also unsafe to hard-delete (FK constraint on
+  // ServiceRequestBroadcast.categoryId). Same shape as countListings.
+  countBroadcasts: async (id: string): Promise<number> =>
+    prisma.serviceRequestBroadcast.count({ where: { categoryId: id } }),
+
   findBySlug: async (slug: string): Promise<ServiceCategory | null> =>
     prisma.serviceCategory.findUnique({ where: { slug } }),
 

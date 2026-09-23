@@ -3,6 +3,10 @@ import { serviceCategoriesController } from './service-categories.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import { requireAdmin } from '../../middlewares/admin.middleware';
+import {
+  categoryMutationRateLimit,
+  categoryDeleteRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 
 export const serviceCategoriesRouter = Router();
 
@@ -28,17 +32,20 @@ serviceCategoriesRouter.post(
   '/',
   authenticate,
   requireAdmin,
+  categoryMutationRateLimit,
   serviceCategoriesController.createServiceCategory
 );
 serviceCategoriesRouter.patch(
   '/:id',
   authenticate,
   requireAdmin,
+  categoryMutationRateLimit,
   serviceCategoriesController.updateServiceCategory
 );
 serviceCategoriesRouter.delete(
   '/:id',
   authenticate,
   requireAdmin,
+  categoryDeleteRateLimit,
   serviceCategoriesController.deleteServiceCategory
 );

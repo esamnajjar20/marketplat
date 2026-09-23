@@ -35,5 +35,17 @@ export const serviceCategoryIdSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
 
+// T445 — same slug rules as createServiceCategorySchema.slug applied
+// to the read path.
+export const serviceCategorySlugParamSchema = z.object({
+  params: z.object({
+    slug: z
+      .string()
+      .min(2)
+      .max(100)
+      .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers and hyphens only'),
+  }),
+});
+
 export type CreateServiceCategoryInput = z.infer<typeof createServiceCategorySchema>['body'];
 export type UpdateServiceCategoryInput = z.infer<typeof updateServiceCategorySchema>['body'];
