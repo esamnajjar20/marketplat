@@ -48,7 +48,24 @@ export const getAnalyticsSummarySchema = z.object({
     .refine(data => !data.from || !data.to || data.from <= data.to, {
       message: '"from" must be before or equal to "to"',
       path: ['from'],
-    }),
+    })
+    // T460 — bound the max range so an admin can't request a decade of
+    // events (which would scan the largest table in the schema). The
+    // repository wraps its queries in runWithQueryTimeout already, so
+    // worst case was already a clean 503 — but a 365-day cap removes
+    // the request before it hits the DB at all, and matches what the
+    // dashboard UI actually offers.
+    .refine(
+      data => {
+        if (!data.from || !data.to) return true;
+        const MAX_RANGE_MS = 365 * 24 * 60 * 60 * 1000;
+        return data.to.getTime() - data.from.getTime() <= MAX_RANGE_MS;
+      },
+      {
+        message: 'Date range must not exceed 365 days',
+        path: ['from'],
+      }
+    ),
 });
 
 export type GetAnalyticsSummaryQuery = z.infer<typeof getAnalyticsSummarySchema>['query'];

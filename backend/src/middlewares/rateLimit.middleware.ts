@@ -732,6 +732,24 @@ export const deleteSavedSearchRateLimit = rateLimit({
   message: msg('Too many saved-search deletions, please try again later'),
 });
 
+// T520 — media uploads previously reused createOpenRequestRateLimit
+// (prefix 'create_open_request'), which meant a user staging many
+// images consumed the same per-hour budget as their open-request
+// creation. Same ceiling (10/hour) as the request-creation flow it
+// was piggybacking on, now on its own Redis prefix so the two can't
+// interfere. Kept low because every call fans out to N Cloudinary
+// uploads (up to MAX_IMAGES_PER_ENTITY), so 10/hour bounds the
+// upstream cost too.
+export const mediaUploadRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('media_upload'),
+  message: msg('Too many image uploads, please try again later'),
+});
+
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({

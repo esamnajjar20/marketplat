@@ -222,14 +222,26 @@ const bootstrap = async (): Promise<void> => {
       setTimeout(() => withIdle.closeAllConnections?.(), 3000).unref();
     };
 
-    process.on('SIGTERM', () => {
+    // T531 — guard against a duplicate signal (e.g. SIGTERM arriving
+    // while a SIGINT handler is still draining): without this, both
+    // drainConnections() (two closeAllConnections timers) and
+    // shutdown() (two server.close callbacks each running the full
+    // prisma.$disconnect + redis.quit + stopFlushTimer chain) would
+    // fire. Most of the cleanup is idempotent, but stopFlushTimer's
+    // final flush and prisma.$disconnect are not designed to be called
+    // twice — a second flush() after disconnect would fail noisily in
+    // the logs on every double-signal shutdown. Rare in practice
+    // (Render sends one SIGTERM per deploy) but free to guard.
+    let shuttingDown = false;
+    const triggerShutdown = (signal: string) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
       drainConnections(server);
-      void shutdown('SIGTERM');
-    });
-    process.on('SIGINT', () => {
-      drainConnections(server);
-      void shutdown('SIGINT');
-    });
+      void shutdown(signal);
+    };
+
+    process.on('SIGTERM', () => triggerShutdown('SIGTERM'));
+    process.on('SIGINT', () => triggerShutdown('SIGINT'));
     process.on('unhandledRejection', reason => logger.error('Unhandled rejection', reason));
 
     // FIX D-13: previously this called process.exit(1) immediately with

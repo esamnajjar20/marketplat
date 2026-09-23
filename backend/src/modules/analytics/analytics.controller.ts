@@ -5,10 +5,13 @@ import { successResponse } from '../../shared/types/api-response.types';
 
 export const analyticsController = {
   // POST /analytics/events — public (see analytics.routes.ts). Always
-  // returns 202 regardless of whether the write actually lands (see
-  // analytics.service.ts's fire-and-forget error handling) — the
-  // client has nothing useful to do with a failure here, and retrying
-  // client-side would only risk duplicate events.
+  // returns 202 regardless of whether the write actually lands. Note
+  // (T461): trackEvents IS awaited on the request path — the "fire-
+  // and-forget" wording refers to the SERVICE's internal handling of
+  // write failures (analytics.service.ts catches them and logs rather
+  // than re-throwing), not to this controller returning early. The
+  // observable contract is what matters: the client always sees 202,
+  // and a write failure never turns into a 5xx.
   trackEvents: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { body } = trackEventsSchema.parse({ body: req.body });
