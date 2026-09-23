@@ -93,7 +93,15 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // default and decide here: safe methods get 15s, mutations 8s. Explicit
   // per-call timeouts (e.g. mediaApi's 30s multipart budget) still win -
   // they arrive as a non-undefined config.timeout and are left alone.
-  if (config.timeout === undefined) {
+  // T665 — axios's own default is `timeout: 0` (no timeout), not
+  // `undefined`. mergeConfig copies that 0 into config before this
+  // interceptor runs, so `config.timeout === undefined` was always
+  // false and the caps below never actually applied — every request
+  // (GET included) ran with axios's "no timeout" default. `!config.timeout`
+  // catches both 0 and undefined, and still leaves any explicit
+  // per-call timeout (e.g. mediaApi's 30s multipart budget) alone
+  // since those arrive non-zero.
+  if (!config.timeout) {
     config.timeout = SAFE_METHODS.has(method) ? 15_000 : 8_000;
   }
 
@@ -357,6 +365,22 @@ apiClient.interceptors.response.use(
       // the module is already fully initialised by the time any 401 fires.
       const { authApi } = await import('@/api/auth.api');
       const res = await authApi.refresh();
+
+      // T651 — invalidateRefreshSession() (logout / logout-all /
+      // password change / account deletion) sets sessionRevoked and
+      // rejects refreshQueue, but it CANNOT cancel an already in-flight
+      // authApi.refresh(). Without this check, that pending refresh
+      // completes successfully and re-establishes the session the user
+      // just ended: setAccessToken restores the in-memory token,
+      // setCookie('app_access_token') + setCookie('app_has_session')
+      // restore the middleware-visible cookies. sessionRevoked stays
+      // true (so the NEXT 401 short-circuits as intended), but the
+      // user looks authenticated — a real security issue on a shared
+      // device. Discard the refresh result and reject instead.
+      if (sessionRevoked) {
+        processQueue(new Error('Session ended during refresh'), null);
+        return Promise.reject(parseApiError(error));
+      }
 
       const { accessToken: newAccess, expiresIn } = res.data.data!.tokens;
 
