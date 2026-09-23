@@ -36,10 +36,17 @@ export const productCategoriesService = {
 
     // T430 — mirror categories: reject unknown parentId before it
     // falls through to a raw P2003 -> 500.
+    // T425 — same 2-level depth guard as categories.
     if (input.parentId) {
       const parent = await productCategoriesRepository.findById(input.parentId);
       if (!parent) {
         throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+      if (parent.parentId !== null) {
+        throw new BadRequestError(
+          'Product categories support only two levels (top-level + direct children).',
+          'CATEGORY_DEPTH_EXCEEDED',
+        );
       }
     }
 
@@ -121,6 +128,13 @@ export const productCategoriesService = {
       const proposedParent = await productCategoriesRepository.findById(input.parentId);
       if (!proposedParent) {
         throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+      // T425 — same 2-level depth constraint as categories.
+      if (proposedParent.parentId !== null) {
+        throw new BadRequestError(
+          'Product categories support only two levels (top-level + direct children).',
+          'CATEGORY_DEPTH_EXCEEDED',
+        );
       }
       const ancestorChain = await productCategoriesRepository.findParentChain(input.parentId);
       if (ancestorChain.includes(id)) {

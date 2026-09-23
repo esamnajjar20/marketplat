@@ -38,10 +38,19 @@ export const categoriesService = {
 
     // T420 — a nonexistent parentId would surface as a raw P2003 (FK
     // violation) turned 500. Check up-front for a clean 400.
+    // T425 — also enforce the 2-level tree constraint: a parent that
+    // is itself a child would create a grandchild the public/admin
+    // trees (findMany's single-level children include) cannot render.
     if (input.parentId) {
       const parent = await categoriesRepository.findById(input.parentId);
       if (!parent) {
         throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+      if (parent.parentId !== null) {
+        throw new BadRequestError(
+          'Categories support only two levels (top-level + direct children).',
+          'CATEGORY_DEPTH_EXCEEDED',
+        );
       }
     }
 
@@ -120,6 +129,13 @@ export const categoriesService = {
       const proposedParent = await categoriesRepository.findById(input.parentId);
       if (!proposedParent) {
         throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+      // T425 — same 2-level constraint as createCategory above.
+      if (proposedParent.parentId !== null) {
+        throw new BadRequestError(
+          'Categories support only two levels (top-level + direct children).',
+          'CATEGORY_DEPTH_EXCEEDED',
+        );
       }
       const ancestorChain = await categoriesRepository.findParentChain(input.parentId);
       if (ancestorChain.includes(id)) {

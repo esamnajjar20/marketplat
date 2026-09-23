@@ -53,6 +53,14 @@ export const ErrorCode = {
 
   // Categories
   CATEGORY_NOT_FOUND: 'CATEGORY_NOT_FOUND',
+  // T425 — tree is 2-level by design (parent + children). Adding a
+  // grandchild would create data the public/admin trees silently
+  // cannot render (both findMany methods include only one level of
+  // `children`). Guarded at create/update so the failure surfaces
+  // clearly to the admin instead of producing an invisible row.
+  CATEGORY_DEPTH_EXCEEDED: 'CATEGORY_DEPTH_EXCEEDED',
+  PARENT_CATEGORY_NOT_FOUND: 'PARENT_CATEGORY_NOT_FOUND',
+  CIRCULAR_CATEGORY_REFERENCE: 'CIRCULAR_CATEGORY_REFERENCE',
 
   // Uploads
   FILE_TOO_LARGE: 'FILE_TOO_LARGE',
