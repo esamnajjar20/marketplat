@@ -63,11 +63,22 @@ export const activityBuffer = {
    */
   push: async (input: CreateActivityInput): Promise<void> => {
     try {
-      await redis
+      // T454 — pipeline().exec() only REJECTS on transport-level
+      // failure. Command-level errors (WRONGTYPE if the buffer key was
+      // clobbered, OOM, READONLY, etc.) resolve as [err, result] pairs
+      // and would otherwise be swallowed — the fallback below would
+      // never fire and the activity would be silently lost. Inspect
+      // the results and force the fallback path on any per-command
+      // error.
+      const results = await redis
         .pipeline()
         .rpush(BUFFER_KEY, JSON.stringify({ ...input, createdAt: new Date().toISOString() }))
         .expire(BUFFER_KEY, BUFFER_TTL_SECONDS)
         .exec();
+      const commandError = results?.find(([err]) => err)?.[0];
+      if (commandError) {
+        throw commandError;
+      }
     } catch (err) {
       // Redis unavailable — fall back to a direct write so a Redis
       // outage degrades to "back to today's per-row insert cost"
