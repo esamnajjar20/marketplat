@@ -1268,15 +1268,31 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         // الحقول بأحرف صغيرة دومًا (Fetch spec) — entry.headers هنا
         // بنفس الصيغة، فالمطابقة المباشرة صحيحة بلا حاجة لفحص case.
         const updatedHeaders = { ...entry.headers, authorization: `Bearer ${fresh.accessToken}` };
-        if (fresh.csrfToken && 'x-csrf-token' in updatedHeaders) {
-          updatedHeaders['x-csrf-token'] = fresh.csrfToken;
-        }
+        // FIX SW-CSRF-REFRESH-DEADCODE-01: entry.headers had x-csrf-token
+        // stripped at enqueue time (see handleMutation), so the previous
+        // `'x-csrf-token' in updatedHeaders` guard was always false and
+        // the branch never ran. The fresh CSRF token is applied on the
+        // retry by the sendHeaders block (which reads freshCreds), not
+        // here - nothing to write into the stored entry.
         const updatedEntry = await markQueuedEntry(entry.id, { headers: updatedHeaders });
         if (updatedEntry) {
           // Pass 'ok' as the reason — we just successfully refreshed,
           // so any needsCsrf guard must see valid creds and NOT trigger.
           return replayOne(updatedEntry, true, fresh, 'ok');
         }
+      }
+      // FIX SW-REFRESH-NETWORK-NOT-FAILED-01: distinguish refresh
+      // failure modes. Only reason:'auth' (server answered 401/403 -
+      // session genuinely gone) should fall through to the 4xx branch
+      // below and mark the entry 'failed' permanently. reason:'network'
+      // (DNS blip, timeout, 5xx) means the session may be perfectly
+      // valid and a retry in a few seconds could succeed - stay pending
+      // so the next drain tick tries again, bounded by MAX_QUEUE_RETRIES.
+      // Without this, a single transient network failure during refresh
+      // turned a soft 401 into a terminal 'failed', losing all retries -
+      // on exactly the audience this queue was built for.
+      if (!fresh || fresh.reason === 'network') {
+        return 'still-offline';
       }
       // فشل التجديد نفسه (refreshToken بالكوكي منتهي/غير موجود) — جلسة
       // منتهية فعليًا، لا عيب بالتصميم. يسقط للمنطق أدناه فيُعامَل كـ
@@ -1609,7 +1625,10 @@ async function replayQueueImpl() {
     });
 
     // Real offline → stop entire drain.
-    if (trulyOffline || result === 'still-offline' && typeof navigator !== 'undefined' && navigator.onLine === false) {
+    // FIX SW-REDUNDANT-OFFLINE-01: trulyOffline is computed once above;
+    // the previous second clause (typeof navigator... onLine===false)
+    // duplicated it exactly.
+    if (trulyOffline) {
       break;
     }
     // Chat/messages: preserve order.

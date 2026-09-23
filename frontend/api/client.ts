@@ -47,7 +47,6 @@ export const apiClient = axios.create({
   baseURL:         API_BASE_URL,
   withCredentials: true,
   headers:         { 'Content-Type': 'application/json' },
-  timeout:         15_000,
 });
 
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
@@ -86,8 +85,16 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // the worst perceived hang. Multipart uploads (which need real
   // bandwidth) override this via mediaApi's own 30s budget; GETs keep
   // the 15s global since they have no fallback.
-  if (!SAFE_METHODS.has(method) && config.timeout === undefined) {
-    config.timeout = 8_000;
+  // FIX MUTATION-TIMEOUT-02: axios merges the instance's timeout
+  // default into config before this interceptor runs, so config.timeout
+  // was never undefined and the 8s cap for mutations never actually
+  // applied - every POST/PUT/PATCH/DELETE hung the full 15s that
+  // FIX MUTATION-TIMEOUT-01 was written to avoid. Drop the instance-level
+  // default and decide here: safe methods get 15s, mutations 8s. Explicit
+  // per-call timeouts (e.g. mediaApi's 30s multipart budget) still win -
+  // they arrive as a non-undefined config.timeout and are left alone.
+  if (config.timeout === undefined) {
+    config.timeout = SAFE_METHODS.has(method) ? 15_000 : 8_000;
   }
 
   // PHASE-1 UX: sample RTT for connection quality indicator
