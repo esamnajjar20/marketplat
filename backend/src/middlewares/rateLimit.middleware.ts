@@ -574,6 +574,45 @@ export const searchSuggestionsRateLimit = rateLimit({
   message: msg('Too many requests, please slow down'),
 });
 
+// Promotions module: same rationale as createProductRateLimit — a
+// store-scoped creation action guarded against scripted spam. A given
+// store can only have one live promotion per product (partial unique
+// index), so the ceiling stays modest.
+export const createPromotionRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('create_promotion'),
+  message: msg('Too many promotions created, please try again later'),
+});
+
+// Updates are less impactful than creation (no new live window opens
+// unless the caller flips status, which the schema forbids), but still
+// state-mutating against a shared store — same ceiling as create.
+export const updatePromotionRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('update_promotion'),
+  message: msg('Too many promotion updates, please try again later'),
+});
+
+// Cancel is a one-shot terminal action; a low ceiling is a red flag
+// on scripted churn against a store's own promotions.
+export const cancelPromotionRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('cancel_promotion'),
+  message: msg('Too many promotion cancels, please try again later'),
+});
+
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({

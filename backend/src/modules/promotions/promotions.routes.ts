@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { promotionsController } from './promotions.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
+import {
+  createPromotionRateLimit,
+  updatePromotionRateLimit,
+  cancelPromotionRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 
 export const promotionsRouter = Router();
 
@@ -10,8 +16,8 @@ export const promotionsRouter = Router();
 // through products.controller.ts's effectivePrice fields, not through
 // this module directly (see promotions.controller.ts's getMyPromotions
 // doc comment).
-promotionsRouter.post('/', authenticate, promotionsController.createPromotion);
+promotionsRouter.post('/', authenticate, requireVerifiedEmail, createPromotionRateLimit, promotionsController.createPromotion);
 promotionsRouter.get('/me', authenticate, promotionsController.getMyPromotions);
 promotionsRouter.get('/:id', authenticate, promotionsController.getPromotionById);
-promotionsRouter.patch('/:id', authenticate, promotionsController.updatePromotion);
-promotionsRouter.delete('/:id', authenticate, promotionsController.cancelPromotion);
+promotionsRouter.patch('/:id', authenticate, updatePromotionRateLimit, promotionsController.updatePromotion);
+promotionsRouter.delete('/:id', authenticate, cancelPromotionRateLimit, promotionsController.cancelPromotion);

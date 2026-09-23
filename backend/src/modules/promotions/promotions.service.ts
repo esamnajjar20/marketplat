@@ -166,8 +166,57 @@ export const promotionsService = {
     id: string,
     input: UpdatePromotionInput
   ): Promise<Promotion> => {
-    await requireOwnPromotion(userId, id);
-    return promotionsRepository.update(id, input);
+    const existing = await requireOwnPromotion(userId, id);
+
+    // T384 — cross-field consistency: validation only sees the request
+    // body, so a caller flipping discountType alone (FIXED→PERCENTAGE)
+    // would keep a stale discountValue (e.g. 500) that violates the
+    // PERCENTAGE<=100 rule. Resolve the would-be final values and
+    // enforce the constraint here, where both old and new are visible.
+    const nextType = input.discountType ?? existing.discountType;
+    const nextValue =
+      input.discountValue !== undefined
+        ? Number(input.discountValue)
+        : Number(existing.discountValue);
+    if (nextType === 'PERCENTAGE' && nextValue > 100) {
+      throw new ConflictError(
+        'A percentage discount cannot exceed 100.',
+        'INVALID_DISCOUNT_VALUE',
+      );
+    }
+
+    // T386 — window consistency: same class of bug as T384. If either
+    // bound moves, the resulting (startsAt, endsAt) pair must stay
+    // ordered; the schema only catches the case where both are supplied.
+    const nextStartsAt = input.startsAt ?? existing.startsAt;
+    const nextEndsAt = input.endsAt ?? existing.endsAt;
+    if (nextEndsAt <= nextStartsAt) {
+      throw new ConflictError(
+        'endsAt must be after startsAt.',
+        'INVALID_PROMOTION_WINDOW',
+      );
+    }
+
+    // T385 — the caller can move startsAt/endsAt across "now" in a
+    // single PATCH; the pre-existing row's stored status is stale the
+    // instant that happens. Re-derive status from the merged values
+    // rather than trusting whatever was last written.
+    const now = new Date();
+    const resolvedStatus = resolveStatus(
+      { ...existing, startsAt: nextStartsAt, endsAt: nextEndsAt },
+      now,
+    );
+
+    const patch: Parameters<typeof promotionsRepository.update>[1] = { ...input };
+    // A client may only ever request CANCELLED (enforced by the schema);
+    // for any non-cancel update, the derived status must win over the
+    // stored one so the returned row is truthful.
+    if (input.status !== 'CANCELLED') {
+      patch.status = resolvedStatus;
+    }
+
+    const updated = await promotionsRepository.update(id, patch);
+    return syncStatus(updated, now);
   },
 
   cancelPromotion: async (userId: string, id: string): Promise<void> => {
