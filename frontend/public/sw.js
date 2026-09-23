@@ -937,8 +937,24 @@ async function networkFirstApi(event, request, _url) {
     // FIX SW-CAPTIVE-01 (API variant): إضافة لفحص same-origin، رد API حقيقي
     // متوقّع يكون JSON — صفحة captive portal/edge error بحالة 200 عادة HTML.
     const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
+    // T710 — never store an auth-keyed response in the SHARED API_CACHE.
+    // The Cache API discriminates entries by URL + any Vary header the
+    // stored RESPONSE declares. The backend's CACHE.NONE middleware
+    // sends `Cache-Control: no-store` but NOT `Vary: Authorization`, so
+    // a `/users/me` (or /conversations, /notifications, ...) response
+    // cached under User A would match a later request for the same URL
+    // from a different session. clearSensitiveLocalData() covers the
+    // login-as-different-user path (T682), but a crash-without-logout
+    // followed by a guest open while offline does not fire that path —
+    // and networkFirstApi's cache fallback would then hand the guest
+    // User A's cached profile. The safest fix is at the source: keep
+    // the SW cache for the genuinely-public resources (ads list,
+    // categories, public profiles) and never store a response that was
+    // requested WITH credentials. The public-cache hit rate is
+    // unaffected — those requests carry no Authorization header.
+    const hadAuth = request.headers.get('authorization') != null;
     // FIX SW-206-API: استثناء 206 أيضاً.
-    if (response && response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson) {
+    if (!hadAuth && response && response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson) {
       event.waitUntil(
         putTimestamped(cache, request, response.clone()).then(() =>
           trimCache(API_CACHE, MAX_API_ENTRIES),
@@ -1052,17 +1068,44 @@ async function markQueuedEntry(id, patch) {
     const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
     const store = tx.objectStore(QUEUE_STORE_NAME);
     const getReq = store.get(id);
+    let settled = false;
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      fn(value);
+    };
     getReq.onsuccess = () => {
       const current = getReq.result;
       if (!current) {
-        resolve(null);
+        settle(resolve, null);
         return;
       }
       const updated = { ...current, ...patch };
-      store.put(updated);
-      tx.oncomplete = () => resolve(updated);
+      try {
+        store.put(updated);
+      } catch (putErr) {
+        // Synchronous throw from put() — e.g. a DataCloneError on a
+        // non-structured-cloneable value in `patch`. Surface it instead
+        // of letting the transaction abort into a hanging promise.
+        settle(reject, putErr);
+        return;
+      }
+      tx.oncomplete = () => settle(resolve, updated);
     };
-    getReq.onerror = () => reject(getReq.error);
+    getReq.onerror = () => settle(reject, getReq.error);
+    // T711 — previously the transaction had NO onerror handler at all.
+    // If store.put() above failed asynchronously (QuotaExceededError on
+    // a low-space device, or any IndexedDB abort), the transaction
+    // aborted, tx.onerror fired into a void, and the Promise never
+    // settled. Callers in replayOne/replayQueueImpl await this — so
+    // replayQueueInFlight would stay stuck true forever and every
+    // subsequent REPLAY_QUEUE_NOW / sync event would silently no-op,
+    // freezing the offline queue until the SW itself is reinstalled.
+    // That is exactly the failure mode the offline feature exists to
+    // avoid, on exactly the device class (constrained storage, weak
+    // network) this app targets.
+    tx.onabort = () => settle(reject, tx.error || new Error('queue tx aborted'));
+    tx.onerror = () => settle(reject, tx.error || new Error('queue tx failed'));
   });
 }
 
@@ -1981,9 +2024,32 @@ self.addEventListener('message', (event) => {
         if (!entry) return;
         // FIX SW-PROCESSING-01: تجاوز إذا كانت replayQueue تعالج نفس العنصر
         if (entry.processing) return;
-        if (entry.status === 'failed') {
+
+        // T706 — flipping failed→pending BEFORE checking the drain lock.
+        // If a drain is currently in flight, its replayQueueImpl() will
+        // see this entry as 'pending' on its next iteration and attempt
+        // it; calling replayOne() directly here as well would produce a
+        // duplicate POST when the drain reaches the same id (the drain
+        // does not check `processing` before calling replayOne). The
+        // window is tight — user must click retry while a drain is
+        // mid-flight AND before the drain reaches this id — but on the
+        // weak-network paths this queue exists for, drains run often
+        // and last long, so the window is real. Same class of race as
+        // the one REPLAY-RACE-01's lock already prevents for
+        // REPLAY_QUEUE_NOW.
+        const wasFailed = entry.status === 'failed';
+        if (wasFailed) {
           await markQueuedEntry(entry.id, { status: 'pending' });
         }
+
+        if (replayQueueInFlight) {
+          // Drain is running — it will pick up the (now-pending) entry.
+          // Just signal the UI so any subscriber refreshes its view.
+          await notifyClients({ type: 'QUEUE_REPLAYED' });
+          return;
+        }
+
+        // No drain running: safe to attempt the single entry directly.
         // Refresh reason unknown in this manual-retry path — pass null
         // so the needsCsrf guard falls through and the entry uses
         // whatever creds the head-of-queue refresh already produced
