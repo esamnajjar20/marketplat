@@ -196,6 +196,21 @@ export function resumeSession(): void {
   sessionRevoked = false;
 }
 
+/**
+ * T735 — read accessor for the session-revoked flag. Exported so a
+ * caller outside this module's own response interceptor (currently
+ * AuthHydrationProvider's mount-time /auth/refresh flow) can check
+ * whether a logout ran between the request going out and its response
+ * coming back. Without this, a refresh response that resolved AFTER
+ * the user clicked Logout would re-establish the session the user just
+ * ended — the exact failure T651 fixed inside the interceptor, in a
+ * different code path with the same consequence (session leak on a
+ * shared device).
+ */
+export function isSessionRevoked(): boolean {
+  return sessionRevoked;
+}
+
 function processQueue(error: unknown, token: string | null) {
   refreshQueue.forEach(({ resolve, reject }) =>
     error ? reject(error) : resolve(token!),

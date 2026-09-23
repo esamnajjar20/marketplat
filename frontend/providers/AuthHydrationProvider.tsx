@@ -69,6 +69,8 @@ import { queryKeys }    from '@/lib/queryKeys';
 import { CACHE_TTL }    from '@/lib/constants';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
+// T735 — see the check just after the refresh await below.
+import { isSessionRevoked } from '@/api/client';
 
 /**
  * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
@@ -139,6 +141,21 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // argument anymore — the httpOnly cookie (if any) rides along
         // automatically via apiClient's withCredentials:true.
         const refreshRes = await authApi.refresh({ signal: controller.signal });
+
+        // T735 — the user could have logged out between this request
+        // being sent and its response arriving. clearSensitiveLocalData()
+        // (invoked by every logout path: useAuthMutations, session
+        // expiry, password change) sets the sessionRevoked flag via
+        // invalidateRefreshSession(). Without this check, the resolved
+        // refresh would call setAccessToken + setCookie('app_access_token')
+        // + setCookie('app_has_session') and effectively re-establish
+        // the session the user just ended — the exact class of leak T651
+        // closed inside the response interceptor, in a different code
+        // path with the same consequence on a shared device.
+        if (isSessionRevoked()) {
+          return;
+        }
+
         const { accessToken: newAccess, expiresIn } = refreshRes.data.data!.tokens;
 
         setAccessToken(newAccess);
@@ -345,12 +362,28 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
       }
     })();
 
-    // Abort any in-flight refresh/me/favorites calls if this component
-    // unmounts before the flow settles (e.g. the user navigates away,
-    // or — in tests — the next test renders a new instance without a
-    // previous one having finished). Without this, the async IIFE above
-    // keeps running after unmount and can still call store setters.
-    return () => controller.abort();
+    // T737 — deliberately do NOT abort on cleanup. The previous code
+    // called controller.abort() here, which broke auth hydration in dev
+    // under React StrictMode: StrictMode's simulated unmount/remount
+    // fires this cleanup immediately after the effect, and since
+    // hasRunRef.current was already set to true, the effect does not
+    // re-run on the simulated remount. The in-flight IIFE was aborted
+    // mid-flight, its catch treated AbortError as a pure network
+    // failure (no `.response` — see hasServerResponse), the `finally`
+    // ran setAuthResolved() with isAuthenticated still false, and every
+    // protected page then bounced the user to /login even though their
+    // session was perfectly valid. StrictMode double-invokes ONLY in
+    // development, so this was a dev-only symptom — but it made
+    // signed-in flows nearly untestable under `next dev`.
+    //
+    // Not aborting is safe in production too: this provider sits at the
+    // root of AppProviders, so its real unmount means the whole app is
+    // being torn down (a full page unload kills the IIFE anyway). On a
+    // transient root remount, the IIFE's setters write to the global
+    // Zustand store — harmless, and the store is the single source of
+    // truth for anyone who renders after. The 8s timeout above already
+    // bounds the flow's worst case.
+    return () => clearTimeout(timeout);
   }, [
     isHydrated,
     logout,
