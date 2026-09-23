@@ -22,6 +22,13 @@ export const recommendationsController = {
       const { query } = getRecommendationsSchema.parse({ query: req.query });
       const authHeader = req.headers.authorization;
 
+      // T492 — CACHE.NONE on the route keeps our own layer from
+      // caching, but an intermediary proxy in front of Cloudflare has
+      // no way to know this response varies per Bearer. Advertising
+      // Vary: Authorization is the standard signal that prevents such
+      // a proxy from serving one user's rail to another.
+      res.setHeader('Vary', 'Authorization');
+
       const items =
         query.type === 'product'
           ? await recommendationsService.getProductRecommendations(query, authHeader)

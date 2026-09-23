@@ -8,7 +8,11 @@ import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 // ads.validation.ts's adIdSchema.params being minimal: keep the surface
 // area exactly as small as the one real caller shape needs.
 const getRecommendationsQueryObjectSchema = z.object({
-  limit: optionalQueryNumber(z.number().min(1).max(24)),
+  // T489 — .int() required: without it a fractional limit (e.g. 5.5)
+  // passes validation and reaches Prisma's .take(), which expects an
+  // integer and rejects/rounds unpredictably. Every other schema in
+  // this codebase uses .int() on its limit field.
+  limit: optionalQueryNumber(z.number().int().min(1).max(24)),
   // Optional: when present, recommendations are generated as
   // "related to this ad" (used on the ad-detail page) instead of the
   // general personalized/trending feed (used on the home page).

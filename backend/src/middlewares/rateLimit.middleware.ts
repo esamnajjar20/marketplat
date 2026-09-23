@@ -701,6 +701,23 @@ export const categoryDeleteRateLimit = rateLimit({
   message: msg('Too many category deletions, please try again later'),
 });
 
+// Recommendations module: GET /recommendations is public (deliberately
+// not behind authenticate — anonymous users still get trending) and
+// personalizes per-Bearer. Without a limiter a script can hammer it
+// thousands of times/hour against the same Postgres + Redis budget a
+// real user needs. Same posture as analyticsEventsRateLimit: generous
+// enough for a normal browsing session (multiple rails rendering,
+// route changes) but bounded.
+export const recommendationsRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: FIFTEEN_MIN_MS,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('recommendations'),
+  message: msg('Too many recommendation requests, please try again later'),
+});
+
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({

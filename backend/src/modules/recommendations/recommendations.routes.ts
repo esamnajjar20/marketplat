@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { recommendationsController } from './recommendations.controller';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
+import { recommendationsRateLimit } from '../../middlewares/rateLimit.middleware';
 
 export const recommendationsRouter = Router();
 
@@ -18,4 +19,9 @@ export const recommendationsRouter = Router();
 // rail to the next anonymous or different-user request that happens to
 // land within the cache window — the same class of bug GET /ads/me
 // avoids by using CACHE.NONE despite also being a GET.
-recommendationsRouter.get('/', CACHE.NONE, recommendationsController.getRecommendations);
+recommendationsRouter.get(
+  '/',
+  recommendationsRateLimit,
+  CACHE.NONE,
+  recommendationsController.getRecommendations,
+);
