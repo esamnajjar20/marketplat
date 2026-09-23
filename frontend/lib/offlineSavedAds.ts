@@ -168,7 +168,14 @@ export async function saveAdOffline(ad: Ad, userId?: string | null): Promise<boo
       }),
     );
 
-    const index = listSavedOfflineAds().filter((a) => a.id !== ad.id);
+    // T720 — filter by (id, userId), not id alone. The previous
+    // `filter((a) => a.id !== ad.id)` removed EVERY entry for that ad,
+    // including a different user's on the same shared device — so User
+    // B re-saving an ad User A had saved silently destroyed A's entry.
+    // Same class as PAYMENT-MULTI-USER-WRITE-01 in paymentStorage.ts.
+    const index = listSavedOfflineAds().filter(
+      (a) => !(a.id === ad.id && (a.userId ?? null) === (userId ?? null)),
+    );
     index.unshift({
       id: ad.id,
       userId: userId ?? null,
@@ -200,8 +207,23 @@ export async function saveAdOffline(ad: Ad, userId?: string | null): Promise<boo
  * الصور "بقايا غير ضارة" بالكاش، وهو افتراض لا يصمد بلا سقف فعلي مُطبَّق).
  */
 export async function unsaveAdOffline(adId: string, userId?: string | null): Promise<void> {
-  const current = listSavedOfflineAds(userId);
-  const entry = current.find((a) => a.id === adId);
+  // T720 — read ALL entries (not filtered by user) as the base for the
+  // write. The previous code did `listSavedOfflineAds(userId)` then
+  // wrote `current.filter(...)` — which replaced the whole index with
+  // ONLY this user's remaining rows. On a shared device, User B
+  // unsaving a single ad wiped every one of User A's saved ads. The
+  // filter for "which entry to delete" is still scoped by userId so
+  // only the caller's own row can ever be removed; the base array
+  // written back must be the full list.
+  const all = listSavedOfflineAds();
+  const entry = all.find(
+    (a) => a.id === adId && (a.userId ?? null) === (userId ?? null),
+  );
   await purgeSavedAdFromCache({ id: adId, imageUrls: entry?.imageUrls ?? [] });
-  localSet(SAVED_INDEX_KEY, current.filter((a) => a.id !== adId));
+  localSet(
+    SAVED_INDEX_KEY,
+    all.filter(
+      (a) => !(a.id === adId && (a.userId ?? null) === (userId ?? null)),
+    ),
+  );
 }
