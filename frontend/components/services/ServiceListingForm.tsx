@@ -23,6 +23,7 @@ import {
   useReorderServiceListingImages,
 } from '@/hooks/mutations/useServiceListingMutations';
 import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { MAX_IMAGES } from '@/lib/constants';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
@@ -291,6 +292,24 @@ export function ServiceListingForm({ mode, listing }: Props) {
   // Gap #3 fix: mirrors AdForm's submitEdit exactly.
   async function submitEdit(currentListing: ServiceListing) {
     setIsSavingImages(true);
+
+    // T792 — build the listing-fields payload up front so the catch
+    // block below can fire update.mutate() itself if the image steps
+    // fail due to a network error. Without this, an offline edit that
+    // changes both text AND images lost the text edits: addImages
+    // threw first, the catch block returned, update.mutate() never
+    // ran, and useUpdateServiceListing's own onError — the only place
+    // a draft is saved — was never invoked.
+    const payload = {
+      categoryId: values.categoryId,
+      title: values.title.trim(),
+      description: values.description.trim(),
+      pricingType: values.pricingType,
+      price: priceRequired ? parseFloat(values.price) : null,
+      durationEstimate: values.durationEstimate.trim() || null,
+      serviceLocation: values.serviceLocation,
+    } satisfies UpdateServiceListingPayload;
+
     try {
       const removedUrls = originalImages.filter(
         (url) => !values.existingImages.includes(url),
@@ -325,32 +344,39 @@ export function ServiceListingForm({ mode, listing }: Props) {
         await reorderImages.mutateAsync({ id: currentListing.id, images: values.existingImages });
       }
     } catch (err) {
-      // FIX SUBMIT-EDIT-SILENT-FAIL: previously the image mutation
-      // errors were swallowed with a bare `return` — the user saw
-      // the button re-enable and nothing else, with the field
-      // values still showing their edits and the listing silently
-      // not updated. Mutations already surface their own generic
-      // onError toast, but this branch short-circuits before
-      // update.mutate runs, so no error reaches the user at all.
-      toast.error(parseApiError(err).message || 'فشل حفظ الصور، حاول مرة أخرى');
-      return;
-    } finally {
+      const parsed = parseApiError(err);
+      // T792 — a network failure here means update.mutate will also
+      // fail offline. Firing it anyway lets useUpdateServiceListing's
+      // onError save the text edits as an offline draft, instead of
+      // losing them because only the image step was attempted.
+      if (isNetworkLikeFailure(parsed)) {
+        setIsSavingImages(false);
+        setUploadProgress(null);
+        update.mutate(payload, {
+          onError: (mutErr) => setServerErrors(parseApiError(mutErr).fieldErrors),
+        });
+        isSubmittingRef.current = false;
+        return;
+      }
+      // Non-network failure (4xx — bad image, payload mismatch): the
+      // user must fix the offending input before the listing's own
+      // fields should be saved. Previously the error was swallowed
+      // with a bare `return` (FIX SUBMIT-EDIT-SILENT-FAIL added the
+      // toast); now the finally block's cleanup still runs.
+      toast.error(parsed.message || 'فشل حفظ الصور، حاول مرة أخرى');
       setIsSavingImages(false);
       isSubmittingRef.current = false;
       setUploadProgress(null);
+      return;
     }
 
-    const payload = {
-      categoryId: values.categoryId,
-      title: values.title.trim(),
-      description: values.description.trim(),
-      pricingType: values.pricingType,
-      price: priceRequired ? parseFloat(values.price) : null,
-      durationEstimate: values.durationEstimate.trim() || null,
-      serviceLocation: values.serviceLocation,
-    } satisfies UpdateServiceListingPayload;
-
-    update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
+    // Success path — image reconciliation completed without error.
+    setIsSavingImages(false);
+    setUploadProgress(null);
+    update.mutate(payload, {
+      onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+    });
+    isSubmittingRef.current = false;
   }
 
 

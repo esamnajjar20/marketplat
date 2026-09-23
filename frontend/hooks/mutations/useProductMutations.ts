@@ -279,13 +279,22 @@ export function useToggleProductStatus() {
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'PAUSED' }) =>
       productsApi.update(id, { status }).then((r) => r.data.data),
     onMutate: async ({ id, status }) => {
+      // T793 — cancelQueries MUST come before the optimistic write.
+      // The previous order (snapshot → write → cancel) left an
+      // in-flight refetch free to resolve AFTER the optimistic write
+      // and overwrite it with the server's pre-toggle value, causing
+      // a visible flicker (PAUSED → ACTIVE → PAUSED once onSettled
+      // invalidated). TanStack Query's own docs specify the correct
+      // order: cancel first, then snapshot, then write.
+      await queryClient.cancelQueries({ queryKey: queryKeys.products.all() });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<Product>>({
         queryKey: queryKeys.products.all(),
       });
-      // setQueriesData targets a prefix key that can match several distinct
-      // cache shapes (.list()/.mine()/.detail()); PaginatedResponse<Product>
-      // covers the list shapes this toggle actually touches; other matched
-      // shapes are left untouched via the `old?.items` guard below.
+      // setQueriesData targets a prefix key that can match several
+      // distinct cache shapes (.list()/.mine()/.detail());
+      // PaginatedResponse<Product> covers the list shapes this toggle
+      // actually touches; other matched shapes are left untouched via
+      // the `old?.items` guard below.
       queryClient.setQueriesData<PaginatedResponse<Product>>(
         { queryKey: queryKeys.products.all() },
         (old) => {
@@ -293,7 +302,6 @@ export function useToggleProductStatus() {
           return { ...old, items: old.items.map((p) => (p.id === id ? { ...p, status } : p)) };
         },
       );
-      await queryClient.cancelQueries({ queryKey: queryKeys.products.all() });
       return { snapshots };
     },
     onSuccess: (_data, { status }) =>

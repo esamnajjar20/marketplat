@@ -23,6 +23,7 @@ import {
   useReorderProductImages,
 } from '@/hooks/mutations/useProductMutations';
 import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { MAX_IMAGES } from '@/lib/constants';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
@@ -274,6 +275,27 @@ export function ProductForm({ mode, product }: Props) {
   // images even momentarily" reordering for the min-1-image backend guard.
   async function submitEdit(currentProduct: Product) {
     setIsSavingImages(true);
+
+    // T792 — build the product-fields payload up front so the catch
+    // block below can fire update.mutate() itself if the image steps
+    // fail due to a network error. Without this, an offline edit that
+    // changes both text AND images lost the text edits: addImages
+    // threw first, the catch block returned, update.mutate() never
+    // ran, and useUpdateProduct's own onError — the only place a
+    // draft is saved — was never invoked. Same fix as AdForm and
+    // ServiceListingForm.
+    const payload = {
+      categoryId: values.categoryId,
+      name: values.name.trim(),
+      description: values.description.trim(),
+      price: parseFloat(values.price),
+      discountPrice: values.discountPrice ? parseFloat(values.discountPrice) : null,
+      wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : null,
+      wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : null,
+      availability: values.availability,
+      stockQuantity: values.stockQuantity.trim() === '' ? null : Number(values.stockQuantity),
+    } satisfies UpdateProductPayload;
+
     try {
       const removedUrls = originalImages.filter(
         (url) => !values.existingImages.includes(url),
@@ -307,27 +329,40 @@ export function ProductForm({ mode, product }: Props) {
       if (reorderChanged && values.existingImages.length > 1) {
         await reorderImages.mutateAsync({ id: currentProduct.id, images: values.existingImages });
       }
-    } catch {
-      return;
-    } finally {
+    } catch (err) {
+      const parsed = parseApiError(err);
+      // T792 — a network failure here means update.mutate will also
+      // fail offline. Firing it anyway lets useUpdateProduct's onError
+      // save the text edits as an offline draft, instead of losing
+      // them because only the image step was attempted.
+      if (isNetworkLikeFailure(parsed)) {
+        setIsSavingImages(false);
+        setUploadProgress(null);
+        update.mutate(payload, {
+          onError: (mutErr) => setServerErrors(parseApiError(mutErr).fieldErrors),
+        });
+        isSubmittingRef.current = false;
+        return;
+      }
+      // Non-network failure (4xx — bad image, payload mismatch): the
+      // user must fix the offending input before the product's own
+      // fields should be saved. Before this fix the catch block was a
+      // bare `catch { return; }` — the user saw no feedback at all,
+      // and the product silently kept its old field values.
+      toast.error(parsed.message || 'فشل حفظ الصور، حاول مرة أخرى');
       setIsSavingImages(false);
       isSubmittingRef.current = false;
       setUploadProgress(null);
+      return;
     }
 
-    const payload = {
-      categoryId: values.categoryId,
-      name: values.name.trim(),
-      description: values.description.trim(),
-      price: parseFloat(values.price),
-      discountPrice: values.discountPrice ? parseFloat(values.discountPrice) : null,
-      wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : null,
-      wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : null,
-      availability: values.availability,
-      stockQuantity: values.stockQuantity.trim() === '' ? null : Number(values.stockQuantity),
-    } satisfies UpdateProductPayload;
-
-    update.mutate(payload, { onError: (err) => setServerErrors(parseApiError(err).fieldErrors) });
+    // Success path — image reconciliation completed without error.
+    setIsSavingImages(false);
+    setUploadProgress(null);
+    update.mutate(payload, {
+      onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+    });
+    isSubmittingRef.current = false;
   }
 
 

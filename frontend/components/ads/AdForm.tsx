@@ -25,6 +25,7 @@ import {
 import { AdFormPreview } from '@/components/ads/AdFormPreview';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
 import { toast } from 'sonner';
 
@@ -349,6 +350,24 @@ export function AdForm({ mode, ad }: Props) {
 
   async function submitEdit(currentAd: Ad) {
     setIsSavingImages(true);
+
+    // T792 — build the ad-fields payload up front so the catch block
+    // below can fire updateAd.mutate() itself if the image steps fail
+    // due to a network error. Without this, an offline edit that
+    // changes both text AND images lost the text edits: addImages
+    // threw first, the catch block returned, updateAd.mutate() never
+    // ran, and useUpdateAd's own onError — the only place a draft is
+    // saved — was never invoked.
+    const payload = {
+      title:        values.title.trim(),
+      description:  values.description.trim(),
+      price:        values.price ? parseFloat(values.price) : undefined,
+      isNegotiable: values.isNegotiable,
+      condition:    values.condition || undefined,
+      city:         values.city,
+      categoryId:   values.categoryId || undefined,
+    } satisfies UpdateAdPayload;
+
     try {
       const removedUrls = originalImages.filter(
         (url) => !values.existingImages.includes(url),
@@ -392,7 +411,21 @@ export function AdForm({ mode, ad }: Props) {
       if (reorderChanged && values.existingImages.length > 1) {
         await reorderImages.mutateAsync({ id: currentAd.id, images: values.existingImages });
       }
-    } catch {
+    } catch (err) {
+      // T792 — a network failure here means updateAd will also fail
+      // offline. Firing it anyway lets useUpdateAd's onError save the
+      // text edits as an offline draft, instead of losing them because
+      // only the image step was attempted. A non-network failure
+      // (4xx — bad image, payload mismatch) is the case where we DO
+      // need to stop: the user must fix the offending input before
+      // the ad's own fields should be saved.
+      if (isNetworkLikeFailure(parseApiError(err))) {
+        isSubmittingRef.current = false;
+        setIsSavingImages(false);
+        setUploadProgress(null);
+        updateAd.mutate(payload);
+        return;
+      }
       // Each mutation's own onError already toasted a specific message
       // and invalidated whatever partially succeeded; stop here so a
       // failed image step doesn't still trigger the ad-details PATCH
@@ -414,16 +447,6 @@ export function AdForm({ mode, ad }: Props) {
     // issued.
     setIsSavingImages(false);
     setUploadProgress(null);
-
-    const payload = {
-      title:        values.title.trim(),
-      description:  values.description.trim(),
-      price:        values.price ? parseFloat(values.price) : undefined,
-      isNegotiable: values.isNegotiable,
-      condition:    values.condition || undefined,
-      city:         values.city,
-      categoryId:   values.categoryId || undefined,
-    } satisfies UpdateAdPayload;
 
     updateAd.mutate(payload);
     isSubmittingRef.current = false;

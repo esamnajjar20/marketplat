@@ -286,6 +286,10 @@ export function useToggleServiceListingStatus() {
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'PAUSED' }) =>
       serviceListingsApi.update(id, { status }).then((r) => r.data.data),
     onMutate: async ({ id, status }) => {
+      // T793 — same reasoning as useToggleProductStatus above.
+      // cancelQueries must precede the optimistic write or an
+      // in-flight refetch can overwrite it with the pre-toggle value.
+      await queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.all() });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<ServiceListing>>({
         queryKey: queryKeys.serviceListings.all(),
       });
@@ -296,7 +300,6 @@ export function useToggleServiceListingStatus() {
           return { ...old, items: old.items.map((l) => (l.id === id ? { ...l, status } : l)) };
         },
       );
-      await queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.all() });
       return { snapshots };
     },
     onSuccess: (_data, { status }) =>
