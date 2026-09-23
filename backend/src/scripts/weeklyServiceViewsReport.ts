@@ -14,14 +14,26 @@ type ProviderDelta = {
   userId: string;
   totalDelta: number;
   providerId: string;
+  // T610 — the exact listing ids that contributed to totalDelta, so the
+  // baseline advance below can touch ONLY those rows. Previously
+  // advanceBaseline(providerId) updated every listing belonging to the
+  // provider, including any listing whose views grew *after* the
+  // SELECT ran — that listing's viewsAtLastReport would be advanced
+  // without its delta having been reported, silently dropping those
+  // views from the next report. Same scoping pattern as
+  // weeklyAdViewsReport.ts's advanceBaseline(adIds).
+  listingIds: string[];
 };
 
 async function findProviderDeltas(): Promise<ProviderDelta[]> {
-  const rows = await prisma.$queryRaw<{ userId: string; providerId: string; totalDelta: bigint }[]>`
+  const rows = await prisma.$queryRaw<
+    { userId: string; providerId: string; totalDelta: bigint; listingIds: string[] }[]
+  >`
     SELECT
       u."id" AS "userId",
       spd."id" AS "providerId",
-      SUM(sl."views" - sl."viewsAtLastReport")::bigint AS "totalDelta"
+      SUM(sl."views" - sl."viewsAtLastReport")::bigint AS "totalDelta",
+      ARRAY_AGG(sl."id") AS "listingIds"
     FROM "service_listings" sl
     INNER JOIN "service_provider_details" spd ON spd."id" = sl."providerId"
     INNER JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
@@ -37,15 +49,17 @@ async function findProviderDeltas(): Promise<ProviderDelta[]> {
       userId: r.userId,
       providerId: r.providerId,
       totalDelta: Number(r.totalDelta),
+      listingIds: r.listingIds,
     }))
     .filter(r => r.totalDelta > 0);
 }
 
-async function advanceBaseline(providerId: string): Promise<void> {
+async function advanceBaseline(listingIds: string[]): Promise<void> {
+  if (listingIds.length === 0) return;
   await prisma.$executeRaw`
     UPDATE "service_listings"
     SET "viewsAtLastReport" = "views"
-    WHERE "providerId" = ${providerId}
+    WHERE "id" = ANY(${listingIds})
   `;
 }
 
@@ -58,7 +72,7 @@ async function main(): Promise<void> {
   }
 
   let sent = 0;
-  for (const { userId, totalDelta, providerId } of deltas) {
+  for (const { userId, totalDelta, providerId, listingIds } of deltas) {
     const title = 'تقرير مشاهدات خدماتك الأسبوعي';
     const body =
       totalDelta === 1
@@ -84,7 +98,7 @@ async function main(): Promise<void> {
           data: { totalDelta, providerId },
         },
       });
-      await advanceBaseline(providerId);
+      await advanceBaseline(listingIds);
       sent += 1;
     } catch (err) {
       logger.error('[weeklyServiceViewsReport] failed to send report', {
