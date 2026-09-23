@@ -302,6 +302,18 @@ const envSchema = z.object({
     .string()
     .default('false')
     .transform(v => v === 'true'),
+  // T590 — was read directly via process.env in
+  // requireVerifiedEmail.middleware.ts, with no schema entry. Same
+  // CENTRALIZE-04 pattern as DISABLE_RATE_LIMIT above: surfacing it
+  // here means a typo'd value is caught at boot, .env.example can
+  // list it, and other modules read env.email.verificationGating
+  // rather than reaching into process.env. Default false matches the
+  // TEMP-DISABLED state documented in that middleware (Google OAuth
+  // consent still in Testing mode).
+  EMAIL_VERIFICATION_GATING: z
+    .string()
+    .default('false')
+    .transform(v => v === 'true'),
   // CENTRALIZE-04: previously read directly via process.env in
   // capacityCheck.ts with no schema entry. Validated/documented here
   // for .env.example generation purposes, but NOT re-exported on the
@@ -595,6 +607,18 @@ export const env = {
     // SMTP_FROM_EMAIL, else GMAIL_USER, else the placeholder — with
     // the same .trim() cloudinary.apiKey and googleOAuth.clientId
     // already apply.
+    //
+    // T574 — RESEND_API_KEY is deliberately NOT part of this fallback
+    // chain. Resend requires the From address to match a domain that
+    // has been verified in the Resend dashboard; deriving a value from
+    // an API key (which is just an opaque string, not an address) is
+    // not possible, and using the placeholder 'no-reply@example.com'
+    // against Resend guarantees a 4xx rejection. An operator using
+    // Resend MUST set SMTP_FROM_EMAIL explicitly to an address on
+    // their verified domain — that's documented in .env.example next
+    // to RESEND_API_KEY. What changed in T574: made it explicit in
+    // this comment instead of leaving the next reader to wonder why
+    // env.email.fromEmail silently ignores a configured Resend key.
     fromEmail: (
       _env.SMTP_FROM_EMAIL ||
       _env.GMAIL_USER ||
@@ -611,6 +635,8 @@ export const env = {
       _env.RESEND_API_KEY ||
       (_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD)
     ),
+    // T590 — see schema entry above for the full rationale.
+    verificationGating: _env.EMAIL_VERIFICATION_GATING,
   },
   // FIX PWA-PUSH-01: same isConfigured pattern as email above —
   // pushService.ts checks this once at first use and falls back to

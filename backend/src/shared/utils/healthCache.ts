@@ -26,20 +26,44 @@ let inflightCheck: Promise<HealthStatus> | null = null;
 // call itself in try/catch so both failure modes — async rejection and
 // sync throw — resolve to `false` the same way, instead of a sync
 // throw escaping Promise.all entirely and rejecting performCheck().
-const checkOk = async (fn: () => Promise<unknown>): Promise<boolean> => {
+// T582 — bounds each readiness check so a hung DB/Redis connection
+// cannot leave performCheck's Promise.all pending forever. Previously
+// a socket that accepted a TCP connection but never responded would
+// leave inflightCheck permanently non-null (performCheck's own
+// finally resets it only after Promise.all settles) — /ready then
+// answers "not ready" from the stale cached status until the process
+// restarts, even after the dependency recovers. 2s is generous for
+// SELECT 1 / PING on a healthy connection and short enough that
+// /ready reflects a real outage quickly. Redis's own client already
+// has maxRetriesPerRequest=3 and its own socket timeouts, but this
+// guard applies to both checks uniformly and also covers Prisma,
+// which has no built-in per-query timeout.
+const HEALTH_CHECK_TIMEOUT_MS = 2_000;
+
+const checkOkWithTimeout = async (fn: () => Promise<unknown>): Promise<boolean> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error('health check timed out')),
+      HEALTH_CHECK_TIMEOUT_MS,
+    );
+    timer.unref();
+  });
   try {
-    await fn();
+    await Promise.race([fn(), timeoutPromise]);
     return true;
   } catch {
     return false;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 };
 
 const performCheck = async (): Promise<HealthStatus> => {
   try {
     const [dbOk, redisOk] = await Promise.all([
-      checkOk(() => prisma.$queryRaw`SELECT 1`),
-      checkOk(() => redis.ping()),
+      checkOkWithTimeout(() => prisma.$queryRaw`SELECT 1`),
+      checkOkWithTimeout(() => redis.ping()),
     ]);
 
     cachedStatus = {

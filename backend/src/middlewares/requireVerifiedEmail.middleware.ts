@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { userCache } from '../shared/utils/userCache';
 import { ForbiddenError } from '../shared/errors/ForbiddenError';
 import { requireUser } from '../shared/utils/requireUser';
+import { env } from '../config/env';
 
 /**
  * FIX FEAT-EMAIL-VERIFY: blocks the caller if their email is not yet
@@ -38,7 +39,11 @@ import { requireUser } from '../shared/utils/requireUser';
 // fixed). The UI banner is intentionally NOT disabled by this:
 // users still see the reminder and can still trigger a re-send;
 // only the server-side 403 EMAIL_NOT_VERIFIED is bypassed.
-const GATING_ENABLED = process.env.EMAIL_VERIFICATION_GATING === 'true';
+// T590 — read from validated env instead of process.env directly: a
+// typo'd value (e.g. "TRUE" or "1") now surfaces at boot via the
+// schema check rather than silently evaluating to false at request
+// time. See env.ts's EMAIL_VERIFICATION_GATING entry.
+const GATING_ENABLED = env.email.verificationGating;
 
 export const requireVerifiedEmail = async (
   req: Request,
