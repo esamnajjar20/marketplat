@@ -49,7 +49,7 @@
 // (راجع تعليق CACHE_VERSION هناك — تصنيف '/my-store' كصفحة محمية تغيّر).
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
 // fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
-const STATIC_CACHE = 'market-static-v35'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v36'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -87,7 +87,19 @@ const STATIC_CACHE = 'market-static-v35'; // يجب مطابقة CACHE_VERSION �
 // (مؤكَّد عبر Network tab: طلبان فاشلان — html وRSC — بكل تحميل صفحة).
 // مغلَّف بـtry/catch فلا يوقف شيء، لكنه هدر طلبين بطيئين بلا فائدة.
 // صفحات عامة آمنة للـ shell (لا بيانات مستخدم في HTML).
+// FIX OFFLINE-CORE-ROUTE-01: '/offline' added. Before this, the page
+// the whole offline experience falls back to was warmed only by the
+// SW's install handler (one attempt, ~30s timeout) and a manual
+// online visit — never by warmRouteShells. Its JS chunks
+// (page-<hash>.js and its splits) therefore stayed out of
+// STATIC_CACHE across deploys, and a stale cached /offline HTML
+// pointed at a chunk hash the new build no longer served. Result:
+// ChunkLoadError inside the page that exists precisely to handle
+// "network unavailable". warmRouteShells's normal path fetches the
+// HTML, extracts every _next/static asset, and caches them — same
+// treatment '/', '/products', etc. already get.
 const CORE_ROUTES = [
+  '/offline',
   '/', '/products', '/stores', '/search', '/services', '/ads',
   '/saved-ads', '/downloads', '/saved-payments',
   '/service-providers', '/sellers/ranking',
@@ -188,7 +200,7 @@ export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
 // __tests__/unit/lib/cacheVersionSync.test.ts.
 // FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب أعلاه.
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v35';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v36';
 
 /**
  * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —

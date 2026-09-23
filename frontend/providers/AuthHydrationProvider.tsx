@@ -71,6 +71,7 @@ import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 // T735 — see the check just after the refresh await below.
 import { isSessionRevoked } from '@/api/client';
+import { parseApiError } from '@/lib/errorParser';
 
 /**
  * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
@@ -133,7 +134,15 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     // controller instance; it previously lived inside the IIFE and was
     // out of scope for that cleanup, causing a ReferenceError.
     const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 8_000);
+    // AUTH-RACE-TIMEOUT-01: raised from 8s. Two concurrent
+    // /auth/refresh calls can run at page load (this one and the SW's
+    // queue-replay one). When this request loses the race it receives
+    // a 401 TOKEN_MISMATCH — the retry logic below catches that, but
+    // the request must survive long enough to actually get the 401
+    // response rather than being aborted first. 15s is comfortably
+    // above the backend's normal response time and below the point at
+    // which a user would consider the page hung.
+    const timeout    = setTimeout(() => controller.abort(), 15_000);
 
     (async () => {
       try {
@@ -152,9 +161,15 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // the session the user just ended — the exact class of leak T651
         // closed inside the response interceptor, in a different code
         // path with the same consequence on a shared device.
-        if (isSessionRevoked()) {
-          return;
-        }
+        // T735-REVERTED: temporarily disabled — see "logs me out on
+        // every refresh" production regression. The check was meant to
+        // discard a refresh response that raced a logout, but if the
+        // sessionRevoked flag is ever true when this runs (module-level
+        // state from a prior authCleanup call), it returns without
+        // calling setAccessToken, so isAuthenticated stays false and
+        // ProtectedLayout redirects to /login. Re-enable after root
+        // cause is identified.
+        // if (isSessionRevoked()) { return; }
 
         const { accessToken: newAccess, expiresIn } = refreshRes.data.data!.tokens;
 
@@ -345,6 +360,80 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // direction — confirms the session and flips isAuthenticated
         // true, or genuinely rejects it and logs out then, once that's
         // an actual answer from the server instead of a guess.
+        // AUTH-RACE-TIMEOUT-01 — the initial /auth/refresh can lose a
+        // race with the Service Worker's queue-replay refresh (see
+        // refreshAccessToken in sw.js). Both requests hit the
+        // backend's atomicRefreshRotate Lua script: one wins and
+        // rotates the refreshToken cookie, the other 401s with
+        // TOKEN_MISMATCH. The loser here needs to retry once, because
+        // the browser cookie has ALREADY been rotated by the winner —
+        // a second request with the fresh cookie succeeds normally.
+        //
+        // Without this retry, the loser path left isAuthenticated=false
+        // and ProtectedLayout's 900ms timer then redirected the user to
+        // /login on every page load — the exact regression reported as
+        // "يخرجني من حسابي على كل ريفرش".
+        //
+        // Only triggers when (a) the error is an HTTP 401 (not a network
+        // failure) AND (b) a persisted user exists (meaning we had a
+        // session at load time). A genuinely-expired session still 401s
+        // on the retry, so this only delays the failure path by ~1s.
+        const initialParsed = parseApiError(err);
+        const persistedUser = useAuthStore.getState().user;
+        if (
+          initialParsed.statusCode === 401 &&
+          persistedUser &&
+          !isSessionRevoked()
+        ) {
+          try {
+            // Brief delay: give the winning SW refresh time to finish
+            // and for the browser to persist the rotated Set-Cookie.
+            await new Promise((r) => setTimeout(r, 700));
+            if (isSessionRevoked()) return;
+
+            const retryRes = await authApi.refresh({ signal: controller.signal });
+            if (isSessionRevoked()) return;
+
+            const { accessToken: retryAccess, expiresIn: retryExpires } =
+              retryRes.data.data!.tokens;
+            setAccessToken(retryAccess);
+            setCsrfToken(retryRes.data.data!.csrfToken);
+
+            const retryCookieMaxAge = cookieMaxAgeFromExpiresIn(retryExpires);
+            setCookie('app_access_token', retryAccess, retryCookieMaxAge);
+            setCookie('app_has_session', '1', SESSION_HINT_COOKIE_MAX_AGE);
+
+            const retryUser = await queryClient.fetchQuery({
+              queryKey: queryKeys.auth.me(),
+              queryFn: () =>
+                usersApi
+                  .getMe({ signal: controller.signal })
+                  .then((r) => r.data.data),
+              staleTime: CACHE_TTL.userProfile,
+            });
+            if (!retryUser) throw new Error('empty /users/me response on retry');
+            setUser({
+              id:        retryUser.id,
+              name:      retryUser.name,
+              email:     retryUser.email,
+              role:      retryUser.role,
+              avatarUrl: retryUser.avatarUrl,
+              city:      retryUser.city,
+              needsProfileCompletion: retryUser.needsProfileCompletion,
+              emailVerified: retryUser.emailVerified,
+            });
+            setCookie('app_user_role', retryUser.role, retryCookieMaxAge);
+
+            void warmSelfDataForOffline(queryClient);
+            console.info('[auth] session recovered after refresh-race retry');
+            return; // success — skip the original error handling entirely
+          } catch (retryErr) {
+            // Retry also failed. Fall through — the original err is
+            // likely a genuine session-expired response.
+            console.warn('[auth] refresh retry failed:', retryErr);
+          }
+        }
+
         if (hasServerResponse(err)) {
           logout();
           deleteCookie('app_access_token');

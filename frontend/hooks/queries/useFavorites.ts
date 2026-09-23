@@ -306,9 +306,17 @@ export function useIsEntityFavorited(type: FavoriteEntityKind, entityId: string)
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient = useQueryClient();
 
-  const [isFavorited, setIsFavorited] = useState<boolean>(() =>
-    getFavoriteEntityIdsSnapshot(queryClient, type).has(entityId),
-  );
+  // T734 — mirror useIsFavorited's HYDRATION FIX (#418) above. The
+  // AD-only hook was already changed to start at `false` because
+  // seeding from the client cache during the initial render produced
+  // isFavorited=true on the client while SSR (empty queryClient)
+  // rendered false — the heart's className / aria-pressed flipped on
+  // hydration. This generic counterpart was left on the old pattern,
+  // so the same mismatch is reproducible on any product/store/
+  // service-listing card that renders after a page where
+  // useFavoritesByType already populated the entityIds(type) Set.
+  // The useEffect below still syncs the real value on mount.
+  const [isFavorited, setIsFavorited] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isAuthenticated) {

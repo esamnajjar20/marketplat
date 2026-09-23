@@ -102,7 +102,20 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // per-call timeout (e.g. mediaApi's 30s multipart budget) alone
   // since those arrive non-zero.
   if (!config.timeout) {
-    config.timeout = SAFE_METHODS.has(method) ? 15_000 : 8_000;
+    // AUTH-RACE-TIMEOUT-01 — auth endpoints get a longer cap. Both
+    // /auth/refresh and /auth/login are on the critical path for
+    // every page load; the SW's own queue replay can also issue a
+    // concurrent /auth/refresh at the same moment (see
+    // refreshAccessToken in sw.js), and any timeout before the
+    // backend rotates its refreshToken cookie leaves the page
+    // unable to establish a session → false-logout redirect. The
+    // race loser specifically needs enough time for the winner to
+    // finish and update the browser's cookie.
+    const url = config.url ?? '';
+    const isAuthPath = url.includes('/auth/');
+    config.timeout = isAuthPath
+      ? 20_000
+      : (SAFE_METHODS.has(method) ? 15_000 : 8_000);
   }
 
   // PHASE-1 UX: sample RTT for connection quality indicator

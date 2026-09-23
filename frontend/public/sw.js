@@ -97,7 +97,12 @@
 // NETWORK_TIMEOUT_MS وwithNetworkTimeout أدناه)، وسياسة رفع الإصدار
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
-const CACHE_VERSION = 'v35';
+// FIX ANALYTICS-QUEUE-RACE-01 + OFFLINE-CORE-ROUTE:
+// v36 — analytics events no longer queue (see isAnalyticsBeacon
+// below); '/offline' added to CORE_ROUTES in offlineRouteShells.ts.
+// Both fixes require a cache bump so every active SW clears the
+// stale entries from v35 and the retry/marker files reset.
+const CACHE_VERSION = 'v36';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -1721,7 +1726,43 @@ async function replayQueueImpl() {
  *
  *   أوفلاين → طابور + 202 {queued:true} (SW-QUEUE-ONLY-OFFLINE-01).
  */
+// FIX ANALYTICS-QUEUE-RACE-01 — /analytics/events is fire-and-forget
+// telemetry. It is safe to lose (the event is already stale by the
+// time we'd replay it), the backend CSRF-exempts it (see
+// csrf.middleware.ts's CSRF_EXEMPT_PATHS), and queuing it caused a
+// real bug: every queued analytics POST has needsCsrf=true (it's a
+// non-safe method), so the next replayQueue pass called
+// refreshAccessToken BEFORE sending it. That SW refresh ran
+// concurrently with AuthHydrationProvider's own /auth/refresh at the
+// following page load; the backend's atomicRefreshRotate Lua script
+// rotates the cookie exactly once, so one of the two calls always
+// 401'd with TOKEN_MISMATCH. AuthHydrationProvider was the loser
+// often enough to produce the "يخرجني من حسابي على كل ريفرش"
+// regression. Never queuing these requests eliminates the race
+// entirely — the beacon is exactly the kind of call that should be
+// dropped silently when the network is down.
+function isAnalyticsBeacon(url) {
+  return url.pathname === '/api/v1/analytics/events';
+}
+
 async function handleMutation(request) {
+  // FIX ANALYTICS-QUEUE-RACE-01: bypass queue entirely for the public
+  // analytics beacon. Transparent network pass-through when online;
+  // Response.error() when offline (the client's sendBeacon wrapper
+  // swallows it — an analytics call failing is a non-event).
+  try {
+    const beaconUrl = new URL(request.url);
+    if (isAnalyticsBeacon(beaconUrl)) {
+      try {
+        return await fetch(request);
+      } catch {
+        return Response.error();
+      }
+    }
+  } catch {
+    /* unparsable URL — fall through to normal handling */
+  }
+
   // FIX PRESENCE-SKIP-QUEUE-01: never queue presence heartbeats.
   // touchPresence fires roughly every 45s while the app is open (see
   // useHeartbeat). On Gaza mobile networks a single failed PATCH is
