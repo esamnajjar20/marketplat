@@ -105,9 +105,18 @@ export function useAds(
     params?.isFeatured !== undefined;
   // FIX ADS-OFFLINE-CACHE-SCOPE-03: also honor disableOfflineCache — see
   // the option's own comment on the signature above.
+  //
+  // T760 follow-up — a caller passing `limit` smaller than the default
+  // browse page (e.g. a sidebar preview) requests a different SET than
+  // the /ads page's own shape, so writing it into adsBrowse would leak
+  // a truncated list into the offline browse slot. useAdsForHome
+  // already opts out via disableOfflineCache, but a future caller
+  // passing {limit: 4} without that flag would have hit this. Adding
+  // limit to the guard makes it safe by construction.
   const isBaseBrowse =
     !options?.disableOfflineCache &&
     (!params?.page || params.page === 1) &&
+    params?.limit === undefined &&
     !hasRealFilter;
   const cached = isBaseBrowse
     ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse)

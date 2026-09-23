@@ -34,7 +34,11 @@ import type { User } from '@/types/user.types';
 export function useMe() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
-  const cached = getOfflineJson<User>(OFFLINE_JSON_KEYS.userProfileSelf);
+  // T770 — pass userId so a crash-without-logout followed by a
+  // different sign-in doesn't serve the previous user's profile as
+  // initialData. See offlineJsonCache.ts's envelope comment.
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const cached = getOfflineJson<User>(OFFLINE_JSON_KEYS.userProfileSelf, userId);
 
   const query = useQuery({
     queryKey: queryKeys.auth.me(),
@@ -46,8 +50,8 @@ export function useMe() {
   });
 
   useEffect(() => {
-    if (query.data) saveOfflineJson(OFFLINE_JSON_KEYS.userProfileSelf, query.data);
-  }, [query.data]);
+    if (query.data) saveOfflineJson(OFFLINE_JSON_KEYS.userProfileSelf, query.data, userId);
+  }, [query.data, userId]);
 
   return query;
 }

@@ -10,6 +10,7 @@ import {
   selectHasAccessToken,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
 import type { Appointment, AppointmentsQuery } from '@/types/service.types';
 import type { PaginationMeta } from '@/types/api.types';
 import {
@@ -31,20 +32,23 @@ export function useMyAppointments(params?: AppointmentsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  // FIX APPT-OFFLINE-CACHE-SCOPE-01: `isBase` only checked page,
-  // so a date-range-filtered first page (?from=2026-09-01&to=...) was
-  // written into the generic appointmentsMine offline slot. A later
-  // offline open of /appointments with no filter then showed only
-  // that date range's appointments — same class of bug the ADS
-  // sibling hook closed under ADS-OFFLINE-CACHE-SCOPE-01/-02, and
-  // AppointmentsQuery (types/service.types.ts) carries from/to
-  // filters exactly like AdSearchParams carries its own.
-  const hasRealFilter = Boolean(params?.from) || Boolean(params?.to);
-  const isBase = (!params?.page || params.page === 1) && !hasRealFilter;
+  // T770 — user-scoped (appointments belong to one user only).
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  // T760 follow-up — same whitelist helper useStores/useServiceListings
+  // now use. AppointmentsQuery is {page, limit, from, to}; the previous
+  // hand-rolled check missed `limit` (a caller shrinking the page size
+  // requests a different set than the browse shape), so the same
+  // "later offline open shows only the small first page" class of bug
+  // was still reachable here. See offlineCachePolicy.isUnfilteredFirstPage
+  // for why whitelisting is the safe-by-default direction.
+  const isBase = isUnfilteredFirstPage(params, {
+    nonFilterFields: ['page', 'limit'],
+  });
 
   const cached = isBase
     ? getOfflineJson<MyAppointmentsData>(
         OFFLINE_JSON_KEYS.appointmentsMine,
+        userId,
       )
     : null;
 
@@ -61,7 +65,7 @@ export function useMyAppointments(params?: AppointmentsQuery) {
           saveOfflineJson(OFFLINE_JSON_KEYS.appointmentsMine, {
             ...data,
             items: data.items.slice(0, 30),
-          });
+          }, userId);
         }
 
         if (!data) throw new Error('Appointments response is empty');
@@ -70,6 +74,7 @@ export function useMyAppointments(params?: AppointmentsQuery) {
         if (isBase) {
           const local = getOfflineJson<MyAppointmentsData>(
             OFFLINE_JSON_KEYS.appointmentsMine,
+            userId,
           );
 
           if (local) return local.data;

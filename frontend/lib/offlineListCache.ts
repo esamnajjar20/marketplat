@@ -11,6 +11,11 @@ import { OFFLINE_DATA_LIMITS } from '@/lib/offlineCachePolicy';
 export interface OfflineListEnvelope<T> {
   items: T[];
   savedAt: string;
+  /** T770 — see OfflineJsonEnvelope.userId's comment for the full
+   * rationale. Used by owner-scoped list slots (myAds, activity,
+   * savedSearches) to refuse serving a different user's data on a
+   * shared device after a crash-without-logout. */
+  userId?: string | null;
 }
 
 function key(name: string): string {
@@ -21,20 +26,30 @@ export function saveOfflineList<T>(
   name: string,
   items: T[],
   maxItems: number,
+  userId?: string | null,
 ): void {
   localSet(key(name), {
     items: items.slice(0, maxItems),
     savedAt: new Date().toISOString(),
+    userId: userId ?? null,
   } satisfies OfflineListEnvelope<T>);
 }
 
-/** null إن لم يُحفظ شيء من قبل. */
-export function getOfflineList<T>(name: string): OfflineListEnvelope<T> | null {
+/** null إن لم يُحفظ شيء من قبل، أو كان محفوظًا لمستخدم آخر. */
+export function getOfflineList<T>(
+  name: string,
+  userId?: string | null,
+): OfflineListEnvelope<T> | null {
   const data = localGet<OfflineListEnvelope<T>>(key(name), {
     items: [],
     savedAt: '',
   });
-  return data.savedAt ? data : null;
+  if (!data.savedAt) return null;
+  // T770 — same refusal logic as getOfflineJson above.
+  if (userId !== undefined && (data.userId ?? null) !== (userId ?? null)) {
+    return null;
+  }
+  return data;
 }
 
 export function clearOfflineList(name: string): void {

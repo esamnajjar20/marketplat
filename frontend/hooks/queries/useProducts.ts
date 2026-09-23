@@ -53,6 +53,7 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
   // (they reorder the same set, not filter it).
   const isBaseBrowse =
     (!params?.page || params.page === 1) &&
+    params?.limit === undefined &&
     !params?.search &&
     !params?.categoryId &&
     !params?.storeId &&

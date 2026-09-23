@@ -128,18 +128,20 @@ export function useStore(id: string) {
  */
 export function useMyStore() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  // T770 — user-scoped.
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   return useQuery({
     queryKey: queryKeys.stores.me(),
     queryFn: async () => {
       try {
         const data = await storesApi.getMyStore().then((r) => r.data.data);
-        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data);
+        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data, userId);
         return data;
       } catch (err) {
         const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
         if (isNetworkFailure) {
-          const cached = getOfflineJson<StoreDetails>(OFFLINE_JSON_KEYS.storeSelf);
+          const cached = getOfflineJson<StoreDetails>(OFFLINE_JSON_KEYS.storeSelf, userId);
           if (cached) return cached.data;
         }
         throw err;

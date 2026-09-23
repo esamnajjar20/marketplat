@@ -57,18 +57,22 @@ export function useSellerProfile(id: string) {
  */
 export function useMySellerProfile() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  // T770 — see offlineJsonCache.ts's envelope comment. Passed on both
+  // the save and the fallback read so a different user's cached
+  // profile can never be served.
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   return useQuery({
     queryKey: queryKeys.sellers.me(),
     queryFn: async () => {
       try {
         const data = await sellersApi.getMyProfile().then(r => r.data.data);
-        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data);
+        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data, userId);
         return data;
       } catch (err) {
         const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
         if (isNetworkFailure) {
-          const cached = getOfflineJson<SellerProfile>(OFFLINE_JSON_KEYS.sellerProfileSelf);
+          const cached = getOfflineJson<SellerProfile>(OFFLINE_JSON_KEYS.sellerProfileSelf, userId);
           if (cached) return cached.data;
         }
         throw err;
@@ -147,8 +151,11 @@ export function useMyAttention() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
+  // T770 — user-scoped (dashboard counters are per-user).
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const cached = getOfflineJson<SellerAttention>(
     OFFLINE_JSON_KEYS.dashboardAttention,
+    userId,
   );
 
   return useQuery<SellerAttention>({
@@ -160,7 +167,7 @@ export function useMyAttention() {
           .then((r) => r.data.data);
 
         if (data) {
-          saveOfflineJson(OFFLINE_JSON_KEYS.dashboardAttention, data);
+          saveOfflineJson(OFFLINE_JSON_KEYS.dashboardAttention, data, userId);
         }
 
         if (!data) throw new Error('Seller attention response is empty');
@@ -168,6 +175,7 @@ export function useMyAttention() {
       } catch (err) {
         const local = getOfflineJson<SellerAttention>(
           OFFLINE_JSON_KEYS.dashboardAttention,
+          userId,
         );
 
         if (local) return local.data;

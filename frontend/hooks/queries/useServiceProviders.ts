@@ -64,18 +64,20 @@ export function useServiceProvider(id: string) {
  */
 export function useMyServiceProvider() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  // T770 — user-scoped.
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   return useQuery({
     queryKey: queryKeys.serviceProviders.me(),
     queryFn: async () => {
       try {
         const data = await serviceProvidersApi.getMyProvider().then((r) => r.data.data);
-        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data);
+        if (data) saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data, userId);
         return data;
       } catch (err) {
         const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
         if (isNetworkFailure) {
-          const cached = getOfflineJson<ServiceProviderDetails>(OFFLINE_JSON_KEYS.serviceProviderSelf);
+          const cached = getOfflineJson<ServiceProviderDetails>(OFFLINE_JSON_KEYS.serviceProviderSelf, userId);
           if (cached) return cached.data;
         }
         throw err;
