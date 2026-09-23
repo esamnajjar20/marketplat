@@ -67,6 +67,19 @@ export const authenticate = async (
       pipeline.get(getUserCacheKey(payload.userId));
       const results = await pipeline.exec();
 
+      // T553 — pipeline.exec() resolves even when an individual
+      // command failed; the failure shows up as [err, null] at that
+      // slot. Reading only [1] (the value) silently turns a per-command
+      // error into "no data" — for the blacklist slot that's a
+      // fail-open under BLACKLIST_STRICT (a revoked token passes).
+      // Surface any per-command error by throwing, so the surrounding
+      // catch applies the strict/dev policy as intended.
+      const blacklistCmdErr = results?.[0]?.[0];
+      const userCacheCmdErr = results?.[1]?.[0];
+      if (blacklistCmdErr || userCacheCmdErr) {
+        throw blacklistCmdErr ?? userCacheCmdErr;
+      }
+
       // pipeline.exec() returns [[err, val], [err, val], ...]
       blacklistResult = (results?.[0]?.[1] as string | null) ?? null;
       userCacheResult = (results?.[1]?.[1] as string | null) ?? null;
