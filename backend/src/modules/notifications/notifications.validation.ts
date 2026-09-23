@@ -30,8 +30,6 @@ const notificationTypeEnum = z.enum([
   'STORE_NEW_PRODUCT',
   'STORE_PROMOTION_STARTED',
   'STORE_PRODUCT_RESTOCKED',
-  'NEW_SERVICE_QUOTE',
-  'SERVICE_QUOTE_ACCEPTED',
   'NEW_REQUEST_OFFER',
   'REQUEST_OFFER_ACCEPTED',
   'STORE_MEMBER_INVITED',
@@ -48,13 +46,12 @@ export const NOTIFICATION_CATEGORY_TYPES = {
     'PROMOTION_STATUS_CHANGE',
     'STORE_MEMBER_INVITED',
   ],
-  // FIX NOTIF-TYPE-ENUM-SYNC-01: requests-marketplace events also
-  // belong under the 'services' UI category — a customer filtering
-  // their notifications by 'services' should see an offer on their
-  // open request alongside any service-quote activity.
+  // FIX NOTIF-TYPE-ENUM-SYNC-01: requests-marketplace events belong
+  // under the 'services' UI category — a customer filtering their
+  // notifications by 'services' should see an offer on their open
+  // request. (T780 — service-broadcast quote types removed with the
+  // ServiceBroadcast feature.)
   services: [
-    'NEW_SERVICE_QUOTE',
-    'SERVICE_QUOTE_ACCEPTED',
     'NEW_REQUEST_OFFER',
     'REQUEST_OFFER_ACCEPTED',
   ],

@@ -543,42 +543,6 @@ export const notificationEvents = {
       'storeUpdates'
     ),
 
-  /** service-broadcasts.service.ts's submitQuote calls this after a
-   * quote is created — notifies the broadcast's customer that a new
-   * offer came in. */
-  onNewServiceQuote: async (
-    customerId: string,
-    broadcastId: string,
-    quoteId: string,
-    providerName: string,
-    broadcastTitle: string
-  ) => {
-    if (!(await userAllowsPref(customerId, 'serviceQuotes'))) return null;
-    const title = 'عرض سعر جديد';
-    const body = `${providerName} أرسل عرض سعر على طلبك "${broadcastTitle}"`;
-    // FIX NOTIF-BROADCAST-URL-DEAD: the ServiceBroadcast feature was
-    // removed (see admin.service.ts's DEAD-CODE-SERVICE-BROADCASTS
-    // comment), so /service-broadcasts/:id no longer has a frontend
-    // route — tapping the push landed on a 404. Falls back to
-    // /notifications, which is always valid and lets the user open
-    // the underlying broadcast if/when a replacement page lands.
-    // broadcastId is still carried in the in-app row's `data` so the
-    // notification history can deep-link correctly once a route exists.
-    void pushService.notifyUser(customerId, {
-      title,
-      body,
-      url: '/notifications',
-      tag: `broadcast-${broadcastId}`,
-    }).catch(() => {});
-    return notificationsRepository.create({
-      userId: customerId,
-      type: 'NEW_SERVICE_QUOTE',
-      title,
-      body,
-      data: { broadcastId, quoteId },
-    });
-  },
-
   /** store-members.service.ts's inviteMember calls this after a
    * PENDING member row is created — notifies the invited user. FIX
    * (audit #21): was TODO'd, never actually implemented. */
@@ -603,33 +567,6 @@ export const notificationEvents = {
       title,
       body,
       data: { storeId, memberId },
-    });
-  },
-
-  /** service-broadcasts.service.ts's acceptQuote calls this after a
-   * quote is accepted — notifies the winning provider. */
-  onServiceQuoteAccepted: async (
-    providerUserId: string,
-    broadcastId: string,
-    quoteId: string,
-    broadcastTitle: string
-  ) => {
-    if (!(await userAllowsPref(providerUserId, 'serviceQuotes'))) return null;
-    const title = 'تم قبول عرضك';
-    const body = `تم قبول عرض السعر الخاص بك على طلب "${broadcastTitle}"`;
-    // FIX NOTIF-BROADCAST-URL-DEAD: same as onNewServiceQuote above.
-    void pushService.notifyUser(providerUserId, {
-      title,
-      body,
-      url: '/notifications',
-      tag: `broadcast-${broadcastId}`,
-    }).catch(() => {});
-    return notificationsRepository.create({
-      userId: providerUserId,
-      type: 'SERVICE_QUOTE_ACCEPTED',
-      title,
-      body,
-      data: { broadcastId, quoteId },
     });
   },
 
