@@ -27,12 +27,34 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = [
+      // T530-app — allowed origins were previously a hardcoded literal
+      // list here (env.frontendUrl PLUS two baked-in URLs). That meant
+      // a deployment that changed FRONTEND_URL still had the old
+      // production URL pre-allowed in code, and any preview/staging
+      // origin was rejected with no way to add it without editing this
+      // file. Now the list is composed from env.frontendUrl plus any
+      // comma-separated CORS_EXTRA_ORIGINS entry, so a deploy can add a
+      // preview origin via env alone. The two historical defaults are
+      // preserved here as a fallback ONLY when FRONTEND_URL is left at
+      // its schema default ('http://localhost:3000') — i.e. in local
+      // dev, where someone hitting the deployed Worker from a local
+      // dev server is a legitimate case — so the production URL is not
+      // silently allowed in a deploy that has properly set
+      // FRONTEND_URL to something else.
+      const extraOrigins = (env.security.corsExtraOrigins ?? '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      const devFallbacks =
+        env.nodeEnv !== 'production'
+          ? ['https://marketplat.esamnajjar6.workers.dev', 'http://localhost:3000']
+          : [];
+      const allowedOrigins = new Set<string>([
         env.frontendUrl,
-        'https://marketplat.esamnajjar6.workers.dev',
-        'http://localhost:3000',
-      ];
-      if (!origin || allowedOrigins.includes(origin)) {
+        ...extraOrigins,
+        ...devFallbacks,
+      ]);
+      if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));

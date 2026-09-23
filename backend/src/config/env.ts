@@ -314,6 +314,11 @@ const envSchema = z.object({
     .string()
     .default('false')
     .transform(v => v === 'true'),
+  // T530-app — comma-separated list of additional origins allowed by
+  // the CORS policy, beyond FRONTEND_URL. Lets a deployment add a
+  // preview/staging origin without editing code. Blank by default, so
+  // existing behavior is unchanged unless explicitly set.
+  CORS_EXTRA_ORIGINS: z.string().optional(),
   // CENTRALIZE-04: previously read directly via process.env in
   // capacityCheck.ts with no schema entry. Validated/documented here
   // for .env.example generation purposes, but NOT re-exported on the
@@ -515,6 +520,8 @@ export const env = {
     // Parse to number — Express trust proxy requires a number, not a string
     trustProxy: parseInt(_env.TRUST_PROXY, 10),
     blacklistStrict: _env.BLACKLIST_STRICT,
+    // T530-app — see schema entry above for the rationale.
+    corsExtraOrigins: _env.CORS_EXTRA_ORIGINS ?? '',
   },
   cloudinary: {
     // .trim() defends against the single most common cause of Cloudinary
