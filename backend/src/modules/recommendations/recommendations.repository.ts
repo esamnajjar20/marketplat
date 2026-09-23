@@ -1,4 +1,6 @@
 import { prisma } from '../../config/prisma';
+import { runWithQueryTimeout } from '../../shared/utils/queryTimeout';
+import { env } from '../../config/env';
 import {
   ActivityEntityType,
   AdStatus,
@@ -1045,19 +1047,31 @@ export const storeRecommendationsRepository = {
         ELSE ${noGeoScoreExpr} END)`
       : noGeoScoreExpr;
 
-    const idRows = await prisma.$queryRaw<{ id: string }[]>`
-      SELECT sd."id"
-      FROM "store_details" sd
-      JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
-      LEFT JOIN "products" p ON p."storeId" = sd."id" AND p."status" = ${ProductStatus.ACTIVE}::"ProductStatus"
-      WHERE ${whereSql}
-      GROUP BY sd."id"
-      ORDER BY
-        (${compositeScoreExpr}) DESC,
-        sd."createdAt" DESC,
-        sd."id" ASC
-      LIMIT ${limit}
-    `;
+    // T494 — this is the only recommendations raw query without a
+    // pre-GROUP-BY LIMIT, and it does a LEFT JOIN + EXTRACT(EPOCH) +
+    // composite-score CASE. As the store base grows, a slow scan here
+    // holds a connection on the hot path a "similar stores" rail
+    // triggers. Reuses the same bounded-set approach analytics already
+    // uses for its own raw aggregates. The other six recommendations
+    // queries are deliberately NOT wrapped — each already LIMITs before
+    // any grouping, and wrapping them would tax every home-feed load
+    // for no measurable benefit (see this session's analysis).
+    const idRows = await runWithQueryTimeout(
+      tx => tx.$queryRaw<{ id: string }[]>`
+        SELECT sd."id"
+        FROM "store_details" sd
+        JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
+        LEFT JOIN "products" p ON p."storeId" = sd."id" AND p."status" = ${ProductStatus.ACTIVE}::"ProductStatus"
+        WHERE ${whereSql}
+        GROUP BY sd."id"
+        ORDER BY
+          (${compositeScoreExpr}) DESC,
+          sd."createdAt" DESC,
+          sd."id" ASC
+        LIMIT ${limit}
+      `,
+      env.analytics.queryTimeoutMs,
+    );
 
     const ids = idRows.map(r => r.id);
     if (ids.length === 0) return [];
