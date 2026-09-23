@@ -62,11 +62,14 @@ export const ROUTES = {
   myServiceAppointments:   '/my-services/appointments',
   // ANALYTICS: mirrors myStoreAnalytics below.
   myServiceProviderAnalytics: '/my-services/analytics',
-  serviceBroadcasts: '/service-broadcasts',
-  serviceBroadcast: (id: string) => `/service-broadcasts/${id}`,
-  serviceBroadcastNew: '/service-broadcasts/new',
-  myServiceBroadcasts: '/service-broadcasts/me',
-  myServiceBroadcastQuotes: '/service-broadcasts/quotes',
+  // T780 — service-broadcasts routes removed. Backend dropped the
+  // service_request_broadcasts / service_quotes tables (migration
+  // 20260917121810); the pages under app/(protected)/service-broadcasts/
+  // no longer exist. Confirmed dead across the frontend: no component,
+  // no hook, no API client, and grep found only stale references in
+  // proxy.ts's PROTECTED_PREFIXES (also removed) and admin.layout's
+  // MODERATOR_ALLOWED_PREFIXES (also removed). The replacement feature
+  // is /requests (open-requests marketplace).
   // Open Requests marketplace (SERVICE | PRODUCT | RENTAL)
   requests: '/requests',
   request: (id: string) => `/requests/${id}`,
@@ -126,7 +129,6 @@ export const ROUTES = {
     fraud:             '/admin/fraud',
     products:          '/admin/products',
     serviceListings:   '/admin/service-listings',
-    serviceBroadcasts: '/admin/service-broadcasts',
     openRequests:       '/admin/open-requests',
     notifications:     '/admin/notifications',
     system:            '/admin/system',

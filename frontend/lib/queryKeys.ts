@@ -340,7 +340,6 @@ export const queryKeys = {
     // action. Consolidated here so every admin key lives in one place.
     products:          (params?: object) => ['admin', 'products',           params ?? {}] as const,
     serviceListings:   (params?: object) => ['admin', 'service-listings',   params ?? {}] as const,
-    serviceBroadcasts: (params?: object) => ['admin', 'service-broadcasts', params ?? {}] as const,
     openRequests:      (params?: object) => ['admin', 'open-requests',      params ?? {}] as const,
     trends:            (days: number)    => ['admin', 'trends',             days]         as const,
     systemHealth:      ()                => ['admin', 'system-health']                     as const,

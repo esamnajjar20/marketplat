@@ -20,8 +20,6 @@ import type { NotificationType } from '@/types/notification.types';
 // the set, they only surfaced in the notification list page.
 const CRITICAL = new Set<string>([
   'NEW_MESSAGE',
-  'NEW_SERVICE_QUOTE',
-  'SERVICE_QUOTE_ACCEPTED',
   'FAV_AD_SOLD',
   'FAV_AD_PRICE_CHANGED',
   'NEW_REQUEST_OFFER',

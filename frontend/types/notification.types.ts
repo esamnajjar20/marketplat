@@ -38,8 +38,6 @@ export type NotificationType =
   | 'STORE_NEW_PRODUCT'
   | 'STORE_PROMOTION_STARTED'
   | 'STORE_PRODUCT_RESTOCKED'
-  | 'NEW_SERVICE_QUOTE'
-  | 'SERVICE_QUOTE_ACCEPTED'
   // FIX (audit #21): mirrors the new backend NotificationType value —
   // see notifications.service.ts's onStoreMemberInvited. Carries
   // storeId, memberId (below); links to /my-store/members (no

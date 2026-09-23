@@ -170,8 +170,16 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/my-services/requests',
   '/my-services/appointments',
   '/my-services/analytics',
-  '/service-broadcasts',
-  '/service-broadcasts/quotes',
+  // T780 — '/service-broadcasts' and '/service-broadcasts/quotes' were
+  // removed. The backend dropped the service_request_broadcasts and
+  // service_quotes tables in migration 20260917121810_drop_legacy_
+  // service_broadcasts; the frontend pages were deleted alongside, but
+  // these two entries stayed in the warming list, so every warm cycle
+  // fired two 404-bound requests and the PERSONAL_SHELL_CACHE never
+  // got a real shell for them. The whole feature is dead — no page
+  // (app/ has no matching route), no component, no hook, no API client
+  // all confirmed. See lib/constants.ts's ROUTES for the removal of the
+  // corresponding route definitions.
   '/my-requests',
   // FIX OFFLINE-REQUESTS-NEW-01: /requests/new is a first-class
   // create page with full offline support already wired
@@ -274,6 +282,53 @@ function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Respo
   );
 }
 
+// WARM-INFLIGHT-DEDUP — before this, both warmRouteShells and
+// warmPersonalShells used Promise.allSettled to fetch every route's
+// HTML + its chunks IN PARALLEL, with a `cache.match` check before
+// each chunk fetch. Because every callback passed that check at
+// ~the same moment (before any chunk had actually been cached yet),
+// a chunk shared across N routes was fetched N times — measured at
+// 89% overlap between / (45 chunks) and /products (43 chunks), so
+// most of the ~250 chunk fetches per warming pass were duplicates
+// of ~40 unique URLs. On Gaza's metered mobile networks that's
+// ~10MB of wasted bandwidth per warming cycle, on top of slow-link
+// dwell time from Chrome's 6-connection-per-origin ceiling.
+//
+// This map holds the in-flight Promise<boolean> per URL, so the
+// second through Nth caller await the same fetch instead of issuing
+// their own. Cleared on settle so a later warming pass (or a
+// genuinely-expired entry) still refetches.
+//
+// Applied to both warmRouteShells and warmPersonalShells because
+// they share the same STATIC_CACHE for chunk storage — a route's
+// chunks and a personal shell's chunks overlap heavily (webpack-*,
+// main-app-*, and the shared framework chunks all appear in both).
+const inflightAssetFetches = new Map<string, Promise<boolean>>();
+
+async function fetchAndCacheAsset(cache: Cache, url: string): Promise<boolean> {
+  // Fast path — already cached (from an earlier route in this pass,
+  // or from a previous session).
+  if (await cache.match(url)) return false;
+
+  const existing = inflightAssetFetches.get(url);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
+      if (!res.ok) return false;
+      return await putTimestamped(cache, url, res);
+    } catch {
+      return false;
+    } finally {
+      inflightAssetFetches.delete(url);
+    }
+  })();
+
+  inflightAssetFetches.set(url, promise);
+  return promise;
+}
+
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
  * متغيّر ورأس Vary يمنعان مطابقة Cache API الحرفية (انظر تعليق PHASE-3-B
@@ -336,16 +391,11 @@ export async function warmRouteShells(): Promise<void> {
 
           await Promise.allSettled(
             assetUrls.map(async (assetUrl) => {
-              try {
-                // FIX OFFLINE-WARM-DEDUP: تجاوز الأصول الموجودة مسبقاً —
-                // نفس chunks يتشاركها أكثر من مسار، جلوّبها مرة واحدة.
-                if (await cache.match(assetUrl)) return;
-                const assetResponse = await fetchWithTimeout(assetUrl, { credentials: 'same-origin' });
-                if (assetResponse.ok && (await putTimestamped(cache, assetUrl, assetResponse.clone())))
-                  succeeded += 1;
-              } catch {
-                // أصل واحد فاشل لا يوقف تخزين الباقي.
-              }
+              // WARM-INFLIGHT-DEDUP — see the helper's own comment.
+              // Replaces the old sequential cache.match-then-fetch
+              // (which missed every shared chunk because all routes
+              // passed the check before any finished putting).
+              if (await fetchAndCacheAsset(cache, assetUrl)) succeeded += 1;
             }),
           );
         } catch (err) {
@@ -471,9 +521,15 @@ export async function warmPersonalShells(): Promise<void> {
       if (document.visibilityState === 'hidden') settle();
     };
     document.addEventListener('visibilitychange', onVis);
-    // Safety valve: resolve after 60s even if the tab stays visible,
-    // so a long session still warms once for the next cold open.
-    window.setTimeout(settle, 60_000);
+    // WARM-TIMEOUT-60S — was 60_000. On a typical 2-3 minute session
+    // (open the app, browse, close), 60s often meant the safety valve
+    // never fired before the user left, so warmPersonalShells silently
+    // never ran and the personal routes were never cached. 15s is
+    // still comfortably long for a user who opened a route on purpose
+    // and is still reading it (their visibility change will fire first
+    // anyway in the common case), but short enough that a
+    // quick-browsing session still gets one warm in.
+    window.setTimeout(settle, 15_000);
   });
   // FIX WARM-FALSE-SUCCESS-01: نفس الإصلاح المطبَّق بـwarmRouteShells أعلاه.
   let succeeded = 0;
@@ -507,15 +563,10 @@ export async function warmPersonalShells(): Promise<void> {
 
           await Promise.allSettled(
             assetUrls.map(async (assetUrl) => {
-              try {
-                // FIX OFFLINE-WARM-DEDUP
-                if (await staticCache.match(assetUrl)) return;
-                const assetResponse = await fetchWithTimeout(assetUrl, { credentials: 'same-origin' });
-                if (assetResponse.ok && (await putTimestamped(staticCache, assetUrl, assetResponse.clone())))
-                  succeeded += 1;
-              } catch {
-                /* ignore */
-              }
+              // WARM-INFLIGHT-DEDUP — same map as warmRouteShells, so a
+              // chunk being warmed by a route at the same moment is
+              // awaited rather than re-fetched.
+              if (await fetchAndCacheAsset(staticCache, assetUrl)) succeeded += 1;
             }),
           );
         } catch (err) {

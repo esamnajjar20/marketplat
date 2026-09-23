@@ -79,11 +79,6 @@ export interface AdminSystemHealthResponse {
  * below returns — see admin.types.ts's BulkActionMeta doc comment. */
 type BulkApiResponse<T> = Omit<ApiResponse<T[]>, 'data'> & { data: T[]; meta: BulkActionMeta };
 
-// FIX DEAD-CODE-SERVICE-BROADCASTS-01: removed getAdminServiceBroadcasts
-// + cancelServiceBroadcast -- no UI component ever called these, no
-// route/controller existed on the backend, and the newer /open-requests
-// marketplace (Request / RequestOffer) covers the same functionality.
-// See admin.service.ts's own removal comment for the full reasoning.
 export const adminApi = {
   /**
    * FIX FEAT-05: GET /admin/stats — replaces the previous client-side

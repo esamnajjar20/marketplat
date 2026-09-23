@@ -659,10 +659,6 @@ export function useAdminSetServiceListingStatus() {
   });
 }
 
-// FIX DEAD-CODE-SERVICE-BROADCASTS-01: useAdminCancelServiceBroadcast
-// removed -- its only caller was the (also-removed) frontend API method
-// adminApi.cancelServiceBroadcast, and no component ever imported this
-// hook. The live successor is useAdminCancelOpenRequest below.
 export function useAdminCancelOpenRequest() {
   const queryClient = useQueryClient();
   return useMutation({

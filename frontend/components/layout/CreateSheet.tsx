@@ -26,9 +26,9 @@ import { ROUTES } from '@/lib/constants';
  * seller/store/provider lookup just to decide where "+" points.
  *
  * OPEN-REQUESTS: fourth entry is "طلب / احتياج" → ROUTES.requestNew (/requests/new).
- * This is the primary open marketplace (SERVICE | PRODUCT | RENTAL), not the
- * legacy /service-broadcasts feed. Any authenticated user can publish; offer
- * eligibility is enforced server-side by request type.
+ * This is the primary open marketplace (SERVICE | PRODUCT | RENTAL). Any
+ * authenticated user can publish; offer eligibility is enforced server-side
+ * by request type.
  */
 const CREATE_LINKS = [
   { label: 'إعلان جديد', description: 'انشر إعلان بيع', href: ROUTES.adCreate, icon: Megaphone },

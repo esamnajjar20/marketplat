@@ -43,7 +43,6 @@ const MODERATOR_ALLOWED_PREFIXES = [
   ROUTES.admin.fraud,
   ROUTES.admin.products,
   ROUTES.admin.serviceListings,
-  ROUTES.admin.serviceBroadcasts,
 ];
 
 function isAllowedForModerator(pathname: string): boolean {

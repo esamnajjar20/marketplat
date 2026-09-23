@@ -62,10 +62,12 @@ export function resumeHrefForDraft(d: AdDraft): string {
     return `${ROUTES.requestNew}?${q}`;
   }
 
-  if (kind === 'service-broadcast') {
-    // سوق الطلبات لا يدعم تعديل طلب بعد النشر — المسودة دائمًا إنشاء.
-    return `${ROUTES.serviceBroadcastNew}?${q}`;
-  }
+  // T780 — service-broadcast branch removed. The route
+  // (ROUTES.serviceBroadcastNew) and the underlying feature were
+  // dropped by migration 20260917121810; a leftover draft with
+  // kind:'service-broadcast' falls through to the default 'ad' branch
+  // below, which still resolves to a valid route. This matches the
+  // removal of the ROUTES entries in lib/constants.ts.
 
   // ad
   if (d.mode === 'edit' && d.remoteAdId) {

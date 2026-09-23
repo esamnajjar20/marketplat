@@ -163,7 +163,7 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
         // silent data loss.
         await requestsApi.createWithImages(body, files.length ? files : undefined, opId);
       } else {
-        // service-broadcast وغيره — لا مسار API تلقائي هنا بعد
+        // kind غير معروف — لا مسار API تلقائي هنا بعد
         return 'skipped';
       }
     } else {

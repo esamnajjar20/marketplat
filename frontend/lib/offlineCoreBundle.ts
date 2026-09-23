@@ -106,8 +106,8 @@ export function buildCoreUrls(): { key: string; url: string }[] {
     {
       key: 'service-categories',
       // FEAT-CREATE-BROADCAST-01: كانت غائبة عن هذه القائمة رغم أن
-      // ServiceListingForm.tsx (نموذج "خدمة جديدة" الحالي) وCreateServiceBroadcastForm.tsx
-      // (نموذج "طلب خدمة" الجديد) كلاهما يعتمد على GET /service-categories
+      // ServiceListingForm.tsx (نموذج "خدمة جديدة") وCreateOpenRequestForm
+      // (نموذج "طلب / احتياج") كلاهما يعتمد على GET /service-categories
       // لملء قائمة الفئات — دون تسخين استباقي، أي مستخدم لم يفتح صفحة
       // تجلبها من قبل وهو أونلاين يرى قائمة فئات فارغة (ولا يقدر يُكمل
       // النشر، الحقل required) أول مرة يحاول ينشر بلا اتصال. لا معاملات —
