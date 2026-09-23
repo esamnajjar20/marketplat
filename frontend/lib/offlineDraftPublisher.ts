@@ -14,6 +14,7 @@
  * يغطي: إعلان / منتج / خدمة / طلب مفتوح (open-request).
  */
 import { getActiveSW } from '@/lib/swReady';
+import { useAuthStore } from '@/store/auth.store';
 import { adsApi } from '@/api/ads.api';
 import { productsApi } from '@/api/products.api';
 import { serviceListingsApi } from '@/api/service-listings.api';
@@ -315,7 +316,42 @@ export async function syncPendingOfflineDrafts(options?: {
   syncInFlight = (async () => {
     const result: DraftPublishResult = { sent: 0, failed: 0, skipped: 0 };
     try {
-      const drafts = await listAdDrafts(options?.userId);
+      // T690 — resolve the userId to filter by. The explicit option wins;
+      // otherwise default to the CURRENT logged-in user. This is a
+      // security boundary, not a convenience:
+      //
+      // clearDraftOnlyAdDrafts() (authCleanup.ts) deliberately keeps
+      // pending_sync/failed drafts across logout — losing an in-flight
+      // ad the user already composed is worse than keeping a row around.
+      // But the consequence is that a draft created by User A survives
+      // User A closing the browser without logging out, and is still in
+      // IndexedDB when User B logs in on the same shared device.
+      //
+      // Before this fix, all three call sites (OfflineBootstrap,
+      // /offline page, SyncCenterClient) passed NO userId, so
+      // listAdDrafts(undefined) returned EVERY draft in IndexedDB — and
+      // publishOne sent them with whatever Bearer token was on the
+      // request. Result: User B's sync published User A's pending ads /
+      // products / service listings / open requests under User B's
+      // account, with User A's images and content.
+      //
+      // Now: explicit override still wins for callers that already
+      // know the user (SyncCenterClient may pass one), and everything
+      // else filters to the current store user. If there is no
+      // logged-in user at all, bail out — publishing requires the
+      // owner's Bearer token, so syncing for a guest is meaningless
+      // (and would send an unauthorized request if any drafts existed
+      // with userId: null from an older schema).
+      const effectiveUserId =
+        options?.userId !== undefined
+          ? options.userId
+          : useAuthStore.getState().user?.id ?? null;
+
+      if (effectiveUserId === null) {
+        return result;
+      }
+
+      const drafts = await listAdDrafts(effectiveUserId);
       const queueOpAges = await listQueuedOperationsWithAge();
       const includeFailed = options?.includeFailed !== false;
 
