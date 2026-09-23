@@ -675,6 +675,32 @@ export const collectionMemberRateLimit = rateLimit({
   message: msg('Too many collection membership changes, please try again later'),
 });
 
+// Categories module: admin-only CRUD, but we apply the same pattern
+// as the other store-scoped mutations. Category tree mutations are
+// rare and admin-gated at the auth layer; the ceiling is generous
+// enough to allow a bulk import but bounded against a runaway script.
+export const categoryMutationRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('category_mutation'),
+  message: msg('Too many category mutations, please try again later'),
+});
+
+// Delete is destructive (FK-checked, cascades into visibility); a
+// lower ceiling than create/update flags accidental loops.
+export const categoryDeleteRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('category_delete'),
+  message: msg('Too many category deletions, please try again later'),
+});
+
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({

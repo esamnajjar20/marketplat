@@ -36,6 +36,15 @@ export const categoriesService = {
     if (existingNameAr) throw new BadRequestError('Arabic category name already exists');
     if (existingSlug) throw new BadRequestError('Category slug already exists');
 
+    // T420 — a nonexistent parentId would surface as a raw P2003 (FK
+    // violation) turned 500. Check up-front for a clean 400.
+    if (input.parentId) {
+      const parent = await categoriesRepository.findById(input.parentId);
+      if (!parent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+    }
+
     try {
       const category = await categoriesRepository.create(input);
       await invalidateCategoriesCache(); // P-04: write-through invalidation
@@ -105,6 +114,13 @@ export const categoriesService = {
       if (input.parentId === id) {
         throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
       }
+      // T421 — verify the target parent actually exists before walking
+      // its chain; a nonexistent id would otherwise return an empty
+      // chain and pass through to a P2003 on write (500).
+      const proposedParent = await categoriesRepository.findById(input.parentId);
+      if (!proposedParent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
       const ancestorChain = await categoriesRepository.findParentChain(input.parentId);
       if (ancestorChain.includes(id)) {
         throw new BadRequestError(
@@ -152,7 +168,21 @@ export const categoriesService = {
     if (childrenCount > 0) {
       throw new BadRequestError(`Cannot delete category with ${childrenCount} subcategories`);
     }
-    await categoriesRepository.delete(id);
+    try {
+      await categoriesRepository.delete(id);
+    } catch (err) {
+      // T424 — the count checks above are advisory; a child or ad can
+      // be created between the count and the delete. The DB's FK
+      // constraint is the real guard — surface it as a clean 400 (P2003)
+      // or 404 (P2025, already deleted concurrently), not a 500.
+      if (isPrismaError(err, 'P2003')) {
+        throw new BadRequestError('Cannot delete category — it is still referenced.');
+      }
+      if (isPrismaError(err, 'P2025')) {
+        throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
+      }
+      throw err;
+    }
     await invalidateCategoriesCache(); // P-04: write-through invalidation
   },
 };

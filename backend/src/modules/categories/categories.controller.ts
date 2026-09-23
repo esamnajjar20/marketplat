@@ -4,6 +4,7 @@ import {
   createCategorySchema,
   updateCategorySchema,
   categoryIdSchema,
+  categorySlugParamSchema,
 } from './categories.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 
@@ -51,8 +52,10 @@ export const categoriesController = {
 
   getCategoryBySlug: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const slug = req.params.slug;
-      const category = await categoriesService.getCategoryBySlug(slug);
+      // T422 — was reading req.params.slug raw, bypassing the same
+      // validation createCategorySchema applies to slugs on write.
+      const { params } = categorySlugParamSchema.parse({ params: req.params });
+      const category = await categoriesService.getCategoryBySlug(params.slug);
       res.status(200).json(successResponse('Category fetched', category));
     } catch (error) {
       next(error);
