@@ -38,12 +38,24 @@ async function main(): Promise<void> {
       readAt: null,
       type: { in: DIGEST_TYPES },
     },
-    select: { id: true, userId: true, type: true },
+    select: { id: true, userId: true, type: true, data: true },
     orderBy: { createdAt: 'asc' },
   });
 
+  // T611 — exclude prior digests themselves. The digest row is
+  // created with type='PROMOTION' (see below), which is in
+  // DIGEST_TYPES — so without this filter, a user who received a
+  // prior digest and later gets one new PROMOTION-type notification
+  // would see a new digest summarising "old digest + new
+  // notification": a confusing "digest of digests". The data.digest
+  // marker (set on the create side, below) is the discriminator.
+  const candidates = unread.filter(row => {
+    const d = row.data as Record<string, unknown> | null | undefined;
+    return d?.digest !== true;
+  });
+
   const byUser = new Map<string, { ids: string[]; counts: Record<string, number> }>();
-  for (const row of unread) {
+  for (const row of candidates) {
     let bucket = byUser.get(row.userId);
     if (!bucket) {
       bucket = { ids: [], counts: {} };
@@ -82,7 +94,7 @@ async function main(): Promise<void> {
   logger.info('dailyNotificationDigest finished', {
     usersScanned: byUser.size,
     digestsCreated: digests,
-    rowsConsidered: unread.length,
+    rowsConsidered: candidates.length,
   });
 }
 
