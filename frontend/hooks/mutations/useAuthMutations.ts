@@ -94,17 +94,36 @@ export function useLogin() {
       authApi.login(payload).then((r) => ({ ...unwrapData(r), redirectTo })),
 
     onSuccess: async (data) => {
-      // FIX SHARED-DEVICE-LOGIN-LEAK-01: مسح دفاعي قبل أي شيء آخر — لا
-      // نفترض أن الجلسة السابقة على هذا الجهاز انتهت بـlogout نظيف
-      // (تطبيق أُغلق قسرًا/تعطّل). API_CACHE بالـSW (Cache Storage) و
-      // notificationsCache (localStorage) يعيشان عبر إعادة تشغيل
-      // التطبيق، وغير مرتبطين بهوية مستخدم بمفتاح الكاش — لو انقطع
-      // النت لحظيًا بعد هذا الدخول (سيناريو شائع بهذا التطبيق)،
-      // networkFirstApi's fallback (sw.js) قد يرجّع ردود API مخزَّنة
-      // تخص مستخدم سابق على نفس الجهاز. عمدًا لا نستخدم
-      // clearSensitiveLocalData() الكاملة هنا — تمسح أيضًا طابور
-      // العمليات المعلّقة وتُلغي اشتراك push، وهذان صحيحان عند *إنهاء*
-      // جلسة (logout) لا عند *بدء* واحدة.
+      // FIX SHARED-DEVICE-LOGIN-LEAK-01 / T682: full local cleanup when
+      // the incoming user differs from whoever was last signed in on
+      // this device — or when the store has no previous user at all
+      // (a fresh device / post-crash) so we start from a known state.
+      //
+      // Why the id comparison instead of unconditionally calling
+      // clearSensitiveLocalData(): the previous behavior only cleared
+      // the SW API cache + notifications cache, leaving per-user state
+      // (offline lists, JSON cache, ad drafts, offline message store,
+      // saved payment methods, catalog downloads, recent searches,
+      // auto-read cache, app badge) on disk across a close-without-
+      // logout. On a shared device User B then saw A's payment cards,
+      // messages, and drafts. But the SAME user re-logging in (session
+      // expired, tab closed and reopened, transient refresh failure)
+      // has a legitimate expectation that their pending offline
+      // operations and push subscription survive — running the full
+      // wipe in that case would silently discard an in-flight
+      // mutation. The store persists `user` (see auth.store.ts's
+      // partialize), so `previousUserId` is reliable across reloads.
+      const previousUserId = useAuthStore.getState().user?.id;
+      const userChanged = previousUserId === undefined || previousUserId !== data.user.id;
+      if (userChanged) {
+        clearSensitiveLocalData();
+      }
+      // These two are unconditional: cheap (a postMessage + a
+      // localStorage removal) and clearing them just means one extra
+      // API round-trip on the first page after login. The SW API cache
+      // has no per-user scoping, so a same-user login leaving it in
+      // place is fine — but running it here matches the previous
+      // behavior and removes any doubt.
       clearServiceWorkerApiCache();
       clearNotificationsCache();
 
@@ -188,9 +207,20 @@ export function useRegister() {
       authApi.register(payload).then((r) => ({ ...unwrapData(r), redirectTo })),
 
     onSuccess: (data) => {
-      // FIX SHARED-DEVICE-LOGIN-LEAK-01: نفس منطق useLogin أعلاه — حساب
-      // جديد لا يعني جهازًا نظيفًا؛ قد يحمل بقايا جلسة سابقة انتهت بلا
-      // logout نظيف.
+      // FIX SHARED-DEVICE-LOGIN-LEAK-01 / T682: same id-comparison
+      // reasoning as useLogin above. Registering a brand-new account
+      // on a device that carried a different prior session must wipe
+      // the leftover per-user state; registering the same account
+      // again (rare, e.g. after an account-deletion + re-signup) can
+      // keep its own pending offline queue. Note previousUserId will
+      // almost always be undefined here (register implies no
+      // currently-signed-in user on this device) — the check still
+      // matters for the post-deletion-re-registration edge case.
+      const previousUserId = useAuthStore.getState().user?.id;
+      const userChanged = previousUserId === undefined || previousUserId !== data.user.id;
+      if (userChanged) {
+        clearSensitiveLocalData();
+      }
       clearServiceWorkerApiCache();
       clearNotificationsCache();
 
