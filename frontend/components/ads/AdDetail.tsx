@@ -139,9 +139,14 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   }, [ad.id, userId]);
 
   // PHASE-2: auto offline snapshot for 24h (does not replace manual save)
+  // T725 — pass userId so entries are scoped per-user, and re-run when
+  // the signed-in user changes (was `[ad]` only: on a shared device,
+  // logging in as a new user mid-session left the previous user's
+  // entry indexed under their id and did not create one for the new
+  // user until they navigated to a different ad).
   useEffect(() => {
-    void autoSaveVisitedAd(ad);
-  }, [ad]);
+    void autoSaveVisitedAd(ad, userId);
+  }, [ad, userId]);
 
   async function handleSaveOffline() {
     if (isSavingOffline) return;

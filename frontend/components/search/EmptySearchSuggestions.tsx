@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { getRecentSearches } from '@/lib/recentSearches';
 import { listAutoReadAds, type AutoReadMeta } from '@/lib/offlineAutoRead';
+import { useAuthStore } from '@/store/auth.store';
 
 /**
  * Escape hatches under zero-result search:
@@ -53,11 +54,16 @@ export function EmptySearchSuggestions() {
 
   const [recent, setRecent] = useState<string[]>([]);
   const [viewed, setViewed] = useState<AutoReadMeta[]>([]);
+  // T726 — scope auto-read entries to the current user. Previously
+  // listAutoReadAds() returned every visitor's entries on this device
+  // (guests included), so on a shared browser User B saw User A's
+  // browsing history as soon as a search returned zero results.
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   useEffect(() => {
     setRecent(getRecentSearches().slice(0, 6));
-    setViewed(listAutoReadAds().slice(0, 6));
-  }, []);
+    setViewed(listAutoReadAds(userId).slice(0, 6));
+  }, [userId]);
 
   function searchHref(q: string) {
     const params = new URLSearchParams();

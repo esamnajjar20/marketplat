@@ -18,6 +18,12 @@ const CACHE_NAME = 'market-auto-read-ads';
 
 export interface AutoReadMeta {
   id: string;
+  // T725 — owner of this auto-read entry. Without it every viewer's
+  // visited ads (guests included) shared one un-scoped list, and
+  // EmptySearchSuggestions rendered the previous user's browsing
+  // history under "شوهد مؤخرًا" on a shared device. Undefined on
+  // entries written before this field existed — see listAutoReadAds.
+  userId?: string | null;
   title: string;
   savedAt: string;
   expiresAt: string;
@@ -58,13 +64,21 @@ async function pruneExpiredAndCleanCache(list: AutoReadMeta[]): Promise<AutoRead
   return kept;
 }
 
-export function listAutoReadAds(): AutoReadMeta[] {
+/**
+ * T726 — takes an optional userId. With it, only that user's entries
+ * are returned (and legacy userId-less entries read as guests/null —
+ * matches a null userId, hidden from a signed-in user). Without it
+ * (undefined), all entries are returned — used by authCleanup's
+ * unconditional clearAutoReadCache(). */
+export function listAutoReadAds(userId?: string | null): AutoReadMeta[] {
   // نسخة متزامنة (بلا cache cleanup) للاستخدام في UI — التنظيف الفعلي
   // يحدث عند autoSaveVisitedAd's pruneExpiredAndCleanCache.
   const now = Date.now();
   return listRaw().filter((e) => {
     const exp = Date.parse(e.expiresAt);
-    return Number.isFinite(exp) && exp > now;
+    if (!Number.isFinite(exp) || exp <= now) return false;
+    if (userId === undefined) return true;
+    return (e.userId ?? null) === (userId ?? null);
   });
 }
 
@@ -83,7 +97,7 @@ const THUMB_SIZE = 128;
  * Best-effort: cache GET /ads/:id + first image for offline open later.
  * Never throws to the UI.
  */
-export async function autoSaveVisitedAd(ad: Ad): Promise<void> {
+export async function autoSaveVisitedAd(ad: Ad, userId?: string | null): Promise<void> {
   if (typeof window === 'undefined' || typeof caches === 'undefined') return;
   if (!ad?.id) return;
 
@@ -134,22 +148,41 @@ export async function autoSaveVisitedAd(ad: Ad): Promise<void> {
 
     const now = Date.now();
     const pruned = await pruneExpiredAndCleanCache(listRaw());
-    const list = pruned.filter((e) => e.id !== ad.id);
+    // T725 — replace only THIS user's previous entry for the same ad
+    // (was `e.id !== ad.id` which removed every user's).
+    const list = pruned.filter(
+      (e) => !(e.id === ad.id && (e.userId ?? null) === (userId ?? null)),
+    );
     list.unshift({
       id: ad.id,
+      userId: userId ?? null,
       title: ad.title,
       savedAt: new Date(now).toISOString(),
       expiresAt: new Date(now + TTL_MS).toISOString(),
       thumbnail: thumbUrl,
     });
-    const kept = list.slice(0, MAX_AUTO);
-    const dropped = list.slice(MAX_AUTO);
+
+    // T721 — cap per-user, not globally. The previous `list.slice(0,
+    // MAX_AUTO)` evicted the oldest entries across the WHOLE list — on
+    // a shared device, User B opening one ad evicted User A's oldest
+    // auto-read entries (their cache included). Each user now gets
+    // their own MAX_AUTO window; other users' rows are preserved in
+    // the written index.
+    const isMine = (e: AutoReadMeta) => (e.userId ?? null) === (userId ?? null);
+    const myEntries = list.filter(isMine);
+    const myKept = myEntries.slice(0, MAX_AUTO);
+    const myEvicted = myEntries.slice(MAX_AUTO);
+    const kept = [...myKept, ...list.filter((e) => !isMine(e))];
+
+    // Persist first so the visible index and the Cache Storage eviction
+    // stay in sync even if the cache.delete calls below fail — evicted
+    // entries are already gone from the visible list.
     localSet(INDEX_KEY, kept);
 
-    // FIX AUTO-READ-EVICT-CLEANUP: حذف API + الصورة معاً عند الإقصاء.
-    // قبل: كان يحذف API فقط → تسريب صورة لكل إعلان مُقصى.
+    // FIX AUTO-READ-EVICT-CLEANUP: delete both API + thumbnail for every
+    // evicted entry (was: only entries beyond the global cap).
     await Promise.allSettled(
-      dropped.map(async (e) => {
+      myEvicted.map(async (e) => {
         try {
           await cache.delete(adDetailUrl(e.id));
           if (e.thumbnail) {

@@ -187,13 +187,22 @@ export async function saveAdOffline(ad: Ad, userId?: string | null): Promise<boo
       imageUrls,
     });
 
-    const kept = index.slice(0, MAX_SAVED_ADS);
-    const evicted = index.slice(MAX_SAVED_ADS);
+    // T721 — cap per-user, not globally. The previous `index.slice(0,
+    // MAX_SAVED_ADS)` evicted the oldest entries across the WHOLE index
+    // — on a shared device User B saving their first ad could push
+    // User A's oldest saved ad off the visible list AND purge its Cache
+    // Storage. Each user now gets their own MAX_SAVED_ADS window; other
+    // users' rows stay in the written index.
+    const isMine = (a: SavedOfflineAdMeta) =>
+      (a.userId ?? null) === (userId ?? null);
+    const myEntries = index.filter(isMine);
+    const myKept = myEntries.slice(0, MAX_SAVED_ADS);
+    const myEvicted = myEntries.slice(MAX_SAVED_ADS);
+    const kept = [...myKept, ...index.filter((a) => !isMine(a))];
     localSet(SAVED_INDEX_KEY, kept);
-    // FIX SAVED-ADS-LEAK-01: نظّف Cache Storage لكل عنصر أُقصي من الفهرس —
-    // بلا هذا، تجاوز السقف يُخفي العنصر عن الواجهة فقط بينما يبقى استهلاكه
-    // الفعلي للمساحة قائمًا للأبد.
-    await Promise.allSettled(evicted.map((a) => purgeSavedAdFromCache(a)));
+    // FIX SAVED-ADS-LEAK-01: purge Cache Storage for every entry that
+    // left the visible index (only the calling user's own overflow now).
+    await Promise.allSettled(myEvicted.map((a) => purgeSavedAdFromCache(a)));
 
     return true;
   } catch {
