@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { serviceReviewsController } from './service-reviews.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import { serviceReviewRateLimit } from '../../middlewares/rateLimit.middleware';
 
@@ -13,9 +14,12 @@ serviceReviewsRouter.get(
   serviceReviewsController.getReviewsForSeller
 );
 
+// T351 — reviews are public-facing content; require verified email like
+// every other user-generated public artifact (ads, products, requests).
 serviceReviewsRouter.post(
   '/',
   authenticate,
+  requireVerifiedEmail,
   serviceReviewRateLimit,
   serviceReviewsController.createReview
 );

@@ -373,6 +373,39 @@ export const submitRequestOfferRateLimit = rateLimit({
   message: msg('Too many offers submitted, please try again later'),
 });
 
+// T350 — request cancel: state-mutating, cheap ceiling per user.
+export const cancelRequestRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('cancel_request'),
+  message: msg('Too many cancel attempts, please try again later'),
+});
+
+// T350 — withdraw offer: same ceiling as submit (lifecycle symmetry).
+export const withdrawOfferRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('withdraw_offer'),
+  message: msg('Too many withdraw attempts, please try again later'),
+});
+
+// T350 — accept offer: lower ceiling — accepting is a decisive action.
+export const acceptOfferRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('accept_offer'),
+  message: msg('Too many accept attempts, please try again later'),
+});
+
 // services-design.md §17: same rationale as sellerRatingRateLimit —
 // prevents bulk fake reviews.
 export const serviceReviewRateLimit = rateLimit({

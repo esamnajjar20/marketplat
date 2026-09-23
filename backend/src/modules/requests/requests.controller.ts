@@ -5,6 +5,7 @@ import {
   requestIdSchema,
   getOpenRequestsSchema,
   getMyRequestsSchema,
+  getMyOffersSchema,
   submitOfferSchema,
   offerParamsSchema,
 } from './requests.validation';
@@ -47,7 +48,8 @@ export const requestsController = {
   getMyOffers: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { query } = getMyRequestsSchema.parse({ query: req.query });
+      // T352 — was reusing getMyRequestsSchema whose status enum never matched.
+      const { query } = getMyOffersSchema.parse({ query: req.query });
       const result = await requestsService.getMyOffers(user.userId, query);
       res.status(200).json(successResponse('My offers fetched', result.items, { pagination: result.meta }));
     } catch (error) {

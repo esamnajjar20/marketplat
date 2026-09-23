@@ -3,7 +3,13 @@ import { Router } from 'express';
 import { requestsController } from './requests.controller';
 import { authenticate, optionalAuthenticate } from '../../middlewares/auth.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
-import { createOpenRequestRateLimit, submitRequestOfferRateLimit } from '../../middlewares/rateLimit.middleware';
+import {
+  createOpenRequestRateLimit,
+  submitRequestOfferRateLimit,
+  cancelRequestRateLimit,
+  withdrawOfferRateLimit,
+  acceptOfferRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 
 export const requestsRouter = Router();
 
@@ -15,7 +21,7 @@ requestsRouter.get('/offers/me', authenticate, CACHE.NONE, requestsController.ge
 requestsRouter.get('/:id', optionalAuthenticate, CACHE.NONE, requestsController.getById);
 
 requestsRouter.post('/', authenticate, requireVerifiedEmail, createOpenRequestRateLimit, requestsController.create);
-requestsRouter.patch('/:id/cancel', authenticate, requestsController.cancel);
+requestsRouter.patch('/:id/cancel', authenticate, cancelRequestRateLimit, requestsController.cancel);
 
 requestsRouter.post(
   '/:id/offers',
@@ -23,5 +29,5 @@ requestsRouter.post(
   submitRequestOfferRateLimit,
   requestsController.submitOffer,
 );
-requestsRouter.delete('/:id/offers/:offerId', authenticate, requestsController.withdrawOffer);
-requestsRouter.patch('/:id/offers/:offerId/accept', authenticate, requestsController.acceptOffer);
+requestsRouter.delete('/:id/offers/:offerId', authenticate, withdrawOfferRateLimit, requestsController.withdrawOffer);
+requestsRouter.patch('/:id/offers/:offerId/accept', authenticate, acceptOfferRateLimit, requestsController.acceptOffer);

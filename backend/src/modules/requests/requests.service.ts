@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, Request as RequestRow, RequestOffer, RequestType } from '@prisma/client';
+import { Prisma, Request as RequestRow, RequestOffer, RequestType, RequestOfferStatus } from '@prisma/client';
 import {
   requestsRepository,
   requestOffersRepository,
@@ -173,10 +173,12 @@ export const requestsService = {
     if (row.customerId !== userId) {
       throw new ForbiddenError('Only the customer who posted this can cancel it.', 'NOT_YOUR_REQUEST');
     }
-    if (row.status !== 'OPEN') {
+    // T353 — conditional write closes the read→write race against acceptOffer.
+    const result = await requestsRepository.cancelIfOpen(id, userId);
+    if (result.count === 0) {
       throw new ConflictError('Only an open request can be cancelled.', 'REQUEST_NOT_OPEN');
     }
-    return requestsRepository.cancel(id);
+    return requestsRepository.findRowById(id) as Promise<RequestRow>;
   },
 
   submitOffer: async (
@@ -246,10 +248,12 @@ export const requestsService = {
     if (offer.offererUserId !== userId) {
       throw new ForbiddenError('You can only withdraw your own offer.', 'NOT_YOUR_OFFER');
     }
-    if (offer.status !== 'PENDING') {
+    // T357 — conditional write closes the read→write race against acceptOffer.
+    const result = await requestOffersRepository.withdrawIfPending(offerId, userId);
+    if (result.count === 0) {
       throw new ConflictError('Only a pending offer can be withdrawn.', 'OFFER_NOT_PENDING');
     }
-    return requestOffersRepository.withdraw(offerId);
+    return requestOffersRepository.findOfferById(offerId) as Promise<RequestOffer>;
   },
 
   acceptOffer: async (
@@ -279,7 +283,11 @@ export const requestsService = {
       if (acceptResult.count === 0) {
         throw new ConflictError('This request has already been decided.', 'REQUEST_NOT_OPEN');
       }
-      await requestOffersRepository.accept(tx, offerId);
+      // T358 — conditional accept inside tx; a concurrent withdraw cannot be overwritten.
+      const offerAccept = await requestOffersRepository.accept(tx, offerId);
+      if (offerAccept.count === 0) {
+        throw new ConflictError('This offer is no longer available.', 'OFFER_NOT_PENDING');
+      }
       await requestOffersRepository.declineOthers(tx, requestId, offerId);
       return tx.request.findUniqueOrThrow({ where: { id: requestId } });
     });
@@ -306,7 +314,7 @@ export const requestsService = {
 
   getMyOffers: async (
     userId: string,
-    query: { page?: number; limit?: number },
+    query: { page?: number; limit?: number; status?: RequestOfferStatus },
   ): Promise<PaginatedResult<OfferWithOfferer>> => {
     const { offers, total } = await requestOffersRepository.findManyByOfferer(userId, query);
     return {

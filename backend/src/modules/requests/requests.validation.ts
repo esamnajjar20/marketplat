@@ -57,6 +57,19 @@ export const getMyRequestsSchema = z.object({
 
 export type GetMyRequestsQuery = z.infer<typeof getMyRequestsSchema>['query'];
 
+// T352 — offers have a distinct lifecycle (PENDING/ACCEPTED/DECLINED/WITHDRAWN),
+// NOT the request lifecycle. Reusing getMyRequestsSchema silently dropped the
+// filter because the enums don't overlap.
+export const getMyOffersSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    status: z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'WITHDRAWN']).optional(),
+  }),
+});
+
+export type GetMyOffersQuery = z.infer<typeof getMyOffersSchema>['query'];
+
 export const submitOfferSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Request ID is required') }),
   body: z.object({

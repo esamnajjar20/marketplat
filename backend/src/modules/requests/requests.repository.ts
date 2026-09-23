@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, Request as RequestRow, RequestOffer, RequestStatus } from '@prisma/client';
+import { Prisma, Request as RequestRow, RequestOffer, RequestStatus, RequestOfferStatus } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 
 const offererSelect = {
@@ -152,11 +152,21 @@ export const requestsRepository = {
     return { requests, total };
   },
 
-  cancel: (id: string): Promise<RequestRow> =>
-    prisma.request.update({
-      where: { id },
+  /**
+   * T353 — conditional cancel. Ownership + OPEN status enforced in the
+   * WHERE clause so a race between a read-check and this write cannot
+   * cancel a request that was just accepted by another flow.
+   * count === 0 → caller throws REQUEST_NOT_OPEN.
+   */
+  cancelIfOpen: (id: string, customerId: string): Promise<Prisma.BatchPayload> =>
+    prisma.request.updateMany({
+      where: { id, customerId, status: 'OPEN' },
       data: { status: 'CANCELLED' },
     }),
+
+  /** Bare row fetch — used after conditional mutations to return canonical state. */
+  findRowById: (id: string): Promise<RequestRow | null> =>
+    prisma.request.findUnique({ where: { id } }),
 
   /**
    * Conditional accept — only succeeds when status is still OPEN.
@@ -231,8 +241,16 @@ export const requestOffersRepository = {
       where: { requestId_offererUserId: { requestId, offererUserId } },
     }),
 
-  accept: (tx: Prisma.TransactionClient, id: string): Promise<RequestOffer> =>
-    tx.requestOffer.update({ where: { id }, data: { status: 'ACCEPTED' } }),
+  /**
+   * T358 — conditional accept. PENDING enforced in WHERE so a concurrent
+   * withdraw between the read and this write cannot be overwritten.
+   * count === 0 → caller throws OFFER_NOT_PENDING.
+   */
+  accept: (tx: Prisma.TransactionClient, id: string): Promise<Prisma.BatchPayload> =>
+    tx.requestOffer.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status: 'ACCEPTED' },
+    }),
 
   declineOthers: (
     tx: Prisma.TransactionClient,
@@ -244,19 +262,30 @@ export const requestOffersRepository = {
       data: { status: 'DECLINED' },
     }),
 
-  withdraw: (id: string): Promise<RequestOffer> =>
-    prisma.requestOffer.update({
-      where: { id },
+  /**
+   * T357 — conditional withdraw. offererUserId + PENDING enforced in
+   * WHERE. count === 0 → caller throws OFFER_NOT_PENDING.
+   */
+  withdrawIfPending: (id: string, offererUserId: string): Promise<Prisma.BatchPayload> =>
+    prisma.requestOffer.updateMany({
+      where: { id, offererUserId, status: 'PENDING' },
       data: { status: 'WITHDRAWN' },
     }),
 
+  /** Bare offer fetch — used for T357/T358 service flows. */
+  findOfferById: (id: string): Promise<RequestOffer | null> =>
+    prisma.requestOffer.findUnique({ where: { id } }),
+
   findManyByOfferer: async (
     offererUserId: string,
-    query: { page?: number; limit?: number },
+    query: { page?: number; limit?: number; status?: RequestOfferStatus },
   ): Promise<{ offers: OfferWithOfferer[]; total: number }> => {
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 20, status } = query;
     const { skip, take } = getPaginationParams(page, limit);
-    const where: Prisma.RequestOfferWhereInput = { offererUserId };
+    const where: Prisma.RequestOfferWhereInput = {
+      offererUserId,
+      ...(status && { status }),
+    };
 
     const [offers, total] = await Promise.all([
       prisma.requestOffer.findMany({
