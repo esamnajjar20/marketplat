@@ -1,3 +1,4 @@
+import { getActiveSW } from '@/lib/swReady';
 /**
  * واجهة الصفحة (لا الـ Service Worker) لطابور الطلبات غير المرسلة.
  *
@@ -188,8 +189,8 @@ export async function retryFailedRequest(id: number): Promise<void> {
     return;
   }
   if (!('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.ready;
-  registration.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id });
+  const registration = await getActiveSW();
+  registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id });
 }
 
 /** يحذف عنصرًا فاشلاً نهائيًا دون إعادة محاولة. */
@@ -200,8 +201,8 @@ export async function discardFailedRequest(id: number): Promise<void> {
     return;
   }
   if (!('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.ready;
-  registration.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id });
+  const registration = await getActiveSW();
+  registration?.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id });
 }
 
 /** أنواع رسائل الـ SW التي تعني "أعد قراءة الطابور" — نفس القائمة
@@ -268,8 +269,8 @@ function setLastReplayAt(value: number): void {
 export async function clearOfflineQueue(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   try {
-    const registration = await navigator.serviceWorker.ready;
-    registration.active?.postMessage({ type: 'CLEAR_QUEUE' });
+    const registration = await getActiveSW();
+    registration?.active?.postMessage({ type: 'CLEAR_QUEUE' });
   } catch (err) {
     console.warn('[queue] clearOfflineQueue failed:', err);
   }
@@ -280,8 +281,8 @@ export async function requestQueueReplay(): Promise<void> {
   const now = Date.now();
   if (now - getLastReplayAt() < REPLAY_THROTTLE_MS) return;
   setLastReplayAt(now);
-  const registration = await navigator.serviceWorker.ready;
-  registration.active?.postMessage({ type: 'REPLAY_QUEUE_NOW' });
+  const registration = await getActiveSW();
+  registration?.active?.postMessage({ type: 'REPLAY_QUEUE_NOW' });
 }
 
 

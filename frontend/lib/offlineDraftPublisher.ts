@@ -13,6 +13,7 @@
  *
  * يغطي: إعلان / منتج / خدمة / طلب مفتوح (open-request).
  */
+import { getActiveSW } from '@/lib/swReady';
 import { adsApi } from '@/api/ads.api';
 import { productsApi } from '@/api/products.api';
 import { serviceListingsApi } from '@/api/service-listings.api';
@@ -278,7 +279,7 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
     // failed+retries state still surfaces the problem to the user.
     if (permanent && draft.operationId) {
       try {
-        const reg = await navigator.serviceWorker?.ready;
+        const reg = await getActiveSW();
         reg?.active?.postMessage({
           type: 'DISCARD_QUEUE_ITEM_BY_OP_ID',
           operationId: draft.operationId,

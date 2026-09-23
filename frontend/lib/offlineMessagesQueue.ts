@@ -1,3 +1,4 @@
+import { getActiveSW } from '@/lib/swReady';
 /**
  * FEAT-OFFLINE-MSG: واجهة الصفحة لرسائل المحادثة "المُصفّفة" (queued) في
  * نفس طابور IndexedDB العام الذي يديره public/sw.js (نفس القاعدة/المخزن
@@ -136,8 +137,8 @@ export async function retryQueuedMessage(queueId: number): Promise<void> {
     return;
   }
   if (!('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.ready;
-  registration.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id: queueId });
+  const registration = await getActiveSW();
+  registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id: queueId });
 }
 
 /** يحذف عنصرًا فاشلاً نهائيًا من الطابور دون إعادة محاولة (زر "حذف"). */
@@ -148,8 +149,8 @@ export async function discardQueuedMessage(queueId: number): Promise<void> {
     return;
   }
   if (!('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.ready;
-  registration.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id: queueId });
+  const registration = await getActiveSW();
+  registration?.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id: queueId });
 }
 
 /** أنواع رسائل الـ SW التي تعني "أعد قراءة طابور هذه المحادثة" —
