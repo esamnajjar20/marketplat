@@ -3,10 +3,14 @@ import { serviceProvidersController } from './service-providers.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 import { uploadMiddleware } from '../../middlewares/upload.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import {
   createServiceProviderRateLimit,
   serviceProviderImagesRateLimit,
 } from '../../middlewares/rateLimit.middleware';
+// FIX SP-MUTATION-LIMITS: update had no rate limit at all. Reused
+// createServiceProviderRateLimit (10/hr) — same mutation class.
+const serviceProviderMutationRateLimit = createServiceProviderRateLimit;
 
 export const serviceProvidersRouter = Router();
 
@@ -18,15 +22,21 @@ serviceProvidersRouter.get(
   CACHE.NONE,
   serviceProvidersController.getMyServiceProvider
 );
+// FIX SP-VERIFY-CONSISTENCY: create/update/logo did not require a
+// verified email, while stores.createStore, ads.createAd, and
+// service-listings.createServiceListing all do. Same "broken UI, not
+// a verification prompt" symptom already fixed on those three
+// modules. All mutating routes here now gate on the same rule.
 serviceProvidersRouter.post(
   '/me',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   createServiceProviderRateLimit,
   serviceProvidersController.createServiceProvider
 );
 serviceProvidersRouter.patch(
   '/me',
-  authenticate,
+  authenticate, requireVerifiedEmail,
+  serviceProviderMutationRateLimit,
   CACHE.NONE,
   serviceProvidersController.updateMyServiceProvider
 );
@@ -46,7 +56,7 @@ serviceProvidersRouter.get(
 // it's never swallowed as the public /:id route below.
 serviceProvidersRouter.post(
   '/me/logo',
-  authenticate,
+  authenticate, requireVerifiedEmail,
   serviceProviderImagesRateLimit,
   uploadMiddleware,
   serviceProvidersController.uploadLogo

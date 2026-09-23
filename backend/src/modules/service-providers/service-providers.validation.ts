@@ -30,10 +30,16 @@ export const createServiceProviderSchema = z.object({
     businessType: z.enum(['INDIVIDUAL', 'SMALL_BUSINESS']).default('INDIVIDUAL'),
     logoUrl: z.string().url('logoUrl must be a valid URL').optional(),
     description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
+    // FIX AREA-CITIES-DEDUP: previously a plain array with no
+    // uniqueness constraint — a client could send the same city 30
+    // times, storing a redundant array that the `has: city` filter
+    // then queries against on every public discovery call. Normalized
+    // to a Set at the edge so downstream code sees a distinct list.
     serviceAreaCities: z
       .array(z.string().min(1))
       .min(1, 'At least one service area city is required')
-      .max(30, 'At most 30 service area cities'),
+      .max(30, 'At most 30 service area cities')
+      .transform((cities) => Array.from(new Set(cities))),
     workingHours: workingHoursSchema,
     contactPhone: z.string().min(6, 'contactPhone is required').max(30),
     latitude: z.number().min(-90).max(90).optional(),
@@ -49,7 +55,12 @@ export const updateServiceProviderSchema = z.object({
     businessType: z.enum(['INDIVIDUAL', 'SMALL_BUSINESS']).optional(),
     logoUrl: z.string().url('logoUrl must be a valid URL').optional(),
     description: z.string().min(10).max(1000).optional(),
-    serviceAreaCities: z.array(z.string().min(1)).min(1).max(30).optional(),
+    serviceAreaCities: z
+      .array(z.string().min(1))
+      .min(1)
+      .max(30)
+      .transform((cities) => Array.from(new Set(cities)))
+      .optional(),
     workingHours: workingHoursSchema.optional(),
     contactPhone: z.string().min(6).max(30).optional(),
     availabilityStatus: z.enum(['AVAILABLE', 'BUSY', 'UNAVAILABLE']).optional(),
@@ -96,3 +107,16 @@ export const nearbyServiceProvidersSchema = z.object({
 });
 
 export type NearbyServiceProvidersQuery = z.infer<typeof nearbyServiceProvidersSchema>['query'];
+
+// FIX SP-ANALYTICS-QUERY-ZOD: the period query param was hand-parsed
+// in the controller with an `as '7d' | '30d' | 'all'` cast — a
+// TypeScript lie with no runtime enforcement, and inconsistent with
+// every other query param in this module (which all go through Zod).
+// Now validated at the edge like everything else.
+export const serviceProviderAnalyticsQuerySchema = z.object({
+  query: z.object({
+    period: z.enum(['7d', '30d', 'all']).default('all'),
+  }),
+});
+
+export type ServiceProviderAnalyticsQuery = z.infer<typeof serviceProviderAnalyticsQuerySchema>['query'];
