@@ -282,7 +282,13 @@ export const CACHE_TTL = {
   // at 20s) since a conversation is exactly as live as those.
   conversations: 20_000,   // 20 s
   messages: 5_000,
-  conversationUnreadCount: 15_000,         // 5 s — the actively-open thread polls faster
+  // T755 — comment used to read "5 s", but the value is 15_000 (15 s).
+  // 15 s is deliberate: the messages hook above polls at 5 s for the
+  // actively-open thread — that is the responsive surface. The unread
+  // badge is a background signal (sidebar/BottomNav); polling it at
+  // the thread's own cadence would triple the total request count of
+  // any open /messages view for a count nobody is staring at.
+  conversationUnreadCount: 15_000,         // 15 s
   // Online dots — refreshed at the same cadence as messages (the one
   // view where "are they even around right now" actually matters) so
   // the dot and the thread never feel out of sync with each other.
