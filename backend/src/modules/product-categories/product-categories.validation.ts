@@ -35,5 +35,17 @@ export const productCategoryIdSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
 
+// T433 — same slug rules as createProductCategorySchema.slug applied
+// to the read path so a malformed value is rejected at the edge.
+export const productCategorySlugParamSchema = z.object({
+  params: z.object({
+    slug: z
+      .string()
+      .min(2)
+      .max(100)
+      .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers and hyphens only'),
+  }),
+});
+
 export type CreateProductCategoryInput = z.infer<typeof createProductCategorySchema>['body'];
 export type UpdateProductCategoryInput = z.infer<typeof updateProductCategorySchema>['body'];

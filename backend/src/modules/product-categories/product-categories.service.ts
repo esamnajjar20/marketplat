@@ -34,6 +34,15 @@ export const productCategoriesService = {
     if (existingNameAr) throw new BadRequestError('Arabic product category name already exists');
     if (existingSlug) throw new BadRequestError('Product category slug already exists');
 
+    // T430 — mirror categories: reject unknown parentId before it
+    // falls through to a raw P2003 -> 500.
+    if (input.parentId) {
+      const parent = await productCategoriesRepository.findById(input.parentId);
+      if (!parent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+    }
+
     try {
       const category = await productCategoriesRepository.create(input);
       await invalidateProductCategoriesCache();
@@ -104,6 +113,13 @@ export const productCategoriesService = {
       if (input.parentId === id) {
         throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
       }
+      // T431 — same class as categories T421: verify existence first,
+      // otherwise an unknown id returns an empty ancestor chain and
+      // passes the cycle check silently before failing on write.
+      const proposedParent = await productCategoriesRepository.findById(input.parentId);
+      if (!proposedParent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
       const ancestorChain = await productCategoriesRepository.findParentChain(input.parentId);
       if (ancestorChain.includes(id)) {
         throw new BadRequestError(
@@ -158,7 +174,20 @@ export const productCategoriesService = {
       throw new BadRequestError(`Cannot delete category with ${childrenCount} subcategories`);
     }
 
-    await productCategoriesRepository.delete(id);
+    try {
+      await productCategoriesRepository.delete(id);
+    } catch (err) {
+      // T432 — counts are advisory (a product/child can be created
+      // between the count and the delete); the FK constraint is the
+      // real guard. P2003 -> 400, P2025 -> 404.
+      if (isPrismaError(err, 'P2003')) {
+        throw new BadRequestError('Cannot delete category — it is still referenced.');
+      }
+      if (isPrismaError(err, 'P2025')) {
+        throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+      }
+      throw err;
+    }
     await invalidateProductCategoriesCache();
   },
 };
