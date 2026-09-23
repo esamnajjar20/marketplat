@@ -217,14 +217,33 @@ export function updateNetCard(
 }
 
 /**
- * FIX PAYMENT-CLEAR-ON-LOGOUT: يحذف جهات الدفع + بطاقات النت الخاصة
- * بالمستخدم الحالي — يُستدعى من authCleanup عند logout.
- * لا يحذف عناصر مستخدمين آخرين على نفس الجهاز.
+ * FIX PAYMENT-CLEAR-ON-LOGOUT: يحذف كل جهات الدفع + بطاقات النت من
+ * localStorage — يُستدعى من authCleanup عند logout.
+ *
+ * T715 — previously this filtered by getCurrentUserId() to preserve
+ * OTHER users' rows on the same device. But every caller runs
+ * logout() FIRST (see useClearLocalSession in useAuthMutations.ts,
+ * client.ts's session-expiry handler, and useUpdateProfile.ts's
+ * password-change flow), and logout() writes {user: null} into the
+ * persisted store before clearSensitiveLocalData() runs. By the time
+ * this function executes, getCurrentUserId() has already returned
+ * null — so the filter became `(p.userId ?? null) !== null`, which
+ * removes only legacy/anonymous rows and leaves the actual signed-in
+ * user's payment data (plaintext net-card passwords among it) on
+ * disk indefinitely. The original multi-user-preservation intent
+ * couldn't work without passing the userId explicitly, which would
+ * mean threading it through clearSensitiveLocalData and every caller.
+ *
+ * Simpler and strictly more conservative: clear everything. This
+ * matches the behavior of clearNotificationsCache and
+ * clearCatalogDownloads (both unconditional). The cost — a returning
+ * user must re-enter their cards — is negligible against the privacy
+ * win of actually honouring the "clear on logout" contract the
+ * function name and this file's doc comment both promise.
  */
 export function clearSavedPaymentMethods(): void {
-  const uid = getCurrentUserId();
-  localSet(PAYEES_KEY, allPayees().filter((p) => (p.userId ?? null) !== uid));
-  localSet(CARDS_KEY, allNetCards().filter((c) => (c.userId ?? null) !== uid));
+  localSet(PAYEES_KEY, []);
+  localSet(CARDS_KEY, []);
 }
 
 export function buildUssd(
