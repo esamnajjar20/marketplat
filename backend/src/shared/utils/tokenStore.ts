@@ -171,18 +171,31 @@ export const maskIp = (ip: string): string => {
 // ── Lua Script — Atomic MAX_SESSIONS ─────────────────────
 // Fix 1+2: فحص العدد + حذف الأقدم + إضافة الجديد في عملية واحدة
 // يستخدم Sorted Set حيث score = timestamp الإنشاء
+// T600 — prefixes arrive as ARGV (same pattern as
+// DELETE_ALL_SESSIONS_SCRIPT below) rather than being hardcoded here.
+// Previously the eviction branch built keys as literal strings
+// ('session_meta:' .. userId .. ':' .. oldSid and 'refresh:' ...) —
+// diverging from the JS-side SESSION_META_PREFIX / REFRESH_PREFIX
+// constants that everything else in this file uses. If either constant
+// ever changed (e.g. a naming reorganization), the eviction would
+// silently target non-existent keys: the oldest session's meta/refresh
+// rows would survive, MAX_SESSIONS_PER_USER would be exceeded without
+// any error, and the state would diverge from what getAllSessions
+// reads. Passing the prefixes in keeps the constants authoritative.
 const SAVE_SESSION_SCRIPT = `
   local zsetKey    = KEYS[1]
   local metaKey    = KEYS[2]
   local refreshKey = KEYS[3]
 
-  local sessionId   = ARGV[1]
-  local score       = tonumber(ARGV[2])
-  local metaValue   = ARGV[3]
-  local tokenHash   = ARGV[4]
-  local ttl         = tonumber(ARGV[5])
-  local maxSessions = tonumber(ARGV[6])
-  local userId      = ARGV[7]
+  local sessionId      = ARGV[1]
+  local score          = tonumber(ARGV[2])
+  local metaValue      = ARGV[3]
+  local tokenHash      = ARGV[4]
+  local ttl            = tonumber(ARGV[5])
+  local maxSessions    = tonumber(ARGV[6])
+  local userId         = ARGV[7]
+  local refreshPrefix  = ARGV[8]
+  local metaPrefix     = ARGV[9]
 
   local count = redis.call('ZCARD', zsetKey)
 
@@ -190,8 +203,8 @@ const SAVE_SESSION_SCRIPT = `
     local oldest = redis.call('ZRANGE', zsetKey, 0, 0)
     if #oldest > 0 then
       local oldSid = oldest[1]
-      redis.call('DEL', 'session_meta:' .. userId .. ':' .. oldSid)
-      redis.call('DEL', 'refresh:' .. userId .. ':' .. oldSid)
+      redis.call('DEL', metaPrefix .. userId .. ':' .. oldSid)
+      redis.call('DEL', refreshPrefix .. userId .. ':' .. oldSid)
       redis.call('ZREM', zsetKey, oldSid)
     end
   end
@@ -268,7 +281,12 @@ export const tokenStore = {
       hashToken(token),
       REFRESH_TTL.toString(),
       MAX_SESSIONS_PER_USER.toString(),
-      userId
+      userId,
+      // T600 — same two prefixes every other key construction in this
+      // file uses, passed explicitly so the Lua script can never drift
+      // from the JS constants.
+      REFRESH_PREFIX,
+      SESSION_META_PREFIX
     );
   },
 
@@ -451,6 +469,25 @@ export const tokenStore = {
     pipeline.expire(`${FAILED_IP_EMAILS_PREFIX}${ip}`, 60 * 60);
     pipeline.scard(`${FAILED_IP_EMAILS_PREFIX}${ip}`);
     const results = await pipeline.exec();
+    // T601 — surface command-level errors (WRONGTYPE on a clobbered
+    // key, OOM, READONLY) rather than treating them as "0 attempts".
+    // pipeline.exec() only rejects on transport failure; per-command
+    // failures resolve as [err, null]. Reading only the value slot
+    // turns a command error into a false "0 failures" — which, on the
+    // login-lockout path, would silently disable the lockout while
+    // Redis misbehaves. Same shape as T553's fix in auth.middleware.
+    //
+    // Behavior on error: log warn and return 0 counts (fail-open, same
+    // posture as auth.middleware's Redis-down + BLACKLIST_STRICT=false
+    // path). The alternative — throwing — would break every login on a
+    // transient Redis glitch, which is worse than briefly losing the
+    // counter. The visibility from the log is what matters: a real
+    // pattern of these warnings is an incident signal.
+    const cmdErr = results?.find(r => r?.[0])?.[0];
+    if (cmdErr) {
+      logger.warn('incrementFailedLogins: pipeline command error', { err: cmdErr });
+      return { emailAttempts: 0, ipAttempts: 0, ipDistinctEmails: 0 };
+    }
     return {
       emailAttempts: (results?.[0]?.[1] as number) ?? 0,
       ipAttempts: (results?.[2]?.[1] as number) ?? 0,
@@ -518,6 +555,15 @@ export const tokenStore = {
     pipeline.get(`${FAILED_IP_PREFIX}${ip}`);
     pipeline.scard(`${FAILED_IP_EMAILS_PREFIX}${ip}`);
     const results = await pipeline.exec();
+    // T602 — same pattern as T601 above. A command-level error here
+    // would otherwise read as "0 attempts, 0 distinct emails", which
+    // auth.service's NAT-vs-spray heuristic would interpret as "no
+    // suspicious activity" rather than "couldn't tell".
+    const cmdErr = results?.find(r => r?.[0])?.[0];
+    if (cmdErr) {
+      logger.warn('getIpStats: pipeline command error', { err: cmdErr });
+      return { attempts: 0, distinctEmails: 0 };
+    }
     const attemptsRaw = results?.[0]?.[1];
     return {
       attempts: attemptsRaw ? parseInt(String(attemptsRaw), 10) : 0,
