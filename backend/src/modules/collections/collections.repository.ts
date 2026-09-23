@@ -91,6 +91,13 @@ export const collectionsRepository = {
   isUniqueConstraintError: (error: unknown): boolean =>
     error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002',
 
+  // T405 — same predicate but scoped to the (collectionId, productId)
+  // membership uniqueness; addProduct races against isMember and this
+  // is the catch that turns a benign "two add-the-same-product"
+  // collision into a no-op instead of a 500.
+  isMembershipConflict: (error: unknown): boolean =>
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002',
+
   // --- Membership (StoreCollectionProduct) ---
 
   findMemberIds: (collectionId: string): Promise<string[]> =>
@@ -117,11 +124,15 @@ export const collectionsRepository = {
   // ACTIVE ones, same status filter productsRepository's public
   // listing uses, so a collection never surfaces a product the owner
   // has paused/deleted elsewhere.
+  // T404 — bounded like promotions/collections list queries. A
+  // collection realistically holds tens of products; 500 keeps a
+  // pathological case from returning an unbounded page.
   findVisibleProducts: (collectionId: string) =>
     prisma.storeCollectionProduct.findMany({
       where: { collectionId, product: { status: 'ACTIVE' } },
       include: { product: true },
       orderBy: { sortOrder: 'asc' },
+      take: 500,
     }),
 
   nextSortOrder: async (collectionId: string): Promise<number> => {

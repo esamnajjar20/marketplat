@@ -106,7 +106,16 @@ export const collectionsService = {
     const owned = await collectionsRepository.findByStoreId(store.id);
     const ownedIds = new Set(owned.map(c => c.id));
 
-    if (input.orderedIds.length !== owned.length || !input.orderedIds.every(id => ownedIds.has(id))) {
+    // T402 — a duplicated id (e.g. [a, a, b] against owned {a, b, c})
+    // passes the length + membership checks but leaves one collection
+    // untouched and gives another a duplicate sortOrder. Reject any
+    // duplicate before comparing to the owned set.
+    const uniqueRequested = new Set(input.orderedIds);
+    if (
+      uniqueRequested.size !== input.orderedIds.length ||
+      input.orderedIds.length !== owned.length ||
+      !input.orderedIds.every(id => ownedIds.has(id))
+    ) {
       throw new BadRequestError('orderedIds must match this store\'s collections exactly.');
     }
 
@@ -128,7 +137,14 @@ export const collectionsService = {
     if (alreadyMember) return;
 
     const sortOrder = await collectionsRepository.nextSortOrder(collectionId);
-    await collectionsRepository.addProduct(collectionId, productId, sortOrder);
+    try {
+      await collectionsRepository.addProduct(collectionId, productId, sortOrder);
+    } catch (error) {
+      // T405 — concurrent double-add races past isMember; the
+      // (collectionId, productId) unique constraint is the real guard.
+      // Treat the loser as a no-op (the desired end state is achieved).
+      if (!collectionsRepository.isMembershipConflict(error)) throw error;
+    }
   },
 
   removeProduct: async (userId: string, collectionId: string, productId: string): Promise<void> => {
@@ -157,6 +173,13 @@ export const collectionsService = {
   getPublicCollectionProducts: async (collectionId: string): Promise<Product[]> => {
     const collection = await collectionsRepository.findById(collectionId);
     if (!collection || !collection.isActive) {
+      throw new NotFoundError('Collection not found', 'COLLECTION_NOT_FOUND');
+    }
+    // T403 — a collection inside a suspended/inactive store must not
+    // leak its products. getPublicCollections already gates on
+    // store.status === 'ACTIVE'; this path bypassed that check.
+    const store = await storesRepository.findById(collection.storeId);
+    if (!store || store.status !== 'ACTIVE') {
       throw new NotFoundError('Collection not found', 'COLLECTION_NOT_FOUND');
     }
     const rows = await collectionsRepository.findVisibleProducts(collectionId);

@@ -613,6 +613,68 @@ export const cancelPromotionRateLimit = rateLimit({
   message: msg('Too many promotion cancels, please try again later'),
 });
 
+// Collections module: store-scoped CRUD, same rationale as
+// createPromotionRateLimit. A store's collection count is bounded
+// organically (a shop doesn't create dozens of folders an hour), so
+// the ceiling is generous enough to not bite a bulk import.
+export const createCollectionRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('create_collection'),
+  message: msg('Too many collections created, please try again later'),
+});
+
+// Reorder is a whole-list PATCH — heavier write than a single update,
+// so a tighter ceiling than update.
+export const reorderCollectionsRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('reorder_collections'),
+  message: msg('Too many reorder attempts, please try again later'),
+});
+
+// Metadata updates (name/description/isActive) — same ceiling as
+// updatePromotionRateLimit.
+export const updateCollectionRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('update_collection'),
+  message: msg('Too many collection updates, please try again later'),
+});
+
+// Delete is terminal and destructive (FK cascade removes members) — a
+// low ceiling flags churn.
+export const deleteCollectionRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('delete_collection'),
+  message: msg('Too many collection deletions, please try again later'),
+});
+
+// Add/remove product — high-volume but needs a ceiling to bound
+// scripted shuffle against a single collection.
+export const collectionMemberRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('collection_member'),
+  message: msg('Too many collection membership changes, please try again later'),
+});
+
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({
