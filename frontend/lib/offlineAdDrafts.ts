@@ -315,11 +315,29 @@ export async function saveAdDraft(
   // status is excluded on purpose: a user actively editing two items
   // at once should keep two autosaved drafts separate.
   let effectiveId = input.id;
-  if (!effectiveId && (input.status === 'pending_sync' || input.status === 'failed')) {
+  // T695 — dedup only runs when we have a real userId to scope against.
+  // The comment above says "same-user + same-kind + same-mode + same-
+  // payload", but the code called listAdDrafts(input.userId ?? undefined)
+  // — when input.userId was undefined, listAdDrafts returns EVERY
+  // draft on the device (its own documented behavior for callers that
+  // pass no filter). A payload-identical draft from a different user
+  // (e.g. both typed "iPhone 14 Pro" on a shared device, which the
+  // marketplace makes likely) would then be matched, effectiveId set
+  // to ITS id, and the save would overwrite the other user's draft —
+  // preserving their userId, content replaced. Skipping dedup when
+  // userId is undefined loses only the same-user double-save
+  // protection for a path that shouldn't exist anyway (all real
+  // callers pass the current user), and eliminates the cross-user
+  // write.
+  if (
+    !effectiveId &&
+    typeof input.userId === 'string' &&
+    (input.status === 'pending_sync' || input.status === 'failed')
+  ) {
     try {
       const DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
       const nowMs = Date.now();
-      const all = await listAdDrafts(input.userId ?? undefined);
+      const all = await listAdDrafts(input.userId);
       const payloadJson = JSON.stringify(input.payload);
       const match = all.find((d) => {
         if ((d.kind ?? 'ad') !== (input.kind ?? 'ad')) return false;
@@ -363,9 +381,23 @@ export async function saveAdDraft(
     payload: input.payload,
     versions,
     status: input.status ?? existing?.status ?? 'draft',
-    lastError: input.lastError,
-    lastErrorCode: input.lastErrorCode,
-    lastErrorStatus: input.lastErrorStatus,
+    // T696 — preserve existing failure fields across saves that don't
+    // touch them (e.g. restoreAdDraftVersion passes no lastError but
+    // keeps status:'failed' — previously that combination wiped the
+    // message while leaving the status, so the sync center listed a
+    // failed draft with no reason). Mirrors the existing?.xxx fallback
+    // already used for remoteAdId/operationId/userId below, gated on
+    // the resulting status still being 'failed' so that a save which
+    // moves the draft forward (back to 'draft') still clears the stale
+    // failure text.
+    ...(() => {
+      const keeps = (input.status ?? existing?.status) === 'failed';
+      return {
+        lastError: keeps ? (input.lastError ?? existing?.lastError) : undefined,
+        lastErrorCode: keeps ? (input.lastErrorCode ?? existing?.lastErrorCode) : undefined,
+        lastErrorStatus: keeps ? (input.lastErrorStatus ?? existing?.lastErrorStatus) : undefined,
+      };
+    })(),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     operationId: input.operationId ?? existing?.operationId ?? null,
