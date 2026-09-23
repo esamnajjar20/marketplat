@@ -4,6 +4,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
 import type { ServiceListingsQuery, ServiceListingWithProvider } from '@/types/service.types';
 import {
   getOfflineList,
@@ -38,13 +39,23 @@ function offlinePage(items: ServiceListingWithProvider[]): ServicesPage {
   };
 }
 
-/** GET /service-listings — public browse/search. */
+/**
+ * GET /service-listings — public browse/search.
+ *
+ * T761 — the offline-cache guard only checked page/search/categoryId/
+ * providerId, but ServiceListingsQuery also carries city,
+ * serviceLocation, minPrice, maxPrice, status, and limit — any of
+ * which changes the result set. HomeServicesSection (limit: 8) and
+ * any price- or city-filtered first page were being written into the
+ * shared servicesBrowse slot, so a later unfiltered offline open of
+ * /services served that subset back. Switched to the same whitelist
+ * helper useStores now uses (see that hook's own comment for the
+ * full reasoning on why `limit` counts as a filter).
+ */
 export function useServiceListings(params?: ServiceListingsQuery) {
-  const isBaseBrowse =
-    (!params?.page || params.page === 1) &&
-    !params?.search &&
-    !params?.categoryId &&
-    !params?.providerId;
+  const isBaseBrowse = isUnfilteredFirstPage(params, {
+    nonFilterFields: ['page', 'limit'],
+  });
   const cached = isBaseBrowse
     ? getOfflineList<ServiceListingWithProvider>(OFFLINE_LIST_KEYS.servicesBrowse)
     : null;

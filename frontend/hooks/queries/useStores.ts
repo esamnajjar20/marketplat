@@ -12,6 +12,7 @@ import {
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
 import type { StoresQuery, StoreDetails, StoreWithSeller } from '@/types/store.types';
 import {
   getOfflineJson,
@@ -19,10 +20,30 @@ import {
   OFFLINE_JSON_KEYS,
 } from '@/lib/offlineJsonCache';
 
-/** GET /stores — public directory, paginated. */
+/**
+ * GET /stores — public directory, paginated.
+ *
+ * T760 — the offline-cache guard used to check only page/search/city,
+ * but StoresQuery also carries `limit` (and sortBy/sortOrder, which
+ * don't change the SET, only its order). Home sections
+ * (RecentStores/StoresSection/FeaturedStoresSection) call useStores
+ * with limit: 4-6, and their result was being written into the
+ * shared storesBrowse slot; a later offline open of the full /stores
+ * page (which fetches the backend default 20) then served those 4-6
+ * back as if they were the whole list. The same class of drift
+ * ADS-OFFLINE-CACHE-SCOPE-01/02/03 already closed for ads — this
+ * hook was missed then. Switched to the whitelist helper
+ * (offlineCachePolicy.isUnfilteredFirstPage) that exists precisely
+ * to make future filter fields safe by default (a new field is
+ * treated as a filter unless a caller explicitly whitelists it).
+ * `page` and `limit` are the two non-filter fields here — `limit`
+ * matters because a caller that shrinks the page size is requesting
+ * a different result SET from the browse page's own shape.
+ */
 export function useStores(params?: StoresQuery) {
-  const isBaseBrowse =
-    (!params?.page || params.page === 1) && !params?.search && !params?.city;
+  const isBaseBrowse = isUnfilteredFirstPage(params, {
+    nonFilterFields: ['page', 'limit'],
+  });
   const cached = isBaseBrowse
     ? getOfflineList<StoreWithSeller>(OFFLINE_LIST_KEYS.storesBrowse)
     : null;
