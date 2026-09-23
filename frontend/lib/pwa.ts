@@ -73,8 +73,29 @@ function wasJustUpdated(): boolean {
 }
 
 
+// T680 — module-level dedup guard. registerServiceWorker() adds three
+// persistent listeners (visibilitychange, online) and a 5-minute
+// setInterval, none of which are ever cleaned up (the function returns
+// a Promise<registration>, not a cleanup function). Under React
+// StrictMode in dev — and under any future caller that mounts the
+// provider twice (route change, re-hydration) — a second call would
+// add a second copy of every listener and a second interval, with no
+// way to remove them. The registration itself is idempotent
+// (navigator.serviceWorker.register returns the existing registration
+// for the same scope/script), so the whole operation is safe to
+// memoize: the first call owns the listeners, every subsequent call
+// just gets the same Promise. Same pattern as userCache.getOrFetch's
+// in-flight dedup on the backend.
+let registrationInFlight: Promise<ServiceWorkerRegistration | null> | null = null;
+
 /** يُسجَّل من AppProviders مرة واحدة عند إقلاع التطبيق. */
-export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+export function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (registrationInFlight) return registrationInFlight;
+  registrationInFlight = doRegisterServiceWorker();
+  return registrationInFlight;
+}
+
+async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined') return null;
   if (!('serviceWorker' in navigator)) return null;
   // لا تسجيل في وضع التطوير لتفادي تعارضات HMR مع الكاش — القيمة
