@@ -199,8 +199,20 @@ export const serviceListingsService = {
   // listing without side effects so favoritesService can validate a
   // SERVICE_LISTING favorite target exists without importing
   // serviceListingsRepository directly.
-  findServiceListingForReference: async (id: string): Promise<ServiceListing | null> => {
-    const listing = await serviceListingsRepository.findById(id);
+  // FIX SL-REFERENCE-INCLUDE-PROVIDER: previously returned the bare
+  // ServiceListing row (no provider relation), which
+  // reportsService.createTargetReport needs to resolve the listing's
+  // owning user for its self-report guard. Without the provider chain
+  // on this return value, listingOwner was always undefined and every
+  // "report this service" request threw NotFoundError — the feature
+  // was silently broken end-to-end. Now uses findPublicById (which
+  // already includes provider.sellerProfile) and returns that shape;
+  // the reference caller is the only consumer and already handles the
+  // wider type.
+  findServiceListingForReference: async (
+    id: string
+  ): Promise<ServiceListingWithProvider | null> => {
+    const listing = await serviceListingsRepository.findPublicById(id);
     if (!listing || listing.status === 'DELETED') return null;
     return listing;
   },

@@ -114,17 +114,20 @@ export const reportsService = {
     }
 
     // SERVICE_LISTING
+    // FIX SL-OWNER-RESOLUTION: previously tried to pluck `provider.userId`
+    // off a return value that never carried a `provider` relation at all
+    // (findServiceListingForReference returned the bare listing row), so
+    // this branch always fell through to NotFoundError — the "report a
+    // service" button never worked. findServiceListingForReference now
+    // returns the full ServiceListingWithProvider (findPublicById's
+    // include), which is exactly the shape reports.service needs:
+    // provider.sellerProfile.userId is the listing owner's user id,
+    // mirroring how ads' ad.userId and stores' sellerProfile.userId
+    // resolve the same "who owns this thing" question in the sibling
+    // branches above.
     const listing = await serviceListingsService.findServiceListingForReference(targetId);
     if (!listing) throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
-    // listingWithRelations includes provider.sellerProfile.userId
-    const listingOwner =
-      (listing as { provider?: { userId?: string; sellerProfile?: { userId?: string } } }).provider
-        ?.userId ??
-      (listing as { provider?: { sellerProfile?: { userId?: string } } }).provider?.sellerProfile
-        ?.userId;
-    if (!listingOwner) {
-      throw new NotFoundError('Service listing owner not found', 'SERVICE_LISTING_NOT_FOUND');
-    }
+    const listingOwner = listing.provider.sellerProfile.userId;
     return submitReport(userId, 'SERVICE_LISTING', targetId, listingOwner, input);
   },
 
