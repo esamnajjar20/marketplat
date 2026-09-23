@@ -111,7 +111,19 @@ export function getSafeRedirectPath(
   if (/^\/[^/]/.test(from) || from === '/') {
     return from;
   }
-  const decoded = decodeURIComponent(from);
+  // T673 — decodeURIComponent throws URIError on malformed percent
+  // sequences (e.g. ?from=% or ?from=%zz). Since `from` is a raw
+  // search-param value, a crafted URL could crash the login page's
+  // render (or whatever call site consumes this helper). Treating
+  // malformed encoding as "no valid redirect target" is both the
+  // intended behavior (nothing legitimate encodes a valid path that
+  // way) and safe (no uncaught exception).
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(from);
+  } catch {
+    return fallback;
+  }
   if (/^\/[^/]/.test(decoded) || decoded === '/') {
     return decoded;
   }
