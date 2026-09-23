@@ -69,3 +69,27 @@ export type GetServiceListingsQuery = z.infer<typeof getServiceListingsSchema>['
 export const serviceListingIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Service listing ID is required') }),
 });
+
+// FIX SL-INLINE-ZOD: two Zod schemas were defined inline in
+// service-listings.controller.ts (mirroring the products/ads
+// controllers' own inline shape). Both now live here with every other
+// schema in this module, and the reorder schema has an explicit
+// max(20) cap — previously unbounded, so a client could send an
+// arbitrarily long images array as a small DoS surface that no unit
+// test of the validation module could catch. Same fix products got.
+export const removeServiceListingImageSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    imageUrl: z.string().url(),
+  }),
+});
+
+export const reorderServiceListingImagesSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    images: z.array(z.string().url()).min(1).max(20),
+  }),
+});
+
+export type RemoveServiceListingImageInput = z.infer<typeof removeServiceListingImageSchema>['body'];
+export type ReorderServiceListingImagesInput = z.infer<typeof reorderServiceListingImagesSchema>['body'];

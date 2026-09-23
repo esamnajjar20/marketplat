@@ -5,11 +5,12 @@ import {
   updateServiceListingSchema,
   serviceListingIdSchema,
   getServiceListingsSchema,
+  removeServiceListingImageSchema,
+  reorderServiceListingImagesSchema,
 } from './service-listings.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { z } from 'zod';
 
 export const serviceListingsController = {
   createServiceListing: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -110,9 +111,11 @@ export const serviceListingsController = {
   removeImage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { params } = serviceListingIdSchema.parse({ params: req.params });
-      const { imageUrl } = z.object({ imageUrl: z.string().url() }).parse(req.body);
-      const listing = await serviceListingsService.removeImage(params.id, user.userId, imageUrl);
+      const { params, body } = removeServiceListingImageSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const listing = await serviceListingsService.removeImage(params.id, user.userId, body.imageUrl);
       res.status(200).json(successResponse('Image removed', listing));
     } catch (error) {
       next(error);
@@ -123,9 +126,11 @@ export const serviceListingsController = {
   reorderImages: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { params } = serviceListingIdSchema.parse({ params: req.params });
-      const { images } = z.object({ images: z.array(z.string().url()).min(1) }).parse(req.body);
-      const listing = await serviceListingsService.reorderImages(params.id, user.userId, images);
+      const { params, body } = reorderServiceListingImagesSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const listing = await serviceListingsService.reorderImages(params.id, user.userId, body.images);
       res.status(200).json(successResponse('Images reordered', listing));
     } catch (error) {
       next(error);
