@@ -44,10 +44,30 @@ export function useMyActivity(params?: ActivityQuery) {
   // Same class as ADS-OFFLINE-CACHE-SCOPE-01/-02 in useAds and
   // APPT-OFFLINE-CACHE-SCOPE-01 in useMyAppointments — third
   // instance of the same pattern, closed the same way.
+  // T760-octies — also exclude a non-default `limit`. ActivityQuery
+  // carries `limit` alongside page/type/group/q; a caller that passes
+  // a smaller limit (a preview rail, a compact widget) requests a
+  // different result SHAPE than the /activity page's own request. The
+  // previous guard missed it, so that subset was written into the
+  // shared activity offline slot — a later unfiltered offline open of
+  // /activity then showed that shorter list. Same class the sibling
+  // hooks useStores/useServiceListings/useAds/useProducts already
+  // closed under T760.
+  // T760-octies-deux — treat `group: 'ALL'` as no-filter, matching the
+  // backend's own semantics (see activity.validation.ts: "'ALL' is
+  // accepted but treated identically to omitting group entirely — no
+  // WHERE clause narrowing"). The previous `Boolean(params?.group)`
+  // treated 'ALL' as a filter, so Timeline.tsx — the actual /activity
+  // page, whose default useState is group='ALL' — never passed the
+  // isBase check and the offline slot for `activity` was never
+  // populated by its normal page visit. A user going offline then
+  // opening /activity saw an empty screen. The check now matches what
+  // the backend actually does with this value.
   const hasRealFilter =
     Boolean(params?.type) ||
-    Boolean(params?.group) ||
-    Boolean(params?.q);
+    (params?.group !== undefined && params.group !== 'ALL') ||
+    Boolean(params?.q) ||
+    params?.limit !== undefined;
   const isBase = (!params?.page || params.page === 1) && !hasRealFilter;
   const cached = isBase
     ? getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity)
