@@ -270,7 +270,15 @@ const bootstrap = async (): Promise<void> => {
     });
   } catch (error) {
     logger.error('Failed to start server', error);
-    await prisma.$disconnect();
+    // T530 — $disconnect() on a client that never completed $connect()
+    // can throw, which would itself become an unhandledRejection from
+    // inside bootstrap's own catch. Fire-and-forget with its own guard,
+    // then exit unconditionally.
+    try {
+      await prisma.$disconnect();
+    } catch (disconnectErr) {
+      logger.error('Failed to disconnect Prisma during bootstrap failure', disconnectErr);
+    }
     process.exit(1);
   }
 };
