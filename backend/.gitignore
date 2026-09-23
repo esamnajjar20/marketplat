@@ -4,3 +4,7 @@
 *.backup[0-9]*
 *.backup[0-9]_*
 *.backup-[0-9]*
+
+# Cleanup 2026-09-23
+/dist/
+/coverage/
