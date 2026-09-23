@@ -83,7 +83,12 @@ export function useToggleServiceCategoryActive() {
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       serviceCategoriesApi.update(id, { isActive }).then((r) => r.data.data),
     onMutate: async ({ id, isActive }) => {
+      // T793-ter — same cancel-first requirement as
+      // useToggleProductCategoryActive's identical hook; see its
+      // comment for the full reasoning (recursive tree patch widens
+      // the race window with an in-flight adminAll refetch).
       const key = queryKeys.serviceCategories.adminAll();
+      await queryClient.cancelQueries({ queryKey: key });
       const snapshot = queryClient.getQueryData<ServiceCategory[]>(key);
       queryClient.setQueryData<ServiceCategory[]>(key, (old) => {
         if (!old) return old;
@@ -96,7 +101,6 @@ export function useToggleServiceCategoryActive() {
         });
         return old.map(patchOne);
       });
-      await queryClient.cancelQueries({ queryKey: key });
       return { snapshot };
     },
     onSuccess: (_data, { isActive }) =>

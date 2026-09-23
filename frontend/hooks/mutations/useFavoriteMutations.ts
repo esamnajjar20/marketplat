@@ -25,11 +25,21 @@ export function useToggleFavorite() {
       favoritesApi.toggle(adId).then((r) => r.data.data),
 
     onMutate: async (adId: string) => {
+      // T793-bis — cancelQueries MUST precede the snapshot + write.
+      // The previous order (snapshot → write → cancel) allowed an
+      // in-flight ['favorites'] refetch to resolve AFTER the optimistic
+      // Set write and overwrite it with the pre-toggle server value —
+      // visible as the heart icon flipping back for a beat before
+      // onSettled's invalidate restored it. The old comment claimed
+      // writing before the await made the write "synchronously
+      // visible" after mutate(), but TanStack Query v5's mutate()
+      // returns immediately regardless of onMutate and no caller reads
+      // the cache synchronously right after it — the justification
+      // was incorrect.
+      await queryClient.cancelQueries({ queryKey: ['favorites'] });
+
       const previousIds = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids());
 
-      // Optimistic toggle of the favorites ID set — written before the
-      // cancelQueries await below so it's visible synchronously to any
-      // code checking the cache right after mutate() is called.
       queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (old) => {
         const next = new Set(old ?? []);
         if (next.has(adId)) {
@@ -39,10 +49,6 @@ export function useToggleFavorite() {
         }
         return next;
       });
-
-      // Cancel any in-flight favorites queries to avoid a stale refetch
-      // clobbering the optimistic write above.
-      await queryClient.cancelQueries({ queryKey: ['favorites'] });
 
       return { previousIds };
     },
@@ -88,6 +94,13 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
       favoritesApi.toggleEntity(type, entityId).then((r) => r.data.data),
 
     onMutate: async (entityId: string) => {
+      // T793-bis — same cancel-first requirement as useToggleFavorite
+      // above (which see). Applies equally here: an in-flight
+      // ['favorites','entity-list',type] refetch resolving between
+      // the write and the (previously) late cancelQueries would
+      // overwrite the optimistic Set.
+      await queryClient.cancelQueries({ queryKey: ['favorites', 'entity-list', type] });
+
       const previousIds = queryClient.getQueryData<Set<string>>(
         queryKeys.favorites.entityIds(type),
       );
@@ -101,8 +114,6 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
         }
         return next;
       });
-
-      await queryClient.cancelQueries({ queryKey: ['favorites', 'entity-list', type] });
 
       return { previousIds };
     },

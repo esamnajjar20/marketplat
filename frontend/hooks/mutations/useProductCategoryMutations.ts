@@ -86,7 +86,14 @@ export function useToggleProductCategoryActive() {
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       productCategoriesApi.update(id, { isActive }).then((r) => r.data.data),
     onMutate: async ({ id, isActive }) => {
+      // T793-ter — cancelQueries MUST precede the snapshot + write.
+      // The previous order let an in-flight adminAll refetch resolve
+      // AFTER the recursive tree patch and overwrite it with the
+      // pre-toggle values. Especially visible here because patchOne
+      // walks the whole tree recursively (see FIX RECURSIVE-TREE-PATCH
+      // below) — a slower write widens the race window.
       const key = queryKeys.productCategories.adminAll();
+      await queryClient.cancelQueries({ queryKey: key });
       const snapshot = queryClient.getQueryData<ProductCategory[]>(key);
       queryClient.setQueryData<ProductCategory[]>(key, (old) => {
         if (!old) return old;
@@ -101,7 +108,6 @@ export function useToggleProductCategoryActive() {
         });
         return old.map(patchOne);
       });
-      await queryClient.cancelQueries({ queryKey: key });
       return { snapshot };
     },
     onSuccess: (_data, { isActive }) =>
