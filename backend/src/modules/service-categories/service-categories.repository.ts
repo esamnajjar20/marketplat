@@ -47,8 +47,20 @@ export const serviceCategoriesRepository = {
       orderBy: { name: 'asc' },
     }),
 
+  // Admin/ownership path — deliberately unfiltered so an admin editing
+  // or deleting a deactivated category still resolves it.
   findById: async (id: string): Promise<ServiceCategory | null> =>
     prisma.serviceCategory.findUnique({ where: { id }, include: { children: true } }),
+
+  // T510 — public read path (getServiceCategoryById). isActive is
+  // enforced so a deactivated category can't be reached at
+  // /service-categories/:id even though the browse tree already hides
+  // it. Children filtered to active too, matching findMany's shape.
+  findPublicById: async (id: string): Promise<ServiceCategory | null> =>
+    prisma.serviceCategory.findUnique({
+      where: { id, isActive: true },
+      include: { children: { where: { isActive: true } } },
+    }),
 
   // T441 — this module previously had NO cycle guard on update (unlike
   // categoriesRepository and productCategoriesRepository which both
@@ -86,8 +98,11 @@ export const serviceCategoriesRepository = {
   countBroadcasts: async (id: string): Promise<number> =>
     prisma.serviceRequestBroadcast.count({ where: { categoryId: id } }),
 
+  // T510 — findBySlug is only ever called from the public
+  // getServiceCategoryBySlug, so isActive is enforced directly rather
+  // than adding a parallel findPublicBySlug.
   findBySlug: async (slug: string): Promise<ServiceCategory | null> =>
-    prisma.serviceCategory.findUnique({ where: { slug } }),
+    prisma.serviceCategory.findUnique({ where: { slug, isActive: true } }),
 
   findByName: async (name: string): Promise<ServiceCategory | null> =>
     prisma.serviceCategory.findUnique({ where: { name } }),

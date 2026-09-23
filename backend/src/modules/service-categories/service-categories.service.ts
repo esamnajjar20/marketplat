@@ -94,7 +94,9 @@ export const serviceCategoriesService = {
   },
 
   getServiceCategoryById: async (id: string): Promise<ServiceCategory> => {
-    const category = await serviceCategoriesRepository.findById(id);
+    // T510 — public read: a deactivated category must 404 here even
+    // though it still resolves through the admin-facing findById.
+    const category = await serviceCategoriesRepository.findPublicById(id);
     if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
     return category;
   },

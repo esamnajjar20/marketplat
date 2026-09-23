@@ -36,8 +36,18 @@ export const productCategoriesRepository = {
       orderBy: { name: 'asc' },
     }),
 
+  // Admin/ownership path — deliberately unfiltered so an admin editing
+  // or deleting a deactivated category still resolves it.
   findById: async (id: string): Promise<ProductCategory | null> =>
     prisma.productCategory.findUnique({ where: { id }, include: { children: true } }),
+
+  // T511 — public read path (getProductCategoryById). Mirrors T510's
+  // fix for service-categories.
+  findPublicById: async (id: string): Promise<ProductCategory | null> =>
+    prisma.productCategory.findUnique({
+      where: { id, isActive: true },
+      include: { children: { where: { isActive: true } } },
+    }),
 
   // BUGFIX (circular category reference): walks up from a proposed
   // parentId toward the root, collecting every ancestor's id along the
@@ -71,8 +81,10 @@ export const productCategoriesRepository = {
     return chain;
   },
 
+  // T511 — findBySlug is only ever called from the public
+  // getProductCategoryBySlug.
   findBySlug: async (slug: string): Promise<ProductCategory | null> =>
-    prisma.productCategory.findUnique({ where: { slug } }),
+    prisma.productCategory.findUnique({ where: { slug, isActive: true } }),
 
   findByName: async (name: string): Promise<ProductCategory | null> =>
     prisma.productCategory.findUnique({ where: { name } }),

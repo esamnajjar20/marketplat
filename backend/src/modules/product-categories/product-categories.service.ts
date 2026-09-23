@@ -83,7 +83,9 @@ export const productCategoriesService = {
   },
 
   getProductCategoryById: async (id: string): Promise<ProductCategory> => {
-    const category = await productCategoriesRepository.findById(id);
+    // T511 — public read: a deactivated category must 404 here even
+    // though it still resolves through the admin-facing findById.
+    const category = await productCategoriesRepository.findPublicById(id);
     if (!category) throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
     return category;
   },
