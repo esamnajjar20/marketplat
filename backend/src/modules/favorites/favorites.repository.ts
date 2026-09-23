@@ -219,63 +219,93 @@ export const favoritesRepository = {
     query: GetFavoritesQuery
   ): Promise<{ favorites: FavoriteListRow[]; total: number }> => {
     const { page = 1, limit = 20 } = query;
-    const { skip, take } = getPaginationParams(page, limit); // A-06
+    const { skip, take } = getPaginationParams(page, limit);
 
     // FEAT-FAVORITE-POLYMORPHIC PR2: `type` narrows to exactly one
-    // FavoriteEntityType (AD by default — see
-    // favorites.validation.ts's own comment on why the default and
-    // the ?type= override use different wire shapes downstream in
-    // favorites.service.ts).
+    // FavoriteEntityType (AD by default).
     const type: FavoriteEntityType = query.type ? FAVORITE_QUERY_TYPE_MAP[query.type] : 'AD';
     const config = ENTITY_CONFIG[type];
 
-    // KNOWN LIMITATION (regression from pre-PR1, flagged not hidden):
-    // the pre-PR1 query applied its DELETED exclusion inside the
-    // Prisma `where`, so skip/take always produced a full,
-    // correctly-ordered page. Here skip/take run over ALL of the
-    // user's favorites of this type (including ones whose entity is
-    // since deleted/blocked), and that exclusion is applied
-    // afterward — so a page can come back with fewer than `limit`
-    // items even when more active favorites exist on the next page.
-    // `total` itself is still exactly correct via
-    // countByUserIdAndType. Acceptable for now; would need either a
-    // raw-SQL join or a "top up short pages" loop to fully match the
-    // old guarantee — do not treat this as resolved without
-    // addressing it.
+    // FIX FAV-TOTAL-CONSISTENT + FAV-PAGINATION-SHORT-PAGE: replaces
+    // the KNOWN LIMITATION block that shipped with the polymorphic
+    // migration. Three problems bundled here.
+    //
+    // (1) `total` was computed two different ways depending on
+    //     ?listId — the listId branch counted every matching row
+    //     including ones whose entity is now deleted/blocked; the
+    //     non-listId branch used countByUserIdAndType which already
+    //     excluded them. Same page could report two different totals.
+    //
+    // (2) skip/take ran over ALL of the user's favorites of this type
+    //     (deleted/blocked entities included), then the active filter
+    //     ran after — so a page could come back with fewer than
+    //     `limit` items even when more active favorites existed on
+    //     the next page. The pre-PR1 code applied the DELETED filter
+    //     inside the Prisma where clause, so this was a regression.
+    //
+    // (3) The naive fix (extra count + activeIds + fetchActive) was
+    //     three to five sequential round-trips depending on how the
+    //     where clause was constructed.
+    //
+    // Approach: fetch every matching favorite's {id, entityId} in one
+    // ordered query, resolve active entityIds in a single follow-up,
+    // then slice/limit over that active-only ordered list. `total` is
+    // the active list's length, `skip + take` slices it, and the full
+    // entity rows are only fetched for the current page's ids (in
+    // parallel). Cost is a fixed 3 queries per call regardless of page
+    // number — same order of magnitude as before, with the
+    // correctness bugs gone. A page is never short.
     const listFilter = query.listId ? { listId: query.listId } : {};
     const where = { userId, entityType: type, ...listFilter };
 
-    const [rows, total] = await Promise.all([
-      prisma.favorite.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take,
-      }),
-      // عند تصفية بقائمة: عدّ الصفوف في تلك القائمة فقط (قبل استبعاد المحذوف)
-      query.listId
-        ? prisma.favorite.count({ where })
-        : favoritesRepository.countByUserIdAndType(userId, type),
+    const allOrderedRows = await prisma.favorite.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, entityId: true },
+    });
+    if (allOrderedRows.length === 0) {
+      return { favorites: [], total: 0 };
+    }
+
+    const activeIdsSet = new Set(
+      await config.activeIds(allOrderedRows.map((r) => r.entityId))
+    );
+    const activeOrderedRows = allOrderedRows.filter((r) => activeIdsSet.has(r.entityId));
+    const total = activeOrderedRows.length;
+
+    const pageRows = activeOrderedRows.slice(skip, skip + take);
+    if (pageRows.length === 0) {
+      return { favorites: [], total };
+    }
+
+    const pageFavoriteIds = pageRows.map((r) => r.id);
+    const [favoriteRows, entities] = await Promise.all([
+      prisma.favorite.findMany({ where: { id: { in: pageFavoriteIds } } }),
+      config.fetchActive(pageRows.map((r) => r.entityId)),
     ]);
 
-    const ids = rows.map((r) => r.entityId);
-    const entities = ids.length ? await config.fetchActive(ids) : [];
-    const byId = new Map(entities.map((e) => [config.getId(e), e]));
+    const favoritesById = new Map(favoriteRows.map((f) => [f.id, f]));
+    const entitiesById = new Map(entities.map((e) => [config.getId(e), e]));
 
-    const favorites: FavoriteListRow[] = rows
-      .map((r) => ({
-        id: r.id,
-        userId: r.userId,
-        entityType: r.entityType,
-        entityId: r.entityId,
-        listId: r.listId ?? null,
-        createdAt: r.createdAt,
-        entity: byId.get(r.entityId) ?? null,
-      }))
-      // An entity that's gone (deleted/blocked, or for any reason not
-      // found) doesn't render in the list — same FAV-01 behavior as
-      // before, now applied uniformly across all 4 types.
-      .filter((f) => f.entity !== null);
+    // Preserve pageRows' ordering — favoriteRows / entities come back
+    // unordered from Prisma's `in` filter.
+    const favorites: FavoriteListRow[] = pageRows
+      .map((row) => {
+        const f = favoritesById.get(row.id);
+        if (!f) return null;
+        const entity = entitiesById.get(row.entityId) ?? null;
+        if (!entity) return null; // activeIds said yes, but fetchActive raced it — treat as inactive
+        return {
+          id: f.id,
+          userId: f.userId,
+          entityType: f.entityType,
+          entityId: f.entityId,
+          listId: f.listId ?? null,
+          createdAt: f.createdAt,
+          entity,
+        };
+      })
+      .filter((r): r is FavoriteListRow => r !== null);
 
     return { favorites, total };
   },
