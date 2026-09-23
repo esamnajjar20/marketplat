@@ -1165,6 +1165,28 @@ async function refreshAccessToken(sampleUrl) {
   if (typeof accessToken !== 'string' || !accessToken) {
     return { ok: false, reason: 'network' };
   }
+
+  // T700 — the backend rotates csrfToken on every /auth/refresh (see
+  // backend's setCsrfCookie: crypto.randomBytes(32) per call). When the
+  // SW refreshes here during offline-queue replay, the fresh csrfToken
+  // lives only in this function's return value and in the response
+  // Set-Cookie header — the PAGE's auth store still holds the token
+  // from its last login / page-level refresh. The page's next
+  // state-changing request then sends X-CSRF-Token: <stale>, the
+  // browser attaches cookie csrfToken=<fresh>, csrf.middleware.ts's
+  // double-submit check fails, and the page gets a 403. client.ts's
+  // FIX CSRF-403-REFRESH-01 self-heals by triggering its own refresh
+  // + retry, so it's not a data leak — but it costs an extra
+  // round-trip and 403-Sentry noise on exactly the weak-network paths
+  // the queue exists for. Broadcasting the fresh csrfToken lets the
+  // page update its in-memory copy immediately, so the first request
+  // after replay passes without the wasted hop. Fire-and-forget: if
+  // notifyClients rejects (clients.matchAll can, in theory, on a
+  // torn-down SW scope), the refresh result itself is unaffected.
+  if (typeof csrfToken === 'string' && csrfToken) {
+    void notifyClients({ type: 'SW_TOKEN_REFRESHED', csrfToken }).catch(() => {});
+  }
+
   return { ok: true, accessToken, csrfToken: typeof csrfToken === 'string' ? csrfToken : null };
 }
 

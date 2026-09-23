@@ -26,6 +26,11 @@ import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities'
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
 import { initConflictResolver } from '@/lib/conflictResolver';
+// T700 — listener for the SW's SW_TOKEN_REFRESHED broadcast (fires after
+// the SW refreshes /auth/refresh on the page's behalf during a queue
+// replay). Keeps the page's in-memory csrfToken in sync with the cookie
+// the browser just stored — see lib/swTokenSync.ts for the full story.
+import { initSwTokenSync } from '@/lib/swTokenSync';
 
 let __offlineBootstrapInitialized = false;
 
@@ -53,6 +58,11 @@ export function OfflineBootstrap() {
       __offlineBootstrapInitialized = true;
       initAdDraftSync();
       initConflictResolver();
+      // T700 — installs a navigator.serviceWorker message listener that
+      // mirrors SW-refreshed csrfTokens into useAuthStore. Same
+      // one-time-install guard as the other initializers above; the
+      // function is itself idempotent so a duplicate call is harmless.
+      initSwTokenSync();
     }
 
     void warmCoreBundle();
