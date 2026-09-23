@@ -258,10 +258,26 @@ export const favoritesRepository = {
     const listFilter = query.listId ? { listId: query.listId } : {};
     const where = { userId, entityType: type, ...listFilter };
 
+    // PERF — the initial fetch now selects the FULL favorite row shape
+    // this function ultimately returns (not just {id, entityId}). The
+    // previous version ran a THIRD favorite.findMany({ id: {in:
+    // pageFavoriteIds} }) after slicing, to load the same rows it had
+    // just fetched — the extra round-trip was pure redundancy since
+    // the row shapes are identical and the ids are already in hand.
+    // Now the page slice reuses these rows directly; the only remaining
+    // per-page query is config.fetchActive (needed because entity
+    // relations/columns aren't on the Favorite table).
     const allOrderedRows = await prisma.favorite.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      select: { id: true, entityId: true },
+      select: {
+        id: true,
+        entityId: true,
+        userId: true,
+        entityType: true,
+        listId: true,
+        createdAt: true,
+      },
     });
     if (allOrderedRows.length === 0) {
       return { favorites: [], total: 0 };
@@ -278,30 +294,22 @@ export const favoritesRepository = {
       return { favorites: [], total };
     }
 
-    const pageFavoriteIds = pageRows.map((r) => r.id);
-    const [favoriteRows, entities] = await Promise.all([
-      prisma.favorite.findMany({ where: { id: { in: pageFavoriteIds } } }),
-      config.fetchActive(pageRows.map((r) => r.entityId)),
-    ]);
-
-    const favoritesById = new Map(favoriteRows.map((f) => [f.id, f]));
+    const entities = await config.fetchActive(pageRows.map((r) => r.entityId));
     const entitiesById = new Map(entities.map((e) => [config.getId(e), e]));
 
-    // Preserve pageRows' ordering — favoriteRows / entities come back
-    // unordered from Prisma's `in` filter.
+    // Preserve pageRows' ordering — entities come back unordered from
+    // Prisma's `in` filter.
     const favorites: FavoriteListRow[] = pageRows
       .map((row) => {
-        const f = favoritesById.get(row.id);
-        if (!f) return null;
         const entity = entitiesById.get(row.entityId) ?? null;
         if (!entity) return null; // activeIds said yes, but fetchActive raced it — treat as inactive
         return {
-          id: f.id,
-          userId: f.userId,
-          entityType: f.entityType,
-          entityId: f.entityId,
-          listId: f.listId ?? null,
-          createdAt: f.createdAt,
+          id: row.id,
+          userId: row.userId,
+          entityType: row.entityType,
+          entityId: row.entityId,
+          listId: row.listId ?? null,
+          createdAt: row.createdAt,
           entity,
         };
       })
