@@ -178,6 +178,20 @@ export const sellersService = {
   getPublicSellerProfile: async (sellerProfileId: string): Promise<SellerProfileWithAds> => {
     const profile = await sellersRepository.findPublicProfile(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+    // FIX SELLER-PUBLIC-SUSPENDED: previously returned the profile for
+    // any existing sellerProfileId, suspended or not — a suspended
+    // seller's storefront stayed fully live at its direct URL even
+    // though ads.service.ts's getAdById / products.service.ts's
+    // getProductById / service-listings.service.ts's
+    // getServiceListingById all treat "suspended seller" as 404 on
+    // their own direct-by-id lookups. users.service.ts's getUserById
+    // makes the same assumption for its public profile, and its
+    // comment explicitly cites sellersService as the model — so the
+    // one place it referenced was the one place still missing the
+    // check. Treated as 404, same as those four siblings.
+    if (profile.suspended) {
+      throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+    }
     return profile;
   },
 

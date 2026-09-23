@@ -22,6 +22,15 @@ type WorkingHours = Record<(typeof DAY_KEYS)[number], DaySchedule>;
 const requireOwnProvider = async (userId: string) => {
   const sellerProfile = await sellersRepository.findByUserId(userId);
   if (!sellerProfile) throw new BadRequestError('You need a seller profile first.');
+  // FIX APPT-SUSPENDED-GUARD: this was the only requireOwnProvider
+  // across the codebase missing the suspended-seller check —
+  // service-listings.service.ts's own version (the template this was
+  // copied from) has it, as do the ads/sellers/store gates. Without
+  // it an admin-suspended seller could still create, reschedule, or
+  // cancel appointments. Same SELLER_SUSPENDED code as those gates.
+  if (sellerProfile.suspended) {
+    throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
+  }
   const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
   if (!provider) {
     throw new BadRequestError('You need to create your service provider profile first.');
@@ -154,6 +163,14 @@ export const appointmentsService = {
   ): Promise<{ date: string; available: boolean; freeRanges: { start: string; end: string }[] }> => {
     const provider = await serviceProvidersRepository.findById(providerId);
     if (!provider) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    // FIX APPT-AVAILABILITY-SUSPENDED: same SEC-FIX as every other
+    // public read path (getPublicServiceProvider, getPublicStore,
+    // getProductById, getAdById). findById returns the bare row
+    // without its sellerProfile, so load the owner once to check.
+    const owner = await sellersRepository.findById(provider.sellerProfileId);
+    if (owner?.suspended) {
+      throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    }
 
     const date = new Date(`${dateStr}T00:00:00.000Z`);
     const dayKey = DAY_KEYS[date.getUTCDay()];

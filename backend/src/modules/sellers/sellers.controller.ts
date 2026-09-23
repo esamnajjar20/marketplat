@@ -178,8 +178,16 @@ export const sellersController = {
     try {
       const admin = requireUser(req);
       const { body } = bulkSuspendSellersSchema.parse({ body: req.body });
+      // FIX BULK-SELLER-REASON-DROP: previously passed only
+      // `body.suspended`, dropping body.reason. The bulk schema
+      // requires reason for suspended=true (superRefine), and the
+      // single-seller PATCH path already passes it — only the bulk
+      // path diverged. Net effect: an admin suspending 100 sellers
+      // with a clear reason saw it validate at the schema layer, then
+      // vanish before the audit log. Same class of bug already fixed
+      // on stores' bulk status update.
       const result = await runBulk(body.sellerProfileIds, (id) =>
-        sellersService.setSuspension(id, body.suspended, admin.userId)
+        sellersService.setSuspension(id, body.suspended, admin.userId, body.reason)
       );
       res.status(200).json(
         successResponse('Bulk seller suspension update processed', result.updated, {

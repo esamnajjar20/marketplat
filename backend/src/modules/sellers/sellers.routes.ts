@@ -15,7 +15,21 @@ export const sellersRouter = Router();
 // Authenticated only — no role check. Any signed-in USER is eligible
 // once they meet the eligibility checks in sellersService.
 sellersRouter.get('/me/profile', authenticate, CACHE.NONE, sellersController.getMySellerProfile);
-sellersRouter.patch('/me/profile', authenticate, CACHE.NONE, sellersController.updateMySellerProfile);
+// FIX SELLER-UPDATE-VERIFY: PATCH /me/profile did not require a
+// verified email or a rate limit, while POST /me/profile (create) and
+// the verification-request POST below both did. An unverified user
+// could edit an existing seller profile — including replacing
+// paymentMethods, which feeds into every ad/product/store listing
+// this seller publishes — but could not create or verify one. Same
+// "broken UI, not a verification prompt" symptom already fixed on
+// ads/products/service-listings/service-providers.
+sellersRouter.patch(
+  '/me/profile',
+  authenticate, requireVerifiedEmail,
+  createSellerProfileRateLimit,
+  CACHE.NONE,
+  sellersController.updateMySellerProfile
+);
 sellersRouter.get('/me/attention', authenticate, CACHE.NONE, sellersController.getMyAttention);
 sellersRouter.post(
   '/me/profile',
