@@ -1,6 +1,7 @@
 import { redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
+import crypto from 'crypto';
 import type { CreateActivityInput } from '../../modules/activity/activity.repository';
 
 // FIX OPS-1.1: activityService.record() used to call
@@ -62,6 +63,15 @@ export const activityBuffer = {
    * sites with no `.catch()`), just moved one layer down.
    */
   push: async (input: CreateActivityInput): Promise<void> => {
+    // T452 — idempotencyKey is generated HERE (once, in the caller's
+    // process) and carried through every subsequent hop (Redis list,
+    // parse, createMany, and any re-push on failure). Re-pushing the
+    // same serialized entry therefore reuses the same key, and the
+    // flush's skipDuplicates:true turns the retry into a no-op if the
+    // original createMany actually committed (the "response was lost"
+    // failure mode createMany alone can't distinguish from "the
+    // insert never ran").
+    const idempotencyKey = crypto.randomUUID();
     try {
       // T454 — pipeline().exec() only REJECTS on transport-level
       // failure. Command-level errors (WRONGTYPE if the buffer key was
@@ -72,7 +82,7 @@ export const activityBuffer = {
       // error.
       const results = await redis
         .pipeline()
-        .rpush(BUFFER_KEY, JSON.stringify({ ...input, createdAt: new Date().toISOString() }))
+        .rpush(BUFFER_KEY, JSON.stringify({ ...input, idempotencyKey, createdAt: new Date().toISOString() }))
         .expire(BUFFER_KEY, BUFFER_TTL_SECONDS)
         .exec();
       const commandError = results?.find(([err]) => err)?.[0];
@@ -84,7 +94,7 @@ export const activityBuffer = {
       // outage degrades to "back to today's per-row insert cost"
       // rather than silently dropping the activity entirely.
       logger.warn('activityBuffer push failed, falling back to direct write', { err });
-      await prisma.userActivity.create({ data: input }).catch((createErr) => {
+      await prisma.userActivity.create({ data: { ...input, idempotencyKey } }).catch((createErr) => {
         logger.error('Failed to write user activity (buffer + direct fallback both failed)', {
           err: createErr,
           userId: input.userId,
@@ -133,11 +143,19 @@ export const activityBuffer = {
       if (entries.length === 0) return;
 
       try {
+        // T452 — skipDuplicates:true is the actual guard. If a prior
+        // createMany committed but its response was lost, the entries
+        // re-pushed by the failed-attempt branch below will carry the
+        // same idempotencyKey values and be silently skipped here,
+        // rather than inserted a second time. Requires the unique
+        // index on UserActivity.idempotencyKey (migration
+        // 20260923120001_add_user_activity_idempotency_key).
         await prisma.userActivity.createMany({
           data: entries.map(({ createdAt, ...rest }) => ({
             ...rest,
             createdAt: new Date(createdAt),
           })),
+          skipDuplicates: true,
         });
         logger.debug(`Activity buffer flushed: ${entries.length} rows`);
       } catch (createErr) {

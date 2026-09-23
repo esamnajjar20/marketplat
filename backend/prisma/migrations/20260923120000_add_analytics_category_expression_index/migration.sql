@@ -1,0 +1,24 @@
+-- T462 — expression index on analytics_events.metadata->>'categoryId'.
+--
+-- analytics.repository.ts's topCategories() runs:
+--   SELECT metadata->>'categoryId' AS "categoryId", COUNT(*)
+--   FROM "analytics_events"
+--   WHERE "event" = 'CATEGORY_BROWSE'
+--     AND "createdAt" >= $1 AND "createdAt" < $2
+--     AND metadata->>'categoryId' IS NOT NULL
+--   GROUP BY 1 ORDER BY count DESC LIMIT 20
+--
+-- The existing [event, createdAt] index narrows to the right rows,
+-- but the GROUP BY then has to compute metadata->>'categoryId' per
+-- row. As analytics_events grows (every page view is a row), that
+-- per-row JSON extraction becomes the dominant cost. This index lets
+-- Postgres read the extracted value directly and group on it.
+--
+-- Plain (non-CONCURRENT) CREATE INDEX here — migrations run inside a
+-- transaction by default (Prisma wraps each migration.sql in BEGIN/
+-- COMMIT), and CONCURRENTLY cannot run inside a transaction. For the
+-- current table size on Neon the lock duration is negligible; if this
+-- ever needs to be applied to a large live table without a write
+-- pause, that has to be a separate, non-transactional migration file.
+CREATE INDEX IF NOT EXISTS "analytics_events_metadata_category_id_idx"
+  ON "analytics_events" ((metadata->>'categoryId'));

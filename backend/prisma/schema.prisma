@@ -79,6 +79,21 @@ model UserActivity {
   // needing a schema change per type — same convention as
   // AuditLog.details / AnalyticsEvent.metadata.
   metadata    Json?
+  // T452 — idempotency key for buffered writes. activityBuffer.ts
+  // pushes serialized entries onto a Redis list, then drains them to
+  // Postgres via createMany() on a timer. If the createMany commits
+  // but the response is lost before the buffer's LPOP+INSERT atomically
+  // confirms (a network blip between this process and Neon, a container
+  // restart mid-flush), the retry path re-pushes the same serialized
+  // entries — which would insert duplicates without this column. With
+  // it, the createMany call uses skipDuplicates:true and the retry
+  // becomes a no-op. Key is generated once in push() (randomUUID),
+  // carried through the Redis round-trip, and stable across re-pushes
+  // (see activityBuffer.ts's own doc comment for the exact shape).
+  // Nullable so pre-existing rows (from before this migration) are
+  // unaffected — Postgres treats multiple NULLs as non-conflicting in
+  // a unique index.
+  idempotencyKey String?          @unique
   createdAt   DateTime            @default(now())
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
