@@ -90,6 +90,16 @@ function useAdminToggleField<TItem extends { id: string }, TArgs>(
     onMutate: async (args) => {
       const id = config.getId(args);
       const value = config.getValue(args);
+      // T793-quad — cancelQueries MUST precede the snapshot + write.
+      // The previous order (snapshot → write → cancel) let an in-flight
+      // admin-list refetch resolve AFTER the optimistic patch and
+      // overwrite it with the pre-toggle server value, so the row's
+      // badge visibly flipped back for a beat before onSettled's
+      // invalidate restored it. Applies to every hook built on this
+      // factory: useAdminSetFeatured, useAdminSetPinned,
+      // useAdminToggleUserActive, useAdminSetSellerVerified,
+      // useAdminSetSellerSuspended.
+      await queryClient.cancelQueries({ queryKey: config.queryKey });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<TItem>>({
         queryKey: config.queryKey,
       });
@@ -105,7 +115,6 @@ function useAdminToggleField<TItem extends { id: string }, TArgs>(
           };
         },
       );
-      await queryClient.cancelQueries({ queryKey: config.queryKey });
       return { snapshots };
     },
     onSuccess: (_data, args) =>
@@ -346,6 +355,8 @@ export function useAdminChangeRole() {
     mutationFn: ({ userId, role }: { userId: string; role: AssignableRole }) =>
       adminApi.changeRole(userId, role).then((r) => r.data.data),
     onMutate: async ({ userId, role }) => {
+      // T793-quad — same cancel-first requirement as the factory above.
+      await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminUser>>({
         queryKey: ['admin', 'users'],
       });
@@ -356,7 +367,6 @@ export function useAdminChangeRole() {
           return { ...old, items: old.items.map((u) => u.id === userId ? { ...u, role } : u) };
         },
       );
-      await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
       return { snapshots };
     },
     onSuccess: (_data, { role }) =>
@@ -382,6 +392,12 @@ export function useAdminUpdateStoreStatus() {
     mutationFn: ({ storeId, status, reason }: { storeId: string; status: 'ACTIVE' | 'PENDING' | 'BLOCKED'; reason?: string }) =>
       adminApi.updateStoreStatus(storeId, { status, reason }).then((r) => r.data.data),
     onMutate: async ({ storeId, status }) => {
+      // T793-quad — same cancel-first requirement. Cancel is issued
+      // before the snapshot + previousStatus capture so a refetch
+      // resolving after the optimistic write can't land a pre-toggle
+      // status over it (which would also poison the undo path's
+      // captured previousStatus).
+      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
         queryKey: ['admin', 'stores'],
       });
@@ -409,7 +425,6 @@ export function useAdminUpdateStoreStatus() {
           };
         },
       );
-      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
       return { snapshots, previousStatus };
     },
     onSuccess: (_data, { storeId, status }, context) => {
@@ -447,6 +462,9 @@ export function useAdminUpdateStorePlan() {
     mutationFn: ({ storeId, plan }: { storeId: string; plan: 'FREE' | 'FEATURED' }) =>
       adminApi.updateStorePlan(storeId, { plan }).then((r) => r.data.data),
     onMutate: async ({ storeId, plan }) => {
+      // T793-quad — same cancel-first requirement as the other admin
+      // toggles in this file.
+      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
         queryKey: ['admin', 'stores'],
       });
@@ -460,7 +478,6 @@ export function useAdminUpdateStorePlan() {
           };
         },
       );
-      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
       return { snapshots };
     },
     onSuccess: (_data, { storeId, plan }) =>
