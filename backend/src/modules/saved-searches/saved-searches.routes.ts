@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { savedSearchesController } from './saved-searches.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
-import { savedSearchRateLimit } from '../../middlewares/rateLimit.middleware';
+import {
+  savedSearchRateLimit,
+  deleteSavedSearchRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 
 export const savedSearchesRouter = Router();
 
@@ -12,4 +15,4 @@ savedSearchesRouter.post(
   savedSearchRateLimit,
   savedSearchesController.createSavedSearch
 );
-savedSearchesRouter.delete('/:id', authenticate, savedSearchesController.deleteSavedSearch);
+savedSearchesRouter.delete('/:id', authenticate, deleteSavedSearchRateLimit, savedSearchesController.deleteSavedSearch);

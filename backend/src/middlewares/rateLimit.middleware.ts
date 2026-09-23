@@ -718,6 +718,20 @@ export const recommendationsRateLimit = rateLimit({
   message: msg('Too many recommendation requests, please try again later'),
 });
 
+// Saved searches: DELETE was unbounded while POST already went through
+// savedSearchRateLimit. A separate store (prefix 'delete_saved_search')
+// rather than reusing that limiter, so a user who saves many searches
+// in one session doesn't eat into their deletion budget and vice versa.
+export const deleteSavedSearchRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: FIFTEEN_MIN_MS,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('delete_saved_search'),
+  message: msg('Too many saved-search deletions, please try again later'),
+});
+
 // Blocked-users module: mirrors storeFollowRateLimit — a cheap toggle,
 // still bounded against scripted abuse.
 export const userBlockRateLimit = rateLimit({
