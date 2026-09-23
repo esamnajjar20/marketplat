@@ -462,7 +462,12 @@ export const env = {
   port: parseInt(_env.PORT, 10),
   nodeEnv: _env.NODE_ENV,
   frontendUrl: _env.FRONTEND_URL,
-  database: { url: _env.DATABASE_URL },
+  // T542 — same trailing-whitespace class; Neon's connection-string
+  // copy can carry a trailing newline. Postgres surfaces this as an
+  // auth failure with the literal malformed password in the log, so
+  // it's self-diagnosing — but the trim is free and removes the
+  // diagnostic burden entirely.
+  database: { url: _env.DATABASE_URL.trim() },
   jwt: {
     secret: _env.JWT_SECRET,
     refreshSecret: _env.JWT_REFRESH_SECRET,
@@ -482,10 +487,16 @@ export const env = {
     refreshExpiresInSeconds: parseExpiresInToSeconds(_env.JWT_REFRESH_EXPIRES_IN),
   },
   redis: {
-    host: _env.REDIS_HOST,
+    host: (_env.REDIS_HOST || '').trim(),
     port: parseInt(_env.REDIS_PORT, 10),
-    username: _env.REDIS_USERNAME,
-    password: _env.REDIS_PASSWORD,
+    // T540 — same trailing-whitespace class as cloudinary.apiKey /
+    // googleOAuth.clientId / email.resendApiKey below (their own
+    // comments document the production incidents). Aiven's dashboard
+    // copy button is the source here; without trim, ioredis sends
+    // AUTH <password>\n and Aiven rejects with no hint that whitespace
+    // is the cause. .trim() is a no-op on a clean value.
+    username: (_env.REDIS_USERNAME || '').trim() || undefined,
+    password: (_env.REDIS_PASSWORD || '').trim() || undefined,
     tls: _env.REDIS_TLS,
   },
   security: {
@@ -567,11 +578,15 @@ export const env = {
     // custom domain is verified.
     gmailUser: (_env.GMAIL_USER || '').trim(),
     googleRefreshToken: (_env.GOOGLE_REFRESH_TOKEN || '').trim(),
-    smtpHost: _env.SMTP_HOST || '',
+    // T541 — same trailing-whitespace class: a Mailtrap/SendGrid/
+    // provider password pasted with a trailing newline fails auth at
+    // send time as an opaque error (the failure that motivated the
+    // .trim() on cloudinary.apiKey and googleOAuth.clientId).
+    smtpHost: (_env.SMTP_HOST || '').trim(),
     smtpPort: _env.SMTP_PORT ? parseInt(_env.SMTP_PORT, 10) : 587,
     smtpSecure: _env.SMTP_SECURE ?? false,
-    smtpUser: _env.SMTP_USER || '',
-    smtpPassword: _env.SMTP_PASSWORD || '',
+    smtpUser: (_env.SMTP_USER || '').trim(),
+    smtpPassword: (_env.SMTP_PASSWORD || '').trim(),
     // FIX EMAIL-FROM-DEFAULT-01: previously hardcoded to a placeholder
     // ('no-reply@example.com') when SMTP_FROM_EMAIL was unset, even
     // when Gmail OAuth or Resend was the active sender. Every message
