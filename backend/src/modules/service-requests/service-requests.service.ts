@@ -212,6 +212,31 @@ export const serviceRequestsService = {
       );
     }
 
+    // FIX SR-PRICE-REQUIRED: ACCEPTED without a quotedPrice left the
+    // customer with "accepted" but no price to agree to, and COMPLETED
+    // without an agreedPrice produced a request whose agreedPrice stayed
+    // null — which sumRevenueByProviderId silently skips (it sums
+    // COMPLETED.agreedPrice), so a real completed job could vanish from
+    // the provider's own revenue total. Both fields were declared
+    // optional in respondToServiceRequestSchema and the repository
+    // spread them conditionally, so nothing enforced the dependency at
+    // any layer. Checked here (the one place every transition flows
+    // through, after the actor check) rather than at the schema level,
+    // because the requirement depends on request.status — a fact the
+    // schema cannot see.
+    if (action === 'ACCEPTED' && extra?.quotedPrice === undefined) {
+      throw new BadRequestError(
+        'quotedPrice is required when accepting a request.',
+        'QUOTED_PRICE_REQUIRED',
+      );
+    }
+    if (action === 'COMPLETED' && extra?.agreedPrice === undefined) {
+      throw new BadRequestError(
+        'agreedPrice is required when completing a request.',
+        'AGREED_PRICE_REQUIRED',
+      );
+    }
+
     return prisma.$transaction(async tx => {
       const result = await serviceRequestsRepository.transitionStatus(
         tx,
