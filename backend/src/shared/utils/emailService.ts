@@ -352,8 +352,15 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   // SMTP ports, so nodemailer times out with ETIMEDOUT before it
   // can even reach Gmail. Resend's HTTP API goes over port 443
   // (always allowed) and is the primary path whenever a key is
-  // configured. If Resend fails, we fall through to the SMTP
-  // path below (which works on paid Render and in dev).
+  // configured.
+  //
+  // T573 — previously this comment claimed "If Resend fails, we
+  // fall through to the SMTP path below", but the code returns
+  // directly. That is the intended behavior (each provider already
+  // does its own 3-attempt retry; chaining providers would multiply
+  // worst-case latency on the synchronous forgot-password path to
+  // 15s+ for no real benefit) — the comment is now corrected to
+  // match the code.
   if (env.email.resendApiKey) {
     return sendViaResend(options);
   }
@@ -478,6 +485,25 @@ function verificationEmail(verifyUrl: string): { html: string; text: string } {
   };
 }
 
+// T575 — defense-in-depth for HTML interpolation of any value that
+// could conceivably carry untrusted input. The only current caller
+// passes details.ip (from req.ip) and details.email (normalized, but
+// per RFC could theoretically carry < in a quoted local part). The
+// email templates below are static HTML built by string interpolation
+// — one future caller adding ${details.<something>} without this
+// helper would open an HTML-injection path (phishing link injected
+// into a security-alert email is a high-value target). Applying it
+// once here means the protection doesn't depend on every future
+// template edit remembering to escape.
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function securityAlertEmail(event: string, details: Record<string, unknown>): { html: string; text: string } {
   const eventLabels: Record<string, string> = {
     TOKEN_REUSE: 'تم اكتشاف إعادة استخدام رمز الجلسة — تم إلغاء جميع الجلسات',
@@ -502,7 +528,7 @@ function securityAlertEmail(event: string, details: Record<string, unknown>): { 
         <h2 style="margin-bottom: 16px; color: #dc2626;">تنبيه أمني بخصوص حسابك</h2>
         <p>${label}</p>
         <p style="color:#666;font-size:14px;">الوقت: ${new Date().toLocaleString('ar-EG')}</p>
-        ${details.ip ? `<p style="color:#666;font-size:14px;">عنوان IP: ${details.ip}</p>` : ''}
+        ${details.ip ? `<p style="color:#666;font-size:14px;">عنوان IP: ${escapeHtml(details.ip)}</p>` : ''}
         <p style="margin-top:24px;">إذا لم يكن هذا أنت، يُرجى <strong>تغيير كلمة المرور فوراً</strong>.</p>
       </div>
     `,
