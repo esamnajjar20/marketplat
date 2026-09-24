@@ -44,16 +44,26 @@ export function GoogleAuthButton({ label = 'المتابعة باستخدام Go
   if (!process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED) return null;
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      className="h-12 w-full gap-2 rounded-xl"
-      onClick={() => {
-        window.location.href = `${API_BASE_URL}/auth/google`;
-      }}
-    >
-      <GoogleIcon />
-      {label}
+    // SW-GOOGLE-BTN-AS-LINK-01: was <Button onClick={() => window.location.href}>.
+    // That produced the correct navigation but lost every browser
+    // affordance that goes with being a link: right-click → open in new
+    // tab, Cmd/Ctrl+click → new tab, middle-click → new tab, and the
+    // proper screen-reader announcement ("link" vs "button"). It also
+    // diverged from ForgotPasswordForm's own Google button, which
+    // already uses <Button asChild><a href>, so the two looked
+    // identical but behaved differently on the exact same interaction.
+    //
+    // <a> is also more honest semantically: this triggers a top-level
+    // navigation to /auth/google, not an in-page action. The original
+    // design note is preserved — this is still a full-page navigation
+    // (not an XHR), because only a real navigation can carry the
+    // backend's Set-Cookie response headers through Google's redirect
+    // chain back to this origin.
+    <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-xl">
+      <a href={`${API_BASE_URL}/auth/google`}>
+        <GoogleIcon />
+        {label}
+      </a>
     </Button>
   );
 }
