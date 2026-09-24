@@ -1,3 +1,5 @@
+import { compressInWorker } from './imageCompressWorkerClient';
+
 /**
  * ضغط صور محلي للأوفلاين — Canvas API، بلا رفع لأي سيرفر.
  *
@@ -30,6 +32,19 @@ export async function compressImageForOffline(file: File): Promise<Blob> {
   if (!file.type.startsWith('image/')) {
     throw new Error('الملف ليس صورة');
   }
+
+  // SW-IMAGE-WORKER-01: worker-first. Returns null on any failure
+  // (unsupported environment, worker error, timeout) and we fall
+  // through to the main-thread path below — which keeps the original
+  // throw-on-failure contract that callers (useAdMutations and the
+  // three other *Mutations files) already depend on.
+  const viaWorker = await compressInWorker(file, {
+    maxDim: MAX_DIMENSION,
+    quality: JPEG_QUALITY,
+    maxBytes: MAX_OUTPUT_BYTES,
+  });
+  if (viaWorker) return viaWorker.blob;
+
   if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') {
     // بيئة بلا Canvas/createImageBitmap (مثلًا اختبارات Node بلا jsdom
     // كامل) — لا نحاول، نترك المستدعي يتعامل مع الفشل بأمان.
@@ -100,6 +115,24 @@ const PUBLISH_MAX_OUTPUT_BYTES = 2 * 1024 * 1024; // 2 MB
 export async function compressImageForPublish(file: File): Promise<File> {
   if (!file.type.startsWith('image/')) return file;
   if (file.size <= 1.5 * 1024 * 1024) return file; // already small enough
+
+  // SW-IMAGE-WORKER-01: try the worker first. Off-main-thread so the
+  // form stays responsive on a 12 MP photo (3-9 s of freeze before
+  // this). Returns null on any failure — we fall through to the
+  // original main-thread path below.
+  const viaWorker = await compressInWorker(file, {
+    maxDim: PUBLISH_MAX_DIMENSION,
+    quality: PUBLISH_JPEG_QUALITY,
+    maxBytes: PUBLISH_MAX_OUTPUT_BYTES,
+  });
+  if (viaWorker) {
+    const base = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+    return new File([viaWorker.blob], base + '.jpg', {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  }
+
   if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') {
     return file;
   }
