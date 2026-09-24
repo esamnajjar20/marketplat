@@ -63,8 +63,11 @@ export function FavoritesList() {
         action={
           <div className="flex flex-col items-center gap-2 sm:flex-row">
             <Button asChild size="sm">
-              <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
-              prefetch={false}
+              {/* SW-FIX-FAV-PREFETCH-MALFORM: `prefetch={false}` was on the
+                  line after </Link> — as JSX text it rendered the literal
+                  "prefetch=" above the button. Same malformed pattern fixed
+                  in RecentAds/ConversationList/EmptySearchAlternatives. */}
+              <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href={ROUTES.home}>العودة للرئيسية</Link>

@@ -24,8 +24,11 @@ export function EmptySearchAlternatives() {
     <div className="mt-8 space-y-3 border-t pt-6">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">أحدث الإعلانات بدلاً من ذلك</h2>
-        <Link href={`${ROUTES.search}?type=ads`} className="text-xs font-medium text-primary hover:underline">
-        prefetch={false}
+        {/* SW-FIX-ESA-PREFETCH-MALFORM: `prefetch={false}` was placed after
+            the opening tag — as JSX text it rendered the literal string
+            "prefetch=" above the link. Same malformed pattern fixed in
+            RecentAds/ConversationList. */}
+        <Link prefetch={false} href={`${ROUTES.search}?type=ads`} className="text-xs font-medium text-primary hover:underline">
           عرض الكل
         </Link>
       </div>
