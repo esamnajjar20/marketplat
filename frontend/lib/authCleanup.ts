@@ -31,6 +31,7 @@ import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
 import { clearRecentSearches } from '@/lib/recentSearches';
 import { clearAutoReadCache } from '@/lib/offlineAutoRead';
+import { clearPersonalWarmingState } from '@/lib/offlineWarmingState';
 
 /** يطلب من الـ SW مسح كاش API + PERSONAL_SHELL — نفس بروتوكول
  * CLEAR_API_CACHE الموجود أصلًا بـ public/sw.js (SECURITY FIX audit #2 +
@@ -144,5 +145,11 @@ export function clearSensitiveLocalData(): void {
   // plaintext) كانت تبقى — User B يرى بيانات User A المالية.
   clearSavedPaymentMethods();
   void clearOfflineMessagesStore();
+  // FIX SW-CLEAR-PERSONAL-WARMING-01: without this, the IndexedDB
+  // warming snapshot would still say every personal route was complete
+  // on the next login, so warming would skip them all and the personal
+  // shell cache would stay empty right after login (when offline
+  // coverage is most needed).
+  void clearPersonalWarmingState();
   clearPushBindingsOnSessionEnd();
 }

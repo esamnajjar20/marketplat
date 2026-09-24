@@ -188,6 +188,35 @@ export async function clearSnapshot(): Promise<void> {
   }
 }
 
+// ── Session cleanup ──────────────────────────────────────────────
+
+/**
+ * SW-CLEAR-PERSONAL-WARMING-01: on logout, the SW wipes
+ * PERSONAL_SHELL_CACHE but this IndexedDB snapshot survives. Without
+ * clearing the 'personal:*' entries here, warming thinks every personal
+ * route is already complete on the next login (from a different user,
+ * or the same user re-logging), and skips them all — leaving the
+ * personal shell cache empty right after login, exactly when offline
+ * coverage matters most. Called from lib/authCleanup.ts.
+ *
+ * Deliberately keeps public routes and liveUrls: those describe the
+ * shared STATIC_CACHE, which logout does not clear.
+ */
+export async function clearPersonalWarmingState(): Promise<void> {
+  try {
+    const snap = await readSnapshot();
+    if (!snap) return;
+    const kept: Record<string, RouteWarmingMeta> = {};
+    for (const [key, meta] of Object.entries(snap.routes)) {
+      if (!key.startsWith('personal:')) kept[key] = meta;
+    }
+    snap.routes = kept;
+    await writeSnapshot(snap);
+  } catch {
+    // silent — logout cleanup is best-effort
+  }
+}
+
 // ── Pure helpers ─────────────────────────────────────────────────
 
 /**

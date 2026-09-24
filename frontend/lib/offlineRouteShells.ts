@@ -924,7 +924,7 @@ export async function warmRouteShellsAtomic(): Promise<void> {
       if (shouldSweep(snapshot?.lastSweepAt ?? 0)) {
         const swept = await sweepOrphans(staticCache, new Set(liveUrls));
         if (swept > 0) {
-          console.info(`[route-shells] swept ${swept} orphan chunks`);
+          console.warn(`[route-shells] swept ${swept} orphan chunks`);
         }
         await recordSweepTime();
       }
@@ -1076,8 +1076,18 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
     const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
     if (Date.now() - last < WARM_INTERVAL_MS) return;
 
-    // Preserve existing hidden-wait behaviour: fires only when the tab
-    // is hidden, or after 15s of visible engagement.
+    // SW-IDLE-SCHEDULE-01: prefer requestIdleCallback over a blind 15s
+    // wait. Warming is background work the user did not ask for; the
+    // ideal moment is when the main thread is quiet, which on a typical
+    // page happens 1-3s after load, not 15s. The previous behaviour
+    // waited 15s on visible tabs, so on a fast-browsing session the
+    // personal warming often never ran at all. Now:
+    //   1. If the tab is hidden → fire immediately.
+    //   2. Else, requestIdleCallback with an 8s hard timeout (fires even
+    //      if the browser never reports idle, e.g. a page with ongoing
+    //      animations).
+    //   3. Else (Safari < 15.4 / no rIC) → setTimeout 5s, which is still
+    //      shorter than the old 15s and does not need the hidden tab.
     await new Promise<void>((resolve) => {
       if (typeof document === 'undefined') { resolve(); return; }
       if (document.visibilityState === 'hidden') { resolve(); return; }
@@ -1092,7 +1102,19 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
         if (document.visibilityState === 'hidden') settle();
       };
       document.addEventListener('visibilitychange', onVis);
-      window.setTimeout(settle, 15_000);
+      const ric = (
+        window as Window & {
+          requestIdleCallback?: (
+            cb: () => void,
+            opts?: { timeout: number },
+          ) => number;
+        }
+      ).requestIdleCallback;
+      if (typeof ric === 'function') {
+        ric(() => settle(), { timeout: 8_000 });
+      } else {
+        window.setTimeout(settle, 5_000);
+      }
     });
 
     const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
