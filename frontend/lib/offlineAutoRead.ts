@@ -93,11 +93,54 @@ function adDetailUrl(id: string): string {
 // يستخدمه الفهرس. قبل: 400×300 مخزَّن، لكن UI يطلب 128×128 → صورة مكسورة.
 const THUMB_SIZE = 128;
 
+// SW-AUTOREAD-MUTEX-01: serialize writes to the auto-read index.
+//
+// Every autoSaveVisitedAd call is a read-modify-write of a single
+// localStorage key (listRaw -> prune -> filter -> unshift -> localSet),
+// interleaved with async network and cache work. When a user opens
+// several ads in quick succession — normal behaviour on a listing
+// page — two or more of these run concurrently: both read the SAME
+// base list, both compute their own pruned+prepended result, and the
+// second localSet overwrites the first. The losing ad still has its
+// API response and thumbnail cached (those steps are per-call and
+// independent), but it disappears from the visible "شوهد مؤخرًا"
+// index, and its cache entries become unreachable to pruneExpired/
+// evict cleanup because nothing in the index references them.
+//
+// The window is small (the read happens synchronously, but the fetch
+// and image-cache awaits before the write stretch the critical
+// section to 100-300 ms on a phone), which is exactly why this is
+// visible in practice rather than theoretical: opening three ads
+// within a second is a normal gesture.
+//
+// A simple FIFO chain: each call awaits the previous call's completion
+// before doing its own read-modify-write. Costs nothing measurable on
+// the happy path (the chain is empty), no lock library, no risk of
+// deadlock since each entry always releases in a finally.
+let writeChain: Promise<void> = Promise.resolve();
+
 /**
  * Best-effort: cache GET /ads/:id + first image for offline open later.
  * Never throws to the UI.
+ *
+ * Public entry point — serialized through writeChain (see above), then
+ * delegates to the implementation below.
  */
 export async function autoSaveVisitedAd(ad: Ad, userId?: string | null): Promise<void> {
+  const prev = writeChain;
+  let release!: () => void;
+  writeChain = new Promise<void>((r) => {
+    release = r;
+  });
+  await prev;
+  try {
+    await autoSaveVisitedAdImpl(ad, userId);
+  } finally {
+    release();
+  }
+}
+
+async function autoSaveVisitedAdImpl(ad: Ad, userId?: string | null): Promise<void> {
   if (typeof window === 'undefined' || typeof caches === 'undefined') return;
   if (!ad?.id) return;
 
