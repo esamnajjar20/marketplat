@@ -12,6 +12,7 @@
  * share the same shell.
  */
 
+import { useEffect, useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { CONDITION_LABELS } from '@/lib/constants';
@@ -25,8 +26,31 @@ interface Props {
 }
 
 export function AdFormPreview({ values, className }: Props) {
-  const filePreview =
-    values.images[0] instanceof File ? URL.createObjectURL(values.images[0]) : null;
+  // SW-ADFORMPREVIEW-OBJECT-URL-FIX: same leak as the one fixed in
+  // ProductFormPreview (SW-OBJECT-URL-LEAK-PRODUCT) and
+  // ServiceListingFormPreview (FIX OBJECT-URL-LEAK). This component is
+  // mounted for the whole time the ad form is open — on desktop it
+  // lives in CreateFormLayout's sticky sidebar across all three wizard
+  // steps. Every keystroke in the title/description/price fields
+  // re-renders this component, and every render minted a fresh blob
+  // URL for the picked photo with no revoke. On a phone with a 3-5 MB
+  // photo and a few minutes of typing, that pinned dozens of
+  // references to the same File in memory until the tab closed.
+  //
+  // useMemo keys on the File object itself (extracted to `firstImage`
+  // so exhaustive-deps can see the read); a useEffect cleanup revokes
+  // each URL as the memo value changes and on unmount.
+  const firstImage = values.images[0];
+  const filePreview = useMemo(
+    () => (firstImage instanceof File ? URL.createObjectURL(firstImage) : null),
+    [firstImage],
+  );
+
+  useEffect(() => {
+    if (!filePreview) return;
+    return () => URL.revokeObjectURL(filePreview);
+  }, [filePreview]);
+
   const imageSrc = filePreview || values.existingImages[0] || PLACEHOLDER_SVG;
   const conditionLabel = values.condition
     ? CONDITION_LABELS[values.condition] ?? null
