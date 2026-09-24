@@ -53,7 +53,18 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    // SW-FIX-FAVBUTTON-LOGIN: matches AdCard's own heart-button fix
+    // (SW-FIX-ADCARD-LOGIN) — a bare toast left the user on the same
+    // page with no path to sign in. Redirect to /login with the current
+    // page as `from` so they land back here after signing in.
+    if (!isAuth) {
+      toast.error('سجّل الدخول لحفظ العنصر');
+      if (typeof window !== 'undefined') {
+        const returnTo = window.location.pathname + window.location.search;
+        window.location.href = `/login?from=${encodeURIComponent(returnTo)}`;
+      }
+      return;
+    }
     if (toggleFavorite.isPending) return; // prevent duplicate requests
     if (!isFavorited) setPopKey((k) => k + 1);
     toggleFavorite.mutate(entityId);

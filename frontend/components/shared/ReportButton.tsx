@@ -69,6 +69,7 @@ export function ReportButton<TData, TError>({
   return (
     <>
       <button
+        type="button"
         onClick={handleOpen}
         className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
       >
