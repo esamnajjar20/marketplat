@@ -117,6 +117,9 @@ export const SETTINGS_GROUP = {
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
     { label: 'التخزين والبيانات', href: ROUTES.settings.storage },
     { label: 'المزامنة (عمليات دون اتصال)', href: ROUTES.settings.sync },
+    // SW-FIX-OFFLINE-NAV: Warming Engine user controls —
+    // sibling of sync (both belong to the offline surface).
+    { label: 'العمل بدون إنترنت', href: ROUTES.settings.offline },
   ],
 } as const;
 
