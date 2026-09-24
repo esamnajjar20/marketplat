@@ -88,6 +88,25 @@ const config: Config = {
         },
       },
 
+      // SW-TAILWIND-SPACING-18: five list-view components use `h-18`
+      // for a thumbnail container ('relative w-24 h-18 shrink-0 ...')
+      // wrapping a Next.js Image with `fill`. Tailwind v3's default
+      // spacing scale jumps 16 -> 20 with no 18, so `h-18` produced no
+      // CSS rule at all: the container had width 96px but height 0,
+      // and the absolutely-positioned fill image collapsed to nothing.
+      // The thumbnails were invisible in MyAdsList, MyProductsList,
+      // MyServiceListingsList, MyServiceRequestsList and
+      // IncomingServiceRequestsList.
+      //
+      // Fixing at the config level rather than editing five JSX files
+      // keeps the 4.5rem value consistent with what Tailwind's own
+      // scale would produce if 18 were part of it (spacing values are
+      // 0.25rem * n), and future uses of any spacing-18 utility
+      // (w-18, p-18, gap-18, top-18, ...) now work as expected.
+      spacing: {
+        18: '4.5rem',
+      },
+
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
