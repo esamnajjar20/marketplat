@@ -278,7 +278,8 @@ export function AdminFraudTable() {
         title="اعتبار هذا الإعلان سليماً؟"
         description="سيُزال هذا الإعلان من قائمة المراجعة. سجل الإشارات السابقة يبقى محفوظاً."
         confirmLabel="تأكيد"
-        isPending={clearFlag.isPending}
+        // SW-FIX-FRAUD-CONFIRM-PENDING: same granularity fix.
+        isPending={clearFlag.isPending && clearFlag.variables === clearTargetId}
         onConfirm={() => {
           if (!clearTargetId) return;
           clearFlag.mutate(clearTargetId, { onSuccess: () => setClearTargetId(null) });

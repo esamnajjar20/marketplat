@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import Link from 'next/link';
 import {
   Bell,
@@ -48,6 +49,9 @@ export function NotificationsPage() {
   const [category, setCategory] = useState<NotificationCategoryId>('all');
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
+  // SW-FIX-NOTIF-CONFIRM-DIALOG: replaced window.confirm with the shared
+  // ConfirmDialog (same as every other destructive action in the app).
+  const [confirmDeleteRead, setConfirmDeleteRead] = useState(false);
   const online = useOnlineStatus();
 
   useEffect(() => {
@@ -136,11 +140,7 @@ export function NotificationsPage() {
             variant="ghost"
             size="sm"
             disabled={deleteAllRead.isPending}
-            onClick={() => {
-              if (typeof window !== 'undefined' && !window.confirm('حذف كل الإشعارات المقروءة؟'))
-                return;
-              deleteAllRead.mutate();
-            }}
+            onClick={() => setConfirmDeleteRead(true)}
             className="gap-1.5 text-muted-foreground"
           >
             {deleteAllRead.isPending ? (
@@ -150,6 +150,20 @@ export function NotificationsPage() {
             )}
             مسح المقروء
           </Button>
+          <ConfirmDialog
+            open={confirmDeleteRead}
+            onOpenChange={setConfirmDeleteRead}
+            title="حذف كل الإشعارات المقروءة؟"
+            description="سيتم حذف جميع الإشعارات المقروءة نهائياً. لا يمكن التراجع عن هذا الإجراء."
+            confirmLabel="حذف"
+            destructive
+            isPending={deleteAllRead.isPending}
+            onConfirm={() => {
+              deleteAllRead.mutate(undefined, {
+                onSettled: () => setConfirmDeleteRead(false),
+              });
+            }}
+          />
           <Button asChild variant="ghost" size="sm" className="gap-1.5">
             <Link href={ROUTES.settings.notifications}>
               <Settings className="h-3.5 w-3.5" />

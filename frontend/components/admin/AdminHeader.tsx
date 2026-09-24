@@ -66,9 +66,13 @@ export function AdminHeader() {
          * or route, just a way back to the site they're already
          * signed into.
          */}
-        <Button asChild variant="ghost" size="sm" className="gap-1.5" title="العودة للموقع">
+        {/* SW-FIX-HEADER-TITLE-A11Y: the visible label ('العودة للموقع')
+            is the accessible name on sm+; on mobile only the icon shows,
+            so aria-label carries it there. The static title= added no new
+            information and shadowed the visible text for screen readers. */}
+        <Button asChild variant="ghost" size="sm" className="gap-1.5" aria-label="العودة للموقع">
           <Link prefetch={false} href={ROUTES.home}>
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             <span className="hidden sm:inline">العودة للموقع</span>
           </Link>
         </Button>

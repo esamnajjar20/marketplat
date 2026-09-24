@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import Link from 'next/link';
 import {
   HardDrive,
@@ -59,6 +60,13 @@ export function StorageManagementClient() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // SW-FIX-STORAGE-CONFIRM-DIALOG: replaced three window.confirm()
+  // call sites with one shared ConfirmDialog driven by this state.
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    description: string;
+    action: () => void | Promise<void>;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -319,20 +327,15 @@ export function StorageManagementClient() {
             variant="outline"
             className="justify-start gap-2"
             disabled={busy !== null || loading || (stats?.extras.offlineDrafts ?? 0) === 0}
-            onClick={() => {
-              if (
-                !window.confirm(
-                  'مسح المسودات المحلية غير المُرسلة فقط؟ لن تُحذف العناصر قيد المزامنة إن وُجدت في الطابور بشكل منفصل.',
-                )
-              ) {
-                return;
-              }
-              void runAction(
+            onClick={() => setConfirmState({
+              title: 'مسح المسودات المحلية؟',
+              description: 'سيتم مسح المسودات المحلية غير المُرسلة فقط. لن تُحذف العناصر قيد المزامنة إن وُجدت في الطابور بشكل منفصل.',
+              action: () => runAction(
                 'drafts',
                 () => clearDraftOnlyAdDrafts(),
                 'تم مسح المسودات المحلية',
-              );
-            }}
+              ),
+            })}
           >
             {busy === 'drafts' ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -347,18 +350,17 @@ export function StorageManagementClient() {
             variant="outline"
             className="justify-start gap-2"
             disabled={busy !== null || loading || (stats?.extras.catalogDownloads ?? 0) === 0}
-            onClick={() => {
-              if (!window.confirm('حذف كل كتالوجات المتاجر المحمّلة على هذا الجهاز؟')) {
-                return;
-              }
-              void runAction(
+            onClick={() => setConfirmState({
+              title: 'حذف كل كتالوجات المتاجر؟',
+              description: 'سيتم حذف كل كتالوجات المتاجر المحمّلة على هذا الجهاز.',
+              action: () => runAction(
                 'catalogs',
                 async () => {
                   clearCatalogDownloads();
                 },
                 'تم حذف التنزيلات المحلية',
-              );
-            }}
+              ),
+            })}
           >
             {busy === 'catalogs' ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -373,16 +375,11 @@ export function StorageManagementClient() {
             variant="destructive"
             className="justify-start gap-2"
             disabled={busy !== null || loading}
-            onClick={() => {
-              if (
-                !window.confirm(
-                  'مسح كل كاش التطبيق بما فيه الإعلانات المحفوظة دون اتصال؟ لا يمكن التراجع.',
-                )
-              ) {
-                return;
-              }
-              void runAction('all', () => clearAllMarketCaches(), 'تم مسح كل الكاش');
-            }}
+            onClick={() => setConfirmState({
+              title: 'مسح كل كاش التطبيق؟',
+              description: 'سيتم مسح كل كاش التطبيق بما فيه الإعلانات المحفوظة دون اتصال. لا يمكن التراجع عن هذا الإجراء.',
+              action: () => runAction('all', () => clearAllMarketCaches(), 'تم مسح كل الكاش'),
+            })}
           >
             {busy === 'all' ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -397,6 +394,25 @@ export function StorageManagementClient() {
           بناء الكاش تلقائيًا عند التصفح.
         </p>
       </section>
+
+      {/* SW-FIX-STORAGE-CONFIRM-DIALOG (jsx): the shared ConfirmDialog now
+          backs every destructive action above — same component the rest
+          of the admin/settings surfaces use, replacing the three
+          window.confirm() calls that stood out here. */}
+      <ConfirmDialog
+        open={confirmState !== null}
+        onOpenChange={(o) => { if (!o) setConfirmState(null); }}
+        title={confirmState?.title ?? ''}
+        description={confirmState?.description ?? ''}
+        confirmLabel="مسح"
+        destructive
+        isPending={busy !== null}
+        onConfirm={() => {
+          if (!confirmState) return;
+          void confirmState.action();
+          setConfirmState(null);
+        }}
+      />
     </div>
   );
 }

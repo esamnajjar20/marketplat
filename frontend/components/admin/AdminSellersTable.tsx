@@ -308,7 +308,10 @@ export function AdminSellersTable() {
         description={`لن يتمكن "${suspendTarget?.name}" من نشر إعلانات أو خدمات جديدة حتى يتم رفع الإيقاف عنه. إعلاناته الحالية تبقى كما هي.`}
         confirmLabel="إيقاف"
         destructive
-        isPending={setSuspended.isPending}
+        // SW-FIX-SELLER-CONFIRM-PENDING: only disable the confirm button
+        // when THIS target is the one whose mutation is in flight, not
+        // whenever any seller mutation is pending.
+        isPending={setSuspended.isPending && pendingSuspendId === suspendTarget?.id}
         requireReason
         onConfirm={() => {}}
         onConfirmWithReason={(reason) => {

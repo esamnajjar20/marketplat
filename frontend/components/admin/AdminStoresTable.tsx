@@ -377,7 +377,9 @@ export function AdminStoresTable() {
         description={`سيختفي متجر "${blockTarget?.name}" فورًا من الدليل العام ولن يتمكن متابعوه من رؤيته حتى يتم رفع الحظر.`}
         confirmLabel="حظر"
         destructive
-        isPending={updateStatus.isPending}
+        // SW-FIX-STORE-CONFIRM-PENDING: same granularity fix as the
+        // sellers table.
+        isPending={updateStatus.isPending && pendingId === blockTarget?.id}
         requireReason
         onConfirm={() => {}}
         onConfirmWithReason={(reason) => {
