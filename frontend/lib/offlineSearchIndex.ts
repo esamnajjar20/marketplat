@@ -148,7 +148,21 @@ function normalizeStore(s: Record<string, unknown>): SearchResult | null {
     description: typeof s.description === 'string' ? s.description : '',
     image: typeof s.logoUrl === 'string' ? s.logoUrl : null,
     city: typeof s.city === 'string' ? s.city : null,
-    rating: typeof sellerProfile.averageRating === 'number' ? sellerProfile.averageRating : 0,
+    // SW-OFFLINE-SEARCH-FIX-01: Prisma Decimal serialises as a string,
+    // not a number (types/seller.types.ts:30 — averageRating: string).
+    // The previous `typeof === 'number'` guard was therefore always
+    // false for stores: every store showed rating 0 offline while
+    // showing the real value online. Same fix already applied in
+    // normalizeAd and normalizeService above — the store one was
+    // missed because store rating is populated from a different code
+    // path in the online API and nobody noticed the divergence until
+    // an offline search returned starred results (ads) beside unstarred
+    // ones (stores) from the same query.
+    rating: typeof sellerProfile.averageRating === 'string'
+      ? parseFloat(sellerProfile.averageRating) || 0
+      : typeof sellerProfile.averageRating === 'number'
+        ? sellerProfile.averageRating
+        : 0,
     views: typeof s.views === 'number' ? s.views : 0,
     price: null,
     seller: {
@@ -168,8 +182,34 @@ function normalizeStore(s: Record<string, unknown>): SearchResult | null {
 /** يقرأ استجابات products/stores/ads/services المخزّنة بـ CORE_CACHE ويبني فهرسًا مسطّحًا.
  * hasBundle=false يعني: لا توجد حزمة أساسية بعد إطلاقًا (مو أن البحث فاضي
  * لعدم تطابق) — الفرق يحدد لاحقًا هل نرمي الخطأ الأصلي أو نعرض "لا نتائج". */
+// SW-OFFLINE-SEARCH-MEMO-01: derived-index cache.
+//
+// searchOffline is called on every keystroke the user types while
+// offline (with a debounce upstream, but still several times per
+// second of typing). Each call previously re-read four CORE_CACHE
+// entries, JSON-parsed them, and rebuilt ~30 SearchResult objects.
+// On a low-end device that is 20-50 ms of work per query, felt as
+// input lag on the search field.
+//
+// The index is derived from CORE_CACHE, which warming only rewrites
+// on its own schedule (>=30 min retry / 6h success). Caching it for
+// 30 seconds means every search within a browsing burst hits the
+// same snapshot — fast enough that typing is instantaneous — while
+// a stale read is impossible across meaningful time windows.
+//
+// On warming-complete events (worker messages) we could invalidate
+// this eagerly; for now the 30s TTL is simpler and the worst case is
+// one query returning the previous pass's results.
+const INDEX_TTL_MS = 30_000;
+let indexCache: { entries: SearchResult[]; hasBundle: boolean; at: number } | null = null;
+
 async function loadOfflineIndex(): Promise<{ entries: SearchResult[]; hasBundle: boolean }> {
   if (typeof caches === 'undefined') return { entries: [], hasBundle: false };
+
+  const now = Date.now();
+  if (indexCache && now - indexCache.at < INDEX_TTL_MS) {
+    return { entries: indexCache.entries, hasBundle: indexCache.hasBundle };
+  }
 
   const cache = await caches.open(CORE_CACHE);
   const urls = buildCoreUrls();
@@ -204,6 +244,7 @@ async function loadOfflineIndex(): Promise<{ entries: SearchResult[]; hasBundle:
     }
   }
 
+  indexCache = { entries, hasBundle, at: Date.now() };
   return { entries, hasBundle };
 }
 

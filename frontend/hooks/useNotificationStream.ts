@@ -119,10 +119,30 @@ export function useNotificationStream(options?: Options) {
   const queryClient = useQueryClient();
   const [connected, setConnected] = useState(false);
   const onEventRef = useRef(options?.onEvent);
-  onEventRef.current = options?.onEvent;
+  const accessTokenRef = useRef(accessToken);
+  const isAuthenticatedRef = useRef(isAuthenticated);
+
+  // SW-SSE-TOKEN-REF-01: keep the refs fresh without triggering the
+  // SSE effect. The connection itself only cares about "is this user
+  // logged in at all" — not which specific access token is currently
+  // in the store. Reading the token from a ref on the retry tick lets
+  // the same connection survive every 14-minute rotation of the access
+  // token, which previously tore down the SSE stream and re-established
+  // it (a 1-3 second window of missed events, six times an hour).
+  useEffect(() => {
+    onEventRef.current = options?.onEvent;
+  }, [options?.onEvent]);
 
   useEffect(() => {
-    if (!isAuthenticated || !accessToken) {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
+
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
       setConnected(false);
       streamConnected = false;
       return;
@@ -134,11 +154,19 @@ export function useNotificationStream(options?: Options) {
 
     async function connect() {
       if (closed) return;
+      // Read the token fresh on every connect/reconnect from the ref,
+      // so a rotation mid-stream does not require tearing down.
+      const token = accessTokenRef.current;
+      if (!token) {
+        // Logged out while we were trying to connect — retry on the
+        // next auth cycle rather than opening an unauthenticated stream.
+        return;
+      }
       try {
         const res = await fetch(`${API_BASE_URL}/notifications/stream`, {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
             Accept: 'text/event-stream',
           },
           signal: ac.signal,
@@ -226,7 +254,10 @@ export function useNotificationStream(options?: Options) {
       setConnected(false);
       streamConnected = false;
     };
-  }, [isAuthenticated, accessToken, queryClient]);
+    // SW-SSE-TOKEN-REF-01: only isAuthenticated and queryClient are
+    // effect dependencies — accessToken is read via ref inside
+    // connect() so a token rotation does not restart the SSE stream.
+  }, [isAuthenticated, queryClient]);
 
   return { connected };
 }

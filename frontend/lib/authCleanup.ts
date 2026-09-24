@@ -120,6 +120,25 @@ export function clearSensitiveLocalData(): void {
   // here puts it in the same session-cleanup path as every other
   // user-scoped local cache.
     clearRecentSearches();
+    // SW-CLEAR-GPS-ON-LOGOUT-01: useLocationResolver persists the last
+    // GPS fix in localStorage under 'location:gps' with a 24-hour TTL,
+    // and nothing cleared it on logout. On a shared device, User A's
+    // location would be shown as User B's default location for up to a
+    // day (24h TTL), or until B pressed the "استخدام موقعي" CTA and
+    // overwrote it. Removed here so the next session starts with no
+    // location until the new user explicitly asks for one.
+    //
+    // Directly manipulating the key rather than importing the hook —
+    // the key is a stable string contract (useLocationResolver exports
+    // STORAGE_KEY? no — the constant is module-private on purpose,
+    // since it's not meant to be read from outside). Using the string
+    // here is intentional and documented; a future change to the key
+    // must update this line as well.
+    try {
+      localStorage.removeItem('location:gps');
+    } catch {
+      // localStorage may throw in private mode / when full
+    }
     // FIX AUTOREAD-CLEAR-ON-LOGOUT-01: auto-read index
     // (localStorage 'marketplat:auto-read-ads') + its Cache Storage
     // bucket ('market-auto-read-ads') hold every visited ad id + title

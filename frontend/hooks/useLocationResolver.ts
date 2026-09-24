@@ -6,7 +6,10 @@ import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { getNativeCoordinates } from '@/lib/capacitor/nativeGeolocation';
 
-const STORAGE_KEY = 'location:gps';
+// SW-CLEAR-GPS-ON-LOGOUT-01: exported so authCleanup and any future
+// consumer can reference the same key without duplicating the string.
+export const LOCATION_STORAGE_KEY = 'location:gps';
+const STORAGE_KEY = LOCATION_STORAGE_KEY;
 const SAVED_GPS_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 // COMPAT-AUDIT fix: useLocationResolver() is called independently from
