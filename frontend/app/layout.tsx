@@ -44,6 +44,11 @@ import { WebVitals }                  from '@/components/shared/WebVitals';
 import { ErudaDebug }                 from '@/components/debug/ErudaDebug';
 import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
+import {
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+  safeJsonLd,
+} from '@/lib/structuredData';
 import '@/app/globals.css';
 
 // ── Fonts ─────────────────────────────────────────────────────────
@@ -192,6 +197,33 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <DeferredFonts />
         {children}
         </AppProviders>
+
+        {/* SW-SEO-JSONLD-SITE-01: Organization + WebSite — the two
+            schema.org entities Google uses to build the site's
+            Knowledge Graph entry and the sitelinks searchbox (a
+            search input directly in the SERP that deep-links into
+            /search?q=). Rendered here, once, so every page inherits
+            them via the root layout.
+
+            Both scripts carry the per-request CSP nonce — without
+            it, proxy.ts's CSP header (script-src 'self') blocks
+            inline scripts and these would silently fail to load.
+            Same nonce the app already uses for next-themes' pre-
+            hydration script below in this file. */}
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(buildOrganizationJsonLd()),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(buildWebSiteJsonLd()),
+          }}
+        />
       </body>
     </html>
   );
