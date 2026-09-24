@@ -123,7 +123,7 @@ export function AdminAdsTable() {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set('q', value); else params.delete('q');
     params.delete('page');
-    router.push(`/admin/ads?${params.toString()}`);
+    router.replace(`/admin/ads?${params.toString()}`);
   }
 
   return (
@@ -148,7 +148,7 @@ export function AdminAdsTable() {
             const params = new URLSearchParams(sp.toString());
             if (value !== 'ALL') params.set('status', value); else params.delete('status');
             params.delete('page');
-            router.push(`/admin/ads?${params.toString()}`);
+            router.replace(`/admin/ads?${params.toString()}`);
           }}
         >
           <SelectTrigger className="w-auto min-w-[10rem]">

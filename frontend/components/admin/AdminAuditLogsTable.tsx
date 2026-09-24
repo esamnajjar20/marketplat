@@ -163,7 +163,7 @@ export function AdminAuditLogsTable() {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set(key, value); else params.delete(key);
     params.delete('page');
-    router.push(`/admin/audit-logs?${params.toString()}`);
+    router.replace(`/admin/audit-logs?${params.toString()}`);
   }
 
   return (

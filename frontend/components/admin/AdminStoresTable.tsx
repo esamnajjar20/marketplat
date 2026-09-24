@@ -152,7 +152,7 @@ export function AdminStoresTable() {
       if (value) params.set(key, value); else params.delete(key);
     }
     params.delete('page');
-    router.push(`/admin/stores?${params.toString()}`);
+    router.replace(`/admin/stores?${params.toString()}`);
   }
 
   return (

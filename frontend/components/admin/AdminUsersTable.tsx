@@ -148,7 +148,10 @@ export function AdminUsersTable() {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set('q', value); else params.delete('q');
     params.delete('page');
-    router.push(`/admin/users?${params.toString()}`);
+    // SW-FIX-ADMIN-NAV-REPLACE: filters/search are refinements of the
+    // same view — using push made Back require N presses to leave the
+    // page after typing N searches. Matches AdminFilterBar's own replace.
+    router.replace(`/admin/users?${params.toString()}`);
   }
 
   function roleChangeCopy(nextRole: AssignableRole) {
@@ -177,6 +180,12 @@ export function AdminUsersTable() {
         };
     }
   }
+
+  // SW-FIX-ROLE-COPY-MEMO: previously roleChangeCopy(roleTarget.nextRole)
+  // was called four separate times in the ConfirmDialog props below,
+  // each producing a fresh object with a fresh closure. Memoize it once
+  // per render.
+  const roleCopy = roleTarget ? roleChangeCopy(roleTarget.nextRole) : null;
 
   return (
     <div className="space-y-4">
@@ -409,10 +418,10 @@ export function AdminUsersTable() {
       <ConfirmDialog
         open={roleTarget !== null}
         onOpenChange={(open) => { if (!open) setRoleTarget(null); }}
-        title={roleTarget ? roleChangeCopy(roleTarget.nextRole).title : ''}
-        description={roleTarget ? roleChangeCopy(roleTarget.nextRole).description(roleTarget.name) : ''}
-        confirmLabel={roleTarget ? roleChangeCopy(roleTarget.nextRole).confirmLabel : 'تأكيد'}
-        destructive={roleTarget ? roleChangeCopy(roleTarget.nextRole).destructive : false}
+        title={roleCopy?.title ?? ''}
+        description={roleCopy ? roleCopy.description(roleTarget!.name) : ''}
+        confirmLabel={roleCopy?.confirmLabel ?? 'تأكيد'}
+        destructive={roleCopy?.destructive ?? false}
         isPending={changeRole.isPending}
         onConfirm={() => {
           if (!roleTarget) return;

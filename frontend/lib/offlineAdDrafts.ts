@@ -351,7 +351,10 @@ export async function saveAdDraft(
       });
       if (match) {
         effectiveId = match.id;
-        console.info('[offline-drafts] dedup: updating existing draft', match.id);
+        // SW-FIX-DEDUP-DEBUG: console.debug instead of console.info — Chrome
+        // hides debug logs by default in production unless the user explicitly
+        // opens the console with verbose level. Kept for support diagnostics.
+        console.debug('[offline-drafts] dedup: updating existing draft', match.id);
       }
     } catch (err) {
       // Never let dedup failure block the save — worst case, a duplicate.
