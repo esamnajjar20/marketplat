@@ -607,7 +607,12 @@ export function ProductForm({ mode, product }: Props) {
               )}
             </SelectContent>
           </Select>
-        
+        </div>
+
+        {/* SW-FIX-PRODFORM-JSX-INDENT: the stockQuantity FormField was
+            nested inside the availability <Select>'s space-y-1.5 wrapper —
+            its closing </div> sat after the FormField, giving the field an
+            unintended extra top margin. */}
         <FormField label="الكمية في المخزون (اختياري)" htmlFor="stockQuantity">
           <Input
             id="stockQuantity"
@@ -622,7 +627,6 @@ export function ProductForm({ mode, product }: Props) {
             0 = غير متوفر، 1–5 = محدود، أكثر = متوفر (يُحدَّث التوفر تلقائيًا عند الحفظ).
           </p>
         </FormField>
-</div>
       </div>
 
       {/* Gap #3 fix: images are now editable after creation too, via the

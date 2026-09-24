@@ -243,6 +243,9 @@ export function AdminAdsTable() {
               </div>
             );
           })}
+          {items.length === 0 && (
+            <EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد إعلانات" />
+          )}
         </div>
 
         <div className="hidden w-full overflow-x-auto rounded-lg border md:block">

@@ -121,6 +121,9 @@ export function AdminServiceListingsTable() {
         </div>
         );
       })}
+      {rows.length === 0 && (
+        <EmptyState icon={<Wrench className="h-8 w-8" />} title="لا توجد خدمات" />
+      )}
       </div>
 
       <div className="hidden overflow-x-auto rounded-lg border md:block">
@@ -218,7 +221,7 @@ export function AdminServiceListingsTable() {
         description={`سيتم إخفاء "${deleteTarget?.title}" من الدليل.`}
         confirmLabel="حذف"
         destructive
-        isPending={setStatus.isPending}
+        isPending={setStatus.isPending && pendingStatusId === deleteTarget?.id}
         requireReason
         onConfirm={() => {}}
         onConfirmWithReason={(reason) => {

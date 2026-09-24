@@ -9,6 +9,8 @@ import { Pagination } from '@/components/shared/ui/Pagination';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { useAdminProducts } from '@/hooks/queries/useAdmin';
 import { useAdminSetProductStatus } from '@/hooks/mutations/useAdminMutations';
@@ -24,7 +26,7 @@ export function AdminProductsTable() {
   const statusParam = sp.get('status') ?? 'ACTIVE';
   const status = ['ACTIVE', 'PAUSED', 'DELETED', 'ALL'].includes(statusParam) ? statusParam : 'ACTIVE';
 
-  const { data, isLoading, isError, refetch } = useAdminProducts({
+  const { data, isLoading, isError, error, refetch } = useAdminProducts({
     page,
     limit: 20,
     q: q || undefined,
@@ -61,15 +63,10 @@ export function AdminProductsTable() {
   }
 
   if (isLoading) return <TableSkeleton rows={8} />;
+  // SW-FIX-PROD-APIERROR: shared ApiError, consistent with ServiceListings
+  // / OpenRequests / every other admin table.
   if (isError) {
-    return (
-      <div className="py-8 text-center">
-        <p className="text-destructive">تعذّر تحميل المنتجات</p>
-        <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => refetch()}>
-          إعادة المحاولة
-        </Button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   return (
@@ -134,6 +131,9 @@ export function AdminProductsTable() {
         </div>
         );
       })}
+      {rows.length === 0 && (
+        <EmptyState icon={<Package className="h-8 w-8" />} title="لا توجد منتجات" />
+      )}
       </div>
 
       <div className="hidden overflow-x-auto rounded-lg border md:block">
@@ -222,7 +222,7 @@ export function AdminProductsTable() {
         description={`سيتم إخفاء "${deleteTarget?.name}" من المتجر.`}
         confirmLabel="حذف"
         destructive
-        isPending={setStatus.isPending}
+        isPending={setStatus.isPending && pendingStatusId === deleteTarget?.id}
         requireReason
         onConfirm={() => {}}
         onConfirmWithReason={(reason) => {

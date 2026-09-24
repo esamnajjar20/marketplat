@@ -128,9 +128,11 @@ export function AdminStoresTable() {
 
   const allSelected = items.length > 0 && items.every((s) => selectedIds.has(s.id));
 
+  // SW-FIX-STORES-SELECT-DEPS: `featureRequested` was missing — toggling
+  // the feature-requests filter left stale selections on screen.
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, q, status]);
+  }, [page, q, status, featureRequested]);
 
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
@@ -252,6 +254,9 @@ export function AdminStoresTable() {
               </div>
             );
           })}
+          {items.length === 0 && (
+            <EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد متاجر" />
+          )}
         </div>
 
         <div className="hidden w-full overflow-x-auto rounded-lg border md:block">

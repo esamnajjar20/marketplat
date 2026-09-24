@@ -189,6 +189,9 @@ export function AdminFraudTable() {
               )}
             </div>
           ))}
+          {items.length === 0 && (
+            <EmptyState icon={<AlertTriangle className="h-8 w-8" />} title="لا توجد إعلانات موسومة حالياً" />
+          )}
         </div>
 
         <div className="hidden w-full overflow-x-auto rounded-lg border md:block">

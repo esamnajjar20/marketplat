@@ -17,11 +17,10 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ShieldOff, ShieldCheck, BadgeCheck, BadgeX, Star, Search } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
-import { Input }         from '@/components/shared/ui/Input';
 import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { Tooltip }       from '@/components/shared/ui/Tooltip';
@@ -41,7 +40,6 @@ import { parseApiError } from '@/lib/errorParser';
 
 export function AdminSellersTable() {
   const sp     = useSearchParams();
-  const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -98,9 +96,11 @@ export function AdminSellersTable() {
 
   const allSelected = items.length > 0 && items.every((s) => selectedIds.has(s.id));
 
+  // SW-FIX-SELLERS-SELECT-DEPS: `verification` was missing — switching
+  // tabs left stale selections whose rows weren't on screen.
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, q]);
+  }, [page, q, verification]);
 
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
@@ -112,13 +112,6 @@ export function AdminSellersTable() {
 
   function toggleAll() {
     setSelectedIds(allSelected ? new Set() : new Set(items.map((s) => s.id)));
-  }
-
-  function search(value: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (value) params.set('q', value); else params.delete('q');
-    params.delete('page');
-    router.push(`/admin/sellers?${params.toString()}`);
   }
 
   return (
@@ -136,14 +129,10 @@ export function AdminSellersTable() {
           { value: 'REJECTED', label: 'مرفوض' },
         ]}
       />
-      {/* FIX BUG-XX: see AdminUsersTable — key={q} forces a remount when
-          `q` changes via browser back/forward, so the uncontrolled
-          defaultValue doesn't go stale relative to the URL/results. */}
-      <Input key={q} placeholder="بحث بالاسم أو البريد…" aria-label="بحث بالاسم أو البريد" defaultValue={q}
-        onBlur={(e) => search(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') search((e.target as HTMLInputElement).value); }}
-        className="max-w-xs" />
-
+      {/* SW-FIX-SELLERS-DUP-SEARCH: a standalone <Input> sat right below
+          AdminFilterBar's own debounced search box, both writing to the
+          same `q` param — visually two search fields, functionally
+          redundant. AdminFilterBar owns search now. */}
       <BulkActionBar selectedCount={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
         <Button variant="outline" size="sm" className="h-7"
           disabled={bulkSetVerified.isPending}
@@ -199,6 +188,9 @@ export function AdminSellersTable() {
               </div>
             </div>
           ))}
+          {items.length === 0 && (
+            <EmptyState icon={<Search className="h-8 w-8" />} title="لا يوجد بائعون" />
+          )}
         </div>
 
         <div className="hidden w-full overflow-x-auto rounded-lg border md:block">
