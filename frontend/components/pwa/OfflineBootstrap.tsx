@@ -20,6 +20,7 @@ import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRouteShells';
+import { warmUserData } from '@/lib/offlineWarmingUserData';
 import { ensurePushSubscriptionSynced } from '@/lib/pwa';
 import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
@@ -42,7 +43,7 @@ function replayThenPublishDrafts(): void {
       window.setTimeout(() => {
         void syncPendingOfflineDrafts({ includeFailed: true }).then((r) => {
           if (r.sent > 0 || r.failed > 0) {
-            console.info('[offline] published drafts from local store:', r);
+            console.warn('[offline] published drafts from local store:', r);
             toastDraftPublishResult(r);
           }
         });
@@ -107,6 +108,10 @@ export function OfflineBootstrap() {
   useEffect(() => {
     if (!isAuthenticated) return;
     void warmPersonalShellsAtomic();
+    // PHASE-5 — user data warming. Gated to 'full' tier inside
+    // warmUserData (2G/3G skip it — the ~55 KB payload would starve
+    // page-shell warming).
+    void warmUserData();
     void (async () => {
       if (await supportsWebPush()) {
         void ensurePushSubscriptionSynced();
@@ -118,6 +123,7 @@ export function OfflineBootstrap() {
 
     const onOnlineAuth = () => {
       void warmPersonalShellsAtomic();
+      void warmUserData();
       void (async () => {
         if (await supportsWebPush()) {
           void ensurePushSubscriptionSynced();

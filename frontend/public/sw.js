@@ -111,6 +111,17 @@ const CACHE_VERSION = 'v37';
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
 const API_CACHE = `market-api-${CACHE_VERSION}`;
+// PHASE-5: user-specific API responses warmed ahead of time by
+// lib/offlineWarmingUserData.ts. Separate from API_CACHE for three
+// reasons:
+//   - API_CACHE only stores responses the user's own request produced,
+//     and only for non-auth requests (T710). The warming pass runs with
+//     credentials and stores responses that ARE auth-scoped — those
+//     must not sit next to public data.
+//   - The login-as-different-user path (T682/T710) clears API_CACHE
+//     but would leave this cache behind if it shared the name.
+//   - Never trimmed by LRU — a fixed ~14 endpoints, ~55 KB.
+const USER_DATA_CACHE = `market-user-data-${CACHE_VERSION}`;
 // FEAT-OFFLINE-MSG (وسِّع لاحقًا ليشمل /notifications، انظر
 // isPersonalShellRoute أدناه): كاش شكل الصفحة (page shell) لمسارات محمية
 // "شخصية لكن بلا محتوى مُخصَّص فعليًا بالـ HTML/RSC" تحديدًا — بقية الصفحات
@@ -1194,6 +1205,15 @@ async function networkFirstApi(event, request, _url) {
     const cachedApi = await cache.match(request);
     if (cachedApi) return cachedApi;
 
+    // PHASE-5: user-warmed data. Ordered after API_CACHE (a response
+    // the user's live session produced is fresher than one from a
+    // warming pass minutes ago) and before CORE_CACHE (which holds
+    // public-only data). The key is the full request URL — matching
+    // exactly what lib/offlineWarmingUserData.ts stored.
+    const userDataCache = await caches.open(USER_DATA_CACHE);
+    const cachedUserData = await userDataCache.match(request);
+    if (cachedUserData) return cachedUserData;
+
     const coreCache = await caches.open(CORE_CACHE);
     const cachedCore = await coreCache.match(request.url);
     if (cachedCore) return cachedCore;
@@ -2172,6 +2192,7 @@ self.addEventListener('activate', (event) => {
     STATIC_CACHE,
     IMAGE_CACHE,
     API_CACHE,
+    USER_DATA_CACHE,
     CORE_CACHE,
     SAVED_ADS_CACHE,
     PERSONAL_SHELL_CACHE,
@@ -2231,7 +2252,17 @@ self.addEventListener('message', (event) => {
     // FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01: PERSONAL_SHELL_CACHE يحمل نفس
     // درجة الحساسية (شكل صفحة محادثة قد يتضمن أسماء/معاينة رسائل، أو شكل
     // صفحة إشعارات) — يُمسح هنا معه لنفس السبب.
-    event.waitUntil(Promise.all([caches.delete(API_CACHE), caches.delete(PERSONAL_SHELL_CACHE)]));
+    // PHASE-5: USER_DATA_CACHE joins API_CACHE and PERSONAL_SHELL_CACHE
+    // on logout. Its 14 endpoints include /users/me, /favorites,
+    // /notifications, /conversations — every one of them is the previous
+    // user's private data. Without this clear, User B on a shared
+    // device would see User A's dashboard, favorites, and inbox offline
+    // until the next warming pass overwrote them.
+    event.waitUntil(Promise.all([
+      caches.delete(API_CACHE),
+      caches.delete(PERSONAL_SHELL_CACHE),
+      caches.delete(USER_DATA_CACHE),
+    ]));
     return;
   }
 

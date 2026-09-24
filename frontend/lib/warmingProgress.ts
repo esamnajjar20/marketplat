@@ -30,7 +30,7 @@ import {
   subscribeRemoteProgress as subscribeRemoteProgressRaw,
 } from './warmingBroadcast';
 
-export type WarmingSource = 'core' | 'routes' | 'personal';
+export type WarmingSource = 'core' | 'routes' | 'personal' | 'userdata';
 
 export interface SourceProgress {
   active: boolean;
@@ -45,7 +45,7 @@ export interface AggregatedProgress {
   bySource: Record<WarmingSource, SourceProgress>;
 }
 
-const SOURCES: WarmingSource[] = ['core', 'routes', 'personal'];
+const SOURCES: WarmingSource[] = ['core', 'routes', 'personal', 'userdata'];
 
 const IDLE: SourceProgress = { active: false, completed: 0, total: 0 };
 
@@ -53,6 +53,7 @@ let state: Record<WarmingSource, SourceProgress> = {
   core: { ...IDLE },
   routes: { ...IDLE },
   personal: { ...IDLE },
+  userdata: { ...IDLE },
 };
 
 const listeners = new Set<(p: AggregatedProgress) => void>();
@@ -77,6 +78,7 @@ function aggregate(): AggregatedProgress {
       core: { ...state.core },
       routes: { ...state.routes },
       personal: { ...state.personal },
+      userdata: { ...state.userdata },
     },
   };
 }

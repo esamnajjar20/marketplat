@@ -55,6 +55,7 @@ export function WarmupIndicator() {
       core: { active: false, completed: 0, total: 0 },
       routes: { active: false, completed: 0, total: 0 },
       personal: { active: false, completed: 0, total: 0 },
+      userdata: { active: false, completed: 0, total: 0 },
     },
   });
   const [dismissed, setDismissed] = useState(false);
@@ -81,7 +82,8 @@ export function WarmupIndicator() {
   const anyActive =
     progress.bySource.core.active ||
     progress.bySource.routes.active ||
-    progress.bySource.personal.active;
+    progress.bySource.personal.active ||
+    progress.bySource.userdata.active;
 
   if (!progress.active || !anyActive || dismissed) return null;
 
@@ -122,6 +124,13 @@ export function WarmupIndicator() {
               label="حسابي"
               completed={progress.bySource.personal.completed}
               total={progress.bySource.personal.total}
+            />
+          )}
+          {progress.bySource.userdata.active && (
+            <WarmingRow
+              label="بياناتي"
+              completed={progress.bySource.userdata.completed}
+              total={progress.bySource.userdata.total}
             />
           )}
         </div>
