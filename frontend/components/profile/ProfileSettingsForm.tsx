@@ -56,17 +56,35 @@ export function ProfileSettingsForm() {
     return errors[field] ?? serverErrors?.[field]?.[0];
   }
 
-  // Sync once the full profile arrives — useAuthStore's AuthUser has no
-  // bio/phone at all, so those two only ever get a real value from
-  // here. Runs once per fetched `me` object (not on every keystroke),
-  // same pattern as NotificationSettingsForm's useEffect.
+  // SW-PROFILE-FORM-SYNC-ONCE-01: sync server values into the form
+  // exactly once, then stop.
+  //
+  // The previous version ran on every change to `me`. React Query's
+  // default refetchOnWindowFocus is true, and staleTime here is 2
+  // minutes (CACHE_TTL.userProfile), so any of these events fired this
+  // effect and wiped whatever the user had typed but not yet saved:
+  //
+  //   - Switching tabs and coming back after >= 2 minutes.
+  //   - Uploading a new avatar (useUploadAvatar's own onSuccess calls
+  //     queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() })
+  //     — a real, common path: pick photo, start typing bio, pick photo
+  //     again → bio lost).
+  //   - Any other mutation anywhere that invalidates the me query.
+  //
+  // The fix is the standard "seed once" flag: read the initial server
+  // state into the form fields the first time `me` resolves, then never
+  // again until the component remounts. Subsequent `me` updates are
+  // ignored by design — this is an edit form, and user input wins over
+  // a background refetch.
+  const [didInitialSync, setDidInitialSync] = useState(false);
   useEffect(() => {
-    if (!me) return;
+    if (!me || didInitialSync) return;
     setName(me.name);
     setCity(me.city ?? '');
     setBio(me.bio ?? '');
     setPhone(me.phone ?? '');
-  }, [me]);
+    setDidInitialSync(true);
+  }, [me, didInitialSync]);
 
   function validate() {
     const e: typeof errors = {};

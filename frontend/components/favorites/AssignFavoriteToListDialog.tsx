@@ -13,6 +13,14 @@ import { useCreateFavoriteList, useMoveFavoriteToList } from '@/hooks/mutations/
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/shared/ui/Dialog';
+import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 
 interface Props {
@@ -96,6 +104,12 @@ export function AssignFavoriteToListDialog({ adId, open, onOpenChange }: Props) 
       { favoriteId, listId },
       {
         onSuccess: () => onOpenChange(false),
+        // SW-ASSIGN-DIALOG-A11Y-01: previously a failed move left the
+        // dialog open with zero feedback — user pressed "الكل" or a
+        // list name, nothing happened, no toast. Now surfaces the
+        // actual error (offline, network, permission) instead of a
+        // silent no-op.
+        onError: (err) => toast.error(parseApiError(err).message),
       }
     );
   }
@@ -113,25 +127,28 @@ export function AssignFavoriteToListDialog({ adId, open, onOpenChange }: Props) 
     });
   }
 
+  // SW-ASSIGN-DIALOG-A11Y-01: replaced the hand-rolled modal markup
+  // with the shared shadcn Dialog (Radix-based). The custom version was
+  // missing Escape-to-close, focus trap, aria-modal, focus-return on
+  // close, and screen-reader announcement — because role="dialog" alone
+  // does not provide any of those; a DOM region announced as a dialog
+  // but without Radix's underlying behaviour is worse than no dialog
+  // role at all for keyboard/AT users. Radix handles every one of them.
+  //
+  // The mobile bottom-sheet styling (items-end, rounded-t-2xl) is
+  // preserved via className on DialogContent; Radix does not care about
+  // where the content box sits on screen.
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/40"
-        aria-label="إغلاق"
-        onClick={() => onOpenChange(false)}
-      />
-      <div
-        role="dialog"
-        aria-labelledby="assign-list-title"
-        className="relative z-10 w-full max-w-md rounded-t-2xl border bg-card p-4 shadow-xl sm:rounded-2xl"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="top-auto bottom-0 start-1/2 max-w-md translate-x-[-50%] translate-y-0 rounded-t-2xl rounded-b-none p-4 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:rounded-2xl"
       >
-        <h2 id="assign-list-title" className="text-base font-semibold">
-          إضافة إلى قائمة؟
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          اختياري — يمكنك التخطي والإبقاء في «الكل»، أو اختيار قائمة الآن.
-        </p>
+        <DialogHeader>
+          <DialogTitle>إضافة إلى قائمة؟</DialogTitle>
+          <DialogDescription>
+            اختياري — يمكنك التخطي والإبقاء في «الكل»، أو اختيار قائمة الآن.
+          </DialogDescription>
+        </DialogHeader>
 
         {isLoading || resolving ? (
           <div className="flex justify-center py-8">
@@ -197,8 +214,8 @@ export function AssignFavoriteToListDialog({ adId, open, onOpenChange }: Props) 
             تخطي
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
