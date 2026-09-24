@@ -35,7 +35,13 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(
           // side — regardless of the surrounding RTL page direction.
           className="absolute inset-y-0 right-0 flex h-full min-w-11 items-center justify-center px-2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
           aria-label={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-          tabIndex={-1}
+          // SW-FIX-PWD-TABINDEX: was tabIndex={-1}, which removed the
+          // toggle from the keyboard tab order entirely — WCAG 2.1.1
+          // (Keyboard) requires every operable control be reachable by
+          // keyboard, and a keyboard-only user has no other way to
+          // reveal/collapse the value they're typing. The extra tab stop
+          // between the field and the next control is the correct
+          // tradeoff for the accessibility it restores.
         >
           {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>

@@ -40,7 +40,15 @@ export function DataSaverToggle({ className }: { className?: string }) {
         <span
           className={cn(
             'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-all',
-            enabled ? 'inset-inline-start-5' : 'inset-inline-start-0.5',
+            // SW-FIX-DATASAVER-KNOB: `inset-inline-start-5` is not a valid
+            // Tailwind 3.x class — the correct logical-property utility is
+            // `start-5` (Tailwind maps `start-*` to inset-inline-start). The
+            // previous strings matched no rule, so the knob sat at its
+            // static-default (same) position in both states — the switch
+            // looked broken: it toggled ARIA/filter behaviour correctly
+            // but never moved visually. Verified against ScrollToTop's own
+            // `start-4` (same utility family, works).
+            enabled ? 'start-5' : 'start-0.5',
           )}
         />
       </span>
