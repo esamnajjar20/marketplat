@@ -400,12 +400,18 @@ export function ProductForm({ mode, product }: Props) {
     }
 
     // Success path — image reconciliation completed without error.
+    // SW-FIX-PRODFORM-SUBMIT-RACE: isSubmittingRef stays true until
+    // update.mutate actually settles, mirroring create mode. Previously
+    // it was cleared immediately after mutate() was fired (mutate is
+    // fire-and-forget), which opened a small race where an Enter keypress
+    // in any field could re-trigger handleSubmit and fire a duplicate
+    // PATCH before the first one's isPending flips the button state.
     setIsSavingImages(false);
     setUploadProgress(null);
     update.mutate(payload, {
       onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+      onSettled: () => { isSubmittingRef.current = false; },
     });
-    isSubmittingRef.current = false;
   }
 
 

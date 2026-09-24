@@ -24,7 +24,9 @@ export function StoreReviewsList({ storeId }: Props) {
   // page number applied to. Namespaced to `reviewsPage`; see
   // StoreProducts' matching `productsPage` fix and Pagination's new
   // pageParam prop.
-  const page = Number(sp.get('reviewsPage') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('reviewsPage') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
   const { data, isLoading, isError, refetch } = useStoreReviews(storeId, { page, limit: 10 });
 

@@ -282,7 +282,11 @@ export function PromotionForm({ open, onOpenChange, initialProductId }: Props) {
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+            {/* SW-FIX-PROMO-CANCEL-RESET: the Dialog wrapper resets on
+                Radix's onOpenChange, but this button called the prop
+                directly — bypassing the reset and leaving stale form
+                values on the next open. */}
+            <Button type="button" variant="outline" onClick={() => { reset(); onOpenChange(false); }}>إلغاء</Button>
             <Button type="submit" disabled={isFormIncomplete || create.isPending}>
               {create.isPending ? 'جارٍ الحفظ…' : 'إنشاء العرض'}
             </Button>

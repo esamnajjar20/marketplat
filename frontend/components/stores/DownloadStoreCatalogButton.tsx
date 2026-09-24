@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { toast } from 'sonner';
 import { productsApi } from '@/api/products.api';
 import { storesApi } from '@/api/stores.api';
 import type { ProductWithStore } from '@/types/product.types';
@@ -453,7 +454,9 @@ export function DownloadStoreCatalogButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      // SW-FIX-CATALOG-REVOKE: Safari iOS can abort the download if
+      // the blob URL is revoked in the same tick as click(); defer.
+      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
       await recordCatalogDownload({
         storeId,
         storeName,
@@ -463,7 +466,9 @@ export function DownloadStoreCatalogButton({
       });
     } catch (err) {
       console.error('Failed to download store catalog', err);
-      alert('تعذّر تحميل الكتالوج. تأكد من الاتصال وحاول مرة أخرى.');
+      // SW-FIX-CATALOG-TOAST: alert() blocks the main thread and is
+      // inconsistent with the rest of the app's toast-based feedback.
+      toast.error('تعذّر تحميل الكتالوج. تأكد من الاتصال وحاول مرة أخرى.');
     } finally {
       setLoading(false);
     }

@@ -65,7 +65,10 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const toggleFollow = useToggleStoreFollow();
   const derivedIsFollowing = useIsFollowingStore(store.id);
   const isFollowing = isFollowingProp ?? derivedIsFollowing;
-  const isOwnStore = currentUser?.id === store.sellerProfile.userId;
+  // SW-FIX-STOREHEADER-SP: sellerProfile is typed non-optional but can
+  // be null for stores whose owner never finished seller onboarding
+  // (see ProductDetail.tsx's BUGFIX note) — every access is guarded.
+  const isOwnStore = currentUser?.id === store.sellerProfile?.userId;
   const shareUrl = `${APP_URL}${ROUTES.storeDetail(store.id)}`;
   const waDigits = store.phone.replace(/\D/g, '');
   const waPhone = waDigits.startsWith('970')
@@ -75,7 +78,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
       : waDigits;
   const avatar = getAvatarUrl(store.logoUrl ?? '', 128);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;
-  const rating = parseFloat(store.sellerProfile.averageRating);
+  const rating = parseFloat(store.sellerProfile?.averageRating ?? '0');
 
   return (
     <div className="mx-auto w-full max-w-lg">
@@ -101,7 +104,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             <div className="relative h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-[3px] border-background bg-card shadow-md sm:h-24 sm:w-24">
               <SafeImage variant="avatar" src={avatar} alt={store.name} fill className="object-cover" sizes="96px" />
             </div>
-            {store.sellerProfile.verified && (
+            {store.sellerProfile?.verified && (
               <div className="absolute -bottom-0.5 -end-0.5 z-10">
                 <VerifiedBadge />
               </div>
@@ -121,7 +124,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
         </h1>
 
-        {store.sellerProfile.totalRatings > 0 && (
+        {store.sellerProfile.totalRatings != null && store.sellerProfile.totalRatings > 0 && (
           <span className="mt-1.5 flex items-center gap-1 text-sm text-muted-foreground">
             <Star className="h-3.5 w-3.5 fill-rating text-rating" />
             {rating.toFixed(1)} ({store.sellerProfile.totalRatings} تقييم)
@@ -217,7 +220,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         {/* UNIFY-PAYMENTS-STORES: read from sellerProfile — store no
             longer has its own paymentMethods column. */}
         <StorePaymentMethods
-          paymentMethods={store.sellerProfile.paymentMethods}
+          paymentMethods={store.sellerProfile?.paymentMethods}
           entityName={store.name}
           storeName={store.name}
           fallbackName={store.name}
@@ -236,7 +239,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         {!isOwnStore && (
           <div className="mt-3 w-full max-w-sm">
             <MessageUserButtonGate
-              targetUserId={store.sellerProfile.userId}
+              targetUserId={store.sellerProfile?.userId ?? ''}
               size="lg"
               variant="outline"
               label="مراسلة المتجر"

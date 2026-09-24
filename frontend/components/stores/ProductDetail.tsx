@@ -6,7 +6,7 @@
  * instead of only a ?product= highlight on the store page.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
   MapPin, Eye, Package, ChevronRight, ChevronLeft, Phone, Store as StoreIcon, X,
@@ -42,6 +42,16 @@ export function ProductDetail({ product, related = [] }: Props) {
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
+
+  // SW-FIX-PD-LIGHTBOX-SCROLL: AdDetail.tsx already locks body scroll
+  // while its lightbox is open; this one didn't, so the page behind
+  // scrolled under the modal on touch.
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [lightboxOpen]);
 
   const images = product.images && product.images.length > 0 ? product.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
@@ -199,7 +209,7 @@ export function ProductDetail({ product, related = [] }: Props) {
         </div>
 
         {/* Sidebar */}
-        <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-1/3">
+        <aside className="hidden w-full shrink-0 space-y-4 lg:block lg:w-1/3">
           <div className="sticky top-20 space-y-4">
             <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
               <PriceBlock product={product} displayPrice={displayPrice} hasDiscount={hasDiscount} />

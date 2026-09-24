@@ -32,7 +32,9 @@ const SORT_OPTIONS: { value: string; label: string; sortBy: ProductSortField; so
 export function StoreProducts({ storeId, storeName, offersOnly = false }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
-  const page = Number(sp.get('productsPage') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('productsPage') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const highlightId = sp.get('product');
   const sortKey = sp.get('sort') ?? 'newest';
   const sortOpt = SORT_OPTIONS.find((o) => o.value === sortKey) ?? SORT_OPTIONS[0]!;
