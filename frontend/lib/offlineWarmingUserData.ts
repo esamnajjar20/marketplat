@@ -119,9 +119,20 @@ export async function warmUserData(): Promise<void> {
   if (!navigator.onLine) return;
 
   const plan = getWarmingPlan();
-  // Full tier only — on 2G/3G the ~55 KB competes with page-shell
-  // warming, which has higher priority.
-  if (plan.tier !== 'full') return;
+  // SW-USERDATA-CORE-TIER-01: expanded gate from 'full' only to 'core'
+  // and above. Confirmed in production testing: on a 1.45 Mbps link
+  // (tier='core'), user-data warming never ran, so the dashboard's
+  // DashboardStats and RecentActivityFeed panels showed red error
+  // states whenever the user was offline — the shell rendered (via
+  // shell warming) but the data inside it did not.
+  //
+  // Cost analysis: 14 endpoints × ~4 KB = ~55 KB per pass. At 1.45
+  // Mbps that is ~0.3 s and ~3.6% on top of a ~1.5 MB shell pass —
+  // small enough that the "competes with shell warming" concern that
+  // motivated the original gate does not apply. Skipped only for
+  // 'none' (off / offline / save-data) and 'critical' (2G, < 0.5
+  // Mbps) where the shell floor genuinely is the whole budget.
+  if (plan.tier === 'none' || plan.tier === 'critical') return;
 
   await runUnderWarmingLock(async () => {
     const cache = await caches.open(USER_DATA_CACHE);
