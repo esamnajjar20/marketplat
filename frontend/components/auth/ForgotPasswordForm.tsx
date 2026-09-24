@@ -8,6 +8,7 @@ import { Button }    from '@/components/shared/ui/Button';
 import { Input }     from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { GoogleIcon } from '@/components/auth/GoogleAuthButton';
+import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES, API_BASE_URL } from '@/lib/constants';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
@@ -97,14 +98,11 @@ export function ForgotPasswordForm() {
           mints a reset token and redirects into /reset-password. Uses
           a plain <a> for the same top-level-navigation reason
           documented on GoogleAuthButton. */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-card px-2 text-muted-foreground">أو</span>
-        </div>
-      </div>
+      {/* SW-FIX-FPF-AUTHDIVIDER: was an inline copy of the same divider
+          markup AuthDivider already owns (see that component's own
+          comment — this is exactly the duplication it was extracted to
+          prevent). */}
+      <AuthDivider />
 
       <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-xl">
         <a href={`${API_BASE_URL}/auth/google?purpose=reset`}>

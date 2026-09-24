@@ -68,7 +68,12 @@ export function CompleteProfileForm() {
     if (didSeedNameRef.current) return;
     if (!user?.name) return;
     didSeedNameRef.current = true;
-    setName(user.name);
+    // SW-FIX-CPF-SEED-NO-OVERWRITE: previously setName(user.name)
+    // unconditionally. The file's own comment assumed refresh resolves
+    // in 100-500ms, but on a 3G Gaza connection it can take 5-10s —
+    // enough for the user to start typing. If they already typed
+    // something, keep it; only fill the field when it's still empty.
+    setName((current) => (current.trim() === '' ? user.name : current));
   }, [user?.name]);
 
   function fieldError(field: keyof Errors): string | undefined {
