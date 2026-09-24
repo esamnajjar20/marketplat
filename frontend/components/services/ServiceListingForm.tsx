@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { FormSteps } from '@/components/shared/forms/FormSteps';
@@ -24,7 +25,7 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
-import { MAX_IMAGES } from '@/lib/constants';
+import { MAX_IMAGES, ROUTES } from '@/lib/constants';;
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
 import { ServiceListingFormPreview } from '@/components/services/ServiceListingFormPreview';
@@ -224,6 +225,32 @@ export function ServiceListingForm({ mode, listing }: Props) {
     values.title.trim().length < 3 ||
     values.description.trim().length < 10 ||
     (priceRequired && (!values.price || parseFloat(values.price) <= 0));
+
+  // SW-SVCFORM-HISTORY-GUARD-01: same fix as AdForm.tsx and
+  // ProductForm.tsx. history.back() with no previous in-app entry
+  // (deep link, bookmark, shared URL) either leaves the app or
+  // produces a blank tab. Also adds the missing discard confirmation.
+  const router = useRouter();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [initialValues] = useState(() => values);
+  const isDirty = JSON.stringify(values) !== JSON.stringify(initialValues);
+
+  function goBackSafely() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      history.back();
+    } else {
+      router.push(ROUTES.myServices);
+    }
+  }
+
+  function handleCancel() {
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      if (mode === 'create') clearDraft();
+      goBackSafely();
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -604,10 +631,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              if (mode === 'create') clearDraft();
-              history.back();
-            }}
+            onClick={handleCancel}
           >
             إلغاء
           </Button>
@@ -633,7 +657,28 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   // FIX DESKTOP-WIDTH-02: see AdForm's matching comment — no longer
   // create-mode only, same reasoning applies here.
+  const cancelDialog = (
+    <ConfirmDialog
+      open={showCancelConfirm}
+      onOpenChange={setShowCancelConfirm}
+      title="تجاهل التغييرات؟"
+      description="لديك تغييرات غير محفوظة في هذا النموذج. إذا تابعت، ستفقد كل ما أدخلته."
+      confirmLabel="تجاهل التغييرات"
+      cancelLabel="متابعة التعديل"
+      destructive
+      onConfirm={() => {
+        // SW-SVCFORM-HISTORY-GUARD-01: explicit discard also drops the
+        // autosaved draft so it does not resurrect on the next visit.
+        if (mode === 'create') clearDraft();
+        goBackSafely();
+      }}
+    />
+  );
+
   return (
-    <CreateFormLayout form={formElement} preview={<ServiceListingFormPreview values={values} />} />
+    <>
+      <CreateFormLayout form={formElement} preview={<ServiceListingFormPreview values={values} />} />
+      {cancelDialog}
+    </>
   );
 }

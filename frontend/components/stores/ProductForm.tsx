@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { FormSteps } from '@/components/shared/forms/FormSteps';
@@ -24,7 +25,7 @@ import {
 } from '@/hooks/mutations/useProductMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
-import { MAX_IMAGES } from '@/lib/constants';
+import { MAX_IMAGES, ROUTES } from '@/lib/constants';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
 import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
@@ -226,6 +227,48 @@ export function ProductForm({ mode, product }: Props) {
     values.name.trim().length < 2 ||
     values.description.trim().length < 10 ||
     !values.price || parseFloat(values.price) <= 0;
+
+  // SW-PRODFORM-HISTORY-GUARD-01: same fix as AdForm.tsx's
+  // SW-HISTORY-GUARD-01. history.back() with no previous in-app entry
+  // (a deep link, bookmark, or shared URL to /my-store/products/new)
+  // either leaves the app or produces a blank tab. Fall back to the
+  // product list. Also adds the missing discard-confirmation: this
+  // form can hold a name, description, multiple prices, wholesale
+  // terms, stock, and images; a single accidental tap on إلغاء used to
+  // discard everything silently.
+  const router = useRouter();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [initialValues] = useState(() => values);
+  const isDirty =
+    values.categoryId !== initialValues.categoryId ||
+    values.name !== initialValues.name ||
+    values.description !== initialValues.description ||
+    values.price !== initialValues.price ||
+    values.discountPrice !== initialValues.discountPrice ||
+    values.wholesalePrice !== initialValues.wholesalePrice ||
+    values.wholesaleMinQty !== initialValues.wholesaleMinQty ||
+    values.stockQuantity !== initialValues.stockQuantity ||
+    values.availability !== initialValues.availability ||
+    values.images.length > 0 ||
+    values.existingImages.length !== initialValues.existingImages.length ||
+    values.existingImages.some((url, i) => url !== initialValues.existingImages[i]);
+
+  function goBackSafely() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      history.back();
+    } else {
+      router.push(ROUTES.myStoreProducts);
+    }
+  }
+
+  function handleCancel() {
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      if (mode === 'create') clearDraft();
+      goBackSafely();
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -605,12 +648,7 @@ export function ProductForm({ mode, product }: Props) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              // PHASE-OFFLINE-DRAFTS: إلغاء صريح بوضع الإنشاء = المستخدم
-              // لا يريد هذه المسودة بعد الآن.
-              if (mode === 'create') clearDraft();
-              history.back();
-            }}
+            onClick={handleCancel}
           >
             إلغاء
           </Button>
@@ -640,5 +678,31 @@ export function ProductForm({ mode, product }: Props) {
   // edit-mode image source, so the same lg+ split view now applies to
   // both modes — a seller editing a product gets the same live preview
   // a seller creating one gets, instead of a bare single column.
-  return <CreateFormLayout form={formElement} preview={<ProductFormPreview values={values} />} />;
+  const cancelDialog = (
+    <ConfirmDialog
+      open={showCancelConfirm}
+      onOpenChange={setShowCancelConfirm}
+      title="تجاهل التغييرات؟"
+      description="لديك تغييرات غير محفوظة في هذا النموذج. إذا تابعت، ستفقد كل ما أدخلته."
+      confirmLabel="تجاهل التغييرات"
+      cancelLabel="متابعة التعديل"
+      destructive
+      onConfirm={() => {
+        // SW-PRODFORM-HISTORY-GUARD-01: an explicit "discard changes"
+        // confirmation is a clear signal to also drop the autosaved
+        // draft — otherwise it would silently resurrect on the next
+        // visit to /my-store/products/new despite the user just
+        // having said no to exactly that content.
+        if (mode === 'create') clearDraft();
+        goBackSafely();
+      }}
+    />
+  );
+
+  return (
+    <>
+      <CreateFormLayout form={formElement} preview={<ProductFormPreview values={values} />} />
+      {cancelDialog}
+    </>
+  );
 }
