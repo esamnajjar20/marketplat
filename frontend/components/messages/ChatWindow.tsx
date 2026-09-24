@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive } from 'lucide-react';
@@ -209,25 +209,35 @@ export function ChatWindow({ conversationId }: Props) {
   // hasNextPage, since that one's now the frontier of what's loaded.
   const hasMoreOlder = Boolean((olderPage === null ? messagesPage : olderPageData)?.meta?.hasNextPage);
 
+  // SW-FIX-CHAT-SCROLL-ANCHOR: the old version measured scrollHeight before
+  // the setOlderPage state change and tried to restore the offset inside a
+  // requestAnimationFrame — but that rAF fired before the network fetch for
+  // the older page had even settled, so scrollHeight was unchanged, the
+  // offset restoration was a no-op, and when the fetch actually arrived
+  // ~300ms later the DOM grew above the user's reading position and threw
+  // them forward. Anchor + useLayoutEffect keyed to olderMessages.length
+  // runs synchronously after the commit that includes the new rows, before
+  // paint, with the correct post-prepend scrollHeight.
+  const pendingScrollAnchorRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
+
   function handleLoadOlder() {
-    if (!scrollRef.current) {
-      setOlderPage((p) => (p ?? 1) + 1);
-      return;
-    }
     const el = scrollRef.current;
-    const prevScrollHeight = el.scrollHeight;
-    const prevScrollTop = el.scrollTop;
+    if (el) {
+      pendingScrollAnchorRef.current = {
+        scrollHeight: el.scrollHeight,
+        scrollTop: el.scrollTop,
+      };
+    }
     setOlderPage((p) => (p ?? 1) + 1);
-    // Runs after the DOM updates with the newly prepended messages —
-    // requestAnimationFrame (not useLayoutEffect keyed to state, which
-    // would fire before the new rows are actually measurable) restores
-    // the same visual scroll offset the user had before older content
-    // was added above it.
-    requestAnimationFrame(() => {
-      const newScrollHeight = el.scrollHeight;
-      el.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
-    });
   }
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const anchor = pendingScrollAnchorRef.current;
+    if (!el || !anchor) return;
+    el.scrollTop = anchor.scrollTop + (el.scrollHeight - anchor.scrollHeight);
+    pendingScrollAnchorRef.current = null;
+  }, [olderMessages.length]);
 
   // FIX CHAT-AUTOSCROLL-CONTEXT-01: only auto-scroll to the newest
   // message when the user is already near the bottom. The previous

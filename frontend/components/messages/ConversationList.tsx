@@ -123,9 +123,12 @@ export function ConversationList({ selectedId }: Props = {}) {
         description="ابدأ من إعلان أو ملف بائع عبر «راسل البائع» — ستظهر محادثاتك هنا."
         action={
           <div className="flex flex-col items-center gap-2 sm:flex-row">
+            {/* SW-FIX-MSG-PREFETCH-MALFORM: `prefetch={false}` was placed
+                after the closing </Link> — as JSX text it rendered the literal
+                string "prefetch=" next to the button. Same malformed pattern
+                fixed in RecentAds. */}
             <Button asChild size="sm">
-              <Link href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
-              prefetch={false}
+              <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href={ROUTES.home}>العودة للرئيسية</Link>
