@@ -55,7 +55,7 @@ import { reportWarmingFailure } from './offlineWarmingReport';
 // public/sw.js's CACHE_VERSION).
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
 // fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
-export const CORE_CACHE = 'market-core-v37'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+export const CORE_CACHE = 'market-core-v38'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // FIX WARM-MARKER-VERSION-01: append the cache version to this key so
 // a CACHE_VERSION bump automatically invalidates the "recently warmed"
 // marker. Without it, after every deploy the SW clears CORE_CACHE on

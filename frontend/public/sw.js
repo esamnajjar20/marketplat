@@ -98,11 +98,11 @@
 // الموثّقة بـdocs/OFFLINE_CACHE_ARCHITECTURE.md صريحة: أي تغيير باستراتيجية
 // fetch يستوجب رفعًا، حتى لو لم يتغيّر شكل أي مُدخل مخزَّن فعليًا.
 // FIX ANALYTICS-QUEUE-RACE-01 + OFFLINE-CORE-ROUTE:
-// v37 — analytics events no longer queue (see isAnalyticsBeacon
+// v38 — analytics events no longer queue (see isAnalyticsBeacon
 // below); '/offline' added to CORE_ROUTES in offlineRouteShells.ts.
 // Both fixes require a cache bump so every active SW clears the
 // stale entries from v35 and the retry/marker files reset.
-const CACHE_VERSION = 'v37';
+const CACHE_VERSION = 'v38';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -878,7 +878,34 @@ async function handleProtectedPage(event, request, url) {
     if (useShellCache) {
       const shellCache = await caches.open(PERSONAL_SHELL_CACHE);
       const cachedShell = await shellCache.match(cacheKey);
-      if (cachedShell) return cachedShell;
+      if (cachedShell) {
+        // SW-CHUNK-VERIFY-PROTECTED-01: the same protection that
+        // networkFirstPage got in SW-CHUNK-VERIFY-01, applied to the
+        // personal-shell path. Without this, a protected page whose
+        // HTML is cached but whose chunks are missing (trimCache
+        // eviction, chunk-hash rotation across a deploy, or a warming
+        // pass that stored HTML and failed partway through its chunks)
+        // was served the HTML anyway. The browser then threw
+        // ChunkLoadError, the page's error.tsx rendered, and the user
+        // saw "لا يتوفر اتصال بالإنترنت" — on /settings/storage and
+        // /settings/sync specifically, even while other pages worked.
+        //
+        // Chunks for personal pages live in STATIC_CACHE (see
+        // warmPersonalRouteAtomic in lib/offlineRouteShells.ts) — pass
+        // that, not shellCache, to the verifier.
+        if (!isRscShellRequest(request)) {
+          const staticCache = await caches.open(STATIC_CACHE);
+          const safe = await verifyCachedChunks(cachedShell, staticCache);
+          if (!safe) {
+            if (request.mode === 'navigate') {
+              const offlineFallback = await staticCache.match(OFFLINE_URL);
+              return offlineFallback || Response.error();
+            }
+            return Response.error();
+          }
+        }
+        return cachedShell;
+      }
     }
     // FIX SW-NO-FORCE-OFFLINE-RSC-01: فشل soft-nav لصفحة محمية بدون shell
     // مخزَّن → لا نُجبر /offline (يبقى المستخدم على الصفحة الحالية).
@@ -991,7 +1018,7 @@ async function cacheFirstImage(event, request, url) {
 // SW-SMART-CACHE-REFINE-01: tier values, sorted highest to lowest.
 //   200  saved         market-saved-ads (user-explicit; never trimmed)
 //   100  critical      /offline, / (existence of the app itself)
-//    80  storage-sync  /settings/storage, /settings/sync
+//    55  storage-sync  /settings/storage, /settings/sync
 //    60  core-html     /products /search /ads /services /stores HTML
 //    45  static-chunk  _next/static/* (shared across routes; reusable)
 //    20  personal      market-personal-shell-* (other pages)

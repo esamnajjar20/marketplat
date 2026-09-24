@@ -79,7 +79,7 @@ const STAGING_CACHE = 'market-warming-staging';
 // the only shared resource is chunk URLs, handled by the in-flight dedup
 // map below.
 const PERSONAL_LOCK_NAME = 'marketplat-warming-personal';
-const STATIC_CACHE = 'market-static-v37'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v38'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -244,7 +244,7 @@ export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
 // __tests__/unit/lib/cacheVersionSync.test.ts.
 // FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب أعلاه.
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v37';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v38';
 
 /**
  * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —
