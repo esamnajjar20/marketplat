@@ -1042,9 +1042,18 @@ export function QrScannerCamera({
             <input
               type="file"
               accept="image/*"
-
               className="hidden"
-              onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                // SW-QR-FILE-INPUT-RESET-01: reset input.value so the user
+                // can pick the SAME file again after cancelling the crop
+                // UI. Browsers only fire `change` when the value actually
+                // changes — without this reset, re-selecting the same
+                // photo is a silent no-op and looks like the button is
+                // broken. Mirrors MessageInput.tsx's onPickImage.
+                const file = e.target.files?.[0] ?? null;
+                e.target.value = '';
+                void onFile(file);
+              }}
             />
           </label>
         </div>
