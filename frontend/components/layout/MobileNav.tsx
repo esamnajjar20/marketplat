@@ -291,11 +291,18 @@ export function MobileNav() {
     };
   }, [isMobileNavOpen]);
 
-  // Move focus into drawer when opened; restore to toggle when closed
+  // SW-FIX-MN-FOCUS-MOUNT: mirrors ProtectedMobileNav's fix (#52) —
+  // the previous version unconditionally focused the toggle on first
+  // mount with the drawer closed, yanking keyboard focus to the
+  // hamburger just from landing on the page. Only restore focus after
+  // the drawer has actually been open once.
+  const wasOpenRef = useRef(false);
   useEffect(() => {
     if (isMobileNavOpen) {
+      wasOpenRef.current = true;
       closeButtonRef.current?.focus();
-    } else {
+    } else if (wasOpenRef.current) {
+      wasOpenRef.current = false;
       (document.getElementById(TOGGLE_ID) as HTMLButtonElement | null)?.focus();
     }
   }, [isMobileNavOpen]);
