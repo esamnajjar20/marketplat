@@ -26,6 +26,7 @@ import {
   Wifi, WifiOff, DownloadCloud, Trash2, Info, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import {
   getWarmingMode,
@@ -79,6 +80,8 @@ export function OfflineControlClient() {
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
+  // SW-FIX-OCC-CONFIRM: replace window.confirm with shared ConfirmDialog.
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const readSnapshotLive = useCallback(async () => {
     try {
@@ -180,10 +183,11 @@ export function OfflineControlClient() {
     }
   }
 
-  async function handleClearWarming() {
-    if (!window.confirm('سيُمسح كل التسخين التلقائي (الصفحات المحضّرة مسبقاً). لن تُمس التنزيلات اليدوية ولا الإعلانات المحفوظة. متابعة؟')) {
-      return;
-    }
+  function handleClearWarming() {
+    setConfirmClearOpen(true);
+  }
+
+  async function performClearWarming() {
     setBusy('clear');
     try {
       const names = await caches.keys();
@@ -363,6 +367,19 @@ export function OfflineControlClient() {
           (5s) so a single retry doesn't wait for the parent's 10s tick. */}
       <OfflineRoutesList />
 
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onOpenChange={setConfirmClearOpen}
+        title="مسح التسخين التلقائي؟"
+        description="سيُمسح كل التسخين التلقائي (الصفحات المحضّرة مسبقاً). لن تُمس التنزيلات اليدوية ولا الإعلانات المحفوظة."
+        confirmLabel="مسح"
+        destructive
+        isPending={busy === 'clear'}
+        onConfirm={() => {
+          setConfirmClearOpen(false);
+          void performClearWarming();
+        }}
+      />
     </div>
   );
 }

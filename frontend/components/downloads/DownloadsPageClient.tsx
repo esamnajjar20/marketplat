@@ -6,6 +6,7 @@ import { Download, Trash2, Store, FileText, WifiOff, Eye, Search } from 'lucide-
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import {
   listCatalogDownloads,
   removeCatalogDownload,
@@ -32,6 +33,8 @@ export function DownloadsPageClient() {
   const [items, setItems] = useState<CatalogDownloadRecord[]>([]);
   const [online, setOnline] = useState(true);
   const [query, setQuery] = useState('');
+  // SW-FIX-DLPC-CONFIRM: replace window.confirm with shared ConfirmDialog.
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const refresh = useCallback(() => {
     setItems(listCatalogDownloads());
@@ -92,12 +95,7 @@ export function DownloadsPageClient() {
           variant="ghost"
           size="sm"
           className="text-destructive"
-          onClick={() => {
-            if (confirm('مسح كل سجل التنزيلات والملفات المحلية؟')) {
-              clearCatalogDownloads();
-              refresh();
-            }
-          }}
+          onClick={() => setConfirmClearOpen(true)}
         >
           مسح السجل
         </Button>
@@ -175,6 +173,20 @@ export function DownloadsPageClient() {
           </li>
         ))}
       </ul>
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onOpenChange={setConfirmClearOpen}
+        title="مسح كل سجل التنزيلات؟"
+        description="سيتم حذف كل الكتالوجات المحفوظة على هذا الجهاز. لا يمكن التراجع."
+        confirmLabel="مسح الكل"
+        destructive
+        onConfirm={() => {
+          clearCatalogDownloads();
+          refresh();
+          setConfirmClearOpen(false);
+        }}
+      />
     </div>
   );
 }

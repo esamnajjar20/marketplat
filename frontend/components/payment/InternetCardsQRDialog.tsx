@@ -11,6 +11,7 @@ import {
 } from '@/components/shared/ui/Dialog';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { CopyField } from '@/components/payment/CopyField';
 import { QrScannerCamera } from '@/components/payment/QrScannerCamera';
 import type { CardParseResult } from '@/lib/smartScanParse';
@@ -47,6 +48,8 @@ export function InternetCardsQRDialog({
   const [rawScan, setRawScan] = useState('');
   const [scanUnverified, setScanUnverified] = useState(false);
   const [scanFieldDiff, setScanFieldDiff] = useState<string | null>(null);
+  // SW-FIX-ICQR-CONFIRM: replace window.confirm with shared ConfirmDialog.
+  const [confirmDeleteCard, setConfirmDeleteCard] = useState<SavedNetCard | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -251,22 +254,7 @@ export function InternetCardsQRDialog({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive"
-                      onClick={() => {
-                        // SW-NETCARD-DELETE-CONFIRM-01: removeNetCard has
-                        // no undo and used to fire on a single tap. On a
-                        // phone that is one accidental touch away from
-                        // losing a saved card the user may not have any
-                        // other record of (the username/password is the
-                        // whole point of having saved it). ConfirmDialog
-                        // is heavier than needed here; a native confirm
-                        // matches the low-stakes-but-irreversible nature
-                        // of the action.
-                        const name = c.label || c.username;
-                        // eslint-disable-next-line no-alert
-                        if (!window.confirm(`حذف بطاقة «${name}»؟ لا يمكن التراجع.`)) return;
-                        removeNetCard(c.id);
-                        setSaved(listSavedNetCards());
-                      }}
+                      onClick={() => setConfirmDeleteCard(c)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -277,6 +265,21 @@ export function InternetCardsQRDialog({
             </div>
           )}
         </div>
+
+        <ConfirmDialog
+          open={confirmDeleteCard !== null}
+          onOpenChange={(o) => { if (!o) setConfirmDeleteCard(null); }}
+          title={`حذف بطاقة «${confirmDeleteCard?.label || confirmDeleteCard?.username || ''}»؟`}
+          description="لا يمكن التراجع عن هذا الإجراء. احتفظ بالبيانات في مكان آمن قبل الحذف."
+          confirmLabel="حذف"
+          destructive
+          onConfirm={() => {
+            if (!confirmDeleteCard) return;
+            removeNetCard(confirmDeleteCard.id);
+            setSaved(listSavedNetCards());
+            setConfirmDeleteCard(null);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

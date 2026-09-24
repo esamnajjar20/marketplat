@@ -22,6 +22,7 @@ import {
   Clock, MinusCircle, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import {
   getKnownRoutes,
@@ -74,6 +75,10 @@ export function OfflineRoutesList() {
   const [filter, setFilter] = useState<Filter>('all');
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+  // SW-FIX-ORL-CONFIRM: replace both window.confirm calls with shared
+  // ConfirmDialog. Two targets — single-row delete and bulk clear-public.
+  const [confirmDelete, setConfirmDelete] = useState<Row | null>(null);
+  const [confirmBulkClear, setConfirmBulkClear] = useState(false);
 
   const refresh = useCallback(async () => {
     const snap = await readSnapshot();
@@ -146,12 +151,18 @@ export function OfflineRoutesList() {
     });
   }
 
-  async function deleteOne(row: Row) {
+  function deleteOne(row: Row) {
     if (!row.personal && PROTECTED_FROM_DELETE.has(row.route)) {
       toast.error('لا يمكن حذف هذا المسار — أساسي للتطبيق');
       return;
     }
-    if (!window.confirm('حذف النسخة المخزَّنة من ' + row.route + '؟')) return;
+    setConfirmDelete(row);
+  }
+
+  async function performDelete() {
+    if (!confirmDelete) return;
+    const row = confirmDelete;
+    setConfirmDelete(null);
     const key = (row.personal ? 'p:' : '') + row.route;
     await withBusy(key, async () => {
       const removed = await clearSingleRouteCache(row.route, row.personal);
@@ -182,7 +193,14 @@ export function OfflineRoutesList() {
       toast.info('لا يوجد مسارات عامة مكتملة قابلة للحذف');
       return;
     }
-    if (!window.confirm('حذف التسخين لـ ' + targets.length + ' صفحة عامة؟ لن تتأثر صفحاتك الشخصية.')) return;
+    setConfirmBulkClear(true);
+  }
+
+  async function performBulkClear() {
+    setConfirmBulkClear(false);
+    const targets = rows.filter(
+      (r) => !r.personal && r.status === 'complete' && !PROTECTED_FROM_DELETE.has(r.route),
+    );
     setBulkBusy('clear-public');
     try {
       let total = 0;
@@ -329,6 +347,27 @@ export function OfflineRoutesList() {
           </ul>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        onOpenChange={(o) => { if (!o) setConfirmDelete(null); }}
+        title={`حذف النسخة المخزَّنة من ${confirmDelete?.route ?? ''}؟`}
+        description="سيتم حذف الملفات المُسخَّنة لهذا المسار. يُعاد تسخينها تلقائياً لاحقاً حسب الإعدادات."
+        confirmLabel="حذف"
+        destructive
+        onConfirm={() => void performDelete()}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkClear}
+        onOpenChange={setConfirmBulkClear}
+        title="حذف التسخين للصفحات العامة المكتملة؟"
+        description="لن تتأثر صفحاتك الشخصية ولا التنزيلات اليدوية."
+        confirmLabel="حذف"
+        destructive
+        isPending={bulkBusy === 'clear-public'}
+        onConfirm={() => void performBulkClear()}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import {
   Dialog,
   DialogContent,
@@ -86,6 +87,11 @@ export function SavedPaymentsPageClient() {
   const [ussdPayee, setUssdPayee] = useState<SavedPayee | null>(null);
   const [ussdAmount, setUssdAmount] = useState('');
   const [ussdRecipient, setUssdRecipient] = useState<'friend' | 'merchant'>('friend');
+  // SW-FIX-SPPC-CONFIRM: replaces two unconfirmed single-tap deletions.
+  // Both removePayee and removeNetCard are irreversible and can lose a
+  // number the user may not have any other record of.
+  const [confirmDeletePayee, setConfirmDeletePayee] = useState<SavedPayee | null>(null);
+  const [confirmDeleteCard, setConfirmDeleteCard] = useState<SavedNetCard | null>(null);
 
   const [pName, setPName] = useState('');
   const [pNumber, setPNumber] = useState('');
@@ -331,11 +337,7 @@ export function SavedPaymentsPageClient() {
                         size="icon"
                         className="h-9 w-9 text-destructive"
                         aria-label="حذف"
-                        onClick={() => {
-                          removePayee(p.id);
-                          toast.success('تم الحذف');
-                          refresh();
-                        }}
+                        onClick={() => setConfirmDeletePayee(p)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -410,11 +412,7 @@ export function SavedPaymentsPageClient() {
                         size="icon"
                         className="h-9 w-9 text-destructive"
                         aria-label="حذف"
-                        onClick={() => {
-                          removeNetCard(c.id);
-                          toast.success('تم الحذف');
-                          refresh();
-                        }}
+                        onClick={() => setConfirmDeleteCard(c)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -571,6 +569,38 @@ export function SavedPaymentsPageClient() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDeletePayee !== null}
+        onOpenChange={(o) => { if (!o) setConfirmDeletePayee(null); }}
+        title={`حذف جهة «${confirmDeletePayee?.name ?? ''}»؟`}
+        description="لا يمكن التراجع. الرقم سيُحذف من هذا الجهاز."
+        confirmLabel="حذف"
+        destructive
+        onConfirm={() => {
+          if (!confirmDeletePayee) return;
+          removePayee(confirmDeletePayee.id);
+          toast.success('تم الحذف');
+          setConfirmDeletePayee(null);
+          refresh();
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteCard !== null}
+        onOpenChange={(o) => { if (!o) setConfirmDeleteCard(null); }}
+        title={`حذف بطاقة «${confirmDeleteCard?.label || confirmDeleteCard?.username || ''}»؟`}
+        description="لا يمكن التراجع. اسم المستخدم وكلمة السر سيُحذفان من هذا الجهاز."
+        confirmLabel="حذف"
+        destructive
+        onConfirm={() => {
+          if (!confirmDeleteCard) return;
+          removeNetCard(confirmDeleteCard.id);
+          toast.success('تم الحذف');
+          setConfirmDeleteCard(null);
+          refresh();
+        }}
+      />
     </div>
   );
 }

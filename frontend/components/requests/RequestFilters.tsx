@@ -43,7 +43,10 @@ export function RequestFilters({ type, city, q, className }: Props) {
 
   function onSearch(e: FormEvent) {
     e.preventDefault();
-    router.push(buildRequestsHref({ type, city, q: searchInput.trim() || undefined, page: 1 }));
+    // SW-FIX-REQ-FILTER-REPLACE: refinement within the same view — same
+    // reasoning as the admin tables' FIX-NAV-REPLACE fixes. Push here
+    // made Back require N presses after N searches.
+    router.replace(buildRequestsHref({ type, city, q: searchInput.trim() || undefined, page: 1 }));
   }
 
   return (
@@ -113,7 +116,7 @@ export function RequestFilters({ type, city, q, className }: Props) {
           value={city ?? ''}
           onChange={(e) => {
             const next = e.target.value || undefined;
-            router.push(buildRequestsHref({ type, city: next, q, page: 1 }));
+            router.replace(buildRequestsHref({ type, city: next, q, page: 1 }));
           }}
         >
           <option value="">كل المدن</option>

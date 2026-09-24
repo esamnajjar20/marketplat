@@ -139,6 +139,10 @@ export function CreateRequestForm() {
         city: city.trim() || undefined,
         budgetMin: budgetMin ? Number(budgetMin) : undefined,
         budgetMax: budgetMax ? Number(budgetMax) : undefined,
+        // SW-FIX-REQ-EXPIRES: the "مدة الإعلان" select above was tracked
+        // in local state but never forwarded — every request went out
+        // with the backend default regardless of what the user picked.
+        expiresInDays: Number(expiresInDays) || 7,
         files: files.length > 0 ? files : undefined,
       },
       {

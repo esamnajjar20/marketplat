@@ -48,7 +48,9 @@ export function SellerRatingsList({ sellerProfileId, baseUrl }: Props) {
   // app/(public)/sellers/[id]/page.tsx), so sharing one param would
   // repeat BUG-09's exact bug (see StoreReviewsList's own comment on
   // that fix) where paging one list silently moved the other too.
-  const page = Number(sp.get('adRatingsPage') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('adRatingsPage') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
   const { data, isLoading, isError, refetch } = useSellerRatings(sellerProfileId, { page, limit: 10 });
 
