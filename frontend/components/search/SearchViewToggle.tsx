@@ -21,9 +21,14 @@ export function SearchViewToggle({ value, onChange, className }: Props) {
       role="group"
       aria-label="طريقة العرض"
     >
+      {/* SW-VIEWTOGGLE-ARIA-01: aria-pressed was missing on both
+          buttons. Inside role="group" they are toggle buttons; without
+          aria-pressed a screen reader hears "قائمة, button" with no
+          way to know which mode is active. */}
       <button
         type="button"
         onClick={() => onChange('list')}
+        aria-pressed={value === 'list'}
         className={cn(
           'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors',
           value === 'list'
@@ -31,12 +36,13 @@ export function SearchViewToggle({ value, onChange, className }: Props) {
             : 'text-muted-foreground hover:text-foreground'
         )}
       >
-        <List className="h-3.5 w-3.5" />
+        <List className="h-3.5 w-3.5" aria-hidden />
         قائمة
       </button>
       <button
         type="button"
         onClick={() => onChange('map')}
+        aria-pressed={value === 'map'}
         className={cn(
           'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors',
           value === 'map'
@@ -44,7 +50,7 @@ export function SearchViewToggle({ value, onChange, className }: Props) {
             : 'text-muted-foreground hover:text-foreground'
         )}
       >
-        <MapIcon className="h-3.5 w-3.5" />
+        <MapIcon className="h-3.5 w-3.5" aria-hidden />
         خريطة
       </button>
     </div>

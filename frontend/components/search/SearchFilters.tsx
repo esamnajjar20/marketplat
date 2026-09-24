@@ -11,6 +11,7 @@ import { CITIES, ROUTES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
 import { cn } from '@/lib/utils';
 import type { SearchType } from '@/types/search.types';
 
@@ -36,7 +37,13 @@ export function SearchFilters() {
     if (value) params.set(key, value);
     else params.delete(key);
     params.delete('page');
-    router.push(`${ROUTES.search}?${params.toString()}`);
+    // SW-FILTERS-REPLACE-01: replace, not push. Filter changes are
+    // refinements of the current search, not separate destinations —
+    // pushing bloated the back stack with one entry per keystroke on
+    // a Select, so the browser's back button had to be tapped N times
+    // to leave the search page. Also matches how SearchNearbyToggle
+    // and SearchTabsWrapper behave for the same class of navigation.
+    router.replace(`${ROUTES.search}?${params.toString()}`);
   }
 
   const showCategoryFilter = type === 'ads' || type === 'products' || type === 'services';
@@ -72,6 +79,18 @@ export function SearchFilters() {
       </div>
 
       {/* —— Advanced (category) —— */}
+      {/* SW-NEARBY-WIRE-01: SearchNearbyToggle existed (95 lines) with
+          its own test but was never imported anywhere in app/ or
+          components/. The geolocation trigger rendered nothing, so no
+          user could ever activate the lat/lng/radius URL contract that
+          SearchResults already reads. Wired in here so it appears both
+          in the desktop <aside> and inside SearchFiltersSheet on
+          mobile — the two places this SearchFilters tree already
+          renders — with no extra plumbing. */}
+      <div className="border-t pt-3">
+        <SearchNearbyToggle />
+      </div>
+
       {showCategoryFilter && (
         <div className="border-t pt-3">
           <button
