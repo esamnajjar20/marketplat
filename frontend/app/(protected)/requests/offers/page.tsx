@@ -84,7 +84,15 @@ export default function MyRequestOffersPage() {
                     size="sm"
                     variant="outline"
                     disabled={withdraw.isPending}
-                    onClick={() => withdraw.mutate({ id: o.requestId, offerId: o.id })}
+                    onClick={() => {
+                      // SW-FIX-WITHDRAW-CONFIRM: same guard as requests/[id]’s
+                      // cancel — withdrawing an offer is irreversible and was
+                      // the only destructive action in this app firing on a
+                      // single tap without confirmation.
+                      if (window.confirm('سحب هذا العرض؟ لن يستطيع العميل رؤيته بعد الآن.')) {
+                        withdraw.mutate({ id: o.requestId, offerId: o.id });
+                      }
+                    }}
                   >
                     سحب
                   </Button>
