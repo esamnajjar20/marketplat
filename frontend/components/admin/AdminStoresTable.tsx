@@ -251,6 +251,64 @@ export function AdminStoresTable() {
                     </div>
                   </div>
                 </div>
+                {/* SW-FIX-MOBILE-STORES-ACTIONS: mobile parity with the
+                    desktop table — same approve/block/feature actions,
+                    same pendingId gating, same blockTarget ConfirmDialog.
+                    An admin on a phone could only view the row before. */}
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-1 border-t border-border/60 pt-2">
+                  {store.status !== 'ACTIVE' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 text-xs"
+                      aria-label={`الموافقة على متجر ${store.name}`}
+                      disabled={pendingId === store.id}
+                      onClick={() => updateStatus.mutate({ storeId: store.id, status: 'ACTIVE' })}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                      الموافقة
+                    </Button>
+                  )}
+                  {store.status === 'BLOCKED' ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 text-xs"
+                      aria-label={`رفع الحظر عن متجر ${store.name}`}
+                      disabled={pendingId === store.id}
+                      onClick={() => updateStatus.mutate({ storeId: store.id, status: 'PENDING' })}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-success" />
+                      رفع الحظر
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 text-xs text-destructive hover:text-destructive"
+                      aria-label={`حظر متجر ${store.name}`}
+                      disabled={pendingId === store.id}
+                      onClick={() => setBlockTarget({ id: store.id, name: store.name })}
+                    >
+                      <Ban className="h-3.5 w-3.5" />
+                      حظر
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    aria-label={store.plan === 'FEATURED' ? `إلغاء تمييز متجر ${store.name}` : `تمييز متجر ${store.name}`}
+                    disabled={pendingId === store.id}
+                    onClick={() => updatePlan.mutate({
+                      storeId: store.id,
+                      plan: store.plan === 'FEATURED' ? 'FREE' : 'FEATURED',
+                    })}
+                  >
+                    <Star className={`h-3.5 w-3.5 ${store.plan === 'FEATURED' ? 'fill-warning text-warning' : 'text-muted-foreground'}`} />
+                    {store.plan === 'FEATURED' ? 'إلغاء التمييز' : 'تمييز'}
+                  </Button>
+                </div>
               </div>
             );
           })}

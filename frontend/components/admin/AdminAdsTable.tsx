@@ -234,8 +234,47 @@ export function AdminAdsTable() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-2 flex flex-wrap justify-end gap-1 border-t border-border/60 pt-2">
-                  {/* actions reused via existing row menu if complex — link to ad */}
+                {/* SW-FIX-MOBILE-ADS-ACTIONS: mobile parity with the
+                    desktop table — the same feature/pin/delete actions,
+                    same pendingToggle gating, same deleteTargetId dialog.
+                    Only "عرض" was here before, so an admin on a phone
+                    couldn't act on the queue at all. */}
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-1 border-t border-border/60 pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    aria-label={ad.isFeatured ? `إلغاء تمييز ${ad.title}` : `تمييز ${ad.title}`}
+                    disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'featured'}
+                    onClick={() => toggleFeatured(ad.id, !ad.isFeatured)}
+                  >
+                    <Star className={`h-3.5 w-3.5 ${ad.isFeatured ? 'fill-warning text-warning' : ''}`} />
+                    {ad.isFeatured ? 'إلغاء تمييز' : 'تمييز'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    aria-label={ad.isPinned ? `إلغاء تثبيت ${ad.title}` : `تثبيت ${ad.title}`}
+                    disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'pinned'}
+                    onClick={() => togglePinned(ad.id, !ad.isPinned)}
+                  >
+                    <Pin className={`h-3.5 w-3.5 ${ad.isPinned ? 'text-primary' : ''}`} />
+                    {ad.isPinned ? 'إلغاء تثبيت' : 'تثبيت'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 text-xs text-destructive hover:text-destructive"
+                    aria-label={`حذف ${ad.title}`}
+                    onClick={() => setDeleteTargetId(ad.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    حذف
+                  </Button>
                   <Button asChild variant="outline" size="sm" className="h-8 text-xs">
                     <Link prefetch={false} href={ROUTES.adDetail(ad.id)}>عرض</Link>
                   </Button>

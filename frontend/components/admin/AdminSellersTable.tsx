@@ -186,6 +186,45 @@ export function AdminSellersTable() {
                   </div>
                 </div>
               </div>
+              {/* SW-FIX-MOBILE-SELLERS-ACTIONS: mobile parity with the
+                  desktop table — same verify/suspend actions, same
+                  pendingVerifyId/pendingSuspendId gating, same
+                  suspendTarget ConfirmDialog. An admin on a phone could
+                  only view the row before this. */}
+              <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1 text-xs"
+                  aria-label={seller.verified ? `إلغاء توثيق ${seller.displayName}` : `توثيق ${seller.displayName}`}
+                  disabled={pendingVerifyId === seller.id}
+                  onClick={() => setVerified.mutate({ sellerProfileId: seller.id, verified: !seller.verified })}
+                >
+                  {seller.verified
+                    ? <BadgeX className="h-3.5 w-3.5 text-muted-foreground" />
+                    : <BadgeCheck className="h-3.5 w-3.5 text-success" />}
+                  {seller.verified ? 'إلغاء التوثيق' : 'توثيق'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={seller.suspended ? 'h-8 gap-1 text-xs' : 'h-8 gap-1 text-xs text-destructive hover:text-destructive'}
+                  aria-label={seller.suspended ? `رفع الإيقاف عن ${seller.displayName}` : `إيقاف ${seller.displayName}`}
+                  disabled={pendingSuspendId === seller.id}
+                  onClick={() => {
+                    if (seller.suspended) {
+                      setSuspended.mutate({ sellerProfileId: seller.id, suspended: false });
+                    } else {
+                      setSuspendTarget({ id: seller.id, name: seller.displayName });
+                    }
+                  }}
+                >
+                  {seller.suspended
+                    ? <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                    : <ShieldOff className="h-3.5 w-3.5" />}
+                  {seller.suspended ? 'رفع الإيقاف' : 'إيقاف'}
+                </Button>
+              </div>
             </div>
           ))}
           {items.length === 0 && (

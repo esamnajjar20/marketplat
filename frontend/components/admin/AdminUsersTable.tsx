@@ -229,6 +229,13 @@ export function AdminUsersTable() {
             const badge = ROLE_BADGE[userRole];
             const isTargetSuperAdmin = userRole === 'SUPER_ADMIN';
             const canManageStatus = !isTargetSuperAdmin && canManageRole(actorRole, userRole, userRole);
+            // SW-FIX-MOBILE-USERS-ACTIONS: mobile parity with the desktop
+            // table's action column — same canManageRole gates, same
+            // mutations, same confirm dialogs (roleTarget/changeUserStatus
+            // are declared at the component level, so this reuses them).
+            const canManageAnyRole = !isTargetSuperAdmin && ASSIGNABLE_ROLES.some(
+              (r) => r !== userRole && canManageRole(actorRole, userRole, r),
+            );
             return (
               <div key={user.id} className="rounded-xl border border-border bg-card p-3 shadow-xs">
                 <div className="flex items-start gap-3">
@@ -255,6 +262,73 @@ export function AdminUsersTable() {
                     </div>
                   </div>
                 </div>
+                {(canManageStatus || canManageAnyRole) && (
+                  <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
+                    {canManageStatus && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-1.5 text-xs"
+                        aria-label={user.isActive ? `إيقاف ${user.name}` : `تفعيل ${user.name}`}
+                        disabled={pendingStatusUserId === user.id}
+                        onClick={() => changeUserStatus.mutate({ userId: user.id, isActive: !user.isActive })}
+                      >
+                        {user.isActive ? (
+                          <>
+                            <ShieldOff className="h-3.5 w-3.5 text-destructive" />
+                            إيقاف
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                            تفعيل
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {canManageAnyRole && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1 text-xs"
+                            aria-label={`تغيير دور ${user.name}`}
+                            disabled={pendingRoleUserId === user.id}
+                          >
+                            تغيير الدور
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuLabel className="text-xs text-muted-foreground">تعيين كـ</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {ASSIGNABLE_ROLES.map((candidateRole) => {
+                            const Icon = ROLE_ICON[candidateRole];
+                            const isCurrent = candidateRole === userRole;
+                            const allowed = !isCurrent && canManageRole(actorRole, userRole, candidateRole);
+                            return (
+                              <DropdownMenuItem
+                                key={candidateRole}
+                                disabled={isCurrent || !allowed}
+                                onSelect={() => setRoleTarget({
+                                  id: user.id,
+                                  currentRole: userRole,
+                                  nextRole: candidateRole,
+                                  name: user.name,
+                                })}
+                              >
+                                <Icon className="h-3.5 w-3.5 me-2" />
+                                {ROLE_BADGE[candidateRole].label}
+                                {isCurrent && <span className="text-xs text-muted-foreground ms-auto">(الحالي)</span>}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
