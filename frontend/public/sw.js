@@ -987,6 +987,33 @@ async function cacheFirstImage(event, request, url) {
 //    15  api           market-api-* (small, server has TTL)
 //     8  lazy          any other cached HTML route
 //     3  image         market-images-* (large, refetchable)
+// SW-TTL-TIERED-01: age penalty weighted per tier. Entries whose value
+// decays with time (API responses) accumulate age penalty faster than
+// entries whose value is largely stable (critical shells, saved ads).
+//
+// This is NOT a TTL. Nothing is force-deleted on age alone — the
+// entry and byte caps remain the only triggers for a trim run. But
+// when trimming does run, a stale API response is now preferred for
+// eviction over an equally-stale critical shell.
+//
+// Keyed by the numeric weight that inferCacheTier returns, so no
+// function signature changes.
+const AGE_WEIGHT = {
+  200: 0.1,  // saved-ads       — user-explicit, minimal decay
+  100: 0.1,  // critical        — /offline, /, the app itself
+   60: 0.5,  // core-html       — main browse pages
+   55: 0.5,  // storage/sync    — management pages
+   45: 1,    // static-chunk    — shared, normal decay
+   20: 1,    // personal-shell  — normal decay
+   15: 5,    // api             — fast decay (server has fresher)
+    8: 2,    // lazy html       — faster than personal
+    3: 3,    // image           — fast decay (large, refetchable)
+   10: 1,    // fallback
+};
+function ageWeightFor(tier) {
+  return AGE_WEIGHT[tier] ?? 1;
+}
+
 function inferCacheTier(cacheName, request) {
   if (cacheName.includes('saved-ads')) return 200;
   if (cacheName.includes('personal-shell')) {
@@ -1082,7 +1109,9 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
       const sizeKB = Number.isFinite(size) && size > 0 ? size / 1024 : 0;
       // score: higher = keep longer. Tier dominates; age and size break
       // ties within a tier and gently nudge across adjacent ones.
-      const score = tier * 1000 - ageHours - sizeKB / 100;
+      // SW-TTL-TIERED-01: weighted age penalty — see AGE_WEIGHT above.
+      const score =
+        tier * 1000 - ageHours * ageWeightFor(tier) - sizeKB / 100;
       return { key, ts, size: Number.isFinite(size) ? size : 0, score };
     }),
   );
