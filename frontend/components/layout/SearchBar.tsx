@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
@@ -17,6 +17,12 @@ export function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  // SW-FIX-SEARCHBAR-TIMER-TYPE: use window.setTimeout's return type
+  // (number) — global setTimeout's return type differs across lib configs.
+  const blurTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (blurTimerRef.current) window.clearTimeout(blurTimerRef.current);
+  }, []);
 
   const suggestions = useMemo(
     () => (query.trim().length >= 1 ? suggestRecentSearches(query, 5) : suggestRecentSearches('', 5)),
@@ -45,8 +51,12 @@ export function SearchBar({ className }: { className?: string }) {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => {
-          // delay so click on suggestion registers
-          window.setTimeout(() => setOpen(false), 150);
+          // SW-FIX-SEARCHBAR-BLUR-CLEANUP: was an un-tracked setTimeout —
+          // if the component unmounted during the 150ms delay, setOpen
+          // fired on an unmounted component (harmless in React 18+ but
+          // a leak). Track and clear it.
+          if (blurTimerRef.current) window.clearTimeout(blurTimerRef.current);
+          blurTimerRef.current = window.setTimeout(() => setOpen(false), 150);
         }}
         placeholder="ابحث عن سيارة، شقة، جهاز…"
         className="ps-9"

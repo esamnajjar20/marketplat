@@ -159,9 +159,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
         const form = new FormData();
         form.append('image', imageFile);
         if (trimmed) form.append('body', trimmed);
-        await apiClient.post(`/conversations/${conversationId}/messages/image`, form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        // SW-FIX-MSGINPUT-CT-REDUNDANT: apiClient's request interceptor
+        // deletes Content-Type whenever the body is FormData (see
+        // api/client.ts's FIX BUG-IMG-CONTENTTYPE-01) — setting it here
+        // was dead weight that axios then had to strip.
+        await apiClient.post(`/conversations/${conversationId}/messages/image`, form);
         setBody('');
         clearMessageDraft(conversationId);
         clearImage();

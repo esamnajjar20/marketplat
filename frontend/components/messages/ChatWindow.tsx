@@ -356,13 +356,24 @@ export function ChatWindow({ conversationId }: Props) {
       </div>
 
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/70 bg-card/90 px-3 py-3 shadow-xs backdrop-blur-md">
-        <Link
-          prefetch={false}
-          href={ROUTES.messages}
+        {/* SW-FIX-CHAT-MOBILE-BACK: previously a <Link> that pushed a new
+            /messages entry — every "back" then landed the user one step
+            deeper in history instead of out of the thread. router.back()
+            matches what the OS back button does on the same page. */}
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              window.history.back();
+            } else {
+              window.location.href = ROUTES.messages;
+            }
+          }}
           className="lg:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+          aria-label="رجوع للمحادثات"
         >
           <ChevronRight className="h-5 w-5" />
-        </Link>
+        </button>
         <Link
           prefetch={false}
           href={ROUTES.userProfile(party.id)}

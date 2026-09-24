@@ -92,7 +92,10 @@ export function SearchResults() {
   // UX-FIX (audit P2-02): mirrors exactly what SearchFilters.tsx's own
   // reset button clears (city/categoryId/sort/geo — q is deliberately
   // preserved by that button, so it's not "active" in this sense).
-  const hasActiveFilters = Boolean(city || categoryId || (sort && sort !== 'relevance') || lat !== undefined);
+  // SW-FIX-SEARCH-ACTIVE-FILTERS: also checked lng — a URL hand-edited
+  // to have only lng (no lat) still wrote a location sort that the
+  // previous expression missed.
+  const hasActiveFilters = Boolean(city || categoryId || (sort && sort !== 'relevance') || lat !== undefined || lng !== undefined);
 
   const { data, isLoading: searchLoading, isError, refetch } = useSearch({
     q,

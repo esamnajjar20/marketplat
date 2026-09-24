@@ -15,7 +15,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Share2, MessageCircle, Send, Link2, Check } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
@@ -38,6 +38,10 @@ interface Props {
 
 export function ShareAdButton({ title, url, variant = 'icon', className }: Props) {
   const [copied, setCopied] = useState(false);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+  }, []);
 
   function getUrl() {
     return url ?? (typeof window !== 'undefined' ? window.location.href : '');
@@ -61,7 +65,9 @@ export function ShareAdButton({ title, url, variant = 'icon', className }: Props
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       toast.success('تم نسخ الرابط');
-      setTimeout(() => setCopied(false), 2000);
+      // SW-FIX-SHARE-COPY-CLEANUP: track + clear on unmount.
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('تعذّر نسخ الرابط');
     }

@@ -27,6 +27,7 @@ import { useAdminToggleUserActive, useAdminChangeRole, useAdminBulkToggleUserAct
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { formatDate }     from '@/lib/formatters';
 import { parseApiError }  from '@/lib/errorParser';
+import { cn } from '@/lib/utils';
 import { USER_ACTIVE_STATUS_VARIANT, USER_ACTIVE_STATUS_LABELS, userActiveKey } from '@/lib/userActiveStatus';
 import type { AdminUser, AssignableRole } from '@/types/admin.types';
 import type { UserRole } from '@/types/auth.types';
@@ -253,7 +254,7 @@ export function AdminUsersTable() {
                     <p className="text-sm font-semibold leading-snug">{user.name}</p>
                     <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      <Badge variant={badge.variant} className={`text-xs ${badge.className ?? ''}`}>
+                      <Badge variant={badge.variant} className={cn('text-xs', badge.className)}>
                         {badge.label}
                       </Badge>
                       <Badge variant={USER_ACTIVE_STATUS_VARIANT[userActiveKey(user.isActive)]} className="text-xs">
@@ -386,7 +387,7 @@ export function AdminUsersTable() {
                     </td>
                     <td className="p-3 hidden md:table-cell text-muted-foreground">{user.email}</td>
                     <td className="p-3">
-                      <Badge variant={badge.variant} className={`text-xs ${badge.className ?? ''}`}>
+                      <Badge variant={badge.variant} className={cn('text-xs', badge.className)}>
                         {badge.label}
                       </Badge>
                     </td>

@@ -302,7 +302,9 @@ export function ProtectedMobileNav() {
 
         <ul className="mt-3 flex flex-col gap-1 border-t pt-3">
           {LINKS.map((link) => {
-            const isActive = pathname.startsWith((link as { activeMatch?: string }).activeMatch ?? link.href);
+            // SW-FIX-PMN-DEAD-CAST: same as ProtectedSidebar's fix — no
+            // activeMatch field exists on LINKS entries.
+            const isActive = pathname.startsWith(link.href);
             return (
               <li key={link.href}>
                 <Link

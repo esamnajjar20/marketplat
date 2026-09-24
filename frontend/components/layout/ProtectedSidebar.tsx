@@ -127,10 +127,7 @@ function NavLink({
       {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />}
       <span className="flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className={cn(
-          'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold',
-          isActive ? 'bg-primary text-primary-foreground' : 'bg-primary text-primary-foreground',
-        )}>
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
@@ -212,7 +209,9 @@ export function ProtectedSidebar() {
     <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-52 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-56">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1 p-4">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname.startsWith((item as { activeMatch?: string }).activeMatch ?? item.href);
+          // SW-FIX-SIDEBAR-DEAD-CAST: NAV_ITEMS has no activeMatch field
+          // — the cast and ?? fallback were always resolving to item.href.
+          const isActive = pathname.startsWith(item.href);
           return (
             <NavLink
               key={item.href}
