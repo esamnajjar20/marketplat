@@ -51,7 +51,9 @@ export function SearchNearbyToggle() {
         params.set('radius', String(RADIUS_KM));
         params.set('sort', 'distance');
         params.delete('page');
-        router.push(`${ROUTES.search}?${params.toString()}`);
+        // SW-FIX-NEARBY-REPLACE: refinement within the same search view —
+        // same reasoning as SearchFilters' SW-FILTERS-REPLACE-01.
+        router.replace(`${ROUTES.search}?${params.toString()}`);
       },
       () => setStatus('denied'),
       GEO_POSITION_OPTIONS
@@ -68,7 +70,7 @@ export function SearchNearbyToggle() {
     // leaving a dead sort value in the URL.
     if (params.get('sort') === 'distance') params.delete('sort');
     params.delete('page');
-    router.push(`${ROUTES.search}?${params.toString()}`);
+    router.replace(`${ROUTES.search}?${params.toString()}`);
   }
 
   if (isActive) {

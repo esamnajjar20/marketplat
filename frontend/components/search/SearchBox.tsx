@@ -46,6 +46,16 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
     setRecent(getRecentSearches());
   }, []);
 
+  // SW-FIX-SEARCHBOX-URL-SYNC: `defaultValue` was only read once on mount.
+  // On the Next.js App Router the same /search route stays mounted across
+  // ?q= changes (back/forward, new search from a suggestion), so the
+  // input kept showing the previous query while the URL/results had
+  // already moved on. Syncing here keeps the visible value honest.
+  // (Deeper solution: key={q} on the caller — see SearchBox usage.)
+  useEffect(() => {
+    setValue(defaultValue);
+  }, [defaultValue]);
+
   // SW-SEARCHBOX-KBD-01: reset selection whenever the query changes
   // or the dropdown closes. Otherwise ArrowDown, then typing a new
   // character, would leave the highlight on a stale index.
@@ -224,7 +234,12 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
             className={cn('ps-9', inputClassName)}
             aria-label="بحث"
             aria-autocomplete="list"
-            aria-expanded={showRecent || (showSuggestions && suggestionsList.length > 0)}
+            // SW-FIX-SEARCHBOX-ARIA-EXPANDED: was only true when the
+            // suggestions list had items — but SearchSuggestions renders
+            // its own 'جارٍ البحث...' state while fetching, in which case
+            // the popover IS visible to the user while aria-expanded
+            // stayed false. Better to announce the actual popover state.
+            aria-expanded={showRecent || (showSuggestions && trimmed.length >= 2)}
             aria-controls="search-dropdown"
             aria-activedescendant={
               activeIndex >= 0

@@ -70,6 +70,7 @@ export function SearchSuggestions({
 
   return (
     <div
+      id="search-dropdown"
       role="listbox"
       aria-label="اقتراحات البحث"
       className={cn(

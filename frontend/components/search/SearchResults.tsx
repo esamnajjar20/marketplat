@@ -52,8 +52,16 @@ export function SearchResults() {
   // rather than introducing a second, inconsistent state mechanism.
   const latParam    = sp.get('lat');
   const lngParam    = sp.get('lng');
-  const lat         = latParam !== null ? Number(latParam) : undefined;
-  const lng         = lngParam !== null ? Number(lngParam) : undefined;
+  // SW-FIX-SEARCH-LATLNG-NAN: a hand-edited ?lat=abc&lng=def used to flow
+  // Number('abc')=NaN through useSearch (sent as NaN on the wire),
+  // effectiveSort='distance' (invalid with no real coords), and the map's
+  // userLocation marker. Clamp both to finite numbers here — invalid
+  // values are treated as "no location", matching how SearchNearbyToggle
+  // already validates via isUsableNearbyCoord before writing them.
+  const latNum      = latParam !== null ? Number(latParam) : NaN;
+  const lngNum      = lngParam !== null ? Number(lngParam) : NaN;
+  const lat         = Number.isFinite(latNum) ? latNum : undefined;
+  const lng         = Number.isFinite(lngNum) ? lngNum : undefined;
   const radiusParam = sp.get('radius');
   const radius      = radiusParam !== null ? Number(radiusParam) : undefined;
 
