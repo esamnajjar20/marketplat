@@ -99,8 +99,11 @@ export function RecentAds() {
           : items.data.map((ad, i) => <AdCard key={ad.id} ad={ad} priority={i < 2} />)}
       </div>
       <div className="flex justify-center">
-        <Link href={ROUTES.search}>
-        prefetch={false}
+        {/* SW-FIX-RECENT-ADS-PREFETCH: `prefetch={false}` was malformed
+            JSX — placed after the <Link> opening tag it became literal
+            text "prefetch=" rendered above the button, plus an empty
+            expression container. Moved to a proper prop. */}
+        <Link href={ROUTES.search} prefetch={false}>
           <Button variant="outline">عرض جميع الإعلانات</Button>
         </Link>
       </div>
