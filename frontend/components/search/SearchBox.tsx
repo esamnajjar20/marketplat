@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Clock } from 'lucide-react';
 
@@ -22,6 +22,7 @@ interface Props {
   inputClassName?: string;
 }
 
+
 /**
  * Unified search box — suggestions + recent local history when the
  * field is focused with an empty / short query.
@@ -32,11 +33,65 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   const [value, setValue] = useState(defaultValue);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
+  // SW-SEARCHBOX-KBD-01: keyboard-driven selection for the two
+  // dropdowns (recent list and suggestions). -1 = nothing selected.
+  // Owned here so ArrowUp/Down can drive it while the input keeps
+  // focus. See the onKeyDown handler below.
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [suggestionsList, setSuggestionsList] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setRecent(getRecentSearches());
   }, []);
+
+  // SW-SEARCHBOX-KBD-01: reset selection whenever the query changes
+  // or the dropdown closes. Otherwise ArrowDown, then typing a new
+  // character, would leave the highlight on a stale index.
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [value, showSuggestions]);
+
+  // Hoisted above the two dropdown blocks so the keyboard handler
+  // below can reference them. `trimmed` is derived from value (never
+  // stale), and showRecent matches the exact condition used by the
+  // recent-dropdown render below.
+  const trimmed = value.trim();
+  const showRecent = showSuggestions && trimmed.length < 2 && recent.length > 0;
+
+  // Effective list length of whichever dropdown is currently visible.
+  // Both never render simultaneously (recent is <2 chars, suggestions
+  // is >=2 chars), so a single activeIndex is unambiguous.
+  const activeListLength = showRecent
+    ? recent.length
+    : showSuggestions && trimmed.length >= 2
+      ? suggestionsList.length
+      : 0;
+
+  // Clamp when the list shrinks (e.g. suggestions returned fewer items
+  // after a debounce, or the recent list was cleared). Without this,
+  // activeIndex could point past the end.
+  useEffect(() => {
+    if (activeIndex >= activeListLength) {
+      setActiveIndex(activeListLength > 0 ? activeListLength - 1 : -1);
+    }
+  }, [activeListLength, activeIndex]);
+
+  // Keep the highlighted option scrolled into view as the user arrows
+  // through a long list. The recent list and the suggestions list both
+  // give their buttons an id prefixed by which dropdown they belong
+  // to; querying by that id from the container is safer than relying
+  // on children order (React may reorder under the hood).
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    const container = listRef.current;
+    if (!container) return;
+    const el = container.querySelector<HTMLElement>(
+      `#search-option-${activeIndex}, #search-suggestion-${activeIndex}`,
+    );
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
 
   // DESKTOP-AUDIT-03: GlobalSearchShortcut (Ctrl/Cmd+K) appends
   // ?focus=1 when it navigates here from elsewhere in the app — this
@@ -91,14 +146,59 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
     navigate(value);
   }
 
+  const handleInputKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLInputElement>) => {
+      const len = activeListLength;
+
+      if (e.key === 'Escape') {
+        if (showSuggestions) {
+          e.preventDefault();
+          setShowSuggestions(false);
+          setActiveIndex(-1);
+        }
+        return;
+      }
+
+      if (len === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex((i) => (i + 1 >= len ? 0 : i + 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex((i) => (i - 1 < 0 ? len - 1 : i - 1));
+        return;
+      }
+      if (e.key === 'Enter') {
+        if (activeIndex < 0 || activeIndex >= len) return;
+        // Only intercept Enter when a row is actually selected —
+        // otherwise the form's own submit (search for the typed text)
+        // is what the user wants.
+        e.preventDefault();
+        const picked = showRecent
+          ? recent[activeIndex]
+          : suggestionsList[activeIndex];
+        if (picked) handleSelectSuggestion(picked);
+      }
+    },
+    // handleSelectSuggestion is intentionally omitted: including it
+    // would cascade (navigate -> sp -> new ref on every URL change),
+    // re-creating this handler on every render with no benefit. The
+    // closure captured here is always fresh enough — it re-runs on
+    // every relevant state change (activeIndex, list length, query)
+    // and the underlying setters are React-stable. If this ever needs
+    // a stale-safe call, refactor handleSelectSuggestion to a ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeListLength, activeIndex, showRecent, showSuggestions, recent, suggestionsList],
+  );
+
   function handleSelectSuggestion(suggestion: string) {
     setValue(suggestion);
     setShowSuggestions(false);
     navigate(suggestion);
   }
-
-  const trimmed = value.trim();
-  const showRecent = showSuggestions && trimmed.length < 2 && recent.length > 0;
 
   return (
     <div className="relative w-full">
@@ -119,9 +219,20 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
               setShowSuggestions(true);
             }}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onKeyDown={handleInputKeyDown}
             placeholder="ابحث عن منتجات، محلات، إعلانات، خدمات..."
             className={cn('ps-9', inputClassName)}
             aria-label="بحث"
+            aria-autocomplete="list"
+            aria-expanded={showRecent || (showSuggestions && suggestionsList.length > 0)}
+            aria-controls="search-dropdown"
+            aria-activedescendant={
+              activeIndex >= 0
+                ? showRecent
+                  ? `search-option-${activeIndex}`
+                  : `search-suggestion-${activeIndex}`
+                : undefined
+            }
             autoComplete="off"
           />
         </div>
@@ -130,6 +241,8 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
 
       {showRecent && (
         <div
+          ref={listRef}
+          id="search-dropdown"
           role="listbox"
           aria-label="عمليات البحث الأخيرة"
           className="absolute inset-x-0 top-full z-[100] mt-1 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
@@ -148,12 +261,17 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
             </button>
           </div>
           <ul>
-            {recent.map((item) => (
+            {recent.map((item, i) => (
               <li key={item}>
                 <button
                   type="button"
+                  id={`search-option-${i}`}
                   role="option"
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm hover:bg-muted min-h-[44px]"
+                  aria-selected={i === activeIndex}
+                  className={cn(
+                    'flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm min-h-[44px]',
+                    i === activeIndex ? 'bg-muted' : 'hover:bg-muted',
+                  )}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSelectSuggestion(item)}
                 >
@@ -167,7 +285,12 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
       )}
 
       {showSuggestions && trimmed.length >= 2 && (
-        <SearchSuggestions query={value} onSelect={handleSelectSuggestion} />
+        <SearchSuggestions
+          query={value}
+          onSelect={handleSelectSuggestion}
+          activeIndex={activeIndex}
+          onListChange={setSuggestionsList}
+        />
       )}
     </div>
   );
