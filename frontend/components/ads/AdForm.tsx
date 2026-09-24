@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { Button }     from '@/components/shared/ui/Button';
 import { Input }      from '@/components/shared/ui/Input';
@@ -12,7 +12,7 @@ import { FormField }  from '@/components/shared/forms/FormField';
 import { FormSteps }  from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { PriceInput }  from '@/components/shared/forms/PriceInput';
-import { CITIES, CONDITION_LABELS, MAX_IMAGES } from '@/lib/constants';
+import { CITIES, CONDITION_LABELS, MAX_IMAGES, ROUTES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
@@ -181,12 +181,27 @@ export function AdForm({ mode, ad }: Props) {
     { enabled: mode === 'create' },
   );
 
+  // SW-HISTORY-GUARD-01: history.back() leaves the app entirely when
+  // the user opened /ads/create via a deep link (notification, bookmark,
+  // share) — the SPA has no previous in-app entry to return to. This
+  // guard falls back to the ads list in that case, matching what the
+  // user expects ("take me back somewhere related") instead of dumping
+  // them on a blank tab or the previous unrelated website.
+  const router = useRouter();
+  function goBackSafely() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      history.back();
+    } else {
+      router.push(ROUTES.myAds);
+    }
+  }
+
   function handleCancel() {
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
       if (mode === 'create') clearDraft();
-      history.back();
+      goBackSafely();
     }
   }
 
@@ -723,7 +738,7 @@ export function AdForm({ mode, ad }: Props) {
           // to /ads/create despite the user just having said no to
           // exactly that content.
           if (mode === 'create') clearDraft();
-          history.back();
+          goBackSafely();
         }}
       />
     </form>

@@ -80,6 +80,23 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [imageCount, goPrev, goNext]);
 
+  // SW-LIGHTBOX-SCROLL-LOCK-01: prevent the page behind the fullscreen
+  // lightbox from scrolling. Without this, a swipe/scroll gesture on a
+  // phone moved both the lightbox image AND the listing behind it —
+  // when the user closed the lightbox, the page had jumped to a
+  // different scroll position. Restoring the previous overflow value
+  // (rather than unconditionally setting 'visible') keeps this correct
+  // if another component is already holding a scroll lock when the
+  // lightbox opens.
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [lightboxOpen]);
+
   const isAuth = useAuthStore(selectIsAuthenticated);
   // FIX SAVED-ADS-USER-SCOPE: userId لتصفية محفوظات المستخدم.
   const userId = useAuthStore((s) => s.user?.id ?? null);
