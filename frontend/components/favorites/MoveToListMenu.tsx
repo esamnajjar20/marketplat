@@ -53,7 +53,13 @@ export function MoveToListMenu({ favoriteId, currentListId = null, className }: 
           className="fixed z-[210] min-w-[12rem] max-h-56 overflow-y-auto rounded-md border bg-card py-1 text-sm shadow-lg"
           style={{ top: pos.top, left: pos.left }}
         >
-          <li className="border-b px-3 py-1.5 text-xs text-muted-foreground">اختر قائمة</li>
+          {/* SW-FIX-MTLM-LI-ROLE: ARIA spec requires children of a
+              role="menu" list to be menuitem or presentation. The
+              header <li> had neither — some screen readers skipped it
+              or announced it oddly. aria-hidden removes it from the
+              a11y tree entirely, since the menuitems themselves are
+              self-explanatory ("الكل بدون قائمة", list names). */}
+          <li role="presentation" aria-hidden className="border-b px-3 py-1.5 text-xs text-muted-foreground">اختر قائمة</li>
           <li>
             <button
               type="button"

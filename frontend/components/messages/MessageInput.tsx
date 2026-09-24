@@ -316,7 +316,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
           </button>
         </div>
         <p className="mt-1.5 px-1 text-center text-[10px] text-muted-foreground/70">
-          Enter للإرسال · Shift+Enter لسطر جديد · صورة اختيارية
+          {/* SW-FIX-MSG-ENTER-HINT: kept the keyboard-key names
+              (Enter/Shift) — they're physical labels on the user's
+              keyboard — but dropped the cramped English-mixed line for
+              a cleaner Arabic-first layout with a ↵ glyph. */}
+          ↵ للإرسال · Shift + ↵ لسطر جديد · الصورة اختيارية
         </p>
       </form>
     </div>

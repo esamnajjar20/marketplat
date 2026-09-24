@@ -18,15 +18,14 @@ import {
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 
+// SW-FIX-DLPC-DEAD-CATCH: toLocaleString never throws — an invalid
+// date produces the string "Invalid Date", not an exception. The old
+// try/catch was dead code; the `iso` fallback never ran.
 function formatDate(iso: string) {
-  try {
-    return new Date(iso).toLocaleString('ar-EG', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-  } catch {
-    return iso;
-  }
+  return new Date(iso).toLocaleString('ar-EG', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 }
 
 export function DownloadsPageClient() {

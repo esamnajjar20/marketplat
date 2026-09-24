@@ -158,7 +158,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="بحث في المحادثات…"
-            className="w-full rounded-full border bg-muted/50 py-2 pe-9 ps-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background focus:ring-2 focus:ring-primary/15"
+            className="w-full rounded-full border bg-muted/50 py-2 pe-9 ps-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
             aria-label="بحث في المحادثات"
           />
           {query && (
@@ -227,7 +227,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="بحث…"
-            className="w-full rounded-full border bg-muted/40 py-2 pe-3 ps-9 text-sm outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
+            className="w-full rounded-full border bg-muted/40 py-2 pe-3 ps-9 text-sm outline-none focus:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15"
             aria-label="بحث في المحادثات"
           />
         </div>

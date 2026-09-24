@@ -408,13 +408,10 @@ function statusLabel(s: AdDraft['status']): string {
   }
 }
 
+// SW-FIX-SCC-DEAD-CATCH: toLocaleString never throws on an invalid date
+// (returns "Invalid Date" string instead). Removed the dead try/catch.
 function formatWhen(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString('ar');
-  } catch {
-    return iso;
-  }
+  return new Date(iso).toLocaleString('ar');
 }
 
 function shortUrl(url: string): string {

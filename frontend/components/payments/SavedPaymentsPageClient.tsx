@@ -5,7 +5,7 @@
  * بدون QR / مسح (مخفي لأن النظام غير مستقر) — الإضافة والتعديل اليدوي هما الأساس.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Banknote,
   Wifi,
@@ -50,6 +50,18 @@ import { cn } from '@/lib/utils';
 
 function CopyBtn({ value, label }: { value: string; label: string }) {
   const [ok, setOk] = useState(false);
+  // SW-FIX-COPYBTN-CLEANUP: track the reset timeout so it can be cleared
+  // on unmount — the old inline setTimeout kept a reference to setOk on
+  // a potentially-unmounted component (harmless in React 18+, but a
+  // leak). Same pattern as MessageInput's typingTimer.
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    };
+  }, []);
+
   return (
     <Button
       type="button"
@@ -61,7 +73,8 @@ function CopyBtn({ value, label }: { value: string; label: string }) {
           await navigator.clipboard.writeText(value);
           setOk(true);
           toast.success(`تم نسخ ${label}`);
-          setTimeout(() => setOk(false), 1500);
+          if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+          resetTimerRef.current = setTimeout(() => setOk(false), 1500);
         } catch {
           toast.error('تعذّر النسخ');
         }

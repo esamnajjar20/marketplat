@@ -42,7 +42,10 @@ export function FavoriteListsSidebar() {
     else params.delete('list');
     params.delete('page');
     const qs = params.toString();
-    router.push(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites);
+    // SW-FIX-FAV-LIST-REPLACE: switching lists within /favorites is a
+    // refinement of the same view — using push made Back require N
+    // presses after N list switches. Matches the admin tables' pattern.
+    router.replace(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites);
   }
 
   function onCreate(e: React.FormEvent) {
