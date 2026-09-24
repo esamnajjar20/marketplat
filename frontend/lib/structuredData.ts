@@ -183,3 +183,226 @@ export function buildAdJsonLd(ad: Ad) {
     '@graph': [product],
   };
 }
+
+
+// ── Product / Store / Service (added alongside the Ad builder) ───
+
+/** ProductAvailability → schema.org availability. */
+function productAvailabilityToSchema(a: string): string {
+  switch (a) {
+    case 'IN_STOCK':
+    case 'LIMITED':
+      return 'https://schema.org/InStock';
+    case 'OUT_OF_STOCK':
+      return 'https://schema.org/OutOfStock';
+    default:
+      return 'https://schema.org/InStock';
+  }
+}
+
+/**
+ * Product detail — Product + Offer. Same conditional rules as
+ * buildAdJsonLd: no Offer without a valid price, no aggregateRating
+ * without a real rating count. `brand` is only set when a store name
+ * was provided by the caller; the API for product detail does not
+ * always join the store, and a missing brand is preferable to a wrong
+ * one.
+ */
+export function buildProductJsonLd(product: {
+  id: string;
+  name: string;
+  description?: string;
+  images?: string[];
+  price: string | number | null | undefined;
+  discountPrice?: string | number | null;
+  availability?: string;
+  updatedAt?: string;
+  categoryName?: string;
+  storeName?: string;
+}) {
+  const url = `${APP_URL}/products/${product.id}`;
+  const rawPrice = product.discountPrice ?? product.price;
+  const price = rawPrice !== null && rawPrice !== undefined && rawPrice !== ''
+    ? parseFloat(String(rawPrice))
+    : NaN;
+  const validPrice = Number.isFinite(price) && price >= 0;
+
+  const node: Record<string, unknown> = {
+    '@type': 'Product',
+    '@id': `${url}#product`,
+    name: product.name,
+    ...(product.description && { description: product.description.slice(0, 500) }),
+    ...(product.images && product.images.length > 0 && {
+      image: product.images.slice(0, 5).map(absoluteImageUrl),
+    }),
+    ...(product.categoryName && { category: product.categoryName }),
+    ...(product.storeName && { brand: { '@type': 'Brand', name: product.storeName } }),
+  };
+
+  if (validPrice) {
+    node.offers = {
+      '@type': 'Offer',
+      '@id': `${url}#offer`,
+      url,
+      priceCurrency: 'ILS',
+      price: price.toFixed(2),
+      availability: productAvailabilityToSchema(product.availability ?? 'IN_STOCK'),
+      ...(product.updatedAt && { priceValidUntil: product.updatedAt.slice(0, 10) }),
+    };
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [node],
+  };
+}
+
+/**
+ * Store detail — LocalBusiness (Google's alias for a physical retail
+ * outlet; more specific than Organization). StoreDetails carries the
+ * fields needed: name, description, logo, cover image, phone, city,
+ * optional lat/lng. aggregateRating is only emitted when the store
+ * payload happens to include seller rating fields — the store detail
+ * API joins sellerProfile, but older snapshots may not.
+ */
+export function buildStoreJsonLd(store: {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string;
+  logoUrl?: string | null;
+  coverImageUrl?: string | null;
+  phone?: string;
+  city?: string;
+  address?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
+  averageRating?: string | null;
+  totalRatings?: number | null;
+}) {
+  const url = `${APP_URL}/stores/${store.slug || store.id}`;
+  const lat = store.latitude != null ? Number(store.latitude) : NaN;
+  const lng = store.longitude != null ? Number(store.longitude) : NaN;
+  const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+
+  const node: Record<string, unknown> = {
+    '@type': 'Store',
+    '@id': `${url}#store`,
+    name: store.name,
+    url,
+    ...(store.description && { description: store.description.slice(0, 500) }),
+    ...(store.logoUrl && { logo: absoluteImageUrl(store.logoUrl) }),
+    ...(store.coverImageUrl && { image: absoluteImageUrl(store.coverImageUrl) }),
+    ...(store.phone && { telephone: store.phone }),
+    ...(store.city && {
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: store.city,
+        ...(store.address && { streetAddress: store.address }),
+        addressCountry: 'PS',
+      },
+    }),
+    ...(hasGeo && {
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: lat,
+        longitude: lng,
+      },
+    }),
+  };
+
+  const rating = store.averageRating != null ? parseFloat(String(store.averageRating)) : NaN;
+  const count = Number(store.totalRatings ?? 0);
+  if (Number.isFinite(rating) && rating > 0 && count > 0) {
+    node.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: rating.toFixed(1),
+      reviewCount: count,
+      bestRating: 5,
+      worstRating: 1,
+    };
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [node],
+  };
+}
+
+/**
+ * Service listing detail — Service + optional Offer. The provider is
+ * rendered as a Person with a profile URL back into /profile/[userId];
+ * a full LocalBusiness would require the provider's business address,
+ * which is not on the service-listing payload, and a Person is what
+ * the marketplace actually represents here (the person offering the
+ * service). NEGOTIABLE listings emit no Offer — there is no price to
+ * quote.
+ */
+export function buildServiceJsonLd(listing: {
+  id: string;
+  title: string;
+  description?: string;
+  images?: string[];
+  price?: string | number | null;
+  pricingType?: string;
+  categoryName?: string;
+  updatedAt?: string;
+  provider?: {
+    displayName?: string | null;
+    userId?: string;
+    businessName?: string;
+  } | null;
+}) {
+  const url = `${APP_URL}/services/${listing.id}`;
+  const rawPrice = listing.price;
+  const price = rawPrice !== null && rawPrice !== undefined && rawPrice !== ''
+    ? parseFloat(String(rawPrice))
+    : NaN;
+  const validPrice = Number.isFinite(price) && price >= 0;
+
+  const providerName =
+    listing.provider?.businessName ||
+    listing.provider?.displayName ||
+    undefined;
+
+  const node: Record<string, unknown> = {
+    '@type': 'Service',
+    '@id': `${url}#service`,
+    name: listing.title,
+    ...(listing.description && { description: listing.description.slice(0, 500) }),
+    ...(listing.images && listing.images.length > 0 && {
+      image: listing.images.slice(0, 5).map(absoluteImageUrl),
+    }),
+    ...(listing.categoryName && { serviceType: listing.categoryName }),
+    ...(providerName && {
+      provider: {
+        '@type': 'Person',
+        name: providerName,
+        ...(listing.provider?.userId && {
+          url: `${APP_URL}/profile/${listing.provider.userId}`,
+        }),
+      },
+    }),
+    areaServed: {
+      '@type': 'Place',
+      name: 'Gaza Strip',
+      addressCountry: 'PS',
+    },
+  };
+
+  if (validPrice && listing.pricingType !== 'NEGOTIABLE') {
+    node.offers = {
+      '@type': 'Offer',
+      '@id': `${url}#offer`,
+      url,
+      priceCurrency: 'ILS',
+      price: price.toFixed(2),
+      ...(listing.updatedAt && { priceValidUntil: listing.updatedAt.slice(0, 10) }),
+    };
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [node],
+  };
+}

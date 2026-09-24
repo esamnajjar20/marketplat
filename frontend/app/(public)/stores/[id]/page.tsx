@@ -10,6 +10,8 @@ import { StoreRecommendations } from '@/components/recommendations/StoreRecommen
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
+import { headers } from 'next/headers';
+import { buildStoreJsonLd, safeJsonLd } from '@/lib/structuredData';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -58,8 +60,34 @@ export default async function StorePage({ params }: Props) {
     );
   }
 
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <div className="container mx-auto max-w-3xl space-y-8 px-4 py-6">
+      {/* SW-SEO-JSONLD-STORE-01: LocalBusiness/Store schema. Phone and
+          address are present on StoreDetails, so Google can surface a
+          store card with contact info and location. */}
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{
+          __html: safeJsonLd(
+            buildStoreJsonLd({
+              id: store.id,
+              name: store.name,
+              slug: store.slug,
+              description: store.description,
+              logoUrl: store.logoUrl,
+              coverImageUrl: store.coverImageUrl,
+              phone: store.phone,
+              city: store.city,
+              address: store.address,
+              latitude: store.latitude,
+              longitude: store.longitude,
+            }),
+          ),
+        }}
+      />
       <StoreHeader store={store} />
 
       <Suspense fallback={<div className="flex justify-center py-8"><LoadingSpinner /></div>}>

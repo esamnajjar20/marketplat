@@ -11,6 +11,8 @@ import { RelatedServices } from '@/components/services/RelatedServices';
 import { ServiceBreadcrumb } from '@/components/services/ServiceBreadcrumb';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
+import { headers } from 'next/headers';
+import { buildServiceJsonLd, safeJsonLd } from '@/lib/structuredData';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -58,9 +60,38 @@ export default async function ServiceListingPage({ params }: Props) {
   }
 
   const providerUserId = listing.provider.sellerProfile?.userId;
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <div className="container mx-auto max-w-6xl space-y-6 px-3 py-4 sm:px-4 sm:py-6">
+      {/* SW-SEO-JSONLD-SERVICE-01: schema.org Service. Provider is a
+          Person (not LocalBusiness) because the marketplace represents
+          individual service providers, and the listing payload does
+          not carry a business address — a Person with a profile URL
+          is what the entity actually is. NEGOTIABLE listings emit no
+          Offer (no price to quote). */}
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{
+          __html: safeJsonLd(
+            buildServiceJsonLd({
+              id: listing.id,
+              title: listing.title,
+              description: listing.description,
+              images: listing.images,
+              price: listing.price,
+              pricingType: listing.pricingType,
+              updatedAt: listing.updatedAt,
+              provider: {
+                displayName: listing.provider.sellerProfile?.displayName,
+                userId: listing.provider.sellerProfile?.userId,
+                businessName: listing.provider.businessName,
+              },
+            }),
+          ),
+        }}
+      />
       <ServiceViewTracker serviceListingId={listing.id} categoryId={listing.categoryId} />
       <ServiceBreadcrumb title={listing.title} categoryId={listing.categoryId} />
       <ServiceListingDetail
