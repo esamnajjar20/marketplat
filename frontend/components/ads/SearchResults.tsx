@@ -57,7 +57,9 @@ export function SearchResults({ categorySlug }: Props = {}) {
   const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
   const q          = sp.get('q') ?? '';
-  const page       = Number(sp.get('page') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   // An explicit ?categoryId= in the URL (e.g. a sub-filter picked from
   // SearchFilters while already on the category page) takes precedence
   // over the route's own slug so users can still narrow further.

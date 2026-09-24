@@ -32,7 +32,9 @@ export function ProductsGrid() {
   const sp = useSearchParams();
 
   const search = sp.get('search') ?? undefined;
-  const page = Number(sp.get('page') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const city = sp.get('city') ?? undefined;
   const sortBy = (sp.get('sortBy') as ProductSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';

@@ -15,7 +15,9 @@ import { ROUTES }        from '@/lib/constants';
 
 export function FavoritesList() {
   const sp   = useSearchParams();
-  const page = Number(sp.get('page') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const listId = sp.get('list') || undefined;
   const { data, isLoading, isError, refetch } = useFavorites({ page, listId });
 

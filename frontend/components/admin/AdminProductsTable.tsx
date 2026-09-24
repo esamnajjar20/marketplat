@@ -17,7 +17,9 @@ import { toast } from 'sonner';
 
 export function AdminProductsTable() {
   const sp = useSearchParams();
-  const page = Number(sp.get('page') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const q = sp.get('q') ?? '';
   const statusParam = sp.get('status') ?? 'ACTIVE';
   const status = ['ACTIVE', 'PAUSED', 'DELETED', 'ALL'].includes(statusParam) ? statusParam : 'ACTIVE';

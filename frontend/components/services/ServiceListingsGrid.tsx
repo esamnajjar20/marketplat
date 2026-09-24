@@ -16,7 +16,9 @@ export function ServiceListingsGrid() {
   const sp = useSearchParams();
 
   const search = sp.get('search') ?? undefined;
-  const page = Number(sp.get('page') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const categoryId = sp.get('categoryId') ?? undefined;
   const providerId = sp.get('providerId') ?? undefined;
   const city = sp.get('city') ?? undefined;

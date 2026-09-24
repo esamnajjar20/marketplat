@@ -35,7 +35,9 @@ const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
 export function MyServiceRequestsList() {
   const sp = useSearchParams();
   const router = useRouter();
-  const page = Number(sp.get('page') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const status = (sp.get('status') ?? undefined) as ServiceRequestStatus | undefined;
 
   const { data, isLoading, isError, refetch } = useMyServiceRequests({ page, limit: 10, status });

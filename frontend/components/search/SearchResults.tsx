@@ -40,7 +40,9 @@ export function SearchResults() {
   const type       = (sp.get('type') as SearchType) ?? 'all';
   const categoryId = sp.get('categoryId') ?? undefined;
   const sort       = (sp.get('sort') as SearchSort) ?? 'relevance';
-  const page       = Number(sp.get('page') ?? 1);
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   // TRACK-NEARBY-SEARCH: lat/lng/radius live in the URL like every
   // other filter on this page (SearchNearbyToggle writes them via
   // router.push, the same "URL is the source of truth" convention
