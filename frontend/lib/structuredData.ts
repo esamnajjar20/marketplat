@@ -406,3 +406,98 @@ export function buildServiceJsonLd(listing: {
     '@graph': [node],
   };
 }
+
+
+/**
+ * SW-SEO-JSONLD-REQUEST-01: schema.org Demand — the closest semantic
+ * fit for "someone is looking for X". Google parses Demand rarely
+ * (unlike Product/Service), so this is a lower-yield addition than
+ * the other builders — but it costs nothing at runtime, and having a
+ * structured entity is strictly better than a bare page for any
+ * future consumer that does read it (specialised aggregators, LLM
+ * crawlers, etc.).
+ *
+ * Field mapping:
+ *   title          → name
+ *   description    → description
+ *   city           → areaServed (Place)
+ *   type           → category (REQUEST_TYPE_LABEL maps SERVICE |
+ *                    PRODUCT | RENTAL to Arabic labels)
+ *   budgetMin/Max  → priceSpecification (PriceSpecification with
+ *                    minPrice / maxPrice). Omitted entirely when
+ *                    both are null — most requests are posted without
+ *                    a budget, and a zero range would be misleading.
+ *   createdAt      → datePosted
+ *   expiresAt      → validThrough (ISO 8601 date)
+ *
+ * Customer name is deliberately NOT included. The user's public
+ * display name appears on the request detail page (as part of the
+ * customer summary block), but embedding it in machine-readable
+ * markup would create a scrapable association between the account
+ * and every request they post — a weaker signal than the seller
+ * profile, which the user explicitly opted into by becoming a
+ * seller. Keeping the request anonymous in structured data is the
+ * safer default; the page itself still shows the name to humans.
+ */
+export function buildRequestJsonLd(request: {
+  id: string;
+  title: string;
+  description?: string;
+  city?: string | null;
+  type?: string;
+  status?: string;
+  budgetMin?: string | number | null;
+  budgetMax?: string | number | null;
+  createdAt?: string;
+  expiresAt?: string | null;
+}) {
+  const url = `${APP_URL}/requests/${request.id}`;
+
+  const min = request.budgetMin != null ? parseFloat(String(request.budgetMin)) : NaN;
+  const max = request.budgetMax != null ? parseFloat(String(request.budgetMax)) : NaN;
+  const hasMin = Number.isFinite(min) && min >= 0;
+  const hasMax = Number.isFinite(max) && max >= 0;
+
+  let priceSpecification: Record<string, unknown> | undefined;
+  if (hasMin || hasMax) {
+    priceSpecification = {
+      '@type': 'PriceSpecification',
+      priceCurrency: 'ILS',
+      ...(hasMin && { minPrice: min.toFixed(2) }),
+      ...(hasMax && { maxPrice: max.toFixed(2) }),
+    };
+  }
+
+  const typeLabel =
+    request.type === 'SERVICE'
+      ? 'خدمة'
+      : request.type === 'PRODUCT'
+        ? 'منتج'
+        : request.type === 'RENTAL'
+          ? 'إيجار'
+          : undefined;
+
+  const node: Record<string, unknown> = {
+    '@type': 'Demand',
+    '@id': `${url}#demand`,
+    name: request.title,
+    url,
+    ...(request.description && { description: request.description.slice(0, 500) }),
+    ...(request.city && {
+      areaServed: {
+        '@type': 'Place',
+        name: request.city,
+        addressCountry: 'PS',
+      },
+    }),
+    ...(typeLabel && { category: typeLabel }),
+    ...(priceSpecification && { priceSpecification }),
+    ...(request.createdAt && { datePosted: request.createdAt }),
+    ...(request.expiresAt && { validThrough: request.expiresAt }),
+  };
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [node],
+  };
+}
