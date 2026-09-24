@@ -291,6 +291,13 @@ const CACHE_VERSION_SUFFIX = STATIC_CACHE.split('-').pop() ?? 'unknown';
 const LAST_ROUTE_WARMED_KEY = `marketplat:route-shells:last-warmed:${CACHE_VERSION_SUFFIX}`;
 const LAST_PERSONAL_WARMED_KEY = `marketplat:personal-shells:last-warmed:${CACHE_VERSION_SUFFIX}`;
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
+// SW-SMART-THROTTLE-01: shorter cooldown when the previous pass was
+// incomplete (some routes missing or marked failed in IndexedDB). The
+// 6-hour WARM_INTERVAL_MS was designed for a fully-successful pass —
+// it must not block a resume after a network drop mid-pass. 5 minutes
+// lets the next online event or visibility change pick up where the
+// last pass stopped, without hammering a flaky link.
+const PARTIAL_WARM_INTERVAL_MS = 5 * 60 * 1000;
 
 let isWarmingRouteShells = false;
 let isWarmingPersonalShells = false;
@@ -853,11 +860,24 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     const plan = getWarmingPlan();
     if (isWarmingDisabled(plan)) return;
 
-    const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
-    if (Date.now() - last < WARM_INTERVAL_MS) return;
-
     const routes = selectRoutesByPlan(plan, CORE_ROUTES);
     if (routes.length === 0) return;
+
+    // SW-SMART-THROTTLE-01: read snapshot BEFORE the throttle check so
+    // we can tell "fully warmed" from "partially warmed". A pass that
+    // died mid-flight (network dropped) should resume within
+    // PARTIAL_WARM_INTERVAL_MS; only a fully-warmed set earns the long
+    // WARM_INTERVAL_MS cooldown. Without this, a user on an unstable
+    // link (Gaza 2G/3G) had warming blocked for 6 hours after every
+    // disconnect even though most routes were still uncached.
+    const snapshotEarly = await readSnapshot();
+    const incompleteCount = routes.filter(
+      (r) => snapshotEarly?.routes[r]?.status !== 'complete',
+    ).length;
+    const throttleMs =
+      incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
+    const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
+    if (Date.now() - last < throttleMs) return;
 
     reportProgress('routes', { active: true, completed: 0, total: routes.length });
     let completedThisPass = 0;
@@ -1073,8 +1093,21 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
     const plan = getWarmingPlan();
     if (isWarmingDisabled(plan)) return;
 
+    // SW-SMART-THROTTLE-01: same reasoning as warmRouteShellsAtomic —
+    // resume quickly after a partial pass, long cooldown only after a
+    // fully successful one.
+    const snapshotEarlyP = await readSnapshot();
+    const routesEarlyP = selectRoutesByPlan(
+      plan,
+      PERSONAL_SHELL_ROUTES_ESSENTIAL,
+    );
+    const incompletePersonal = routesEarlyP.filter(
+      (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
+    ).length;
+    const throttleMsP =
+      incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
     const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
-    if (Date.now() - last < WARM_INTERVAL_MS) return;
+    if (Date.now() - last < throttleMsP) return;
 
     // SW-IDLE-SCHEDULE-01: prefer requestIdleCallback over a blind 15s
     // wait. Warming is background work the user did not ask for; the
