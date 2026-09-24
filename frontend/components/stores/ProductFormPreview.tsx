@@ -10,6 +10,7 @@
  * approximation rather than the exact same component.
  */
 
+import { useEffect, useMemo } from 'react';
 import { PackageX, Clock3 } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -28,8 +29,31 @@ const AVAILABILITY_LABEL: Record<ProductFormValues['availability'], string> = {
 };
 
 export function ProductFormPreview({ values, className }: Props) {
-  const filePreview =
-    values.images[0] instanceof File ? URL.createObjectURL(values.images[0]) : null;
+  // FIX OBJECT-URL-LEAK-PRODUCT: mirrors the identical fix already
+  // applied to ServiceListingFormPreview (FIX OBJECT-URL-LEAK). The
+  // previous code called URL.createObjectURL() inline in the render
+  // body on every render — a new blob URL per keystroke while the
+  // seller is typing, each one pinning the File's bytes in memory for
+  // the lifetime of the tab, since nothing ever called
+  // URL.revokeObjectURL.
+  //
+  // useMemo keys on the specific File object, so a new URL is only
+  // minted when the picked file actually changes. The unmount cleanup
+  // revokes the last one; the effect re-runs on every dependency
+  // change, so intermediate URLs are also revoked (via the returned
+  // cleanup running before the next memo value is used).
+  const filePreview = useMemo(
+    () => (values.images[0] instanceof File
+      ? URL.createObjectURL(values.images[0])
+      : null),
+    [values.images[0]],
+  );
+
+  useEffect(() => {
+    if (!filePreview) return;
+    return () => URL.revokeObjectURL(filePreview);
+  }, [filePreview]);
+
   const imageSrc = filePreview || values.existingImages[0] || PLACEHOLDER_SVG;
 
   const discount = values.discountPrice ? parseFloat(values.discountPrice) : null;
