@@ -42,11 +42,17 @@ export function ProductFormPreview({ values, className }: Props) {
   // revokes the last one; the effect re-runs on every dependency
   // change, so intermediate URLs are also revoked (via the returned
   // cleanup running before the next memo value is used).
+  //
+  // FIX OBJECT-URL-LEAK-PRODUCT (lint): values.images[0] in a deps
+  // array trips exhaustive-deps on two counts — a member expression
+  // is not a "simple" dependency and the linter cannot verify what
+  // the memo callback actually reads. Extracting the first image to a
+  // named variable first makes both checks pass and reads no worse.
+  const firstImage = values.images[0];
+
   const filePreview = useMemo(
-    () => (values.images[0] instanceof File
-      ? URL.createObjectURL(values.images[0])
-      : null),
-    [values.images[0]],
+    () => (firstImage instanceof File ? URL.createObjectURL(firstImage) : null),
+    [firstImage],
   );
 
   useEffect(() => {
