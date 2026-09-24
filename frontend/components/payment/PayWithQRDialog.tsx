@@ -11,7 +11,6 @@ import {
   BookmarkPlus,
   User,
   Store,
-  ClipboardPaste,
 } from 'lucide-react';
 import {
   Dialog,
@@ -145,19 +144,6 @@ export function PayWithQRDialog({
     );
   }
 
-  function simulatePaste() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0] ?? null;
-      if (file) {
-        toast.info('اخترت صورة، لكن التكامل المباشر للصق لم يُفعّل بعد. استخدم زر "من صورة" داخل الكاميرا');
-      }
-    };
-    input.click();
-  }
-
   const ussdCode = useMemo(() => {
     if (!method || method === 'bank' || !recipient || !number || !amount) return '';
     return buildUssd(method, recipient, number, amount);
@@ -261,10 +247,11 @@ export function PayWithQRDialog({
         {step === 'scan' && method && (
           <div className="space-y-3">
             <QrScannerCamera onScan={onScanned} onPayParsed={onPayParsed} prefer="pay" />
-            <Button type="button" variant="outline" size="sm" className="w-full gap-2" onClick={simulatePaste}>
-              <ClipboardPaste className="h-4 w-4" />
-              لصق صورة من الحافظة
-            </Button>
+            {/* SW-PAYQR-REMOVE-PASTE-PLACEHOLDER-01: same cleanup as
+                InternetCardsQRDialog — this button opened a file picker
+                then immediately said "paste is not enabled yet". The
+                QrScannerCamera's own "from image" affordance remains
+                the supported path. */}
             <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setStep('method')}>
               رجوع
             </Button>
@@ -425,21 +412,42 @@ export function PayWithQRDialog({
           </div>
         )}
 
-        {step === 'ussd-code' && ussdCode && (
+        {step === 'ussd-code' && (
           <div className="space-y-4">
-            <p className="text-center font-mono text-lg font-bold" dir="ltr">
-              {ussdCode}
-            </p>
-            <CopyField label="كود USSD" value={ussdCode} mono />
-            <a
-              href={ussdTelHref(ussdCode)}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
-            >
-              <Smartphone className="h-4 w-4" /> اتصال بالكود
-            </a>
-            <Button type="button" className="w-full" onClick={() => setStep('save')}>
-              إنهاء
-            </Button>
+            {/* SW-PAYQR-USSD-FALLBACK-01: previously this whole block was
+                gated on `&& ussdCode`, which meant an empty code left
+                the user with the step label ("كود USSD جاهز") and a
+                completely empty body — no code, no copy, no dial, no
+                back button. That should be unreachable today (recipient
+                and amount are validated before reaching this step), but
+                the earlier gate was a silent dead end if it ever did
+                fire. Fall back to a message + back button instead. */}
+            {ussdCode ? (
+              <>
+                <p className="text-center font-mono text-lg font-bold" dir="ltr">
+                  {ussdCode}
+                </p>
+                <CopyField label="كود USSD" value={ussdCode} mono />
+                <a
+                  href={ussdTelHref(ussdCode)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
+                >
+                  <Smartphone className="h-4 w-4" /> اتصال بالكود
+                </a>
+                <Button type="button" className="w-full" onClick={() => setStep('save')}>
+                  إنهاء
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-center text-xs text-amber-700">
+                  تعذّر بناء الكود — تحقق من الرقم والمبلغ ثم أعد المحاولة
+                </p>
+                <Button type="button" variant="outline" className="w-full" onClick={() => setStep('ussd-amount')}>
+                  رجوع
+                </Button>
+              </>
+            )}
           </div>
         )}
 

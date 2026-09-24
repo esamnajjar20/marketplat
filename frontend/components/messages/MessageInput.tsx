@@ -46,7 +46,15 @@ export function MessageInput({ conversationId, disabled }: Props) {
     setBody(loadMessageDraft(conversationId));
     setDraftReady(true);
     setImageFile(null);
-    setImagePreview(null);
+    // SW-MSG-PREVIEW-URL-LEAK-01 (second site): also revoke on
+    // conversation switch. Prior version unconditionally set the
+    // preview to null, orphaning a blob URL if the user had picked an
+    // image and then navigated to a different thread. Reachable by
+    // simply switching conversations mid-draft.
+    setImagePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   }, [conversationId]);
 
   useEffect(() => {
@@ -88,6 +96,24 @@ export function MessageInput({ conversationId, disabled }: Props) {
     };
   }, [conversationId]);
 
+  // SW-MSG-PREVIEW-URL-LEAK-01 (unmount site): if the user leaves
+  // /messages entirely while holding a picked image (back button,
+  // direct navigation), the blob URL must be revoked on teardown. The
+  // previous code never ran this path at all. Kept as a separate
+  // effect (rather than merged into the typing-cleanup one above) so
+  // its cleanup only runs once on true unmount, not on every
+  // conversationId change (which the useEffect above already handles).
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setImagePreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function onPickImage(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -100,8 +126,17 @@ export function MessageInput({ conversationId, disabled }: Props) {
       toast.error('الحد الأقصى 5 ميغابايت');
       return;
     }
+    // SW-MSG-PREVIEW-URL-LEAK-01: revoke the previous preview blob
+    // URL before replacing it. Without this, each new image selection
+    // orphaned the prior URL.createObjectURL() result — the blob
+    // stayed in memory for the lifetime of the page even though nothing
+    // referenced it. Reachable on every change of mind: pick photo,
+    // swap for a better one, swap again.
+    setImagePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
     setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
   }
 
   function clearImage() {

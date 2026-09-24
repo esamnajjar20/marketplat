@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wifi, BookmarkPlus, Trash2, ClipboardPaste, Phone } from 'lucide-react';
+import { Wifi, BookmarkPlus, Trash2, Phone } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -113,19 +113,6 @@ export function InternetCardsQRDialog({
     setMode('result');
   }
 
-  function simulatePaste() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0] ?? null;
-      if (file) {
-        toast.info('اخترت صورة، لكن التكامل المباشر للصق لم يُفعّل بعد. استخدم زر "من صورة" داخل الكاميرا');
-      }
-    };
-    input.click();
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -143,10 +130,14 @@ export function InternetCardsQRDialog({
           {mode === 'scan' && (
             <>
               <QrScannerCamera onScan={onScanned} onCardParsed={onCardParsed} prefer="card" />
-              <Button type="button" variant="outline" size="sm" className="w-full gap-2" onClick={simulatePaste}>
-                <ClipboardPaste className="h-4 w-4" />
-                لصق صورة من الحافظة
-              </Button>
+              {/* SW-NETCARD-REMOVE-PASTE-PLACEHOLDER-01: the
+                  "paste from clipboard" button was removed here. It
+                  accepted a file picker input and then immediately
+                  showed "paste integration is not enabled yet" —
+                  promising functionality the app did not have. Better
+                  to omit the affordance than to advertise it and
+                  disappoint. The QrScannerCamera's "from image"
+                  affordance remains the supported path. */}
               <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setMode('result')}>
                 إدخال يدوي بدون مسح
               </Button>
@@ -250,7 +241,6 @@ export function InternetCardsQRDialog({
                         <a
                           href={tel}
                           aria-label={`اتصال USSD للبطاقة ${c.label || c.username}`}
-                          title={ussd}
                         >
                           <Phone className="h-3.5 w-3.5" />
                         </a>
@@ -262,6 +252,18 @@ export function InternetCardsQRDialog({
                       size="icon"
                       className="h-8 w-8 text-destructive"
                       onClick={() => {
+                        // SW-NETCARD-DELETE-CONFIRM-01: removeNetCard has
+                        // no undo and used to fire on a single tap. On a
+                        // phone that is one accidental touch away from
+                        // losing a saved card the user may not have any
+                        // other record of (the username/password is the
+                        // whole point of having saved it). ConfirmDialog
+                        // is heavier than needed here; a native confirm
+                        // matches the low-stakes-but-irreversible nature
+                        // of the action.
+                        const name = c.label || c.username;
+                        // eslint-disable-next-line no-alert
+                        if (!window.confirm(`حذف بطاقة «${name}»؟ لا يمكن التراجع.`)) return;
                         removeNetCard(c.id);
                         setSaved(listSavedNetCards());
                       }}
