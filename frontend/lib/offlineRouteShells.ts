@@ -49,6 +49,34 @@
 // (راجع تعليق CACHE_VERSION هناك — تصنيف '/my-store' كصفحة محمية تغيّر).
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
 // fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
+import {
+  readSnapshot,
+  patchRouteStatus,
+  recordLiveUrls,
+  recordSweepTime,
+  shouldSweep,
+  isBuildChanged,
+  backoffForAttempts,
+} from './offlineWarmingState';
+import {
+  getWarmingPlan,
+  selectRoutesByPlan,
+  isWarmingDisabled,
+} from './offlineWarmingPlanner';
+import { runUnderWarmingLock } from './offlineWarmingCoordinator';
+
+// PROXY-WARMING: transient staging area for atomic per-route warming.
+// Deliberately NOT versioned — sw.js's activate handler deletes any
+// market-* cache not in its currentCaches list, which means this working
+// area is wiped on every SW update. That is exactly what we want: its
+// contents are meaningless the moment a warming pass ends.
+const STAGING_CACHE = 'market-warming-staging';
+// PHASE-2: personal warming uses a lock distinct from public warming so
+// both can run concurrently on the same tab without starving each other.
+// Route sets are disjoint (CORE_ROUTES vs PERSONAL_SHELL_ROUTES_ESSENTIAL);
+// the only shared resource is chunk URLs, handled by the in-flight dedup
+// map below.
+const PERSONAL_LOCK_NAME = 'marketplat-warming-personal';
 const STATIC_CACHE = 'market-static-v36'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
@@ -335,6 +363,167 @@ async function fetchAndCacheAsset(cache: Cache, url: string): Promise<boolean> {
  * في public/sw.js لتفصيل كامل للمشكلة والحل). */
 function rscShellKey(path: string): string {
   return `${path}?__offline_rsc_shell`;
+}
+
+// PROXY-WARMING — atomic per-route warming engine.
+//
+// The legacy warmRouteShells used Promise.allSettled over CORE_ROUTES
+// and marked the whole pass "successful" if any file stored (the
+// FIX WARM-FALSE-SUCCESS-01 comment even calls this out as a bug).
+// On a flaky network that produced routes whose HTML was cached but
+// whose chunks were not — the classic ChunkLoadError on the page that
+// was supposed to be the safety net. warmRouteAtomic fixes this: no
+// route's HTML touches STATIC_CACHE until every one of its chunks is
+// verified present. Chunks stage in STAGING_CACHE first; only after
+// verification do they get promoted, and only then does the HTML go
+// in. Either the route is completely usable offline, or STATIC_CACHE
+// is untouched for it — no partial states, no false success.
+
+/** Canonical pathname form for liveUrls bookkeeping. Cache API stores
+ * absolute URLs internally; our chunk lists are relative paths. */
+function toPath(url: string): string {
+  try {
+    if (url.startsWith('/')) return url;
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+}
+
+interface WarmResult {
+  ok: boolean;
+  urls: string[];
+  error?: string;
+}
+
+async function warmRouteAtomic(
+  route: string,
+  staticCache: Cache,
+  stagingCache: Cache,
+): Promise<WarmResult> {
+  const stagedPaths: string[] = [];
+  try {
+    // 1. Fetch the route HTML.
+    const htmlRes = await fetchWithTimeout(route, { credentials: 'same-origin' });
+    if (!htmlRes.ok || htmlRes.redirected) {
+      return {
+        ok: false,
+        urls: [],
+        error: `html-${htmlRes.status}${htmlRes.redirected ? '-redirected' : ''}`,
+      };
+    }
+
+    // 2. Extract every _next/static asset the HTML references.
+    const html = await htmlRes.clone().text();
+    const chunkUrls = Array.from(
+      html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+    )
+      .map((m) => m[1])
+      .filter((u): u is string => Boolean(u));
+
+    // 3. Stage every chunk. Skip ones already in STATIC_CACHE from an
+    //    earlier pass — they are already live.
+    const stageResults = await Promise.allSettled(
+      chunkUrls.map(async (url) => {
+        const alreadyLive = await staticCache.match(url);
+        if (alreadyLive) return { url, skipped: true };
+        const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`chunk-${res.status}`);
+        await putTimestamped(stagingCache, url, res);
+        stagedPaths.push(url);
+        return { url, skipped: false };
+      }),
+    );
+
+    // 4. Verify — every chunk present in EITHER cache.
+    const missing: string[] = [];
+    for (const url of chunkUrls) {
+      const inStaging = await stagingCache.match(url);
+      const inStatic = await staticCache.match(url);
+      if (!inStaging && !inStatic) missing.push(url);
+    }
+    if (missing.length > 0) {
+      const firstFail = stageResults.find(
+        (r) => r.status === 'rejected',
+      ) as PromiseRejectedResult | undefined;
+      const why =
+        firstFail?.reason instanceof Error
+          ? firstFail.reason.message
+          : `missing-${missing.length}`;
+      for (const url of stagedPaths) {
+        try { await stagingCache.delete(url); } catch { /* noop */ }
+      }
+      return { ok: false, urls: [], error: why };
+    }
+
+    // 5. Promote staged chunks to STATIC_CACHE.
+    for (const url of chunkUrls) {
+      const staged = await stagingCache.match(url);
+      if (staged) {
+        await staticCache.put(url, staged);
+        await stagingCache.delete(url);
+      }
+    }
+
+    // 6. Commit HTML — from here the route is offline-complete.
+    await putTimestamped(staticCache, route, htmlRes);
+
+    // 7. RSC shell — best effort. Its absence degrades offline SPA
+    //    navigation to a hard navigation (which lands on the now-cached
+    //    HTML), not to an error.
+    try {
+      const rscRes = await fetchWithTimeout(route, {
+        credentials: 'same-origin',
+        headers: { RSC: '1' },
+      });
+      if (rscRes.ok) {
+        const headers = new Headers(rscRes.headers);
+        headers.delete('Vary');
+        headers.set('X-SW-Cached-At', String(Date.now()));
+        const stored = new Response(await rscRes.clone().blob(), {
+          status: rscRes.status,
+          statusText: rscRes.statusText,
+          headers,
+        });
+        await staticCache.put(rscShellKey(route), stored);
+      }
+    } catch {
+      // Non-fatal.
+    }
+
+    return { ok: true, urls: [route, ...chunkUrls, rscShellKey(route)] };
+  } catch (err) {
+    for (const url of stagedPaths) {
+      try { await stagingCache.delete(url); } catch { /* noop */ }
+    }
+    const msg =
+      err instanceof DOMException
+        ? err.name
+        : err instanceof Error
+          ? `${err.name}: ${err.message}`
+          : String(err);
+    return { ok: false, urls: [], error: msg };
+  }
+}
+
+/** Delete every _next/static entry in STATIC_CACHE not part of the
+ * current build's liveUrls set. HTML routes and RSC shells are left
+ * alone — only hashed chunks churn between deploys. */
+async function sweepOrphans(cache: Cache, liveUrls: Set<string>): Promise<number> {
+  const keys = await cache.keys();
+  let swept = 0;
+  for (const req of keys) {
+    const path = toPath(req.url);
+    if (!path.startsWith('/_next/static/')) continue;
+    if (liveUrls.has(path)) continue;
+    try {
+      await cache.delete(req);
+      swept += 1;
+    } catch {
+      // noop
+    }
+  }
+  return swept;
 }
 
 export async function warmRouteShells(): Promise<void> {
@@ -629,3 +818,306 @@ export async function warmPersonalShells(): Promise<void> {
  * ما هو غير مُغطّى: افتراض RSC بدون Next-Router-State-Tree — راجع تعليق
  * PHASE-3-B في public/sw.js. لم يُختبر كل مسار محمي بمتصفح حقيقي بعد.
  */
+
+/**
+ * PROXY-WARMING — warming entry point that runs under a cross-tab lock
+ * and uses the atomic per-route engine above. Coexists with the legacy
+ * warmRouteShells during rollout; OfflineBootstrap switches to this in
+ * a follow-up.
+ *
+ * Differences vs. legacy:
+ *   - Cross-tab lock (Web Locks; localStorage fallback).
+ *   - Route set filtered by getWarmingPlan() — save-data and slow links
+ *     get a reduced (or empty) list.
+ *   - Per-route atomic: no route marked complete until every chunk is
+ *     verified. No more WARM-FALSE-SUCCESS-01.
+ *   - Per-route state persists in IndexedDB — an interrupted pass
+ *     resumes on the next visit.
+ *   - Orphan chunks from previous builds are swept after a successful
+ *     pass, so the cache does not grow without bound across deploys.
+ */
+export async function warmRouteShellsAtomic(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (typeof caches === 'undefined') return;
+  if (!navigator.onLine) return;
+
+  await runUnderWarmingLock(async () => {
+    const plan = getWarmingPlan();
+    if (isWarmingDisabled(plan)) return;
+
+    const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
+    if (Date.now() - last < WARM_INTERVAL_MS) return;
+
+    const routes = selectRoutesByPlan(plan, CORE_ROUTES);
+    if (routes.length === 0) return;
+
+    const staticCache = await caches.open(STATIC_CACHE);
+    const stagingCache = await caches.open(STAGING_CACHE);
+
+    const snapshot = await readSnapshot();
+    const liveUrls: string[] = [];
+    let completedThisPass = 0;
+
+    for (const route of routes) {
+      const prior = snapshot?.routes[route];
+      if (prior?.status === 'complete' && prior.chunks.length > 0) {
+        liveUrls.push(...prior.chunks.map(toPath));
+        continue;
+      }
+
+      const delay = backoffForAttempts(prior?.attempts ?? 0);
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      const result = await warmRouteAtomic(route, staticCache, stagingCache);
+
+      await patchRouteStatus(route, {
+        status: result.ok ? 'complete' : 'failed',
+        chunks: result.urls.map(toPath),
+        attempts: (prior?.attempts ?? 0) + 1,
+        lastAttempt: Date.now(),
+        warmedAt: result.ok ? Date.now() : prior?.warmedAt,
+        lastError: result.ok ? undefined : result.error,
+      });
+
+      if (result.ok) {
+        completedThisPass += 1;
+        liveUrls.push(...result.urls.map(toPath));
+      }
+
+      if (plan.interRouteDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, plan.interRouteDelayMs));
+      }
+    }
+
+    if (completedThisPass > 0) {
+      localStorage.setItem(LAST_ROUTE_WARMED_KEY, String(Date.now()));
+    }
+
+    const prevLive = snapshot?.liveUrls ?? [];
+    if (liveUrls.length > 0 && isBuildChanged(prevLive, liveUrls)) {
+      if (shouldSweep(snapshot?.lastSweepAt ?? 0)) {
+        const swept = await sweepOrphans(staticCache, new Set(liveUrls));
+        if (swept > 0) {
+          console.info(`[route-shells] swept ${swept} orphan chunks`);
+        }
+        await recordSweepTime();
+      }
+    }
+
+    if (liveUrls.length > 0) {
+      await recordLiveUrls(liveUrls);
+    }
+  });
+}
+
+/**
+ * PHASE-2 — atomic per-route warming for the personal shell cache.
+ *
+ * Mirrors warmRouteAtomic's all-or-nothing semantics: a personal route's
+ * HTML does not enter PERSONAL_SHELL_CACHE until every chunk it needs is
+ * verified present in STATIC_CACHE. Chunks stage in STAGING_CACHE first,
+ * so a partially-fetched route never leaves a half-written HTML pointing
+ * at chunks that aren't there.
+ *
+ * Chunk storage is shared with the public path (both use STATIC_CACHE) —
+ * deliberate: the same framework/vendor chunks back public and personal
+ * routes, and the in-flight dedup map already avoids fetching them twice.
+ *
+ * HTML and RSC shell go into PERSONAL_SHELL_CACHE (not STATIC_CACHE)
+ * because the SW clears PERSONAL_SHELL_CACHE on logout — see sw.js's
+ * CLEAR_API_CACHE handler and the audit #7 comments there. Putting
+ * personal HTML in the shared cache would leak one user's shell into
+ * another user's session on a shared device.
+ */
+async function warmPersonalRouteAtomic(
+  route: string,
+  staticCache: Cache,
+  personalCache: Cache,
+  stagingCache: Cache,
+): Promise<WarmResult> {
+  const stagedPaths: string[] = [];
+  try {
+    const htmlRes = await fetchWithTimeout(route, { credentials: 'same-origin' });
+    if (!htmlRes.ok || htmlRes.redirected) {
+      return {
+        ok: false,
+        urls: [],
+        error: `html-${htmlRes.status}${htmlRes.redirected ? '-redirected' : ''}`,
+      };
+    }
+
+    const html = await htmlRes.clone().text();
+    const chunkUrls = Array.from(
+      html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+    )
+      .map((m) => m[1])
+      .filter((u): u is string => Boolean(u));
+
+    await Promise.allSettled(
+      chunkUrls.map(async (url) => {
+        const alreadyLive = await staticCache.match(url);
+        if (alreadyLive) return;
+        const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`chunk-${res.status}`);
+        await putTimestamped(stagingCache, url, res);
+        stagedPaths.push(url);
+      }),
+    );
+
+    const missing: string[] = [];
+    for (const url of chunkUrls) {
+      const inStaging = await stagingCache.match(url);
+      const inStatic = await staticCache.match(url);
+      if (!inStaging && !inStatic) missing.push(url);
+    }
+    if (missing.length > 0) {
+      for (const url of stagedPaths) {
+        try { await stagingCache.delete(url); } catch { /* noop */ }
+      }
+      return { ok: false, urls: [], error: `missing-${missing.length}` };
+    }
+
+    for (const url of chunkUrls) {
+      const staged = await stagingCache.match(url);
+      if (staged) {
+        await staticCache.put(url, staged);
+        await stagingCache.delete(url);
+      }
+    }
+
+    await putTimestamped(personalCache, route, htmlRes);
+
+    try {
+      const rscRes = await fetchWithTimeout(route, {
+        credentials: 'same-origin',
+        headers: { RSC: '1' },
+      });
+      if (rscRes.ok) {
+        const headers = new Headers(rscRes.headers);
+        headers.delete('Vary');
+        headers.set('X-SW-Cached-At', String(Date.now()));
+        const stored = new Response(await rscRes.clone().blob(), {
+          status: rscRes.status,
+          statusText: rscRes.statusText,
+          headers,
+        });
+        await personalCache.put(rscShellKey(route), stored);
+      }
+    } catch {
+      // non-fatal
+    }
+
+    return { ok: true, urls: [route, ...chunkUrls] };
+  } catch (err) {
+    for (const url of stagedPaths) {
+      try { await stagingCache.delete(url); } catch { /* noop */ }
+    }
+    const msg =
+      err instanceof DOMException
+        ? err.name
+        : err instanceof Error
+          ? `${err.name}: ${err.message}`
+          : String(err);
+    return { ok: false, urls: [], error: msg };
+  }
+}
+
+/**
+ * PHASE-2 — personal-shell analogue of warmRouteShellsAtomic. Runs under
+ * a distinct lock, respects the same network-aware planner, resumes from
+ * IndexedDB state, and skips routes whose cached HTML has disappeared
+ * (logout clears PERSONAL_SHELL_CACHE but leaves IndexedDB intact —
+ * without this sanity check, a re-login on the same device would think
+ * every route was already warmed and cache nothing).
+ *
+ * Does NOT touch liveUrls: those describe chunks in STATIC_CACHE, which
+ * the public pass owns. Personal warming only adds HTML/RSC to
+ * PERSONAL_SHELL_CACHE; its chunks are a subset of what public warming
+ * (or a later public pass) records.
+ */
+export async function warmPersonalShellsAtomic(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (typeof caches === 'undefined') return;
+  if (!navigator.onLine) return;
+
+  await runUnderWarmingLock(async () => {
+    const plan = getWarmingPlan();
+    if (isWarmingDisabled(plan)) return;
+
+    const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
+    if (Date.now() - last < WARM_INTERVAL_MS) return;
+
+    // Preserve existing hidden-wait behaviour: fires only when the tab
+    // is hidden, or after 15s of visible engagement.
+    await new Promise<void>((resolve) => {
+      if (typeof document === 'undefined') { resolve(); return; }
+      if (document.visibilityState === 'hidden') { resolve(); return; }
+      let settled = false;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        document.removeEventListener('visibilitychange', onVis);
+        resolve();
+      };
+      const onVis = () => {
+        if (document.visibilityState === 'hidden') settle();
+      };
+      document.addEventListener('visibilitychange', onVis);
+      window.setTimeout(settle, 15_000);
+    });
+
+    const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
+    if (routes.length === 0) return;
+
+    const staticCache = await caches.open(STATIC_CACHE);
+    const personalCache = await caches.open(PERSONAL_SHELL_CACHE);
+    const stagingCache = await caches.open(STAGING_CACHE);
+
+    const snapshot = await readSnapshot();
+    let completedThisPass = 0;
+
+    for (const route of routes) {
+      const key = `personal:${route}`;
+      const prior = snapshot?.routes[key];
+
+      if (prior?.status === 'complete') {
+        // Sanity: logout wipes PERSONAL_SHELL_CACHE but not IndexedDB.
+        const htmlHit = await personalCache.match(route);
+        if (htmlHit) continue;
+      }
+
+      const delay = backoffForAttempts(prior?.attempts ?? 0);
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      const result = await warmPersonalRouteAtomic(
+        route,
+        staticCache,
+        personalCache,
+        stagingCache,
+      );
+
+      await patchRouteStatus(key, {
+        status: result.ok ? 'complete' : 'failed',
+        chunks: result.urls.map(toPath),
+        attempts: (prior?.attempts ?? 0) + 1,
+        lastAttempt: Date.now(),
+        warmedAt: result.ok ? Date.now() : prior?.warmedAt,
+        lastError: result.ok ? undefined : result.error,
+      });
+
+      if (result.ok) completedThisPass += 1;
+
+      if (plan.interRouteDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, plan.interRouteDelayMs));
+      }
+    }
+
+    if (completedThisPass > 0) {
+      localStorage.setItem(LAST_PERSONAL_WARMED_KEY, String(Date.now()));
+    }
+  }, PERSONAL_LOCK_NAME);
+}

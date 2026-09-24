@@ -33,6 +33,8 @@
  */
 
 import { API_BASE_URL } from '@/lib/constants';
+import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
+import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 
 // FIX PWA-VER-01: نفس مشكلة lib/offlineRouteShells.ts's STATIC_CACHE — كانت
 // عالقة على 'v4' بينما public/sw.js تجاوزها إلى 'v5'، فكان warmCoreBundle()
@@ -62,6 +64,20 @@ export const CORE_CACHE = 'market-core-v36'; // يجب مطابقة CACHE_VERSIO
 const CACHE_VERSION_SUFFIX = CORE_CACHE.split('-').pop() ?? 'unknown';
 const LAST_WARMED_KEY = `marketplat:core-bundle:last-warmed:${CACHE_VERSION_SUFFIX}`;
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 ساعات — يكفي لبيانات "تصفح عام"
+
+// PHASE-3a: core bundle uses a lock distinct from the route-shell locks
+// so the three warming passes (public shells, personal shells, core
+// data) can coordinate independently across tabs.
+const CORE_LOCK_NAME = 'marketplat-warming-core';
+
+// PHASE-3a: minimum fraction of items that must store successfully
+// before LAST_WARMED_KEY is written. The old code used `succeeded > 0`
+// — a single stored response (out of ~30 including thumbnails) marked
+// the whole pass successful and locked out retries for 6 hours. That
+// is WARM-FALSE-SUCCESS-01's exact pathology. 0.5 means "at least half
+// of what we tried actually landed", which is a meaningful bar on a
+// flaky network without being too strict for a first-visit pass.
+const SUCCESS_THRESHOLD = 0.5;
 
 // FEAT-WARMUP-UI: حالة تقدّم مشتركة يشترك بها WarmupIndicator.tsx — نفس
 // نمط sharedRegistration/sharedListeners المستخدم أصلًا بـ UpdatePrompt.tsx
@@ -196,7 +212,7 @@ async function cachePut(cache: Cache, url: string, response: Response): Promise<
  * مكوّن UI مركّب أصلًا) لا يوقف أو يبطئ أي شيء، مجرد استدعاءات Set.forEach
  * على مجموعة فارغة.
  */
-export async function warmCoreBundle(options?: { force?: boolean }): Promise<void> {
+async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!navigator.onLine) return;
   if (typeof caches === 'undefined') return;
@@ -267,7 +283,13 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
       }),
     );
 
-    if (succeeded > 0) {
+    // PHASE-3a: threshold, not `succeeded > 0`. See SUCCESS_THRESHOLD's
+    // comment above for why. On the flip side: if fewer than half the
+    // items stored, LAST_WARMED_KEY is NOT written, so the next visit
+    // (or the next online event) will retry the whole pass. That is the
+    // whole point — a broken network pass should not look successful.
+    const threshold = Math.ceil(total * SUCCESS_THRESHOLD);
+    if (succeeded >= threshold) {
       localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
     }
   } catch {
@@ -280,4 +302,30 @@ export async function warmCoreBundle(options?: { force?: boolean }): Promise<voi
     // الاتصال أثناء التحميل.
     notifyWarmup({ active: false, completed, total });
   }
+}
+
+/**
+ * PHASE-3a — public entry point. Guards with the same online/caches
+ * checks as before, then defers to warmCoreBundleImpl under a cross-tab
+ * lock. The plan gate here is intentionally coarse (skip if
+ * save-data or worse-than-3g): warming API data behind the user's back
+ * on a metered link is exactly what the old code did not do, and the
+ * cost/benefit on that class of connection is poor.
+ *
+ * The old isWarming per-tab flag still lives inside the impl — the
+ * lock handles cross-tab serialization, the flag handles intra-tab
+ * double-call races (mount + online event firing in the same tick).
+ */
+export async function warmCoreBundle(options?: { force?: boolean }): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!navigator.onLine) return;
+  if (typeof caches === 'undefined') return;
+
+  const plan = getWarmingPlan();
+  if (isWarmingDisabled(plan)) return;
+
+  await runUnderWarmingLock(
+    () => warmCoreBundleImpl(options),
+    CORE_LOCK_NAME,
+  );
 }

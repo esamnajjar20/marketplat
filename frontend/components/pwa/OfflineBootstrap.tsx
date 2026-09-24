@@ -19,7 +19,7 @@ import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
-import { warmRouteShells, warmPersonalShells } from '@/lib/offlineRouteShells';
+import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRouteShells';
 import { ensurePushSubscriptionSynced } from '@/lib/pwa';
 import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
@@ -66,7 +66,7 @@ export function OfflineBootstrap() {
     }
 
     void warmCoreBundle();
-    void warmRouteShells();
+    void warmRouteShellsAtomic();
 
     // mount: أعد إرسال الطابور + المسودات (لو فُتح التطبيق والنت متاح)
     replayThenPublishDrafts();
@@ -98,7 +98,7 @@ export function OfflineBootstrap() {
     const onOnline = () => {
       replayThenPublishDrafts();
       void warmCoreBundle();
-      void warmRouteShells();
+      void warmRouteShellsAtomic();
     };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -106,7 +106,7 @@ export function OfflineBootstrap() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void warmPersonalShells();
+    void warmPersonalShellsAtomic();
     void (async () => {
       if (await supportsWebPush()) {
         void ensurePushSubscriptionSynced();
@@ -117,7 +117,7 @@ export function OfflineBootstrap() {
     })();
 
     const onOnlineAuth = () => {
-      void warmPersonalShells();
+      void warmPersonalShellsAtomic();
       void (async () => {
         if (await supportsWebPush()) {
           void ensurePushSubscriptionSynced();

@@ -624,6 +624,44 @@ async function staleWhileRevalidate(event, request, cacheKey) {
   return Response.error();
 }
 
+/**
+ * FIX SW-CHUNK-VERIFY-01: Before serving a cached HTML document while
+ * offline, verify that every _next/static chunk the HTML references is
+ * also present in STATIC_CACHE. If any is missing, the page will fail
+ * to hydrate with a ChunkLoadError — a full-page error screen that is
+ * strictly worse than the explicit /offline fallback. This is the
+ * last-mile guard that turns "offline route partially cached" into
+ * "clean /offline page", and is the counterpart of the atomic-warming
+ * rewrite on the client side (lib/offlineRouteShells.ts's
+ * warmRouteAtomic).
+ *
+ * Only called for navigate (non-RSC) requests. RSC shells reference
+ * chunks through a different protocol, and a missing RSC shell
+ * already falls back cleanly to Response.error() → hard navigation →
+ * /offline via the existing path.
+ *
+ * Returns true if the response is safe to serve offline.
+ */
+async function verifyCachedChunks(cachedResponse, cache) {
+  try {
+    const html = await cachedResponse.clone().text();
+    const chunkUrls = Array.from(
+      html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+    ).map((m) => m[1]);
+    if (chunkUrls.length === 0) return true;
+    for (const url of chunkUrls) {
+      const hit = await cache.match(url);
+      if (!hit) return false;
+    }
+    return true;
+  } catch {
+    // Parse/read failure → err on the side of serving. Worst case the
+    // user sees the previous ChunkLoadError behavior; best case the
+    // page works. Never block on our own bug.
+    return true;
+  }
+}
+
 /** FIX SW-NAV-NETFIRST-01: شبكة أولًا لصفحات App Shell العامة (navigate +
  * RSC shells) — كانت سابقًا Stale-While-Revalidate (انظر تلك الدالة
  * أعلاه)، والتي تعرض النسخة المخزَّنة *فورًا* دون انتظار الشبكة، حتى لو
@@ -689,7 +727,20 @@ async function networkFirstPage(event, request, cacheKey) {
     }
     // فشل الشبكة (أوفلاين) أو تجاوز المهلة — آخر نسخة مخزَّنة فعليًا، إن وُجدت.
     const cachedResponse = await cache.match(cacheKey);
-    if (cachedResponse) return cachedResponse;
+    if (cachedResponse) {
+      // FIX SW-CHUNK-VERIFY-01: refuse to serve HTML whose referenced
+      // chunks are not all cached — that would produce a ChunkLoadError
+      // screen. Verify only for navigate (non-RSC) requests; RSC
+      // shells are handled separately above.
+      if (!isRscShellRequest(request)) {
+        const safe = await verifyCachedChunks(cachedResponse, cache);
+        if (!safe) {
+          const offlineFallback = await cache.match(OFFLINE_URL);
+          return offlineFallback || Response.error();
+        }
+      }
+      return cachedResponse;
+    }
 
     // FIX SW-NO-FORCE-OFFLINE-RSC-01: بلا إجبار /offline على فشل RSC.
     if (isRscShellRequest(request)) {
