@@ -20,7 +20,7 @@
  * and unlike RegisterForm's optional field) since collecting it is
  * this whole page's reason to exist.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -43,6 +43,33 @@ export function CompleteProfileForm() {
   const [name, setName] = useState(user?.name ?? '');
   const [city, setCity] = useState('');
   const [errors, setErrors] = useState<Errors>({});
+
+  // SW-COMPLETE-PROFILE-SYNC-01: seed the name field from the store
+  // exactly once, whenever the user object first becomes available.
+  //
+  // The common flow after a Google signup is: backend redirects to
+  // /complete-profile, this component mounts immediately, and
+  // AuthHydrationProvider's /auth/refresh hasn't finished yet — so
+  // `user` is null on first render and the original
+  // `useState(user?.name ?? '')` seeds an empty string. When the
+  // refresh resolves and the store populates, the form did not pick up
+  // the name. The user's own Google-displayed name was supposed to be
+  // pre-filled (per this file's own doc comment) and wasn't — they had
+  // to re-type it.
+  //
+  // A ref (not state) for the "already synced" flag avoids an extra
+  // render on the seed. If the user starts typing before the store
+  // resolves, the seed still overwrites — that's the correct tradeoff:
+  // the user cannot have typed a meaningful name in the 100-500ms
+  // before /auth/refresh returns, and the alternative (losing the
+  // pre-fill) is the bug we're fixing.
+  const didSeedNameRef = useRef(Boolean(user?.name));
+  useEffect(() => {
+    if (didSeedNameRef.current) return;
+    if (!user?.name) return;
+    didSeedNameRef.current = true;
+    setName(user.name);
+  }, [user?.name]);
 
   function fieldError(field: keyof Errors): string | undefined {
     return errors[field];
