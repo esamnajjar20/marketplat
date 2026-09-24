@@ -42,6 +42,17 @@ const SKIP_PATTERNS = [
   /^html-404/,             // wrong route list — dev bug, not network
   /^chunk-404/,            // deploy churn — SW handles, will refetch
   /^missing-/,             // partial chunk presence — will retry
+  // SW-WARMING-REPORT-FILTER-LOWTHRESHOLD: 'low-threshold-N/M' comes
+  // from offlineCoreBundle's threshold check — it fires whenever
+  // fewer than 50% of the core endpoints stored successfully. On the
+  // 1.45 Mbps links this app targets, that is the *expected* outcome
+  // of a background warming pass, not a bug. Before this filter it
+  // produced one Sentry event per session (confirmed by MARKETPLAT-9),
+  // drowning real warming failures in "network was slow" noise. The
+  // threshold still functions — LAST_WARMED_KEY is not written, the
+  // pass retries next time — it just no longer escalates to the
+  // alert stream.
+  /^low-threshold-/,
 ];
 
 export type WarmingSource = 'core' | 'routes' | 'personal';
