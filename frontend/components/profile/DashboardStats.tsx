@@ -17,7 +17,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useMyAdStats } from '@/hooks/queries/useAds';
-import { useMyConversations } from '@/hooks/queries/useConversations';
+import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -27,7 +27,9 @@ import { cn } from '@/lib/utils';
 
 type StatItem = {
   label: string;
-  value: number;
+  // number for real counts; '—' when the source failed and a number
+  // would be a lie. See the conversations item below.
+  value: number | string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
   href?: string;
@@ -35,8 +37,25 @@ type StatItem = {
 };
 
 export function DashboardStats() {
+  // SW-DASHBOARD-STATS-FIXES-01: switched from useMyConversations +
+  // items.filter(unreadCount > 0) to useUnreadConversationCount(). Two
+  // reasons:
+  //
+  // 1. Correctness — the previous count only inspected the first 20
+  //    conversations returned by the list query. A user with more than
+  //    20 threads whose unread ones were on later pages saw 0 unread
+  //    even though the server had newer activity. The dedicated
+  //    endpoint returns the true platform-side count.
+  //
+  // 2. Error handling — the previous list-based version had no isError
+  //    check, so a failed fetch rendered "محادثات غير مقروءة: 0",
+  //    which reads as "you're all caught up" while the network was
+  //    down. That is worse than showing an error, because it's
+  //    plausibly misleading rather than obviously broken. Now the
+  //    count is error-aware and renders '—' on failure.
   const { data: stats, isLoading, isError, refetch } = useMyAdStats();
-  const { data: convData, isLoading: convLoading } = useMyConversations({ limit: 20 });
+  const { data: unreadCount, isLoading: convLoading, isError: convError } =
+    useUnreadConversationCount();
   const { data: myStore, isSuccess: storeOk } = useMyStore();
   const { data: myProvider, isSuccess: providerOk } = useMyServiceProvider();
 
@@ -64,8 +83,8 @@ export function DashboardStats() {
     );
   }
 
-  const items = convData?.items ?? [];
-  const unreadThreads = items.filter((c) => (c.unreadCount ?? 0) > 0).length;
+  // (unread count now comes straight from the server — see the hook
+  // change above; no local filtering to do here).
 
   const adItems: StatItem[] = [
     {
@@ -98,11 +117,14 @@ export function DashboardStats() {
     },
     {
       label: 'محادثات غير مقروءة',
-      value: unreadThreads,
+      // On fetch failure show '—' rather than 0 — see this component's
+      // own doc comment above for why. The item is still clickable
+      // (the messages page will retry), but the number is honest.
+      value: convError ? '—' : (unreadCount ?? 0),
       icon: MessageSquare,
       color: 'text-primary',
       href: ROUTES.messages,
-      highlight: unreadThreads > 0,
+      highlight: !convError && (unreadCount ?? 0) > 0,
     },
   ];
 
@@ -115,7 +137,12 @@ export function DashboardStats() {
             const inner = (
               <>
                 <Icon className={cn('h-5 w-5', color)} />
-                <p className="text-2xl font-bold tabular-nums">{formatNumber(value)}</p>
+                <p className="text-2xl font-bold tabular-nums">
+                  {/* SW-DASHBOARD-STATS-FIXES-01: '—' for a failed source
+                      passes through as-is; only real numbers go through
+                      formatNumber. Avoids showing "NaN" or throwing. */}
+                  {typeof value === 'number' ? formatNumber(value) : value}
+                </p>
                 <p className="text-sm text-muted-foreground">{label}</p>
               </>
             );
