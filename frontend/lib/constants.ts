@@ -234,10 +234,28 @@ export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'ima
 export const PRESENCE_HEARTBEAT_INTERVAL = 60_000; // 60 s — raised from 45s: on Gaza's weak links the per-beat overhead (TLS + round-trip ~250-300ms) costs more than the accuracy the extra 15s buys. Presence dots tolerate minute-level lag; backend presence TTL has enough headroom (see backend presence.service).
 
 /** Base URL for the backend API, consumed by api/client.ts */
-export const API_BASE_URL =
-  process.env.NODE_ENV === 'production'
-    ? '/api/v1'
-    : (getRawApiUrl() ?? 'http://localhost:5000') + '/api/v1';
+// SW-SSR-CLIENT-SPLIT-01: server-side (RSC, generateMetadata, server
+// actions) needs an ABSOLUTE URL — axios cannot resolve a relative
+// baseURL in Node/Workers runtime. The previous PROXY-API-01 patch used
+// a bare '/api/v1' in production, which worked in the browser
+// (same-origin via Worker rewrites) but silently broke every server
+// component that calls the API: /profile/[id], /products/[id],
+// /ads/[id], /stores/[id], and any other RSC page with generateMetadata
+// or a server-side fetch. The user saw "المستخدم غير موجود" on their
+// own profile page while online — a 404 caught and swallowed by the
+// page's try/catch.
+//
+// Rule:
+//   - Server-side: `${NEXT_PUBLIC_API_URL || backendOrigin}/api/v1` — absolute.
+//   - Client-side: '/api/v1' — relative, same-origin via Worker rewrites,
+//     keeps refreshToken first-party (the whole point of PROXY-API-01).
+export const API_BASE_URL = (() => {
+  if (typeof window === 'undefined') {
+    const raw = getRawApiUrl()?.trim() || 'https://marketplat.onrender.com';
+    return `${raw}/api/v1`;
+  }
+  return '/api/v1';
+})();
 
 /**
  * TanStack Query stale times — centralised so every hook uses
