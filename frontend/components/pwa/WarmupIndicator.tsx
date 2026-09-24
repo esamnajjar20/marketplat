@@ -16,10 +16,47 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { DownloadCloud, X } from 'lucide-react';
-import { onWarmupProgress, type WarmupProgress } from '@/lib/offlineCoreBundle';
+import { subscribeWarmingProgress, type AggregatedProgress } from '@/lib/warmingProgress';
+
+function WarmingRow({
+  label,
+  completed,
+  total,
+}: {
+  label: string;
+  completed: number;
+  total: number;
+}) {
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-12 shrink-0 text-[10px] text-muted-foreground">
+        {label}
+      </span>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary transition-[width]"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <span className="w-8 shrink-0 text-end text-[10px] tabular-nums text-muted-foreground">
+        {percent}%
+      </span>
+    </div>
+  );
+}
 
 export function WarmupIndicator() {
-  const [progress, setProgress] = useState<WarmupProgress>({ active: false, completed: 0, total: 0 });
+  const [progress, setProgress] = useState<AggregatedProgress>({
+    active: false,
+    completed: 0,
+    total: 0,
+    bySource: {
+      core: { active: false, completed: 0, total: 0 },
+      routes: { active: false, completed: 0, total: 0 },
+      personal: { active: false, completed: 0, total: 0 },
+    },
+  });
   const [dismissed, setDismissed] = useState(false);
 
   // FIX WARMUP-SETSTATE: useRef لتتبع active — بدل nested setState
@@ -28,7 +65,7 @@ export function WarmupIndicator() {
   const prevActiveRef = useRef(false);
 
   useEffect(() => {
-    return onWarmupProgress((next) => {
+    return subscribeWarmingProgress((next) => {
       setProgress(next);
       // active يتحوّل من false إلى true فقط عند بداية دورة جديدة —
       // هذا التوقيت بالذات هو ما يعيد ضبط dismissed.
@@ -41,9 +78,12 @@ export function WarmupIndicator() {
 
   // يختفي تلقائيًا عند الاكتمال (active:false يُبعث دائمًا من warmCoreBundle
   // في finally، نجاحًا كان أو فشلًا جزئيًا) — بدون أي إجراء من المستخدم.
-  if (!progress.active || dismissed) return null;
+  const anyActive =
+    progress.bySource.core.active ||
+    progress.bySource.routes.active ||
+    progress.bySource.personal.active;
 
-  const percent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+  if (!progress.active || !anyActive || dismissed) return null;
 
   return (
     <div
@@ -62,11 +102,28 @@ export function WarmupIndicator() {
       <DownloadCloud className="h-5 w-5 shrink-0 text-primary" />
       <div className="min-w-0 flex-1">
         <p className="text-sm">جارٍ تجهيز التصفح بدون إنترنت…</p>
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-[width]"
-            style={{ width: `${percent}%` }}
-          />
+        <div className="mt-2 space-y-1.5">
+          {progress.bySource.core.active && (
+            <WarmingRow
+              label="بيانات"
+              completed={progress.bySource.core.completed}
+              total={progress.bySource.core.total}
+            />
+          )}
+          {progress.bySource.routes.active && (
+            <WarmingRow
+              label="صفحات"
+              completed={progress.bySource.routes.completed}
+              total={progress.bySource.routes.total}
+            />
+          )}
+          {progress.bySource.personal.active && (
+            <WarmingRow
+              label="حسابي"
+              completed={progress.bySource.personal.completed}
+              total={progress.bySource.personal.total}
+            />
+          )}
         </div>
       </div>
       <button

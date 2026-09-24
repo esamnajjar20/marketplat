@@ -64,6 +64,8 @@ import {
   isWarmingDisabled,
 } from './offlineWarmingPlanner';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
+import { reportProgress } from './warmingProgress';
+import { reportWarmingFailure } from './offlineWarmingReport';
 
 // PROXY-WARMING: transient staging area for atomic per-route warming.
 // Deliberately NOT versioned — sw.js's activate handler deletes any
@@ -77,7 +79,7 @@ const STAGING_CACHE = 'market-warming-staging';
 // the only shared resource is chunk URLs, handled by the in-flight dedup
 // map below.
 const PERSONAL_LOCK_NAME = 'marketplat-warming-personal';
-const STATIC_CACHE = 'market-static-v36'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v37'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -236,7 +238,7 @@ export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
 // __tests__/unit/lib/cacheVersionSync.test.ts.
 // FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب أعلاه.
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v36';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v37';
 
 /**
  * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —
@@ -851,12 +853,14 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     const routes = selectRoutesByPlan(plan, CORE_ROUTES);
     if (routes.length === 0) return;
 
+    reportProgress('routes', { active: true, completed: 0, total: routes.length });
+    let completedThisPass = 0;
+    try {
     const staticCache = await caches.open(STATIC_CACHE);
     const stagingCache = await caches.open(STAGING_CACHE);
 
     const snapshot = await readSnapshot();
     const liveUrls: string[] = [];
-    let completedThisPass = 0;
 
     for (const route of routes) {
       const prior = snapshot?.routes[route];
@@ -881,10 +885,24 @@ export async function warmRouteShellsAtomic(): Promise<void> {
         lastError: result.ok ? undefined : result.error,
       });
 
+      if (!result.ok) {
+        reportWarmingFailure({
+          source: 'routes',
+          route,
+          error: result.error ?? 'unknown',
+          attempts: (prior?.attempts ?? 0) + 1,
+        });
+      }
+
       if (result.ok) {
         completedThisPass += 1;
         liveUrls.push(...result.urls.map(toPath));
       }
+      reportProgress('routes', {
+        active: true,
+        completed: completedThisPass,
+        total: routes.length,
+      });
 
       if (plan.interRouteDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, plan.interRouteDelayMs));
@@ -908,6 +926,9 @@ export async function warmRouteShellsAtomic(): Promise<void> {
 
     if (liveUrls.length > 0) {
       await recordLiveUrls(liveUrls);
+    }
+    } finally {
+      reportProgress('routes', { active: false, completed: completedThisPass, total: routes.length });
     }
   });
 }
@@ -1071,12 +1092,14 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
     const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
     if (routes.length === 0) return;
 
+    reportProgress('personal', { active: true, completed: 0, total: routes.length });
+    let completedThisPass = 0;
+    try {
     const staticCache = await caches.open(STATIC_CACHE);
     const personalCache = await caches.open(PERSONAL_SHELL_CACHE);
     const stagingCache = await caches.open(STAGING_CACHE);
 
     const snapshot = await readSnapshot();
-    let completedThisPass = 0;
 
     for (const route of routes) {
       const key = `personal:${route}`;
@@ -1109,7 +1132,21 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
         lastError: result.ok ? undefined : result.error,
       });
 
+      if (!result.ok) {
+        reportWarmingFailure({
+          source: 'personal',
+          route,
+          error: result.error ?? 'unknown',
+          attempts: (prior?.attempts ?? 0) + 1,
+        });
+      }
+
       if (result.ok) completedThisPass += 1;
+      reportProgress('personal', {
+        active: true,
+        completed: completedThisPass,
+        total: routes.length,
+      });
 
       if (plan.interRouteDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, plan.interRouteDelayMs));
@@ -1118,6 +1155,9 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
 
     if (completedThisPass > 0) {
       localStorage.setItem(LAST_PERSONAL_WARMED_KEY, String(Date.now()));
+    }
+    } finally {
+      reportProgress('personal', { active: false, completed: completedThisPass, total: routes.length });
     }
   }, PERSONAL_LOCK_NAME);
 }

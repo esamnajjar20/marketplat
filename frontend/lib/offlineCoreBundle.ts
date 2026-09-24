@@ -35,6 +35,12 @@
 import { API_BASE_URL } from '@/lib/constants';
 import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
+import {
+  reportProgress,
+  subscribeWarmingProgress,
+  getWarmingProgressAggregate,
+} from './warmingProgress';
+import { reportWarmingFailure } from './offlineWarmingReport';
 
 // FIX PWA-VER-01: نفس مشكلة lib/offlineRouteShells.ts's STATIC_CACHE — كانت
 // عالقة على 'v4' بينما public/sw.js تجاوزها إلى 'v5'، فكان warmCoreBundle()
@@ -49,7 +55,7 @@ import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 // public/sw.js's CACHE_VERSION).
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
 // fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
-export const CORE_CACHE = 'market-core-v36'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+export const CORE_CACHE = 'market-core-v37'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // FIX WARM-MARKER-VERSION-01: append the cache version to this key so
 // a CACHE_VERSION bump automatically invalidates the "recently warmed"
 // marker. Without it, after every deploy the SW clears CORE_CACHE on
@@ -90,26 +96,26 @@ export interface WarmupProgress {
   total: number;
 }
 
-let sharedWarmupProgress: WarmupProgress = { active: false, completed: 0, total: 0 };
-const warmupListeners = new Set<(progress: WarmupProgress) => void>();
 let isWarming = false;
 
+// PHASE-3c: progress is now reported to the central aggregator so the UI
+// reflects all three warming passes in one bar. This module's own
+// listeners were removed; onWarmupProgress/getWarmupProgress below are
+// kept as thin aliases for the 'core' slice, in case anything external
+// still imports them.
 function notifyWarmup(progress: WarmupProgress) {
-  sharedWarmupProgress = progress;
-  warmupListeners.forEach((cb) => cb(progress));
+  reportProgress('core', progress);
 }
 
-/** يستمع WarmupIndicator.tsx لهذه الحالة لعرض/تحديث/إخفاء شريط التقدّم. */
+/** @deprecated Use subscribeWarmingProgress from '@/lib/warmingProgress'
+ * for aggregated progress across all sources. Retained for compatibility;
+ * returns only the 'core' source slice. */
 export function onWarmupProgress(listener: (progress: WarmupProgress) => void): () => void {
-  warmupListeners.add(listener);
-  listener(sharedWarmupProgress); // أبلغ فورًا بالحالة الحالية (مثل onServiceWorkerUpdate)
-  return () => {
-    warmupListeners.delete(listener);
-  };
+  return subscribeWarmingProgress((agg) => listener(agg.bySource.core));
 }
 
 export function getWarmupProgress(): WarmupProgress {
-  return sharedWarmupProgress;
+  return getWarmingProgressAggregate().bySource.core;
 }
 
 /** نفس بناء URL اللي productsApi.getAll/categoriesApi.getAll/storesApi.getAll
@@ -291,6 +297,13 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
     const threshold = Math.ceil(total * SUCCESS_THRESHOLD);
     if (succeeded >= threshold) {
       localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
+    } else {
+      reportWarmingFailure({
+        source: 'core',
+        route: 'core-bundle',
+        error: `low-threshold-${succeeded}/${total}`,
+        attempts: 2,
+      });
     }
   } catch {
     // فشل الحزمة كاملة (مثلًا الشبكة انقطعت أثناء الجلب) — لا مشكلة،
