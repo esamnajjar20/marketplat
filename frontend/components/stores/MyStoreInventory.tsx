@@ -163,7 +163,12 @@ function StockRow({
 export function MyStoreInventory() {
   const router = useRouter();
   const sp = useSearchParams();
-  const page = Number(sp.get('page') ?? 1);
+  // SW-INVENTORY-FIXES-01: a hand-edited URL like ?page=abc produced
+  // NaN, which the products hook serialised onto the wire — same class
+  // of bug fixed across the seven admin tables. Clamp to a positive
+  // integer with a fallback of 1.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const filter = (sp.get('stock') as StockFilter) || 'all';
   const searchQ = sp.get('q') ?? '';
   const [searchInput, setSearchInput] = useState(searchQ);
@@ -184,22 +189,33 @@ export function MyStoreInventory() {
   const items = useMemo(() => data?.items ?? [], [data?.items]);
   const totalPages = data?.meta?.totalPages ?? 1;
 
-  // Client-side extra filter for "low" if backend LIMITED is enough;
-  // also show rows with stockQuantity <= 5 when filter=low as fallback
-  const rows = useMemo(() => {
-    if (filter !== 'low') return items;
-    return items.filter(
-      (p) =>
-        p.availability === 'LIMITED' ||
-        (p.stockQuantity != null && p.stockQuantity > 0 && p.stockQuantity <= 5)
-    );
-  }, [items, filter]);
+  // SW-INVENTORY-FILTER-01: reverted the extra client-side filter.
+  //
+  // Previous version, when filter='low', kept only rows where
+  // availability === 'LIMITED' OR stockQuantity <= 5. That second
+  // clause narrowed the definition beyond what the backend considers
+  // 'limited' — and worse, it applied AFTER pagination. The API could
+  // return 20 LIMITED products and this view would show 3 of them
+  // while totalPages still said "5 pages" — the user saw 3 items and
+  // 5 page buttons, then landed on "empty" pages 2-5.
+  //
+  // The backend's own productAvaility mapping is the single source of
+  // truth for what "منخفض" means. If that definition ever needs to
+  // change, it changes in products.service.ts and this view reflects
+  // it automatically. Client-side disambiguation against the same
+  // field is precisely the kind of drift the codebase already avoids
+  // elsewhere (T760 family, AGENTS.md).
+  const rows = items;
 
   function pushParams(mutator: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(sp.toString());
     mutator(params);
     params.delete('page');
-    router.push(`${ROUTES.myStoreInventory}?${params.toString()}`);
+    // SW-INVENTORY-FIXES-01: replace, not push. Filters and search are
+    // refinements of the same view — pushing made Back require N presses
+    // to actually leave the page after setting three filters, matching
+    // the same reasoning already applied to SearchFilters.
+    router.replace(`${ROUTES.myStoreInventory}?${params.toString()}`);
   }
 
   function setFilter(next: StockFilter) {
