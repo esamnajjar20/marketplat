@@ -158,7 +158,7 @@ export function AdminFraudTable() {
           {items.map((ad) => (
             <div key={ad.id} className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-xs">
               <div className="min-w-0 space-y-1">
-                <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" className="text-sm font-semibold text-primary hover:underline line-clamp-2">
+                <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline line-clamp-2">
                   {ad.title}
                 </Link>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ export function AdminFraudTable() {
                 <Fragment key={ad.id}>
                   <tr className="hover:bg-muted/30 transition-colors">
                     <td className="p-3 max-w-xs">
-                      <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank"
+                      <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1 text-primary hover:underline text-xs">
                         <ExternalLink className="h-3 w-3 shrink-0" />
                         <span className="truncate">{ad.title}</span>

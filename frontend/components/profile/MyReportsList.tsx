@@ -75,7 +75,7 @@ function MyReportRow({ report }: { report: Report }) {
         <div className="flex items-center justify-between gap-2 pt-1">
           <Link
             href={targetHref(report.targetType, report.targetId)}
-            target="_blank"
+            target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1 text-xs text-primary hover:underline"
           >
             <ExternalLink className="h-3 w-3" />

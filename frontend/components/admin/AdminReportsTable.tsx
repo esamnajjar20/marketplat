@@ -265,7 +265,7 @@ export function AdminReportsTable() {
                   </p>
                   <Link prefetch={false}
                     href={targetHref(report.targetType, report.targetId)}
-                    target="_blank"
+                    target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                   >
                     <ExternalLink className="h-3 w-3" />
@@ -343,7 +343,7 @@ export function AdminReportsTable() {
                     </div>
                   </td>
                   <td className="p-3 hidden md:table-cell">
-                    <Link prefetch={false} href={targetHref(report.targetType, report.targetId)} target="_blank"
+                    <Link prefetch={false} href={targetHref(report.targetType, report.targetId)} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1 text-primary hover:underline text-xs">
                       <ExternalLink className="h-3 w-3" />
                       <span className="text-muted-foreground">[{TARGET_TYPE_LABELS[report.targetType]}]</span>

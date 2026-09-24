@@ -281,7 +281,7 @@ export function AdminAdsTable() {
                         </div>
                         <div className="min-w-0">
                           <Link prefetch={false} href={ROUTES.adDetail(ad.id)} className="font-medium hover:underline line-clamp-1"
-                            target="_blank">{ad.title}</Link>
+                            target="_blank" rel="noopener noreferrer">{ad.title}</Link>
                           {ad.isFeatured && <Badge variant="outline" className="text-xs border-warning text-warning">مميز</Badge>}
                           {ad.isPinned   && <Badge variant="outline" className="text-xs me-1">مثبّت</Badge>}
                         </div>

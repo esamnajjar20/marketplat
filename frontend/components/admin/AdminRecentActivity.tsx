@@ -32,7 +32,7 @@ export function AdminRecentActivity() {
       {items.map((ad) => (
         <div key={ad.id} className="flex items-center justify-between p-3 hover:bg-muted/30">
           <div className="min-w-0">
-            <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank"
+            <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" rel="noopener noreferrer"
               className="text-sm font-medium hover:underline line-clamp-1">{ad.title}</Link>
             <p className="text-xs text-muted-foreground">{ad.user?.name ?? '—'}</p>
           </div>
