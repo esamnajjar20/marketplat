@@ -38,7 +38,9 @@ export function StorePublisherCard({ adId, store, ownerUserId }: Props) {
   function handleMessage() {
     if (!isAuth) {
       toast.error('سجّل الدخول للمراسلة');
-      router.push(`${ROUTES.login}?next=${encodeURIComponent(ROUTES.adDetail(adId))}`);
+      // SW-FIX-LOGIN-PARAM: see StickyContactBar's identical fix —
+      // LoginForm reads `?from=`, not `?next=`.
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(adId))}`);
       return;
     }
     track('CONTACT_CLICK', { adId, sellerId: ownerUserId, source: 'store_publisher_card' });

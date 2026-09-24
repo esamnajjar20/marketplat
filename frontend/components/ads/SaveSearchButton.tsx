@@ -33,13 +33,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { BellPlus, Megaphone, Package, Wrench } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
 import { useCreateSavedSearch } from '@/hooks/mutations/useSavedSearchMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 import type { SavedSearchFilters, SavedSearchType } from '@/types/savedSearch.types';
 import type { AdCondition } from '@/types/ad.types';
@@ -118,6 +119,7 @@ const TYPE_CHOICES: { type: SavedSearchType; label: string; icon: typeof Megapho
 
 export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButtonProps = {}) {
   const sp = useSearchParams();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   // TYPE-PICK-STEP: only relevant when `type` prop is omitted — starts
   // on 'type' so the picker shows first; call sites that pass `type`
@@ -146,7 +148,15 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
   }
 
   function handleOpen() {
-    if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    // SW-FIX-SAVESEARCH-LOGIN: same pattern as AdCard/StickyContactBar —
+    // redirect to login with the current page as the return target,
+    // rather than a bare toast that stalls the save.
+    if (!isAuth) {
+      const returnTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : ROUTES.search;
+      toast.error('سجّل الدخول لحفظ البحث');
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(returnTo)}`);
+      return;
+    }
     if (type) {
       // Existing single-type flow, unchanged: filter-check happens
       // immediately since there's nothing to pick.

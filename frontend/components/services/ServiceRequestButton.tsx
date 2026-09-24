@@ -35,7 +35,9 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
 
   function handleOpen() {
     if (!isAuthenticated) {
-      router.push(`${ROUTES.login}?next=${encodeURIComponent(ROUTES.serviceDetail(listingId))}`);
+      // SW-FIX-LOGIN-PARAM: see StickyContactBar's identical fix —
+      // LoginForm reads `?from=`, not `?next=`.
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.serviceDetail(listingId))}`);
       return;
     }
     setOpen(true);

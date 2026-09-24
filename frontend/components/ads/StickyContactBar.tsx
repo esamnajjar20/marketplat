@@ -30,7 +30,11 @@ export function StickyContactBar({ adId, price, isNegotiable, seller, className 
   function handleMessage() {
     if (!isAuth) {
       toast.error('سجّل الدخول لتراسل البائع');
-      router.push(`${ROUTES.login}?next=${encodeURIComponent(ROUTES.adDetail(adId))}`);
+      // SW-FIX-LOGIN-PARAM: LoginForm/RegisterForm read `?from=`, not
+      // `?next=` — this used to send the user to /login and then, on
+      // success, to /dashboard instead of back to the ad they wanted
+      // to message about.
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(adId))}`);
       return;
     }
     track('CONTACT_CLICK', { adId, sellerId: seller.id, source: 'sticky_bar' });

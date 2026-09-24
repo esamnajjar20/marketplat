@@ -65,7 +65,14 @@ export function AdCard({ ad, className, priority = false }: Props) {
   function handleFavoriteClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    // SW-FIX-ADCARD-LOGIN: send the user to login with a return path,
+    // same pattern as StickyContactBar / StorePublisherCard. Was a bare
+    // toast that left the buyer on the same page with no path forward.
+    if (!isAuth) {
+      toast.error('سجّل الدخول لحفظ الإعلان');
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(detailHref)}`);
+      return;
+    }
     if (!isFavorited) setPopKey((k) => k + 1);
     toggleFavorite.mutate(ad.id);
   }

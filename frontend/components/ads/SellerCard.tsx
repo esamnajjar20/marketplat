@@ -52,7 +52,13 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
   const isOwnAd = currentUser?.id === seller.id;
 
   function handleMessage() {
-    if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    // SW-FIX-SELLERCARD-LOGIN: same pattern — send to login with the
+    // current ad as the return target. Was a bare toast.
+    if (!isAuth) {
+      toast.error('سجّل الدخول لمراسلة البائع');
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(adId))}`);
+      return;
+    }
     // Gap #7 (product analytics): the search→contact conversion metric
     // is defined off this event (see backend's
     // analyticsRepository.searchToContactSessions) — tracked on the
