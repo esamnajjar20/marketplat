@@ -162,6 +162,23 @@ export function getWarmingPlan(): WarmingPlan {
   };
 }
 
+// ── Priority route list ──────────────────────────────────────────
+
+/**
+ * SW-PRIORITY-STORAGE-SYNC-01: routes that must reach warming even on
+ * the 'core' tier. These are the pages a user with a flaky connection
+ * actually needs offline: their inbox, their dashboard, and the two
+ * management pages for cache size and the sync queue. Anything else
+ * can wait for a good network.
+ */
+const PRIORITY_ROUTES = [
+  '/messages',
+  '/notifications',
+  '/dashboard',
+  '/settings/storage',
+  '/settings/sync',
+];
+
 // ── Route selection ──────────────────────────────────────────────
 
 /**
@@ -188,8 +205,21 @@ export function selectRoutesByPlan(
     case 'none':
     case 'critical':
       return [];
-    case 'core':
-      return routesInPriorityOrder.slice(0, 3);
+    case 'core': {
+      // SW-PRIORITY-STORAGE-SYNC-01: honor the priority list before
+      // falling back to positional selection. Anything in PRIORITY_ROUTES
+      // that appears in the input list is kept, and the remainder of the
+      // 'core' slice (up to 5 total) is filled from the top of the
+      // caller's ordered list.
+      const inInput = new Set(routesInPriorityOrder);
+      const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
+      const target = Math.max(5, priority.length);
+      if (priority.length >= target) return priority.slice(0, target);
+      const remaining = routesInPriorityOrder.filter(
+        (r) => !priority.includes(r),
+      );
+      return [...priority, ...remaining.slice(0, target - priority.length)];
+    }
     case 'full':
     default:
       return routesInPriorityOrder;

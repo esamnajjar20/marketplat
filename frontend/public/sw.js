@@ -143,8 +143,18 @@ const MAX_IMAGE_ENTRIES = 80;
 
 /** FIX SW-MEMORY-01: حد أقصى لمدخلات STATIC_CACHE (HTML/RSC/JS/CSS).
  * بدون حد، كل تنقّل يُخزَّن بلا تقليم → ذاكرة الهاتف تنفد بعد أشهر.
- * 100 مدخل تكفي لتغطية الاستخدام العادي + offline shells. */
-const MAX_STATIC_ENTRIES = 250;
+ * SW-SMART-CACHE-01: رُفع من 250 إلى 500. التغطية الفعلية: 13 route
+ * shell (HTML + RSC + ~10 chunks لكل واحد) = ~130 مدخل، فـ 500 يعطي
+ * هامشاً واسعاً للزيارات المتنوعة دون حذف حيّ. MAX_STATIC_BYTES أدناه
+ * يقيّد الحجم الكلي على الأجهزة ذات التخزين المحدود. */
+const MAX_STATIC_ENTRIES = 500;
+// SW-SMART-CACHE-01: byte-based cap alongside the entry cap. Entry count
+// alone lets a cache of 500 large chunks reach 50 MB on one device and
+// 5 MB on another, with no way to protect the smaller one. 30 MB is a
+// soft ceiling — the entry cap still fires independently, and either
+// constraint alone triggers trimming. Only STATIC_CACHE passes this
+// value; the other caches keep their existing entry-only policy.
+const MAX_STATIC_BYTES = 30 * 1024 * 1024;
 
 /** FIX SW-MEMORY-02: حد أقصى لمدخلات SAVED_ADS_CACHE — الإعلانات
  * المحفوظة يدويًا + صورها. عند التجاوز، الأقدم يُحذف. */
@@ -596,7 +606,7 @@ async function staleWhileRevalidate(event, request, cacheKey) {
           : response.clone();
         // FIX SW-MEMORY-01: putTimestamped + trim بدل cache.put.
         await putTimestamped(cache, cacheKey, toStore);
-        await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES);
+        await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
       }
       return response;
     })
@@ -702,7 +712,7 @@ async function networkFirstPage(event, request, cacheKey) {
       // FIX SW-MEMORY-01: putTimestamped + trim بدل cache.put.
       event.waitUntil(
         putTimestamped(cache, cacheKey, toStore).then(() =>
-          trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES),
+          trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES),
         ),
       );
     }
@@ -719,7 +729,7 @@ async function networkFirstPage(event, request, cacheKey) {
                 ? await stripVaryAndClone(response.clone())
                 : response.clone();
               await putTimestamped(cache, cacheKey, toStore);
-              await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES);
+              await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
             }
           })
           .catch(() => {}),
@@ -959,24 +969,141 @@ async function cacheFirstImage(event, request, url) {
  * مدخل بلا الترويسة (مثلًا مدخل قديم من قبل هذا الإصلاح — نظريًا لن
  * يحدث بعد رفع CACHE_VERSION لأن activate يفرّغ الكاشات القديمة، لكن
  * دفاعًا إضافيًا) يُعامَل كطابع زمني صفر فيُحذف أولًا كأولوية. */
-async function trimCache(cacheName, maxEntries) {
+// SW-SMART-CACHE-01: tier inferred from cache name + URL path, used by
+// trimCache to decide which entries to evict first when over the cap.
+// Tier values are weights — higher = keep longer. Nothing here changes
+// WHEN trimming happens (only the entry/byte caps do that); it changes
+// WHICH entries go first. The previous behaviour was pure timestamp
+// LRU, which could evict a frequently-used /products shell while a
+// never-visited /sellers/ranking shell from the same day survived.
+//
+// SW-SMART-CACHE-REFINE-01: tier values, sorted highest to lowest.
+//   200  saved         market-saved-ads (user-explicit; never trimmed)
+//   100  critical      /offline, / (existence of the app itself)
+//    80  storage-sync  /settings/storage, /settings/sync
+//    60  core-html     /products /search /ads /services /stores HTML
+//    45  static-chunk  _next/static/* (shared across routes; reusable)
+//    20  personal      market-personal-shell-* (other pages)
+//    15  api           market-api-* (small, server has TTL)
+//     8  lazy          any other cached HTML route
+//     3  image         market-images-* (large, refetchable)
+function inferCacheTier(cacheName, request) {
+  if (cacheName.includes('saved-ads')) return 200;
+  if (cacheName.includes('personal-shell')) {
+    // SW-PRIORITY-STORAGE-SYNC-01: cache-management and sync-management
+    // pages are elevated above generic personal shells. Both are the
+    // pages a user needs most urgently when offline - to see what's
+    // stored, prune storage, inspect the pending queue, and retry.
+    try {
+      const path = new URL(request.url).pathname;
+      // SW-SMART-CACHE-REFINE-01: 80 was too high — it exceeded core
+      // HTML (60), so on a full cache /products would be evicted before
+      // /settings/storage. 55 sits above other personal pages (20) but
+      // below core HTML, matching the actual utility ordering.
+      if (path === '/settings/storage' || path === '/settings/sync') return 55;
+    } catch {
+      // fall through to default
+    }
+    return 20;
+  }
+  if (cacheName.includes('image')) return 3;
+  if (cacheName.includes('api')) return 15;
+  if (cacheName.includes('static')) {
+    try {
+      const path = new URL(request.url).pathname;
+      if (path === '/offline' || path === '/') return 100;
+      // SW-SMART-CACHE-REFINE-01: 40 -> 45. Chunks are shared across
+      // routes (framework, vendor, main-app), so raising them slightly
+      // above the old value keeps them alive a bit longer when other
+      // routes might still reference them. But they stay BELOW core
+      // HTML (60) — deleting a large chunk saves far more bytes than
+      // deleting a small HTML, and when verifyCachedChunks then finds
+      // a missing chunk the user gets a clean /offline fallback, not
+      // an error.
+      if (path.startsWith('/_next/static')) return 45;
+      if (
+        path.startsWith('/products') ||
+        path.startsWith('/search') ||
+        path.startsWith('/ads') ||
+        path.startsWith('/services') ||
+        path.startsWith('/stores')
+      ) return 60;
+      return 8;
+    } catch {
+      return 10;
+    }
+  }
+  return 10;
+}
+
+async function trimCache(cacheName, maxEntries, maxBytes) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
-  if (keys.length <= maxEntries) return;
 
-  const withTimestamps = await Promise.all(
+  // Fast path 1: entry cap not reached AND no byte cap requested.
+  if (keys.length <= maxEntries && maxBytes === undefined) return;
+
+  // SW-SMART-CACHE-FASTPATH: when a byte cap is set and the entry count
+  // is under its cap, sampling ~50 entries to estimate the total is far
+  // cheaper than enumerating all 500. On a 500-entry cache this cuts
+  // trimCache's header reads from 500 to 50 when the cache is healthy,
+  // at the cost of a rare full read when the estimate is close to the
+  // cap. Only used when we would otherwise have to do a full byte
+  // enumeration anyway.
+  if (maxBytes !== undefined && keys.length <= maxEntries) {
+    const sampleSize = Math.min(50, keys.length);
+    let sampleBytes = 0;
+    for (let i = 0; i < sampleSize; i += 1) {
+      const res = await cache.match(keys[i]);
+      const len = res && res.headers.get('content-length');
+      const n = len ? Number(len) : 0;
+      if (Number.isFinite(n) && n > 0) sampleBytes += n;
+    }
+    const avg = sampleSize > 0 ? sampleBytes / sampleSize : 0;
+    const estimated = avg * keys.length;
+    // 90% margin: if the estimate is comfortably under the cap, trust
+    // it. If it's near or over, fall through to the full enumeration
+    // for accuracy — an underestimate must never let us skip a trim.
+    if (estimated < maxBytes * 0.9) return;
+  }
+
+  const now = Date.now();
+  const entries = await Promise.all(
     keys.map(async (key) => {
       const res = await cache.match(key);
       const raw = res && res.headers.get('X-SW-Cached-At');
       const ts = raw ? Number(raw) : 0;
-      return { key, ts: Number.isFinite(ts) ? ts : 0 };
+      // Content-Length may be missing (chunked HTML, compressed responses).
+      // Missing = size 0 = no size penalty; the entry cap still protects us.
+      const lenRaw = res && res.headers.get('content-length');
+      const size = lenRaw ? Number(lenRaw) : 0;
+      const tier = inferCacheTier(cacheName, key);
+      const ageHours = ts > 0 ? (now - ts) / 3_600_000 : 9999;
+      const sizeKB = Number.isFinite(size) && size > 0 ? size / 1024 : 0;
+      // score: higher = keep longer. Tier dominates; age and size break
+      // ties within a tier and gently nudge across adjacent ones.
+      const score = tier * 1000 - ageHours - sizeKB / 100;
+      return { key, ts, size: Number.isFinite(size) ? size : 0, score };
     }),
   );
-  withTimestamps.sort((a, b) => a.ts - b.ts);
 
-  const excess = withTimestamps.length - maxEntries;
-  for (let i = 0; i < excess; i += 1) {
-    await cache.delete(withTimestamps[i].key);
+  const totalBytes = entries.reduce((s, e) => s + e.size, 0);
+  const overEntries = entries.length > maxEntries;
+  const overBytes = maxBytes !== undefined && totalBytes > maxBytes;
+  if (!overEntries && !overBytes) return;
+
+  // Lowest score first = first to delete.
+  entries.sort((a, b) => a.score - b.score);
+
+  let remainingEntries = entries.length;
+  let remainingBytes = totalBytes;
+  for (const e of entries) {
+    if (remainingEntries <= maxEntries && (maxBytes === undefined || remainingBytes <= maxBytes)) {
+      break;
+    }
+    await cache.delete(e.key);
+    remainingEntries -= 1;
+    remainingBytes -= e.size;
   }
 }
 

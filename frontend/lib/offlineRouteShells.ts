@@ -152,6 +152,14 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/messages',
   '/notifications',
   '/dashboard',
+  // SW-PRIORITY-STORAGE-SYNC-01: pulled to the top of the list so the
+  // 'core' tier of the network-aware planner (see offlineWarmingPlanner's
+  // PRIORITY_ROUTES) reaches them. These two pages let the user manage
+  // cache size and the offline sync queue - both are the exact tasks a
+  // user on an unstable link actually needs offline, more so than the
+  // passive /settings/profile and /settings/notifications below.
+  '/settings/storage',
+  '/settings/sync',
   '/favorites',
   '/my-ads',
   '/activity',
@@ -170,8 +178,6 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/settings/seller',
   '/settings/service-provider',
   '/settings/blocked-users',
-  '/settings/storage',
-  '/settings/sync',
   // متجري
   '/my-store',
   '/my-store/inventory',
