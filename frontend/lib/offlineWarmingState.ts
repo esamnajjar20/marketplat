@@ -48,6 +48,17 @@ export interface RouteWarmingMeta {
 
 export interface WarmingSnapshot {
   version: 1;
+  /**
+   * SW-WARM-CACHE-VERSION-01: which cache version this snapshot
+   * describes. IndexedDB persists across SW updates, but the SW's
+   * `activate` handler deletes every `market-*` cache whose version
+   * suffix no longer matches CACHE_VERSION. Without this field, a
+   * snapshot written under v37 said "every route is complete" while
+   * the live v38 cache was empty — warming skipped every route, the
+   * debug page reported all green, and every offline navigation hit
+   * a cache miss. The snapshot describes WHICH cache it describes.
+   */
+  cacheVersion: string;
   /** All URLs warming has confirmed in STATIC_CACHE. */
   liveUrls: string[];
   /** Per-route state. Key = route path (e.g. '/products'). */
@@ -108,6 +119,7 @@ async function idbPut(key: string, value: unknown): Promise<void> {
 function emptySnapshot(): WarmingSnapshot {
   return {
     version: 1,
+    cacheVersion: '',
     liveUrls: [],
     routes: {},
     lastSweepAt: 0,
@@ -126,6 +138,26 @@ export async function readSnapshot(): Promise<WarmingSnapshot | null> {
   }
 }
 
+/**
+ * SW-WARM-CACHE-VERSION-01: read the snapshot only if it describes the
+ * currently-active cache version. A mismatch (deploy bumped
+ * CACHE_VERSION) means the snapshot's "complete" routes refer to chunks
+ * that no longer exist — we wipe it and return null so the caller
+ * treats every route as fresh and re-warms. This is the fix for the
+ * "warming thinks everything is done, cache is empty" failure mode.
+ */
+export async function readSnapshotForCacheVersion(
+  currentCacheVersion: string,
+): Promise<WarmingSnapshot | null> {
+  const snap = await readSnapshot();
+  if (!snap) return null;
+  if (snap.cacheVersion !== currentCacheVersion) {
+    await clearSnapshot();
+    return null;
+  }
+  return snap;
+}
+
 /** Write a full snapshot. Throws on failure — caller decides what to do. */
 export async function writeSnapshot(snap: WarmingSnapshot): Promise<void> {
   snap.updatedAt = Date.now();
@@ -137,6 +169,16 @@ export async function writeSnapshot(snap: WarmingSnapshot): Promise<void> {
  * snapshot if none exists. Never throws — warming failure is not a
  * reason to break the calling flow.
  */
+// SW-WARM-CACHE-VERSION-WRITE-01: set by callers (offlineRouteShells)
+// so every patchRouteStatus call records which cache version the
+// snapshot describes. Module-scoped to avoid threading it through
+// every call site.
+let __activeCacheVersion = '';
+
+export function setActiveCacheVersion(v: string): void {
+  __activeCacheVersion = v;
+}
+
 export async function patchRouteStatus(
   route: string,
   meta: RouteWarmingMeta,
@@ -144,6 +186,7 @@ export async function patchRouteStatus(
   try {
     const snap = (await readSnapshot()) ?? emptySnapshot();
     snap.routes[route] = meta;
+    if (__activeCacheVersion) snap.cacheVersion = __activeCacheVersion;
     await writeSnapshot(snap);
   } catch {
     // silent — persistence failures are non-fatal
@@ -156,6 +199,7 @@ export async function recordLiveUrls(urls: string[]): Promise<void> {
     const snap = (await readSnapshot()) ?? emptySnapshot();
     // Deduplicate + sort for stable comparison across runs.
     snap.liveUrls = Array.from(new Set(urls)).sort();
+    if (__activeCacheVersion) snap.cacheVersion = __activeCacheVersion;
     await writeSnapshot(snap);
   } catch {
     // silent

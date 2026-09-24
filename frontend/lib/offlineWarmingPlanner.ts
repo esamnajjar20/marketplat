@@ -171,7 +171,25 @@ export function getWarmingPlan(): WarmingPlan {
  * management pages for cache size and the sync queue. Anything else
  * can wait for a good network.
  */
+// SW-CORE-BUDGET-8: expanded to cover BOTH personal essentials AND
+// the public pages /offline itself advertises. Before this, 'core'
+// tier picked the first 5 of CORE_ROUTES positionally, which meant
+// /downloads, /saved-ads, /saved-payments were never warmed on a
+// typical Gaza mid-range link (1.45 Mbps) — the exact three buttons
+// the offline page offers. Now these are in the priority list so
+// they're warmed regardless of position or tier budget.
 const PRIORITY_ROUTES = [
+  // Public offline-floor — the three buttons /offline links to, plus
+  // the fallback itself.
+  '/offline',
+  '/downloads',
+  '/saved-ads',
+  '/saved-payments',
+  // Primary browsing.
+  '/',
+  '/products',
+  '/search',
+  // Personal essentials.
   '/messages',
   '/notifications',
   '/dashboard',
@@ -206,14 +224,14 @@ export function selectRoutesByPlan(
     case 'critical':
       return [];
     case 'core': {
-      // SW-PRIORITY-STORAGE-SYNC-01: honor the priority list before
-      // falling back to positional selection. Anything in PRIORITY_ROUTES
-      // that appears in the input list is kept, and the remainder of the
-      // 'core' slice (up to 5 total) is filled from the top of the
-      // caller's ordered list.
+      // SW-CORE-BUDGET-8: budget raised from 5 to 8. On a 1.45 Mbps
+      // link, 8 route shells cost ~1.5 MB and take ~12 seconds — fine
+      // for background warming, and enough to cover the offline-floor
+      // plus primary browsing. 5 was too tight and left /downloads,
+      // /saved-ads, /saved-payments perpetually uncached.
       const inInput = new Set(routesInPriorityOrder);
       const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
-      const target = Math.max(5, priority.length);
+      const target = Math.max(8, priority.length);
       if (priority.length >= target) return priority.slice(0, target);
       const remaining = routesInPriorityOrder.filter(
         (r) => !priority.includes(r),

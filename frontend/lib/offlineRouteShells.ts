@@ -51,6 +51,7 @@
 // fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
 import {
   readSnapshot,
+  readSnapshotForCacheVersion,
   patchRouteStatus,
   recordLiveUrls,
   recordSweepTime,
@@ -870,7 +871,11 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     // WARM_INTERVAL_MS cooldown. Without this, a user on an unstable
     // link (Gaza 2G/3G) had warming blocked for 6 hours after every
     // disconnect even though most routes were still uncached.
-    const snapshotEarly = await readSnapshot();
+    // SW-WARM-CACHE-VERSION-01: use the versioned reader so a
+    // snapshot from a previous CACHE_VERSION (whose chunks the SW's
+    // activate handler already deleted) is treated as absent, not as
+    // "everything is already warmed".
+    const snapshotEarly = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
     const incompleteCount = routes.filter(
       (r) => snapshotEarly?.routes[r]?.status !== 'complete',
     ).length;
@@ -1096,7 +1101,7 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
     // SW-SMART-THROTTLE-01: same reasoning as warmRouteShellsAtomic —
     // resume quickly after a partial pass, long cooldown only after a
     // fully successful one.
-    const snapshotEarlyP = await readSnapshot();
+    const snapshotEarlyP = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
     const routesEarlyP = selectRoutesByPlan(
       plan,
       PERSONAL_SHELL_ROUTES_ESSENTIAL,
