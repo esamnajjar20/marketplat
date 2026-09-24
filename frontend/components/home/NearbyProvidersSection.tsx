@@ -4,7 +4,6 @@ import { LocateFixed } from 'lucide-react';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
-import { Button } from '@/components/shared/ui/Button';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { useNearbyProvidersForHome } from '@/hooks/queries/useNearbyProvidersForHome';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
@@ -26,14 +25,11 @@ import { ROUTES } from '@/lib/constants';
  * source is active, so a resolver transition (e.g. 'checking' →
  * 'city' once city loads) never causes a layout jump.
  *
- * GPS CTA + location badge follow the same pattern as HomeAboveFold's
- * Latest Ads section — an explicit "استخدام موقعي" button (never an
- * automatic prompt) shown whenever the resolved source isn't already
- * a live/saved GPS fix, plus a small pill showing which source
- * actually produced the results currently shown (falls back to
- * "نتائج مقترحة" once useNearbyProvidersForHome itself has cascaded
- * to the general directory, even if the resolver's own source is
- * still 'gps-current'/'city' — the badge reflects what's on screen).
+ * Location badge shows which source actually produced the results
+ * currently shown (falls back to "نتائج مقترحة" once
+ * useNearbyProvidersForHome itself has cascaded to the general
+ * directory, even if the resolver's own source is still
+ * 'gps-current'/'city' — the badge reflects what's on screen).
  */
 export function NearbyProvidersSection() {
   const { isChecking, data, isLoading, isError, source, radiusKm } = useNearbyProvidersForHome();
@@ -42,7 +38,6 @@ export function NearbyProvidersSection() {
   const items = data?.items ?? [];
   const showSkeleton = isChecking || isLoading;
   const badgeCity = source === 'city' ? location.city : undefined;
-  const showLocateCta = false; // المدينة أولوية — إخفاء الاعتماد على موقع الجهاز
 
   const header = (
     <SectionHeader
@@ -80,12 +75,6 @@ export function NearbyProvidersSection() {
   return (
     <section className="container mx-auto space-y-4 px-4 pt-10">
       {header}
-      {showLocateCta && (
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={location.requestLocation}>
-          <LocateFixed className="h-3.5 w-3.5" />
-          استخدام موقعي
-        </Button>
-      )}
       <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3 stagger-fade-in">
         {items.map((provider) => (
           <div key={provider.id} className="w-72 shrink-0 sm:w-auto">
