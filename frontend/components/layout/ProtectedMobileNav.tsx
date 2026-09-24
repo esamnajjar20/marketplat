@@ -172,10 +172,19 @@ export function ProtectedMobileNav() {
     };
   }, [isOpen]);
 
+  // SW-FIX-DRAWER-FOCUS-MOUNT: the previous version unconditionally
+  // ran the else-branch (focus the toggle) on first mount whenever the
+  // drawer started closed — meaning merely landing on /dashboard with
+  // no user interaction yanked keyboard focus to the hamburger button.
+  // Only run the restore branch when the drawer has actually been open
+  // at least once before.
+  const wasOpenRef = useRef(false);
   useEffect(() => {
     if (isOpen) {
+      wasOpenRef.current = true;
       closeButtonRef.current?.focus();
-    } else {
+    } else if (wasOpenRef.current) {
+      wasOpenRef.current = false;
       (document.getElementById(TOGGLE_ID) as HTMLButtonElement | null)?.focus();
     }
   }, [isOpen]);
@@ -245,7 +254,16 @@ export function ProtectedMobileNav() {
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
         aria-label="القائمة الشخصية"
-        aria-hidden={!isOpen}
+        // SW-FIX-DRAWER-INERT: was `aria-hidden={!isOpen}` on an
+        // off-canvas <nav> kept in the DOM (translate-x-full) — links
+        // and buttons stayed keyboard-focusable while hidden from AT,
+        // which Chrome now warns about ("Blocked aria-hidden on an
+        // element because its descendant retained focus") and which
+        // confuses screen-reader tree navigation. React 19 supports
+        // `inert` natively — it removes the whole subtree from the a11y
+        // tree, blocks focus, and blocks events in one attribute, which
+        // is exactly what an off-canvas drawer needs.
+        inert={!isOpen}
       >
         <div className="flex items-center justify-between">
           <span className="text-base font-semibold">القائمة</span>

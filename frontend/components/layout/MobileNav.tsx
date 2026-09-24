@@ -364,7 +364,10 @@ export function MobileNav() {
               isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
-            aria-hidden={!isMobileNavOpen}
+            // SW-FIX-DRAWER-INERT: same fix as ProtectedMobileNav.tsx —
+            // React 19's native `inert` replaces the
+            // aria-hidden-on-non-inert-container pattern.
+            inert={!isMobileNavOpen}
           >
           {/* Header: identity context when logged in, otherwise just the
               title + close button. Kept outside the scrollable list below
