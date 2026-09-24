@@ -310,7 +310,17 @@ const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
 // it must not block a resume after a network drop mid-pass. 5 minutes
 // lets the next online event or visibility change pick up where the
 // last pass stopped, without hammering a flaky link.
-const PARTIAL_WARM_INTERVAL_MS = 5 * 60 * 1000;
+// SW-PARTIAL-THROTTLE-30M-01: was 5 minutes. On a partial pass (some
+// routes failed), warming retried every 5 minutes — which meant the
+// WarmupIndicator showed on every one of those retries, and on the
+// user's 1.45 Mbps link the indicator was visible almost continuously
+// during a browsing session. 30 minutes cuts the retry frequency to
+// 1/6 without losing the "don't let failures sit forever" property:
+// a genuinely transient blip still retries within half an hour, and
+// warming still runs on every fresh visit / online event / visibility
+// change through the OTHER gate (WARM_INTERVAL_MS of 6h only applies
+// to a fully-successful pass).
+const PARTIAL_WARM_INTERVAL_MS = 30 * 60 * 1000;
 
 let isWarmingRouteShells = false;
 let isWarmingPersonalShells = false;

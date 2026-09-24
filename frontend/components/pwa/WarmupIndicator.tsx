@@ -46,6 +46,21 @@ function WarmingRow({
   );
 }
 
+// SW-WARMUP-INDICATOR-SESSION-01: warming retries every 30 minutes
+// while any route is still failing (see PARTIAL_WARM_INTERVAL_MS in
+// offlineRouteShells.ts). Without this gate the indicator would pop
+// up on every retry, which on a weak network is most of a browsing
+// session. We show it once per tab-session — the user sees the initial
+// "preparing the app for offline" message, knows it's working, and is
+// not pestered by it again until they open a new tab or go to
+// /settings/offline for the full picture.
+//
+// sessionStorage (not localStorage) is the right scope: it resets on
+// tab close, so a returning user gets the information once more, and
+// per-tab isolation means a second tab doesn't get silently
+// suppressed by the first.
+const SHOWN_THIS_SESSION_KEY = 'marketplat:warmup-indicator-shown';
+
 export function WarmupIndicator() {
   const [progress, setProgress] = useState<AggregatedProgress>({
     active: false,
@@ -59,11 +74,42 @@ export function WarmupIndicator() {
     },
   });
   const [dismissed, setDismissed] = useState(false);
+  // Read once on mount — see SHOWN_THIS_SESSION_KEY's own comment.
+  const [suppressed, setSuppressed] = useState(false);
 
   // FIX WARMUP-SETSTATE: useRef لتتبع active — بدل nested setState
   // داخل updater (anti-pattern في React: updaters يجب أن تكون pure؛
   // StrictMode قد يستدعيها مرتين).
   const prevActiveRef = useRef(false);
+
+  // Read the "already shown this session" flag once, on mount. If set,
+  // skip rendering entirely — warming still runs, just silently.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SHOWN_THIS_SESSION_KEY) === '1') {
+        setSuppressed(true);
+      }
+    } catch {
+      // sessionStorage unavailable (private mode, quota) — proceed
+      // with normal display behaviour.
+    }
+  }, []);
+
+  // Mark as shown the moment warming actually starts (progress becomes
+  // active) — before the user can dismiss. This must run BEFORE the
+  // suppression read on a subsequent mount for the sequence to work:
+  //   First visit  → flag empty → indicator shows → flag set → future
+  //   reloads      → flag '1'    → suppressed    → no bar
+  useEffect(() => {
+    if (!progress.active) return;
+    try {
+      if (sessionStorage.getItem(SHOWN_THIS_SESSION_KEY) !== '1') {
+        sessionStorage.setItem(SHOWN_THIS_SESSION_KEY, '1');
+      }
+    } catch {
+      // silent — same as above
+    }
+  }, [progress.active]);
 
   useEffect(() => {
     return subscribeWarmingProgress((next) => {
@@ -85,7 +131,7 @@ export function WarmupIndicator() {
     progress.bySource.personal.active ||
     progress.bySource.userdata.active;
 
-  if (!progress.active || !anyActive || dismissed) return null;
+  if (!progress.active || !anyActive || dismissed || suppressed) return null;
 
   return (
     <div
