@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { headers } from 'next/headers';
 import { buildMetadata } from '@/lib/seo';
 import { requestsApi } from '@/api/requests.api';
@@ -9,6 +10,16 @@ interface Props {
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }
+
+// SW-FIX-REQUEST-LAYOUT-CACHE: this layout fetches the request twice per
+// page load — once in generateMetadata, once in the default export — and
+// unlike stores/[id]/page.tsx and services/[id]/page.tsx (both of which
+// already wrap their fetcher in cache()), this layout had no dedup. On
+// Render Free (Frankfurt) from Gaza that means one extra round-trip per
+// detail-page visit. Wrapping in React.cache() dedups within a single
+// request's render tree, which is exactly the scope generateMetadata +
+// default export share.
+const getCachedRequest = cache((id: string) => requestsApi.getById(id));
 
 /**
  * SW-SEO-JSONLD-REQUEST-01: this layout used to export a static
@@ -39,7 +50,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   try {
-    const res = await requestsApi.getById(id);
+    const res = await getCachedRequest(id);
     const request = res.data.data;
     if (!request) return buildMetadata({
       title: 'تفاصيل الطلب',
@@ -62,7 +73,7 @@ export default async function RequestDetailLayout({ children, params }: Props) {
   const { id } = await params;
   let request: RequestDetail | null = null;
   try {
-    const res = await requestsApi.getById(id);
+    const res = await getCachedRequest(id);
     request = res.data.data ?? null;
   } catch {
     /* 404 — the page body renders its own empty state */
