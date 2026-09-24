@@ -155,31 +155,57 @@ export async function acquireWarmingLock(
     // Web Locks path — ifAvailable means "do not wait, fail fast if
     // another holder exists". We never want warming to queue behind
     // another tab's warming run.
-    let acquired = false;
+    //
+    // SW-WEBLOCKS-DEADLOCK-01: DO NOT `await lm.request(...)` here. The
+    // callback holds the lock until releaseFn is called, so the request
+    // promise only resolves after the caller finishes its work. Awaiting
+    // it here would deadlock: we'd never return the release function,
+    // the callback's inner promise would never resolve, and the request
+    // promise would never settle. Warming hung silently on the very
+    // first call. Instead: fire the request, wait for the callback to
+    // signal it entered (via a dedicated `entered` promise), then
+    // return the release function.
+    let resolveEntered!: () => void;
+    const entered = new Promise<void>((r) => {
+      resolveEntered = r;
+    });
     let releaseFn: (() => void) | null = null;
+    let lockAvailable = false;
 
-    await lm.request(
+    const requestPromise = lm.request(
       lockName,
       { mode: 'exclusive', ifAvailable: true },
       async (lock) => {
         if (!lock) {
-          // Another tab holds the lock. Do not wait.
+          // Another tab holds the lock. Signal and return.
+          resolveEntered();
           return;
         }
-        acquired = true;
+        lockAvailable = true;
+        resolveEntered();
         await new Promise<void>((resolve) => {
           releaseFn = resolve;
         });
       },
     );
+    // Swallow rejections on this floating promise — the caller never
+    // sees them, and an unhandled rejection would show up in the
+    // console as noise.
+    requestPromise.catch(() => {});
 
-    if (!acquired) return null;
+    await entered;
+    if (!lockAvailable) return null;
 
     let released = false;
     return async () => {
       if (released) return;
       released = true;
       releaseFn?.();
+      try {
+        await requestPromise;
+      } catch {
+        // silent
+      }
     };
   }
 
