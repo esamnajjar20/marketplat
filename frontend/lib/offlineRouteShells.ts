@@ -161,6 +161,10 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   // passive /settings/profile and /settings/notifications below.
   '/settings/storage',
   '/settings/sync',
+  // SW-WARMING-USER-CONTROL-01: the user-facing warming control page
+  // itself must be available offline — a user who cannot reach it
+  // cannot disable warming from a place that has no network.
+  '/settings/offline',
   '/favorites',
   '/my-ads',
   '/activity',

@@ -35,6 +35,8 @@
  */
 'use client';
 
+import { getWarmingMode } from './warmingPreferences';
+
 export type WarmingTier = 'none' | 'critical' | 'core' | 'full';
 
 export interface WarmingPlan {
@@ -82,6 +84,22 @@ export function isOffline(): boolean {
 // ── The plan ─────────────────────────────────────────────────────
 
 export function getWarmingPlan(): WarmingPlan {
+  // SW-WARMING-USER-CONTROL-01: user preference takes top priority.
+  // The order of gates below mirrors the doc comment in
+  // warmingPreferences.ts exactly.
+  const userMode = getWarmingMode();
+
+  if (userMode === 'off') {
+    return {
+      tier: 'none',
+      concurrency: 0,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 0,
+      requestTimeoutMs: 0,
+      reason: 'user-off',
+    };
+  }
+
   if (isOffline()) {
     return {
       tier: 'none',
@@ -119,6 +137,32 @@ export function getWarmingPlan(): WarmingPlan {
       interRouteDelayMs: 0,
       requestTimeoutMs: 0,
       reason: 'save-data',
+    };
+  }
+
+  // SW-WARMING-USER-CONTROL-01: explicit user choice overrides the
+  // network-derived decision — but only AFTER the OS-level saveData
+  // flag above, so a user who turned on Data Saver at the OS still
+  // gets the safe 'none' plan even if they picked 'balanced' here.
+  if (userMode === 'saver') {
+    return {
+      tier: 'critical',
+      concurrency: 1,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 3000,
+      requestTimeoutMs: 15_000,
+      reason: 'user-saver',
+    };
+  }
+
+  if (userMode === 'balanced') {
+    return {
+      tier: 'core',
+      concurrency: 1,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 1200,
+      requestTimeoutMs: 15_000,
+      reason: 'user-balanced',
     };
   }
 
