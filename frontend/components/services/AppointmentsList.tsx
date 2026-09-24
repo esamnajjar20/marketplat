@@ -108,7 +108,12 @@ function AppointmentActions({ id, status }: { id: string; status: string }) {
 export function AppointmentsList({ providerId }: Props) {
   const sp = useSearchParams();
   const router = useRouter();
-  const page = Number(sp.get('page') ?? 1);
+  // SW-APPOINTMENTS-PAGE-NAN-01: hand-edited ?page=abc produced NaN
+  // here, which the hook serialised onto the wire as ?page=NaN — the
+  // same class of bug already fixed in the seven admin tables and in
+  // MyStoreInventory. Clamp to a positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useMyAppointments({ page, limit: 10 });
