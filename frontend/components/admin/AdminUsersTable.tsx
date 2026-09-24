@@ -67,7 +67,12 @@ const ASSIGNABLE_ROLES: AssignableRole[] = ['USER', 'MODERATOR', 'ADMIN'];
 export function AdminUsersTable() {
   const sp     = useSearchParams();
   const router = useRouter();
-  const page   = Number(sp.get('page') ?? 1);
+  // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
+  // gave NaN here, which was sent to the backend as
+  // ?page=NaN — a guaranteed 400 for what looks like a
+  // valid URL. Clamp to a positive integer, fallback 1.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   // FIX BUG-02: sp.get() returns null (not undefined) when the param
   // is absent, so `?? ''` here previously turned "no filter" into a
   // literal empty string. That string then went straight into

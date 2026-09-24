@@ -74,7 +74,12 @@ export function AdminAuditLogsTable() {
   const sp = useSearchParams();
   const router = useRouter();
 
-  const page = Number(sp.get('page') ?? 1);
+  // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
+  // gave NaN here, which was sent to the backend as
+  // ?page=NaN — a guaranteed 400 for what looks like a
+  // valid URL. Clamp to a positive integer, fallback 1.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   // FIX AUDIT-EVENT-PARAM-01: validate the event param against the known
   // list -- same pattern AdminStoresTable uses for its statusParam (FIX
   // SEC-3.9). `?event=hacked` used to flow through the `as AuditEventType`

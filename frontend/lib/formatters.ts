@@ -75,9 +75,13 @@ const THRESHOLDS: [number, Intl.RelativeTimeFormatUnit][] = [
  * @example formatRelativeTime("2024-01-01T00:00:00Z") → "منذ سنتين"
  */
 export function formatRelativeTime(dateStr: string): string {
-  const date  = new Date(dateStr);
-  const delta = (date.getTime() - Date.now()) / 1000; // seconds (negative = past)
-  const abs   = Math.abs(delta);
+  // SW-FMT-INVALID-DATE-01: a null/empty/unparseable date from the
+  // backend produced "منذ NaN سنة" or, worse, an Intl RangeError.
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return '—';
+  const delta = (date.getTime() - Date.now()) / 1000;
+  const abs = Math.abs(delta);
 
   let prev = 1;
   for (const [threshold, unit] of THRESHOLDS) {
@@ -91,11 +95,16 @@ export function formatRelativeTime(dateStr: string): string {
 
 /** Full localised date string in Arabic. */
 export function formatDate(dateStr: string): string {
+  // SW-FMT-INVALID-DATE-01: Intl.DateTimeFormat.format() throws
+  // RangeError on an Invalid Date.
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '—';
   return new Intl.DateTimeFormat('ar-PS', {
-    year:  'numeric',
+    year: 'numeric',
     month: 'long',
-    day:   'numeric',
-  }).format(new Date(dateStr));
+    day: 'numeric',
+  }).format(d);
 }
 
 /**
@@ -104,11 +113,15 @@ export function formatDate(dateStr: string): string {
  * @example formatTime("2026-08-05T09:30:00.000Z") → "9:30 ص"
  */
 export function formatTime(dateStr: string): string {
+  // SW-FMT-INVALID-DATE-01
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '—';
   return new Intl.DateTimeFormat('ar-PS', {
-    hour:   'numeric',
+    hour: 'numeric',
     minute: '2-digit',
     numberingSystem: 'latn',
-  }).format(new Date(dateStr));
+  }).format(d);
 }
 
 /** Combined date + time, e.g. for an appointment list row. */

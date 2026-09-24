@@ -118,7 +118,12 @@ export function AdminFraudTable() {
   // URL `?reviewed=false` is reserved for ops-queue deep links; wire when
   // the fraud list API supports a reviewed filter server-side.
   void sp.get('reviewed');
-  const page   = Number(sp.get('page') ?? 1);
+  // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
+  // gave NaN here, which was sent to the backend as
+  // ?page=NaN — a guaranteed 400 for what looks like a
+  // valid URL. Clamp to a positive integer, fallback 1.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
   const { data, isLoading, isError, error, refetch } = useAdminFlaggedAds({ page });
   const clearFlag   = useAdminClearFraudFlag();

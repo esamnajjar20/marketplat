@@ -47,7 +47,16 @@ export function InstallPrompt() {
       if (!(await supportsInstallPrompt())) return;
       if (cancelled) return;
 
-      const dismissedAt = Number(localStorage.getItem(DISMISS_STORAGE_KEY) ?? 0);
+      // SW-PWA-STORAGE-READ-GUARD-01: localStorage.getItem can throw
+      // in Safari Private Browsing and on quota exhaustion. handleDismiss
+      // below already wraps its setItem in try/catch; the read was
+      // inconsistent. A throw here aborts the whole prompt bootstrap.
+      let dismissedAt = 0;
+      try {
+        dismissedAt = Number(localStorage.getItem(DISMISS_STORAGE_KEY) ?? 0);
+      } catch {
+        dismissedAt = 0;
+      }
       const withinCooldown = Date.now() - dismissedAt < DISMISS_COOLDOWN_MS;
       if (withinCooldown) return;
 
