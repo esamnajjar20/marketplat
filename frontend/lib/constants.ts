@@ -235,7 +235,9 @@ export const PRESENCE_HEARTBEAT_INTERVAL = 60_000; // 60 s — raised from 45s: 
 
 /** Base URL for the backend API, consumed by api/client.ts */
 export const API_BASE_URL =
-  (getRawApiUrl() ?? 'http://localhost:5000') + '/api/v1';
+  process.env.NODE_ENV === 'production'
+    ? '/api/v1'
+    : (getRawApiUrl() ?? 'http://localhost:5000') + '/api/v1';
 
 /**
  * TanStack Query stale times — centralised so every hook uses

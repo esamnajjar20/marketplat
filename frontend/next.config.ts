@@ -101,6 +101,15 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react'],
   },
 
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: 'https://marketplat.onrender.com/api/v1/:path*',
+      },
+    ];
+  },
+
   async headers() {
     // FIX SEC-06: the Content-Security-Policy header previously built here
     // used a static 'unsafe-inline' for script-src in ALL environments,
