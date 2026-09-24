@@ -52,6 +52,8 @@
 import {
   readSnapshot,
   readSnapshotForCacheVersion,
+  writeSnapshot,
+  setActiveCacheVersion,
   patchRouteStatus,
   recordLiveUrls,
   recordSweepTime,
@@ -129,7 +131,7 @@ const STATIC_CACHE = 'market-static-v38'; // يجب مطابقة CACHE_VERSION �
 // "network unavailable". warmRouteShells's normal path fetches the
 // HTML, extracts every _next/static asset, and caches them — same
 // treatment '/', '/products', etc. already get.
-const CORE_ROUTES = [
+export const CORE_ROUTES = [
   '/offline',
   '/', '/products', '/stores', '/search', '/services', '/ads',
   '/saved-ads', '/downloads', '/saved-payments',
@@ -293,6 +295,12 @@ async function putTimestamped(cache: Cache, request: string, response: Response)
 // the caches it describes. PERSONAL_SHELL_CACHE is versioned the same
 // way — both get wiped together on activate, so one suffix covers both.
 const CACHE_VERSION_SUFFIX = STATIC_CACHE.split('-').pop() ?? 'unknown';
+
+// SW-WARM-CACHE-VERSION-WRITE-01-CALL: tell the snapshot writer which
+// cache version it describes, once, at module load. Read back by
+// readSnapshotForCacheVersion so a deploy that bumped CACHE_VERSION
+// wipes the stale snapshot instead of silently skipping every route.
+setActiveCacheVersion(CACHE_VERSION_SUFFIX);
 const LAST_ROUTE_WARMED_KEY = `marketplat:route-shells:last-warmed:${CACHE_VERSION_SUFFIX}`;
 const LAST_PERSONAL_WARMED_KEY = `marketplat:personal-shells:last-warmed:${CACHE_VERSION_SUFFIX}`;
 const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -1230,4 +1238,191 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
       reportProgress('personal', { active: false, completed: completedThisPass, total: routes.length });
     }
   }, PERSONAL_LOCK_NAME);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// SW-WARMING-PER-ROUTE-01 — user-facing single-route operations
+// Consumed by /settings/offline's OfflineRoutesList. Each call is
+// independent of the others; the caller is responsible for limiting
+// concurrency (three at a time is the recommended cap).
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Routes whose cached form must never be removed by a user action.
+ * /offline is the fallback itself; / is the first thing every
+ * navigation loads. Losing either leaves the app unusable when the
+ * network drops, which is the entire point of having them cached.
+ * Retry is allowed on both (may refresh stale chunks); delete is not.
+ */
+const PROTECTED_FROM_DELETE = new Set(['/offline', '/']);
+
+/** Full route list for the settings UI, in warming order. */
+export function getKnownRoutes(): Array<{ route: string; personal: boolean }> {
+  const out: Array<{ route: string; personal: boolean }> = [];
+  for (const route of CORE_ROUTES) out.push({ route, personal: false });
+  for (const route of PERSONAL_SHELL_ROUTES_ESSENTIAL) {
+    out.push({ route, personal: true });
+  }
+  return out;
+}
+
+/**
+ * Retry ONE public route. Clears its snapshot entry, re-warms it
+ * atomically, writes the new status. Returns whether it succeeded.
+ */
+export async function retrySinglePublicRoute(route: string): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof caches === 'undefined') return false;
+
+  // Clear the prior entry so warmRouteAtomic doesn't read stale state
+  // and, more importantly, so a fresh failure replaces a stale success.
+  const snap = await readSnapshot();
+  if (snap) {
+    delete snap.routes[route];
+    await writeSnapshot(snap);
+  }
+
+  const staticCache = await caches.open(STATIC_CACHE);
+  const stagingCache = await caches.open(STAGING_CACHE);
+  const result = await warmRouteAtomic(route, staticCache, stagingCache);
+
+  await patchRouteStatus(route, {
+    status: result.ok ? 'complete' : 'failed',
+    chunks: result.urls.map(toPath),
+    attempts: 1,
+    lastAttempt: Date.now(),
+    warmedAt: result.ok ? Date.now() : undefined,
+    lastError: result.ok ? undefined : result.error,
+  });
+
+  return result.ok;
+}
+
+/**
+ * Retry ONE personal route. Same as above but writes to
+ * PERSONAL_SHELL_CACHE and uses the 'personal:' snapshot key.
+ */
+export async function retrySinglePersonalRoute(route: string): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof caches === 'undefined') return false;
+
+  const snap = await readSnapshot();
+  if (snap) {
+    delete snap.routes[`personal:${route}`];
+    await writeSnapshot(snap);
+  }
+
+  const staticCache = await caches.open(STATIC_CACHE);
+  const personalCache = await caches.open(PERSONAL_SHELL_CACHE);
+  const stagingCache = await caches.open(STAGING_CACHE);
+  const result = await warmPersonalRouteAtomic(
+    route,
+    staticCache,
+    personalCache,
+    stagingCache,
+  );
+
+  await patchRouteStatus(`personal:${route}`, {
+    status: result.ok ? 'complete' : 'failed',
+    chunks: result.urls.map(toPath),
+    attempts: 1,
+    lastAttempt: Date.now(),
+    warmedAt: result.ok ? Date.now() : undefined,
+    lastError: result.ok ? undefined : result.error,
+  });
+
+  return result.ok;
+}
+
+/** Delete ONE route's cached entries (HTML + chunks + RSC shell).
+ *  Refuses /offline and / — see PROTECTED_FROM_DELETE. Returns the
+ *  count of individual entries removed. */
+export async function clearSingleRouteCache(
+  route: string,
+  personal: boolean = false,
+): Promise<number> {
+  if (typeof window === 'undefined' || typeof caches === 'undefined') return 0;
+  if (!personal && PROTECTED_FROM_DELETE.has(route)) return 0;
+
+  const snap = await readSnapshot();
+  const key = personal ? `personal:${route}` : route;
+  const meta = snap?.routes[key];
+  const cacheName = personal ? PERSONAL_SHELL_CACHE : STATIC_CACHE;
+  const cache = await caches.open(cacheName);
+
+  let removed = 0;
+
+  // 1. Delete every recorded chunk (may be in STATIC_CACHE either way).
+  const chunkCache = personal ? await caches.open(STATIC_CACHE) : cache;
+  if (meta?.chunks) {
+    for (const rawUrl of meta.chunks) {
+      // Snapshot stores paths; skip the route itself (handled below).
+      const u = rawUrl === route ? null : rawUrl;
+      if (!u) continue;
+      const ok = await chunkCache.delete(u);
+      if (ok) removed += 1;
+    }
+  }
+
+  // 2. Delete the HTML entry (from PERSONAL_SHELL_CACHE for personal,
+  //    STATIC_CACHE for public).
+  try {
+    if (await cache.delete(route)) removed += 1;
+  } catch { /* noop */ }
+
+  // 3. Delete the RSC shell.
+  try {
+    if (await cache.delete(rscShellKey(route))) removed += 1;
+  } catch { /* noop */ }
+
+  // 4. Clear the snapshot entry.
+  if (snap) {
+    delete snap.routes[key];
+    await writeSnapshot(snap);
+  }
+
+  return removed;
+}
+
+/**
+ * Bulk: retry every route currently marked failed. Runs at most
+ * `concurrency` at a time (default 3) so a slow link isn't flooded.
+ * Returns { succeeded, failed }.
+ */
+export async function retryAllFailedRoutes(concurrency = 3): Promise<{
+  succeeded: number;
+  failed: number;
+}> {
+  const snap = await readSnapshot();
+  if (!snap) return { succeeded: 0, failed: 0 };
+
+  const failed: Array<{ route: string; personal: boolean }> = [];
+  for (const [key, meta] of Object.entries(snap.routes)) {
+    if (meta?.status !== 'failed') continue;
+    if (key.startsWith('personal:')) {
+      failed.push({ route: key.slice('personal:'.length), personal: true });
+    } else {
+      failed.push({ route: key, personal: false });
+    }
+  }
+  if (failed.length === 0) return { succeeded: 0, failed: 0 };
+
+  let succeeded = 0;
+  let failedCount = 0;
+  const queue = [...failed];
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < Math.min(concurrency, queue.length); i += 1) {
+    workers.push((async () => {
+      while (queue.length > 0) {
+        const item = queue.shift();
+        if (!item) return;
+        const ok = item.personal
+          ? await retrySinglePersonalRoute(item.route)
+          : await retrySinglePublicRoute(item.route);
+        if (ok) succeeded += 1;
+        else failedCount += 1;
+      }
+    })());
+  }
+  await Promise.all(workers);
+  return { succeeded, failed: failedCount };
 }

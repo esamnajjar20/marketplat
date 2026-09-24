@@ -38,6 +38,7 @@ import {
 import { readSnapshot } from '@/lib/offlineWarmingState';
 import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRouteShells';
 import { warmUserData } from '@/lib/offlineWarmingUserData';
+import { OfflineRoutesList } from './OfflineRoutesList';
 
 const MODES: WarmingMode[] = ['auto', 'balanced', 'saver', 'off'];
 
@@ -355,6 +356,12 @@ export function OfflineControlClient() {
           </span>
         </p>
       </div>
+
+      {/* SW-WARMING-PER-ROUTE-01: per-route table with retry / delete /
+          open actions and filter tabs. Reads the same snapshot this
+          component already polls, but manages its own refresh cadence
+          (5s) so a single retry doesn't wait for the parent's 10s tick. */}
+      <OfflineRoutesList />
 
     </div>
   );
