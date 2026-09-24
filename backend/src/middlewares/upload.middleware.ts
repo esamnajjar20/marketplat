@@ -179,17 +179,11 @@ export const uploadMultipleMiddleware = (req: Request, res: Response, next: Next
         // alert on every over-limit upload attempt.
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
           return next(
-            new BadRequestError(
-              `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
-              'TOO_MANY_FILES'
-            )
+            new BadRequestError(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`, 'TOO_MANY_FILES')
           );
         if (uploadErr.code === 'LIMIT_FILE_COUNT')
           return next(
-            new BadRequestError(
-              `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
-              'TOO_MANY_FILES'
-            )
+            new BadRequestError(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`, 'TOO_MANY_FILES')
           );
         if (uploadErr.code === 'LIMIT_FIELD_COUNT')
           return next(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));

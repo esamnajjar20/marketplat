@@ -626,11 +626,7 @@ export const env = {
     // to RESEND_API_KEY. What changed in T574: made it explicit in
     // this comment instead of leaving the next reader to wonder why
     // env.email.fromEmail silently ignores a configured Resend key.
-    fromEmail: (
-      _env.SMTP_FROM_EMAIL ||
-      _env.GMAIL_USER ||
-      'no-reply@example.com'
-    ).trim(),
+    fromEmail: (_env.SMTP_FROM_EMAIL || _env.GMAIL_USER || 'no-reply@example.com').trim(),
     fromName: _env.SMTP_FROM_NAME || 'سوق غزة',
     // Email sending is considered "configured" only once host+user+password
     // are all present — partial config (e.g. just a from-address) isn't

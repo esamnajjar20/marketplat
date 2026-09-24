@@ -25,6 +25,11 @@
  */
 'use client';
 
+import {
+  broadcastProgress as broadcastProgressRaw,
+  subscribeRemoteProgress as subscribeRemoteProgressRaw,
+} from './warmingBroadcast';
+
 export type WarmingSource = 'core' | 'routes' | 'personal';
 
 export interface SourceProgress {
@@ -92,32 +97,25 @@ export function reportProgress(
 ): void {
   applyProgress(source, update);
   // PHASE-4e — mirror to any other tabs so their indicators reflect
-  // the same progress. Imported lazily inside try/catch so a browser
-  // without BroadcastChannel degrades to the pre-4e behaviour.
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { broadcastProgress } = require('./warmingBroadcast');
-    broadcastProgress(source, update);
-  } catch {
-    // silent — cross-tab mirroring is a UI nicety, not a requirement
-  }
+  // the same progress. broadcastProgressRaw itself is a no-op when
+  // BroadcastChannel is unavailable (it checks window and the API
+  // before doing anything).
+  broadcastProgressRaw(source, update);
 }
 
 // Subscribe once, at module init, to remote progress messages. When
 // this tab receives another tab's update, apply it locally WITHOUT
 // re-broadcasting (applyProgress, not reportProgress) — that would
 // create an echo loop.
+//
+// Wrapped in a typeof window guard so the SSR/Node evaluation of this
+// module does not attempt to install a listener. On the server there
+// is no other tab to hear from anyway.
 if (typeof window !== 'undefined') {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { subscribeRemoteProgress } = require('./warmingBroadcast');
-    subscribeRemoteProgress(
-      (source: WarmingSource, update: Partial<SourceProgress>) =>
-        applyProgress(source, update),
-    );
-  } catch {
-    // silent
-  }
+  subscribeRemoteProgressRaw(
+    (source: WarmingSource, update: Partial<SourceProgress>) =>
+      applyProgress(source, update),
+  );
 }
 
 /**

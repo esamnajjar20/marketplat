@@ -13,7 +13,11 @@ import { ROLE_RANK, Role, isAdminTier } from '../shared/constants/roles';
  */
 export const requireAdmin = (req: Request, _res: Response, next: NextFunction): void => {
   const role = req.user?.role;
-  if (!role || !Object.prototype.hasOwnProperty.call(ROLE_RANK, role) || ROLE_RANK[role as Role] < ROLE_RANK.ADMIN) {
+  if (
+    !role ||
+    !Object.prototype.hasOwnProperty.call(ROLE_RANK, role) ||
+    ROLE_RANK[role as Role] < ROLE_RANK.ADMIN
+  ) {
     return next(new ForbiddenError('Admin access required'));
   }
   next();
@@ -32,7 +36,11 @@ export const requireMinRole =
   (minRole: Role) =>
   (req: Request, _res: Response, next: NextFunction): void => {
     const role = req.user?.role;
-    if (!role || !Object.prototype.hasOwnProperty.call(ROLE_RANK, role) || ROLE_RANK[role as Role] < ROLE_RANK[minRole]) {
+    if (
+      !role ||
+      !Object.prototype.hasOwnProperty.call(ROLE_RANK, role) ||
+      ROLE_RANK[role as Role] < ROLE_RANK[minRole]
+    ) {
       return next(new ForbiddenError(`${minRole} access or higher required`));
     }
     next();
