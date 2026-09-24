@@ -19,6 +19,10 @@ import {
   type WarmingDebugReport,
   type RouteReport,
 } from '@/lib/offlineWarmingDebug';
+import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRouteShells';
+import { warmCoreBundle } from '@/lib/offlineCoreBundle';
+import { clearSnapshot } from '@/lib/offlineWarmingState';
+import { toast } from 'sonner';
 
 // ── small presentational bits ───────────────────────────────────
 
@@ -87,6 +91,100 @@ function RouteTable({
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── manual tools ────────────────────────────────────────────────
+
+const STAGING_CACHE = 'market-warming-staging';
+
+function ManualTools({ onDone }: { onDone: () => Promise<void> }) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const run = async (label: string, fn: () => Promise<void>) => {
+    setBusy(label);
+    try {
+      await fn();
+      toast.success(`${label}: تم`);
+      await onDone();
+    } catch (e) {
+      toast.error(`${label}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const clearStaging = async () => {
+    const c = await caches.open(STAGING_CACHE);
+    const keys = await c.keys();
+    for (const k of keys) await c.delete(k);
+    toast.success(`staging: حُذف ${keys.length} مدخل`);
+    await onDone();
+  };
+
+  const wipeSnapshot = async () => {
+    if (!confirm('حذف snapshot warming؟ سيُعاد warming من الصفر.')) return;
+    await clearSnapshot();
+    toast.success('snapshot: حُذف');
+    await onDone();
+  };
+
+  return (
+    <div className="rounded-lg border bg-card">
+      <div className="border-b px-4 py-2.5">
+        <h3 className="text-sm font-semibold">أدوات يدوية</h3>
+      </div>
+      <div className="space-y-3 p-4">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={!!busy}
+            onClick={() => run('core', () => warmCoreBundle({ force: true }))}
+            className="rounded border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
+          >
+            {busy === 'core' ? '…' : 'أعد warming core'}
+          </button>
+          <button
+            type="button"
+            disabled={!!busy}
+            onClick={() => run('routes', () => warmRouteShellsAtomic())}
+            className="rounded border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
+          >
+            {busy === 'routes' ? '…' : 'أعد warming المسارات'}
+          </button>
+          <button
+            type="button"
+            disabled={!!busy}
+            onClick={() => run('personal', () => warmPersonalShellsAtomic())}
+            className="rounded border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
+          >
+            {busy === 'personal' ? '…' : 'أعد warming الشخصي'}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 border-t pt-3">
+          <button
+            type="button"
+            disabled={!!busy}
+            onClick={() => run('staging', clearStaging)}
+            className="rounded border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
+          >
+            {busy === 'staging' ? '…' : 'امسح staging'}
+          </button>
+          <button
+            type="button"
+            disabled={!!busy}
+            onClick={wipeSnapshot}
+            className="rounded border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            امسح snapshot (خطر)
+          </button>
+        </div>
+        <div className="border-t pt-3 text-[10px] text-muted-foreground">
+          ملاحظة: warming يعمل في الخلفية — قد لا ترى الأثر فوراً. اضغط تحديث
+          بعد 5-10 ثوانٍ.
+        </div>
       </div>
     </div>
   );
@@ -204,6 +302,8 @@ export default function WarmingDebugPage() {
           </p>
         </div>
       </div>
+
+      <ManualTools onDone={refresh} />
 
       {/* ── storage ── */}
       {report.storage && report.storage.quota > 0 && (

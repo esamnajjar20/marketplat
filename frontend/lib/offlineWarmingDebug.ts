@@ -134,11 +134,11 @@ const PERSONAL_ROUTES = [
 ] as const;
 
 const CACHE_NAMES = [
-  'market-static-v36',
-  'market-personal-shell-v36',
-  'market-core-v36',
-  'market-api-v36',
-  'market-images-v36',
+  'market-static-v37',
+  'market-personal-shell-v37',
+  'market-core-v37',
+  'market-api-v37',
+  'market-images-v37',
   'market-saved-ads',
   'market-warming-staging',
   'market-auto-read-ads',
@@ -224,9 +224,9 @@ function readThrottle(): WarmingDebugReport['throttle'] {
     }
   };
   return {
-    routeShells: read('marketplat:route-shells:last-warmed:v36'),
-    personalShells: read('marketplat:personal-shells:last-warmed:v36'),
-    coreBundle: read('marketplat:core-bundle:last-warmed:v36'),
+    routeShells: read('marketplat:route-shells:last-warmed:v37'),
+    personalShells: read('marketplat:personal-shells:last-warmed:v37'),
+    coreBundle: read('marketplat:core-bundle:last-warmed:v37'),
   };
 }
 
