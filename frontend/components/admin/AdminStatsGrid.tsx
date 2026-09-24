@@ -1,13 +1,14 @@
 'use client';
 
 import { useAdminStats } from '@/hooks/queries/useAdmin';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { Button } from '@/components/shared/ui/Button';
 import { formatNumber } from '@/lib/formatters';
-import { ShoppingBag, Users, Flag, Eye, AlertTriangle, UserPlus, CalendarDays, CalendarRange } from 'lucide-react';
+import { ShoppingBag, Users, Flag, Eye, UserPlus, CalendarDays, CalendarRange } from 'lucide-react';
 
 export function AdminStatsGrid() {
-  const { data, isLoading, isError, refetch } = useAdminStats();
+  const { data, isLoading, isError, error, refetch } = useAdminStats();
 
   if (isLoading) return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
 
@@ -15,17 +16,10 @@ export function AdminStatsGrid() {
   // fallbacks below meant a failed fetch rendered as "0" across every
   // metric with no indication anything was wrong — an admin could
   // misread that as "zero open reports" rather than "stats didn't load".
+  // SW-FIX-ASG-APIERROR: shared ApiError for 401/403/404/500+
+  // differentiation, consistent with every other admin surface.
   if (isError) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center rounded-lg border">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل الإحصائيات</p>
-        {/* FIX POLISH-NATIVE-BUTTON-01: shared Button primitive. */}
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          إعادة المحاولة
-        </Button>
-      </div>
-    );
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
 
   const stats = [

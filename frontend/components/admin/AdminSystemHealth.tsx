@@ -1,6 +1,8 @@
 'use client';
 
 import { useAdminSystemHealth } from '@/hooks/queries/useAdmin';
+import { ApiError } from '@/components/shared/ApiError';
+import { parseApiError } from '@/lib/errorParser';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { AlertTriangle, CheckCircle2, Database, Server, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,7 +30,7 @@ function latencyTone(ms: number | null | undefined): string {
 }
 
 export function AdminSystemHealth() {
-  const { data, isLoading, isError, refetch, dataUpdatedAt, isFetching } = useAdminSystemHealth();
+  const { data, isLoading, isError, error, refetch, dataUpdatedAt, isFetching } = useAdminSystemHealth();
 
   if (isLoading) {
     return (
@@ -38,14 +40,19 @@ export function AdminSystemHealth() {
     );
   }
 
-  if (isError || !data) {
+  // SW-FIX-ASH-APIERROR: shared ApiError for 401/403/404/500+
+  // differentiation, consistent with every other admin surface. Note
+  // the `|| !data` clause is preserved — an empty successful response
+  // (both services down) is still a valid empty state, and ApiError
+  // would be misleading there.
+  if (isError) {
+    return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
+  }
+  if (!data) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-center">
         <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">تعذّر فحص صحة النظام</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
-          إعادة المحاولة
-        </Button>
+        <p className="text-muted-foreground">لا توجد بيانات صحة للنظام.</p>
       </div>
     );
   }
