@@ -263,6 +263,12 @@ export const sellersService = {
   ): Promise<PaginatedResult<SellerRatingWithRater>> => {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+    // SEC-FIX: same gap FIX SELLER-PUBLIC-SUSPENDED closed on
+    // getPublicSellerProfile just above — this sibling ratings-list
+    // endpoint checked existence but never `suspended`, so a suspended
+    // seller's ratings stayed publicly readable even after their own
+    // profile page started 404ing.
+    if (profile.suspended) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
 
     const { ratings, total } = await sellersRepository.findManyRatingsBySellerProfileId(
       sellerProfileId,

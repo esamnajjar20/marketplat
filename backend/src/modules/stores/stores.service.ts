@@ -248,6 +248,17 @@ export const storesService = {
     if (store.status !== 'ACTIVE') {
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     }
+    // SEC-FIX: same gap sellersService.getPublicSellerProfile closed
+    // (FIX SELLER-PUBLIC-SUSPENDED) for ads/products/service-listings/
+    // users — this direct-by-id store lookup checked store.status above
+    // but never the seller's own suspended flag. setSuspension only
+    // touches SellerProfile.suspended, never StoreDetails.status, so a
+    // suspended seller's store stayed status:'ACTIVE' and fully viewable
+    // at its direct URL even though every sibling entity for the same
+    // seller already 404s. Treated as 404, same as those siblings.
+    if (store.sellerProfile.suspended) {
+      throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    }
     // STORE-VIEWS: fire-and-forget, same "don't fail the read on a
     // failed counter bump" convention as products.service.ts's
     // getProductById.
@@ -472,8 +483,16 @@ updateStorePlan: async (
     storeId: string,
     query: GetStoreReviewsQuery
   ): Promise<PaginatedResult<StoreReviewWithRater>> => {
-    const store = await storesRepository.findById(storeId);
-    if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    // SEC-FIX: was storesRepository.findById (no sellerProfile include,
+    // no status/suspended check at all) — a suspended seller's or a
+    // non-ACTIVE store's reviews stayed fully readable here even after
+    // getPublicStore above was fixed to 404 the store page itself.
+    // Same gate as getPublicStore, applied here too since this is an
+    // independent public entry point keyed only by storeId.
+    const store = await storesRepository.findByIdWithSeller(storeId);
+    if (!store || store.status !== 'ACTIVE' || store.sellerProfile.suspended) {
+      throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    }
 
     const { reviews, total } = await storeReviewsRepository.findManyBySellerProfileId(
       store.sellerProfileId,

@@ -76,6 +76,17 @@ export const serviceReviewsService = {
     sellerProfileId: string,
     query: GetServiceReviewsQuery
   ): Promise<PaginatedResult<ServiceReviewWithRater>> => {
+    // SEC-FIX: previously no check at all — not even that sellerProfileId
+    // exists. Same gap as stores.service.ts's getStoreReviews /
+    // sellersService.getSellerRatings: a suspended (or nonexistent)
+    // seller's service reviews stayed publicly readable via this
+    // independent list endpoint even after the seller's own public
+    // profile/provider pages were gated on `suspended`.
+    const profile = await sellersRepository.findById(sellerProfileId);
+    if (!profile || profile.suspended) {
+      throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+    }
+
     const { reviews, total } = await serviceReviewsRepository.findManyBySellerProfileId(
       sellerProfileId,
       query

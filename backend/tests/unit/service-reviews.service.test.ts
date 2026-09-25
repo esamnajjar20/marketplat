@@ -115,5 +115,53 @@ describe('ServiceReviewsService', () => {
       ).rejects.toThrow(NotFoundError);
     });
   });
+
+  // SEC-FIX: getReviewsForSeller previously had no check at all — not
+  // even that the seller profile exists. Now mirrors
+  // stores.service.ts's getStoreReviews / sellersService.getSellerRatings.
+  describe('getReviewsForSeller', () => {
+    it('throws NotFoundError when the seller profile does not exist', async () => {
+      (sellersRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        serviceReviewsService.getReviewsForSeller('missing-seller', {})
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the seller is suspended', async () => {
+      (sellersRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'seller-profile-1',
+        suspended: true,
+      });
+
+      await expect(
+        serviceReviewsService.getReviewsForSeller('seller-profile-1', {})
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('fetches reviews scoped by sellerProfileId and builds pagination meta', async () => {
+      (sellersRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'seller-profile-1',
+        suspended: false,
+      });
+      const reviews = [{ id: 'rev-1' }];
+      (serviceReviewsRepository.findManyBySellerProfileId as jest.Mock).mockResolvedValue({
+        reviews,
+        total: 1,
+      });
+
+      const result = await serviceReviewsService.getReviewsForSeller('seller-profile-1', {
+        page: 1,
+        limit: 20,
+      } as any);
+
+      expect(serviceReviewsRepository.findManyBySellerProfileId).toHaveBeenCalledWith(
+        'seller-profile-1',
+        { page: 1, limit: 20 }
+      );
+      expect(result.items).toEqual(reviews);
+      expect(result.meta.total).toBe(1);
+    });
+  });
 });
 

@@ -144,4 +144,49 @@ describe('SellersService', () => {
       ).rejects.toThrow(BadRequestError);
     });
   });
+
+  // SEC-FIX: getSellerRatings previously checked only that the profile
+  // exists, never `suspended` — same gap FIX SELLER-PUBLIC-SUSPENDED
+  // closed on getPublicSellerProfile.
+  describe('getSellerRatings', () => {
+    it('throws NotFoundError when the seller profile does not exist', async () => {
+      (sellersRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        sellersService.getSellerRatings('missing', {})
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the seller is suspended', async () => {
+      (sellersRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockProfile,
+        suspended: true,
+      });
+
+      await expect(
+        sellersService.getSellerRatings('seller-profile-1', {})
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('fetches ratings scoped by sellerProfileId and builds pagination meta', async () => {
+      (sellersRepository.findById as jest.Mock).mockResolvedValue(mockProfile);
+      const ratings = [{ id: 'rating-1' }];
+      (sellersRepository.findManyRatingsBySellerProfileId as jest.Mock).mockResolvedValue({
+        ratings,
+        total: 1,
+      });
+
+      const result = await sellersService.getSellerRatings('seller-profile-1', {
+        page: 1,
+        limit: 20,
+      } as any);
+
+      expect(sellersRepository.findManyRatingsBySellerProfileId).toHaveBeenCalledWith(
+        'seller-profile-1',
+        { page: 1, limit: 20 }
+      );
+      expect(result.items).toEqual(ratings);
+      expect(result.meta.total).toBe(1);
+    });
+  });
 });

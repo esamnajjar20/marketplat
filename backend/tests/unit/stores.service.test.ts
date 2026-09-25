@@ -54,6 +54,11 @@ const mockStore = {
   sellerProfileId,
   status: 'ACTIVE',
   plan: 'FREE',
+  // SEC-FIX: getPublicStore/getStoreReviews now both read
+  // store.sellerProfile.suspended off the fetched store — included here
+  // so every existing test using this shared fixture keeps working
+  // without each one having to add it individually.
+  sellerProfile: mockSellerProfile,
 } as any;
 
 const createInput = {
@@ -257,6 +262,20 @@ describe('storesService', () => {
     it('throws NotFoundError for a BLOCKED store', async () => {
       const blockedStore = { ...mockStore, status: 'BLOCKED', _count: { followers: 0, products: 0 } };
       (storesRepository.findPublicById as jest.Mock).mockResolvedValue(blockedStore);
+
+      await expect(storesService.getPublicStore(storeId)).rejects.toThrow(NotFoundError);
+    });
+
+    // SEC-FIX regression: a suspended seller's store must 404 even
+    // though the store's own status is still ACTIVE — setSuspension
+    // never touches StoreDetails.status, only SellerProfile.suspended.
+    it('throws NotFoundError when the seller is suspended', async () => {
+      const suspendedSellerStore = {
+        ...mockStore,
+        sellerProfile: { ...mockSellerProfile, suspended: true },
+        _count: { followers: 0, products: 0 },
+      };
+      (storesRepository.findPublicById as jest.Mock).mockResolvedValue(suspendedSellerStore);
 
       await expect(storesService.getPublicStore(storeId)).rejects.toThrow(NotFoundError);
     });
@@ -536,14 +555,38 @@ describe('storesService', () => {
   });
 
   describe('getStoreReviews', () => {
+    // SEC-FIX: getStoreReviews now reads via findByIdWithSeller (not
+    // the bare findById) so it can check both store.status and
+    // store.sellerProfile.suspended before returning any reviews.
     it('throws NotFoundError when the store does not exist', async () => {
-      (storesRepository.findById as jest.Mock).mockResolvedValue(null);
+      (storesRepository.findByIdWithSeller as jest.Mock).mockResolvedValue(null);
+
+      await expect(storesService.getStoreReviews(storeId, {})).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the store is not ACTIVE', async () => {
+      (storesRepository.findByIdWithSeller as jest.Mock).mockResolvedValue({
+        ...mockStore,
+        status: 'PENDING',
+      });
+
+      await expect(storesService.getStoreReviews(storeId, {})).rejects.toThrow(NotFoundError);
+    });
+
+    // SEC-FIX regression: same gap as getPublicStore — a suspended
+    // seller's reviews must not stay readable via this independent
+    // endpoint just because the store's own status is still ACTIVE.
+    it('throws NotFoundError when the seller is suspended', async () => {
+      (storesRepository.findByIdWithSeller as jest.Mock).mockResolvedValue({
+        ...mockStore,
+        sellerProfile: { ...mockSellerProfile, suspended: true },
+      });
 
       await expect(storesService.getStoreReviews(storeId, {})).rejects.toThrow(NotFoundError);
     });
 
     it('fetches reviews scoped by the store sellerProfileId and builds pagination meta', async () => {
-      (storesRepository.findById as jest.Mock).mockResolvedValue(mockStore);
+      (storesRepository.findByIdWithSeller as jest.Mock).mockResolvedValue(mockStore);
       const reviews = [{ id: 'rev-1' }];
       (storeReviewsRepository.findManyBySellerProfileId as jest.Mock).mockResolvedValue({
         reviews,
@@ -561,7 +604,7 @@ describe('storesService', () => {
     });
 
     it('defaults page and limit when not provided in the query', async () => {
-      (storesRepository.findById as jest.Mock).mockResolvedValue(mockStore);
+      (storesRepository.findByIdWithSeller as jest.Mock).mockResolvedValue(mockStore);
       (storeReviewsRepository.findManyBySellerProfileId as jest.Mock).mockResolvedValue({
         reviews: [],
         total: 0,
