@@ -37,6 +37,14 @@ export function subscribeConnectionQuality(listener: () => void): () => void {
   };
 }
 
+// SW-FIX-DRIP-EXPORT-AVGMS: exported for the warming planner, which
+// uses measured request timings to decide drip budget/cadence (see
+// estimateKbps in offlineRouteShells). Not exported previously because
+// only the internal getConnectionQuality used it.
+export function getAverageRequestMs(): number | null {
+  return averageMs();
+}
+
 function averageMs(): number | null {
   if (samples.length === 0) return null;
   return samples.reduce((a, b) => a + b, 0) / samples.length;

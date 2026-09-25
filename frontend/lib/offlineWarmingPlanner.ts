@@ -2,40 +2,30 @@
  * lib/offlineWarmingPlanner.ts
  *
  * Decides how aggressive the offline warming pass should be, based on
- * what the browser knows about the current network. Warming is not a
- * one-size-fits-all operation on a network that can be 4G in one minute
- * and 2G in the next, and we have concrete evidence from Gaza users that
- * an unthrottled warming run costs real money and battery (see the
- * 250 -> 65 request reduction in T780).
+ * what the browser knows about the current network.
  *
- * The Network Information API (navigator.connection) is non-standard but
- * widely supported on the platforms that matter here: Chrome/Chromium
- * (Android WebView, most Gaza mobile users), Edge, and recent Firefox.
- * Safari does not expose it. When absent, we default to 'full' — the
- * alternative (defaulting to 'critical') would silently cripple warming
- * on every iPhone user, and Safari users on a bad network can still hit
- * the throttle later via the online/offline fallback paths.
+ * Gaza context (primary audience for aggressive throttling):
+ *   Prepaid voucher cards commonly sustain only 17–30 KB/s
+ *   (~0.14–0.24 Mbps). The Network Information API often lies on these
+ *   links (reports "3g"/"4g" while real throughput is 2g-class). We
+ *   therefore:
+ *     1. Prefer measured request timings (getAverageRequestMs) over
+ *        effectiveType when samples exist.
+ *     2. Treat downlink < 0.35 Mbps as critical.
+ *     3. Keep core-tier budgets tiny (3–4 shells) and sequential.
+ *     4. When the API is absent (Safari), default to 'core' — not 'full'
+ *        — so an iPhone on a bad hotspot does not burn a voucher.
  *
  * The four tiers:
- *   - none      : saveData is on, or we're currently offline.
- *                 Warming is completely skipped. User has explicitly
- *                 asked to conserve data; we honor that.
- *   - critical  : effectiveType is 'slow-2g' or '2g', or downlink is
- *                 below 0.5 Mbps. Only the SW's own precache tier runs
- *                 (handled by sw.js — this module returns an empty
- *                 route list, but does not disable the SW precache).
- *   - core      : effectiveType is '3g', or downlink is below 2 Mbps.
- *                 Only the top 3-4 routes warm (planner filters the
- *                 list, caller applies).
- *   - full      : everything else (4g, wifi, unknown-with-good-signal).
- *                 All routes warm, with modest concurrency.
- *
- * The planner also returns concurrency and inter-route delay, so the
- * warming engine doesn't hammer a slow link with 13 parallel fetches.
+ *   - none      : saveData / offline / user mode off
+ *   - critical  : ~17–30 KB/s territory — no app-driven route warming
+ *   - core      : mid-slow — a handful of priority shells only
+ *   - full      : truly good link — full list, still modest concurrency
  */
 'use client';
 
 import { getWarmingMode } from './warmingPreferences';
+import { getAverageRequestMs } from './connectionQuality';
 
 export type WarmingTier = 'none' | 'critical' | 'core' | 'full';
 
@@ -47,46 +37,51 @@ export interface WarmingPlan {
   interBatchDelayMs: number;
   /** Milliseconds to wait between individual routes in sequential mode. */
   interRouteDelayMs: number;
-  /** Per-request timeout (ms). Short on slow links to fail fast and retry. */
+  /** Per-request timeout (ms). Longer on slow links so a shell can finish. */
   requestTimeoutMs: number;
-  /** Human-readable reason, for logging / debug overlay. */
+  /** Human-readable reason, for logging / debug UI. */
   reason: string;
 }
 
-// ── Network reading ──────────────────────────────────────────────
-
 interface NetworkInformationLike {
+  effectiveType?: string;
+  downlink?: number;
   saveData?: boolean;
-  effectiveType?: 'slow-2g' | '2g' | '3g' | '4g';
-  downlink?: number; // Mbps (estimated)
-  rtt?: number;      // ms (estimated)
 }
 
-function getConnection(): NetworkInformationLike | null {
+function readConnection(): NetworkInformationLike | null {
   if (typeof navigator === 'undefined') return null;
-  const nav = navigator as Navigator & { connection?: NetworkInformationLike };
-  return nav.connection ?? null;
+  return (
+    (navigator as Navigator & { connection?: NetworkInformationLike }).connection ??
+    null
+  );
 }
 
 /**
- * Returns whether the caller is currently online. We treat the
- * `navigator.onLine === false` signal as authoritative for skipping
- * warming entirely — no point issuing fetches that will all throw.
- * (navigator.onLine === true is famously unreliable about whether the
- * network is actually usable — we don't trust it as a positive signal,
- * only as a negative one.)
+ * SW-CORE-BUDGET: priority floor for 'core' tier.
+ * Must cover what /offline itself advertises + primary browse + a few
+ * personal essentials. Kept short on purpose — each extra shell on a
+ * 20 KB/s link is ~10–30s of exclusive bandwidth.
  */
-export function isOffline(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return navigator.onLine === false;
-}
+const PRIORITY_ROUTES = [
+  '/offline',
+  '/downloads',
+  '/saved-ads',
+  '/saved-payments',
+  '/',
+  '/products',
+  '/search',
+  '/messages',
+  '/notifications',
+  '/dashboard',
+  '/settings/storage',
+  '/settings/sync',
+];
 
-// ── The plan ─────────────────────────────────────────────────────
+/** Max shells warmed on 'core' tier (Gaza mid-slow). Was 8 — too heavy at 20 KB/s. */
+const CORE_ROUTE_BUDGET = 4;
 
 export function getWarmingPlan(): WarmingPlan {
-  // SW-WARMING-USER-CONTROL-01: user preference takes top priority.
-  // The order of gates below mirrors the doc comment in
-  // warmingPreferences.ts exactly.
   const userMode = getWarmingMode();
 
   if (userMode === 'off') {
@@ -100,7 +95,7 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  if (isOffline()) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return {
       tier: 'none',
       concurrency: 0,
@@ -111,46 +106,41 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  const conn = getConnection();
+  const conn = readConnection();
 
-  // No Network Information API — cannot make a precise decision.
-  // Default to 'full' with conservative throttling; if the network is
-  // actually slow, the request-timeout + circuit-breaker in the
-  // warming engine will degrade gracefully.
-  if (!conn) {
-    return {
-      tier: 'full',
-      concurrency: 2,
-      interBatchDelayMs: 1500,
-      interRouteDelayMs: 800,
-      requestTimeoutMs: 20_000,
-      reason: 'no-network-info-api',
-    };
-  }
-
-  // User asked to save data. Absolute stop.
-  if (conn.saveData === true) {
+  if (conn?.saveData) {
     return {
       tier: 'none',
       concurrency: 0,
       interBatchDelayMs: 0,
       interRouteDelayMs: 0,
       requestTimeoutMs: 0,
-      reason: 'save-data',
+      reason: 'saveData',
     };
   }
 
-  // SW-WARMING-USER-CONTROL-01: explicit user choice overrides the
-  // network-derived decision — but only AFTER the OS-level saveData
-  // flag above, so a user who turned on Data Saver at the OS still
-  // gets the safe 'none' plan even if they picked 'balanced' here.
+  // User forced modes beat network heuristics (except off/saveData above).
+  // Drip: user chose slow background fill — always allow a small
+  // sequential batch. Route selection + 12-min interval live in
+  // offlineRouteShells (DRIP_BUDGET / DRIP_INTERVAL_MS), not here.
+  if (userMode === 'drip') {
+    return {
+      tier: 'core',
+      concurrency: 1,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 3000,
+      requestTimeoutMs: 25_000,
+      reason: 'user-drip',
+    };
+  }
+
   if (userMode === 'saver') {
     return {
       tier: 'critical',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 3000,
-      requestTimeoutMs: 15_000,
+      interRouteDelayMs: 4000,
+      requestTimeoutMs: 20_000,
       reason: 'user-saver',
     };
   }
@@ -160,104 +150,88 @@ export function getWarmingPlan(): WarmingPlan {
       tier: 'core',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 1200,
-      requestTimeoutMs: 15_000,
+      interRouteDelayMs: 2500,
+      requestTimeoutMs: 20_000,
       reason: 'user-balanced',
     };
   }
 
-  const type = conn.effectiveType;
-  const downlink = typeof conn.downlink === 'number' ? conn.downlink : null;
-
-  // Very slow link — only the SW precache tier runs (which is
-  // initiated separately by sw.js install, not by this planner).
-  if (type === 'slow-2g' || type === '2g' || (downlink !== null && downlink < 0.5)) {
+  // Measured timings beat optimistic effectiveType on voucher cards.
+  const avgMs = getAverageRequestMs();
+  if (avgMs != null && avgMs >= 4000) {
     return {
       tier: 'critical',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 3000,
-      requestTimeoutMs: 15_000,
-      reason: `slow-link(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
+      interRouteDelayMs: 4000,
+      requestTimeoutMs: 25_000,
+      reason: `measured-very-slow(avgMs=${Math.round(avgMs)})`,
     };
   }
 
-  // Mid-range link — warm only the hottest routes, sequentially.
-  if (type === '3g' || (downlink !== null && downlink < 2)) {
+  const type = conn?.effectiveType;
+  const downlink = typeof conn?.downlink === 'number' ? conn.downlink : null;
+
+  // ~17–30 KB/s voucher cards: downlink often 0.1–0.3 when reported at all.
+  if (
+    type === 'slow-2g' ||
+    type === '2g' ||
+    (downlink !== null && downlink < 0.35)
+  ) {
+    return {
+      tier: 'critical',
+      concurrency: 1,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 4000,
+      requestTimeoutMs: 25_000,
+      reason: `voucher-class(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
+    };
+  }
+
+  // Mid-slow (classic 3g / <1.5 Mbps) — tiny sequential budget.
+  if (type === '3g' || (downlink !== null && downlink < 1.5) || (avgMs != null && avgMs >= 1500)) {
     return {
       tier: 'core',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 1200,
-      requestTimeoutMs: 15_000,
-      reason: `mid-link(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
+      interRouteDelayMs: 2500,
+      requestTimeoutMs: 20_000,
+      reason: `mid-slow(type=${type ?? '?'},downlink=${downlink ?? '?'},avgMs=${avgMs != null ? Math.round(avgMs) : '?'})`,
     };
   }
 
-  // Good link. Still cap concurrency — 13 parallel fetches on a phone
-  // browser is wasteful even on WiFi.
+  // No Network Information API (Safari) and no timing samples yet:
+  // default to core, not full — avoids burning a weak hotspot on first load.
+  if (!conn && avgMs == null) {
+    return {
+      tier: 'core',
+      concurrency: 1,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 2000,
+      requestTimeoutMs: 18_000,
+      reason: 'no-connection-api-default-core',
+    };
+  }
+
+  // Genuinely good link.
   return {
     tier: 'full',
-    concurrency: 3,
-    interBatchDelayMs: 800,
-    interRouteDelayMs: 0,
-    requestTimeoutMs: 20_000,
-    reason: `good-link(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
+    concurrency: 2,
+    interBatchDelayMs: 400,
+    interRouteDelayMs: 400,
+    requestTimeoutMs: 12_000,
+    reason: `full(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
   };
 }
 
-// ── Priority route list ──────────────────────────────────────────
-
-/**
- * SW-PRIORITY-STORAGE-SYNC-01: routes that must reach warming even on
- * the 'core' tier. These are the pages a user with a flaky connection
- * actually needs offline: their inbox, their dashboard, and the two
- * management pages for cache size and the sync queue. Anything else
- * can wait for a good network.
- */
-// SW-CORE-BUDGET-8: expanded to cover BOTH personal essentials AND
-// the public pages /offline itself advertises. Before this, 'core'
-// tier picked the first 5 of CORE_ROUTES positionally, which meant
-// /downloads, /saved-ads, /saved-payments were never warmed on a
-// typical Gaza mid-range link (1.45 Mbps) — the exact three buttons
-// the offline page offers. Now these are in the priority list so
-// they're warmed regardless of position or tier budget.
-const PRIORITY_ROUTES = [
-  // Public offline-floor — the three buttons /offline links to, plus
-  // the fallback itself.
-  '/offline',
-  '/downloads',
-  '/saved-ads',
-  '/saved-payments',
-  // Primary browsing.
-  '/',
-  '/products',
-  '/search',
-  // Personal essentials.
-  '/messages',
-  '/notifications',
-  '/dashboard',
-  '/settings/storage',
-  '/settings/sync',
-];
-
-// ── Route selection ──────────────────────────────────────────────
-
 /**
  * Given the full route list warming would like to process, return the
- * subset the current plan allows. Critical-tier routes (the ones the
- * SW precaches directly) are always included — they are the safety
- * net. Beyond that:
+ * subset the current plan allows.
  *
  *   full     -> all routes
- *   core     -> first N of the given list (caller is expected to pass
- *               routes in priority order)
+ *   core     -> priority floor (≤ CORE_ROUTE_BUDGET), then fill from input
  *   critical -> empty (SW precache handles the floor)
  *   none     -> empty
- *
- * The caller is expected to pass the route list in priority order
- * (most important first). This module does not know what "important"
- * means — that's a routing concern — it only knows the budget.
  */
 export function selectRoutesByPlan(
   plan: WarmingPlan,
@@ -268,19 +242,13 @@ export function selectRoutesByPlan(
     case 'critical':
       return [];
     case 'core': {
-      // SW-CORE-BUDGET-8: budget raised from 5 to 8. On a 1.45 Mbps
-      // link, 8 route shells cost ~1.5 MB and take ~12 seconds — fine
-      // for background warming, and enough to cover the offline-floor
-      // plus primary browsing. 5 was too tight and left /downloads,
-      // /saved-ads, /saved-payments perpetually uncached.
       const inInput = new Set(routesInPriorityOrder);
       const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
-      const target = Math.max(8, priority.length);
-      if (priority.length >= target) return priority.slice(0, target);
-      const remaining = routesInPriorityOrder.filter(
-        (r) => !priority.includes(r),
-      );
-      return [...priority, ...remaining.slice(0, target - priority.length)];
+      if (priority.length >= CORE_ROUTE_BUDGET) {
+        return priority.slice(0, CORE_ROUTE_BUDGET);
+      }
+      const remaining = routesInPriorityOrder.filter((r) => !priority.includes(r));
+      return [...priority, ...remaining].slice(0, CORE_ROUTE_BUDGET);
     }
     case 'full':
     default:
@@ -288,16 +256,22 @@ export function selectRoutesByPlan(
   }
 }
 
-/** True when the plan says "do nothing at all". */
+export function getPriorityRoutes(): readonly string[] {
+  return PRIORITY_ROUTES;
+}
+
+
+/** True when the plan says warming should not run at all. */
 export function isWarmingDisabled(plan: WarmingPlan): boolean {
   return plan.tier === 'none';
 }
 
-/**
- * Debug helper — returns a JSON-serializable view of what the planner
- * would decide right now. Used by the (future) ?debug=warming overlay.
- */
+// SW-FIX-DRIP-RESTORE-DESCRIBE: describePlan was removed during the
+// voucher-class refactor but offlineWarmingDebug.ts:21 still imports
+// it. Re-added here as a thin wrapper — the debug page reads .tier,
+// .reason, and .online directly, so the shape must stay
+// WarmingPlan & { online: boolean }.
 export function describePlan(): WarmingPlan & { online: boolean } {
-  const plan = getWarmingPlan();
-  return { ...plan, online: !isOffline() };
+  const online = typeof navigator !== 'undefined' && navigator.onLine;
+  return { ...getWarmingPlan(), online };
 }
