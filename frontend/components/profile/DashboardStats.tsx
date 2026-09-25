@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Store,
   Wrench,
+  WifiOff,
 } from 'lucide-react';
 import { useMyAdStats } from '@/hooks/queries/useAds';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
@@ -23,6 +24,7 @@ import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { formatNumber } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
+import type { ParsedError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 
 type StatItem = {
@@ -53,7 +55,7 @@ export function DashboardStats() {
   //    down. That is worse than showing an error, because it's
   //    plausibly misleading rather than obviously broken. Now the
   //    count is error-aware and renders '—' on failure.
-  const { data: stats, isLoading, isError, refetch } = useMyAdStats();
+  const { data: stats, isLoading, isError, error, refetch } = useMyAdStats();
   const { data: unreadCount, isLoading: convLoading, isError: convError } =
     useUnreadConversationCount();
   const { data: myStore, isSuccess: storeOk } = useMyStore();
@@ -67,7 +69,26 @@ export function DashboardStats() {
     );
   }
 
+  // SW-FIX-STATS-OFFLINE: distinguish offline (statusCode 0 / navigator
+  // reports offline) from a real server error. Previously any failure
+  // showed "حدث خطأ أثناء تحميل الإحصائيات" — confusing when the user
+  // is simply offline on a Gaza voucher card and hasn't warmed stats yet.
   if (isError) {
+    const isOffline =
+      (error as unknown as ParsedError | null)?.statusCode === 0 ||
+      (typeof navigator !== 'undefined' && navigator.onLine === false);
+
+    if (isOffline) {
+      return (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card py-8 text-center shadow-xs">
+          <WifiOff className="h-8 w-8 text-muted-foreground" aria-hidden />
+          <p className="text-sm text-muted-foreground">
+            أنت غير متصل — ستُحدَّث الإحصائيات عند عودة الاتصال
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card py-8 text-center shadow-xs">
         <AlertTriangle className="h-8 w-8 text-muted-foreground" />

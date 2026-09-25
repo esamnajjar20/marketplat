@@ -17,7 +17,7 @@
  *     usual 2G/3G the ~55 KB payload would compete with the shell
  *     warming that has higher priority.
  *   - Only endpoints the user's own account owns.
- *   - Responses land in a dedicated cache (market-user-data-v38) that
+ *   - Responses land in a dedicated cache (market-user-data-v39) that
  *     the SW wipes on logout alongside API_CACHE and PERSONAL_SHELL_CACHE.
  *
  * Cache key format is the FULL request URL (API_BASE_URL + path +
@@ -35,7 +35,7 @@ import { getWarmingPlan } from './offlineWarmingPlanner';
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
 /** Must match sw.js's USER_DATA_CACHE template literally. */
-export const USER_DATA_CACHE = 'market-user-data-v38';
+export const USER_DATA_CACHE = 'market-user-data-v39';
 
 /**
  * Endpoints warmed per user. Each entry becomes one fetch + one

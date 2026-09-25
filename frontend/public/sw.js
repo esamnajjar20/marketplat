@@ -102,7 +102,7 @@
 // below); '/offline' added to CORE_ROUTES in offlineRouteShells.ts.
 // Both fixes require a cache bump so every active SW clears the
 // stale entries from v35 and the retry/marker files reset.
-const CACHE_VERSION = 'v38';
+const CACHE_VERSION = 'v39';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
