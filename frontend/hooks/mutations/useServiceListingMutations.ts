@@ -63,6 +63,9 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = payload.images ?? [];
+          // DRAFT-DEBUG-01 (temporary)
+          console.log('[draft-debug][service] onError fired, files:',
+            files.length, files.map((x) => ({ n: x?.name, s: x?.size })));
           // FIX TRIPLE-COMPRESS-01: compress ONCE, reuse for both
           // previews and publishFiles (see useAdMutations.ts for the
           // full rationale — the duplicated pass was what made the form
@@ -73,6 +76,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
             compressedFiles.length > 0
               ? await bestEffortCompressPreviews(compressedFiles)
               : [];
+          console.log('[draft-debug][service] about to save');
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -115,8 +119,8 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
             toastSoftNetworkDraft({ mode: 'create' });
           }
           return;
-        } catch {
-          /* fall through */
+        } catch (e) {
+          console.error('[draft-debug][service] saveAdDraft FAILED:', e);
         }
       }
       toastMutationError(err);
