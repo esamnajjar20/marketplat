@@ -85,18 +85,5 @@ export function clearAllOfflineJson(): void {
   }
 }
 
-/** نص «آخر تحديث» للواجهات. */
-export function formatOfflineSavedAt(savedAt: string): string {
-  if (!savedAt) return '';
-  try {
-    const ms = Date.now() - new Date(savedAt).getTime();
-    const mins = Math.max(0, Math.floor(ms / 60_000));
-    if (mins < 1) return 'آخر تحديث: الآن تقريبًا';
-    if (mins < 60) return `آخر تحديث: منذ ${mins} دقيقة`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 48) return `آخر تحديث: منذ ${hours} ساعة`;
-    return `آخر تحديث: ${new Date(savedAt).toLocaleString('ar')}`;
-  } catch {
-    return '';
-  }
-}
+/** @deprecated use formatOfflineSavedAt from @/lib/offlineFreshness */
+export { formatOfflineSavedAt } from '@/lib/offlineFreshness';

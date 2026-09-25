@@ -32,6 +32,7 @@ import { clearAppBadge } from '@/lib/appBadge';
 import { clearRecentSearches } from '@/lib/recentSearches';
 import { clearAutoReadCache } from '@/lib/offlineAutoRead';
 import { clearPersonalWarmingState } from '@/lib/offlineWarmingState';
+import { clearNativeSessionMeta } from '@/lib/capacitor/nativeSessionStorage';
 
 /** يطلب من الـ SW مسح كاش API + PERSONAL_SHELL — نفس بروتوكول
  * CLEAR_API_CACHE الموجود أصلًا بـ public/sw.js (SECURITY FIX audit #2 +
@@ -171,4 +172,6 @@ export function clearSensitiveLocalData(): void {
   // coverage is most needed).
   void clearPersonalWarmingState();
   clearPushBindingsOnSessionEnd();
+  // NATIVE-SESSION-01: drop non-secret session meta on native + web.
+  void clearNativeSessionMeta();
 }

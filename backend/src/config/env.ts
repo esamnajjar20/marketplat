@@ -319,6 +319,15 @@ const envSchema = z.object({
   // preview/staging origin without editing code. Blank by default, so
   // existing behavior is unchanged unless explicitly set.
   CORS_EXTRA_ORIGINS: z.string().optional(),
+  // COOKIE-POLICY-01: optional shared parent domain for auth cookies
+  // (e.g. ".example.com"). When set, cookies are scoped to this domain
+  // so frontend + backend subdomains share them. Leave empty on
+  // Public-Suffix hosts (*.up.railway.app) where Domain= is invalid.
+  COOKIE_DOMAIN: z.string().optional(),
+  // COOKIE-POLICY-01: 'none' | 'lax' | 'strict'. Default 'none' for
+  // cross-site Railway deploys. Use 'lax' once both services share a
+  // real registrable domain (safer against CSRF).
+  COOKIE_SAMESITE: z.enum(['none', 'lax', 'strict']).default('none'),
   // CENTRALIZE-04: previously read directly via process.env in
   // capacityCheck.ts with no schema entry. Validated/documented here
   // for .env.example generation purposes, but NOT re-exported on the
@@ -522,6 +531,9 @@ export const env = {
     blacklistStrict: _env.BLACKLIST_STRICT,
     // T530-app — see schema entry above for the rationale.
     corsExtraOrigins: _env.CORS_EXTRA_ORIGINS ?? '',
+    // COOKIE-POLICY-01 — see schema entries above.
+    cookieDomain: (_env.COOKIE_DOMAIN || '').trim() || undefined,
+    cookieSameSite: _env.COOKIE_SAMESITE as 'none' | 'lax' | 'strict',
   },
   cloudinary: {
     // .trim() defends against the single most common cause of Cloudinary

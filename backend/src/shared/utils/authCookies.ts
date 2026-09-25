@@ -75,31 +75,61 @@ const REFRESH_TOKEN_MAX_AGE_MS = env.jwt.refreshExpiresInSeconds * 1000;
 
 const isProduction = env.nodeEnv === 'production';
 
+/**
+ * COOKIE-POLICY-01: single source of truth for auth-cookie attributes.
+ *
+ * - sameSite: from env.security.cookieSameSite (default 'none' for
+ *   cross-site Railway deploys on Public Suffix hosts). Set
+ *   COOKIE_SAMESITE=lax once frontend+backend share a real registrable
+ *   domain — safer against CSRF and no longer requires Secure on
+ *   every environment.
+ * - secure: required when sameSite is 'none'; otherwise true in
+ *   production only (allows local http:// localhost dev with 'lax').
+ * - domain: optional COOKIE_DOMAIN (e.g. ".example.com"). Never set
+ *   on Public Suffix hosts — browsers reject Domain=up.railway.app.
+ */
+function authCookieBase(opts: {
+  httpOnly: boolean;
+  path: string;
+  maxAge?: number;
+}): {
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: 'none' | 'lax' | 'strict';
+  path: string;
+  maxAge?: number;
+  domain?: string;
+} {
+  const sameSite = env.security.cookieSameSite;
+  const secure = sameSite === 'none' ? true : isProduction;
+  const base: {
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: 'none' | 'lax' | 'strict';
+    path: string;
+    maxAge?: number;
+    domain?: string;
+  } = {
+    httpOnly: opts.httpOnly,
+    secure,
+    sameSite,
+    path: opts.path,
+  };
+  if (opts.maxAge !== undefined) base.maxAge = opts.maxAge;
+  if (env.security.cookieDomain) base.domain = env.security.cookieDomain;
+  return base;
+}
+
 export function setRefreshTokenCookie(res: Response, refreshToken: string): void {
-  res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-    httpOnly: true,
-    // DEPLOY-FIX-01: frontend and backend are deployed on two
-    // different *.up.railway.app subdomains — and up.railway.app
-    // itself is on the Public Suffix List, so those subdomains are
-    // different *sites* to the browser (not just different origins).
-    // 'lax' cookies are never sent across a site boundary regardless
-    // of this being a same-registrable-domain-looking hostname, so
-    // every /auth/refresh call was silently arriving with no cookie
-    // at all — indistinguishable from a logged-out visitor — which is
-    // what caused every page refresh to log users out. sameSite:
-    // 'none' is required to cross that boundary, which in turn
-    // requires secure: true unconditionally (browsers reject
-    // sameSite:'none' without Secure) — not gated behind
-    // isProduction, since dev/test no longer relies on this cookie
-    // crossing sites the same way. See this file's own top-of-file
-    // comment for the full reasoning and the alternative (unifying
-    // both services under one registrable domain), which remains the
-    // more robust long-term fix.
-    secure: true,
-    sameSite: 'none',
-    path: REFRESH_TOKEN_COOKIE_PATH,
-    maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-  });
+  res.cookie(
+    REFRESH_TOKEN_COOKIE_NAME,
+    refreshToken,
+    authCookieBase({
+      httpOnly: true,
+      path: REFRESH_TOKEN_COOKIE_PATH,
+      maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+    }),
+  );
 }
 
 export function clearRefreshTokenCookie(res: Response): void {
@@ -108,13 +138,10 @@ export function clearRefreshTokenCookie(res: Response): void {
   // attributes match exactly (a clearCookie call with different
   // options silently sets a NEW cookie rather than removing the
   // existing one).
-  res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
-    httpOnly: true,
-    // DEPLOY-FIX-01: must match setRefreshTokenCookie's attributes above.
-    secure: true,
-    sameSite: 'none',
-    path: REFRESH_TOKEN_COOKIE_PATH,
-  });
+  res.clearCookie(
+    REFRESH_TOKEN_COOKIE_NAME,
+    authCookieBase({ httpOnly: true, path: REFRESH_TOKEN_COOKIE_PATH }),
+  );
 }
 
 export function getRefreshTokenFromCookie(req: Request): string | undefined {
@@ -134,27 +161,23 @@ export function getRefreshTokenFromCookie(req: Request): string | undefined {
  */
 export function setCsrfCookie(res: Response): string {
   const csrfToken = crypto.randomBytes(32).toString('hex');
-  res.cookie(CSRF_COOKIE_NAME, csrfToken, {
-    httpOnly: false,
-    // DEPLOY-FIX-01: must cross the same up.railway.app subdomain
-    // boundary as refreshToken above, for the same reason — see that
-    // cookie's comment.
-    secure: true,
-    sameSite: 'none',
-    path: '/',
-    maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-  });
+  res.cookie(
+    CSRF_COOKIE_NAME,
+    csrfToken,
+    authCookieBase({
+      httpOnly: false,
+      path: '/',
+      maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+    }),
+  );
   return csrfToken;
 }
 
 export function clearCsrfCookie(res: Response): void {
-  res.clearCookie(CSRF_COOKIE_NAME, {
-    httpOnly: false,
-    // DEPLOY-FIX-01: must match setCsrfCookie's attributes above.
-    secure: true,
-    sameSite: 'none',
-    path: '/',
-  });
+  res.clearCookie(
+    CSRF_COOKIE_NAME,
+    authCookieBase({ httpOnly: false, path: '/' }),
+  );
 }
 
 export function getCsrfCookieName(): string {
@@ -194,40 +217,24 @@ export function getCsrfCookieName(): string {
 const SESSION_HINT_COOKIE_NAME = 'app_has_session';
 
 export function setSessionHintCookie(res: Response): void {
-  res.cookie(SESSION_HINT_COOKIE_NAME, '1', {
-    // FIX SESSION-HINT-HTTPONLY-01: was httpOnly:false on the (incorrect)
-    // assumption that the frontend needed to read this value via
-    // document.cookie. It does not — Next.js middleware runs on the
-    // Edge server, reads cookies from the incoming request, and never
-    // executes client JS to do so. The only consumer is the middleware,
-    // which is a server process. httpOnly:true removes a small but free
-    // information-disclosure surface (any XSS on the page could
-    // previously confirm "this visitor is logged in" without a network
-    // round-trip).
-    httpOnly: true,
-    // DEPLOY-FIX-01: must cross the same up.railway.app subdomain
-    // boundary as refreshToken above, for the same reason — see that
-    // cookie's comment. This one matters doubly: middleware.ts's Edge
-    // Runtime check reads this cookie to avoid a false /login redirect
-    // on a fresh page load, so it needs to actually arrive too.
-    secure: true,
-    sameSite: 'none',
-    path: '/',
-    maxAge: REFRESH_TOKEN_MAX_AGE_MS, // same 7-day lifetime as refreshToken
-  });
+  // FIX SESSION-HINT-HTTPONLY-01: httpOnly:true — only Edge middleware
+  // reads this; client JS never needs it.
+  res.cookie(
+    SESSION_HINT_COOKIE_NAME,
+    '1',
+    authCookieBase({
+      httpOnly: true,
+      path: '/',
+      maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+    }),
+  );
 }
 
 export function clearSessionHintCookie(res: Response): void {
-  res.clearCookie(SESSION_HINT_COOKIE_NAME, {
-    // FIX SESSION-HINT-HTTPONLY-01: must match setSessionHintCookie's
-    // attributes exactly, or the browser creates a second cookie
-    // instead of clearing the existing one.
-    httpOnly: true,
-    // DEPLOY-FIX-01: must match setSessionHintCookie's attributes above.
-    secure: true,
-    sameSite: 'none',
-    path: '/',
-  });
+  res.clearCookie(
+    SESSION_HINT_COOKIE_NAME,
+    authCookieBase({ httpOnly: true, path: '/' }),
+  );
 }
 
 export function getSessionHintCookieName(): string {

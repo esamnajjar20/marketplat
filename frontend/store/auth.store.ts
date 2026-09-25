@@ -175,7 +175,7 @@ export const useAuthStore = create<AuthStore>()(
       isAuthResolving: false,
 
       // ── Actions ───────────────────────────────────────────────────
-      setAuth: (authResultUser, tokens, csrfToken) =>
+      setAuth: (authResultUser, tokens, csrfToken) => {
         set({
           user: {
             id:        authResultUser.id,
@@ -194,12 +194,25 @@ export const useAuthStore = create<AuthStore>()(
           // a value already in the store with undefined.
           ...(csrfToken !== undefined ? { csrfToken } : {}),
           isAuthenticated: true,
-        }),
+        });
+        // NATIVE-SESSION-01: persist non-secret session meta for native shells.
+        void import('@/lib/capacitor/nativeSessionStorage')
+          .then(({ setNativeSessionMeta }) => setNativeSessionMeta(authResultUser.id))
+          .catch(() => { /* optional on web */ });
+      },
 
       // CROSS-ORIGIN-CSRF-FIX: see this action's own doc comment on the interface above.
       setCsrfToken: (token) => set({ csrfToken: token }),
 
-      setUser: (user) => set({ user }),
+      setUser: (user) => {
+        set({ user });
+        // NATIVE-SESSION-01: keep native meta userId in sync after /me.
+        if (user?.id) {
+          void import('@/lib/capacitor/nativeSessionStorage')
+            .then(({ setNativeSessionMeta }) => setNativeSessionMeta(user.id))
+            .catch(() => {});
+        }
+      },
       setLastKnownRoles: (patch) =>
         set((s) => ({
           lastKnownRoles: {
@@ -227,7 +240,7 @@ export const useAuthStore = create<AuthStore>()(
       setAccessToken: (token) =>
         set({ accessToken: token, isAuthenticated: true }),
 
-      logout: () =>
+      logout: () => {
         set({
           user:            null,
           lastKnownRoles:  null,
@@ -235,7 +248,12 @@ export const useAuthStore = create<AuthStore>()(
           csrfToken:       null,
           isAuthenticated: false,
           isAuthResolving: false,
-        }),
+        });
+        // NATIVE-SESSION-01: also cleared by clearSensitiveLocalData; belt-and-suspenders.
+        void import('@/lib/capacitor/nativeSessionStorage')
+          .then(({ clearNativeSessionMeta }) => clearNativeSessionMeta())
+          .catch(() => {});
+      },
 
       setHydrated: (value) => set({ isHydrated: value }),
       setAuthResolved: () => set({ isAuthResolving: false }),

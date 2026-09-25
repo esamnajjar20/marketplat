@@ -168,6 +168,24 @@ export function buildCoreUrls(): { key: string; url: string }[] {
       // (بدون limit صريح -> افتراضي الباك-إند 20، انظر service-listings.service.ts).
       url: `${API_BASE_URL}/service-listings?page=1&sortBy=createdAt&sortOrder=desc`,
     },
+    // SW-ADD-HOME-WARMING: the home page's own sections fired requests
+    // the core bundle never warmed — on offline they 404'd or showed
+    // empty placeholders. Adding the two stable shapes:
+    //   - FeaturedAds ({isFeatured: true, limit: 4}) — no city/filters
+    //   - RecentProductsSection ({limit: 8, createdAt desc}) — only
+    //     when the location resolver hasn't picked a city, so the
+    //     `city` param is undefined and axios drops it from the URL.
+    //     The city-parametrized variant (once the resolver settles on
+    //     a city) is per-user state and belongs in user-data warming,
+    //     not here.
+    {
+      key: 'ads-featured',
+      url: `${API_BASE_URL}/ads?isFeatured=true&limit=4`,
+    },
+    {
+      key: 'products-home',
+      url: `${API_BASE_URL}/products?limit=8&sortBy=createdAt&sortOrder=desc`,
+    },
   ];
 }
 

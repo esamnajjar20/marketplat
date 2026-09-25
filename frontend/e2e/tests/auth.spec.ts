@@ -134,3 +134,50 @@ test.describe('Logout', () => {
     await expect(page).toHaveURL(/\/login/);
   });
 });
+
+
+test.describe('Session cookie resilience (COOKIE-POLICY-01)', () => {
+  test('session survives full reload after a short idle (refresh cookie still valid)', async ({ page, context }) => {
+    const user = makeTestUser();
+    await registerViaUI(page, user);
+
+    // Confirm httpOnly refresh-related session artifacts exist from the browser's
+    // perspective. app_has_session may be httpOnly; we assert behaviour not cookie
+    // readability: after idle + reload the user must still be authenticated.
+    await page.waitForTimeout(2_000);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'قائمة المستخدم' })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // Protected navigation after idle — exercises middleware session hint +
+    // AuthHydrationProvider's unconditional /auth/refresh.
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+    await expect(page.getByRole('button', { name: 'قائمة المستخدم' })).toBeVisible();
+  });
+
+  test('new tab inherits the cookie session (same browser context)', async ({ context }) => {
+    const page = await context.newPage();
+    const user = makeTestUser();
+    await registerViaUI(page, user);
+
+    const page2 = await context.newPage();
+    await page2.goto('/dashboard');
+    await expect(page2).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+    await expect(page2.getByRole('button', { name: 'قائمة المستخدم' })).toBeVisible({
+      timeout: 20_000,
+    });
+    await page2.close();
+  });
+
+  test('after logout, refresh cookie is gone — protected routes bounce to login', async ({ page }) => {
+    const user = makeTestUser();
+    await registerViaUI(page, user);
+    await logoutViaUI(page);
+
+    await page.reload();
+    await page.goto('/settings/profile');
+    await expect(page).toHaveURL(/\/login/);
+  });
+});

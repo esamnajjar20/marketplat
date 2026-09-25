@@ -20,6 +20,8 @@
  */
 'use client';
 
+import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadge';
+
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -331,6 +333,14 @@ export function OfflineControlClient() {
             <p className="mt-0.5 font-mono text-xs">
               {snapshot ? formatAge(snapshot.lastWarmedAt) : '—'}
             </p>
+            {snapshot?.lastWarmedAt ? (
+              <OfflineFreshnessBadge
+                className="mt-1 col-span-full"
+                savedAt={new Date(snapshot.lastWarmedAt).toISOString()}
+                kind="list"
+                hideWhenFresh={false}
+              />
+            ) : null}
           </div>
           <div>
             <p className="text-xs text-muted-foreground">عدد الملفات المُخزَّنة</p>

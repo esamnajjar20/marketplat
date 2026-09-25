@@ -286,23 +286,46 @@ export async function requestQueueReplay(): Promise<void> {
 }
 
 
-/** تعارض مع السيرفر (عادة 409) — يحتاج قرار مستخدم لا إعادة عمياء. */
+/** تعارض مع السيرفر (409/412 أو خطأ عميل نهائي) — يحتاج قرار مستخدم لا إعادة عمياء. */
 export function isConflictFailure(item: QueuedRequestSummary): boolean {
   const status = item.lastError?.status;
-  return status === 409 || status === 412;
+  if (status === 409 || status === 412) return true;
+  // 422 validation, 403, 404, 410 — terminal client errors (CONFLICT-UX-01)
+  if (status === 422 || status === 403 || status === 404 || status === 410) return true;
+  return false;
 }
 
 export function describeQueueFailure(item: QueuedRequestSummary): string {
-  if (isConflictFailure(item)) {
-    return 'تعارض مع نسخة السيرفر — راجع البيانات أو احذف الطلب';
+  const status = item.lastError?.status;
+  const msg = item.lastError?.message;
+  // Lazy import avoided — keep offlineQueue free of circular risk with conflictResolver
+  // by inlining the same copy as conflictResolver defaults.
+  if (status === 409 || status === 412) {
+    return msg || 'تم تعديل هذا العنصر من مكان آخر — حدّث ثم أعد المحاولة';
   }
-  if (item.lastError?.status && item.lastError.status >= 500) {
-    return 'خطأ في السيرفر — يمكن إعادة المحاولة لاحقًا';
-  }
-  if (item.lastError?.status && item.lastError.status >= 400) {
-    return item.lastError.message || `رُفض الطلب (${item.lastError.status})`;
-  }
-  return item.lastError?.message || 'فشل غير معروف';
+  if (status === 422) return msg || 'البيانات المرسلة غير مقبولة — راجع الحقول';
+  if (status === 403) return msg || 'ليس لديك صلاحية لهذا الإجراء';
+  if (status === 404) return msg || 'العنصر لم يعد موجودًا';
+  if (status === 410) return msg || 'العنصر أُزيل نهائيًا';
+  if (status === 429) return msg || 'محاولات كثيرة — انتظر قليلًا ثم أعد المحاولة';
+  if (status && status >= 500) return msg || 'خطأ في السيرفر — أعد المحاولة لاحقًا';
+  if (status && status >= 400) return msg || `رُفض الطلب (${status})`;
+  return msg || 'فشل غير معروف';
+}
+
+/** الإجراء المقترح لعنصر فاشل — متوافق مع ConflictInfo.primaryAction */
+export function queueFailureAction(
+  item: QueuedRequestSummary,
+): 'retry' | 'discard' | 'edit' | 'none' {
+  const status = item.lastError?.status;
+  if (status === 422) return 'edit';
+  if (status === 403) return 'none';
+  if (status === 404 || status === 410) return 'discard';
+  if (status === 409 || status === 412) return 'edit';
+  if (status && status >= 500) return 'retry';
+  if (status === 429) return 'retry';
+  if (status && status >= 400) return 'discard';
+  return 'retry';
 }
 
 /**

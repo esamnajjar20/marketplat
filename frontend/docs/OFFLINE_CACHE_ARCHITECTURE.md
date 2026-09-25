@@ -99,3 +99,71 @@ Offline → طابور → حالة **Pending** (ليس «تم بنجاح») →
 - **مسودات + مركز مزامنة**: المرحلة 1.
 
 لا ننفّذ حجز موعد جديد أوفلاين كنجاح نهائي (يتطلب توفر السيرفر).
+
+---
+
+## إصلاحات نهائية (2026-09-25)
+
+### التوكن والجلسة
+- **COOKIE-POLICY-01**: `authCookies.ts` يستخدم `authCookieBase()` من `COOKIE_DOMAIN` + `COOKIE_SAMESITE` في env. على دومين حقيقي مشترك اضبط `COOKIE_SAMESITE=lax` و `COOKIE_DOMAIN=.example.com`.
+- **NATIVE-SESSION-01**: `lib/capacitor/nativeSessionStorage.ts` يخزّن فقط `userId` + `hasSession` (بدون أسرار) عبر `@capacitor/preferences` على Native أو localStorage على الويب. يُحدَّث من `setAuth` / `setUser` ويُمسَح من `logout` و `clearSensitiveLocalData`.
+
+### الأوفلاين
+- **OFFLINE-FRESHNESS-01**: `lib/offlineFreshness.ts` — `isOfflineStale` + `formatOfflineSavedAt` + `offlineFreshnessLabel` موحّدة لكل الواجهات. `offlineJsonCache` يعيد التصدير للتوافق.
+- **CONFLICT-UX-01**: `lib/conflictResolver.ts` — تصنيف 409/422/4xx لواجهات الطابور الفاشل (retry / discard / edit).
+
+### الاستخدام المقترح في الواجهة
+```ts
+import { offlineFreshnessLabel, isOfflineStale } from '@/lib/offlineFreshness';
+import { conflictFromUnknown } from '@/lib/conflictResolver';
+
+// شارة تحت قائمة أوفلاين
+const label = offlineFreshnessLabel(envelope?.savedAt, { kind: 'list' });
+
+// بعد فشل mutation
+const conflict = conflictFromUnknown(error);
+if (conflict.isTerminal) { /* discard / edit */ } else { /* retry */ }
+```
+
+
+---
+
+## إغلاق البنود المتبقية (2026-09-25)
+
+### تبسيط الاستيراد (OFFLINE-BARREL-01)
+- `lib/offline/index.ts` — واجهة واحدة للكود الجديد.
+- الملفات القديمة تبقى كما هي (لا كسر للاستيرادات الحالية).
+- لا دمج قسري لـ SW أو ملفات warming (سلوك مجرَّب).
+
+### Conflict UX (CONFLICT-UX-01)
+- `SyncCenterClient`: أزرار retry/discard حسب `queueFailureAction`.
+- `ChatWindow`: فقاعات الرسائل الفاشلة تستخدم `classifyHttpConflict`.
+- `hooks/useMutationConflict.ts` لـ onError في أي mutation أونلاين.
+
+### شارات freshness (OFFLINE-FRESHNESS-01)
+- `components/offline/OfflineFreshnessBadge.tsx`
+- مربوطة في مركز المزامنة + إعدادات الأوفلاين.
+- للاستخدام في أي شاشة:
+  ```tsx
+  <OfflineFreshnessBadge savedAt={envelope?.savedAt} kind="list" />
+  ```
+
+### اختبار الكوكي (COOKIE-POLICY-01)
+- `e2e/tests/auth.spec.ts` — suite «Session cookie resilience»:
+  - idle + reload
+  - تبويب جديد بنفس الـ context
+  - logout يزيل الجلسة
+
+### Secure Storage (SECURE-STORAGE-01)
+- **مغلق بالتصميم:** لا تخزين لـ access/refresh في Preferences.
+- httpOnly cookie = مسار الأمان على Web و Native WebView.
+- `nativeSessionStorage` = hints فقط (userId / hasSession).
+
+### Conflict resolution للـ Mutations
+- لا diff/merge تلقائي (قرار منتج).
+- التصنيف + CTA موحّد عبر `conflictResolver` + `useMutationConflict`.
+
+### Background Sync على iOS
+- غير مدعوم بشكل موثوق من المنصة.
+- المسار المعتمد: `requestQueueReplay()` + زر «مزامنة الآن» + أزرار إعادة المحاولة في الفقاعات/مركز المزامنة.
+- لا حل بالكود وحده؛ هذا هو الإغلاق التشغيلي.

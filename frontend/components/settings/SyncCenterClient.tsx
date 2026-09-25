@@ -1,5 +1,7 @@
 'use client';
 
+import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadge';
+
 /**
  * مركز المزامنة — يعرض:
  * - طلبات الطابور العامة (pending / failed)
@@ -29,6 +31,7 @@ import {
   requestQueueReplay,
   isConflictFailure,
   describeQueueFailure,
+  queueFailureAction,
   type QueuedRequestSummary,
 } from '@/lib/offlineQueue';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
@@ -165,6 +168,14 @@ export function SyncCenterClient() {
         <p className="mt-1 text-sm text-muted-foreground">
           إدارة العمليات والمسودات التي تنتظر الاتصال. الحالة الآن: {lastLabel}
         </p>
+        {drafts[0]?.updatedAt ? (
+          <OfflineFreshnessBadge
+            className="mt-1"
+            savedAt={drafts[0].updatedAt}
+            kind="list"
+            hideWhenFresh={false}
+          />
+        ) : null}
       </div>
 
       {/*
@@ -301,7 +312,10 @@ export function SyncCenterClient() {
           <p className="text-sm text-muted-foreground">لا توجد طلبات فاشلة في الطابور.</p>
         ) : (
           <ul className="divide-y rounded-xl border">
-            {failedItems.map((item) => (
+            {failedItems.map((item) => {
+              const action = queueFailureAction(item);
+              const conflict = isConflictFailure(item);
+              return (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
                 <div className="min-w-0 text-sm">
                   <p className="font-medium">
@@ -310,32 +324,39 @@ export function SyncCenterClient() {
                   <p className="text-xs text-muted-foreground">
                     {describeQueueFailure(item)}
                   </p>
-                  {isConflictFailure(item) ? (
+                  {conflict ? (
                     <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                      تعارض: لا تُعد المحاولة بنفس البيانات دون مراجعة — احذف الطلب أو عدّل المصدر ثم أعد الإرسال أونلاين.
+                      {action === 'edit'
+                        ? 'عدّل المصدر ثم أعد الإرسال أونلاين — لا تُعد المحاولة العمياء.'
+                        : action === 'discard'
+                          ? 'العنصر لم يعد صالحًا — احذف الطلب من الطابور.'
+                          : 'تعارض: راجع البيانات قبل إعادة المحاولة.'}
                     </p>
                   ) : null}
                 </div>
                 <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!isOnline || isConflictFailure(item)}
-                    onClick={() => void handleRetry(item.id)}
-                    title={
-                      isConflictFailure(item)
-                        ? 'التعارض يحتاج مراجعة يدوية'
-                        : 'إعادة المحاولة'
-                    }
-                  >
-                    {isConflictFailure(item) ? 'تعارض' : 'إعادة'}
-                  </Button>
+                  {action === 'retry' || action === 'edit' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!isOnline || (conflict && action !== 'retry')}
+                      onClick={() => void handleRetry(item.id)}
+                      title={
+                        conflict && action !== 'retry'
+                          ? 'التعارض يحتاج مراجعة يدوية'
+                          : 'إعادة المحاولة'
+                      }
+                    >
+                      {conflict && action !== 'retry' ? 'تعارض' : 'إعادة'}
+                    </Button>
+                  ) : null}
                   <Button size="sm" variant="ghost" onClick={() => void handleDiscard(item.id)}>
-                    حذف
+                    {action === 'discard' ? 'تجاهل' : 'حذف'}
                   </Button>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

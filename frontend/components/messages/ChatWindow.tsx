@@ -6,6 +6,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
+import { classifyHttpConflict } from '@/lib/conflictResolver';
 import { useSetConversationFlags } from '@/hooks/mutations/useConversationMutations';
 import {
   messageDayLabel,
@@ -619,30 +620,42 @@ export function ChatWindow({ conversationId }: Props) {
                         المحاولة، مثلًا حظر الطرف الآخر أثناء الانقطاع) —
                         القرار (إعادة محاولة/حذف) يُترك للمستخدم صراحة بدل
                         إسقاطها بصمت (انظر FIX CONFLICT-01 بـ sw.js). */}
-                    {clientStatus === 'failed' && message.queueId != null && (
+                    {clientStatus === 'failed' && message.queueId != null && (() => {
+                      const conflict = classifyHttpConflict(
+                        message.lastError?.status,
+                        message.lastError?.message,
+                      );
+                      const showRetry = conflict.primaryAction === 'retry' || conflict.primaryAction === 'edit';
+                      return (
                       <div className="flex items-center gap-2 ms-1">
+                        {showRetry ? (
                         <button
                           type="button"
                           onClick={() => handleRetryQueued(message.queueId!)}
-                          disabled={retryingQueueId === message.queueId}
+                          disabled={retryingQueueId === message.queueId || conflict.isTerminal}
+                          title={conflict.isTerminal ? conflict.message : 'إعادة المحاولة'}
                           className="flex items-center gap-0.5 text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
                         >
                           <RotateCw className={cn('h-3 w-3', retryingQueueId === message.queueId && 'animate-spin')} />
-                          إعادة المحاولة
+                          {conflict.isTerminal ? 'تعارض' : 'إعادة المحاولة'}
                         </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => handleDiscardQueued(message.queueId!)}
                           className="flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-destructive"
                         >
                           <XIcon className="h-3 w-3" />
-                          حذف
+                          {conflict.primaryAction === 'discard' ? 'تجاهل' : 'حذف'}
                         </button>
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
-                  {clientStatus === 'failed' && message.lastError?.message && (
-                    <p className="px-1 text-[10px] text-destructive/80">{message.lastError.message}</p>
+                  {clientStatus === 'failed' && (
+                    <p className="px-1 text-[10px] text-destructive/80">
+                      {classifyHttpConflict(message.lastError?.status, message.lastError?.message).message}
+                    </p>
                   )}
                 </div>
                 </div>
