@@ -378,6 +378,14 @@ apiClient.interceptors.response.use(
 
     original._retry = true;
     isRefreshing    = true;
+    // SW-FIX-REFRESH-RACE: capture the access token before the refresh
+    // call. If a concurrent refresh (another tab / SW queue replay /
+    // an earlier F5 whose request is still on the wire) wins the
+    // rotation race while ours is in flight, the store will show a NEW
+    // token when we land in the catch block below — that's our signal
+    // to retry the original request with that token instead of treating
+    // the 401 as a session end.
+    const tokenBeforeRefresh = useAuthStore.getState().accessToken;
 
     try {
       // PROD-FIX-15: no longer reads a refreshToken from the auth
@@ -467,6 +475,55 @@ apiClient.interceptors.response.use(
       // they didn't ask for. Just reject.
       if (!useAuthStore.getState().isAuthenticated) {
         return Promise.reject(parseApiError(error));
+      }
+
+      // SW-FIX-REFRESH-RACE: before treating this 401 as a session end,
+      // check whether a concurrent refresh won the rotation race.
+      //
+      // Cause: the backend rotates the refreshToken cookie atomically
+      // (rotation-in-Redis). When two refresh requests are in flight at
+      // the same time — rapid F5 reloads, a second tab, the SW's queue
+      // replay, or AuthHydrationProvider racing the 401 interceptor —
+      // one wins and rotates, the other sees TOKEN_MISMATCH (401).
+      // With no retry the loser treats it as "session expired" and
+      // logs the user out on every rapid refresh. Reported symptom:
+      // F5 × 5 → logout.
+      //
+      // Fix strategy (cheap, no cross-context lock needed):
+      //   1. Wait ~700ms — enough for the winner's Set-Cookie to land
+      //      in the browser's cookie jar.
+      //   2. Re-read the store: if a concurrent refresh succeeded, the
+      //      store now has a NEW access token — replay the original
+      //      request with it (no second network round-trip needed).
+      //   3. Otherwise retry /auth/refresh ourselves with the (now
+      //      freshly rotated) cookie. If it succeeds → continue.
+      //   4. Only if the retry ALSO 401s do we treat it as a real end.
+      await new Promise((r) => setTimeout(r, 700));
+
+      const liveToken = useAuthStore.getState().accessToken;
+      if (liveToken && liveToken !== tokenBeforeRefresh) {
+        original.headers.Authorization = `Bearer ${liveToken}`;
+        delete original.headers['X-CSRF-Token'];
+        return apiClient(original);
+      }
+
+      try {
+        const { authApi } = await import('@/api/auth.api');
+        const retryRes = await authApi.refresh();
+        if (sessionRevoked) {
+          return Promise.reject(parseApiError(error));
+        }
+        const { accessToken: retryAccess, expiresIn: retryExp } = retryRes.data.data!.tokens;
+        useAuthStore.getState().setAccessToken(retryAccess);
+        useAuthStore.getState().setCsrfToken(retryRes.data.data!.csrfToken);
+        setCookie('app_access_token', retryAccess, cookieMaxAgeFromExpiresIn(retryExp));
+        setCookie('app_has_session', '1', SESSION_HINT_COOKIE_MAX_AGE);
+        processQueue(null, retryAccess);
+        original.headers.Authorization = `Bearer ${retryAccess}`;
+        delete original.headers['X-CSRF-Token'];
+        return apiClient(original);
+      } catch {
+        // Retry also failed — fall through to real logout below.
       }
 
       useAuthStore.getState().logout();
