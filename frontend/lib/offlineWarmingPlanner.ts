@@ -11,7 +11,7 @@
  *   therefore:
  *     1. Prefer measured request timings (getAverageRequestMs) over
  *        effectiveType when samples exist.
- *     2. Treat downlink < 0.35 Mbps as critical.
+ *     2. Treat downlink < 0.16 Mbps as critical (DRIP-TIERS-02-COMMENT).
  *     3. Keep core-tier budgets tiny (3–4 shells) and sequential.
  *     4. When the API is absent (Safari), default to 'core' — not 'full'
  *        — so an iPhone on a bad hotspot does not burn a voucher.
@@ -172,11 +172,15 @@ export function getWarmingPlan(): WarmingPlan {
   const type = conn?.effectiveType;
   const downlink = typeof conn?.downlink === 'number' ? conn.downlink : null;
 
-  // ~17–30 KB/s voucher cards: downlink often 0.1–0.3 when reported at all.
+  // DRIP-TIERS-02: threshold lowered from 0.35 Mbps (~45 KB/s) to
+  // 0.16 Mbps (~20 KB/s) so 20-45 KB/s links go through the 'core'
+  // tier (10 routes / 10 min) instead of being silently disabled.
+  // Below ~20 KB/s a single shell still starves the current page, so
+  // critical remains the correct tier.
   if (
     type === 'slow-2g' ||
     type === '2g' ||
-    (downlink !== null && downlink < 0.35)
+    (downlink !== null && downlink < 0.16)
   ) {
     return {
       tier: 'critical',

@@ -378,19 +378,33 @@ function estimateKbps(): number | null {
     connection?: { downlink?: number; type?: string };
   }).connection;
 
-  if (conn?.type === 'wifi') return 5000;
-
   const measured = getAverageRequestMs();
   if (measured != null && measured > 0) {
     // ~40 KB average shell → KB/s = 40000 / measuredMs
     return Math.max(1, Math.round(40000 / measured));
   }
-
+  // SPEED-ONLY-01: no more conn.type === 'wifi' shortcut — a wifi hotspot
+  // can be slower than 4G. effectiveType is Chrome's own *measured* category
+  // (not a static label) so it is safe to convert to a kbps value.
+  const et = (conn as unknown as { effectiveType?: string } | undefined)?.effectiveType;
+  if (et === 'slow-2g') return 5;
+  if (et === '2g')      return 15;
+  if (et === '3g')      return 40;
+  if (et === '4g')      return 150;
   if (typeof conn?.downlink === 'number' && conn.downlink > 0) {
     return Math.round(conn.downlink * 128);  // Mbps → KB/s
   }
   return null;
 }
+
+// DRIP-TIERS-02: user-tuned thresholds for Gaza link quality.
+//   >=100 KB/s (or WiFi): warm the entire remaining queue in one
+//     pass. 60s interval is just a floor for the next pass once the
+//     current one completes — not a per-pass budget.
+//   20-99 KB/s: 10 routes / 10 min.
+//   <20 KB/s: 0 routes — a single ~40 KB shell takes 2s+ on a
+//     voucher card; the pass would starve the current page.
+const UNLIMITED_BUDGET = 9_999;
 
 function getDripParams(tier: 'none' | 'critical' | 'core' | 'full'): {
   budget: number;
@@ -398,16 +412,19 @@ function getDripParams(tier: 'none' | 'critical' | 'core' | 'full'): {
   reason: string;
 } {
   if (tier === 'none') return { budget: 0, intervalMs: 0, reason: 'offline' };
-  if (isOnWifi()) return { budget: 12, intervalMs: 3 * 60 * 1000, reason: 'wifi' };
+  // SPEED-ONLY-02: no isOnWifi() shortcut — a wifi hotspot measuring
+  // <100 KB/s must not get UNLIMITED_BUDGET. Decision below is kbps-only.
+  // DRIP-CRITICAL-01: tier=critical (2G/slow-2g) means no app-driven
+  // warming, even in drip mode — otherwise the initial effectiveType-based
+  // estimate could still pass the >=20 check and fire 10 routes on 2G.
+  if (tier === 'critical') return { budget: 0, intervalMs: 10 * 60 * 1000, reason: 'critical' };
 
   const kbps = estimateKbps();
-  if (kbps == null) return { budget: 6, intervalMs: 10 * 60 * 1000, reason: 'unknown' };
+  if (kbps == null) return { budget: 10, intervalMs: 10 * 60 * 1000, reason: 'unknown' };
 
-  if (kbps > 500) return { budget: 10, intervalMs: 5  * 60 * 1000, reason: `${kbps}kbps-fast` };
-  if (kbps > 200) return { budget: 8,  intervalMs: 8  * 60 * 1000, reason: `${kbps}kbps-good` };
-  if (kbps > 80)  return { budget: 6,  intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-mid` };
-  if (kbps > 30)  return { budget: 4,  intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-slow` };
-  return { budget: 2, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-voucher` };
+  if (kbps >= 100) return { budget: UNLIMITED_BUDGET, intervalMs: 60 * 1000, reason: `${kbps}kbps-unlimited` };
+  if (kbps >= 20)  return { budget: 10, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-mid` };
+  return { budget: 0, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-too-slow` };
 }
 
 const LAST_DRIP_WARMED_KEY = `marketplat:drip-last-pass:${CACHE_VERSION_SUFFIX}`;
