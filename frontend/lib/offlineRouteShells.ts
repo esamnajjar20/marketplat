@@ -66,6 +66,8 @@ import {
   selectRoutesByPlan,
   isWarmingDisabled,
 } from './offlineWarmingPlanner';
+import { getWarmingMode } from './warmingPreferences';
+import { getAverageRequestMs } from './connectionQuality';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { reportProgress } from './warmingProgress';
 import { reportWarmingFailure } from './offlineWarmingReport';
@@ -82,7 +84,7 @@ const STAGING_CACHE = 'market-warming-staging';
 // the only shared resource is chunk URLs, handled by the in-flight dedup
 // map below.
 const PERSONAL_LOCK_NAME = 'marketplat-warming-personal';
-const STATIC_CACHE = 'market-static-v38'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v40'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -233,6 +235,13 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   // /offline page instead of the form. Same treatment as
   // /ads/create and /my-services/new above.
   '/requests/new',
+  // FIX PROTECTED-PARITY-SHELL-01: mirror sw.js isPersonalShellRoute.
+  // These protected pages had no proactive warming / personal shell
+  // entry — offline navigation landed on the generic /offline page.
+  '/complete-profile',
+  '/my-reports',
+  '/service-requests',
+  '/saved-searches',
 ];
 
 /** FIX OFFLINE-WARM-PRIORITY: القائمة الكاملة (ESSENTIAL + SECONDARY) —
@@ -251,7 +260,7 @@ export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
 // __tests__/unit/lib/cacheVersionSync.test.ts.
 // FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب أعلاه.
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v38';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v40';
 
 /**
  * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —
@@ -321,6 +330,76 @@ const WARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
 // change through the OTHER gate (WARM_INTERVAL_MS of 6h only applies
 // to a fully-successful pass).
 const PARTIAL_WARM_INTERVAL_MS = 30 * 60 * 1000;
+/**
+ * SW-FIX-DRIP-KBPS: adaptive drip params derived from MEASURED throughput,
+ * not from the (often lying) Network Information API on Gaza vouchers.
+ *
+ * Two signals, in order of trust:
+ *   1. navigator.connection.type === 'wifi' → unmetered → full speed.
+ *   2. estimateKbps() — measured from getAverageRequestMs() (real requests
+ *      on this device) with navigator.connection.downlink as a fallback.
+ *
+ *   KB/s          | budget | interval | 46 routes ETA
+ *   --------------|--------|----------|----------------
+ *   WiFi          |   12   |   3 min  |  ~40 min
+ *   > 500         |   10   |   5 min  |  ~50 min
+ *   200 – 500     |    8   |   8 min  |  ~75 min
+ *   80  – 200     |    6   |  10 min  |  ~2 hours
+ *   30  – 80      |    4   |  10 min  |  ~3 hours
+ *   < 30          |    2   |  10 min  |  ~5 hours
+ *   unknown       |    6   |  10 min  |  default
+ *
+ * Weak-network tiers (<=200 KB/s) all share a 10-minute cadence: the
+ * budget already limits throughput; spacing them further out only
+ * delays cycle completion without saving meaningful data.
+ */
+function isOnWifi(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const conn = (navigator as Navigator & {
+    connection?: { type?: string };
+  }).connection;
+  return conn?.type === 'wifi';
+}
+
+function estimateKbps(): number | null {
+  if (typeof navigator === 'undefined') return null;
+  const conn = (navigator as Navigator & {
+    connection?: { downlink?: number; type?: string };
+  }).connection;
+
+  if (conn?.type === 'wifi') return 5000;
+
+  const measured = getAverageRequestMs();
+  if (measured != null && measured > 0) {
+    // ~40 KB average shell → KB/s = 40000 / measuredMs
+    return Math.max(1, Math.round(40000 / measured));
+  }
+
+  if (typeof conn?.downlink === 'number' && conn.downlink > 0) {
+    return Math.round(conn.downlink * 128);  // Mbps → KB/s
+  }
+  return null;
+}
+
+function getDripParams(tier: 'none' | 'critical' | 'core' | 'full'): {
+  budget: number;
+  intervalMs: number;
+  reason: string;
+} {
+  if (tier === 'none') return { budget: 0, intervalMs: 0, reason: 'offline' };
+  if (isOnWifi()) return { budget: 12, intervalMs: 3 * 60 * 1000, reason: 'wifi' };
+
+  const kbps = estimateKbps();
+  if (kbps == null) return { budget: 6, intervalMs: 10 * 60 * 1000, reason: 'unknown' };
+
+  if (kbps > 500) return { budget: 10, intervalMs: 5  * 60 * 1000, reason: `${kbps}kbps-fast` };
+  if (kbps > 200) return { budget: 8,  intervalMs: 8  * 60 * 1000, reason: `${kbps}kbps-good` };
+  if (kbps > 80)  return { budget: 6,  intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-mid` };
+  if (kbps > 30)  return { budget: 4,  intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-slow` };
+  return { budget: 2, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-voucher` };
+}
+
+const LAST_DRIP_WARMED_KEY = `marketplat:drip-last-pass:${CACHE_VERSION_SUFFIX}`;
 
 let isWarmingRouteShells = false;
 let isWarmingPersonalShells = false;
@@ -844,6 +923,7 @@ export async function warmPersonalShells(): Promise<void> {
 
     if (succeeded > 0) {
       localStorage.setItem(LAST_PERSONAL_WARMED_KEY, String(Date.now()));
+      if (getWarmingMode() === 'drip') writeDripLast();
     }
   } catch (err) {
     console.warn('[route-shells] warmPersonalShells failed:', err);
@@ -874,6 +954,69 @@ export async function warmPersonalShells(): Promise<void> {
  *   - Orphan chunks from previous builds are swept after a successful
  *     pass, so the cache does not grow without bound across deploys.
  */
+
+function readDripLast(): number {
+  try {
+    return Number(localStorage.getItem(LAST_DRIP_WARMED_KEY) ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+function writeDripLast(): void {
+  try {
+    localStorage.setItem(LAST_DRIP_WARMED_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** UI helper: progress of current drip cycle across public + personal. */
+export async function getDripProgress(): Promise<{
+  complete: number;
+  total: number;
+  nextInMs: number;
+  mode: string;
+  /** Routes warmed per pass for the current measured throughput. */
+  budget: number;
+  /** e.g. 'wifi' | '250kbps-mid' | '12kbps-voucher' */
+  pace: string;
+  /** Estimated throughput in KB/s (null if unmeasured). */
+  kbps: number | null;
+  isWifi: boolean;
+}> {
+  const mode = getWarmingMode();
+  const total = CORE_ROUTES.length + PERSONAL_SHELL_ROUTES_ESSENTIAL.length;
+  let complete = 0;
+  try {
+    const snap = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
+    for (const r of CORE_ROUTES) {
+      if (snap?.routes[r]?.status === 'complete') complete += 1;
+    }
+    for (const r of PERSONAL_SHELL_ROUTES_ESSENTIAL) {
+      if (snap?.routes[`personal:${r}`]?.status === 'complete') complete += 1;
+    }
+  } catch {
+    /* ignore */
+  }
+  const last = readDripLast();
+  const allDone = complete >= total;
+  const dripParams = getDripParams(getWarmingPlan().tier);
+  const kbps = estimateKbps();
+  const interval = allDone ? WARM_INTERVAL_MS : dripParams.intervalMs;
+  const nextInMs = Math.max(0, interval - (Date.now() - last));
+  return {
+    complete,
+    total,
+    nextInMs,
+    mode,
+    budget: dripParams.budget,
+    pace: dripParams.reason,
+    kbps,
+    isWifi: isOnWifi(),
+  };
+}
+
 export async function warmRouteShellsAtomic(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
@@ -883,28 +1026,43 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     const plan = getWarmingPlan();
     if (isWarmingDisabled(plan)) return;
 
-    const routes = selectRoutesByPlan(plan, CORE_ROUTES);
-    if (routes.length === 0) return;
-
-    // SW-SMART-THROTTLE-01: read snapshot BEFORE the throttle check so
-    // we can tell "fully warmed" from "partially warmed". A pass that
-    // died mid-flight (network dropped) should resume within
-    // PARTIAL_WARM_INTERVAL_MS; only a fully-warmed set earns the long
-    // WARM_INTERVAL_MS cooldown. Without this, a user on an unstable
-    // link (Gaza 2G/3G) had warming blocked for 6 hours after every
-    // disconnect even though most routes were still uncached.
-    // SW-WARM-CACHE-VERSION-01: use the versioned reader so a
-    // snapshot from a previous CACHE_VERSION (whose chunks the SW's
-    // activate handler already deleted) is treated as absent, not as
-    // "everything is already warmed".
+    const userMode = getWarmingMode();
     const snapshotEarly = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
-    const incompleteCount = routes.filter(
-      (r) => snapshotEarly?.routes[r]?.status !== 'complete',
-    ).length;
-    const throttleMs =
-      incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-    const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
-    if (Date.now() - last < throttleMs) return;
+
+    let routes: string[];
+    if (userMode === 'drip') {
+      // Public half of the drip cycle first. Personal continues in
+      // warmPersonalShellsAtomic once public remaining is empty.
+      const remaining = CORE_ROUTES.filter(
+        (r) => snapshotEarly?.routes[r]?.status !== 'complete',
+      );
+      // SW-FIX-DRIP-KBPS: budget & cadence both come from the measured
+      // throughput (see getDripParams). Full cycle restart is preserved
+      // from SW-FIX-DRIP-CYCLE-RESTART — after 46 routes complete, wait
+      // the LONG interval (6h), then start a fresh cycle.
+      const dripParams = getDripParams(plan.tier);
+      if (dripParams.budget === 0) return;
+      const lastDrip = readDripLast();
+      if (remaining.length === 0) {
+        if (Date.now() - lastDrip < WARM_INTERVAL_MS) return;
+        routes = CORE_ROUTES.slice(0, dripParams.budget);
+      } else {
+        if (Date.now() - lastDrip < dripParams.intervalMs) return;
+        routes = remaining.slice(0, dripParams.budget);
+      }
+    } else {
+      routes = selectRoutesByPlan(plan, CORE_ROUTES);
+      if (routes.length === 0) return;
+
+      // SW-SMART-THROTTLE-01: fully warmed → 6h; partial → 30m.
+      const incompleteCount = routes.filter(
+        (r) => snapshotEarly?.routes[r]?.status !== 'complete',
+      ).length;
+      const throttleMs =
+        incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
+      const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
+      if (Date.now() - last < throttleMs) return;
+    }
 
     reportProgress('routes', { active: true, completed: 0, total: routes.length });
     let completedThisPass = 0;
@@ -964,6 +1122,7 @@ export async function warmRouteShellsAtomic(): Promise<void> {
 
     if (completedThisPass > 0) {
       localStorage.setItem(LAST_ROUTE_WARMED_KEY, String(Date.now()));
+      if (getWarmingMode() === 'drip') writeDripLast();
     }
 
     const prevLive = snapshot?.liveUrls ?? [];
@@ -1120,21 +1279,42 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
     const plan = getWarmingPlan();
     if (isWarmingDisabled(plan)) return;
 
-    // SW-SMART-THROTTLE-01: same reasoning as warmRouteShellsAtomic —
-    // resume quickly after a partial pass, long cooldown only after a
-    // fully successful one.
+    const userMode = getWarmingMode();
     const snapshotEarlyP = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
-    const routesEarlyP = selectRoutesByPlan(
-      plan,
-      PERSONAL_SHELL_ROUTES_ESSENTIAL,
-    );
-    const incompletePersonal = routesEarlyP.filter(
-      (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
-    ).length;
-    const throttleMsP =
-      incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-    const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
-    if (Date.now() - last < throttleMsP) return;
+
+    // Drip: only start personal batches after public CORE_ROUTES are done.
+    if (userMode === 'drip') {
+      const publicRemaining = CORE_ROUTES.filter(
+        (r) => snapshotEarlyP?.routes[r]?.status !== 'complete',
+      );
+      if (publicRemaining.length > 0) return;
+      const personalRemaining = PERSONAL_SHELL_ROUTES_ESSENTIAL.filter(
+        (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
+      );
+      const allDone = personalRemaining.length === 0;
+      const lastDrip = readDripLast();
+      const dripParams = getDripParams(plan.tier);
+      const interval = allDone ? WARM_INTERVAL_MS : dripParams.intervalMs;
+      if (Date.now() - lastDrip < interval) return;
+      // Restart cycle: if all complete, re-warm first DRIP_BUDGET personal
+      // after the long interval (public will also restart next cold start).
+      // routes assigned below after idle scheduling / lock body continues.
+    }
+
+    // SW-SMART-THROTTLE-01: non-drip path
+    if (userMode !== 'drip') {
+      const routesEarlyP = selectRoutesByPlan(
+        plan,
+        PERSONAL_SHELL_ROUTES_ESSENTIAL,
+      );
+      const incompletePersonal = routesEarlyP.filter(
+        (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
+      ).length;
+      const throttleMsP =
+        incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
+      const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
+      if (Date.now() - last < throttleMsP) return;
+    }
 
     // SW-IDLE-SCHEDULE-01: prefer requestIdleCallback over a blind 15s
     // wait. Warming is background work the user did not ask for; the
@@ -1177,7 +1357,18 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
       }
     });
 
-    const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
+        const routes =
+      getWarmingMode() === 'drip'
+        ? (() => {
+            const dripParams = getDripParams(plan.tier);
+            const remaining = PERSONAL_SHELL_ROUTES_ESSENTIAL.filter(
+              (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
+            );
+            if (remaining.length > 0) return remaining.slice(0, dripParams.budget);
+            // Full cycle restart after long throttle already passed.
+            return PERSONAL_SHELL_ROUTES_ESSENTIAL.slice(0, dripParams.budget);
+          })()
+        : selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
     if (routes.length === 0) return;
 
     reportProgress('personal', { active: true, completed: 0, total: routes.length });

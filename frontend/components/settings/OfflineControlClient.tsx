@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Wifi, WifiOff, DownloadCloud, Trash2, Info, Loader2,
+  Wifi, WifiOff, DownloadCloud, Trash2, Info, Loader2, Hourglass,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -37,11 +37,11 @@ import {
   type WarmingMode,
 } from '@/lib/warmingPreferences';
 import { readSnapshot } from '@/lib/offlineWarmingState';
-import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRouteShells';
+import { warmRouteShellsAtomic, warmPersonalShellsAtomic, getDripProgress } from '@/lib/offlineRouteShells';
 import { warmUserData } from '@/lib/offlineWarmingUserData';
 import { OfflineRoutesList } from './OfflineRoutesList';
 
-const MODES: WarmingMode[] = ['auto', 'balanced', 'saver', 'off'];
+const MODES: WarmingMode[] = ['auto', 'balanced', 'saver', 'drip', 'off'];
 
 interface Snapshot {
   publicComplete: number;
@@ -82,6 +82,11 @@ export function OfflineControlClient() {
   const [online, setOnline] = useState(true);
   // SW-FIX-OCC-CONFIRM: replace window.confirm with shared ConfirmDialog.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [dripProgress, setDripProgress] = useState<{
+    complete: number;
+    total: number;
+    nextInMs: number;
+  } | null>(null);
 
   const readSnapshotLive = useCallback(async () => {
     try {
@@ -137,16 +142,34 @@ export function OfflineControlClient() {
     }
   }, []);
 
+  const refreshDrip = useCallback(() => {
+    if (getWarmingMode() !== 'drip') {
+      setDripProgress(null);
+      return;
+    }
+    void getDripProgress()
+      .then((p) => {
+        setDripProgress({
+          complete: p.complete,
+          total: p.total,
+          nextInMs: p.nextInMs,
+        });
+      })
+      .catch(() => undefined);
+  }, []);
+
   // Poll snapshot + storage every 10s
   useEffect(() => {
     void readSnapshotLive();
     void readStorage();
     setMode(getWarmingMode());
+    refreshDrip();
     setOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
     const id = window.setInterval(() => {
       void readSnapshotLive();
       void readStorage();
+      refreshDrip();
     }, 10_000);
 
     const onOnline = () => setOnline(true);
@@ -159,11 +182,15 @@ export function OfflineControlClient() {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [readSnapshotLive, readStorage]);
+  }, [readSnapshotLive, readStorage, refreshDrip]);
 
   function handleModeChange(next: WarmingMode) {
     setMode(next);
     setWarmingMode(next);
+    // Defer so getWarmingMode() inside refreshDrip sees the new value.
+    // SW-FIX-DRIP-QUEUE-TYPO: was `queue.setTimeout` — ReferenceError
+    // (queue undefined) fired every time the user changed mode.
+    window.setTimeout(() => refreshDrip(), 0);
     toast.success('تم حفظ الإعداد: ' + WARMING_MODE_LABELS[next]);
   }
 
@@ -177,6 +204,7 @@ export function OfflineControlClient() {
       ]);
       await readSnapshotLive();
       await readStorage();
+      refreshDrip();
       toast.success('تم تشغيل التسخين — قد يستغرق دقيقة');
     } finally {
       setBusy(null);
@@ -220,6 +248,15 @@ export function OfflineControlClient() {
 
   return (
     <div className="space-y-5">
+      <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-950 dark:text-amber-100">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 opacity-80" aria-hidden />
+        <p>
+          على بطاقات النت الضعيفة (حوالي 17–30 ك.ب/ث) يُفضَّل وضع
+          «وفّر البيانات» أو «معطّل» حتى لا يستهلك التحضير التلقائي رصيدك.
+          الصفحات التي تزورها وأنت متصل تُحفظ تلقائياً للاستخدام لاحقاً.
+        </p>
+      </div>
+
 
       {/* Status banner */}
       <div className={cn(
@@ -365,6 +402,21 @@ export function OfflineControlClient() {
           open actions and filter tabs. Reads the same snapshot this
           component already polls, but manages its own refresh cadence
           (5s) so a single retry doesn't wait for the parent's 10s tick. */}
+      
+      {mode === 'drip' && dripProgress && (
+        <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 font-medium text-foreground">
+            <Hourglass className="h-3.5 w-3.5" aria-hidden />
+            تقدّم الدورة: {dripProgress.complete}/{dripProgress.total} صفحة
+          </div>
+          <p className="mt-0.5">
+            {dripProgress.nextInMs > 0
+              ? `الدورة التالية بعد: ${Math.max(1, Math.round(dripProgress.nextInMs / 60000))} دقائق`
+              : 'جاهز لدورة جديدة عند التحديث أو عودة الاتصال'}
+          </p>
+        </div>
+      )}
+
       <OfflineRoutesList />
 
       <ConfirmDialog
