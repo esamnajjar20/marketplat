@@ -39,7 +39,8 @@ export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime:            90_000,  // SLOW-NET phase1
+        staleTime:            90_000,  // SLOW-NET phase1 — keep cached UI stable on slow links
+        // LOAD-SPEED-01: avoid refetch storms on remount while data is fresh
         gcTime:               10 * 60_000,
         retry:                shouldRetry,   // API-INT-04 FIX: smart retry
         refetchOnWindowFocus: false,

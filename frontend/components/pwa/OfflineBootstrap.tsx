@@ -1,15 +1,10 @@
 /**
- * نقطة إقلاع نظام الـ Offline — تُركَّب مرة واحدة في AppProviders، بجانب
- * PwaBootstrap مباشرة (نفس ترتيب التركيب السابق، فقط بمكوّن منفصل).
+ * نقطة إقلاع نظام الـ Offline — تُركَّب مرة واحدة في AppProviders.
  *
- * PLAN-runtime-separation (مرحلة 2/6): استُخرج بالكامل من PwaBootstrap.tsx —
- * queue replay + ad-draft sync + warming + مزامنة Push للمستخدم المسجَّل،
- * بنفس الكود ونفس السلوك تمامًا. هذا المكوّن (وكل ما يستدعيه) يعمل بلا أي
- * شرط بيئة تشغيل — نفس السلوك في Native/Browser/PWA، مطابقًا لمبدأ الخطة:
- * Offline يعمل في الثلاثة، وليس مرادفًا لأي منها.
- *
- * FIX OFFLINE-DRAFT-PUBLISH-01: بعد replay طابور SW يُستدعى
- * syncPendingOfflineDrafts لنشر المسودات التي لم تدخل الطابور.
+ * LOAD-SPEED-01: التسخين (core / routes / personal / user-data) مؤجَّل
+ * بعد أول رسم عبر scheduleAfterPaint حتى لا يسرق bandwidth من
+ * /auth/refresh وطلبات الصفحة الحالية. الطابور يبقى فوريًا (بيانات
+ * المستخدم المعلّقة أهم من prefetch).
  */
 'use client';
 
@@ -26,15 +21,12 @@ import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
-// T700 — listener for the SW's SW_TOKEN_REFRESHED broadcast (fires after
-// the SW refreshes /auth/refresh on the page's behalf during a queue
-// replay). Keeps the page's in-memory csrfToken in sync with the cookie
-// the browser just stored — see lib/swTokenSync.ts for the full story.
+import { initConflictResolver } from '@/lib/conflictResolver';
 import { initSwTokenSync } from '@/lib/swTokenSync';
+import { scheduleAfterPaint } from '@/lib/scheduleIdle';
 
 let __offlineBootstrapInitialized = false;
 
-/** SW replay ثم نشر المسودات المحلية — مسار مؤكد للرفع بعد عودة النت. */
 function replayThenPublishDrafts(): void {
   void requestQueueReplay()
     .catch((err) => console.warn('[offline] requestQueueReplay failed:', err))
@@ -50,6 +42,35 @@ function replayThenPublishDrafts(): void {
     });
 }
 
+/** تسخين خفيف: core bundle ثم shells العامة — بعد idle. */
+function scheduleBackgroundWarming(): () => void {
+  const cancelCore = scheduleAfterPaint(
+    () => {
+      void warmCoreBundle();
+    },
+    { timeoutMs: 1500, delayMs: 0 },
+  );
+  const cancelRoutes = scheduleAfterPaint(
+    () => {
+      void warmRouteShellsAtomic();
+    },
+    { timeoutMs: 3000, delayMs: 400 },
+  );
+  return () => {
+    cancelCore();
+    cancelRoutes();
+  };
+}
+
+async function syncPushBindings(): Promise<void> {
+  if (await supportsWebPush()) {
+    void ensurePushSubscriptionSynced();
+  }
+  if (await supportsNativePush()) {
+    void ensureNativePushSynced();
+  }
+}
+
 export function OfflineBootstrap() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
@@ -57,18 +78,15 @@ export function OfflineBootstrap() {
     if (!__offlineBootstrapInitialized) {
       __offlineBootstrapInitialized = true;
       initAdDraftSync();
-      // T700 — installs a navigator.serviceWorker message listener that
-      // mirrors SW-refreshed csrfTokens into useAuthStore. Same
-      // one-time-install guard as the other initializers above; the
-      // function is itself idempotent so a duplicate call is harmless.
+      initConflictResolver();
       initSwTokenSync();
     }
 
-    void warmCoreBundle();
-    void warmRouteShellsAtomic();
-
-    // mount: أعد إرسال الطابور + المسودات (لو فُتح التطبيق والنت متاح)
+    // فوري: إعادة إرسال الطابور (لا يؤجَّل — تجربة المستخدم)
     replayThenPublishDrafts();
+
+    // مؤجَّل: تسخين لا ينافس الرسم الأول
+    const cancelWarm = scheduleBackgroundWarming();
 
     const PERIODIC_QUEUE_MS = 5 * 60 * 1000;
     const periodicId = window.setInterval(() => {
@@ -85,54 +103,66 @@ export function OfflineBootstrap() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      cancelWarm();
       window.clearInterval(periodicId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
-  // FIX OFFLINE-QUEUE-RELIABILITY-01: مستمع online يجب أن يعمل دائمًا
-  // (حتى قبل اكتمال auth hydration) وإلا طابور العمليات يبقى معلّقًا
-  // إذا تأخر isAuthenticated أو كان false لحظيًا عند عودة النت.
   useEffect(() => {
+    let cancelOnlineWarm: (() => void) | null = null;
+
     const onOnline = () => {
       replayThenPublishDrafts();
-      void warmCoreBundle();
-      void warmRouteShellsAtomic();
+      cancelOnlineWarm?.();
+      cancelOnlineWarm = scheduleBackgroundWarming();
     };
+
     window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+
+    return () => {
+      cancelOnlineWarm?.();
+      window.removeEventListener('online', onOnline);
+    };
   }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void warmPersonalShellsAtomic();
-    // PHASE-5 — user data warming. Gated to 'full' tier inside
-    // warmUserData (2G/3G skip it — the ~55 KB payload would starve
-    // page-shell warming).
-    void warmUserData();
-    void (async () => {
-      if (await supportsWebPush()) {
-        void ensurePushSubscriptionSynced();
-      }
-      if (await supportsNativePush()) {
-        void ensureNativePushSynced();
-      }
-    })();
+
+    // Personal shells بعد رسم الصفحة المحمية — لا مع /auth/refresh
+    const cancelPersonal = scheduleAfterPaint(
+      () => {
+        void warmPersonalShellsAtomic();
+      },
+      { timeoutMs: 2500, delayMs: 600 },
+    );
+    // بيانات المستخدم أثقل — أبعد قليلًا
+    const cancelUserData = scheduleAfterPaint(
+      () => {
+        void warmUserData();
+      },
+      { timeoutMs: 5000, delayMs: 1200 },
+    );
+    const cancelPush = scheduleAfterPaint(
+      () => {
+        void syncPushBindings();
+      },
+      { timeoutMs: 6000, delayMs: 2000 },
+    );
 
     const onOnlineAuth = () => {
       void warmPersonalShellsAtomic();
       void warmUserData();
-      void (async () => {
-        if (await supportsWebPush()) {
-          void ensurePushSubscriptionSynced();
-        }
-        if (await supportsNativePush()) {
-          void ensureNativePushSynced();
-        }
-      })();
+      void syncPushBindings();
     };
     window.addEventListener('online', onOnlineAuth);
-    return () => window.removeEventListener('online', onOnlineAuth);
+
+    return () => {
+      cancelPersonal();
+      cancelUserData();
+      cancelPush();
+      window.removeEventListener('online', onOnlineAuth);
+    };
   }, [isAuthenticated]);
 
   return <WarmupIndicator />;
