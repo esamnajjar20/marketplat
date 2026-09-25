@@ -249,7 +249,7 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   // entry — offline navigation landed on the generic /offline page.
   '/complete-profile',
   '/my-reports',
-  '/service-requests',
+  // FIX OFFLINE-BAD-ROUTE-01: removed (no page.tsx at this path)
   '/saved-searches',
 ];
 
