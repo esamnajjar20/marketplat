@@ -55,6 +55,8 @@ const recommendationAdSelect = {
   categoryId: true,
   sellerProfileId: true,
   storeId: true,
+  // FIX OFFLINE-IDEMPOTENCY-01: keep recommendationAdSelect a superset of Ad scalars
+  offlineOperationId: true,
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;

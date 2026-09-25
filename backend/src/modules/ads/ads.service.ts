@@ -115,8 +115,40 @@ export const adsService = {
   createAd: async (
     userId: string,
     input: CreateAdInput,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    // FIX OFFLINE-IDEMPOTENCY-01: optional client op id from X-Offline-Op-Id
+    offlineOperationId?: string | null,
   ): Promise<AdWithAuthor> => {
+    // FIX OFFLINE-IDEMPOTENCY-01: if this offline op already created an ad,
+    // return it (idempotent replay after flaky ACK / double Background Sync).
+    if (offlineOperationId) {
+      const existing = await prisma.ad.findUnique({
+        where: { offlineOperationId },
+        include: {
+          user: { select: { id: true, name: true, city: true, avatarUrl: true } },
+          category: { select: { id: true, name: true, nameAr: true } },
+          store: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              logoUrl: true,
+              status: true,
+            },
+          },
+        },
+      });
+      if (existing) {
+        if (existing.userId !== userId) {
+          throw new BadRequestError(
+            'Offline operation id already used by another account',
+            'OFFLINE_OP_ID_CONFLICT',
+          );
+        }
+        return existing as AdWithAuthor;
+      }
+    }
+
     // AUDIT-FIX M-02: countActiveByUserId() then create() with nothing
     // in between was a TOCTOU race — two concurrent createAd calls for
     // the same user could both read a count one under env.ads.maxPerUser
@@ -191,7 +223,9 @@ export const adsService = {
       resolvedStoreId = store.id;
     }
 
-    const ad = await withUserAdCreationLock(userId, async () => {
+    let ad: AdWithAuthor;
+    try {
+      ad = await withUserAdCreationLock(userId, async () => {
         const activeCount = await adsRepository.countActiveByUserId(userId);
         if (activeCount >= env.ads.maxPerUser) {
           throw new BadRequestError(
@@ -220,6 +254,7 @@ export const adsService = {
               images: uploads.map(upload => upload.url),
               sellerProfileId: sellerProfile.id,
               storeId: resolvedStoreId,
+              ...(offlineOperationId ? { offlineOperationId } : {}),
             },
             include: {
               user: { select: { id: true, name: true, city: true, avatarUrl: true } },
@@ -239,6 +274,40 @@ export const adsService = {
           return created;
         });
       });
+    } catch (err: unknown) {
+      // FIX OFFLINE-IDEMPOTENCY-01: concurrent replay of the same X-Offline-Op-Id
+      if (
+        offlineOperationId &&
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'P2002'
+      ) {
+        const existing = await prisma.ad.findUnique({
+          where: { offlineOperationId },
+          include: {
+            user: { select: { id: true, name: true, city: true, avatarUrl: true } },
+            category: { select: { id: true, name: true, nameAr: true } },
+            store: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                logoUrl: true,
+                status: true,
+              },
+            },
+          },
+        });
+        if (existing && existing.userId === userId) {
+          ad = existing as AdWithAuthor;
+        } else {
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
       // FIX AUDIT-V4-06: invalidate cached listings — a newly created
       // active ad must appear in /ads results immediately, not after
       // up to 30s of TTL expiry.

@@ -18,7 +18,11 @@ export const serviceListingsController = {
       const user = requireUser(req);
       const { body } = createServiceListingSchema.parse({ body: req.body });
       const files = (req.files as Express.Multer.File[]) || [];
-      const listing = await serviceListingsService.createServiceListing(user.userId, body, files);
+      const offlineOpId =
+        (req.headers['x-offline-op-id'] as string | undefined) ||
+        (req.headers['X-Offline-Op-Id'] as string | undefined) ||
+        null;
+      const listing = await serviceListingsService.createServiceListing(user.userId, body, files, offlineOpId);
       res.status(201).json(successResponse('Service listing created', listing));
     } catch (error) {
       next(error);

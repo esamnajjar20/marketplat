@@ -86,6 +86,20 @@ describe('sw.js hand-copied constants stay in sync with their sources', () => {
     expect(libName).toBe(swName);
   });
 
+
+  it('keeps USER_DATA_CACHE version in sync with sw.js CACHE_VERSION (offlineWarmingUserData.ts)', () => {
+    const userData = readFile('../../../lib/offlineWarmingUserData.ts');
+    const swVersion = extractOne(sw, /const CACHE_VERSION = '(v\d+)';/, 'sw.js CACHE_VERSION');
+    const userDataVersion = extractOne(
+      userData,
+      /export const USER_DATA_CACHE = 'market-user-data-(v\d+)';/,
+      'offlineWarmingUserData.ts USER_DATA_CACHE',
+    );
+    expect(userDataVersion, 'offlineWarmingUserData.ts USER_DATA_CACHE vs sw.js CACHE_VERSION').toBe(
+      swVersion,
+    );
+  });
+
   it('keeps sw.js MAX_API_ENTRIES/MAX_IMAGE_ENTRIES in sync with offlineCachePolicy.ts (informational mirror)', () => {
     const swApiLimit = extractOne(sw, /const MAX_API_ENTRIES = (\d+);/, 'sw.js MAX_API_ENTRIES');
     const swImageLimit = extractOne(sw, /const MAX_IMAGE_ENTRIES = (\d+);/, 'sw.js MAX_IMAGE_ENTRIES');

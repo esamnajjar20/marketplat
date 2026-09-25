@@ -116,7 +116,7 @@ export function useLogin() {
       const previousUserId = useAuthStore.getState().user?.id;
       const userChanged = previousUserId === undefined || previousUserId !== data.user.id;
       if (userChanged) {
-        clearSensitiveLocalData();
+        await clearSensitiveLocalData();
       }
       // These two are unconditional: cheap (a postMessage + a
       // localStorage removal) and clearing them just means one extra
@@ -206,7 +206,7 @@ export function useRegister() {
     mutationFn: ({ redirectTo, ...payload }: RegisterPayload & { redirectTo?: string }) =>
       authApi.register(payload).then((r) => ({ ...unwrapData(r), redirectTo })),
 
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // FIX SHARED-DEVICE-LOGIN-LEAK-01 / T682: same id-comparison
       // reasoning as useLogin above. Registering a brand-new account
       // on a device that carried a different prior session must wipe
@@ -219,7 +219,7 @@ export function useRegister() {
       const previousUserId = useAuthStore.getState().user?.id;
       const userChanged = previousUserId === undefined || previousUserId !== data.user.id;
       if (userChanged) {
-        clearSensitiveLocalData();
+        await clearSensitiveLocalData();
       }
       clearServiceWorkerApiCache();
       clearNotificationsCache();
@@ -290,15 +290,12 @@ function useClearLocalSession() {
   const router        = useRouter();
   const queryClient  = useQueryClient();
 
-  return (options?: { destination?: string; toastMessage?: string }) => {
+  return async (options?: { destination?: string; toastMessage?: string }) => {
     logout();
     clearAuthCookies();
-    // FIX AUTH-CLEANUP-CENTRALIZE-01: القائمة الكاملة موحّدة الآن بـ
-    // lib/authCleanup.ts — يستخدمها أيضًا useChangePassword أدناه، فلا
-    // يفوت أحدهما خطوة يفعلها الآخر. لا يمسح مسودات إعلانات معلّقة
-    // فعليًا (pending_sync/failed) — انظر تعليق الدالة (FIX
-    // AD-DRAFT-LOGOUT-DATALOSS-01).
-    clearSensitiveLocalData();
+    // FIX AUTH-CLEANUP-CENTRALIZE-01 + FIX QUEUE-AWAIT-ON-LOGOUT-01:
+    // await IndexedDB queue wipe before navigating away.
+    await clearSensitiveLocalData();
     queryClient.clear();
     // FIX CLEAR-SESSION-PARAMETERIZED: the two call-site differences
     // between logout (home, silent) and changePassword (login, toast)
@@ -320,7 +317,9 @@ export function useLogout() {
     // optional positional arg — onSettled passes (data, error,
     // variables, context) positionally, so the bare reference would
     // bind React Query's `data` to `options`.
-    onSettled: () => clearLocalSession(),
+    onSettled: async () => {
+      await clearLocalSession();
+    },
   });
 }
 
@@ -345,7 +344,9 @@ export function useLogoutAll() {
     // browser's own session should end either way, even if the
     // server-side revocation of *other* devices failed.
     // Wrapped in an arrow for the same reason as useLogout above.
-    onSettled: () => clearLocalSession(),
+    onSettled: async () => {
+      await clearLocalSession();
+    },
   });
 }
 
@@ -393,18 +394,12 @@ export function useChangePassword() {
     mutationFn: (payload: { currentPassword: string; newPassword: string }) =>
       authApi.changePassword(payload),
 
-    onSuccess: () => {
+    onSuccess: async () => {
       // The access token used to make this very request is now
       // blacklisted server-side and every refresh token has been
       // revoked — there is no valid session left to keep locally.
-      // FIX CLEAR-SESSION-PARITY: was 4 hand-copied lines from what
-      // useClearLocalSession now encapsulates. That's exactly the
-      // class of drift FIX AUTH-CLEANUP-CENTRALIZE-01 closed between
-      // this function and useLogout — a comment claimed parity while
-      // the code ran a shorter list. Same helper now, parameterized
-      // for this path's two differences: redirect target (login vs
-      // home) and the success toast (useLogout is silent by design).
-      clearLocalSession({
+      // FIX CLEAR-SESSION-PARITY + FIX QUEUE-AWAIT-ON-LOGOUT-01
+      await clearLocalSession({
         destination: ROUTES.login,
         toastMessage: 'تم تغيير كلمة المرور بنجاح، يرجى تسجيل الدخول من جديد',
       });

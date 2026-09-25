@@ -17,7 +17,7 @@
  *     usual 2G/3G the ~55 KB payload would compete with the shell
  *     warming that has higher priority.
  *   - Only endpoints the user's own account owns.
- *   - Responses land in a dedicated cache (market-user-data-v39) that
+ *   - Responses land in a dedicated cache (market-user-data-v40) that
  *     the SW wipes on logout alongside API_CACHE and PERSONAL_SHELL_CACHE.
  *
  * Cache key format is the FULL request URL (API_BASE_URL + path +
@@ -35,7 +35,7 @@ import { getWarmingPlan } from './offlineWarmingPlanner';
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
 /** Must match sw.js's USER_DATA_CACHE template literally. */
-export const USER_DATA_CACHE = 'market-user-data-v39';
+export const USER_DATA_CACHE = 'market-user-data-v40';
 
 /**
  * Endpoints warmed per user. Each entry becomes one fetch + one
@@ -119,34 +119,34 @@ export async function warmUserData(): Promise<void> {
   if (!navigator.onLine) return;
 
   const plan = getWarmingPlan();
-  // SW-USERDATA-CORE-TIER-01: expanded gate from 'full' only to 'core'
-  // and above. Confirmed in production testing: on a 1.45 Mbps link
-  // (tier='core'), user-data warming never ran, so the dashboard's
-  // DashboardStats and RecentActivityFeed panels showed red error
-  // states whenever the user was offline — the shell rendered (via
-  // shell warming) but the data inside it did not.
-  //
-  // Cost analysis: 14 endpoints × ~4 KB = ~55 KB per pass. At 1.45
-  // Mbps that is ~0.3 s and ~3.6% on top of a ~1.5 MB shell pass —
-  // small enough that the "competes with shell warming" concern that
-  // motivated the original gate does not apply. Skipped only for
-  // 'none' (off / offline / save-data) and 'critical' (2G, < 0.5
-  // Mbps) where the shell floor genuinely is the whole budget.
-  if (plan.tier === 'none' || plan.tier === 'critical') return;
+  // FIX WARM-UNIFY-SELF-01: also warm self profile + category trees into
+  // React Query / offline JSON (same data create-forms need offline).
+  try {
+    const { getQueryClient } = await import('@/lib/queryClient');
+    const { warmSelfDataForOffline } = await import('@/lib/offlineSelfWarm');
+    await warmSelfDataForOffline(getQueryClient());
+  } catch (err) {
+    console.warn('[user-data] self-warm failed:', err);
+  }
+
+  // FIX WARM-MIN-20-01: run on critical too (sequential, long timeout) so
+  // dashboard panels are not empty offline on voucher links. Still skip
+  // only when warming is fully disabled.
+  if (plan.tier === 'none') return;
 
   await runUnderWarmingLock(async () => {
     const cache = await caches.open(USER_DATA_CACHE);
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    const timeoutMs = plan.tier === 'critical' ? 45_000 : 20_000;
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
 
     let completed = 0;
     const total = USER_DATA_ENDPOINTS.length;
     reportProgress('userdata', { active: true, completed: 0, total });
 
     try {
-      // Concurrency 4 — modest. Higher starves the page the user is
-      // actually looking at.
-      const CONCURRENCY = 4;
+      // Sequential on critical; modest parallel otherwise.
+      const CONCURRENCY = plan.tier === 'critical' ? 1 : plan.tier === 'core' ? 2 : 4;
       const queue: string[] = [...USER_DATA_ENDPOINTS];
       const workers: Promise<void>[] = [];
 

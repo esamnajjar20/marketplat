@@ -244,6 +244,12 @@ const QUEUE_STRIP_HEADERS = new Set([
   'upgrade',
   'proxy-connection',
   'accept-encoding',
+  // FIX QUEUE-NO-STORE-AUTH-01: never persist Bearer access tokens in
+  // IndexedDB. JWT access TTL is short (~15m) but any XSS / local malware
+  // that can read the offline queue would otherwise recover a live token
+  // for that window. Replay always injects a fresh token via
+  // refreshAccessToken → freshCreds (same path as CSRF).
+  'authorization',
 ]);
 
 function sanitizeQueueHeaders(raw) {
@@ -1505,7 +1511,10 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     // just a transient network blip during the refresh. Stay pending
     // instead; the next tick retries, and MAX_QUEUE_RETRIES still bounds
     // the genuinely-dead cases.
-    if (entry.needsCsrf && !freshCreds) {
+    // FIX QUEUE-NO-STORE-AUTH-01: entries that had a Bearer at enqueue
+    // time (needsAuth) must not ship without freshCreds — there is no
+    // stored Authorization left to fall back on.
+    if ((entry.needsCsrf || entry.needsAuth) && !freshCreds) {
       if (refreshReason === 'auth') {
         // Session truly gone — tell the UI to prompt re-login. Do NOT
         // discard the entry; once the user logs back in it should go
@@ -1534,7 +1543,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     // FIX OFFLINE-QUEUE-RELIABILITY-01: sanitize every replay — entries
     // queued before this fix may still carry content-length/host.
     let sendHeaders = sanitizeQueueHeaders(entry.headers || {});
-    if ((entry.needsCsrf || isUnsafeMethod(entry.method)) && freshCreds) {
+    if ((entry.needsCsrf || entry.needsAuth || isUnsafeMethod(entry.method)) && freshCreds) {
       sendHeaders = {
         ...sendHeaders,
         authorization: `Bearer ${freshCreds.accessToken}`,
@@ -1859,7 +1868,9 @@ async function replayQueueImpl() {
   // tick" (network) and "session actually ended, prompt re-login" (auth).
   let refreshReason = null; // 'auth' | 'network' | null
   const anyNeedsCsrf = entries.some(
-    (e) => e.status !== 'failed' && (e.needsCsrf || isUnsafeMethod(e.method)),
+    (e) =>
+      e.status !== 'failed' &&
+      (e.needsCsrf || e.needsAuth || isUnsafeMethod(e.method)),
   );
   if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
     const r = await refreshAccessToken(entries[0].url);
@@ -2085,10 +2096,17 @@ async function handleMutation(request) {
     // FIX QUEUE-CSRF-STALE-01: strip x-csrf-token at queue time and
     // record only that the entry needs one.
     let needsCsrf = false;
+    // FIX QUEUE-NO-STORE-AUTH-01: remember that this entry requires a
+    // Bearer token without storing the token itself in IndexedDB.
+    let needsAuth = false;
     requestForQueue.headers.forEach((value, key) => {
       const lower = key.toLowerCase();
       if (lower === 'x-csrf-token') {
         needsCsrf = true;
+        return;
+      }
+      if (lower === 'authorization') {
+        needsAuth = true;
         return;
       }
       // FIX OFFLINE-QUEUE-RELIABILITY-01: لا نخزّن headers تُكسر الـ replay
@@ -2111,6 +2129,7 @@ async function handleMutation(request) {
         operationId,
         priority,
         needsCsrf,
+        needsAuth,
         retryCount: 0,
       };
       // PHASE-4: merge offline analytics beacons into one queue row

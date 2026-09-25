@@ -14,7 +14,11 @@ export const serviceRequestsController = {
     try {
       const user = requireUser(req);
       const { body } = createServiceRequestSchema.parse({ body: req.body });
-      const request = await serviceRequestsService.createRequest(user.userId, body);
+      const offlineOpId =
+        (req.headers['x-offline-op-id'] as string | undefined) ||
+        (req.headers['X-Offline-Op-Id'] as string | undefined) ||
+        null;
+      const request = await serviceRequestsService.createRequest(user.userId, body, offlineOpId);
       res.status(201).json(successResponse('Service request created', request));
     } catch (error) {
       next(error);

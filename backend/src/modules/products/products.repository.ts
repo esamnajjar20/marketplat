@@ -75,6 +75,7 @@ export const productsRepository = {
       wholesaleMinQty?: number;
       availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
       stockQuantity?: number | null;
+      offlineOperationId?: string | null;
     }
   ): Promise<Product> =>
     tx.product.create({
@@ -90,6 +91,7 @@ export const productsRepository = {
         wholesaleMinQty: data.wholesaleMinQty,
         availability: data.availability,
         stockQuantity: data.stockQuantity ?? null,
+        ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
       },
     }),
 

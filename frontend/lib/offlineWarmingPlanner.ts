@@ -2,25 +2,14 @@
  * lib/offlineWarmingPlanner.ts
  *
  * Decides how aggressive the offline warming pass should be, based on
- * what the browser knows about the current network.
+ * measured network quality (Gaza-first).
  *
- * Gaza context (primary audience for aggressive throttling):
- *   Prepaid voucher cards commonly sustain only 17–30 KB/s
- *   (~0.14–0.24 Mbps). The Network Information API often lies on these
- *   links (reports "3g"/"4g" while real throughput is 2g-class). We
- *   therefore:
- *     1. Prefer measured request timings (getAverageRequestMs) over
- *        effectiveType when samples exist.
- *     2. Treat downlink < 0.16 Mbps as critical (DRIP-TIERS-02-COMMENT).
- *     3. Keep core-tier budgets tiny (3–4 shells) and sequential.
- *     4. When the API is absent (Safari), default to 'core' — not 'full'
- *        — so an iPhone on a bad hotspot does not burn a voucher.
+ * FIX WARM-MIN-20-01: even on slow links we warm at least MIN_WARM_ROUTES
+ * shells (sequential, long timeouts) — user requirement for usable offline
+ * coverage. Previously `critical` returned zero routes.
  *
- * The four tiers:
- *   - none      : saveData / offline / user mode off
- *   - critical  : ~17–30 KB/s territory — no app-driven route warming
- *   - core      : mid-slow — a handful of priority shells only
- *   - full      : truly good link — full list, still modest concurrency
+ * FIX WARM-PRIORITY-MARKETPLACE-01: PRIORITY_ROUTES ordered by real usage
+ * for a classifieds marketplace (browse → search → chat → sell → tools).
  */
 'use client';
 
@@ -39,6 +28,8 @@ export interface WarmingPlan {
   interRouteDelayMs: number;
   /** Per-request timeout (ms). Longer on slow links so a shell can finish. */
   requestTimeoutMs: number;
+  /** Floor for how many routes this pass should attempt. */
+  minRoutes: number;
   /** Human-readable reason, for logging / debug UI. */
   reason: string;
 }
@@ -58,28 +49,53 @@ function readConnection(): NetworkInformationLike | null {
 }
 
 /**
- * SW-CORE-BUDGET: priority floor for 'core' tier.
- * Must cover what /offline itself advertises + primary browse + a few
- * personal essentials. Kept short on purpose — each extra shell on a
- * 20 KB/s link is ~10–30s of exclusive bandwidth.
+ * Minimum shells per initial pass — even on voucher-class links.
+ * Combined public + personal priority lists are long enough to fill this.
+ */
+export const MIN_WARM_ROUTES = 20;
+
+/**
+ * Marketplace usage order (highest first).
+ * Public browse first, then engagement, then seller tools, then utilities.
  */
 const PRIORITY_ROUTES = [
   '/offline',
-  '/downloads',
-  '/saved-ads',
-  '/saved-payments',
   '/',
+  '/ads',
   '/products',
   '/search',
+  '/stores',
+  '/services',
+  '/service-providers',
   '/messages',
   '/notifications',
+  '/favorites',
   '/dashboard',
-  '/settings/storage',
+  '/my-ads',
+  '/ads/create',
+  '/my-store',
+  '/my-store/products',
+  '/my-services',
+  '/requests/new',
   '/settings/sync',
+  '/settings/storage',
+  '/settings/offline',
+  '/saved-ads',
+  '/downloads',
+  '/activity',
+  '/saved-searches',
+  '/sellers/ranking',
+  '/saved-payments',
+  '/my-requests',
+  '/complete-profile',
+  '/my-reports',
 ];
 
-/** Max shells warmed on 'core' tier (Gaza mid-slow). Was 8 — too heavy at 20 KB/s. */
-const CORE_ROUTE_BUDGET = 4;
+/** Max shells on 'core' when list is longer — at least MIN_WARM_ROUTES. */
+const CORE_ROUTE_BUDGET = 28;
+
+/** Critical (very slow) still attempts this many, sequentially. */
+const CRITICAL_ROUTE_BUDGET = MIN_WARM_ROUTES;
 
 export function getWarmingPlan(): WarmingPlan {
   const userMode = getWarmingMode();
@@ -91,6 +107,7 @@ export function getWarmingPlan(): WarmingPlan {
       interBatchDelayMs: 0,
       interRouteDelayMs: 0,
       requestTimeoutMs: 0,
+      minRoutes: 0,
       reason: 'user-off',
     };
   }
@@ -102,6 +119,7 @@ export function getWarmingPlan(): WarmingPlan {
       interBatchDelayMs: 0,
       interRouteDelayMs: 0,
       requestTimeoutMs: 0,
+      minRoutes: 0,
       reason: 'offline',
     };
   }
@@ -115,32 +133,32 @@ export function getWarmingPlan(): WarmingPlan {
       interBatchDelayMs: 0,
       interRouteDelayMs: 0,
       requestTimeoutMs: 0,
+      minRoutes: 0,
       reason: 'saveData',
     };
   }
 
-  // User forced modes beat network heuristics (except off/saveData above).
-  // Drip: user chose slow background fill — always allow a small
-  // sequential batch. Route selection + 12-min interval live in
-  // offlineRouteShells (DRIP_BUDGET / DRIP_INTERVAL_MS), not here.
   if (userMode === 'drip') {
     return {
       tier: 'core',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 3000,
+      interRouteDelayMs: 1500,
       requestTimeoutMs: 25_000,
+      minRoutes: MIN_WARM_ROUTES,
       reason: 'user-drip',
     };
   }
 
   if (userMode === 'saver') {
+    // Still honors MIN_WARM_ROUTES (20) — sequential + long gaps.
     return {
       tier: 'critical',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 4000,
-      requestTimeoutMs: 20_000,
+      interRouteDelayMs: 2500,
+      requestTimeoutMs: 25_000,
+      minRoutes: MIN_WARM_ROUTES,
       reason: 'user-saver',
     };
   }
@@ -148,23 +166,26 @@ export function getWarmingPlan(): WarmingPlan {
   if (userMode === 'balanced') {
     return {
       tier: 'core',
-      concurrency: 1,
-      interBatchDelayMs: 0,
-      interRouteDelayMs: 2500,
-      requestTimeoutMs: 20_000,
+      concurrency: 2,
+      interBatchDelayMs: 300,
+      interRouteDelayMs: 600,
+      requestTimeoutMs: 18_000,
+      minRoutes: CORE_ROUTE_BUDGET,
       reason: 'user-balanced',
     };
   }
 
-  // Measured timings beat optimistic effectiveType on voucher cards.
   const avgMs = getAverageRequestMs();
+
+  // Measured very slow: still warm MIN_WARM_ROUTES, just sequential + long gaps.
   if (avgMs != null && avgMs >= 4000) {
     return {
       tier: 'critical',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 4000,
-      requestTimeoutMs: 25_000,
+      interRouteDelayMs: 2000,
+      requestTimeoutMs: 30_000,
+      minRoutes: CRITICAL_ROUTE_BUDGET,
       reason: `measured-very-slow(avgMs=${Math.round(avgMs)})`,
     };
   }
@@ -172,11 +193,6 @@ export function getWarmingPlan(): WarmingPlan {
   const type = conn?.effectiveType;
   const downlink = typeof conn?.downlink === 'number' ? conn.downlink : null;
 
-  // DRIP-TIERS-02: threshold lowered from 0.35 Mbps (~45 KB/s) to
-  // 0.16 Mbps (~20 KB/s) so 20-45 KB/s links go through the 'core'
-  // tier (10 routes / 10 min) instead of being silently disabled.
-  // Below ~20 KB/s a single shell still starves the current page, so
-  // critical remains the correct tier.
   if (
     type === 'slow-2g' ||
     type === '2g' ||
@@ -186,56 +202,51 @@ export function getWarmingPlan(): WarmingPlan {
       tier: 'critical',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 4000,
-      requestTimeoutMs: 25_000,
+      interRouteDelayMs: 2000,
+      requestTimeoutMs: 28_000,
+      minRoutes: CRITICAL_ROUTE_BUDGET,
       reason: `voucher-class(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
     };
   }
 
-  // Mid-slow (classic 3g / <1.5 Mbps) — tiny sequential budget.
   if (type === '3g' || (downlink !== null && downlink < 1.5) || (avgMs != null && avgMs >= 1500)) {
     return {
       tier: 'core',
-      concurrency: 1,
-      interBatchDelayMs: 0,
-      interRouteDelayMs: 2500,
+      concurrency: 2,
+      interBatchDelayMs: 300,
+      interRouteDelayMs: 800,
       requestTimeoutMs: 20_000,
+      minRoutes: CORE_ROUTE_BUDGET,
       reason: `mid-slow(type=${type ?? '?'},downlink=${downlink ?? '?'},avgMs=${avgMs != null ? Math.round(avgMs) : '?'})`,
     };
   }
 
-  // No Network Information API (Safari) and no timing samples yet:
-  // default to core, not full — avoids burning a weak hotspot on first load.
   if (!conn && avgMs == null) {
     return {
       tier: 'core',
-      concurrency: 1,
-      interBatchDelayMs: 0,
-      interRouteDelayMs: 2000,
+      concurrency: 2,
+      interBatchDelayMs: 250,
+      interRouteDelayMs: 600,
       requestTimeoutMs: 18_000,
+      minRoutes: CORE_ROUTE_BUDGET,
       reason: 'no-connection-api-default-core',
     };
   }
 
-  // Genuinely good link.
   return {
     tier: 'full',
-    concurrency: 2,
-    interBatchDelayMs: 400,
-    interRouteDelayMs: 400,
+    concurrency: 3,
+    interBatchDelayMs: 200,
+    interRouteDelayMs: 150,
     requestTimeoutMs: 12_000,
+    minRoutes: MIN_WARM_ROUTES,
     reason: `full(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
   };
 }
 
 /**
- * Given the full route list warming would like to process, return the
- * subset the current plan allows.
- *
- *   full     -> all routes
- *   core     -> priority floor (≤ CORE_ROUTE_BUDGET), then fill from input
- *   critical -> empty (SW precache handles the floor)
- *   none     -> empty
+ * Subset of routes for this plan.
+ * FIX WARM-MIN-20-01: critical no longer returns [] — uses minRoutes floor.
  */
 export function selectRoutesByPlan(
   plan: WarmingPlan,
@@ -243,20 +254,27 @@ export function selectRoutesByPlan(
 ): string[] {
   switch (plan.tier) {
     case 'none':
-    case 'critical':
       return [];
+    case 'critical':
     case 'core': {
+      const budget = Math.max(plan.minRoutes || MIN_WARM_ROUTES, MIN_WARM_ROUTES);
       const inInput = new Set(routesInPriorityOrder);
       const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
-      if (priority.length >= CORE_ROUTE_BUDGET) {
-        return priority.slice(0, CORE_ROUTE_BUDGET);
+      if (priority.length >= budget) {
+        return priority.slice(0, budget);
       }
       const remaining = routesInPriorityOrder.filter((r) => !priority.includes(r));
-      return [...priority, ...remaining].slice(0, CORE_ROUTE_BUDGET);
+      return [...priority, ...remaining].slice(0, budget);
     }
     case 'full':
     default:
-      return routesInPriorityOrder;
+      // Prefer priority order, then the rest of the input list.
+      {
+        const inInput = new Set(routesInPriorityOrder);
+        const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
+        const remaining = routesInPriorityOrder.filter((r) => !priority.includes(r));
+        return [...priority, ...remaining];
+      }
   }
 }
 
@@ -264,17 +282,11 @@ export function getPriorityRoutes(): readonly string[] {
   return PRIORITY_ROUTES;
 }
 
-
-/** True when the plan says warming should not run at all. */
+/** True when warming should not run at all (user off / offline / saveData). */
 export function isWarmingDisabled(plan: WarmingPlan): boolean {
   return plan.tier === 'none';
 }
 
-// SW-FIX-DRIP-RESTORE-DESCRIBE: describePlan was removed during the
-// voucher-class refactor but offlineWarmingDebug.ts:21 still imports
-// it. Re-added here as a thin wrapper — the debug page reads .tier,
-// .reason, and .online directly, so the shape must stay
-// WarmingPlan & { online: boolean }.
 export function describePlan(): WarmingPlan & { online: boolean } {
   const online = typeof navigator !== 'undefined' && navigator.onLine;
   return { ...getWarmingPlan(), online };

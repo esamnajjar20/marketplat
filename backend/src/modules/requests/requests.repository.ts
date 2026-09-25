@@ -55,6 +55,7 @@ export const requestsRepository = {
       budgetMax?: number;
       attributes?: Prisma.InputJsonValue;
       expiresAt?: Date | null;
+      offlineOperationId?: string | null;
     },
   ): Promise<RequestRow> =>
     prisma.request.create({
@@ -70,6 +71,7 @@ export const requestsRepository = {
         budgetMax: data.budgetMax,
         attributes: data.attributes ?? Prisma.JsonNull,
         expiresAt: data.expiresAt ?? null,
+        ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
       },
     }),
 

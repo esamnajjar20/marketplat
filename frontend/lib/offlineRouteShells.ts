@@ -93,7 +93,7 @@ const PERSONAL_LOCK_NAME = 'marketplat-warming-personal';
 // kept in sync with offlineCoreBundle.ts's CORE_CACHE and
 // offlineWarmingUserData.ts's USER_DATA_CACHE, both of which were
 // already v38.
-const STATIC_CACHE = 'market-static-v39'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v40'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -143,10 +143,23 @@ const STATIC_CACHE = 'market-static-v39'; // يجب مطابقة CACHE_VERSION �
 // HTML, extracts every _next/static asset, and caches them — same
 // treatment '/', '/products', etc. already get.
 export const CORE_ROUTES = [
+  // FIX WARM-PRIORITY-MARKETPLACE-01 + WARM-MIN-20-01: public browse first
   '/offline',
-  '/', '/products', '/stores', '/search', '/services', '/ads',
-  '/saved-ads', '/downloads', '/saved-payments',
-  '/service-providers', '/sellers/ranking',
+  '/',
+  '/ads',
+  '/products',
+  '/search',
+  '/stores',
+  '/services',
+  '/service-providers',
+  '/sellers/ranking',
+  '/saved-ads',
+  '/downloads',
+  '/saved-payments',
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
 ];
 
 // صفحات محمية — 'use client' + بيانات عبر RQ بعد hydration.
@@ -162,95 +175,45 @@ export const CORE_ROUTES = [
  * sw.js's isPersonalShellRoute لا يحتاج تغيير — يستخدم البادئات.
  */
 export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
-  // حساب / تنقّل
+  // FIX WARM-PRIORITY-MARKETPLACE-01: engagement + sell tools first
   '/messages',
   '/notifications',
-  '/dashboard',
-  // SW-PRIORITY-STORAGE-SYNC-01: pulled to the top of the list so the
-  // 'core' tier of the network-aware planner (see offlineWarmingPlanner's
-  // PRIORITY_ROUTES) reaches them. These two pages let the user manage
-  // cache size and the offline sync queue - both are the exact tasks a
-  // user on an unstable link actually needs offline, more so than the
-  // passive /settings/profile and /settings/notifications below.
-  '/settings/storage',
-  '/settings/sync',
-  // SW-WARMING-USER-CONTROL-01: the user-facing warming control page
-  // itself must be available offline — a user who cannot reach it
-  // cannot disable warming from a place that has no network.
-  '/settings/offline',
   '/favorites',
+  '/dashboard',
   '/my-ads',
-  '/activity',
-  // FIX OFFLINE-AD-CREATE-01: يجب مطابقة public/sw.js's isPersonalShellRoute
-  // حرفيًا — انظر تعليقها هناك لسبب الإضافة. مُدرَج هنا أيضًا (وليس فقط
-  // بالتصنيف بـsw.js) ليُسخَّن استباقيًا قبل أول زيارة فعلية، تمامًا مثل
-  // '/my-store' و'/my-services' أدناه — أهم صفحة كتابة للبائع تستحق نفس
-  // معاملة التسخين المسبق.
   '/ads/create',
-  // الملف والإعدادات (قوائم فقط — لا sessions حساسة كـ HTML بيانات)
+  '/my-store',
+  '/my-store/products',
+  '/my-store/products/new',
+  '/my-services',
+  '/my-services/new',
+  '/requests/new',
+  '/my-requests',
+  '/settings/sync',
+  '/settings/storage',
+  '/settings/offline',
   '/settings',
   '/settings/profile',
-  '/settings/security',
-  '/settings/sessions',
   '/settings/notifications',
-  '/settings/seller',
-  '/settings/service-provider',
-  '/settings/blocked-users',
-  // متجري
-  '/my-store',
+  '/activity',
+  '/saved-searches',
   '/my-store/inventory',
   '/my-store/members',
-  '/my-store/products',
-  // FIX OFFLINE-CREATE-PAGES-01: نموذج إضافة منتج جديد نفسه كان غائبًا —
-  // فقط قائمة المنتجات ('/my-store/products') كانت مُسخَّنة مسبقًا،
-  // بنفس القياس المتبع مع '/ads/create' أعلاه (FIX OFFLINE-AD-CREATE-01):
-  // بائع يفتح /my-store/products/new لأول مرة وهو أوفلاين (قبل أي زيارة
-  // أونلاين سابقة لهذا المسار تحديدًا) كان يصله /offline العامة، رغم أن
-  // isPersonalShellRoute بـpublic/sw.js يغطيه أصلاً عبر بادئة
-  // '/my-store/' (فتُخزَّن نسخته فعليًا في PERSONAL_SHELL_CACHE بعد أول
-  // زيارة أونلاين) — هذه الإضافة فقط تسخّنه استباقيًا قبل تلك الزيارة
-  // الأولى، تمامًا مثل /ads/create. آمن بنفس السبب: 'use client' بالكامل،
-  // ProductForm يجلب بيانات البائع/المتجر عبر React Query بعد الـhydration.
-  '/my-store/products/new',
   '/my-store/promotions',
   '/my-store/collections',
   '/my-store/analytics',
   '/my-store/settings',
-  // خدماتي + لوحة مقدّم الخدمة
-  '/my-services',
-  // FIX OFFLINE-CREATE-PAGES-01: نفس سبب '/my-store/products/new' أعلاه،
-  // لنموذج نشر خدمة جديدة بدل نموذج المنتج.
-  '/my-services/new',
   '/my-services/requests',
   '/my-services/appointments',
   '/my-services/analytics',
-  // T780 — '/service-broadcasts' and '/service-broadcasts/quotes' were
-  // removed. The backend dropped the service_request_broadcasts and
-  // service_quotes tables in migration 20260917121810_drop_legacy_
-  // service_broadcasts; the frontend pages were deleted alongside, but
-  // these two entries stayed in the warming list, so every warm cycle
-  // fired two 404-bound requests and the PERSONAL_SHELL_CACHE never
-  // got a real shell for them. The whole feature is dead — no page
-  // (app/ has no matching route), no component, no hook, no API client
-  // all confirmed. See lib/constants.ts's ROUTES for the removal of the
-  // corresponding route definitions.
-  '/my-requests',
-  // FIX OFFLINE-REQUESTS-NEW-01: /requests/new is a first-class
-  // create page with full offline support already wired
-  // (useCreateRequest.onError → saveAdDraft with kind:'open-request',
-  // offlineDraftResume.resumeHrefForDraft → /requests/new?draftId=,
-  // useFormDraft autosave) — but was missing from this warming list,
-  // so a user who opened it fresh offline got bounced to the generic
-  // /offline page instead of the form. Same treatment as
-  // /ads/create and /my-services/new above.
-  '/requests/new',
-  // FIX PROTECTED-PARITY-SHELL-01: mirror sw.js isPersonalShellRoute.
-  // These protected pages had no proactive warming / personal shell
-  // entry — offline navigation landed on the generic /offline page.
+  '/settings/security',
+  '/settings/sessions',
+  '/settings/seller',
+  '/settings/service-provider',
+  '/settings/blocked-users',
   '/complete-profile',
   '/my-reports',
-  // FIX OFFLINE-BAD-ROUTE-01: removed (no page.tsx at this path)
-  '/saved-searches',
+  '/service-requests',
 ];
 
 /** FIX OFFLINE-WARM-PRIORITY: القائمة الكاملة (ESSENTIAL + SECONDARY) —
@@ -271,7 +234,7 @@ export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
 // SW-FIX-CACHE-VERSION-MISMATCH: was 'v40' — same mismatch as
 // STATIC_CACHE above. See that line's comment.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v39';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v40';
 
 /**
  * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —
@@ -380,8 +343,14 @@ function estimateKbps(): number | null {
 
   const measured = getAverageRequestMs();
   if (measured != null && measured > 0) {
-    // ~40 KB average shell → KB/s = 40000 / measuredMs
-    return Math.max(1, Math.round(40000 / measured));
+    // FIX WARM-KBPS-SIZE-01: RSC shells average closer to ~55 KB on this
+    // app (HTML + critical chunks), not 40 KB — underestimating size made
+    // drip think the link was faster than it is.
+    const avgShellBytes = typeof window !== 'undefined'
+      && typeof (window as unknown as { __warmLastShellBytes?: number }).__warmLastShellBytes === 'number'
+      ? (window as unknown as { __warmLastShellBytes: number }).__warmLastShellBytes
+      : 55_000;
+    return Math.max(1, Math.round(avgShellBytes / measured));
   }
   // SPEED-ONLY-01: no more conn.type === 'wifi' shortcut — a wifi hotspot
   // can be slower than 4G. effectiveType is Chrome's own *measured* category
@@ -412,25 +381,25 @@ function getDripParams(tier: 'none' | 'critical' | 'core' | 'full'): {
   reason: string;
 } {
   if (tier === 'none') return { budget: 0, intervalMs: 0, reason: 'offline' };
-  // SPEED-ONLY-02: no isOnWifi() shortcut — a wifi hotspot measuring
-  // <100 KB/s must not get UNLIMITED_BUDGET. Decision below is kbps-only.
-  // DRIP-CRITICAL-01: tier=critical (2G/slow-2g) means no app-driven
-  // warming, even in drip mode — otherwise the initial effectiveType-based
-  // estimate could still pass the >=20 check and fire 10 routes on 2G.
-  if (tier === 'critical') return { budget: 0, intervalMs: 10 * 60 * 1000, reason: 'critical' };
 
+  // FIX WARM-MIN-20-01: critical / very-slow still warm a floor of 20
+  // routes (sequential). Previously budget 0 left users with almost
+  // nothing offline on voucher links.
   const kbps = estimateKbps();
-  if (kbps == null) return { budget: 10, intervalMs: 10 * 60 * 1000, reason: 'unknown' };
+  if (tier === 'critical') {
+    return { budget: 20, intervalMs: 8 * 60 * 1000, reason: `critical-${kbps ?? '?'}kbps` };
+  }
 
-  if (kbps >= 100) return { budget: UNLIMITED_BUDGET, intervalMs: 60 * 1000, reason: `${kbps}kbps-unlimited` };
-  if (kbps >= 20)  return { budget: 10, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-mid` };
-  return { budget: 0, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-too-slow` };
+  if (kbps == null) return { budget: 20, intervalMs: 8 * 60 * 1000, reason: 'unknown' };
+
+  if (kbps >= 100) return { budget: UNLIMITED_BUDGET, intervalMs: 45 * 1000, reason: `${kbps}kbps-unlimited` };
+  if (kbps >= 40)  return { budget: 20, intervalMs: 6 * 60 * 1000, reason: `${kbps}kbps-mid` };
+  if (kbps >= 15)  return { budget: 20, intervalMs: 8 * 60 * 1000, reason: `${kbps}kbps-slow` };
+  return { budget: 20, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-voucher` };
 }
 
 const LAST_DRIP_WARMED_KEY = `marketplat:drip-last-pass:${CACHE_VERSION_SUFFIX}`;
 
-let isWarmingRouteShells = false;
-let isWarmingPersonalShells = false;
 
 /**
  * FIX OFFLINE-WARM-ABORT: مهلة لكل طلب — بدونها، طلب بطيء على شبكة غزة
@@ -476,31 +445,7 @@ function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Respo
 // they share the same STATIC_CACHE for chunk storage — a route's
 // chunks and a personal shell's chunks overlap heavily (webpack-*,
 // main-app-*, and the shared framework chunks all appear in both).
-const inflightAssetFetches = new Map<string, Promise<boolean>>();
 
-async function fetchAndCacheAsset(cache: Cache, url: string): Promise<boolean> {
-  // Fast path — already cached (from an earlier route in this pass,
-  // or from a previous session).
-  if (await cache.match(url)) return false;
-
-  const existing = inflightAssetFetches.get(url);
-  if (existing) return existing;
-
-  const promise = (async () => {
-    try {
-      const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
-      if (!res.ok) return false;
-      return await putTimestamped(cache, url, res);
-    } catch {
-      return false;
-    } finally {
-      inflightAssetFetches.delete(url);
-    }
-  })();
-
-  inflightAssetFetches.set(url, promise);
-  return promise;
-}
 
 /** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
  * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
@@ -671,294 +616,24 @@ async function sweepOrphans(cache: Cache, liveUrls: Set<string>): Promise<number
   return swept;
 }
 
+/** @deprecated Use warmRouteShellsAtomic — kept as alias for tests/imports. */
 export async function warmRouteShells(): Promise<void> {
-  if (typeof window === 'undefined') return;
-  if (!navigator.onLine) return;
-  if (typeof caches === 'undefined') return;
-  // FIX OFFLINE-WARM-THROTTLE
-  if (isWarmingRouteShells) return;
-  const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
-  if (Date.now() - last < WARM_INTERVAL_MS) return;
-  isWarmingRouteShells = true;
-  // FIX WARM-FALSE-SUCCESS-01: انظر نفس التعليق بـofflineCoreBundle.ts's
-  // warmCoreBundle — نفس الباگ بالضبط هنا: LAST_ROUTE_WARMED_KEY كان
-  // يُسجَّل بلا شرط حتى لو فشل تخزين كل مسار. succeeded يتتبّع عدد عمليات
-  // التخزين الناجحة فعليًا (HTML/chunks/RSC مجتمعين)؛ لا نكتب
-  // LAST_ROUTE_WARMED_KEY إلا لو succeeded > 0.
-  let succeeded = 0;
-
-  try {
-    const cache = await caches.open(STATIC_CACHE);
-
-    // (أ) تنقّل قاسٍ — مستند HTML عادي، مفتاحه URL المسار كما هو.
-    // FIX OFFLINE-CHUNK-01: كانت تُخزَّن HTML فقط — نفس الخلل بالضبط
-    // الموثّق بـpublic/sw.js's install handler لـ/offline، لكنه هنا يطال
-    // كل مسار بـCORE_ROUTES: أول تنقّل حقيقي بدون نت لمسار (مثلاً
-    // /saved-ads) لم يُحمَّل chunk-ه أونلاين من قبل بهذا الجهاز تحديدًا
-    // ينتج عنه "ChunkLoadError" (مؤكَّد فعليًا: طلب مستخدم ضغط زر
-    // "التنزيلات" من صفحة /offline، فشل بـchunk 2708 لمسار
-    // app/(public)/saved-ads، وعاد تلقائيًا لصفحة /offline خلال ثانية).
-    // الحل: بعد جلب HTML كل مسار، نستخرج ونخزّن أصول _next/static
-    // الخاصة فيه أيضًا — تمامًا نفس منطق sw.js's install handler.
-    await Promise.allSettled(
-      CORE_ROUTES.map(async (path) => {
-        try {
-          const response = await fetchWithTimeout(path, { credentials: 'same-origin' });
-          // FIX WARM-REDIRECT-GUARD-01: skip redirected responses.
-          // A protected route fetched without a valid session (guest
-          // visitor, expired cookie) is served the /login page after
-          // a redirect, with ok=true and the shell text of /login
-          // under the protected URL. Caching it would make the
-          // offline /messages (etc.) shell resolve to login HTML —
-          // exactly the wrong document to show an authenticated
-          // user later, and worth skipping for guests too (they
-          // can't usefully view the shell either way).
-          if (!response.ok || response.redirected) return;
-          if (await putTimestamped(cache, path, response.clone())) succeeded += 1;
-
-          const html = await response.clone().text();
-          const assetUrls = Array.from(
-            html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
-          )
-            .map((match) => match[1])
-            .filter((url): url is string => Boolean(url));
-
-          await Promise.allSettled(
-            assetUrls.map(async (assetUrl) => {
-              // WARM-INFLIGHT-DEDUP — see the helper's own comment.
-              // Replaces the old sequential cache.match-then-fetch
-              // (which missed every shared chunk because all routes
-              // passed the check before any finished putting).
-              if (await fetchAndCacheAsset(cache, assetUrl)) succeeded += 1;
-            }),
-          );
-        } catch (err) {
-          // FIX OFFLINE-WARM-LOGGING
-          console.warn('[route-shells] warmRouteShells path failed:', path, err);
-        }
-      }),
-    );
-
-    // (ب) تنقّل SPA (soft navigation) — نفس المسارات، لكن بطلب RSC (رأس
-    // RSC:'1') يحاكي ما يرسله Next.js Router الفعلي، فيُملأ مفتاح
-    // sw.js's isRscShellRequest() استباقيًا بدل انتظار أول تنقّل SPA حقيقي
-    // وقت انقطاع النت (اللي حينها يفشل مرة واحدة قبل أي كاش). الاستجابة
-    // تُخزَّن بدون رأس Vary (نفس منطق sw.js's stripVaryAndClone) لأن
-    // Cache API's مطابقة Vary الداخلية سترفض المطابقة لاحقًا وإن كان مفتاح
-    // البحث مطابقًا تمامًا.
-    await Promise.allSettled(
-      CORE_ROUTES.map(async (path) => {
-        try {
-          const response = await fetchWithTimeout(path, {
-            credentials: 'same-origin',
-            headers: { RSC: '1' },
-          });
-          if (!response.ok) return;
-          const headers = new Headers(response.headers);
-          headers.delete('Vary');
-          // FIX OFFLINE-WARM-TIMESTAMP
-          headers.set('X-SW-Cached-At', String(Date.now()));
-          const stored = new Response(await response.clone().blob(), {
-            status: response.status,
-            statusText: response.statusText,
-            headers,
-          });
-          await cache.put(rscShellKey(path), stored);
-          succeeded += 1;
-        } catch (err) {
-          console.warn('[route-shells] warmRouteShells RSC failed:', path, err);
-        }
-      }),
-    );
-
-    // FIX OFFLINE-WARM-THROTTLE: سجّل نجاح الجلسة كاملة
-    if (succeeded > 0) {
-      localStorage.setItem(LAST_ROUTE_WARMED_KEY, String(Date.now()));
-    }
-  } catch (err) {
-    // FIX OFFLINE-WARM-LOGGING
-    console.warn('[route-shells] warmRouteShells failed:', err);
-  } finally {
-    isWarmingRouteShells = false;
-  }
+  // FIX WARM-LEGACY-DELEGATE-01: legacy path warmed ALL CORE_ROUTES in
+  // parallel without the planner. Delegate to the atomic pipeline path.
+  return warmRouteShellsAtomic();
 }
+
 
 /**
  * تسخين أشكال الصفحات المحمية (رسائل، إشعارات، لوحة، مفضلة…) في
  * PERSONAL_SHELL_CACHE — يُستدعى فقط والمستخدم مسجّل دخول وأونلاين.
  * HTML + JS/CSS chunks + RSC shell بنفس منطق warmRouteShells.
  */
+/** @deprecated Use warmPersonalShellsAtomic — kept as alias for tests/imports. */
 export async function warmPersonalShells(): Promise<void> {
-  if (typeof window === 'undefined') return;
-  if (!navigator.onLine) return;
-  if (typeof caches === 'undefined') return;
-
-  // FIX OFFLINE-WARM-NET-AWARE: this function pre-fetches 8 personal
-  // routes (HTML + assets + RSC each). On a fast link that is cheap
-  // background work; on a slow or metered link it competes directly
-  // with the actual page data the user is waiting for — observed on
-  // Gaza's 3G-ish links as ~40-60 extra requests in the first few
-  // seconds of any protected page, most of them above the fold in the
-  // Network panel. Skip warming entirely when the browser reports
-  // data-saver, or an effective type of slow-2g/2g/3g. The offline
-  // benefit is unchanged for users on Wi-Fi/4G; users on slow links
-  // still get the shell cached the first time they actually visit the
-  // route (warmRouteShells + normal SW caching).
-  const conn =
-    typeof navigator !== 'undefined'
-      ? (navigator as Navigator & {
-          connection?: { saveData?: boolean; effectiveType?: string };
-        }).connection
-      : undefined;
-  if (conn) {
-    if (conn.saveData) return;
-    const et = conn.effectiveType;
-    if (et === 'slow-2g' || et === '2g' || et === '3g') return;
-  }
-
-  // FIX OFFLINE-WARM-THROTTLE
-  if (isWarmingPersonalShells) return;
-  const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
-  if (Date.now() - last < WARM_INTERVAL_MS) return;
-  isWarmingPersonalShells = true;
-
-  // FIX OFFLINE-WARM-HIDDEN: previously deferred to requestIdleCallback
-  // with a 5s deadline — but on 4G/WiFi the net-aware gate above let
-  // it through, and a 5s window was short enough that the warm fired
-  // during the same session as the navigation, still adding ~40KB of
-  // RSC payloads (my-ads / favorites / messages / my-store / analytics
-  // / my-services / products) to a page the user had already finished
-  // reading. Warming is by definition background work the user did not
-  // ask for; the safest time to do it is when the tab is no longer
-  // visible (user switched apps, locked the phone, opened another tab).
-  // Wait for the first hidden/visibilitychange, and give up entirely if
-  // the user stays engaged for 60s without ever leaving — a session
-  // that long implies they are actively using the app, not idly
-  // navigating away.
-  await new Promise<void>((resolve) => {
-    if (typeof document === 'undefined') {
-      resolve();
-      return;
-    }
-    if (document.visibilityState === 'hidden') {
-      resolve();
-      return;
-    }
-    let settled = false;
-    const settle = () => {
-      if (settled) return;
-      settled = true;
-      document.removeEventListener('visibilitychange', onVis);
-      resolve();
-    };
-    const onVis = () => {
-      if (document.visibilityState === 'hidden') settle();
-    };
-    document.addEventListener('visibilitychange', onVis);
-    // WARM-TIMEOUT-60S — was 60_000. On a typical 2-3 minute session
-    // (open the app, browse, close), 60s often meant the safety valve
-    // never fired before the user left, so warmPersonalShells silently
-    // never ran and the personal routes were never cached. 15s is
-    // still comfortably long for a user who opened a route on purpose
-    // and is still reading it (their visibility change will fire first
-    // anyway in the common case), but short enough that a
-    // quick-browsing session still gets one warm in.
-    window.setTimeout(settle, 15_000);
-  });
-  // FIX WARM-FALSE-SUCCESS-01: نفس الإصلاح المطبَّق بـwarmRouteShells أعلاه.
-  let succeeded = 0;
-
-  try {
-    const cache = await caches.open(PERSONAL_SHELL_CACHE);
-    const staticCache = await caches.open(STATIC_CACHE);
-
-    await Promise.allSettled(
-      PERSONAL_SHELL_ROUTES_ESSENTIAL.map(async (path) => {
-        try {
-          const response = await fetchWithTimeout(path, { credentials: 'same-origin' });
-          // FIX WARM-REDIRECT-GUARD-01: skip redirected responses.
-          // A protected route fetched without a valid session (guest
-          // visitor, expired cookie) is served the /login page after
-          // a redirect, with ok=true and the shell text of /login
-          // under the protected URL. Caching it would make the
-          // offline /messages (etc.) shell resolve to login HTML —
-          // exactly the wrong document to show an authenticated
-          // user later, and worth skipping for guests too (they
-          // can't usefully view the shell either way).
-          if (!response.ok || response.redirected) return;
-          if (await putTimestamped(cache, path, response.clone())) succeeded += 1;
-
-          const html = await response.clone().text();
-          const assetUrls = Array.from(
-            html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
-          )
-            .map((match) => match[1])
-            .filter((url): url is string => Boolean(url));
-
-          await Promise.allSettled(
-            assetUrls.map(async (assetUrl) => {
-              // WARM-INFLIGHT-DEDUP — same map as warmRouteShells, so a
-              // chunk being warmed by a route at the same moment is
-              // awaited rather than re-fetched.
-              if (await fetchAndCacheAsset(staticCache, assetUrl)) succeeded += 1;
-            }),
-          );
-        } catch (err) {
-          // FIX WARM-LOG-01: `err` prints as `DOMException {}` under
-          // Chrome remote debugging, which is unactionable. Log the
-          // distinguishing fields — name (AbortError vs
-          // QuotaExceededError vs TypeError are very different
-          // problems) and message when present.
-          const name = err instanceof DOMException
-            ? err.name
-            : err instanceof Error
-              ? `${err.name}: ${err.message}`
-              : String(err);
-          console.warn('[route-shells] warmPersonalShells path failed:', path, name);
-        }
-      }),
-    );
-
-    await Promise.allSettled(
-      PERSONAL_SHELL_ROUTES_ESSENTIAL.map(async (path) => {
-        try {
-          const response = await fetchWithTimeout(path, {
-            credentials: 'same-origin',
-            headers: { RSC: '1' },
-          });
-          if (!response.ok) return;
-          const headers = new Headers(response.headers);
-          headers.delete('Vary');
-          headers.set('X-SW-Cached-At', String(Date.now()));
-          const stored = new Response(await response.clone().blob(), {
-            status: response.status,
-            statusText: response.statusText,
-            headers,
-          });
-          await cache.put(rscShellKey(path), stored);
-          succeeded += 1;
-        } catch (err) {
-          // FIX WARM-LOG-01: see the HTML-path logger above.
-          const name = err instanceof DOMException
-            ? err.name
-            : err instanceof Error
-              ? `${err.name}: ${err.message}`
-              : String(err);
-          console.warn('[route-shells] warmPersonalShells RSC failed:', path, name);
-        }
-      }),
-    );
-
-    if (succeeded > 0) {
-      localStorage.setItem(LAST_PERSONAL_WARMED_KEY, String(Date.now()));
-      if (getWarmingMode() === 'drip') writeDripLast();
-    }
-  } catch (err) {
-    console.warn('[route-shells] warmPersonalShells failed:', err);
-  } finally {
-    isWarmingPersonalShells = false;
-  }
+  return warmPersonalShellsAtomic();
 }
+
 
 /**
  * ما هو غير مُغطّى: افتراض RSC بدون Next-Router-State-Tree — راجع تعليق

@@ -46,7 +46,12 @@ export const adsController = {
       // ar/errors.ts's IMAGE_REQUIRED entry) can show a message that
       // actually names the problem.
       if (files.length === 0) throw new BadRequestError('At least one image is required', 'IMAGE_REQUIRED');
-      const ad = await adsService.createAd(user.userId, body, files);
+      // FIX OFFLINE-IDEMPOTENCY-01: forward client offline op id for dedup
+      const offlineOpId =
+        (req.headers['x-offline-op-id'] as string | undefined) ||
+        (req.headers['X-Offline-Op-Id'] as string | undefined) ||
+        null;
+      const ad = await adsService.createAd(user.userId, body, files, offlineOpId);
       res.status(201).json(successResponse('Ad created', ad));
     } catch (error) {
       next(error);

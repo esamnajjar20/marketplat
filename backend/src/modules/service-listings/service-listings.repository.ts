@@ -71,6 +71,7 @@ export const serviceListingsRepository = {
       price?: number;
       durationEstimate?: string;
       serviceLocation: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE';
+      offlineOperationId?: string | null;
     }
   ): Promise<ServiceListing> =>
     tx.serviceListing.create({
@@ -84,6 +85,7 @@ export const serviceListingsRepository = {
         price: data.price,
         durationEstimate: data.durationEstimate,
         serviceLocation: data.serviceLocation,
+        ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
       },
     }),
 

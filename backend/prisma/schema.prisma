@@ -268,6 +268,10 @@ model Ad {
   // Optional store as the *visible* publisher. userId remains the
   // owner for permissions/audit. null = personal ad; set = store ad.
   storeId           String?
+  // FIX OFFLINE-IDEMPOTENCY-01: client-generated X-Offline-Op-Id from
+  // the SW offline queue. Unique when present so a replayed POST after
+  // a flaky network ACK returns the existing row instead of a duplicate ad.
+  offlineOperationId String?       @unique
   category          Category?      @relation(fields: [categoryId], references: [id])
   sellerProfile     SellerProfile? @relation(fields: [sellerProfileId], references: [id])
   store             StoreDetails?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
@@ -592,6 +596,8 @@ model ServiceListing {
   serviceLocation   ServiceLocationType    @default(AT_PROVIDER)
   status            ServiceListingStatus   @default(ACTIVE)
   views             Int                    @default(0)
+  // FIX OFFLINE-IDEMPOTENCY-01
+  offlineOperationId String?               @unique
   /// Baseline for weekly provider views report deltas.
   viewsAtLastReport Int                    @default(0)
   createdAt         DateTime               @default(now())
@@ -615,6 +621,8 @@ model ServiceRequest {
   attachedImages String[]
   quotedPrice    Decimal?             @db.Decimal(10, 2)
   agreedPrice    Decimal?             @db.Decimal(10, 2)
+  // FIX OFFLINE-IDEMPOTENCY-01
+  offlineOperationId String?          @unique
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   respondedAt    DateTime?
@@ -763,6 +771,8 @@ model Request {
   status          RequestStatus @default(OPEN)
   acceptedOfferId String?       @unique
   expiresAt       DateTime?
+  // FIX OFFLINE-IDEMPOTENCY-01
+  offlineOperationId String?    @unique
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   customer        User          @relation("RequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
@@ -935,6 +945,8 @@ model Product {
   stockQuantity   Int?
   status          ProductStatus            @default(ACTIVE)
   views           Int                      @default(0)
+  // FIX OFFLINE-IDEMPOTENCY-01: same as Ad.offlineOperationId
+  offlineOperationId String?               @unique
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
   store           StoreDetails             @relation(fields: [storeId], references: [id], onDelete: Cascade)

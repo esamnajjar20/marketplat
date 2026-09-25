@@ -20,7 +20,11 @@ export const productsController = {
       const user = requireUser(req);
       const { body } = createProductSchema.parse({ body: req.body });
       const files = (req.files as Express.Multer.File[]) || [];
-      const product = await productsService.createProduct(user.userId, body, files);
+      const offlineOpId =
+        (req.headers['x-offline-op-id'] as string | undefined) ||
+        (req.headers['X-Offline-Op-Id'] as string | undefined) ||
+        null;
+      const product = await productsService.createProduct(user.userId, body, files, offlineOpId);
       res.status(201).json(successResponse('Product created', product));
     } catch (error) {
       next(error);

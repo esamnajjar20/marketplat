@@ -70,8 +70,26 @@ export const serviceListingsService = {
   createServiceListing: async (
     userId: string,
     input: CreateServiceListingInput,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    offlineOperationId?: string | null,
   ): Promise<ServiceListing> => {
+    // FIX OFFLINE-IDEMPOTENCY-01
+    if (offlineOperationId) {
+      const existing = await prisma.serviceListing.findUnique({
+        where: { offlineOperationId },
+      });
+      if (existing) {
+        const provider = await requireOwnProvider(userId);
+        if (existing.providerId !== provider.id) {
+          throw new BadRequestError(
+            'Offline operation id already used by another provider',
+            'OFFLINE_OP_ID_CONFLICT',
+          );
+        }
+        return existing;
+      }
+    }
+
     const provider = await requireOwnProvider(userId);
 
     // AUDIT-FIX (#3): require at least one image at create time.
@@ -123,13 +141,31 @@ export const serviceListingsService = {
           price: input.price,
           durationEstimate: input.durationEstimate,
           serviceLocation: input.serviceLocation,
+          offlineOperationId: offlineOperationId ?? null,
         })
       );
-    } catch (error) {
-      // Same failure-cleanup convention as ads.service.ts's createAd —
-      // if the DB write fails after upload, don't leave orphaned assets.
-      await cleanupUploadedImages(uploads.map(u => u.publicId));
-      throw error;
+    } catch (error: unknown) {
+      // FIX OFFLINE-IDEMPOTENCY-01: concurrent same offline op id
+      if (
+        offlineOperationId &&
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === 'P2002'
+      ) {
+        const existing = await prisma.serviceListing.findUnique({ where: { offlineOperationId } });
+        if (existing && existing.providerId === provider.id) {
+          listing = existing;
+        } else {
+          await cleanupUploadedImages(uploads.map(u => u.publicId));
+          throw error;
+        }
+      } else {
+        // Same failure-cleanup convention as ads.service.ts's createAd —
+        // if the DB write fails after upload, don't leave orphaned assets.
+        await cleanupUploadedImages(uploads.map(u => u.publicId));
+        throw error;
+      }
     }
 
     // Gap #10: fire-and-forget, see activityService.record()'s own doc

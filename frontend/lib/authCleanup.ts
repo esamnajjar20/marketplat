@@ -79,7 +79,13 @@ function clearPushBindingsOnSessionEnd(): void {
   })();
 }
 
-export function clearSensitiveLocalData(): void {
+/**
+ * FIX QUEUE-AWAIT-ON-LOGOUT-01: async so callers can await IndexedDB
+ * queue wipe before navigation. Previously void clearOfflineQueue() was
+ * fire-and-forget — closing the tab mid-logout could leave User A's
+ * queued mutations (URLs + bodies) visible until the promise settled.
+ */
+export async function clearSensitiveLocalData(): Promise<void> {
   // FIX REFRESH-QUEUE-LOGOUT: reject any requests currently parked in
   // api/client.ts's refresh queue. Their retry would ship the revoked
   // access token to the server, get another 401, and re-enter the
@@ -155,9 +161,14 @@ export function clearSensitiveLocalData(): void {
   clearAllOfflineLists();
   void clearDraftOnlyAdDrafts();
   clearAllOfflineJson();
-  // FIX QUEUE-CLEAR-ON-LOGOUT: طابور الـ SW يحتوي عناصر User A (مع توكنه
-  // في Authorization headers) — بدونه، User B يرى عدد العمليات المعلّقة.
-  void clearOfflineQueue();
+  // FIX QUEUE-CLEAR-ON-LOGOUT + FIX QUEUE-AWAIT-ON-LOGOUT-01:
+  // طابور الـ SW كان يخزّن عناصر User A (وربما Authorization قبل
+  // QUEUE-NO-STORE-AUTH-01). ننتظر المسح حتى لا تبقى عناصر بعد التوجيه.
+  try {
+    await clearOfflineQueue();
+  } catch (err) {
+    console.warn('[auth-cleanup] clearOfflineQueue failed:', err);
+  }
   // FIX CATALOG-CLEAR-ON-LOGOUT: سجل تنزيلات كتالوجات المتاجر + أجسامها
   // في IndexedDB كانت تبقى عبر logout — User B يرى ما نزّله User A.
   clearCatalogDownloads();

@@ -81,8 +81,20 @@ const recomputeProviderStats = async (
 export const serviceRequestsService = {
   createRequest: async (
     customerId: string,
-    input: CreateServiceRequestInput
+    input: CreateServiceRequestInput,
+    offlineOperationId?: string | null,
   ): Promise<ServiceRequest> => {
+    // FIX OFFLINE-IDEMPOTENCY-01
+    if (offlineOperationId) {
+      const existing = await prisma.serviceRequest.findUnique({ where: { offlineOperationId } });
+      if (existing) {
+        if (existing.customerId !== customerId) {
+          throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
+        }
+        return existing;
+      }
+    }
+
     const listing = await serviceListingsRepository.findById(input.listingId);
     if (!listing || listing.status !== 'ACTIVE') {
       throw new BadRequestError('This service listing is not available for requests.');
@@ -118,12 +130,28 @@ export const serviceRequestsService = {
       throw new ForbiddenError('You cannot request this service.', 'USER_BLOCKED');
     }
 
-    const request = await prisma.$transaction(async tx =>
-      serviceRequestsRepository.create(tx, customerId, input.listingId, {
-        details: input.details,
-        attachedImages: input.attachedImages ?? [],
-      })
-    );
+    let request: ServiceRequest;
+    try {
+      request = await prisma.$transaction(async tx =>
+        serviceRequestsRepository.create(tx, customerId, input.listingId, {
+          details: input.details,
+          attachedImages: input.attachedImages ?? [],
+          offlineOperationId: offlineOperationId ?? null,
+        })
+      );
+    } catch (err: unknown) {
+      if (
+        offlineOperationId &&
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'P2002'
+      ) {
+        const existing = await prisma.serviceRequest.findUnique({ where: { offlineOperationId } });
+        if (existing && existing.customerId === customerId) return existing;
+      }
+      throw err;
+    }
 
     // Gap #10: fire-and-forget, see activityService.record()'s own doc
     // comment. Logged for `customerId` (the requester), not the

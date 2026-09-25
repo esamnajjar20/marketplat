@@ -134,11 +134,12 @@ const PERSONAL_ROUTES = [
 ] as const;
 
 const CACHE_NAMES = [
-  'market-static-v39',
-  'market-personal-shell-v39',
-  'market-core-v39',
-  'market-api-v39',
-  'market-images-v39',
+  'market-static-v40',
+  'market-personal-shell-v40',
+  'market-core-v40',
+  'market-api-v40',
+  'market-images-v40',
+  'market-user-data-v40',
   'market-saved-ads',
   'market-warming-staging',
   'market-auto-read-ads',

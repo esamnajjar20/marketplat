@@ -28,7 +28,7 @@ export const serviceRequestsRepository = {
     tx: Prisma.TransactionClient,
     customerId: string,
     listingId: string,
-    data: { details: string; attachedImages: string[] }
+    data: { details: string; attachedImages: string[]; offlineOperationId?: string | null }
   ): Promise<ServiceRequest> =>
     tx.serviceRequest.create({
       data: {
@@ -36,6 +36,7 @@ export const serviceRequestsRepository = {
         listingId,
         details: data.details,
         attachedImages: data.attachedImages,
+        ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
       },
     }),
 

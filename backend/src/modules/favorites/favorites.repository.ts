@@ -48,6 +48,8 @@ const adSelect = {
   userId: true,
   categoryId: true,
   sellerProfileId: true,
+  // FIX OFFLINE-IDEMPOTENCY-01: keep in sync with adListSelect scalars
+  offlineOperationId: true,
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;

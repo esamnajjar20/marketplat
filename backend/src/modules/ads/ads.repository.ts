@@ -85,6 +85,10 @@ const adListSelect = {
   categoryId: true,
   sellerProfileId: true,
   storeId: true,
+  // FIX OFFLINE-IDEMPOTENCY-01: keep adListSelect a superset of Ad scalars
+  // (same rule as viewsAtLastReport / riskScore). Internal field; list UI
+  // does not display it.
+  offlineOperationId: true,
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
   // UX trust-on-card: lightweight seller signals for AdCard (not full profile).

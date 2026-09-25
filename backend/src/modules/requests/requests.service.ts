@@ -96,7 +96,22 @@ async function assertCanSubmitOffer(type: RequestType, userId: string): Promise<
 }
 
 export const requestsService = {
-  create: async (customerId: string, input: CreateRequestInput): Promise<RequestRow> => {
+  create: async (
+    customerId: string,
+    input: CreateRequestInput,
+    offlineOperationId?: string | null,
+  ): Promise<RequestRow> => {
+    // FIX OFFLINE-IDEMPOTENCY-01
+    if (offlineOperationId) {
+      const existing = await prisma.request.findUnique({ where: { offlineOperationId } });
+      if (existing) {
+        if (existing.customerId !== customerId) {
+          throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
+        }
+        return existing as RequestRow;
+      }
+    }
+
     await assertCategoryForType(input.type, input.categoryId);
 
     const openCount = await requestsRepository.countOpenByCustomer(customerId);
@@ -107,18 +122,34 @@ export const requestsService = {
       );
     }
 
-    return requestsRepository.create(customerId, {
-      type: input.type,
-      categoryId: input.categoryId,
-      title: input.title,
-      description: input.description,
-      city: input.city,
-      attachedImages: input.attachedImages,
-      budgetMin: input.budgetMin,
-      budgetMax: input.budgetMax,
-      attributes: input.attributes as Prisma.InputJsonValue | undefined,
-      expiresAt: resolveExpiresAt(input.expiresInDays),
-    });
+    try {
+      return await requestsRepository.create(customerId, {
+        type: input.type,
+        categoryId: input.categoryId,
+        title: input.title,
+        description: input.description,
+        city: input.city,
+        attachedImages: input.attachedImages,
+        budgetMin: input.budgetMin,
+        budgetMax: input.budgetMax,
+        attributes: input.attributes as Prisma.InputJsonValue | undefined,
+        expiresAt: resolveExpiresAt(input.expiresInDays),
+        offlineOperationId: offlineOperationId ?? null,
+      });
+    } catch (err: unknown) {
+      // P2002 race: concurrent replay of the same offline op id
+      if (
+        offlineOperationId &&
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'P2002'
+      ) {
+        const existing = await prisma.request.findUnique({ where: { offlineOperationId } });
+        if (existing && existing.customerId === customerId) return existing as RequestRow;
+      }
+      throw err;
+    }
   },
 
   getOpenFeed: async (

@@ -67,8 +67,26 @@ export const productsService = {
   createProduct: async (
     userId: string,
     input: CreateProductInput,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    offlineOperationId?: string | null,
   ): Promise<Product> => {
+    // FIX OFFLINE-IDEMPOTENCY-01
+    if (offlineOperationId) {
+      const existing = await prisma.product.findUnique({
+        where: { offlineOperationId },
+      });
+      if (existing) {
+        const store = await requireOwnStoreForProducts(userId);
+        if (existing.storeId !== store.id) {
+          throw new BadRequestError(
+            'Offline operation id already used by another store',
+            'OFFLINE_OP_ID_CONFLICT',
+          );
+        }
+        return existing;
+      }
+    }
+
     const store = await requireOwnStoreForProducts(userId);
 
     if (store.status !== 'ACTIVE') {
@@ -145,12 +163,30 @@ export const productsService = {
             wholesaleMinQty: input.wholesaleMinQty,
             availability: deriveAvailabilityFromStock(input.stockQuantity, input.availability),
             stockQuantity: input.stockQuantity ?? null,
+            offlineOperationId: offlineOperationId ?? null,
           })
         );
       });
-    } catch (error) {
-      await cleanupUploadedImages(uploads.map(u => u.publicId));
-      throw error;
+    } catch (error: unknown) {
+      // FIX OFFLINE-IDEMPOTENCY-01: concurrent same offline op id
+      if (
+        offlineOperationId &&
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === 'P2002'
+      ) {
+        const existing = await prisma.product.findUnique({ where: { offlineOperationId } });
+        if (existing && existing.storeId === store.id) {
+          product = existing;
+        } else {
+          await cleanupUploadedImages(uploads.map(u => u.publicId));
+          throw error;
+        }
+      } else {
+        await cleanupUploadedImages(uploads.map(u => u.publicId));
+        throw error;
+      }
     }
 
     // Fire-and-forget fan-out to everyone following this store — a
