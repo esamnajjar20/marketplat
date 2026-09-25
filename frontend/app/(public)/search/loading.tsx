@@ -4,8 +4,8 @@ export default function SearchLoading() {
   return (
     <PageLoadingState
       variant="cards"
-      title="جارٍ البحث"
-      description="نبحث عن أفضل النتائج لك…"
+      title="جارٍ فتح الصفحة"
+      description="لحظة من فضلك…"
     />
   );
 }

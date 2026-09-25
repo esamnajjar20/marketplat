@@ -4,8 +4,8 @@ export default function ProtectedRequestsLoading() {
   return (
     <PageLoadingState
       variant="list"
-      title="جارٍ التحميل"
-      description="نجهّز طلباتك…"
+      title="جارٍ فتح الصفحة"
+      description="لحظة من فضلك…"
     />
   );
 }

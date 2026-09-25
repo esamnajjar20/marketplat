@@ -7,8 +7,8 @@ export default function PublicLoading() {
   return (
     <PageLoadingState
       variant="cards"
-      title="جارٍ التحميل"
-      description="نجهّز الإعلانات والمحتوى…"
+      title="جارٍ فتح الصفحة"
+      description="لحظة من فضلك…"
     />
   );
 }

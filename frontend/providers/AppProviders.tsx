@@ -53,7 +53,6 @@ import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { NavigationProgress } from '@/components/shared/NavigationProgress';
-import { BackgroundRefetchIndicator } from '@/components/shared/BackgroundRefetchIndicator';
 import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
 
 interface AppProvidersProps {
@@ -161,7 +160,6 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         <ProfileCompletionGate />
 
         <NavigationProgress />
-        <BackgroundRefetchIndicator />
 
         <NetworkStatusBanner />
 

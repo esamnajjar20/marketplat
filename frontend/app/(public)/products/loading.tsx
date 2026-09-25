@@ -7,8 +7,8 @@ export default function Loading() {
   return (
     <PageLoadingState
       variant="cards"
-      title="جارٍ التحميل"
-      description="نجهّز النتائج…"
+      title="جارٍ فتح الصفحة"
+      description="لحظة من فضلك…"
     />
   );
 }

@@ -4,8 +4,8 @@ export default function RequestDetailLoading() {
   return (
     <PageLoadingState
       variant="detail"
-      title="تفاصيل الطلب"
-      description="نجهّز الصفحة…"
+      title="جارٍ فتح الصفحة"
+      description="لحظة من فضلك…"
     />
   );
 }

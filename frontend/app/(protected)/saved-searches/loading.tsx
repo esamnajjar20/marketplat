@@ -4,8 +4,8 @@ export default function Loading() {
   return (
     <PageLoadingState
       variant="list"
-      title="عمليات البحث"
-      description="نجهّز المحتوى…"
+      title="جارٍ فتح الصفحة"
+      description="لحظة من فضلك…"
     />
   );
 }
