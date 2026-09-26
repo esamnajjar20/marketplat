@@ -58,37 +58,49 @@ export const MIN_WARM_ROUTES = 20;
  * Marketplace usage order (highest first).
  * Public browse first, then engagement, then seller tools, then utilities.
  */
+// WARM-55-PRIORITY-01: ordered by real usage — first the pages a user
+// needs offline to browse, then the pages they need to publish, then
+// engagement, then settings/misc. `selectRoutesByPlan` walks this list
+// in order when a tier has a budget smaller than the route set.
 const PRIORITY_ROUTES = [
+  // ── 1. Browse (public, most reached) ──────────────────────────
   '/offline',
   '/',
   '/ads',
   '/products',
   '/search',
+  '/requests',
   '/stores',
   '/services',
   '/service-providers',
+  '/sellers/ranking',
+  // ── 2. Publish (the flows that actually write data) ───────────
+  '/ads/create',
+  '/my-store/products/new',
+  '/my-services/new',
+  '/requests/new',
+  // ── 3. Engage (personal) ──────────────────────────────────────
   '/messages',
   '/notifications',
   '/favorites',
   '/dashboard',
   '/my-ads',
-  '/ads/create',
   '/my-store',
   '/my-store/products',
   '/my-services',
-  '/requests/new',
-  '/settings/sync',
-  '/settings/storage',
-  '/settings/offline',
+  '/my-requests',
+  // ── 4. User content / actions ─────────────────────────────────
   '/saved-ads',
   '/downloads',
   '/activity',
   '/saved-searches',
-  '/sellers/ranking',
   '/saved-payments',
-  '/my-requests',
   '/complete-profile',
   '/my-reports',
+  // ── 5. Settings + offline tools ───────────────────────────────
+  '/settings/sync',
+  '/settings/storage',
+  '/settings/offline',
 ];
 
 /** Max shells on 'core' when list is longer — at least MIN_WARM_ROUTES. */

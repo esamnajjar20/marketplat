@@ -146,6 +146,8 @@ export const CORE_ROUTES = [
   // FIX WARM-PRIORITY-MARKETPLACE-01 + WARM-MIN-20-01: public browse first
   '/offline',
   '/',
+  // WARM-55-ROUTES-01: /requests is the public open-requests browse.
+  '/requests',
   '/ads',
   '/products',
   '/search',
@@ -415,6 +417,12 @@ const LAST_DRIP_WARMED_KEY = `marketplat:drip-last-pass:${CACHE_VERSION_SUFFIX}`
 // just doesn't warm this pass), so the tradeoff is purely about how
 // many of the 20 succeed per cycle.
 const FETCH_TIMEOUT_MS = 15000;
+
+// WARM-REFRESH-24H-01: a route is considered stale and eligible for
+// re-fetch after this long. Warming runs every 6h (see
+// OfflineBootstrap's PERIODIC_WARM_MS) but only rebuilds a route once
+// per day — intermediate passes are cheap no-ops for fresh routes.
+const ROUTE_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
 
 function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
@@ -758,7 +766,10 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     for (const route of routes) {
       if (isWarmingCancelled()) break;
       const prior = snapshot?.routes[route];
-      if (prior?.status === 'complete' && prior.chunks.length > 0) {
+      const isStale =
+        prior?.status === 'complete' &&
+        (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS);
+      if (!isStale && prior?.status === 'complete' && prior.chunks.length > 0) {
         liveUrls.push(...prior.chunks.map(toPath));
         continue;
       }
@@ -1034,7 +1045,10 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
       const key = `personal:${route}`;
       const prior = snapshot?.routes[key];
 
-      if (prior?.status === 'complete') {
+      const isStale =
+        prior?.status === 'complete' &&
+        (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS);
+      if (!isStale && prior?.status === 'complete') {
         // Sanity: logout wipes PERSONAL_SHELL_CACHE but not IndexedDB.
         const htmlHit = await personalCache.match(route);
         if (htmlHit) continue;
