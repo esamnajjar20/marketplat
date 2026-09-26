@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Layers, Plus, Pencil, Trash2, ChevronUp, ChevronDown, PackagePlus, AlertTriangle, EyeOff } from 'lucide-react';
+import { Layers, Plus, Pencil, Trash2, ChevronUp, ChevronDown, PackagePlus, AlertTriangle, EyeOff, Check, Square, CheckSquare, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -38,6 +39,11 @@ export function MyCollectionsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<StoreCollectionWithCount | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  // BULK-COLLECTIONS-01: multi-select + bulk delete.
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   if (isLoading) {
     return (
@@ -73,13 +79,54 @@ export function MyCollectionsList() {
     reorder.mutate({ orderedIds });
   }
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkDelete() {
+    setConfirmBulkDelete(false);
+    setBulkBusy(true);
+    const ids = Array.from(selected);
+    let ok = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        await deleteCollection.mutateAsync(id);
+        ok += 1;
+      } catch {
+        fail += 1;
+      }
+    }
+    setBulkBusy(false);
+    setSelected(new Set());
+    setSelectionMode(false);
+    if (fail === 0) toast.success(`حُذف ${ok} مجموعة`);
+    else toast.error(`حُذف ${ok} · فشل ${fail}`);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="font-semibold">مجموعات المتجر</h2>
-        <Button size="sm" className="gap-1.5" onClick={() => { setEditTarget(null); setFormOpen(true); }}>
-          <Plus className="h-4 w-4" />مجموعة جديدة
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => { setSelectionMode((v) => !v); setSelected(new Set()); }}
+          >
+            {selectionMode ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+            {selectionMode ? 'إلغاء التحديد' : 'تحديد'}
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={() => { setEditTarget(null); setFormOpen(true); }}>
+            <Plus className="h-4 w-4" />مجموعة جديدة
+          </Button>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -96,9 +143,20 @@ export function MyCollectionsList() {
             return (
               <div
                 key={collection.id}
-                className="flex flex-col gap-3 p-3 rounded-lg border bg-card sm:flex-row sm:items-center sm:justify-between"
+                onClick={selectionMode ? () => toggleSelect(collection.id) : undefined}
+                className={`flex flex-col gap-3 p-3 rounded-lg border bg-card sm:flex-row sm:items-center sm:justify-between ${selectionMode ? 'cursor-pointer' : ''} ${selected.has(collection.id) ? 'border-primary/40 bg-primary/10' : ''}`}
               >
                 <div className="flex items-center gap-3 min-w-0">
+                  {selectionMode && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(collection.id); }}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded border bg-background"
+                      aria-label={selected.has(collection.id) ? 'إلغاء التحديد' : 'تحديد'}
+                    >
+                      {selected.has(collection.id) && <Check className="h-4 w-4" />}
+                    </button>
+                  )}
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
                     <SafeImage src={cover} alt="" fill className="object-cover" sizes="56px" />
                   </div>
@@ -169,6 +227,32 @@ export function MyCollectionsList() {
         </div>
       )}
 
+      {selectionMode && (
+        <div className="sticky bottom-2 z-10 flex items-center justify-between gap-2 rounded-lg border bg-card p-2 shadow-lg">
+          <span className="text-sm font-medium">{selected.size} محدد</span>
+          <div className="flex gap-1">
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setConfirmBulkDelete(true)}
+              disabled={bulkBusy || selected.size === 0}
+            >
+              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              حذف
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setSelectionMode(false); setSelected(new Set()); }}
+              disabled={bulkBusy}
+            >
+              إلغاء
+            </Button>
+          </div>
+        </div>
+      )}
+
       <CollectionForm open={formOpen} onOpenChange={setFormOpen} collection={editTarget} />
 
       <ConfirmDialog
@@ -183,6 +267,17 @@ export function MyCollectionsList() {
           if (!deleteTargetId) return;
           deleteCollection.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
         }}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        onOpenChange={setConfirmBulkDelete}
+        title={`حذف ${selected.size} مجموعة؟`}
+        description="سيتم حذف المجموعات نهائياً. المنتجات نفسها تبقى في متجرك."
+        confirmLabel="حذف المجموعات"
+        destructive
+        isPending={bulkBusy}
+        onConfirm={() => void bulkDelete()}
       />
     </div>
   );
