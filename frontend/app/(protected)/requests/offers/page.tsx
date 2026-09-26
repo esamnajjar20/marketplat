@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { ClipboardList } from 'lucide-react';
 import { useMyRequestOffers } from '@/hooks/queries/useRequests';
@@ -15,9 +16,13 @@ import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 export default function MyRequestOffersPage() {
   const { data, isLoading, isError, refetch } = useMyRequestOffers({ limit: 50 });
+  // CONFIRM-OFFERS-01: replace window.confirm with ConfirmDialog for
+  // consistent RTL / dark-mode / a11y behaviour across the app.
+  const [confirmOffer, setConfirmOffer] = useState<{ id: string; offerId: string } | null>(null);
   const withdraw = useWithdrawRequestOffer();
   const items = Array.isArray(data?.data) ? data.data : [];
 
@@ -84,15 +89,7 @@ export default function MyRequestOffersPage() {
                     size="sm"
                     variant="outline"
                     disabled={withdraw.isPending}
-                    onClick={() => {
-                      // SW-FIX-WITHDRAW-CONFIRM: same guard as requests/[id]’s
-                      // cancel — withdrawing an offer is irreversible and was
-                      // the only destructive action in this app firing on a
-                      // single tap without confirmation.
-                      if (window.confirm('سحب هذا العرض؟ لن يستطيع العميل رؤيته بعد الآن.')) {
-                        withdraw.mutate({ id: o.requestId, offerId: o.id });
-                      }
-                    }}
+                    onClick={() => setConfirmOffer({ id: o.requestId, offerId: o.id })}
                   >
                     سحب
                   </Button>
@@ -115,6 +112,20 @@ export default function MyRequestOffersPage() {
           }
         />
       )}
+
+      <ConfirmDialog
+        open={confirmOffer !== null}
+        onOpenChange={(o) => { if (!o) setConfirmOffer(null); }}
+        title="سحب هذا العرض؟"
+        description="لن يستطيع العميل رؤيته بعد الآن."
+        confirmLabel="سحب العرض"
+        destructive
+        isPending={withdraw.isPending}
+        onConfirm={() => {
+          if (!confirmOffer) return;
+          withdraw.mutate(confirmOffer, { onSuccess: () => setConfirmOffer(null) });
+        }}
+      />
     </div>
   );
 }
