@@ -39,8 +39,17 @@ export default async function StorePage({ params }: Props) {
   try {
     const res = await getCachedStore(id);
     store = res.data.data ?? null;
-  } catch {
-    /* 404 */
+  } catch (err) {
+    // STORE-DETAIL-ERROR-CLASSIFY-01: the old bare `catch { /* 404 */ }`
+    // swallowed every failure as "not found". A slow Render cold-start,
+    // a DNS blip, or a 5xx all rendered the "المتجر غير موجود" empty
+    // state, telling a user that an existing store was deleted. Only a
+    // confirmed 404 (backend said so) is a genuine miss; anything else
+    // propagates so app/(public)/error.tsx can show a retry UI.
+    const statusCode =
+      (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
+      (err as { response?: { status?: number } })?.response?.status;
+    if (statusCode !== 404) throw err;
   }
 
   if (!store) {

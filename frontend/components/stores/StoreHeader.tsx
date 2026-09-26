@@ -124,7 +124,12 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
         </h1>
 
-        {store.sellerProfile.totalRatings != null && store.sellerProfile.totalRatings > 0 && (
+        {/* STOREHEADER-NULL-GUARD-01: sellerProfile is documented as
+            possibly null (see SW-FIX-STOREHEADER-SP at the top of this
+            file) — every other access uses ?., this one didn't. A null
+            profile crashed the whole header instead of just skipping
+            the rating line. */}
+        {store.sellerProfile?.totalRatings != null && store.sellerProfile.totalRatings > 0 && (
           <span className="mt-1.5 flex items-center gap-1 text-sm text-muted-foreground">
             <Star className="h-3.5 w-3.5 fill-rating text-rating" />
             {rating.toFixed(1)} ({store.sellerProfile.totalRatings} تقييم)

@@ -8,12 +8,14 @@ import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useStores } from '@/hooks/queries/useStores';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ROUTES } from '@/lib/constants';
 import type { StoreSortField } from '@/types/store.types';
 
 /** GET /stores directory grid. Mirrors ServiceListingsGrid's layout/behaviour. */
 export function StoresGrid() {
   const sp = useSearchParams();
+  const isOnline = useOnlineStatus();
 
   const search = sp.get('search') ?? undefined;
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
@@ -54,6 +56,21 @@ export function StoresGrid() {
     );
   }
   if (isError) {
+    // STORES-GRID-OFFLINE-01: useStores already caches the unfiltered
+    // first page for offline replay. A failure with NO cache while
+    // offline is not "an error" in the user's mind — it's "I'm not
+    // connected". Same distinction SearchResults.tsx already draws.
+    if (!isOnline) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <p className="text-destructive">تحتاج اتصالاً بالإنترنت لعرض المتاجر</p>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            لا توجد نسخة محفوظة على الجهاز بعد. افتح التطبيق مرة واحدة
+            وأنت متصل ليصبح متاحاً لاحقاً بدون اتصال.
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <p className="text-destructive">حدث خطأ أثناء تحميل المتاجر</p>
