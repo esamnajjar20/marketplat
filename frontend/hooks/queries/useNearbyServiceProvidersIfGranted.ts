@@ -5,6 +5,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { saveLastKnownLocation, getLastKnownLocation } from '@/lib/lastKnownLocation';
 
 import { useEffect, useState } from 'react';
+import { FEATURES } from '@/lib/featureFlags';
 import { useNearbyServiceProviders } from './useServiceProviders';
 import type { NearbyServiceProvidersParams } from '@/types/service.types';
 
@@ -53,6 +54,15 @@ export function useNearbyServiceProvidersIfGranted() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // FEATURE-FLAG-GPS: when GPS is disabled, do not even ask the
+    // Permissions API. The section stays hidden — same observable
+    // result as 'not-granted', but without touching geolocation at
+    // all. Re-enabling is a one-line flip in lib/featureFlags.ts.
+    if (!FEATURES.GPS_LOCATION) {
+      setPermission('not-granted');
+      return;
+    }
 
     // jsdom (and some older browsers) report `'permissions' in navigator`
     // as true while `navigator.permissions` itself is undefined — the
@@ -105,10 +115,13 @@ export function useNearbyServiceProvidersIfGranted() {
     };
   }, []);
 
-  // أوفلاين: آخر موقع معروف إن لم يتوفر GPS حي
-  const effectiveCoords =
-    coords ??
-    (!isOnline ? getLastKnownLocation()?.location ?? null : null);
+  // أوفلاين: آخر موقع معروف إن لم يتوفر GPS حي.
+  // FEATURE-FLAG-GPS: when disabled, the last-known-location slot is
+  // GPS-derived data and is ignored too — the whole section collapses
+  // to "unavailable" rather than silently relying on a stale GPS fix.
+  const effectiveCoords = FEATURES.GPS_LOCATION
+    ? (coords ?? (!isOnline ? getLastKnownLocation()?.location ?? null : null))
+    : null;
 
   const params: NearbyServiceProvidersParams | null =
     effectiveCoords

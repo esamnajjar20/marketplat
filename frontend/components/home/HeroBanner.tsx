@@ -30,14 +30,22 @@ export function HeroBanner() {
   const name = useAuthStore((s) => s.user?.name?.split(' ')[0] || null);
 
   useEffect(() => {
+    // HERO-TIMER-FIX-01: the inner setTimeout was untracked — if the
+    // banner unmounted during its 200ms window, setCreateLabelIndex /
+    // setLabelVisible fired on an unmounted component. Track both ids
+    // and clear them on cleanup.
+    let innerTimer: ReturnType<typeof setTimeout> | undefined;
     const id = setInterval(() => {
       setLabelVisible(false);
-      window.setTimeout(() => {
+      innerTimer = setTimeout(() => {
         setCreateLabelIndex((i) => (i + 1) % ROTATING_CREATE_LABELS.length);
         setLabelVisible(true);
       }, 200);
     }, 3400);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      if (innerTimer) clearTimeout(innerTimer);
+    };
   }, []);
 
   const createLabel = ROTATING_CREATE_LABELS[createLabelIndex];

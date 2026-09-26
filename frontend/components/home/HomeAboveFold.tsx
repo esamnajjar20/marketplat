@@ -1,12 +1,11 @@
 'use client';
 
-import { Sparkles, Clock, LocateFixed } from 'lucide-react';
+import { Sparkles, Clock } from 'lucide-react';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { FeaturedAds }  from '@/components/home/FeaturedAds';
 import { RecentAds }    from '@/components/home/RecentAds';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
-import { Button }       from '@/components/shared/ui/Button';
 import { Skeleton }     from '@/components/shared/ui/Skeleton';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useCategories } from '@/hooks/queries/useCategories';
@@ -99,14 +98,11 @@ export function HomeAboveFold() {
     />
   );
 
-  // GPS CTA: only shown when there's actually something for the user
-  // to gain by pressing it — permission not yet granted and no saved
-  // GPS already covering the request (matches the section-3/4 rule
-  // that gps-saved is used automatically, silently, without a popup;
-  // the CTA is specifically the "prompt an explicit browser permission
-  // request" escape hatch, never shown while already resolved to a
-  // GPS source and never auto-triggered on mount by this component).
-  const showLocateCta = false; // المدينة أولوية — بدون GPS CTA
+  // HOME-DEAD-CTA-CLEANUP-01: the GPS CTA block was hard-coded off
+  // (showLocateCta = false) — city-only mode by design. Removed the
+  // dead flag and its JSX. GPS comes back via FEATURES.GPS_LOCATION
+  // (lib/featureFlags.ts) when that flips on; the CTA can be restored
+  // then if this section still wants it.
 
   if (stillLoading) {
     return (
@@ -176,14 +172,6 @@ export function HomeAboveFold() {
 
       <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-8 sm:pt-10">
         {latestAdsHeadingLoaded}
-        {showLocateCta && (
-          <div className="-mt-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={location.requestLocation}>
-              <LocateFixed className="h-3.5 w-3.5" />
-              استخدام موقعي
-            </Button>
-          </div>
-        )}
         <RecentAds />
       </section>
     </>

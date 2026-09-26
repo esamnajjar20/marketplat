@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
+import { FEATURES } from '@/lib/featureFlags';
 import {
   useServiceProvidersDirectory,
   SERVICE_PROVIDERS_DIRECTORY_RADIUS_KM as RADIUS_KM,
@@ -28,7 +29,8 @@ export function NearbyServiceProviders() {
     useServiceProvidersDirectory();
 
   const showSkeleton = isChecking || isLoading;
-  const showLocateCta = source !== 'gps';
+  // FEATURE-FLAG-GPS: hide the CTA when GPS is off.
+  const showLocateCta = FEATURES.GPS_LOCATION && source !== 'gps';
 
   if (showSkeleton) {
     return (

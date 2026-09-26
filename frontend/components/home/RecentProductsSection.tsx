@@ -12,6 +12,7 @@ import { ApiError } from '@/components/shared/ApiError';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
+import { FEATURES } from '@/lib/featureFlags';
 import { ROUTES } from '@/lib/constants';
 
 /**
@@ -51,7 +52,8 @@ export function RecentProductsSection() {
   // improve these particular results, unlike the two sibling sections
   // that already offer it. Same pattern, same copy, same placement.
   const isGps = location.source === 'gps-current' || location.source === 'gps-saved';
-  const showLocateCta = !isGps;
+  // FEATURE-FLAG-GPS: hide the CTA when GPS is off.
+  const showLocateCta = FEATURES.GPS_LOCATION && !isGps;
   // Maps useLocationResolver's 4-way source to LocationSourceBadge's
   // 3-way display union. No cascade-to-general case to account for
   // here (unlike useAdsForHome/useNearbyProvidersForHome) — city is

@@ -6,6 +6,7 @@ import { LocateFixed, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
 import { DEFAULT_NEARBY_RADIUS_KM, GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
+import { FEATURES } from '@/lib/featureFlags';
 
 const RADIUS_KM = DEFAULT_NEARBY_RADIUS_KM;
 
@@ -72,6 +73,11 @@ export function SearchNearbyToggle() {
     params.delete('page');
     router.replace(`${ROUTES.search}?${params.toString()}`);
   }
+
+  // FEATURE-FLAG-GPS: hide the toggle entirely when GPS is disabled.
+  // Placed AFTER both hooks above so the Rules of Hooks order is
+  // identical whether the flag is on or off.
+  if (!FEATURES.GPS_LOCATION) return null;
 
   if (isActive) {
     return (

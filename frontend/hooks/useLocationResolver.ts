@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { getNativeCoordinates } from '@/lib/capacitor/nativeGeolocation';
+import { FEATURES } from '@/lib/featureFlags';
 
 // SW-CLEAR-GPS-ON-LOGOUT-01: exported so authCleanup and any future
 // consumer can reference the same key without duplicating the string.
@@ -117,6 +118,13 @@ export function useLocationResolver(): ResolvedLocation {
   useEffect(() => {
     let cancelled = false;
 
+    // FEATURE-FLAG-GPS: when GPS is disabled, leave permission at
+    // 'unsupported' so nothing downstream thinks a grant is possible.
+    if (!FEATURES.GPS_LOCATION) {
+      setPermission('unsupported');
+      return;
+    }
+
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
       setPermission('unsupported');
       return;
@@ -162,6 +170,11 @@ export function useLocationResolver(): ResolvedLocation {
   // check resolves false and falls straight through to the existing
   // navigator.geolocation path, unchanged.
   const requestLocation = useCallback(() => {
+    // FEATURE-FLAG-GPS: no-op when GPS is disabled. Callers that still
+    // render a CTA (they shouldn't — see each section's own guard)
+    // would find the button does nothing, which is the honest UX.
+    if (!FEATURES.GPS_LOCATION) return;
+
     if (typeof window === 'undefined') {
       setPermission('unsupported');
       return;
@@ -228,6 +241,18 @@ export function useLocationResolver(): ResolvedLocation {
   }, []);
 
   // ── Resolve final source — المدينة أولوية (بدون اعتماد على GPS) ───
+  //
+  // FEATURE-FLAG-GPS: when disabled, skip GPS branches entirely. The
+  // hooks above are still called (Rules of Hooks), but neither
+  // gps-current nor gps-saved can be the resolved source anymore.
+  if (!FEATURES.GPS_LOCATION) {
+    const earlyCity = city?.trim();
+    if (earlyCity) {
+      return { source: 'city', city: earlyCity, isLoading: false, requestLocation };
+    }
+    return { source: 'fallback', isLoading: false, requestLocation };
+  }
+
   const isLoading = permission === 'checking' || isRequesting;
 
   const trimmedCity = city?.trim();
