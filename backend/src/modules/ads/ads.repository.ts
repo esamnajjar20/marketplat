@@ -474,6 +474,9 @@ export const adsRepository = {
         : MAX_IMAGES_PER_ENTITY;
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
+    // RAWUNSAFE-SAFETY-NOTE-01: same pattern as service-listings —
+    // only the placeholder COUNT is interpolated (bounded by
+    // safeMaxImages), all values are bound parameters.
     await prisma.$executeRawUnsafe(
       `UPDATE "ads"
        SET "images" = (

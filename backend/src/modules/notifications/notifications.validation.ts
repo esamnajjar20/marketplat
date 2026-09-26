@@ -96,30 +96,37 @@ export const broadcastNotificationSchema = z.object({
 
 export const deleteFcmTokenSchema = z.object({
   body: z.object({
-    token: z.string().min(1),
+    // PUSH-SCHEMA-MAXLEN-01: FCM tokens are ~163 chars in practice;
+    // 1024 is generous. Uncapped, a single 10 MB token string landed
+    // straight in Redis/Postgres.
+    token: z.string().min(1).max(1024),
   }),
 });
 
 export const createPushSubscriptionSchema = z.object({
   body: z.object({
-    endpoint: z.string().url(),
+    // PUSH-SCHEMA-MAXLEN-01: see file's own note. Web Push endpoints
+    // run ~200-500 chars depending on service; 2048 is safe. p256dh
+    // is a base64-encoded 65-byte EC point (~88 chars), auth is
+    // base64 of 16 bytes (~24). Both capped generously.
+    endpoint: z.string().url().max(2048),
     keys: z.object({
-      p256dh: z.string().min(1),
-      auth: z.string().min(1),
+      p256dh: z.string().min(1).max(256),
+      auth: z.string().min(1).max(64),
     }),
   }),
 });
 
 export const deletePushSubscriptionSchema = z.object({
   body: z.object({
-    endpoint: z.string().min(1),
+    endpoint: z.string().min(1).max(2048),
   }),
 });
 
 export const registerFcmTokenSchema = z.object({
   body: z.object({
-    token: z.string().min(1),
-    platform: z.string().min(1),
+    token: z.string().min(1).max(1024),
+    platform: z.string().min(1).max(50),
   }),
 });
 

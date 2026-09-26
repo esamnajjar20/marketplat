@@ -104,7 +104,14 @@ export function WarmupIndicator() {
     if (!progress.active) return;
     try {
       if (sessionStorage.getItem(SHOWN_THIS_SESSION_KEY) !== '1') {
-        sessionStorage.setItem(SHOWN_THIS_SESSION_KEY, '1');
+        // STORAGE-QUOTA-GUARD-01: sessionStorage can throw in Safari
+        // private mode. Worst case: the indicator shows again next tick
+        // within the same session — cosmetic, not functional.
+        try {
+          sessionStorage.setItem(SHOWN_THIS_SESSION_KEY, '1');
+        } catch {
+          /* private mode — indicator will re-show, harmless */
+        }
       }
     } catch {
       // silent — same as above

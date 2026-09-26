@@ -130,7 +130,14 @@ export const adminController = {
 
   getPlatformTrends: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const days = req.query.days ? Number(req.query.days) : 30;
+      // ADMIN-DAYS-VALIDATION-01: was raw Number() — ?days=abc became
+      // NaN and flowed into the SQL interval, ?days=999999 produced a
+      // year-scale scan. Clamp to a sane window; anything invalid falls
+      // back to the default.
+      const rawDays = Number(req.query.days);
+      const days = Number.isInteger(rawDays) && rawDays >= 1 && rawDays <= 365
+        ? rawDays
+        : 30;
       const result = await adminService.getPlatformTrends(days);
       res.status(200).json(successResponse('Platform trends', result));
     } catch (error) {

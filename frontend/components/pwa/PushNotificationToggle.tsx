@@ -94,7 +94,18 @@ export function PushNotificationToggle() {
           toast.success('تم إيقاف إشعارات الجهاز');
         } else {
           const token = await registerNativePush();
-          if (token) window.localStorage.setItem(NATIVE_FCM_TOKEN_STORAGE_KEY, token);
+          if (token) {
+            // STORAGE-QUOTA-GUARD-01: setItem can throw (quota exceeded,
+            // Safari private mode). The token is already registered with
+            // the backend at this point — losing the local mirror only
+            // affects a future unsubscribe-from-this-device attempt, not
+            // the live push subscription. Never let it abort the flow.
+            try {
+              window.localStorage.setItem(NATIVE_FCM_TOKEN_STORAGE_KEY, token);
+            } catch (err) {
+              console.warn('[push-toggle] native FCM token persist failed:', err);
+            }
+          }
           setState(token ? 'subscribed' : 'unsubscribed');
           setPermission(token ? 'granted' : 'denied');
           if (token) toast.success('تم تفعيل إشعارات الجهاز');

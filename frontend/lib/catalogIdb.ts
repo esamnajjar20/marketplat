@@ -114,7 +114,13 @@ export async function openCatalogOffline(id: string): Promise<boolean> {
     if (!rec?.html) return false;
     const blob = new Blob([rec.html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank');
+    // WINDOW-OPEN-NOOPENER-01: match the pattern ShareAdButton already
+    // uses for every external open. The blob URL here is our own HTML
+    // from IndexedDB, so the practical risk is small — but 'noopener'
+    // costs nothing and removes the window.opener surface entirely
+    // (a blob-URL document with XSS would otherwise be able to navigate
+    // or read the parent). Defensive consistency, not a bug fix.
+    const w = window.open(url, '_blank', 'noopener,noreferrer');
     if (!w) {
       // popup blocked — تنزيل بدلًا من ذلك
       const a = document.createElement('a');

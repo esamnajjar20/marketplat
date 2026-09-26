@@ -261,6 +261,22 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name:    'marketplace-auth',
+      // AUTH-STORE-VERSION-01: version + migrate give persisted state a
+      // forward path. Without them, any future change to the `user`
+      // shape (new field, renamed field, changed type) leaves every
+      // existing client with a state blob that no longer matches
+      // current code. merge below keeps new fields at their initial
+      // value, but a renamed/re-typed field would still be silently
+      // wrong. Bump `version` and add a case in `migrate` whenever the
+      // shape changes.
+      version: 1,
+      migrate: (persistedState, _fromVersion) => {
+        // No migrations yet — first version. Future code:
+        //   if (fromVersion < 2) {
+        //     // e.g. convert `user.city` from string to object
+        //   }
+        return persistedState as never;
+      },
       storage: createJSONStorage(() =>
         typeof window !== 'undefined' ? localStorage : noopStorage,
       ),

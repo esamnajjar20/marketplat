@@ -320,7 +320,17 @@ export function AdForm({ mode, ad }: Props) {
       const payload = {
         title:        values.title.trim(),
         description:  values.description.trim(),
-        price:        values.price ? parseFloat(values.price) : undefined,
+        // PARSEFLOAT-GUARD-01: 'values.price' is a free-text input —
+        // a stray char ('12k', '١٢') makes parseFloat return NaN, which
+        // JSON.stringify turns into null and the backend rejects with a
+        // generic "invalid price". Guard here so the field is either a
+        // real number or omitted, matching how the form's own validator
+        // (which already rejects non-numeric) expects it to behave.
+        price: (() => {
+          if (!values.price) return undefined;
+          const n = parseFloat(values.price);
+          return Number.isFinite(n) && n > 0 ? n : undefined;
+        })(),
         isNegotiable: values.isNegotiable,
         condition:    values.condition || undefined,
         city:         values.city,

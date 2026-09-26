@@ -139,6 +139,13 @@ export const serviceListingsRepository = {
         : MAX_IMAGES_PER_ENTITY;
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
+    // RAWUNSAFE-SAFETY-NOTE-01: $executeRawUnsafe is correct here —
+    // the only thing interpolated into the SQL string is the NUMBER of
+    // placeholders ($2, $3, ...), which is bounded by safeMaxImages
+    // (validated 1..100 above). Every user-supplied value (the ids in
+    // newImages, plus the row id) is passed as a bound parameter. Do
+    // NOT replace with a template literal by editing this into
+    // $executeRaw — that form can't express a dynamic-length IN list.
     await prisma.$executeRawUnsafe(
       `UPDATE "service_listings"
        SET "images" = (
