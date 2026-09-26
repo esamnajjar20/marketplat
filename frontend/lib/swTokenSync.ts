@@ -66,6 +66,21 @@ export function initSwTokenSync(): void {
   installed = true;
 
   navigator.serviceWorker.addEventListener('message', (event) => {
+    // PAGE-PRIORITY-01: SW defers its refresh to us when a window is
+    // visible (see public/sw.js's refreshAccessToken). Fire the refresh
+    // here so the fresh Set-Cookie lands in the shared cookie jar before
+    // the SW's next queue-drain attempt. Our own apiClient response
+    // interceptor already has a "no recursion on /auth/refresh" guard,
+    // so a failing refresh here just rejects once — no loop.
+    const raw = event.data as { type?: unknown } | null | undefined;
+    if (raw && typeof raw === 'object' && raw.type === 'SW_REQUEST_REFRESH') {
+      void import('@/api/auth.api')
+        .then(({ authApi }) => authApi.refresh())
+        .catch(() => {
+          /* SW will fall back to its own refresh on the next drain */
+        });
+      return;
+    }
     if (!isSwTokenMessage(event.data)) return;
     try {
       useAuthStore.getState().setCsrfToken(event.data.csrfToken);

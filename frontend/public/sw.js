@@ -102,7 +102,7 @@
 // below); '/offline' added to CORE_ROUTES in offlineRouteShells.ts.
 // Both fixes require a cache bump so every active SW clears the
 // stale entries from v35 and the retry/marker files reset.
-const CACHE_VERSION = 'v39';
+const CACHE_VERSION = 'v40';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -1433,6 +1433,27 @@ async function notifyClients(message) {
  * weak network moment, on precisely the audience this app was built for.
  */
 async function refreshAccessToken(sampleUrl) {
+  // PAGE-PRIORITY-01: if any window client is currently visible,
+  // defer to it. The page has its own refresh path
+  // (AuthHydrationProvider on mount, response interceptor on 401)
+  // and the Set-Cookie it receives lands in the shared cookie jar,
+  // so our next drain sees the fresh token without needing a
+  // second concurrent /auth/refresh. Without this, page-mount queue
+  // replay always races the page's own refresh; backend's grace
+  // window makes it safe but still wasteful, and it keeps the
+  // TOKEN_REUSE_DETECTED alert path one bug away from firing.
+  try {
+    const clients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+    const visible = clients.filter((c) => c.visibilityState === 'visible');
+    if (visible.length > 0) {
+      // Ask them to refresh now so we don't wait for their next 401.
+      visible.forEach((c) => c.postMessage({ type: 'SW_REQUEST_REFRESH' }));
+      return { ok: false, reason: 'network' };
+    }
+  } catch { /* best-effort; fall through and refresh ourselves */ }
   let origin;
   try {
     origin = new URL(sampleUrl).origin;
