@@ -2,13 +2,23 @@
  * components/settings/OfflineControlClient.tsx
  *
  * UI for /settings/offline. Warming is user-driven:
- *   - "ابدأ التسخين الآن" runs the current mode.
- *   - "ألغِ" stops the in-flight pass.
+ *   - "ابدأ التسخين الآن" runs the current mode (force=true).
+ *   - "ألغِ" stops the in-flight pass, whether started here or by the
+ *     background 6h timer / mount bootstrap.
  *   - "أكمل الناقص" retries only pending/failed routes.
  *   - "أعد التحميل من الصفر" wipes route caches and re-warms.
  *   - "امسح كل التسخين" deletes warming caches only.
  *
  * An automatic top-up runs every 6 hours from OfflineBootstrap.
+ *
+ * WARM-RAN-01: the Cancel button reflects the REAL warming state,
+ * subscribed from lib/warmingProgress, not only the local `busy` flag
+ * — so a background warming pass started by the timer or mount is
+ * cancellable too. The Start button shows live progress (N/M) and
+ * refuses to lie: if the pipeline is already running it says so
+ * instead of toasting success. Clear loops inside resume/reset check
+ * the cancel flag between routes. Mode selection is locked during
+ * warming.
  */
 'use client';
 
@@ -31,10 +41,14 @@ import {
 import { readSnapshot } from '@/lib/offlineWarmingState';
 import {
   warmRouteShellsAtomic, warmPersonalShellsAtomic,
-  requestWarmingCancel, resetWarmingCancel,
+  requestWarmingCancel, resetWarmingCancel, isWarmingCancelled,
   getKnownRoutes, clearSingleRouteCache,
 } from '@/lib/offlineRouteShells';
 import { warmUserData } from '@/lib/offlineWarmingUserData';
+import {
+  subscribeWarmingProgress,
+  type AggregatedProgress,
+} from '@/lib/warmingProgress';
 import { OfflineRoutesList } from './OfflineRoutesList';
 
 const MODES: WarmingMode[] = ['fast', 'full', 'off'];
@@ -72,6 +86,22 @@ export function OfflineControlClient() {
   const [online, setOnline] = useState(true);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [progress, setProgress] = useState<AggregatedProgress | null>(null);
+
+  // WARM-RAN-01: subscribe to the aggregate warming state so a
+  // background pass (6h timer, mount bootstrap, online event) makes
+  // the Cancel button live and the Start button show progress.
+  useEffect(() => {
+    return subscribeWarmingProgress(setProgress);
+  }, []);
+
+  const warmingActive = progress?.active === true;
+  // Any operation running here OR any background warming pass.
+  const anyRunning =
+    warmingActive ||
+    busy === 'start' ||
+    busy === 'resume' ||
+    busy === 'reset';
 
   const readSnapshotLive = useCallback(async () => {
     try {
@@ -94,7 +124,12 @@ export function OfflineControlClient() {
           lastWarmedAt = meta.warmedAt;
         }
       }
-      setSnapshot({ publicComplete: pubComplete, personalComplete, lastWarmedAt, liveUrlsCount: s.liveUrls.length });
+      setSnapshot({
+        publicComplete: pubComplete,
+        personalComplete,
+        lastWarmedAt,
+        liveUrlsCount: s.liveUrls.length,
+      });
     } catch { /* IndexedDB unavailable */ }
   }, []);
 
@@ -129,17 +164,31 @@ export function OfflineControlClient() {
     };
   }, [readSnapshotLive, readStorage]);
 
+  // Refresh the snapshot the moment warming flips from active → idle,
+  // so the counters reflect the just-finished pass immediately instead
+  // of waiting up to 5s for the interval.
+  useEffect(() => {
+    if (!warmingActive) {
+      void readSnapshotLive();
+      void readStorage();
+    }
+  }, [warmingActive, readSnapshotLive, readStorage]);
+
   function handleModeChange(next: WarmingMode) {
+    if (warmingActive) {
+      toast.info('لا يمكن تغيير الوضع أثناء التسخين');
+      return;
+    }
     setMode(next);
     setWarmingMode(next);
     toast.success('تم الحفظ: ' + WARMING_MODE_LABELS[next]);
   }
 
-  async function runWarmingPipeline() {
+  async function runWarmingPipelineLocal(): Promise<void> {
     resetWarmingCancel();
     await Promise.allSettled([
-      warmRouteShellsAtomic(),
-      warmPersonalShellsAtomic(),
+      warmRouteShellsAtomic(true),
+      warmPersonalShellsAtomic(true),
       warmUserData(),
     ]);
   }
@@ -149,17 +198,25 @@ export function OfflineControlClient() {
       toast.error('اختر «سريع» أو «كامل» أولاً');
       return;
     }
+    if (warmingActive) {
+      toast.info('التسخين يعمل بالفعل في الخلفية');
+      return;
+    }
     setBusy('start');
     try {
-      await runWarmingPipeline();
+      await runWarmingPipelineLocal();
       await readSnapshotLive();
       await readStorage();
-      toast.success('انتهى التسخين');
+      if (isWarmingCancelled()) {
+        toast.info('أُلغي التسخين');
+      } else {
+        toast.success('انتهى التسخين');
+      }
     } catch (err) {
-      // UNHANDLED-CATCH-FIX
       console.warn('[offline] warming failed:', err);
       toast.error('فشل التسخين');
     } finally {
+      resetWarmingCancel();
       setBusy(null);
     }
   }
@@ -176,6 +233,7 @@ export function OfflineControlClient() {
       const routes = getKnownRoutes();
       let cleared = 0;
       for (const { route, personal } of routes) {
+        if (isWarmingCancelled()) break;
         const key = personal ? 'personal:' + route : route;
         const status = snap?.routes?.[key]?.status;
         if (status !== 'complete') {
@@ -183,14 +241,20 @@ export function OfflineControlClient() {
           cleared += 1;
         }
       }
-      await runWarmingPipeline();
+      if (!isWarmingCancelled()) {
+        await runWarmingPipelineLocal();
+      }
       await readSnapshotLive();
-      toast.success('استؤنف — ' + cleared + ' صفحة ناقصة');
+      if (isWarmingCancelled()) {
+        toast.info('أُلغي الاستئناف بعد مسح ' + cleared + ' صفحة');
+      } else {
+        toast.success('استؤنف — ' + cleared + ' صفحة ناقصة');
+      }
     } catch (err) {
-      // UNHANDLED-CATCH-FIX
       console.warn('[offline] resume failed:', err);
       toast.error('فشل الاستئناف');
     } finally {
+      resetWarmingCancel();
       setBusy(null);
     }
   }
@@ -204,17 +268,24 @@ export function OfflineControlClient() {
     try {
       const routes = getKnownRoutes();
       for (const { route, personal } of routes) {
+        if (isWarmingCancelled()) break;
         await clearSingleRouteCache(route, personal);
       }
-      await runWarmingPipeline();
+      if (!isWarmingCancelled()) {
+        await runWarmingPipelineLocal();
+      }
       await readSnapshotLive();
       await readStorage();
-      toast.success('أُعيد التحميل من الصفر');
+      if (isWarmingCancelled()) {
+        toast.info('أُلغي إعادة التحميل');
+      } else {
+        toast.success('أُعيد التحميل من الصفر');
+      }
     } catch (err) {
-      // UNHANDLED-CATCH-FIX
       console.warn('[offline] full reset failed:', err);
       toast.error('فشل إعادة التحميل');
     } finally {
+      resetWarmingCancel();
       setBusy(null);
     }
   }
@@ -242,7 +313,6 @@ export function OfflineControlClient() {
       await readSnapshotLive();
       await readStorage();
     } catch (err) {
-      // UNHANDLED-CATCH-FIX
       console.warn('[offline] clear warming failed:', err);
       toast.error('فشل مسح الكاش');
     } finally {
@@ -255,6 +325,11 @@ export function OfflineControlClient() {
     : 0;
 
   const anyBusy = busy !== null;
+
+  // Progress label for the Start button while a pass runs.
+  const startLabel = warmingActive && progress && progress.total > 0
+    ? 'جاري التسخين… ' + progress.completed + ' / ' + progress.total
+    : 'ابدأ التسخين الآن';
 
   return (
     <div className="space-y-5">
@@ -289,9 +364,12 @@ export function OfflineControlClient() {
               key={m}
               type="button"
               onClick={() => handleModeChange(m)}
+              disabled={warmingActive}
+              aria-disabled={warmingActive}
               className={cn(
                 'flex w-full items-start gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/50',
                 mode === m && 'bg-primary/5',
+                warmingActive && 'opacity-60',
               )}
             >
               <span className={cn(
@@ -325,17 +403,19 @@ export function OfflineControlClient() {
             type="button"
             className="w-full justify-start gap-2"
             onClick={handleStartNow}
-            disabled={anyBusy || !online || mode === 'off'}
+            disabled={anyBusy || !online || mode === 'off' || warmingActive}
           >
-            {busy === 'start' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            ابدأ التسخين الآن
+            {(busy === 'start' || warmingActive)
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Play className="h-4 w-4" />}
+            {startLabel}
           </Button>
           <Button
             type="button"
             variant="outline"
             className="w-full justify-start gap-2"
             onClick={handleCancel}
-            disabled={!anyBusy}
+            disabled={!anyRunning}
           >
             <Square className="h-4 w-4" />
             ألغِ التسخين الجاري
@@ -345,7 +425,7 @@ export function OfflineControlClient() {
             variant="outline"
             className="w-full justify-start gap-2"
             onClick={handleResumeRemaining}
-            disabled={anyBusy || !online}
+            disabled={anyBusy || !online || warmingActive}
           >
             {busy === 'resume' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListChecks className="h-4 w-4" />}
             أكمل الناقص والفاشلة
@@ -355,7 +435,7 @@ export function OfflineControlClient() {
             variant="outline"
             className="w-full justify-start gap-2"
             onClick={handleFullReset}
-            disabled={anyBusy || !online}
+            disabled={anyBusy || !online || warmingActive}
           >
             {busy === 'reset' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
             أعد التحميل من الصفر
@@ -365,7 +445,7 @@ export function OfflineControlClient() {
             variant="outline"
             className="w-full justify-start gap-2"
             onClick={handleClearWarming}
-            disabled={anyBusy}
+            disabled={anyBusy || warmingActive}
           >
             {busy === 'clear' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             امسح كل التسخين

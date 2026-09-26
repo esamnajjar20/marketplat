@@ -728,7 +728,12 @@ export async function getDripProgress(): Promise<{
   };
 }
 
-export async function warmRouteShellsAtomic(): Promise<void> {
+export async function warmRouteShellsAtomic(force = false): Promise<void> {
+  // MANUAL-WARM-FORCE-01: force=true (from a user-facing button) skips
+  // both the global throttle and the per-route freshness check — the
+  // user explicitly asked for a warming run, so we re-fetch even routes
+  // that look fresh. The 6h auto-timer passes force=false and keeps the
+  // current throttle / freshness behaviour.
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
   if (!navigator.onLine) return;
@@ -746,13 +751,16 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     if (routes.length === 0) return;
 
     // SW-SMART-THROTTLE-01: fully warmed → 6h; partial → 30m.
-    const incompleteCount = routes.filter(
-      (r) => snapshotEarly?.routes[r]?.status !== 'complete',
-    ).length;
-    const throttleMs =
-      incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-    const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
-    if (Date.now() - last < throttleMs) return;
+    // Skipped entirely when force=true.
+    if (!force) {
+      const incompleteCount = routes.filter(
+        (r) => snapshotEarly?.routes[r]?.status !== 'complete',
+      ).length;
+      const throttleMs =
+        incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
+      const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
+      if (Date.now() - last < throttleMs) return;
+    }
 
     reportProgress('routes', { active: true, completed: 0, total: routes.length });
     let completedThisPass = 0;
@@ -767,8 +775,9 @@ export async function warmRouteShellsAtomic(): Promise<void> {
       if (isWarmingCancelled()) break;
       const prior = snapshot?.routes[route];
       const isStale =
-        prior?.status === 'complete' &&
-        (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS);
+        force ||
+        (prior?.status === 'complete' &&
+          (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS));
       if (!isStale && prior?.status === 'complete' && prior.chunks.length > 0) {
         liveUrls.push(...prior.chunks.map(toPath));
         continue;
@@ -963,7 +972,7 @@ async function warmPersonalRouteAtomic(
  * PERSONAL_SHELL_CACHE; its chunks are a subset of what public warming
  * (or a later public pass) records.
  */
-export async function warmPersonalShellsAtomic(): Promise<void> {
+export async function warmPersonalShellsAtomic(force = false): Promise<void> {
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
   if (!navigator.onLine) return;
@@ -1046,8 +1055,9 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
       const prior = snapshot?.routes[key];
 
       const isStale =
-        prior?.status === 'complete' &&
-        (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS);
+        force ||
+        (prior?.status === 'complete' &&
+          (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS));
       if (!isStale && prior?.status === 'complete') {
         // Sanity: logout wipes PERSONAL_SHELL_CACHE but not IndexedDB.
         const htmlHit = await personalCache.match(route);

@@ -31,6 +31,7 @@ import { API_BASE_URL } from './constants';
 import { reportProgress } from './warmingProgress';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { getWarmingPlan } from './offlineWarmingPlanner';
+import { isWarmingCancelled } from './offlineRouteShells';
 
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
@@ -155,6 +156,9 @@ export async function warmUserData(): Promise<void> {
           (async () => {
             while (queue.length > 0) {
               if (controller.signal.aborted) return;
+              // WARM-RAN-01: respond to the user's Cancel button.
+              // Previously only the 20-45s abort timer could stop it.
+              if (isWarmingCancelled()) return;
               const path = queue.shift();
               if (!path) return;
               await warmOneEndpoint(path, cache, controller.signal);

@@ -63,16 +63,25 @@ export type WarmingPipelineOptions = {
   authenticated?: boolean;
   /** Skip waiting for queue (e.g. periodic background tick). */
   skipQueueWait?: boolean;
+  /** MANUAL-WARM-FORCE-01: user-triggered run — skip the throttle and
+   *  freshness checks so the button always produces visible work. */
+  force?: boolean;
 };
 
 /**
  * Run the full warming sequence. Safe to call from mount / online /
  * visibility — concurrent calls no-op while one is active.
  */
-export async function runWarmingPipeline(options: WarmingPipelineOptions = {}): Promise<void> {
-  if (typeof window === 'undefined') return;
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-  if (pipelineInFlight) return;
+// WARM-RAN-01: returns { ran } so callers (OfflineControlClient) can
+// tell whether the pipeline actually executed. Previously a call that
+// hit pipelineInFlight (a concurrent run) returned silently, and the
+// UI toasted 'finished' anyway — a lie.
+export async function runWarmingPipeline(
+  options: WarmingPipelineOptions = {},
+): Promise<{ ran: boolean }> {
+  if (typeof window === 'undefined') return { ran: false };
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { ran: false };
+  if (pipelineInFlight) return { ran: false };
 
   pipelineInFlight = true;
   try {
@@ -89,7 +98,7 @@ export async function runWarmingPipeline(options: WarmingPipelineOptions = {}): 
 
     // Phase 3 — public shells (marketplace browse paths).
     try {
-      await warmRouteShellsAtomic();
+      await warmRouteShellsAtomic(options.force === true);
     } catch (err) {
       console.warn('[warm-pipeline] public shells failed:', err);
     }
@@ -97,7 +106,7 @@ export async function runWarmingPipeline(options: WarmingPipelineOptions = {}): 
     if (options.authenticated) {
       // Phase 4 — personal page shells.
       try {
-        await warmPersonalShellsAtomic();
+        await warmPersonalShellsAtomic(options.force === true);
       } catch (err) {
         console.warn('[warm-pipeline] personal shells failed:', err);
       }
@@ -111,4 +120,5 @@ export async function runWarmingPipeline(options: WarmingPipelineOptions = {}): 
   } finally {
     pipelineInFlight = false;
   }
+  return { ran: true };
 }
