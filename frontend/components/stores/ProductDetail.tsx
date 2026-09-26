@@ -14,6 +14,7 @@ import {
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
+import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ReportProductButton } from '@/components/stores/ReportProductButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
@@ -348,6 +349,19 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
   return (
     <div className="flex flex-wrap items-center gap-2">
       <FavoriteButton entityType="PRODUCT" entityId={product.id} size="md" warm />
+      {/* SAVE-ENTITY-01-PRODUCT: save the product's API response + every
+          image into Cache Storage for offline viewing. Writes into the
+          shared saved-entities index (same one /saved-ads reads), so
+          everything the user saved lives in one place. */}
+      <SaveOfflineButton
+        type="product"
+        id={product.id}
+        title={product.name}
+        subtitle={product.price != null ? String(product.price) : null}
+        city={product.store?.city ?? null}
+        thumbnail={product.images?.[0] ?? null}
+        imageUrls={product.images ?? []}
+      />
       <ShareAdButton title={product.name} url={shareUrl} variant="button" />
       <ReportProductButton productId={product.id} />
     </div>

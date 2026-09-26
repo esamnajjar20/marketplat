@@ -15,6 +15,7 @@ import { useIsFollowingStore } from '@/hooks/queries/useStores';
 import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
+import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
@@ -95,6 +96,20 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             entityId={store.id}
             warm
             className="absolute top-3 end-3 z-10 rounded-full bg-background/80 shadow-sm backdrop-blur-sm"
+          />
+          {/* SAVE-ENTITY-01-STORE: save the store's API response + its
+              logo and cover into Cache Storage. icon variant so it sits
+              next to FavoriteButton without crowding the cover. */}
+          <SaveOfflineButton
+            type="store"
+            id={store.id}
+            title={store.name}
+            subtitle={store.city}
+            city={store.city}
+            thumbnail={store.logoUrl ?? null}
+            imageUrls={[store.logoUrl, store.coverImageUrl].filter(Boolean) as string[]}
+            variant="icon"
+            className="absolute top-3 end-14 z-10"
           />
         </div>
 
