@@ -88,6 +88,106 @@ function wasJustUpdated(): boolean {
 // in-flight dedup on the backend.
 let registrationInFlight: Promise<ServiceWorkerRegistration | null> | null = null;
 
+// ── PWA-AUTO-APPLY-01 ─────────────────────────────────────────────
+// Applies a waiting SW update automatically, without the user having
+// to find and press the "update available" bar. Two independent
+// triggers, whichever fires first:
+//   1. 5 minutes after discovery (user ignored the bar)
+//   2. On returning to the tab after being hidden >30 seconds
+//      (the user just came back from something else — not mid-
+//      sentence, not mid-form). This second path is the important one
+//      on Gaza mobile networks where the app is backgrounded dozens
+//      of times a day.
+//
+// The controllerchange handler below still performs the actual reload,
+// so this function only has to send SKIP_WAITING.
+//
+// Skipped entirely when:
+//   - offline (a reload would re-serve the same cached shell)
+//   - a previous update happened within JUST_UPDATED_SUPPRESS_MS
+//     (already handled by wasJustUpdated())
+const PWA_AUTO_APPLY_AFTER_MS = 5 * 60 * 1000;      // 5 min
+const PWA_AUTO_APPLY_HIDDEN_MIN_MS = 30 * 1000;     // 30 s
+
+let autoApplyScheduled = false;
+
+function scheduleAutoApply(reg: ServiceWorkerRegistration): void {
+  if (autoApplyScheduled) return;
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  if (wasJustUpdated()) return;
+
+  // If offline, wait for the next online event and retry once. Bounded:
+  // a single once-listener per registration attempt.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    window.addEventListener(
+      'online',
+      () => {
+        if (reg.waiting && !wasJustUpdated()) scheduleAutoApply(reg);
+      },
+      { once: true },
+    );
+    return;
+  }
+
+  autoApplyScheduled = true;
+  let hiddenSince = 0;
+  let cleanedUp = false;
+
+  // PWA-AUTO-APPLY-CLEANUP-01
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    window.clearTimeout(timer);
+    document.removeEventListener('visibilitychange', onVis);
+    window.removeEventListener('offline', onOfflineLost);
+  };
+
+  const apply = (reason: string) => {
+    cleanup();
+    // Re-check: the user may have pressed "update now" in the interim,
+    // in which case `waiting` is already gone and SKIP_WAITING is a
+    // no-op via the ?. — but we still want to reset the flag so a
+    // FUTURE new update can schedule again.
+    if (!reg.waiting) {
+      autoApplyScheduled = false;
+      return;
+    }
+    console.info('[pwa] auto-applying update:', reason);
+    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    // The controllerchange listener (registered in
+    // doRegisterServiceWorker) will fire the reload. We do NOT reload
+    // here — doing both caused a double reload in an earlier build.
+  };
+
+  const onVis = () => {
+    if (document.visibilityState === 'hidden') {
+      hiddenSince = Date.now();
+      return;
+    }
+    if (hiddenSince && Date.now() - hiddenSince > PWA_AUTO_APPLY_HIDDEN_MIN_MS) {
+      apply(
+        'return-after-' + Math.round((Date.now() - hiddenSince) / 1000) + 's',
+      );
+    }
+  };
+
+  // If the user goes offline mid-wait, cancel and let the next visit
+  // re-schedule. Reloading offline would leave them on a half-broken
+  // shell.
+  const onOfflineLost = () => {
+    console.info('[pwa] auto-apply cancelled — connection lost');
+    cleanup();
+    autoApplyScheduled = false;
+  };
+
+  document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('offline', onOfflineLost, { once: true });
+  const timer = window.setTimeout(
+    () => apply('5-min-grace'),
+    PWA_AUTO_APPLY_AFTER_MS,
+  );
+}
+
 /** يُسجَّل من AppProviders مرة واحدة عند إقلاع التطبيق. */
 export function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (registrationInFlight) return registrationInFlight;
@@ -137,6 +237,7 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
       } else {
         waitingUpdateListeners.forEach((cb) => cb(registration));
+        scheduleAutoApply(registration);
       }
     }
 
@@ -151,6 +252,7 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
             return;
           }
           waitingUpdateListeners.forEach((cb) => cb(registration));
+          scheduleAutoApply(registration);
         }
       });
     });
