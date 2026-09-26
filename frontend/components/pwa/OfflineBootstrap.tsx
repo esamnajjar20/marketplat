@@ -68,8 +68,11 @@ export function OfflineBootstrap() {
       }
     }, PERIODIC_QUEUE_MS);
 
-    // Periodic warming (skip queue wait — background top-up).
-    const PERIODIC_WARM_MS = 12 * 60 * 1000;
+    // PERIODIC-WARM-6H-01: top-up once every 6 hours. The user drives
+    // warming manually from /settings/offline; this timer exists so a
+    // long-running session still picks up new content without the user
+    // having to think about it. Fires only when online.
+    const PERIODIC_WARM_MS = 6 * 60 * 60 * 1000;
     const warmId = window.setInterval(() => {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         void runWarmingPipeline({
