@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
 import type { ParsedError } from '@/lib/errorParser';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface QueryLike<T> {
   data: T | undefined;
@@ -83,6 +84,7 @@ export function RequireProfileGate<T>({
   query, setupHref, from, title, description, ctaLabel, icon, children,
 }: Props<T>) {
   const { data, isLoading, isError, error, refetch } = query;
+  const isOnline = useOnlineStatus();
 
   if (isLoading) {
     return (
@@ -93,6 +95,19 @@ export function RequireProfileGate<T>({
   }
 
   const statusCode = (error as ParsedError | null)?.statusCode;
+
+  // OFFLINE-GATE-PASSTHROUGH-01: same fix as CreateAdGate. A user who
+  // already has the store / service-provider / seller profile but is
+  // offline with a cold cache (first open after login, cleared data)
+  // was shown 'تعذّر التحقق' and blocked from the form entirely. The
+  // rare non-owner who slips through now gets a clean server-side 400
+  // on submit; the common case (real owner on a weak link) can now
+  // reach the form. Only a confirmed 404 still routes to the
+  // 'create profile' CTA; anything else with no network falls through
+  // to children.
+  if (isError && !isOnline && statusCode !== 404) {
+    return <>{children}</>;
+  }
 
   if (isError && statusCode !== 404) {
     return (
