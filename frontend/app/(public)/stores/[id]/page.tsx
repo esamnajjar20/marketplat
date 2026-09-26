@@ -23,8 +23,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   try {
     const store = await getCachedStore(id);
+    // CLEANUP-STORES-NULL-01: was store.data.data!.name — replace
+    // with explicit guard so a malformed payload cannot crash SSR.
+    const name = store.data.data?.name;
+    if (!name) return { title: 'متجر' };
     return buildMetadata({
-      title: `${store.data.data!.name} — متجر`,
+      title: `${name} — متجر`,
       path: `/stores/${id}`,
     });
   } catch {
