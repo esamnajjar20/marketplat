@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowRight, MapPin, Wallet, CalendarClock } from 'lucide-react';
@@ -20,9 +21,12 @@ import { Button } from '@/components/shared/ui/Button';
 import { RequestOfferForm } from '@/components/requests/RequestOfferForm';
 import { RequestOffersList } from '@/components/requests/RequestOffersList';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 export default function RequestDetailPage() {
   const params = useParams();
+  // CONFIRM-REQUEST-DETAIL-01: replace window.confirm with ConfirmDialog.
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const id = String(params.id ?? '');
   const { data: request, isLoading, isError } = useRequestDetail(id);
   const user = useAuthStore(selectUser);
@@ -141,11 +145,7 @@ export default function RequestDetailPage() {
             variant="outline"
             className="min-h-11"
             disabled={cancel.isPending}
-            onClick={() => {
-              if (window.confirm('إلغاء هذا الطلب؟ لن يستقبل عروضًا جديدة.')) {
-                cancel.mutate(id);
-              }
-            }}
+            onClick={() => setConfirmCancel(true)}
           >
             إلغاء الطلب
           </Button>
@@ -204,6 +204,19 @@ export default function RequestDetailPage() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        title="إلغاء هذا الطلب؟"
+        description="لن يستقبل عروضًا جديدة."
+        confirmLabel="إلغاء الطلب"
+        destructive
+        isPending={cancel.isPending}
+        onConfirm={() => {
+          cancel.mutate(id, { onSuccess: () => setConfirmCancel(false) });
+        }}
+      />
     </div>
   );
 }

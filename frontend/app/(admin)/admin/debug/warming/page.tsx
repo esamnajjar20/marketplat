@@ -102,6 +102,8 @@ const STAGING_CACHE = 'market-warming-staging';
 
 function ManualTools({ onDone }: { onDone: () => Promise<void> }) {
   const [busy, setBusy] = useState<string | null>(null);
+  // CONFIRM-WARMING-DEBUG-01
+  const [armed, setArmed] = useState(false);
 
   const run = async (label: string, fn: () => Promise<void>) => {
     setBusy(label);
@@ -125,7 +127,17 @@ function ManualTools({ onDone }: { onDone: () => Promise<void> }) {
   };
 
   const wipeSnapshot = async () => {
-    if (!confirm('حذف snapshot warming؟ سيُعاد warming من الصفر.')) return;
+    // CONFIRM-WARMING-DEBUG-01: replace window.confirm with a
+    // two-tap pattern (admin debug surface; a full ConfirmDialog mount
+    // here is heavier than the tool warrants). First click arms, second
+    // click commits within 3s.
+    if (!armed) {
+      setArmed(true);
+      window.setTimeout(() => setArmed(false), 3000);
+      toast.message('اضغط مرة أخرى للتأكيد خلال 3 ثوانٍ');
+      return;
+    }
+    setArmed(false);
     await clearSnapshot();
     toast.success('snapshot: حُذف');
     await onDone();
