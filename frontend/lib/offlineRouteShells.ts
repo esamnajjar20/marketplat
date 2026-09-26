@@ -658,19 +658,19 @@ export async function warmPersonalShells(): Promise<void> {
  *     pass, so the cache does not grow without bound across deploys.
  */
 
+// WARMING-CANCEL-01: user-triggered abort from /settings/offline.
+// The warming loops check this flag at the top of each iteration.
+let warmingCancelled = false;
+export function requestWarmingCancel(): void { warmingCancelled = true; }
+export function resetWarmingCancel(): void { warmingCancelled = false; }
+export function isWarmingCancelled(): boolean { return warmingCancelled; }
+
+// WARMING-MODES-05: kept for potential future progress UI.
 function readDripLast(): number {
   try {
     return Number(localStorage.getItem(LAST_DRIP_WARMED_KEY) ?? 0);
   } catch {
     return 0;
-  }
-}
-
-function writeDripLast(): void {
-  try {
-    localStorage.setItem(LAST_DRIP_WARMED_KEY, String(Date.now()));
-  } catch {
-    /* ignore */
   }
 }
 
@@ -729,43 +729,22 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     const plan = getWarmingPlan();
     if (isWarmingDisabled(plan)) return;
 
-    const userMode = getWarmingMode();
+    // WARMING-MODES-04: single path — no drip mode. 'off' short-circuits
+    // via isWarmingDisabled above; here we just run the plan's route
+    // selection under the smart throttle.
     const snapshotEarly = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
 
-    let routes: string[];
-    if (userMode === 'drip') {
-      // Public half of the drip cycle first. Personal continues in
-      // warmPersonalShellsAtomic once public remaining is empty.
-      const remaining = CORE_ROUTES.filter(
-        (r) => snapshotEarly?.routes[r]?.status !== 'complete',
-      );
-      // SW-FIX-DRIP-KBPS: budget & cadence both come from the measured
-      // throughput (see getDripParams). Full cycle restart is preserved
-      // from SW-FIX-DRIP-CYCLE-RESTART — after 46 routes complete, wait
-      // the LONG interval (6h), then start a fresh cycle.
-      const dripParams = getDripParams(plan.tier);
-      if (dripParams.budget === 0) return;
-      const lastDrip = readDripLast();
-      if (remaining.length === 0) {
-        if (Date.now() - lastDrip < WARM_INTERVAL_MS) return;
-        routes = CORE_ROUTES.slice(0, dripParams.budget);
-      } else {
-        if (Date.now() - lastDrip < dripParams.intervalMs) return;
-        routes = remaining.slice(0, dripParams.budget);
-      }
-    } else {
-      routes = selectRoutesByPlan(plan, CORE_ROUTES);
-      if (routes.length === 0) return;
+    const routes = selectRoutesByPlan(plan, CORE_ROUTES);
+    if (routes.length === 0) return;
 
-      // SW-SMART-THROTTLE-01: fully warmed → 6h; partial → 30m.
-      const incompleteCount = routes.filter(
-        (r) => snapshotEarly?.routes[r]?.status !== 'complete',
-      ).length;
-      const throttleMs =
-        incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-      const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
-      if (Date.now() - last < throttleMs) return;
-    }
+    // SW-SMART-THROTTLE-01: fully warmed → 6h; partial → 30m.
+    const incompleteCount = routes.filter(
+      (r) => snapshotEarly?.routes[r]?.status !== 'complete',
+    ).length;
+    const throttleMs =
+      incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
+    const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
+    if (Date.now() - last < throttleMs) return;
 
     reportProgress('routes', { active: true, completed: 0, total: routes.length });
     let completedThisPass = 0;
@@ -777,6 +756,7 @@ export async function warmRouteShellsAtomic(): Promise<void> {
     const liveUrls: string[] = [];
 
     for (const route of routes) {
+      if (isWarmingCancelled()) break;
       const prior = snapshot?.routes[route];
       if (prior?.status === 'complete' && prior.chunks.length > 0) {
         liveUrls.push(...prior.chunks.map(toPath));
@@ -825,7 +805,6 @@ export async function warmRouteShellsAtomic(): Promise<void> {
 
     if (completedThisPass > 0) {
       localStorage.setItem(LAST_ROUTE_WARMED_KEY, String(Date.now()));
-      if (getWarmingMode() === 'drip') writeDripLast();
     }
 
     const prevLive = snapshot?.liveUrls ?? [];
@@ -982,42 +961,20 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
     const plan = getWarmingPlan();
     if (isWarmingDisabled(plan)) return;
 
-    const userMode = getWarmingMode();
+    // WARMING-MODES-04: single path — no drip mode.
     const snapshotEarlyP = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
 
-    // Drip: only start personal batches after public CORE_ROUTES are done.
-    if (userMode === 'drip') {
-      const publicRemaining = CORE_ROUTES.filter(
-        (r) => snapshotEarlyP?.routes[r]?.status !== 'complete',
-      );
-      if (publicRemaining.length > 0) return;
-      const personalRemaining = PERSONAL_SHELL_ROUTES_ESSENTIAL.filter(
-        (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
-      );
-      const allDone = personalRemaining.length === 0;
-      const lastDrip = readDripLast();
-      const dripParams = getDripParams(plan.tier);
-      const interval = allDone ? WARM_INTERVAL_MS : dripParams.intervalMs;
-      if (Date.now() - lastDrip < interval) return;
-      // Restart cycle: if all complete, re-warm first DRIP_BUDGET personal
-      // after the long interval (public will also restart next cold start).
-      // routes assigned below after idle scheduling / lock body continues.
-    }
-
-    // SW-SMART-THROTTLE-01: non-drip path
-    if (userMode !== 'drip') {
-      const routesEarlyP = selectRoutesByPlan(
-        plan,
-        PERSONAL_SHELL_ROUTES_ESSENTIAL,
-      );
-      const incompletePersonal = routesEarlyP.filter(
-        (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
-      ).length;
-      const throttleMsP =
-        incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-      const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
-      if (Date.now() - last < throttleMsP) return;
-    }
+    const routesEarlyP = selectRoutesByPlan(
+      plan,
+      PERSONAL_SHELL_ROUTES_ESSENTIAL,
+    );
+    const incompletePersonal = routesEarlyP.filter(
+      (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
+    ).length;
+    const throttleMsP =
+      incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
+    const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
+    if (Date.now() - last < throttleMsP) return;
 
     // SW-IDLE-SCHEDULE-01: prefer requestIdleCallback over a blind 15s
     // wait. Warming is background work the user did not ask for; the
@@ -1060,18 +1017,7 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
       }
     });
 
-        const routes =
-      getWarmingMode() === 'drip'
-        ? (() => {
-            const dripParams = getDripParams(plan.tier);
-            const remaining = PERSONAL_SHELL_ROUTES_ESSENTIAL.filter(
-              (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
-            );
-            if (remaining.length > 0) return remaining.slice(0, dripParams.budget);
-            // Full cycle restart after long throttle already passed.
-            return PERSONAL_SHELL_ROUTES_ESSENTIAL.slice(0, dripParams.budget);
-          })()
-        : selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
+    const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
     if (routes.length === 0) return;
 
     reportProgress('personal', { active: true, completed: 0, total: routes.length });
@@ -1084,6 +1030,7 @@ export async function warmPersonalShellsAtomic(): Promise<void> {
     const snapshot = await readSnapshot();
 
     for (const route of routes) {
+      if (isWarmingCancelled()) break;
       const key = `personal:${route}`;
       const prior = snapshot?.routes[key];
 

@@ -1,64 +1,52 @@
 /**
  * components/settings/OfflineControlClient.tsx
  *
- * SW-WARMING-USER-CONTROL-01: main UI for /settings/offline.
+ * UI for /settings/offline. Warming is user-driven:
+ *   - "ابدأ التسخين الآن" runs the current mode.
+ *   - "ألغِ" stops the in-flight pass.
+ *   - "أكمل الناقص" retries only pending/failed routes.
+ *   - "أعد التحميل من الصفر" wipes route caches and re-warms.
+ *   - "امسح كل التسخين" deletes warming caches only.
  *
- * Reads:
- *   - warmingPreferences (localStorage): current mode.
- *   - offlineWarmingState snapshot (IndexedDB): live route status.
- *   - navigator.storage.estimate(): cache size.
- *
- * Writes:
- *   - warmingPreferences: mode changes.
- *   - via buttons: re-run warming now (warmRouteShellsAtomic), clear
- *     warming caches.
- *
- * Polls the snapshot every 10 seconds so the numbers stay fresh
- * without the user having to manually refresh — warming runs in the
- * background on its own schedule, and this page exists to make that
- * visible.
+ * An automatic top-up runs every 6 hours from OfflineBootstrap.
  */
 'use client';
 
-import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadge';
-
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Wifi, WifiOff, DownloadCloud, Trash2, Info, Loader2, Hourglass,
+  Wifi, WifiOff, Trash2, Info, Loader2,
+  Play, Square, RotateCcw, ListChecks,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
+import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadge';
 import {
-  getWarmingMode,
-  setWarmingMode,
-  WARMING_MODE_LABELS,
-  WARMING_MODE_DESCRIPTIONS,
-  WARMING_MODE_BYTES_EST,
+  getWarmingMode, setWarmingMode,
+  WARMING_MODE_LABELS, WARMING_MODE_DESCRIPTIONS, WARMING_MODE_BYTES_EST,
   type WarmingMode,
 } from '@/lib/warmingPreferences';
 import { readSnapshot } from '@/lib/offlineWarmingState';
-import { warmRouteShellsAtomic, warmPersonalShellsAtomic, getDripProgress } from '@/lib/offlineRouteShells';
+import {
+  warmRouteShellsAtomic, warmPersonalShellsAtomic,
+  requestWarmingCancel, resetWarmingCancel,
+  getKnownRoutes, clearSingleRouteCache,
+} from '@/lib/offlineRouteShells';
 import { warmUserData } from '@/lib/offlineWarmingUserData';
 import { OfflineRoutesList } from './OfflineRoutesList';
 
-const MODES: WarmingMode[] = ['auto', 'balanced', 'saver', 'drip', 'off'];
+const MODES: WarmingMode[] = ['fast', 'full', 'off'];
 
 interface Snapshot {
   publicComplete: number;
-  publicTotal: number;
   personalComplete: number;
-  personalTotal: number;
   lastWarmedAt: number;
-  cacheVersion: string;
   liveUrlsCount: number;
 }
 
-interface StorageInfo {
-  usage: number;
-  quota: number;
-}
+interface StorageInfo { usage: number; quota: number; }
 
 function formatBytes(n: number): string {
   if (n < 1024) return n + ' B';
@@ -77,32 +65,19 @@ function formatAge(ts: number): string {
 }
 
 export function OfflineControlClient() {
-  const [mode, setMode] = useState<WarmingMode>('auto');
+  const [mode, setMode] = useState<WarmingMode>('fast');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
-  // SW-FIX-OCC-CONFIRM: replace window.confirm with shared ConfirmDialog.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
-  const [dripProgress, setDripProgress] = useState<{
-    complete: number;
-    total: number;
-    nextInMs: number;
-  } | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const readSnapshotLive = useCallback(async () => {
     try {
       const s = await readSnapshot();
       if (!s) {
-        setSnapshot({
-          publicComplete: 0,
-          publicTotal: 12,
-          personalComplete: 0,
-          personalTotal: 33,
-          lastWarmedAt: 0,
-          cacheVersion: '',
-          liveUrlsCount: 0,
-        });
+        setSnapshot({ publicComplete: 0, personalComplete: 0, lastWarmedAt: 0, liveUrlsCount: 0 });
         return;
       }
       const routes = s.routes || {};
@@ -119,18 +94,8 @@ export function OfflineControlClient() {
           lastWarmedAt = meta.warmedAt;
         }
       }
-      setSnapshot({
-        publicComplete: pubComplete,
-        publicTotal: 12,
-        personalComplete,
-        personalTotal: 33,
-        lastWarmedAt,
-        cacheVersion: s.cacheVersion || '',
-        liveUrlsCount: s.liveUrls.length,
-      });
-    } catch {
-      // IndexedDB unavailable — leave the previous state
-    }
+      setSnapshot({ publicComplete: pubComplete, personalComplete, lastWarmedAt, liveUrlsCount: s.liveUrls.length });
+    } catch { /* IndexedDB unavailable */ }
   }, []);
 
   const readStorage = useCallback(async () => {
@@ -139,75 +104,104 @@ export function OfflineControlClient() {
         const est = await navigator.storage.estimate();
         setStorage({ usage: est.usage ?? 0, quota: est.quota ?? 0 });
       }
-    } catch {
-      // silent
-    }
+    } catch { /* silent */ }
   }, []);
 
-  const refreshDrip = useCallback(() => {
-    if (getWarmingMode() !== 'drip') {
-      setDripProgress(null);
-      return;
-    }
-    void getDripProgress()
-      .then((p) => {
-        setDripProgress({
-          complete: p.complete,
-          total: p.total,
-          nextInMs: p.nextInMs,
-        });
-      })
-      .catch(() => undefined);
-  }, []);
-
-  // Poll snapshot + storage every 10s
   useEffect(() => {
     void readSnapshotLive();
     void readStorage();
     setMode(getWarmingMode());
-    refreshDrip();
     setOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
     const id = window.setInterval(() => {
       void readSnapshotLive();
       void readStorage();
-      refreshDrip();
-    }, 10_000);
+    }, 5_000);
 
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
-
     return () => {
       window.clearInterval(id);
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [readSnapshotLive, readStorage, refreshDrip]);
+  }, [readSnapshotLive, readStorage]);
 
   function handleModeChange(next: WarmingMode) {
     setMode(next);
     setWarmingMode(next);
-    // Defer so getWarmingMode() inside refreshDrip sees the new value.
-    // SW-FIX-DRIP-QUEUE-TYPO: was `queue.setTimeout` — ReferenceError
-    // (queue undefined) fired every time the user changed mode.
-    window.setTimeout(() => refreshDrip(), 0);
-    toast.success('تم حفظ الإعداد: ' + WARMING_MODE_LABELS[next]);
+    toast.success('تم الحفظ: ' + WARMING_MODE_LABELS[next]);
   }
 
-  async function handleWarmNow() {
-    setBusy('warm');
+  async function runWarmingPipeline() {
+    resetWarmingCancel();
+    await Promise.allSettled([
+      warmRouteShellsAtomic(),
+      warmPersonalShellsAtomic(),
+      warmUserData(),
+    ]);
+  }
+
+  async function handleStartNow() {
+    if (mode === 'off') {
+      toast.error('اختر «سريع» أو «كامل» أولاً');
+      return;
+    }
+    setBusy('start');
     try {
-      await Promise.allSettled([
-        warmRouteShellsAtomic(),
-        warmPersonalShellsAtomic(),
-        warmUserData(),
-      ]);
+      await runWarmingPipeline();
       await readSnapshotLive();
       await readStorage();
-      refreshDrip();
-      toast.success('تم تشغيل التسخين — قد يستغرق دقيقة');
+      toast.success('انتهى التسخين');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function handleCancel() {
+    requestWarmingCancel();
+    toast.info('سيُوقف عند اكتمال الصفحة الحالية');
+  }
+
+  async function handleResumeRemaining() {
+    setBusy('resume');
+    try {
+      const snap = await readSnapshot();
+      const routes = getKnownRoutes();
+      let cleared = 0;
+      for (const { route, personal } of routes) {
+        const key = personal ? 'personal:' + route : route;
+        const status = snap?.routes?.[key]?.status;
+        if (status !== 'complete') {
+          await clearSingleRouteCache(route, personal);
+          cleared += 1;
+        }
+      }
+      await runWarmingPipeline();
+      await readSnapshotLive();
+      toast.success('استؤنف — ' + cleared + ' صفحة ناقصة');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function handleFullReset() {
+    setConfirmResetOpen(true);
+  }
+
+  async function performFullReset() {
+    setBusy('reset');
+    try {
+      const routes = getKnownRoutes();
+      for (const { route, personal } of routes) {
+        await clearSingleRouteCache(route, personal);
+      }
+      await runWarmingPipeline();
+      await readSnapshotLive();
+      await readStorage();
+      toast.success('أُعيد التحميل من الصفر');
     } finally {
       setBusy(null);
     }
@@ -223,20 +217,16 @@ export function OfflineControlClient() {
       const names = await caches.keys();
       let cleared = 0;
       for (const n of names) {
-        // Only warming-owned caches. NOT images (user content),
-        // NOT saved-ads (explicit user action), NOT user-data
-        // (which is refreshed by warming anyway).
         if (
           n.startsWith('market-static-') ||
           n.startsWith('market-personal-shell-') ||
           n.startsWith('market-core-') ||
           n.startsWith('market-warming-staging')
         ) {
-          const ok = await caches.delete(n);
-          if (ok) cleared += 1;
+          if (await caches.delete(n)) cleared += 1;
         }
       }
-      toast.success('تم مسح ' + cleared + ' كاشات warming');
+      toast.success('حُذف ' + cleared + ' كاش');
       await readSnapshotLive();
       await readStorage();
     } finally {
@@ -248,33 +238,33 @@ export function OfflineControlClient() {
     ? Math.round((storage.usage / storage.quota) * 100)
     : 0;
 
+  const anyBusy = busy !== null;
+
   return (
     <div className="space-y-5">
       <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-950 dark:text-amber-100">
         <Info className="mt-0.5 h-4 w-4 shrink-0 opacity-80" aria-hidden />
         <p>
-          على بطاقات النت الضعيفة (حوالي 17–30 ك.ب/ث) يُفضَّل وضع
-          «وفّر البيانات» أو «معطّل» حتى لا يستهلك التحضير التلقائي رصيدك.
-          الصفحات التي تزورها وأنت متصل تُحفظ تلقائياً للاستخدام لاحقاً.
+          على شبكة ضعيفة، انتقل إلى{' '}
+          <Link href="/offline" className="underline font-medium">صفحة العمل بدون إنترنت</Link>{' '}
+          لتصفح المحتوى المُسخَّن مسبقاً.
         </p>
       </div>
 
-
-      {/* Status banner */}
       <div className={cn(
         'flex items-center gap-3 rounded-xl border p-3 text-sm',
-        online ? 'border-emerald-300/40 bg-emerald-50 text-emerald-800' : 'border-amber-300/40 bg-amber-50 text-amber-800',
+        online ? 'border-emerald-300/40 bg-emerald-50 text-emerald-800'
+               : 'border-amber-300/40 bg-amber-50 text-amber-800',
       )}>
         {online ? <Wifi className="h-4 w-4 shrink-0" /> : <WifiOff className="h-4 w-4 shrink-0" />}
-        <span>{online ? 'متصل — التسخين يعمل في الخلفية' : 'غير متصل — التسخين سيعمل عند عودة الاتصال'}</span>
+        <span>{online ? 'متصل' : 'غير متصل — التسخين لن يبدأ الآن'}</span>
       </div>
 
-      {/* Mode selection */}
       <div className="rounded-lg border bg-card">
         <div className="border-b px-4 py-2.5">
-          <h2 className="text-sm font-semibold">مستوى التسخين</h2>
+          <h2 className="text-sm font-semibold">وضع التسخين</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            التسخين = تحضير الصفحات مسبقاً لتعمل عند انقطاع الإنترنت.
+            اختر المستوى ثم اضغط «ابدأ التسخين».
           </p>
         </div>
         <div className="divide-y">
@@ -288,12 +278,10 @@ export function OfflineControlClient() {
                 mode === m && 'bg-primary/5',
               )}
             >
-              <span
-                className={cn(
-                  'mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
-                  mode === m ? 'border-primary' : 'border-muted-foreground/40',
-                )}
-              >
+              <span className={cn(
+                'mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
+                mode === m ? 'border-primary' : 'border-muted-foreground/40',
+              )}>
                 {mode === m && <span className="h-2 w-2 rounded-full bg-primary" />}
               </span>
               <span className="min-w-0 flex-1">
@@ -312,41 +300,85 @@ export function OfflineControlClient() {
         </div>
       </div>
 
-      {/* Status */}
+      <div className="rounded-lg border bg-card">
+        <div className="border-b px-4 py-2.5">
+          <h2 className="text-sm font-semibold">تحكم</h2>
+        </div>
+        <div className="space-y-2 p-4">
+          <Button
+            type="button"
+            className="w-full justify-start gap-2"
+            onClick={handleStartNow}
+            disabled={anyBusy || !online || mode === 'off'}
+          >
+            {busy === 'start' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            ابدأ التسخين الآن
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleCancel}
+            disabled={!anyBusy}
+          >
+            <Square className="h-4 w-4" />
+            ألغِ التسخين الجاري
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleResumeRemaining}
+            disabled={anyBusy || !online}
+          >
+            {busy === 'resume' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListChecks className="h-4 w-4" />}
+            أكمل الناقص والفاشلة
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleFullReset}
+            disabled={anyBusy || !online}
+          >
+            {busy === 'reset' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            أعد التحميل من الصفر
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleClearWarming}
+            disabled={anyBusy}
+          >
+            {busy === 'clear' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            امسح كل التسخين
+          </Button>
+        </div>
+      </div>
+
       <div className="rounded-lg border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold">الحالة الحالية</h2>
+        <h2 className="mb-3 text-sm font-semibold">الحالة</h2>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-xs text-muted-foreground">صفحات عامة</p>
-            <p className="mt-0.5 font-mono font-semibold">
-              {snapshot ? snapshot.publicComplete + ' / ' + snapshot.publicTotal : '—'}
-            </p>
+            <p className="text-xs text-muted-foreground">صفحات عامة مُكتملة</p>
+            <p className="mt-0.5 font-mono font-semibold">{snapshot ? snapshot.publicComplete : '—'}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">صفحات شخصية</p>
-            <p className="mt-0.5 font-mono font-semibold">
-              {snapshot ? snapshot.personalComplete + ' / ' + snapshot.personalTotal : '—'}
-            </p>
+            <p className="text-xs text-muted-foreground">صفحات شخصية مُكتملة</p>
+            <p className="mt-0.5 font-mono font-semibold">{snapshot ? snapshot.personalComplete : '—'}</p>
           </div>
-          <div>
+          <div className="col-span-2">
             <p className="text-xs text-muted-foreground">آخر تسخين</p>
-            <p className="mt-0.5 font-mono text-xs">
-              {snapshot ? formatAge(snapshot.lastWarmedAt) : '—'}
-            </p>
+            <p className="mt-0.5 font-mono text-xs">{snapshot ? formatAge(snapshot.lastWarmedAt) : '—'}</p>
             {snapshot?.lastWarmedAt ? (
               <OfflineFreshnessBadge
-                className="mt-1 col-span-full"
+                className="mt-1"
                 savedAt={new Date(snapshot.lastWarmedAt).toISOString()}
                 kind="list"
                 hideWhenFresh={false}
               />
             ) : null}
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">عدد الملفات المُخزَّنة</p>
-            <p className="mt-0.5 font-mono text-xs">
-              {snapshot ? snapshot.liveUrlsCount : '—'}
-            </p>
           </div>
         </div>
 
@@ -374,72 +406,33 @@ export function OfflineControlClient() {
         )}
       </div>
 
-      {/* Manual controls */}
-      <div className="rounded-lg border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold">إجراءات</h2>
-        <div className="space-y-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={handleWarmNow}
-            disabled={busy !== null || !online}
-          >
-            {busy === 'warm' ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
-            سخّن الآن (يستهلك بيانات)
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={handleClearWarming}
-            disabled={busy !== null}
-          >
-            {busy === 'clear' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            امسح التسخين التلقائي
-          </Button>
-        </div>
-        <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span>
-            مسح التسخين لا يؤثر على التنزيلات، ولا الإعلانات المحفوظة يدوياً،
-            ولا بيانات المتجر. سيُعاد التسخين تلقائياً حسب الإعداد أعلاه.
-          </span>
-        </p>
-      </div>
-
-      {/* SW-WARMING-PER-ROUTE-01: per-route table with retry / delete /
-          open actions and filter tabs. Reads the same snapshot this
-          component already polls, but manages its own refresh cadence
-          (5s) so a single retry doesn't wait for the parent's 10s tick. */}
-      
-      {mode === 'drip' && dripProgress && (
-        <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 font-medium text-foreground">
-            <Hourglass className="h-3.5 w-3.5" aria-hidden />
-            تقدّم الدورة: {dripProgress.complete}/{dripProgress.total} صفحة
-          </div>
-          <p className="mt-0.5">
-            {dripProgress.nextInMs > 0
-              ? `الدورة التالية بعد: ${Math.max(1, Math.round(dripProgress.nextInMs / 60000))} دقائق`
-              : 'جاهز لدورة جديدة عند التحديث أو عودة الاتصال'}
-          </p>
-        </div>
-      )}
-
       <OfflineRoutesList />
 
       <ConfirmDialog
         open={confirmClearOpen}
         onOpenChange={setConfirmClearOpen}
-        title="مسح التسخين التلقائي؟"
-        description="سيُمسح كل التسخين التلقائي (الصفحات المحضّرة مسبقاً). لن تُمس التنزيلات اليدوية ولا الإعلانات المحفوظة."
-        confirmLabel="مسح"
+        title="مسح كل التسخين؟"
+        description="سيُمسح كل الكاش المُسخَّن. لن تُمس التنزيلات اليدوية ولا الإعلانات المحفوظة."
+        confirmLabel="امسح"
         destructive
         isPending={busy === 'clear'}
         onConfirm={() => {
           setConfirmClearOpen(false);
           void performClearWarming();
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmResetOpen}
+        onOpenChange={setConfirmResetOpen}
+        title="أعد التحميل من الصفر؟"
+        description="سيُحذف كل الكاش المُسخَّن ويُعاد بناؤه. قد يستهلك بيانات بحسب الوضع المختار."
+        confirmLabel="أعد التحميل"
+        destructive
+        isPending={busy === 'reset'}
+        onConfirm={() => {
+          setConfirmResetOpen(false);
+          void performFullReset();
         }}
       />
     </div>

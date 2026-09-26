@@ -92,7 +92,7 @@ const PRIORITY_ROUTES = [
 ];
 
 /** Max shells on 'core' when list is longer — at least MIN_WARM_ROUTES. */
-const CORE_ROUTE_BUDGET = 28;
+const CORE_ROUTE_BUDGET = 25;
 
 /** Critical (very slow) still attempts this many, sequentially. */
 const CRITICAL_ROUTE_BUDGET = MIN_WARM_ROUTES;
@@ -138,40 +138,33 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  if (userMode === 'drip') {
+  // WARMING-MODES-03: user mode wins outright — no silent throttle
+  // based on inferred network quality. If the user picks 'fast' we
+  // warm 25 routes; 'full' warms everything. Weak links are the user's
+  // call to make via the mode selector, not ours to second-guess.
+  if (userMode === 'fast') {
     return {
       tier: 'core',
       concurrency: 1,
       interBatchDelayMs: 0,
-      interRouteDelayMs: 1500,
-      requestTimeoutMs: 25_000,
-      minRoutes: MIN_WARM_ROUTES,
-      reason: 'user-drip',
-    };
-  }
-
-  if (userMode === 'saver') {
-    // Still honors MIN_WARM_ROUTES (20) — sequential + long gaps.
-    return {
-      tier: 'critical',
-      concurrency: 1,
-      interBatchDelayMs: 0,
-      interRouteDelayMs: 2500,
-      requestTimeoutMs: 25_000,
-      minRoutes: MIN_WARM_ROUTES,
-      reason: 'user-saver',
-    };
-  }
-
-  if (userMode === 'balanced') {
-    return {
-      tier: 'core',
-      concurrency: 2,
-      interBatchDelayMs: 300,
-      interRouteDelayMs: 600,
+      interRouteDelayMs: 1200,
       requestTimeoutMs: 18_000,
       minRoutes: CORE_ROUTE_BUDGET,
-      reason: 'user-balanced',
+      reason: 'user-fast',
+    };
+  }
+
+  if (userMode === 'full') {
+    // Every known route. Parallel batches of 2, tight delays — for a
+    // link good enough that ~2.2 MB of shells is not a burden.
+    return {
+      tier: 'full',
+      concurrency: 2,
+      interBatchDelayMs: 300,
+      interRouteDelayMs: 400,
+      requestTimeoutMs: 12_000,
+      minRoutes: 9_999,
+      reason: 'user-full',
     };
   }
 
