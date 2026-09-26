@@ -241,6 +241,10 @@ export const useAuthStore = create<AuthStore>()(
         set({ accessToken: token, isAuthenticated: true }),
 
       logout: () => {
+        // ANALYTICS-SESSION-SCOPE-01: new session for the next user.
+        void import('@/lib/analytics')
+          .then(({ resetAnalyticsSession }) => resetAnalyticsSession())
+          .catch(() => {});
         set({
           user:            null,
           lastKnownRoles:  null,

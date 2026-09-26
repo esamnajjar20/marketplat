@@ -71,6 +71,25 @@ function generateId(): string {
 }
 
 const queue: QueuedEvent[] = [];
+
+/**
+ * ANALYTICS-SESSION-SCOPE-01: clear the session id when auth changes
+ * (logout or fresh login). Without this, a user who logs out and a
+ * second user who logs in on the same tab share the same sessionId —
+ * every event from user B would be attributed to user A's session
+ * in the funnel. Call this from auth.store on logout/setAuth.
+ */
+export function resetAnalyticsSession(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // sessionStorage unavailable — nothing to clear.
+  }
+  // Flush whatever was already queued (attributed to the previous
+  // session) before the id is regenerated on the next track() call.
+  flush();
+}
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
