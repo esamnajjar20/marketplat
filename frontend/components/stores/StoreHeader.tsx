@@ -223,7 +223,23 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
               واتساب
             </a>
           )}
-          <ShareAdButton title={store.name} url={shareUrl} variant="button" className="flex-1" />
+          {/* SHARE-QR-WIRE-STORE: store has no price; extra shows
+              plan status (مميز / عادي) so the receiver knows what
+              they're looking at offline. */}
+          <ShareAdButton
+            title={store.name}
+            url={shareUrl}
+            variant="button"
+            className="flex-1"
+            qrPayload={{
+              kind: 'store',
+              title: store.name,
+              price: null,
+              city: store.city ?? '',
+              extra: store.plan === 'FEATURED' ? 'متجر مميز' : 'متجر',
+              desc: store.description ?? '',
+            }}
+          />
         </div>
 
         {/* تحميل كتالوج المنتجات كاملًا كملف HTML للمشاهدة بدون إنترنت */}

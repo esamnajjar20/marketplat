@@ -201,7 +201,21 @@ export function ServiceListingDetail({ listing, action }: Props) {
                   imageUrls={listing.images ?? []}
                   variant="icon"
                 />
-                <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
+                {/* SHARE-QR-WIRE-SERVICE: extra carries the service
+                    location type (منزلي / عند مقدم الخدمة / عن بُعد). */}
+                <ShareAdButton
+                  title={listing.title}
+                  url={shareUrl}
+                  variant="button"
+                  qrPayload={{
+                    kind: 'service',
+                    title: listing.title,
+                    price: listing.price ?? null,
+                    city: '',
+                    extra: LOCATION_LABELS[listing.serviceLocation] ?? '',
+                    desc: listing.description ?? '',
+                  }}
+                />
               </div>
             </div>
             <p className="text-lg font-semibold text-primary">

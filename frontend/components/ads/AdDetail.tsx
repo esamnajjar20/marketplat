@@ -301,7 +301,25 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 thumbnail={ad.images?.[0] ?? null}
                 imageUrls={ad.images ?? []}
               />
-              <ShareAdButton title={ad.title} />
+              {/* SHARE-QR-WIRE-01: the payload is built here rather
+                  than inside ShareAdButton, since ShareAdButton is
+                  shared with product / store / service headers that
+                  don't (yet) pass a qrPayload. The menu gains a
+                  'مشاركة QR (بدون نت)' entry only when one is given. */}
+              <ShareAdButton
+                title={ad.title}
+                qrPayload={{
+                  kind: 'ad',
+                  title: ad.title,
+                  price: ad.price ?? null,
+                  city: ad.city ?? '',
+                  extra: [
+                    ad.condition ? CONDITION_LABELS[ad.condition] : '',
+                    ad.isNegotiable ? 'قابل للتفاوض' : '',
+                  ].filter(Boolean).join(' · '),
+                  desc: ad.description ?? '',
+                }}
+              />
             </div>
           </div>
 

@@ -155,6 +155,11 @@ export const CORE_ROUTES = [
   '/services',
   '/service-providers',
   '/sellers/ranking',
+  // SHARE-QR-WARM-01: receiver side of the QR-share flow. Without
+  // this route in CORE_ROUTES, the sender's QR can be created offline
+  // but the receiver opens /shared and finds nothing warmed — the
+  // whole feature is useless on a disconnected device.
+  '/shared',
   '/saved-ads',
   '/downloads',
   '/saved-payments',

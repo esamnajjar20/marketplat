@@ -16,7 +16,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Share2, MessageCircle, Send, Link2, Check } from 'lucide-react';
+import { Share2, MessageCircle, Send, Link2, Check, QrCode } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
   DropdownMenu,
@@ -27,6 +27,8 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { nativeShare, canNativeShare } from '@/lib/capacitor/nativeShare';
+import { ShareAdQrDialog } from './ShareAdQrDialog';
+import type { SharedPayload } from '@/lib/shareQr';
 
 interface Props {
   title: string;
@@ -34,10 +36,18 @@ interface Props {
   url?: string;
   variant?: 'icon' | 'button';
   className?: string;
+  /**
+   * SHARE-QR-MENU-01: optional ad payload. When present, the menu
+   * gains a 'مشاركة QR (بدون نت)' entry that opens a scannable code
+   * with the data packed into the URL fragment. Callers that only
+   * share a link (product/store headers etc.) can omit it.
+   */
+  qrPayload?: SharedPayload;
 }
 
-export function ShareAdButton({ title, url, variant = 'icon', className }: Props) {
+export function ShareAdButton({ title, url, variant = 'icon', className, qrPayload }: Props) {
   const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
     if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
@@ -93,6 +103,7 @@ export function ShareAdButton({ title, url, variant = 'icon', className }: Props
   }, []);
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {variant === 'icon' ? (
@@ -106,6 +117,14 @@ export function ShareAdButton({ title, url, variant = 'icon', className }: Props
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {qrPayload && (
+          <DropdownMenuItem
+            onClick={() => setQrOpen(true)}
+            className="gap-2 cursor-pointer"
+          >
+            <QrCode className="h-4 w-4 text-primary" /> مشاركة QR (بدون نت)
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={handleWhatsApp} className="gap-2 cursor-pointer">
           <MessageCircle className="h-4 w-4 text-[#25D366]" /> واتساب
         </DropdownMenuItem>
@@ -123,6 +142,10 @@ export function ShareAdButton({ title, url, variant = 'icon', className }: Props
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+    {qrPayload && (
+      <ShareAdQrDialog open={qrOpen} onOpenChange={setQrOpen} payload={qrPayload} />
+    )}
+    </>
   );
 }
 

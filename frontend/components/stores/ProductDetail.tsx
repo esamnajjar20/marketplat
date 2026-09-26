@@ -362,7 +362,21 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
         thumbnail={product.images?.[0] ?? null}
         imageUrls={product.images ?? []}
       />
-      <ShareAdButton title={product.name} url={shareUrl} variant="button" />
+      {/* SHARE-QR-WIRE-PRODUCT: same payload shape as AdDetail, with
+          product-specific extra text (availability). */}
+      <ShareAdButton
+        title={product.name}
+        url={shareUrl}
+        variant="button"
+        qrPayload={{
+          kind: 'product',
+          title: product.name,
+          price: product.price ?? null,
+          city: product.store?.city ?? '',
+          extra: AVAILABILITY_LABEL[product.availability],
+          desc: product.description ?? '',
+        }}
+      />
       <ReportProductButton productId={product.id} />
     </div>
   );
