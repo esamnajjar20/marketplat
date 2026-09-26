@@ -222,6 +222,14 @@ export interface AdDraft {
   publishRetryCount?: number;
 }
 
+// DRAFTS-BADGE-01: event so UI badges (BottomNav +) can live-update.
+// Every mutation below dispatches this after a successful write.
+const DRAFTS_UPDATED_EVENT = 'offline-drafts:updated';
+function dispatchDraftsUpdated(): void {
+  if (typeof window === 'undefined') return;
+  try { window.dispatchEvent(new Event(DRAFTS_UPDATED_EVENT)); } catch { /* noop */ }
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
@@ -477,6 +485,7 @@ export async function saveAdDraft(
     }
   }
 
+  dispatchDraftsUpdated();
   return draft;
 }
 
@@ -485,7 +494,7 @@ export async function deleteAdDraft(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => { dispatchDraftsUpdated(); resolve(); };
     tx.onerror = () => {
       // FIX AD-DRAFT-LOGGING: تسجيل فشل الحذف للتشخيص.
       console.warn('[ad-drafts] delete failed:', id, tx.error);
@@ -502,7 +511,7 @@ export async function clearAllAdDrafts(): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).clear();
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => { dispatchDraftsUpdated(); resolve(); };
     tx.onerror = () => reject(tx.error);
   });
 }

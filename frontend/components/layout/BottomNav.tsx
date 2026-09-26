@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
 import { CreateSheet } from '@/components/layout/CreateSheet';
 import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
+import { usePendingDraftsCount } from '@/hooks/usePendingDraftsCount';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
@@ -87,6 +88,8 @@ export function BottomNav() {
   // (شريط سفلي موحّد وواضح). يبقى هنا فقط عدّاد طابور الطلبات.
   // FIX QUEUE-BADGE-01: عدّاد "طلبات بالانتظار" كشارة رقم بزاوية الأيقونة.
   const queuedCount = useQueuedRequestCount();
+  // DRAFTS-BADGE-01
+  const draftsCount = usePendingDraftsCount(user?.id);
 
   const leadingItems = [
     { label: 'الرئيسية', href: ROUTES.home, icon: Home },
@@ -172,15 +175,25 @@ export function BottomNav() {
       </button>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          aria-haspopup="dialog"
-          aria-label="أضف"
-          className="-mt-5 flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105 hover:shadow-lg"
-        >
-          <Plus className="h-5 w-5" aria-hidden={true} />
-        </button>
+        <div className="relative -mt-5">
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            aria-haspopup="dialog"
+            aria-label={draftsCount > 0 ? `أضف — ${draftsCount} مسودة معلّقة` : 'أضف'}
+            className="flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105 hover:shadow-lg"
+          >
+            <Plus className="h-5 w-5" aria-hidden={true} />
+          </button>
+          {isAuthenticated && draftsCount > 0 && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-0.5 -end-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold leading-none text-warning-foreground shadow-sm"
+            >
+              {draftsCount > 9 ? '9+' : draftsCount}
+            </span>
+          )}
+        </div>
         {/* Label added to match the other four items' icon+label
             pattern — this button was the only one in the bar with no
             visible text, breaking visual consistency with its
