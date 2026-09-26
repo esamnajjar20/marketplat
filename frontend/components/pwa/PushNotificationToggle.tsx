@@ -68,9 +68,14 @@ export function PushNotificationToggle() {
 
   useEffect(() => {
     let cancelled = false;
-    refresh().then(() => {
-      if (cancelled) return;
-    });
+    void refresh()
+      .then(() => {
+        if (cancelled) return;
+      })
+      .catch((err) => {
+        // UNHANDLED-CATCH-FIX
+        console.warn('[push-toggle] initial refresh failed:', err);
+      });
     return () => {
       cancelled = true;
     };

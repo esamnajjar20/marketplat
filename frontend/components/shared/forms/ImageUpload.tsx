@@ -154,9 +154,14 @@ export function ImageUpload({
   const [isNative, setIsNative] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    isNativePlatform().then((native) => {
-      if (!cancelled) setIsNative(native);
-    });
+    isNativePlatform()
+      .then((native) => {
+        if (!cancelled) setIsNative(native);
+      })
+      .catch((err) => {
+        // UNHANDLED-CATCH-FIX
+        console.warn('[image-upload] isNativePlatform probe failed:', err);
+      });
     return () => {
       cancelled = true;
     };
