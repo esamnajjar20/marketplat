@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError, handleChunkLoadError, isChunkLoadError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError, isChunkLoadError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface ProtectedErrorProps {
@@ -44,7 +44,17 @@ export default function ProtectedError({ error, reset }: ProtectedErrorProps) {
       setRecovering(true);
       return;
     }
-    reportClientError(error, { boundary: 'ProtectedError', digest: error.digest });
+    // CHUNK-OFFLINE-NOREPORT-01: skip the report when this is
+
+    // a chunk error on an offline device — no recovery is
+
+    // possible and it spams the reporter on weak networks.
+
+    if (!isOfflineChunkLoadError(error)) {
+
+      reportClientError(error, { boundary: 'ProtectedError', digest: error.digest });
+
+    }
   }, [error]);
 
   if (recovering) return null;

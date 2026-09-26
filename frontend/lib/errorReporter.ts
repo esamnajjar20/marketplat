@@ -80,6 +80,25 @@ export function reportClientError(error: Error, context?: Record<string, unknown
  * returns true, a reload was triggered and the caller should render
  * null (or a spinner); the reload will surface the fresh page.
  */
+/**
+ * CHUNK-OFFLINE-NOREPORT-01: true when the error is a ChunkLoadError
+ * AND the device is provably offline. This is the one case where the
+ * error boundary should NOT report: no recovery is possible (a reload
+ * would just re-serve the same offline shell), and on a mobile network
+ * this fires for every user, every time they open a cached page while
+ * the link is briefly down. Report noise, not signal.
+ *
+ * Online ChunkLoadError still reaches the reporter — that one is
+ * actionable (stale deploy). See handleChunkLoadError above.
+ */
+export function isOfflineChunkLoadError(
+  error: Error | null | undefined,
+): boolean {
+  if (!isChunkLoadError(error)) return false;
+  if (typeof navigator === 'undefined') return false;
+  return navigator.onLine === false;
+}
+
 export function isChunkLoadError(error: Error | null | undefined): boolean {
   const message = error?.message ?? '';
   return (

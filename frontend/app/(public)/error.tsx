@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError, handleChunkLoadError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 import { ROUTES } from '@/lib/constants';
 
 interface PublicErrorProps {
@@ -48,7 +48,17 @@ export default function PublicError({ error, reset }: PublicErrorProps) {
       setRecovering(true);
       return;
     }
-    reportClientError(error, { boundary: 'PublicError', digest: error.digest });
+    // CHUNK-OFFLINE-NOREPORT-01: skip the report when this is
+
+    // a chunk error on an offline device — no recovery is
+
+    // possible and it spams the reporter on weak networks.
+
+    if (!isOfflineChunkLoadError(error)) {
+
+      reportClientError(error, { boundary: 'PublicError', digest: error.digest });
+
+    }
   }, [error]);
 
   if (recovering) return null;

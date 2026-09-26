@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
-import { reportClientError } from '@/lib/errorReporter';
+import { reportClientError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 
 /**
  * FIX PRODUCT-ERR-LOG-01: this was the only route-level error.tsx in the
@@ -29,7 +29,17 @@ export default function ProductDetailError({
     // they're visible without needing to expand the object.
     // eslint-disable-next-line no-console
     console.error('[ProductDetailError] message:', error.message, '| stack:', error.stack);
-    reportClientError(error, { boundary: 'ProductDetailError', digest: error.digest });
+    // CHUNK-OFFLINE-NOREPORT-01: skip the report when this is
+
+    // a chunk error on an offline device — no recovery is
+
+    // possible and it spams the reporter on weak networks.
+
+    if (!isOfflineChunkLoadError(error)) {
+
+      reportClientError(error, { boundary: 'ProductDetailError', digest: error.digest });
+
+    }
   }, [error]);
 
   return (

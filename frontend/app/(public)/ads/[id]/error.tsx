@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError } from '@/lib/errorReporter';
+import { reportClientError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 
 interface AdErrorProps {
   error: Error & { digest?: string };
@@ -21,7 +21,17 @@ interface AdErrorProps {
  */
 export default function AdDetailError({ error, reset }: AdErrorProps) {
   useEffect(() => {
-    reportClientError(error, { boundary: 'AdDetailError', digest: error.digest });
+    // CHUNK-OFFLINE-NOREPORT-01: skip the report when this is
+
+    // a chunk error on an offline device — no recovery is
+
+    // possible and it spams the reporter on weak networks.
+
+    if (!isOfflineChunkLoadError(error)) {
+
+      reportClientError(error, { boundary: 'AdDetailError', digest: error.digest });
+
+    }
   }, [error]);
 
   return (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError, handleChunkLoadError, isChunkLoadError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError, isChunkLoadError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -39,7 +39,17 @@ export default function ErrorBoundary({ error, reset }: ErrorPageProps) {
     }
     // error.digest is included so this client-side report can be
     // correlated with any server-side log entry for the same error.
-    reportClientError(error, { boundary: 'RootError', digest: error.digest });
+    // CHUNK-OFFLINE-NOREPORT-01: skip the report when this is
+
+    // a chunk error on an offline device — no recovery is
+
+    // possible and it spams the reporter on weak networks.
+
+    if (!isOfflineChunkLoadError(error)) {
+
+      reportClientError(error, { boundary: 'RootError', digest: error.digest });
+
+    }
   }, [error]);
 
   if (recovering) return null;

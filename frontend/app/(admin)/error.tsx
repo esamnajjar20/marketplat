@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
-import { reportClientError, handleChunkLoadError } from '@/lib/errorReporter';
+import { reportClientError, handleChunkLoadError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 
 interface AdminErrorProps {
   error: Error & { digest?: string };
@@ -35,7 +35,17 @@ export default function AdminError({ error, reset }: AdminErrorProps) {
       setRecovering(true);
       return;
     }
-    reportClientError(error, { boundary: 'AdminError', digest: error.digest });
+    // CHUNK-OFFLINE-NOREPORT-01: skip the report when this is
+
+    // a chunk error on an offline device — no recovery is
+
+    // possible and it spams the reporter on weak networks.
+
+    if (!isOfflineChunkLoadError(error)) {
+
+      reportClientError(error, { boundary: 'AdminError', digest: error.digest });
+
+    }
   }, [error]);
 
   if (recovering) return null;
