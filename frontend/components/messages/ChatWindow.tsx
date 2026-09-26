@@ -652,9 +652,19 @@ export function ChatWindow({ conversationId }: Props) {
                       );
                     })()}
                   </div>
-                  {clientStatus === 'failed' && (
+                  {/* CHATWINDOW-LASTERROR-GUARD-01: only render the
+                      error line when lastError exists. Before this,
+                      a failed message with no lastError (rare but
+                      possible — the field is optional) went through
+                      classifyHttpConflict(undefined, undefined), which
+                      returns the 'network' kind, so the user saw a
+                      misleading 'لا يوجد اتصال' for what might have
+                      been a server-side rejection. `.status` below is
+                      accessed without `?.` because the guard above
+                      guarantees presence. */}
+                  {clientStatus === 'failed' && message.lastError && (
                     <p className="px-1 text-[10px] text-destructive/80">
-                      {classifyHttpConflict(message.lastError?.status, message.lastError?.message).message}
+                      {classifyHttpConflict(message.lastError.status, message.lastError.message).message}
                     </p>
                   )}
                 </div>
