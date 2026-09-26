@@ -1,0 +1,54 @@
+name: DB Backup
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Dump Neon database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::DATABASE_URL secret is empty"
+            exit 1
+          fi
+          DIRECT_URL="${DATABASE_URL%%\?*}"
+          mkdir -p backup
+          STAMP="$(date -u +%Y%m%d_%H%M%S)"
+          FILE="backup/marketplat_${STAMP}.sql.gz"
+          echo "Dumping to $FILE ..."
+          pg_dump --no-owner --no-acl --no-privileges "$DIRECT_URL" | gzip -9 > "$FILE"
+          SIZE="$(stat -c %s "$FILE")"
+          echo "Dump size: $SIZE bytes"
+          if [ "$SIZE" -lt 10000 ]; then
+            echo "::error::Dump too small"
+            exit 1
+          fi
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-backup-${{ github.run_id }}
+          path: backup/*.sql.gz
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
