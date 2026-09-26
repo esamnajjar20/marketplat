@@ -59,8 +59,6 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = payload.images ?? [];
-          console.log('[draft-debug][product] onError fired, files:', files.length,
-            files.map((x) => ({ n: x?.name, s: x?.size })));
           // FIX TRIPLE-COMPRESS-01: compress ONCE, reuse for both
           // previews and publishFiles (see useAdMutations.ts for the
           // full rationale — the duplicated pass was what made the form
@@ -71,9 +69,6 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
             compressedFiles.length > 0
               ? await bestEffortCompressPreviews(compressedFiles)
               : [];
-          console.log('[draft-debug][product] about to save, compressed:',
-            compressedFiles.length, 'previews:', images.length,
-            'userId:', userId, 'status:', (offline || parsed.queued) ? 'pending_sync' : 'failed');
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -120,7 +115,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
           }
           return;
         } catch (e) {
-          console.error('[draft-debug][product] saveAdDraft FAILED:', e);
+          console.error('[offline-drafts] product saveAdDraft failed:', e);
         }
       }
       toastMutationError(err);

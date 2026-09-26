@@ -101,9 +101,6 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const files = (payload as { images?: File[] }).images ?? [];
-          // DRAFT-DEBUG-01 (temporary)
-          console.log('[draft-debug] files:', files.length,
-            files.map((x) => ({ n: x?.name, s: x?.size, t: x?.type })));
           // FIX TRIPLE-COMPRESS-01: compress ONCE, reuse the result for
           // both the tiny previews (images) and the full publish payload
           // (publishFiles). Previously previews and publishFiles each
@@ -118,8 +115,6 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
             compressedFiles.length > 0
               ? await bestEffortCompressPreviews(compressedFiles)
               : [];
-          console.log('[draft-debug] compressed:', compressedFiles.length,
-            'previews:', images.length, 'userId:', userId);
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -156,7 +151,6 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               : undefined,
             publishRetryCount: 0,
           });
-          console.log('[draft-debug] saveAdDraft OK');
           if (offline || parsed.queued) {
             toastOfflineSaved({
               entity: 'الإعلان',
@@ -168,7 +162,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
           }
           return;
         } catch (e) {
-          console.error('[draft-debug] FAILED:', e);
+          console.error('[offline-drafts] saveAdDraft failed:', e);
         }
       }
       toast.error(parsed.message);

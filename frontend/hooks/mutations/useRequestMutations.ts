@@ -63,7 +63,6 @@ export function useCreateRequest() {
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const { files, ...body } = input;
-          console.log('[draft-debug][request] about to save');
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -110,7 +109,7 @@ export function useCreateRequest() {
           }
           return;
         } catch (e) {
-          console.error('[draft-debug][request] saveAdDraft FAILED:', e);
+          console.error('[offline-drafts] request saveAdDraft failed:', e);
         }
       }
       toastMutationError(err);

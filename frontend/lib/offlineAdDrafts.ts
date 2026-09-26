@@ -334,8 +334,6 @@ export async function saveAdDraft(
     publishRetryCount?: number;
   },
 ): Promise<AdDraft> {
-  console.log('[save-debug] entry kind=' + (input.kind ?? 'ad') +
-    ' id=' + (input.id ?? 'none') + ' userId=' + input.userId);
   // FIX DRAFT-DEDUP-01: when called without an explicit id AND for a
   // real submission attempt (pending_sync/failed — not a plain 'draft'),
   // look for an existing same-user + same-kind + same-mode + same-payload
@@ -402,9 +400,7 @@ export async function saveAdDraft(
     }
   }
 
-  console.log('[save-debug] dedup done, effectiveId=' + (effectiveId ?? 'new'));
   const existing = effectiveId ? await getAdDraft(effectiveId) : null;
-  console.log('[save-debug] getAdDraft done, existing=' + (existing ? 'yes' : 'no'));
   const now = new Date().toISOString();
   let versions: DraftVersion[] = existing?.versions ? [...existing.versions] : [];
   if (
@@ -456,17 +452,18 @@ export async function saveAdDraft(
         : existing?.publishRetryCount,
   };
 
-  console.log('[save-debug] opening IDB');
   const db = await openDb();
-  console.log('[save-debug] IDB open, writing');
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).put(draft);
-    tx.oncomplete = () => { console.log('[save-debug] write tx complete'); resolve(); };
-    tx.onerror = () => { console.error('[save-debug] write tx error', tx.error); reject(tx.error); };
-    tx.onabort = () => { console.error('[save-debug] write tx ABORTED', tx.error); reject(tx.error); };
+    // SAVE-DEBUG-CLEANUP-02: keep the onerror/onabort diagnostics —
+    // if a future IndexedDB write fails (quota, another InvalidBlob
+    // variant), one line in the console is worth having. Removed the
+    // oncomplete console.log — it fired on every successful draft save.
+    tx.oncomplete = () => { resolve(); };
+    tx.onerror = () => { console.error('[offline-drafts] write tx error', tx.error); reject(tx.error); };
+    tx.onabort = () => { console.error('[offline-drafts] write tx ABORTED', tx.error); reject(tx.error); };
   });
-  console.log('[save-debug] write done, checking count');
 
   // سقف عدد المسودات — FIX AD-DRAFT-USER-SCOPE-01: لكل مستخدم على حدة،
   // لا عالميًا عبر الجهاز. قبل هذا، نشاط مستخدم B الكثيف على نفس الجهاز
