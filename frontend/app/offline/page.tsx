@@ -61,18 +61,24 @@ export default function OfflinePage() {
 
     const recoverToApp = () => {
       setIsOnline(true);
-      void requestQueueReplay().finally(() => {
-        window.setTimeout(() => {
-          void syncPendingOfflineDrafts({ includeFailed: true })
-            .then((r) => {
-              if (r.sent > 0 || r.failed > 0) toastDraftPublishResult(r);
-            })
-            .catch((err) => {
-              // UNHANDLED-CATCH-FIX
-              console.warn('[offline] syncPendingOfflineDrafts failed:', err);
-            });
-        }, 1500);
-      });
+      // OFFLINE-PAGE-FIXES-01: requestQueueReplay can reject (SW
+      // unreachable, IndexedDB hiccup). Previously only .finally was
+      // attached, so a rejection escaped to the global handler.
+      void requestQueueReplay()
+        .catch((err) => {
+          console.warn('[offline] requestQueueReplay failed:', err);
+        })
+        .finally(() => {
+          window.setTimeout(() => {
+            void syncPendingOfflineDrafts({ includeFailed: true })
+              .then((r) => {
+                if (r.sent > 0 || r.failed > 0) toastDraftPublishResult(r);
+              })
+              .catch((err) => {
+                console.warn('[offline] syncPendingOfflineDrafts failed:', err);
+              });
+          }, 1500);
+        });
       // FIX OFFLINE-FALSE-TIMEOUT-01: /offline may appear after a navigate
       // soft-timeout while navigator.onLine is still true — the 'online'
       // event never fires. Same recovery path as a real online transition.
@@ -92,17 +98,15 @@ export default function OfflinePage() {
     window.addEventListener('offline', handleOffline);
     navigator.serviceWorker?.addEventListener('message', onSwMessage);
 
-    // Already "online" per browser but landed on /offline (slow-net timeout):
-    // auto-recover after a short beat so the user is not stuck on the banner.
-    let recoverTimer: ReturnType<typeof setTimeout> | undefined;
-    if (online) {
-      recoverTimer = setTimeout(() => {
-        recoverToApp();
-      }, 800);
-    }
-
+    // OFFLINE-PAGE-FIXES-01: no auto-redirect. Previously we pushed to /
+    // after 800ms when navigator.onLine was true (to unstick users who
+    // landed here after a slow-navigation timeout). But it also kicked
+    // out users who came here on purpose — offline reading, catalog
+    // browsing, or checking pending items. Now: the banner below says
+    // 'الاتصال يعمل' and the primary CTA is right there; the user
+    // decides. The real 'online' event still auto-recovers (that path
+    // is unambiguous — the browser just transitioned from offline).
     return () => {
-      if (recoverTimer) clearTimeout(recoverTimer);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       navigator.serviceWorker?.removeEventListener('message', onSwMessage);
@@ -131,6 +135,11 @@ export default function OfflinePage() {
     setBusyId(id);
     try {
       await retryFailedRequest(id);
+    } catch (err) {
+      // OFFLINE-PAGE-FIXES-01
+      console.warn('[offline] retryFailedRequest failed:', err);
+      // Best-effort: refresh the list so a state change is reflected.
+      refreshQueue();
     } finally {
       setBusyId(null);
     }
@@ -140,6 +149,10 @@ export default function OfflinePage() {
     setBusyId(id);
     try {
       await discardFailedRequest(id);
+    } catch (err) {
+      // OFFLINE-PAGE-FIXES-01
+      console.warn('[offline] discardFailedRequest failed:', err);
+      refreshQueue();
     } finally {
       setBusyId(null);
     }
@@ -234,6 +247,12 @@ export default function OfflinePage() {
             {/* PHASE-OFFLINE-AD-DETAIL */}
             <Button variant="outline" size="sm" asChild>
               <Link href="/saved-ads">إعلانات محفوظة دون اتصال</Link>
+            </Button>
+            {/* OFFLINE-PAGE-FIXES-01: direct path to warming controls.
+                Protected route — redirects to /login if not signed in,
+                which is fine (the user learns they need to log in). */}
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/settings/offline">إدارة التسخين</Link>
             </Button>
           </div>
         </div>
