@@ -72,6 +72,36 @@ function isAbortError(err: unknown): boolean {
   return message.includes('aborted') || message.includes('user aborted');
 }
 
+/**
+ * NETWORK-ERROR-FILTER-01: `fetch()` failures on a weak/unstable
+ * connection reject with a `TypeError` whose message is one of a
+ * small, well-known set — 'Failed to fetch' (Chrome/Edge/Firefox),
+ * 'NetworkError when attempting to fetch resource' (Firefox),
+ * 'Load failed' (Safari), 'Network request failed' (React Native /
+ * some WebView builds). These are transport failures — the request
+ * never reached the server, so there is no status, no stack, and
+ * nothing actionable for the team to fix. On Gaza mobile networks
+ * they dominate the unhandledrejection stream: every warming pass,
+ * queue drain, or background fetch that fires while the link is
+ * momentarily down produces one.
+ *
+ * Not a false success — a real 4xx/5xx still reaches the reporter
+ * (those come back as normal Error objects with status codes, not
+ * TypeError). Only the pre-flight transport failures are dropped.
+ */
+function isNetworkTransportError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  if ((err as { name?: unknown }).name !== 'TypeError') return false;
+  const message = (err as { message?: unknown }).message;
+  if (typeof message !== 'string') return false;
+  return (
+    message.includes('Failed to fetch') ||
+    message.includes('NetworkError when attempting to fetch') ||
+    message.includes('Load failed') ||
+    message.includes('Network request failed')
+  );
+}
+
 let installed = false;
 
 /**
@@ -96,6 +126,8 @@ export function installGlobalErrorHandlers(): void {
     // as promise rejections), but cheap insurance against the same
     // false-positive class if a caller ever throws one synchronously.
     if (isAbortError(error)) return;
+    // NETWORK-ERROR-FILTER-01: transport failures aren't actionable.
+    if (isNetworkTransportError(error)) return;
 
     // GLOBAL-ERROR-FILTERS-01: ChunkLoadError is not a bug — it's a
     // normal artifact of a fresh deploy (Next.js hashed chunks from the
@@ -140,6 +172,8 @@ export function installGlobalErrorHandlers(): void {
     // the dedup/error-wrap path so we don't spend map slots or
     // reporter bandwidth on them (see isAbortError above).
     if (isAbortError(reason)) return;
+    // NETWORK-ERROR-FILTER-01: same filter as the sync handler above.
+    if (isNetworkTransportError(reason)) return;
 
     // GLOBAL-ERROR-FILTERS-01: chunk errors can also arrive as
     // rejections (dynamic import() failures, lazy route chunks). Same
