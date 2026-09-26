@@ -153,6 +153,47 @@ export async function readSnapshotForCacheVersion(
   if (!snap) return null;
   if (snap.cacheVersion !== currentCacheVersion) {
     await clearSnapshot();
+    // CACHE-VERSION-THROTTLE-RESET-01: the route/personal-warmed
+    // localStorage keys are NOT part of the snapshot — they survive a
+    // CACHE_VERSION bump. Without clearing them here, the next warming
+    // pass sees 'warmed 5 minutes ago' (from the pre-bump pass), hits
+    // the throttle, and returns without re-filling the fresh, empty
+    // cache. Symptom: every page hits the /offline fallback for hours
+    // after each deploy until the 6h timer eventually fires.
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        // Actual key shapes (see offlineRouteShells.ts's own constants):
+        //   marketplat:route-shells:last-warmed:<version>
+        //   marketplat:personal-shells:last-warmed:<version>
+        //   marketplat:drip-last-pass:<version>
+        //   marketplat:core-last-warmed:<version>  (offlineCoreBundle)
+        // All prefixed with 'marketplat:' and versioned. Clearing any
+        // stale-version entry is safe — the CACHE_VERSION just changed,
+        // so the version-in-key already differs; this just stops the
+        // old key from lingering in localStorage indefinitely.
+        const keys: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const k = window.localStorage.key(i);
+          if (k) keys.push(k);
+        }
+        for (const k of keys) {
+          if (
+            k.startsWith('marketplat:route-shells:last-warmed') ||
+            k.startsWith('marketplat:personal-shells:last-warmed') ||
+            k.startsWith('marketplat:core-last-warmed') ||
+            k.startsWith('marketplat:drip-last-pass')
+          ) {
+            window.localStorage.removeItem(k);
+          }
+          // NOTE: never clear 'marketplat:warming-pref' here — that's the
+          // user's own mode selection (off/fast/full), not warming state.
+          // Clearing it on CACHE_VERSION bump would silently reset every
+          // user's choice back to the default on every deploy.
+        }
+      }
+    } catch {
+      /* private mode / quota — harmless */
+    }
     return null;
   }
   return snap;
