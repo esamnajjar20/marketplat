@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Pencil, Trash2, Eye, CheckCircle } from 'lucide-react';
+import { Pencil, Trash2, Eye, CheckCircle, Check, X, CheckSquare, Loader2 } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { PinAdButton } from '@/components/ads/PinAdButton';
 import { RepublishAdButton } from '@/components/ads/RepublishAdButton';
@@ -19,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -76,6 +77,56 @@ export function MyAdsList() {
 
   const markAsSold = useMarkAsSold();
 
+  // BULK-ADS-01-STATE: multi-select mode for the ads list. Long-press
+  // (>500ms) any row enters selection mode; tap toggles. Sticky bar
+  // at the bottom runs bulk mark-as-sold / bulk delete.
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.size === 0) setSelectionMode(false);
+      return next;
+    });
+  }
+
+  function enterSelectionWith(id: string) {
+    setSelectionMode(true);
+    setSelected((prev) => new Set(prev).add(id));
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+    setSelectionMode(false);
+  }
+
+  function onRowTouchStart(id: string) {
+    longPressFired.current = false;
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
+      enterSelectionWith(id);
+    }, 500);
+  }
+
+  function onRowTouchEnd() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  function onRowClick(id: string) {
+    if (longPressFired.current) { longPressFired.current = false; return; }
+    if (selectionMode) toggleSelect(id);
+  }
+
   // Tracks which ad the delete-confirmation dialog applies to (null = closed).
   // UX-FIX: "تعليم كمباع" changes the ad's status platform-wide (removed
   // from active search/listings) with no easy undo path, same class of
@@ -83,6 +134,72 @@ export function MyAdsList() {
   // zero confirmation, inconsistent with delete's ConfirmDialog just
   // below. Mirrors the same controlled-target pattern.
   const [soldTargetId, setSoldTargetId] = useState<string | null>(null);
+
+  // BULK-ADS-01-FN: bulk actions. Backend has no bulk endpoints, so we
+  // loop through ids with Promise.allSettled limited to 4 parallel —
+  // enough to feel instant, low enough not to slam the API on a weak
+  // network. Only ACTIVE ads can be marked sold (backend refuses
+  // otherwise); we filter the selection here and report the count.
+  async function bulkMarkSold() {
+    setBulkBusy('sold');
+    const ids = Array.from(selected);
+    // Only ACTIVE ads can transition to SOLD; skip others silently.
+    const eligible = ids.filter((id) => {
+      const ad = items.find((a) => a.id === id);
+      return ad?.status === 'ACTIVE';
+    });
+    if (eligible.length === 0) {
+      toast.info('لا يوجد إعلانات نشطة في التحديد');
+      setBulkBusy(null);
+      return;
+    }
+    const CONCURRENCY = 4;
+    let ok = 0, fail = 0;
+    try {
+      for (let i = 0; i < eligible.length; i += CONCURRENCY) {
+        const batch = eligible.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((id) => markAsSold.mutateAsync(id)),
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') ok += 1; else fail += 1;
+        }
+      }
+      const skipped = ids.length - eligible.length;
+      const parts = [`عُلّم ${ok} كمباع`];
+      if (fail > 0) parts.push(`فشل ${fail}`);
+      if (skipped > 0) parts.push(`تجاوزنا ${skipped}`);
+      toast.success(parts.join(' · '));
+    } finally {
+      setBulkBusy(null);
+      clearSelection();
+    }
+  }
+
+  async function bulkDelete() {
+    setConfirmBulkDelete(false);
+    setBulkBusy('delete');
+    const ids = Array.from(selected);
+    const CONCURRENCY = 4;
+    let ok = 0, fail = 0;
+    try {
+      for (let i = 0; i < ids.length; i += CONCURRENCY) {
+        const batch = ids.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((id) => deleteAd.mutateAsync(id)),
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') ok += 1; else fail += 1;
+        }
+      }
+      const parts = [`حُذف ${ok}`];
+      if (fail > 0) parts.push(`فشل ${fail}`);
+      toast.success(parts.join(' · '));
+    } finally {
+      setBulkBusy(null);
+      clearSelection();
+    }
+  }
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -139,18 +256,31 @@ export function MyAdsList() {
   return (
     <div className="space-y-4">
       {/* Status filter tabs */}
-      <div className="flex gap-2 overflow-x-auto border-b border-border/70 pb-3" role="group" aria-label="تصفية الإعلانات حسب الحالة">
-        {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
-          <button key={val} onClick={() => setStatus(val)}
-            aria-pressed={(status ?? '') === val}
-            className={`shrink-0 rounded-full px-3 py-1 text-sm transition-colors ${
-              (status ?? '') === val
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted'
-            }`}>
-            {label}
-          </button>
-        ))}
+      {/* BULK-ADS-01-JSX */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3">
+        <div className="flex gap-2 overflow-x-auto" role="group" aria-label="تصفية الإعلانات حسب الحالة">
+          {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
+            <button key={val} onClick={() => setStatus(val)}
+              aria-pressed={(status ?? '') === val}
+              className={`shrink-0 rounded-full px-3 py-1 text-sm transition-colors ${
+                (status ?? '') === val
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant={selectionMode ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => (selectionMode ? clearSelection() : setSelectionMode(true))}
+          className="ms-auto shrink-0 gap-1.5"
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          {selectionMode ? 'إلغاء التحديد' : 'تحديد'}
+        </Button>
       </div>
 
       {items.length === 0 ? (
@@ -174,7 +304,33 @@ export function MyAdsList() {
           {items.map((ad) => {
             const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 120, 90) : PLACEHOLDER_SVG;
             return (
-              <div key={ad.id} className="flex gap-3 rounded-xl border border-border bg-card p-3 shadow-xs transition-colors hover:border-primary/20">
+              <div
+                key={ad.id}
+                onTouchStart={() => onRowTouchStart(ad.id)}
+                onTouchEnd={onRowTouchEnd}
+                onTouchCancel={onRowTouchEnd}
+                onMouseDown={(e) => { if (e.button === 0) onRowTouchStart(ad.id); }}
+                onMouseUp={onRowTouchEnd}
+                onMouseLeave={onRowTouchEnd}
+                onClick={() => onRowClick(ad.id)}
+                className={cn(
+                  'flex gap-3 rounded-xl border border-border bg-card p-3 shadow-xs transition-colors',
+                  selected.has(ad.id) ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/20',
+                  selectionMode && 'cursor-pointer',
+                )}
+              >
+                {(selectionMode || selected.has(ad.id)) && (
+                  <span
+                    className={cn(
+                      'flex h-6 w-6 shrink-0 items-center justify-center self-center rounded border-2',
+                      selected.has(ad.id)
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-muted-foreground/40',
+                    )}
+                  >
+                    {selected.has(ad.id) && <Check className="h-3.5 w-3.5" />}
+                  </span>
+                )}
                 <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
                   <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="96px" />
                 </div>
@@ -191,7 +347,7 @@ export function MyAdsList() {
                     <span>{formatRelativeTime(ad.createdAt)}</span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 shrink-0">
+                <div className={cn('flex flex-col gap-1 shrink-0', selectionMode && 'hidden')}>
                   {/* FIX A11Y-01: icon-only action buttons need an
                       accessible name — title alone isn't reliable for
                       screen readers and has no keyboard equivalent. */}
@@ -237,6 +393,60 @@ export function MyAdsList() {
         <Pagination totalPages={totalPages} currentPage={page}
           baseUrl={ROUTES.myAds} searchParams={Object.fromEntries(sp.entries())} />
       )}
+
+      {/* BULK-ADS-01-JSX: sticky action bar appears in selection mode.
+          Positioned above the mobile bottom nav (bottom-20) so it doesn't
+          fight with the tab bar; on sm+ it hugs a max-w-md centered box. */}
+      {selectionMode && (
+        <div className="fixed inset-x-3 bottom-20 z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-2xl border bg-background/95 px-3 py-3 shadow-2xl backdrop-blur">
+          <span className="text-sm font-medium">{selected.size} محدد</span>
+          <div className="ms-auto flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void bulkMarkSold()}
+              disabled={bulkBusy !== null || selected.size === 0}
+              className="gap-1.5"
+            >
+              {bulkBusy === 'sold' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+              كمباع
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmBulkDelete(true)}
+              disabled={bulkBusy !== null || selected.size === 0}
+              className="gap-1.5"
+            >
+              {bulkBusy === 'delete' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              حذف
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={clearSelection}
+              disabled={bulkBusy !== null}
+              aria-label="إلغاء التحديد"
+              className="gap-1.5"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        onOpenChange={setConfirmBulkDelete}
+        title={`حذف ${selected.size} إعلان؟`}
+        description="سيُحذف الإعلان المحدد نهائياً. لا يمكن التراجع عن هذا الإجراء."
+        confirmLabel="حذف المحدد"
+        destructive
+        isPending={bulkBusy === 'delete'}
+        onConfirm={() => void bulkDelete()}
+      />
 
       {/* delete uses scheduleDelete + undo toast (PHASE-2) */}
 
