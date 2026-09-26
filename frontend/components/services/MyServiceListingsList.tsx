@@ -16,6 +16,7 @@ import {
   Search,
   Inbox,
   CalendarClock,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -73,6 +74,11 @@ export function MyServiceListingsList() {
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // BULK-SERVICES-DELETE-01: same pattern as /my-store/products. The
+  // toolbar offered only status toggles; a seller clearing five
+  // discontinued services had to open each one individually.
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
 
   const isOutOfRange = useOutOfRangeRedirect({
     baseUrl: ROUTES.myServices,
@@ -143,6 +149,7 @@ export function MyServiceListingsList() {
     // summary toast surfaces the failure, and selection is
     // deliberately preserved on failure so the user can see which
     // items they still need to retry.
+    setBulkBusy('status');
     const ids = Array.from(selected);
     try {
       for (const id of ids) {
@@ -151,9 +158,37 @@ export function MyServiceListingsList() {
     } catch {
       toast.error('تعذّر تحديث بعض الخدمات، حاول مرة أخرى');
       return;
+    } finally {
+      setBulkBusy(null);
     }
     setSelected(new Set());
     toast.success(`تم تحديث ${ids.length} خدمة`);
+  }
+
+  // BULK-SERVICES-DELETE-01: sequential delete of the current selection,
+  // batched at concurrency 4 to match the ads / products lists.
+  async function performBulkDelete() {
+    setConfirmBulkDelete(false);
+    setBulkBusy('delete');
+    const ids = Array.from(selected);
+    const CONCURRENCY = 4;
+    let ok = 0, fail = 0;
+    try {
+      for (let i = 0; i < ids.length; i += CONCURRENCY) {
+        const batch = ids.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((id) => deleteListing.mutateAsync(id)),
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') ok += 1; else fail += 1;
+        }
+      }
+      const msg = fail > 0 ? `حُذف ${ok} (فشل ${fail})` : `حُذف ${ok} خدمة`;
+      toast.success(msg);
+    } finally {
+      setBulkBusy(null);
+      setSelected(new Set());
+    }
   }
 
   if (isLoading || isOutOfRange) {
@@ -242,11 +277,21 @@ export function MyServiceListingsList() {
             size="sm"
             variant="outline"
             onClick={() => bulkStatus('PAUSED')}
-            disabled={toggleStatus.isPending}
+            disabled={bulkBusy !== null || toggleStatus.isPending}
           >
             إيقاف
           </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setConfirmBulkDelete(true)}
+            disabled={bulkBusy !== null}
+            className="gap-1.5"
+          >
+            {bulkBusy === 'delete' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            حذف المحدد
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy !== null}>
             إلغاء التحديد
           </Button>
         </div>
@@ -421,6 +466,17 @@ export function MyServiceListingsList() {
           if (!deleteTargetId) return;
           deleteListing.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
         }}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        onOpenChange={setConfirmBulkDelete}
+        title={`حذف ${selected.size} خدمة؟`}
+        description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
+        confirmLabel="حذف المحدد"
+        destructive
+        isPending={bulkBusy === 'delete'}
+        onConfirm={() => void performBulkDelete()}
       />
     </div>
   );
