@@ -63,9 +63,14 @@ export default function OfflinePage() {
       setIsOnline(true);
       void requestQueueReplay().finally(() => {
         window.setTimeout(() => {
-          void syncPendingOfflineDrafts({ includeFailed: true }).then((r) => {
-            if (r.sent > 0 || r.failed > 0) toastDraftPublishResult(r);
-          });
+          void syncPendingOfflineDrafts({ includeFailed: true })
+            .then((r) => {
+              if (r.sent > 0 || r.failed > 0) toastDraftPublishResult(r);
+            })
+            .catch((err) => {
+              // UNHANDLED-CATCH-FIX
+              console.warn('[offline] syncPendingOfflineDrafts failed:', err);
+            });
         }, 1500);
       });
       // FIX OFFLINE-FALSE-TIMEOUT-01: /offline may appear after a navigate

@@ -53,7 +53,14 @@ export function CapacitorBootstrap() {
           /* malformed */
         }
       });
-    })();
+    })().catch((err) => {
+      // UNHANDLED-CATCH-FIX: the native setup awaits several plugins
+      // (registerNativeDeepLinks / registerNativeBackButton /
+      // applyNativeChrome / onNativePushTapped) outside any try. A
+      // rejection from any of them previously reached the global
+      // handler as an unhandled promise rejection.
+      console.warn('[capacitor] native bootstrap failed:', err);
+    });
 
     return () => {
       cleanupDeepLinks?.();

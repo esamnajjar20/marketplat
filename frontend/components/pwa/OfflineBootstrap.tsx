@@ -26,6 +26,23 @@ import { initSwTokenSync } from '@/lib/swTokenSync';
 
 let __offlineBootstrapInitialized = false;
 
+// UNHANDLED-REJECTION-FIX-01: every fire-and-forget call below must
+// end in .catch — `void promise` alone still lets a rejection escape
+// to the global handler, which is what was reaching Sentry as
+// "Unhandled promise rejection". This wrapper centralises the catch
+// so a single point needs updating if the pipeline's contract changes.
+function safeRunWarming(opts: Parameters<typeof runWarmingPipeline>[0]): void {
+  void runWarmingPipeline(opts).catch((err) => {
+    console.warn('[offline] runWarmingPipeline failed:', err);
+  });
+}
+
+function safeFire(label: string, p: Promise<unknown>): void {
+  void p.catch((err) => {
+    console.warn('[offline] ' + label + ' failed:', err);
+  });
+}
+
 /** SW replay ثم نشر المسودات — مع إعلام الـ pipeline أن الطابور مشغول. */
 function replayThenPublishDrafts(): void {
   setQueueReplayInFlight(true);
@@ -33,12 +50,19 @@ function replayThenPublishDrafts(): void {
     .catch((err) => console.warn('[offline] requestQueueReplay failed:', err))
     .finally(() => {
       window.setTimeout(() => {
+        // SYNC-DRAFT-CATCH-01: this chain had only .then / .finally —
+        // a rejection from syncPendingOfflineDrafts escaped to the
+        // global handler, which is what reached Sentry as "Unhandled
+        // promise rejection".
         void syncPendingOfflineDrafts({ includeFailed: true })
           .then((r) => {
             if (r.sent > 0 || r.failed > 0) {
               console.warn('[offline] published drafts from local store:', r);
               toastDraftPublishResult(r);
             }
+          })
+          .catch((err) => {
+            console.warn('[offline] syncPendingOfflineDrafts failed:', err);
           })
           .finally(() => {
             setQueueReplayInFlight(false);
@@ -59,7 +83,7 @@ export function OfflineBootstrap() {
 
     // Queue first, then warming pipeline (pipeline waits if replay still active).
     replayThenPublishDrafts();
-    void runWarmingPipeline({ authenticated: isAuthenticated });
+    safeRunWarming({ authenticated: isAuthenticated });
 
     const PERIODIC_QUEUE_MS = 5 * 60 * 1000;
     const periodicId = window.setInterval(() => {
@@ -75,7 +99,7 @@ export function OfflineBootstrap() {
     const PERIODIC_WARM_MS = 6 * 60 * 60 * 1000;
     const warmId = window.setInterval(() => {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
-        void runWarmingPipeline({
+        safeRunWarming({
           authenticated: useAuthStore.getState().isAuthenticated,
           skipQueueWait: true,
         });
@@ -101,7 +125,7 @@ export function OfflineBootstrap() {
     const onOnline = () => {
       // Replay first; pipeline waits for setQueueReplayInFlight(false).
       replayThenPublishDrafts();
-      void runWarmingPipeline({
+      safeRunWarming({
         authenticated: useAuthStore.getState().isAuthenticated,
       });
     };
@@ -112,16 +136,18 @@ export function OfflineBootstrap() {
   useEffect(() => {
     if (!isAuthenticated) return;
     // Auth just became true — run personal + user-data phases via pipeline.
-    void runWarmingPipeline({ authenticated: true });
+    safeRunWarming({ authenticated: true });
 
     void (async () => {
       if (await supportsWebPush()) {
-        void ensurePushSubscriptionSynced();
+        safeFire('ensurePushSubscriptionSynced', ensurePushSubscriptionSynced());
       }
       if (await supportsNativePush()) {
-        void ensureNativePushSynced();
+        safeFire('ensureNativePushSynced', ensureNativePushSynced());
       }
-    })();
+    })().catch((err) => {
+      console.warn('[offline] push sync IIFE failed:', err);
+    });
   }, [isAuthenticated]);
 
   return <WarmupIndicator />;

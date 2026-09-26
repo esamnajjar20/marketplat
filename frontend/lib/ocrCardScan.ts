@@ -106,7 +106,14 @@ function resolveTesseractPaths(): Promise<{ workerPath: string; corePath: string
       langPath: langOk ? LOCAL_LANG_PATH : CDN_LANG_PATH,
     };
   })();
-  return resolvedPathsPromise;
+  const rp = resolvedPathsPromise;
+  // UNHANDLED-CATCH-FIX: mirror getWorker's self-healing pattern —
+  // register a rejection handler so the cached promise clears itself
+  // and a later call can retry after a transient network failure.
+  rp.catch(() => {
+    if (resolvedPathsPromise === rp) resolvedPathsPromise = null;
+  });
+  return rp;
 }
 
 // FIX LEN-BOUND-01: كانت هناك حدود طول ثابتة (8-16 لاسم المستخدم، 4-10
@@ -174,8 +181,15 @@ function loadTesseract(): Promise<TesseractModule> {
     if (!w.Tesseract) throw new Error('Tesseract غير معرّف بعد التحميل');
     return w.Tesseract;
   })();
-
-  return loadPromise;
+  const lp = loadPromise;
+  // UNHANDLED-CATCH-FIX: same self-healing pattern as getWorker above.
+  // Without this a single transient CDN/chunk failure would pin
+  // loadPromise as a rejected promise forever — every later OCR attempt
+  // would reject from cache without ever retrying.
+  lp.catch(() => {
+    if (loadPromise === lp) loadPromise = null;
+  });
+  return lp;
 }
 
 // مسبح العمال

@@ -86,6 +86,9 @@ export function CreateRequestForm() {
         setBudgetMin(p.budgetMin != null ? String(p.budgetMin) : '');
         setBudgetMax(p.budgetMax != null ? String(p.budgetMax) : '');
         setActiveOfflineDraftId(d.id);
+      } catch (err) {
+        // UNHANDLED-CATCH-FIX
+        console.warn('[requests/new] draft restore failed:', err);
       } finally {
         if (!cancelled) setDraftLoading(false);
       }

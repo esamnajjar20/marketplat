@@ -113,9 +113,11 @@ export function useUnreadNotificationCount() {
     if (typeof query.data === 'number') {
       saveUnreadCountCache(query.data);
       // PWA icon badge — best-effort; no-op if Badging API missing
-      void import('@/lib/appBadge').then(({ setAppBadgeCount }) => {
-        setAppBadgeCount(query.data as number);
-      });
+      void import('@/lib/appBadge')
+        .then(({ setAppBadgeCount }) => {
+          setAppBadgeCount(query.data as number);
+        })
+        .catch(() => { /* UNHANDLED-CATCH-FIX — badge is best-effort */ });
     }
   }, [query.data]);
 

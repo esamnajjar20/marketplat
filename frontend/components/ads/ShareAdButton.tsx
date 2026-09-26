@@ -87,7 +87,9 @@ export function ShareAdButton({ title, url, variant = 'icon', className }: Props
   // previous synchronous navigator.share check.
   const [hasNativeShare, setHasNativeShare] = useState(false);
   useEffect(() => {
-    void canNativeShare().then(setHasNativeShare);
+    void canNativeShare()
+      .then(setHasNativeShare)
+      .catch(() => { /* UNHANDLED-CATCH-FIX — capability probe; fallback to web share */ });
   }, []);
 
   return (

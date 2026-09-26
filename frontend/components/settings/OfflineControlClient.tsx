@@ -155,6 +155,10 @@ export function OfflineControlClient() {
       await readSnapshotLive();
       await readStorage();
       toast.success('انتهى التسخين');
+    } catch (err) {
+      // UNHANDLED-CATCH-FIX
+      console.warn('[offline] warming failed:', err);
+      toast.error('فشل التسخين');
     } finally {
       setBusy(null);
     }
@@ -182,6 +186,10 @@ export function OfflineControlClient() {
       await runWarmingPipeline();
       await readSnapshotLive();
       toast.success('استؤنف — ' + cleared + ' صفحة ناقصة');
+    } catch (err) {
+      // UNHANDLED-CATCH-FIX
+      console.warn('[offline] resume failed:', err);
+      toast.error('فشل الاستئناف');
     } finally {
       setBusy(null);
     }
@@ -202,6 +210,10 @@ export function OfflineControlClient() {
       await readSnapshotLive();
       await readStorage();
       toast.success('أُعيد التحميل من الصفر');
+    } catch (err) {
+      // UNHANDLED-CATCH-FIX
+      console.warn('[offline] full reset failed:', err);
+      toast.error('فشل إعادة التحميل');
     } finally {
       setBusy(null);
     }
@@ -229,6 +241,10 @@ export function OfflineControlClient() {
       toast.success('حُذف ' + cleared + ' كاش');
       await readSnapshotLive();
       await readStorage();
+    } catch (err) {
+      // UNHANDLED-CATCH-FIX
+      console.warn('[offline] clear warming failed:', err);
+      toast.error('فشل مسح الكاش');
     } finally {
       setBusy(null);
     }

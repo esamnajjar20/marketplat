@@ -73,7 +73,10 @@ export function InstallPrompt() {
       }
 
       cleanup = () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-    })();
+    })().catch((err) => {
+      // UNHANDLED-CATCH-FIX
+      console.warn('[install-prompt] bootstrap failed:', err);
+    });
 
     return () => {
       cancelled = true;
