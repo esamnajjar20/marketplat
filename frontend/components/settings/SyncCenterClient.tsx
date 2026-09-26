@@ -224,6 +224,10 @@ export function SyncCenterClient() {
         <Button variant="ghost" asChild>
           <Link href={ROUTES.settings.storage}>التخزين والبيانات</Link>
         </Button>
+        {/* DRAFTS-LINKS-01 */}
+        <Button variant="ghost" asChild>
+          <Link href={ROUTES.settings.drafts}>مركز المسودات</Link>
+        </Button>
       </div>
 
       {/* مسودات محفوظة محليًا (إعلان / منتج / خدمة) */}

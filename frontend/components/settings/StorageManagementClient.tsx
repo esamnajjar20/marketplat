@@ -257,6 +257,10 @@ export function StorageManagementClient() {
                 <WifiOff className="ms-1 h-3.5 w-3.5" />
               </Link>
             </Button>
+            {/* DRAFTS-LINKS-01 */}
+            <Button type="button" variant="ghost" size="sm" asChild>
+              <Link href={ROUTES.settings.drafts}>مسوداتي</Link>
+            </Button>
           </li>
         </ul>
       </section>
