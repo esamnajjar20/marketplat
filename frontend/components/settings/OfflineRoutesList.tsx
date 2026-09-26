@@ -98,6 +98,10 @@ export function OfflineRoutesList() {
   const [confirmDelete, setConfirmDelete] = useState<Row | null>(null);
   const [confirmBulkClear, setConfirmBulkClear] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  // SIZE-ACTIONS-01: confirm for 'clear largest'. A one-click way to
+  // reclaim space when the storage bar starts filling. Deletes the N
+  // largest routes, skipping protected ones.
+  const [confirmBulkClearLargest, setConfirmBulkClearLargest] = useState(false);
 
   // SIZE-SORT-01: per-route Cache Storage footprint. Computing one route
   // requires matching every chunk against the relevant cache and
@@ -209,6 +213,25 @@ export function OfflineRoutesList() {
     failed: rows.filter((r) => r.status === 'failed').length,
     pending: rows.filter((r) => r.status === 'pending' || r.status === 'missing').length,
   }), [rows]);
+
+  // SIZE-ACTIONS-01: aggregate size across all routes that have a
+  // computed size. Includes filtered-out rows — 'size on disk'
+  // shouldn't change when the user toggles a filter.
+  const totalBytes = useMemo(() => {
+    let sum = 0;
+    for (const v of sizes.values()) sum += v;
+    return sum;
+  }, [sizes]);
+
+  // Top 5 largest deletable routes.
+  const largestRoutes = useMemo(() => {
+    const LARGEST_COUNT = 5;
+    return rows
+      .map((r) => ({ row: r, bytes: sizes.get(rowKey(r)) ?? 0 }))
+      .filter(({ row, bytes }) => bytes > 0 && (row.personal || !PROTECTED_FROM_DELETE.has(row.route)))
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, LARGEST_COUNT);
+  }, [rows, sizes]);
 
   function toggleSelect(key: string) {
     setSelected((prev) => {
@@ -327,6 +350,31 @@ export function OfflineRoutesList() {
     }
   }
 
+  // SIZE-ACTIONS-01: delete the largest N routes' caches. Uses the
+  // same clearSingleRouteCache path as the selection toolbar, so the
+  // snapshot and IndexedDB cleanup behave identically. Protected
+  // routes are excluded by the filter that built largestRoutes.
+  async function performBulkClearLargest() {
+    setConfirmBulkClearLargest(false);
+    setBulkBusy('clear-largest');
+    let total = 0;
+    try {
+      for (const { row } of largestRoutes) {
+        total += await clearSingleRouteCache(row.route, row.personal);
+      }
+      toast.success('حُذف ' + total + ' ملف من ' + largestRoutes.length + ' صفحة');
+      const cleared = new Set(largestRoutes.map(({ row }) => rowKey(row)));
+      setSizes((prev) => {
+        const next = new Map(prev);
+        for (const k of cleared) next.set(k, 0);
+        return next;
+      });
+    } finally {
+      setBulkBusy(null);
+      await refresh();
+    }
+  }
+
   async function bulkRetrySelected() {
     setBulkBusy('retry-selected');
     let ok = 0, fail = 0;
@@ -378,6 +426,16 @@ export function OfflineRoutesList() {
         <p className="mt-0.5 text-xs text-muted-foreground">
           اضغط مطوّلاً على أي صف لتحديد مجموعة، ثم حمّلها أو احذفها مرة واحدة.
         </p>
+        {sizesComputing ? (
+          <p className="mt-1 text-xs text-muted-foreground">حساب الأحجام…</p>
+        ) : totalBytes > 0 ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            إجمالي الكاش المُسخَّن:{' '}
+            <span className="font-mono font-medium text-foreground">
+              {formatBytes(totalBytes)}
+            </span>
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
@@ -443,6 +501,26 @@ export function OfflineRoutesList() {
           >
             {bulkBusy === 'clear-public' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
             امسح العامة
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setConfirmBulkClearLargest(true)}
+            disabled={bulkBusy !== null || largestRoutes.length === 0}
+            title={
+              largestRoutes.length > 0
+                ? 'حذف أثقل ' + largestRoutes.length + ' صفحة'
+                : 'انتظر حساب الأحجام'
+            }
+            className="gap-1.5"
+          >
+            {bulkBusy === 'clear-largest' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            امسح الأكبر
           </Button>
         </div>
       </div>
@@ -631,6 +709,21 @@ export function OfflineRoutesList() {
         destructive
         isPending={bulkBusy === 'delete-selected'}
         onConfirm={() => void performBulkDelete()}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkClearLargest}
+        onOpenChange={setConfirmBulkClearLargest}
+        title={`حذف أثقل ${largestRoutes.length} صفحة؟`}
+        description={
+          'سيُفرَّغ الكاش المُسخَّن لهذه الصفحات ('
+          + formatBytes(largestRoutes.reduce((s, { bytes }) => s + bytes, 0))
+          + ' تقريباً). يُعاد تسخينها تلقائياً خلال الدورة القادمة.'
+        }
+        confirmLabel="حذف"
+        destructive
+        isPending={bulkBusy === 'clear-largest'}
+        onConfirm={() => void performBulkClearLargest()}
       />
     </div>
   );
