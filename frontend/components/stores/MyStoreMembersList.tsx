@@ -13,7 +13,12 @@ import {
   Trash2,
   Mail,
   Shield,
+  Check,
+  Square,
+  CheckSquare,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Input } from '@/components/shared/ui/Input';
@@ -125,17 +130,37 @@ function InviteForm({ storeId }: { storeId: string }) {
 function MemberRow({
   member,
   storeId,
+  selectionMode,
+  selected,
+  onToggle,
 }: {
   member: StoreMember;
   storeId: string;
+  selectionMode: boolean;
+  selected: boolean;
+  onToggle: (id: string) => void;
 }) {
   const updateRole = useUpdateStoreMemberRole(storeId);
   const removeMember = useRemoveStoreMember(storeId);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const selectable = member.status !== 'REMOVED';
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
+      <div
+        onClick={selectionMode && selectable ? () => onToggle(member.id) : undefined}
+        className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${selectionMode && selectable ? 'cursor-pointer' : ''} ${selected ? 'border-primary/40 bg-primary/10' : ''}`}
+      >
+        {selectionMode && selectable && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggle(member.id); }}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded border bg-background"
+            aria-label={selected ? 'إلغاء التحديد' : 'تحديد'}
+          >
+            {selected && <Check className="h-4 w-4" />}
+          </button>
+        )}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
           {member.user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -216,6 +241,12 @@ function MemberRow({
 }
 
 export function MyStoreMembersList() {
+  // BULK-MEMBERS-01: multi-select + bulk remove. Selection is lifted here
+  // so the sticky bar can render at the list level (MemberRow stays dumb).
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirmBulkRemove, setConfirmBulkRemove] = useState(false);
   const {
     data: store,
     isLoading: storeLoading,
@@ -225,6 +256,7 @@ export function MyStoreMembersList() {
   } = useMyStore();
 
   const storeId = store?.id;
+  const removeMemberBulk = useRemoveStoreMember(storeId ?? '');
   const {
     data: membersPage,
     isLoading: membersLoading,
@@ -288,15 +320,50 @@ export function MyStoreMembersList() {
 
   const items = membersPage?.items ?? [];
 
+  // BULK-MEMBERS-01: sequential remove (no bulk endpoint).
+  async function bulkRemove() {
+    setConfirmBulkRemove(false);
+    setBulkBusy(true);
+    const ids = Array.from(selected);
+    let ok = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        await removeMemberBulk.mutateAsync(id);
+        ok += 1;
+      } catch {
+        fail += 1;
+      }
+    }
+    setBulkBusy(false);
+    setSelected(new Set());
+    setSelectionMode(false);
+    if (fail === 0) toast.success(`أُزيل ${ok} عضو`);
+    else toast.error(`أُزيل ${ok} · فشل ${fail}`);
+  }
+
   return (
     <div className="space-y-6">
       <InviteForm storeId={store.id} />
 
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <h2 className="font-semibold">أعضاء الفريق</h2>
-          <Badge variant="secondary">{items.length}</Badge>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-semibold">أعضاء الفريق</h2>
+            <Badge variant="secondary">{items.length}</Badge>
+          </div>
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => { setSelectionMode((v) => !v); setSelected(new Set()); }}
+            >
+              {selectionMode ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+              {selectionMode ? 'إلغاء التحديد' : 'تحديد'}
+            </Button>
+          )}
         </div>
 
         {items.length === 0 ? (
@@ -308,7 +375,21 @@ export function MyStoreMembersList() {
         ) : (
           <div className="space-y-2">
             {items.map((m) => (
-              <MemberRow key={m.id} member={m} storeId={store.id} />
+              <MemberRow
+                key={m.id}
+                member={m}
+                storeId={store.id}
+                selectionMode={selectionMode}
+                selected={selected.has(m.id)}
+                onToggle={(id) => {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  });
+                }}
+              />
             ))}
           </div>
         )}
@@ -329,6 +410,43 @@ export function MyStoreMembersList() {
         </ul>
         <p>المالك فقط يستطيع ترقية عضو إلى مدير أو إزالة مدير.</p>
       </div>
+
+      {selectionMode && (
+        <div className="sticky bottom-2 z-10 flex items-center justify-between gap-2 rounded-lg border bg-card p-2 shadow-lg">
+          <span className="text-sm font-medium">{selected.size} محدد</span>
+          <div className="flex gap-1">
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setConfirmBulkRemove(true)}
+              disabled={bulkBusy || selected.size === 0}
+            >
+              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              إزالة
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setSelectionMode(false); setSelected(new Set()); }}
+              disabled={bulkBusy}
+            >
+              إلغاء
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmBulkRemove}
+        onOpenChange={setConfirmBulkRemove}
+        title={`إزالة ${selected.size} عضو؟`}
+        description="سيتم إزالتهم من فريق المتجر. يمكن إعادة دعوتهم لاحقًا."
+        confirmLabel="إزالة الأعضاء"
+        destructive
+        isPending={bulkBusy}
+        onConfirm={() => void bulkRemove()}
+      />
     </div>
   );
 }
