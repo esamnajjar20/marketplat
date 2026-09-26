@@ -22,6 +22,7 @@ import {
   type WarmingPlan,
 } from './offlineWarmingPlanner';
 import { describeCoordination } from './offlineWarmingCoordinator';
+import { CACHE_VERSION_SUFFIX } from './offlineRouteShells';
 
 export interface RouteReport {
   route: string;
@@ -133,13 +134,19 @@ const PERSONAL_ROUTES = [
   '/requests/new',
 ] as const;
 
+// CACHE-VERSION-SUFFIX-01: versioned names derived from the single
+// source of truth in offlineRouteShells.ts, not hardcoded. Previously
+// this list was pinned to a specific version string and drifted on
+// every CACHE_VERSION bump — the /admin/debug/warming page reported
+// stale cache names for one full cycle after each deploy.
 const CACHE_NAMES = [
-  'market-static-v40',
-  'market-personal-shell-v40',
-  'market-core-v40',
-  'market-api-v40',
-  'market-images-v40',
-  'market-user-data-v40',
+  `market-static-${CACHE_VERSION_SUFFIX}`,
+  `market-personal-shell-${CACHE_VERSION_SUFFIX}`,
+  `market-core-${CACHE_VERSION_SUFFIX}`,
+  `market-api-${CACHE_VERSION_SUFFIX}`,
+  `market-images-${CACHE_VERSION_SUFFIX}`,
+  `market-user-data-${CACHE_VERSION_SUFFIX}`,
+  // Non-versioned caches (see offlineSavedAds.ts / sw.js):
   'market-saved-ads',
   'market-warming-staging',
   'market-auto-read-ads',
@@ -225,9 +232,13 @@ function readThrottle(): WarmingDebugReport['throttle'] {
     }
   };
   return {
-    routeShells: read('marketplat:route-shells:last-warmed:v38'),
-    personalShells: read('marketplat:personal-shells:last-warmed:v38'),
-    coreBundle: read('marketplat:core-bundle:last-warmed:v38'),
+    // DEBUG-VERSION-SYNC-01: previously hardcoded to 'v38' — the debug
+    // page then read a key that no longer exists (current version is
+    // derived from STATIC_CACHE and always matches sw.js). Interpolated
+    // here so it tracks the same source of truth as the writers.
+    routeShells: read(`marketplat:route-shells:last-warmed:${CACHE_VERSION_SUFFIX}`),
+    personalShells: read(`marketplat:personal-shells:last-warmed:${CACHE_VERSION_SUFFIX}`),
+    coreBundle: read(`marketplat:core-bundle:last-warmed:${CACHE_VERSION_SUFFIX}`),
   };
 }
 

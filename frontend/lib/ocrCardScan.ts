@@ -388,7 +388,7 @@ function deskewCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
   let maxVotes = 0;
   let totalVotes = 0;
   for (const angle in angleVotes) {
-    const a = parseInt(angle);
+    const a = parseInt(angle, 10); // PARSEINT-RADIX-01
     totalVotes += angleVotes[a] ?? 0;
     const deviation = Math.abs(a) % 90;
     if (deviation > 5 && deviation < 85) {

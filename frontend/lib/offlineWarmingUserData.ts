@@ -17,7 +17,10 @@
  *     usual 2G/3G the ~55 KB payload would compete with the shell
  *     warming that has higher priority.
  *   - Only endpoints the user's own account owns.
- *   - Responses land in a dedicated cache (market-user-data-v40) that
+ *   - Responses land in a dedicated cache (market-user-data-*) that
+ *     is versioned by CACHE_VERSION (see USER_DATA_CACHE below).
+ *     COMMENT-V40-STALE-FIX: kept the asterisk so future bumps don't
+ *     need to touch this comment.
  *     the SW wipes on logout alongside API_CACHE and PERSONAL_SHELL_CACHE.
  *
  * Cache key format is the FULL request URL (API_BASE_URL + path +
@@ -36,7 +39,7 @@ import { isWarmingCancelled } from './offlineRouteShells';
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
 /** Must match sw.js's USER_DATA_CACHE template literally. */
-export const USER_DATA_CACHE = 'market-user-data-v40';
+export const USER_DATA_CACHE = 'market-user-data-v41';
 
 /**
  * Endpoints warmed per user. Each entry becomes one fetch + one

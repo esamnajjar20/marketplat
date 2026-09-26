@@ -41,6 +41,7 @@ import { API_BASE_URL } from '@/lib/constants';
 import { getDetailImageUrl, getThumbnailUrl } from '@/lib/cloudinary';
 import { localGet, localSet } from '@/lib/localStore';
 import type { Ad } from '@/types/ad.types';
+import { fetchWithTimeout } from './fetchTimeout'; // NETWORK-FETCH-TIMEOUT-01
 
 export const SAVED_ADS_CACHE = 'market-saved-ads';
 
@@ -152,7 +153,7 @@ export async function saveAdOffline(ad: Ad, userId?: string | null): Promise<boo
     const cache = await caches.open(SAVED_ADS_CACHE);
 
     const apiUrl = adDetailUrl(ad.id);
-    const apiResponse = await fetch(apiUrl);
+    const apiResponse = await fetchWithTimeout(apiUrl);
     if (!apiResponse.ok) return false;
     await cachePutSafe(cache, apiUrl, apiResponse);
 
@@ -160,7 +161,7 @@ export async function saveAdOffline(ad: Ad, userId?: string | null): Promise<boo
     await Promise.allSettled(
       imageUrls.map(async (url) => {
         try {
-          const imgResponse = await fetch(url);
+          const imgResponse = await fetchWithTimeout(url);
           await cachePutSafe(cache, url, imgResponse);
         } catch {
           // صورة واحدة فاشلة لا توقف حفظ الباقي.

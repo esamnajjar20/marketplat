@@ -93,7 +93,7 @@ const PERSONAL_LOCK_NAME = 'marketplat-warming-personal';
 // kept in sync with offlineCoreBundle.ts's CORE_CACHE and
 // offlineWarmingUserData.ts's USER_DATA_CACHE, both of which were
 // already v38.
-const STATIC_CACHE = 'market-static-v40'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v41'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -242,7 +242,7 @@ export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
 // SW-FIX-CACHE-VERSION-MISMATCH: was 'v40' — same mismatch as
 // STATIC_CACHE above. See that line's comment.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v40';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v41';
 
 /**
  * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —
@@ -285,7 +285,11 @@ async function putTimestamped(cache: Cache, request: string, response: Response)
 // CACHE_VERSION by cacheVersionSync.test), so it can never drift from
 // the caches it describes. PERSONAL_SHELL_CACHE is versioned the same
 // way — both get wiped together on activate, so one suffix covers both.
-const CACHE_VERSION_SUFFIX = STATIC_CACHE.split('-').pop() ?? 'unknown';
+// Exported so offlineWarmingDebug.ts (and any future diagnostic
+// consumer) can derive the same cache names without hardcoding a
+// version string. A hardcoded list drifts on every CACHE_VERSION
+// bump — the /admin/debug/warming page was reading stale names.
+export const CACHE_VERSION_SUFFIX = STATIC_CACHE.split('-').pop() ?? 'unknown';
 
 // SW-WARM-CACHE-VERSION-WRITE-01-CALL: tell the snapshot writer which
 // cache version it describes, once, at module load. Read back by

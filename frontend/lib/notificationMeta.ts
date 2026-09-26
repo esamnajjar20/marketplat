@@ -153,13 +153,22 @@ export function groupNotificationsByDay(items: Notification[]): { label: string;
   const map = new Map<string, Notification[]>();
   for (const n of items) {
     const label = dayBucketLabel(n.createdAt);
-    if (!map.has(label)) {
-      map.set(label, []);
+    // NONNULL-NOTIFICATION-MAP-01: previously `map.get(label)!.push(n)`
+    // and `map.get(label)!` in the return — both rely on an invariant
+    // (the key was just set) that TypeScript can't verify, so a future
+    // refactor that moves the set() elsewhere silently crashes at
+    // runtime. The `?? []` fallbacks are zero-cost and self-defending.
+    const bucket = map.get(label);
+    if (!bucket) {
+      const fresh: Notification[] = [];
+      map.set(label, fresh);
       order.push(label);
+      fresh.push(n);
+    } else {
+      bucket.push(n);
     }
-    map.get(label)!.push(n);
   }
-  return order.map((label) => ({ label, items: map.get(label)! }));
+  return order.map((label) => ({ label, items: map.get(label) ?? [] }));
 }
 
 export { Bell };

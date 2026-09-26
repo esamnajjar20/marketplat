@@ -11,6 +11,7 @@ import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types
 import { recordCatalogDownload } from '@/lib/downloadStorage';
 import { getAvatarUrl, getDetailImageUrl, getThumbnailUrl } from '@/lib/cloudinary';
 import { normalizePaymentMethods } from '@/lib/storePaymentMethods';
+import { fetchWithTimeout } from '@/lib/fetchTimeout'; // NETWORK-FETCH-TIMEOUT-01
 
 interface Props {
   storeId: string;
@@ -35,7 +36,7 @@ const HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
 async function toDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url) return null;
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const res = await fetchWithTimeout(url, { mode: 'cors' });
     if (!res.ok) return null;
     const blob = await res.blob();
     return await new Promise<string>((resolve, reject) => {

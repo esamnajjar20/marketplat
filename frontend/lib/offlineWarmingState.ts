@@ -166,7 +166,11 @@ export async function readSnapshotForCacheVersion(
         //   marketplat:route-shells:last-warmed:<version>
         //   marketplat:personal-shells:last-warmed:<version>
         //   marketplat:drip-last-pass:<version>
-        //   marketplat:core-last-warmed:<version>  (offlineCoreBundle)
+        //   marketplat:core-bundle:last-warmed:<version>  (offlineCoreBundle)
+        // CORE-KEY-TYPO-FIX-01: was 'marketplat:core-last-warmed' —
+        // the actual constant in offlineCoreBundle.ts is
+        // 'marketplat:core-bundle:last-warmed'. The prefix never
+        // matched, so core's stale marker was never cleaned up.
         // All prefixed with 'marketplat:' and versioned. Clearing any
         // stale-version entry is safe — the CACHE_VERSION just changed,
         // so the version-in-key already differs; this just stops the
@@ -180,7 +184,7 @@ export async function readSnapshotForCacheVersion(
           if (
             k.startsWith('marketplat:route-shells:last-warmed') ||
             k.startsWith('marketplat:personal-shells:last-warmed') ||
-            k.startsWith('marketplat:core-last-warmed') ||
+            k.startsWith('marketplat:core-bundle:last-warmed') ||
             k.startsWith('marketplat:drip-last-pass')
           ) {
             window.localStorage.removeItem(k);

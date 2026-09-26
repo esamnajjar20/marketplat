@@ -41,6 +41,7 @@ import {
   getWarmingProgressAggregate,
 } from './warmingProgress';
 import { reportWarmingFailure } from './offlineWarmingReport';
+import { fetchWithTimeout } from './fetchTimeout';
 
 // FIX PWA-VER-01: نفس مشكلة lib/offlineRouteShells.ts's STATIC_CACHE — كانت
 // عالقة على 'v4' بينما public/sw.js تجاوزها إلى 'v5'، فكان warmCoreBundle()
@@ -55,7 +56,7 @@ import { reportWarmingFailure } from './offlineWarmingReport';
 // public/sw.js's CACHE_VERSION).
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
 // fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
-export const CORE_CACHE = 'market-core-v40'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+export const CORE_CACHE = 'market-core-v41'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // FIX WARM-MARKER-VERSION-01: append the cache version to this key so
 // a CACHE_VERSION bump automatically invalidates the "recently warmed"
 // marker. Without it, after every deploy the SW clears CORE_CACHE on
@@ -267,7 +268,7 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
     const results = await Promise.allSettled(
       urls.map(async ({ url }) => {
         try {
-          const response = await fetch(url); // بدون credentials — نقاط عامة (public browse)
+          const response = await fetchWithTimeout(url); // بدون credentials — نقاط عامة (public browse)
           if (await cachePut(cache, url, response.clone())) succeeded += 1;
           return response.ok ? response.json() : null;
         } finally {
@@ -296,7 +297,7 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
     await Promise.allSettled(
       thumbnails.map(async (url) => {
         try {
-          const response = await fetch(url);
+          const response = await fetchWithTimeout(url);
           if (await cachePut(cache, url, response)) succeeded += 1;
         } catch {
           // صورة واحدة فاشلة لا توقف الباقي.

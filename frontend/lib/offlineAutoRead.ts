@@ -7,6 +7,7 @@ import type { Ad } from '@/types/ad.types';
 import { localGet, localSet } from '@/lib/localStore';
 import { getThumbnailUrl } from '@/lib/cloudinary';
 import { API_BASE_URL } from '@/lib/constants';
+import { fetchWithTimeout } from './fetchTimeout'; // NETWORK-FETCH-TIMEOUT-01
 
 const INDEX_KEY = 'marketplat:auto-read-ads';
 const MAX_AUTO = 15;
@@ -148,7 +149,7 @@ async function autoSaveVisitedAdImpl(ad: Ad, userId?: string | null): Promise<vo
     const cache = await caches.open(CACHE_NAME);
     const apiUrl = adDetailUrl(ad.id);
     try {
-      const res = await fetch(apiUrl);
+      const res = await fetchWithTimeout(apiUrl);
       if (res.ok) {
         // FIX AUTOREAD-TIMESTAMP: X-SW-Cached-At على المدخلات — يحمي
         // من الحذف العشوائي لو أُضيف trimCache مستقبلاً.
@@ -171,7 +172,7 @@ async function autoSaveVisitedAdImpl(ad: Ad, userId?: string | null): Promise<vo
       : null;
     if (thumbUrl) {
       try {
-        const imgRes = await fetch(thumbUrl);
+        const imgRes = await fetchWithTimeout(thumbUrl);
         if (imgRes.ok) {
           // FIX AUTOREAD-TIMESTAMP: X-SW-Cached-At على الصورة أيضاً —
           // يحمي من الحذف العشوائي لو أُضيف trimCache مستقبلاً.
