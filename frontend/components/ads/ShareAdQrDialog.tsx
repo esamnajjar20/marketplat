@@ -46,12 +46,22 @@ export function ShareAdQrDialog({ open, onOpenChange, payload }: Props) {
   const [busy, setBusy] = useState(false);
   const [tooLong, setTooLong] = useState(false);
   const [encoded, setEncoded] = useState('');
+  // SHARE-QR-GUARD-01: surface render failures instead of a blank box.
+  const [qrError, setQrError] = useState<string | null>(null);
+
+  // Warm the qrcode chunk on mount so the first dialog open is instant
+  // and never falls into a lazy-import race after a deploy.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    import('qrcode').catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!open || !canvasRef.current) return;
     let cancelled = false;
     setBusy(true);
     setTooLong(false);
+    setQrError(null);
 
     (async () => {
       try {
@@ -79,6 +89,11 @@ export function ShareAdQrDialog({ open, onOpenChange, payload }: Props) {
         });
       } catch (err) {
         console.warn('[share-qr] render failed:', err);
+        if (!cancelled) {
+          setQrError(
+            'تعذّر توليد الرمز — افتح التطبيق مرة أونلاين لتحديث الملفات',
+          );
+        }
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -116,6 +131,11 @@ export function ShareAdQrDialog({ open, onOpenChange, payload }: Props) {
             {busy && (
               <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin" />
+              </span>
+            )}
+            {qrError && !busy && (
+              <span className="p-4 text-center text-xs text-destructive">
+                {qrError}
               </span>
             )}
             {tooLong && !busy && (
