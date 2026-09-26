@@ -29,7 +29,7 @@
  * know the bug exists.
  */
 
-import { reportClientError } from './errorReporter';
+import { reportClientError, isChunkLoadError, handleChunkLoadError } from './errorReporter';
 
 const DEDUPE_WINDOW_MS = 5_000;
 const recent = new Map<string, number>();
@@ -97,6 +97,17 @@ export function installGlobalErrorHandlers(): void {
     // false-positive class if a caller ever throws one synchronously.
     if (isAbortError(error)) return;
 
+    // GLOBAL-ERROR-FILTERS-01: ChunkLoadError is not a bug — it's a
+    // normal artifact of a fresh deploy (Next.js hashed chunks from the
+    // old build were replaced). Every error.tsx already calls
+    // handleChunkLoadError() to trigger one reload; the global handler
+    // was NOT doing this, so every deploy produced a Sentry event per
+    // affected user and no recovery. Mirror the boundary behaviour here.
+    if (error instanceof Error && isChunkLoadError(error)) {
+      handleChunkLoadError(error);
+      return;
+    }
+
     const signature = `error:${error.name}:${error.message}:${event.filename}:${event.lineno}`;
     if (!shouldReport(signature)) return;
 
@@ -115,11 +126,28 @@ export function installGlobalErrorHandlers(): void {
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
 
+    // GLOBAL-ERROR-FILTERS-01: skip rejections with nothing to report.
+    // A promise rejected with `undefined`, `null`, or a DOM `Event`
+    // (from a dispatchEvent that a listener rejected) was being
+    // stringified into a generic 'Unhandled promise rejection' — pure
+    // Sentry noise with no stack, no message, no fix. Nothing useful
+    // to act on, so don't spend a report.
+    if (reason === undefined || reason === null) return;
+    if (reason instanceof Event) return;
+
     // FIX GLOBAL-ERROR-ABORT-FILTER-01: abort rejections are the
     // expected outcome of a cancelled request, not bugs. Filter before
     // the dedup/error-wrap path so we don't spend map slots or
     // reporter bandwidth on them (see isAbortError above).
     if (isAbortError(reason)) return;
+
+    // GLOBAL-ERROR-FILTERS-01: chunk errors can also arrive as
+    // rejections (dynamic import() failures, lazy route chunks). Same
+    // recover-and-don't-report treatment as the sync path above.
+    if (reason instanceof Error && isChunkLoadError(reason)) {
+      handleChunkLoadError(reason);
+      return;
+    }
 
     // The rejection value isn't always an Error — apps reject with
     // plain objects, strings, or API error shapes all the time. Wrap
