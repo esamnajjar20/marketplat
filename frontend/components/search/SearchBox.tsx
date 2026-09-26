@@ -41,6 +41,16 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   const [suggestionsList, setSuggestionsList] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // SEARCHBOX-BLUR-TIMER-01: the onBlur 150ms timer was untracked —
+  // navigating away within that window fired setShowSuggestions on an
+  // unmounted component. Track it and clear on unmount.
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setRecent(getRecentSearches());
@@ -228,7 +238,13 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
               setRecent(getRecentSearches());
               setShowSuggestions(true);
             }}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onBlur={() => {
+              if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+              blurTimerRef.current = setTimeout(() => {
+                blurTimerRef.current = null;
+                setShowSuggestions(false);
+              }, 150);
+            }}
             onKeyDown={handleInputKeyDown}
             placeholder="ابحث عن منتجات، محلات، إعلانات، خدمات..."
             className={cn('ps-9', inputClassName)}
