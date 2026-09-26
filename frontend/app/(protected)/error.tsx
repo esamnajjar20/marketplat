@@ -36,6 +36,17 @@ export default function ProtectedError({ error, reset }: ProtectedErrorProps) {
   const isOnline = useOnlineStatus();
 
   useEffect(() => {
+    // OFFLINE-REDIRECT-01: an offline ChunkLoadError means there is no
+    // cached shell to serve and no network to fetch one. The generic
+    // "حدث خطأ غير متوقع" UI is wrong here — /offline exists exactly
+    // for this situation. Redirect instead of showing an error the
+    // user can't act on.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      window.location.replace('/offline');
+    }
+  }, []);
+
+useEffect(() => {
     // FIX CHUNK-LOAD-RECOVERY-01: see app/error.tsx for the full
     // rationale. Protected pages are where the failure surfaces most
     // often, because PERSONAL_SHELL_CACHE is what serves a stale HTML

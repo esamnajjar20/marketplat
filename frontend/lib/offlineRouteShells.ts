@@ -1001,10 +1001,19 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
     const incompletePersonal = routesEarlyP.filter(
       (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
     ).length;
-    const throttleMsP =
-      incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-    const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
-    if (Date.now() - last < throttleMsP) return;
+    // WARM-PERSONAL-THROTTLE-FORCE-01: mirror the route-shells side.
+    // force=true (from 'أعد التحميل من الصفر' and 'ابدأ التسخين الآن')
+    // must skip the throttle. Before this the manual buttons cleared
+    // the personal caches but then hit the same 'warmed N seconds ago'
+    // guard and returned before touching a single personal route — so
+    // /settings/offline showed 17/54 complete with the 37 personal
+    // routes stuck at pending forever after a reset.
+    if (!force) {
+      const throttleMsP =
+        incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
+      const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
+      if (Date.now() - last < throttleMsP) return;
+    }
 
     // SW-IDLE-SCHEDULE-01: prefer requestIdleCallback over a blind 15s
     // wait. Warming is background work the user did not ask for; the

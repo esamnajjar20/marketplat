@@ -38,7 +38,7 @@ import {
   WARMING_MODE_LABELS, WARMING_MODE_DESCRIPTIONS, WARMING_MODE_BYTES_EST,
   type WarmingMode,
 } from '@/lib/warmingPreferences';
-import { readSnapshot } from '@/lib/offlineWarmingState';
+import { readSnapshot, clearSnapshot } from '@/lib/offlineWarmingState';
 import {
   warmRouteShellsAtomic, warmPersonalShellsAtomic,
   requestWarmingCancel, resetWarmingCancel, isWarmingCancelled,
@@ -309,7 +309,37 @@ export function OfflineControlClient() {
           if (await caches.delete(n)) cleared += 1;
         }
       }
-      toast.success('حُذف ' + cleared + ' كاش');
+      // CLEAR-WARMING-SNAPSHOT-01: the button's own label promises
+      // 'clear all warming' — but only the Cache Storage entries were
+      // deleted. The IndexedDB snapshot that every counter on this
+      // page reads from stayed intact, so the UI still showed 54/54
+      // complete immediately after the wipe. From the user's side the
+      // button looked like a no-op.
+      await clearSnapshot();
+      // Same reasoning for the throttle markers: without this, the
+      // next warming pass reads 'warmed N minutes ago' from before the
+      // wipe and (on a non-force pass) would skip straight back to
+      // 0/54 with no work done.
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const keys: string[] = [];
+          for (let i = 0; i < window.localStorage.length; i += 1) {
+            const k = window.localStorage.key(i);
+            if (k) keys.push(k);
+          }
+          for (const k of keys) {
+            if (
+              k.startsWith('marketplat:route-shells:last-warmed') ||
+              k.startsWith('marketplat:personal-shells:last-warmed') ||
+              k.startsWith('marketplat:core-bundle:last-warmed') ||
+              k.startsWith('marketplat:drip-last-pass')
+            ) {
+              window.localStorage.removeItem(k);
+            }
+          }
+        }
+      } catch { /* private mode — harmless */ }
+      toast.success('حُذف ' + cleared + ' كاش + snapshot');
       await readSnapshotLive();
       await readStorage();
     } catch (err) {

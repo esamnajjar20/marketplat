@@ -30,6 +30,17 @@ export default function ErrorBoundary({ error, reset }: ErrorPageProps) {
   const [recovering, setRecovering] = useState(false);
 
   useEffect(() => {
+    // OFFLINE-REDIRECT-01: an offline ChunkLoadError means there is no
+    // cached shell to serve and no network to fetch one. The generic
+    // "حدث خطأ غير متوقع" UI is wrong here — /offline exists exactly
+    // for this situation. Redirect instead of showing an error the
+    // user can't act on.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      window.location.replace('/offline');
+    }
+  }, []);
+
+useEffect(() => {
     // FIX CHUNK-LOAD-RECOVERY-01: a stale chunk reference (usually a
     // cached HTML document pointing at JS chunks that rotated in a
     // recent deploy) is auto-recovered with a single hard reload.

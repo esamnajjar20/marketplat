@@ -22,6 +22,14 @@ import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRo
 import { warmUserData } from '@/lib/offlineWarmingUserData';
 
 let pipelineInFlight = false;
+// WARM-PIPELINE-QUEUE-01: when a warm pass starts before auth has
+// hydrated, it runs with authenticated:false and never touches the
+// personal shells or user-data caches. The later authenticated:true
+// call (from the auth effect) then hits pipelineInFlight and is
+// silently dropped — personal routes stay unfilled for up to 6h
+// until the next periodic timer. Tracking that here lets us re-run
+// the personal phase automatically when the first pass finishes.
+let pendingAuthenticatedRerun = false;
 let queueReplayInFlight = false;
 let queueReplayWaiters: Array<() => void> = [];
 
@@ -81,7 +89,13 @@ export async function runWarmingPipeline(
 ): Promise<{ ran: boolean }> {
   if (typeof window === 'undefined') return { ran: false };
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return { ran: false };
-  if (pipelineInFlight) return { ran: false };
+  if (pipelineInFlight) {
+    // WARM-PIPELINE-QUEUE-01: see the flag's doc comment. Only a
+    // *later* authenticated run is worth remembering — a plain repeat
+    // of the same pass has nothing new to add.
+    if (options.authenticated) pendingAuthenticatedRerun = true;
+    return { ran: false };
+  }
 
   pipelineInFlight = true;
   try {
@@ -119,6 +133,14 @@ export async function runWarmingPipeline(
     }
   } finally {
     pipelineInFlight = false;
+    // WARM-PIPELINE-QUEUE-01: if an authenticated run arrived while
+    // this one was in flight, chain it now. Once so: the first pass
+    // already warmed core + public, this one adds personal + user
+    // data. skipQueueWait avoids a redundant 45s wait.
+    if (pendingAuthenticatedRerun) {
+      pendingAuthenticatedRerun = false;
+      void runWarmingPipeline({ authenticated: true, skipQueueWait: true });
+    }
   }
   return { ran: true };
 }
