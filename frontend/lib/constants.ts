@@ -108,6 +108,7 @@ export const ROUTES = {
     blockedUsers:  '/settings/blocked-users',
     storage:       '/settings/storage',
     sync:          '/settings/sync',
+    drafts:        '/settings/drafts',
     // SW-FIX-OFFLINE-NAV: /settings/offline existed as a page
     // (Warming Engine user controls) but was never reachable
     // from the UI — no ROUTES constant, no sidebar/mobile link.
