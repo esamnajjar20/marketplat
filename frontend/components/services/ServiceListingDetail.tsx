@@ -6,6 +6,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ReportServiceButton } from '@/components/services/ReportServiceButton';
+import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { ProviderContactCard } from '@/components/services/ProviderContactCard';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -186,6 +187,20 @@ export function ServiceListingDetail({ listing, action }: Props) {
               </h1>
               <div className="flex items-center gap-1">
                 <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} warm />
+                {/* SAVE-ENTITY-SERVICE-01: icon variant fits in this tight
+                    action row next to FavoriteButton. Saves the API
+                    response + every image so the service page opens
+                    offline. */}
+                <SaveOfflineButton
+                  type="service"
+                  id={listing.id}
+                  title={listing.title}
+                  subtitle={listing.price != null ? String(listing.price) : null}
+                  city={null}
+                  thumbnail={listing.images?.[0] ?? null}
+                  imageUrls={listing.images ?? []}
+                  variant="icon"
+                />
                 <ShareAdButton title={listing.title} url={shareUrl} variant="button" />
               </div>
             </div>

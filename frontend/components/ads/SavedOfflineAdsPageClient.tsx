@@ -33,6 +33,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ad',      label: 'إعلانات' },
   { id: 'product', label: 'منتجات' },
   { id: 'store',   label: 'متاجر' },
+  { id: 'service', label: 'خدمات' },
   { id: 'seller',  label: 'بائعون' },
 ];
 
@@ -41,6 +42,7 @@ const TYPE_LABEL: Record<SavedEntityType, string> = {
   product: 'منتج',
   store: 'متجر',
   seller: 'بائع',
+  service: 'خدمة',
 };
 
 function hrefFor(e: SavedEntityMeta): string {
@@ -49,6 +51,7 @@ function hrefFor(e: SavedEntityMeta): string {
     case 'product': return ROUTES.productDetail(e.id);
     case 'store':   return ROUTES.storeDetail(e.id);
     case 'seller':  return ROUTES.userProfile(e.id);
+    case 'service': return ROUTES.serviceDetail(e.id);
   }
 }
 
@@ -84,7 +87,7 @@ export function SavedOfflineAdsPageClient() {
   }, [filteredByTab, query]);
 
   const counts = useMemo(() => {
-    const c = { all: items.length, ad: 0, product: 0, store: 0, seller: 0 };
+    const c = { all: items.length, ad: 0, product: 0, store: 0, seller: 0, service: 0 };
     for (const e of items) c[e.type] += 1;
     return c;
   }, [items]);

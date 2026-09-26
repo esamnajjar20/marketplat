@@ -35,7 +35,11 @@ const SAVED_INDEX_KEY = 'saved-ads-offline';
  *  the Cache Storage bounded on low-end devices. */
 const MAX_SAVED_ENTITIES = 60;
 
-export type SavedEntityType = 'ad' | 'product' | 'store' | 'seller';
+// SAVE-ENTITY-SERVICE-01: 'service' added — service listings have
+// the same shape of need as products (title + price + images) and
+// share the same /services/[id] route pattern, so it drops straight
+// into the same cache + index.
+export type SavedEntityType = 'ad' | 'product' | 'store' | 'seller' | 'service';
 
 export interface SavedEntityMeta {
   type: SavedEntityType;
@@ -100,6 +104,7 @@ function entityUrl(type: SavedEntityType, id: string): string {
     case 'product': return `${API_BASE_URL}/products/${id}`;
     case 'store':   return `${API_BASE_URL}/stores/${id}`;
     case 'seller':  return `${API_BASE_URL}/sellers/${id}`;
+    case 'service': return `${API_BASE_URL}/service-listings/${id}`;
   }
 }
 
