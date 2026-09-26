@@ -15,7 +15,9 @@ import {
   Tag,
   Layers,
   Search,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Input } from '@/components/shared/ui/Input';
@@ -62,6 +64,12 @@ export function MyProductsList() {
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // BULK-PRODUCTS-DELETE-01: confirm dialog for deleting the current
+  // selection. The existing selection toolbar only offered status
+  // toggles; a seller who wants to clear five discontinued products
+  // had to open each one and delete individually.
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -107,10 +115,42 @@ export function MyProductsList() {
   }
 
   async function bulkStatus(next: 'ACTIVE' | 'PAUSED') {
-    for (const id of selected) {
-      await toggleStatus.mutateAsync({ id, status: next });
+    setBulkBusy('status');
+    try {
+      for (const id of selected) {
+        await toggleStatus.mutateAsync({ id, status: next });
+      }
+    } finally {
+      setBulkBusy(null);
+      setSelected(new Set());
     }
-    setSelected(new Set());
+  }
+
+  // BULK-PRODUCTS-DELETE-01: sequential delete of the current selection
+  // — same concurrency-4 batching used on /my-ads, so a slow network
+  // doesn't leave dozens of parallel requests in flight.
+  async function performBulkDelete() {
+    setConfirmBulkDelete(false);
+    setBulkBusy('delete');
+    const ids = Array.from(selected);
+    const CONCURRENCY = 4;
+    let ok = 0, fail = 0;
+    try {
+      for (let i = 0; i < ids.length; i += CONCURRENCY) {
+        const batch = ids.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((id) => deleteProduct.mutateAsync(id)),
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') ok += 1; else fail += 1;
+        }
+      }
+      const msg = fail > 0 ? `حُذف ${ok} (فشل ${fail})` : `حُذف ${ok} منتج`;
+      toast.success(msg);
+    } finally {
+      setBulkBusy(null);
+      setSelected(new Set());
+    }
   }
 
   if (isLoading || isOutOfRange) {
@@ -209,10 +249,20 @@ export function MyProductsList() {
           <Button size="sm" variant="outline" onClick={() => bulkStatus('ACTIVE')} disabled={toggleStatus.isPending}>
             تفعيل
           </Button>
-          <Button size="sm" variant="outline" onClick={() => bulkStatus('PAUSED')} disabled={toggleStatus.isPending}>
+          <Button size="sm" variant="outline" onClick={() => bulkStatus('PAUSED')} disabled={bulkBusy !== null || toggleStatus.isPending}>
             إيقاف
           </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setConfirmBulkDelete(true)}
+            disabled={bulkBusy !== null}
+            className="gap-1.5"
+          >
+            {bulkBusy === 'delete' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            حذف المحدد
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy !== null}>
             إلغاء التحديد
           </Button>
         </div>
@@ -381,6 +431,17 @@ export function MyProductsList() {
           if (!deleteTargetId) return;
           deleteProduct.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
         }}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        onOpenChange={setConfirmBulkDelete}
+        title={`حذف ${selected.size} منتج؟`}
+        description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
+        confirmLabel="حذف المحدد"
+        destructive
+        isPending={bulkBusy === 'delete'}
+        onConfirm={() => void performBulkDelete()}
       />
     </div>
   );
