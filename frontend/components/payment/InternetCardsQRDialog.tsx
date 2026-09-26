@@ -249,12 +249,14 @@ export function InternetCardsQRDialog({
                         </a>
                       </Button>
                     )}
+                    {/* A11Y-QR-DELETE-01: icon-only destructive button needs a label */}
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive"
                       onClick={() => setConfirmDeleteCard(c)}
+                      aria-label={`حذف البطاقة ${c.label || c.username}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
