@@ -10,7 +10,8 @@ import {
   TokenPair,
 } from '../../shared/utils/jwt';
 import { tokenStore } from '../../shared/utils/tokenStore';
-import { atomicRefreshRotate, RotateResult } from '../../shared/utils/refreshLock';
+import { atomicRefreshRotate, RotateResult, hashToken } from '../../shared/utils/refreshLock';
+import { redis } from '../../config/redis';
 import { userCache } from '../../shared/utils/userCache';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { emailService } from '../../shared/utils/emailService';
@@ -617,7 +618,22 @@ export const authService = {
     );
 
     switch (result) {
-      case RotateResult.SUCCESS:
+      case RotateResult.SUCCESS: {
+        // REFRESH-GRACE-01: cache the freshly-issued pair under the OLD
+        // token's hash for 60s. A concurrent refresh (SW replay vs page,
+        // two tabs, rapid F5) that arrives with the same old token after
+        // the first rotation completed is a race, not theft. Without this
+        // the second caller hits TOKEN_MISMATCH and the whole session is
+        // revoked + a security alert is emailed.
+        try {
+          const graceKey = `refresh:grace:${payload.userId}:${payload.sessionId}:${hashToken(refreshToken)}`;
+          await redis.setex(graceKey, 60, JSON.stringify(newTokens));
+        } catch (err) {
+          logger.warn('Failed to write refresh grace key', {
+            userId: payload.userId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
         // FIX M-026: extendSession/updateSessionLastSeen are secondary
         // bookkeeping (session TTL extension + last-seen timestamp) on top
         // of a token rotation that has *already* succeeded per
@@ -644,8 +660,30 @@ export const authService = {
           sessionId: payload.sessionId,
         }).catch(() => {});
         return newTokens;
+      }
 
-      case RotateResult.TOKEN_MISMATCH:
+      case RotateResult.TOKEN_MISMATCH: {
+        // REFRESH-GRACE-01: before treating this as theft, check the
+        // grace cache. If the SAME old token was rotated within the
+        // last 60s, this is a concurrent caller (SW + page, two tabs,
+        // F5) — return the same tokens the first caller got.
+        try {
+          const graceKey = `refresh:grace:${payload.userId}:${payload.sessionId}:${hashToken(refreshToken)}`;
+          const cached = await redis.get(graceKey);
+          if (cached) {
+            logger.info('Refresh grace hit — returning cached rotation', {
+              userId: payload.userId,
+              sessionId: payload.sessionId,
+            });
+            return JSON.parse(cached) as Omit<TokenPair, 'sessionId'>;
+          }
+        } catch (err) {
+          logger.warn('Refresh grace lookup failed', {
+            userId: payload.userId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        // Fall through to the real theft-handling path below.
         // سرقة محتملة — نلغي كل الجلسات
         await tokenStore.deleteAllRefreshTokens(payload.userId);
         await userCache.invalidate(payload.userId);
@@ -667,6 +705,7 @@ export const authService = {
           userId: payload.userId,
         });
         throw genericError;
+      }
 
       case RotateResult.TOKEN_NOT_FOUND:
         // الجلسة انتهت — لا نعاقب المستخدم
