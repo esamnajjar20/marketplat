@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ROUTES } from '@/lib/constants';
 import type { ParsedError } from '@/lib/errorParser';
 
@@ -35,6 +36,7 @@ import type { ParsedError } from '@/lib/errorParser';
  */
 export function CreateAdGate() {
   const { data: profile, isLoading, isError, error, refetch } = useMySellerProfile();
+  const isOnline = useOnlineStatus();
 
   if (isLoading) {
     return (
@@ -45,6 +47,18 @@ export function CreateAdGate() {
   }
 
   const statusCode = (error as ParsedError | null)?.statusCode;
+
+  // OFFLINE-GATE-PASSTHROUGH-01: the user reached /ads/create
+  // intentionally, and the overwhelmingly common case on a weak link
+  // is a real seller whose sellerProfileSelf cache is cold (cleared
+  // session, first open after re-login). Blocking them with 'تعذّر
+  // التحقق' is worse than letting the (extremely rare) non-seller
+  // reach the form and get a clean server 400 on submit. Fall through
+  // to the form when we are provably offline and have no cached
+  // profile to check against.
+  if (isError && !isOnline && statusCode !== 404) {
+    return <CreateAdForm />;
+  }
 
   if (isError && statusCode !== 404) {
     return (
