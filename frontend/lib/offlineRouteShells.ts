@@ -215,7 +215,13 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/settings/blocked-users',
   '/complete-profile',
   '/my-reports',
-  '/service-requests',
+  // OFFLINE-BAD-ROUTE-02: '/service-requests' removed — no page.tsx
+  // exists at that path (only /service-requests/[id]/page.tsx). Warming
+  // it returned 404 HTML on every attempt and pinned one 'failed' entry
+  // in the snapshot at /settings/offline. This is the same removal that
+  // was applied earlier this session; the marketplacemod copy reverted
+  // it. Re-applied now, this time with an idempotency marker so the
+  // next accidental overwrite won't silently undo it again.
 ];
 
 /** FIX OFFLINE-WARM-PRIORITY: القائمة الكاملة (ESSENTIAL + SECONDARY) —
