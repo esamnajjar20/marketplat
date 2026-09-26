@@ -64,6 +64,12 @@ function formatAge(ts: number): string {
   return Math.round(ms / 86_400_000) + 'ي';
 }
 
+function formatBytes(n: number): string {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+  return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
 function statusPill(status: Status) {
   switch (status) {
     case 'complete':
@@ -93,6 +99,14 @@ export function OfflineRoutesList() {
   const [confirmBulkClear, setConfirmBulkClear] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
+  // SIZE-SORT-01: per-route Cache Storage footprint. Computing one route
+  // requires matching every chunk against the relevant cache and
+  // reading blob size — expensive enough to run ONCE per mount rather
+  // than on every 5s refresh tick. Empty map = not computed yet.
+  const [sizes, setSizes] = useState<Map<string, number>>(new Map());
+  const [sizesComputing, setSizesComputing] = useState(false);
+  const [sortMode, setSortMode] = useState<'default' | 'size' | 'fresh'>('default');
+
   const refresh = useCallback(async () => {
     const snap = await readSnapshot();
     const routes = getKnownRoutes();
@@ -118,15 +132,76 @@ export function OfflineRoutesList() {
     return () => window.clearInterval(id);
   }, [refresh]);
 
+  // SIZE-SORT-01: one-shot computation. Chunks live in STATIC_CACHE
+  // (both for public and personal routes — see offlineRouteShells.ts's
+  // own comment on that); the HTML/RSC for personal routes lives in
+  // PERSONAL_SHELL_CACHE. We just check every relevant cache for each
+  // chunk path and take the first hit.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (typeof caches === 'undefined') return;
+      setSizesComputing(true);
+      try {
+        const snap = await readSnapshot();
+        const routes = getKnownRoutes();
+        const cacheNames = await caches.keys();
+        const staticName = cacheNames.find((n) => n.startsWith('market-static-'));
+        const personalName = cacheNames.find((n) => n.startsWith('market-personal-shell-'));
+        const opened: Cache[] = [];
+        if (staticName) opened.push(await caches.open(staticName));
+        if (personalName) opened.push(await caches.open(personalName));
+        if (opened.length === 0) {
+          setSizesComputing(false);
+          return;
+        }
+
+        const next = new Map<string, number>();
+        for (const { route, personal } of routes) {
+          if (cancelled) return;
+          const key = personal ? 'personal:' + route : route;
+          const meta = snap?.routes?.[key];
+          if (!meta?.chunks?.length) { next.set(key, 0); continue; }
+          let total = 0;
+          for (const chunkPath of meta.chunks) {
+            for (const cache of opened) {
+              const hit = await cache.match(chunkPath).catch(() => undefined);
+              if (hit) {
+                try { total += (await hit.clone().blob()).size; } catch { /* ignore */ }
+                break;
+              }
+            }
+          }
+          next.set(key, total);
+        }
+        if (!cancelled) setSizes(next);
+      } catch { /* best-effort */ }
+      finally { if (!cancelled) setSizesComputing(false); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const filtered = useMemo(() => {
+    let list: Row[];
     switch (filter) {
-      case 'complete': return rows.filter((r) => r.status === 'complete');
-      case 'failed':   return rows.filter((r) => r.status === 'failed');
-      case 'pending':  return rows.filter((r) => r.status === 'pending' || r.status === 'missing');
+      case 'complete': list = rows.filter((r) => r.status === 'complete'); break;
+      case 'failed':   list = rows.filter((r) => r.status === 'failed'); break;
+      case 'pending':  list = rows.filter((r) => r.status === 'pending' || r.status === 'missing'); break;
       case 'all':
-      default:         return rows;
+      default:         list = rows;
     }
-  }, [rows, filter]);
+    if (sortMode === 'size') {
+      return [...list].sort((a, b) => {
+        const sa = sizes.get(rowKey(a)) ?? -1;
+        const sb = sizes.get(rowKey(b)) ?? -1;
+        return sb - sa;
+      });
+    }
+    if (sortMode === 'fresh') {
+      return [...list].sort((a, b) => b.warmedAt - a.warmedAt);
+    }
+    return list;
+  }, [rows, filter, sortMode, sizes]);
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -323,6 +398,19 @@ export function OfflineRoutesList() {
             <span className="font-mono opacity-80">({counts[f]})</span>
           </button>
         ))}
+        <select
+          value={sortMode}
+          onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+          aria-label="ترتيب الصفحات"
+          className="rounded-full border border-border bg-background px-2 py-1 text-xs"
+        >
+          <option value="default">الترتيب الافتراضي</option>
+          <option value="size" disabled={sizesComputing}>الحجم (الأكبر)</option>
+          <option value="fresh">الأحدث تسخيناً</option>
+        </select>
+        {sizesComputing && (
+          <span className="text-[10px] text-muted-foreground">حساب الأحجام…</span>
+        )}
         <div className="ms-auto flex gap-2">
           <Button
             type="button"
@@ -414,6 +502,12 @@ export function OfflineRoutesList() {
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
                       <span>{row.chunks} ملف</span>
+                      {(() => {
+                        const bytes = sizes.get(rowKey(row));
+                        return bytes !== undefined && bytes > 0 ? (
+                          <span>· {formatBytes(bytes)}</span>
+                        ) : null;
+                      })()}
                       {row.attempts > 0 && <span>· {row.attempts} محاولة</span>}
                       {row.warmedAt > 0 && <span>· {formatAge(row.warmedAt)}</span>}
                       {row.lastError && (
