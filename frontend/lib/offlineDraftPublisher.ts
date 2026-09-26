@@ -85,7 +85,7 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
   const kind = draft.kind ?? 'ad';
   const opId = draft.operationId ?? undefined;
   const files = draft.publishFiles?.length
-    ? publishFilesToFiles(draft.publishFiles)
+    ? await publishFilesToFiles(draft.publishFiles)
     : [];
 
   try {

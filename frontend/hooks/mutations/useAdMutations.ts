@@ -152,7 +152,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
             // FIX OFFLINE-DRAFT-PUBLISH-01: حفظ الصور الأصلية لإعادة النشر
             // من المسودة لو طابور الـ SW لم يعترض الطلب.
             publishFiles: compressedFiles.length
-              ? filesToPublishFiles(compressedFiles)
+              ? await filesToPublishFiles(compressedFiles)
               : undefined,
             publishRetryCount: 0,
           });

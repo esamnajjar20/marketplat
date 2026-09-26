@@ -105,7 +105,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
             userId,
             images,
             publishFiles: compressedFiles.length
-              ? filesToPublishFiles(compressedFiles)
+              ? await filesToPublishFiles(compressedFiles)
               : undefined,
             publishRetryCount: 0,
           });

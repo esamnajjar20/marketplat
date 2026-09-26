@@ -105,7 +105,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
             userId,
             images,
             publishFiles: compressedFiles.length
-              ? filesToPublishFiles(compressedFiles)
+              ? await filesToPublishFiles(compressedFiles)
               : undefined,
             publishRetryCount: 0,
           });

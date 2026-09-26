@@ -95,7 +95,7 @@ export function useCreateRequest() {
             // ads/products/services already use.
             publishFiles:
               files && files.length > 0
-              ? filesToPublishFiles(await bestEffortCompressPublish(files))
+              ? await filesToPublishFiles(await bestEffortCompressPublish(files))
               : undefined,
             publishRetryCount: 0,
           });

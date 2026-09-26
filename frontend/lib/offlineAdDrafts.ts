@@ -44,13 +44,21 @@ export interface AdDraftPreviewImage {
 }
 
 /**
- * FIX OFFLINE-DRAFT-PUBLISH-01: ملف جاهز لإعادة البناء كـ File عند النشر
- * من المسودة. يُخزَّن في IndexedDB كـ Blob + اسم + MIME.
+ * FIX OFFLINE-DRAFT-PUBLISH-01 + FIX ARRAYBUFFER-MIGRATION-01.
+ *
+ * ARRAYBUFFER-MIGRATION-01: bytes (ArrayBuffer) is the current format.
+ * Blob (legacy) is kept so drafts written before this migration still
+ * load. Android WebView sometimes rejects Blob writes with
+ * DataError('Failed to write blobs (InvalidBlob)') — ArrayBuffer never
+ * hits that path.
  */
 export interface AdDraftPublishFile {
   name: string;
   type: string;
-  blob: Blob;
+  /** Current format — IndexedDB-safe raw bytes. */
+  bytes?: ArrayBuffer;
+  /** Legacy format from drafts written before the ArrayBuffer migration. */
+  blob?: Blob;
 }
 
 /** حد أقصى لملفات النشر المحفوظة مع المسودة (صور أصلية). */
@@ -65,8 +73,15 @@ const MAX_PUBLISH_FILES = 10;
 const MAX_PUBLISH_FILE_BYTES = 6 * 1024 * 1024;   // 6 MB per file (FIX OFFLINE-QUEUE-RELIABILITY-01)
 const MAX_PUBLISH_TOTAL_BYTES = 18 * 1024 * 1024; // 18 MB per draft
 
-/** يحوّل File[] إلى شكل قابل للتخزين في IndexedDB، بحد أقصى عدداً وحجماً. */
-export function filesToPublishFiles(files: File[]): AdDraftPublishFile[] {
+/**
+ * ARRAYBUFFER-MIGRATION-01: async — each File's bytes are read into an
+ * ArrayBuffer so the draft survives IndexedDB on Android WebView. A
+ * file whose arrayBuffer() rejects is skipped (draft is still saved
+ * without it rather than failing the whole save).
+ */
+export async function filesToPublishFiles(
+  files: File[],
+): Promise<AdDraftPublishFile[]> {
   const out: AdDraftPublishFile[] = [];
   let total = 0;
   for (const f of files.slice(0, MAX_PUBLISH_FILES)) {
@@ -85,21 +100,44 @@ export function filesToPublishFiles(files: File[]): AdDraftPublishFile[] {
       );
       break;
     }
-    out.push({
-      name: f.name || 'image.jpg',
-      type: f.type || 'application/octet-stream',
-      blob: f,
-    });
-    total += f.size;
+    try {
+      const bytes = await f.arrayBuffer();
+      out.push({
+        name: f.name || 'image.jpg',
+        type: f.type || 'application/octet-stream',
+        bytes,
+      });
+      total += f.size;
+    } catch (err) {
+      console.warn(
+        '[offline-drafts] arrayBuffer() failed for',
+        f.name,
+        err,
+      );
+      // Skip — saving a draft without this file beats failing the save.
+    }
   }
   return out;
 }
 
-/** يعيد بناء File[] من publishFiles المخزّنة — للتمرير إلى adsApi/productsApi/… */
-export function publishFilesToFiles(files: AdDraftPublishFile[]): File[] {
-  return files.map(
-    (f) => new File([f.blob], f.name, { type: f.type || 'application/octet-stream' }),
-  );
+/**
+ * ARRAYBUFFER-MIGRATION-01: rebuilds File[] from publishFiles stored in
+ * IndexedDB. Handles both the current `bytes` format and the legacy
+ * `blob` one. Entries with neither are silently skipped.
+ */
+export async function publishFilesToFiles(
+  files: AdDraftPublishFile[],
+): Promise<File[]> {
+  const out: File[] = [];
+  for (const f of files) {
+    const type = f.type || 'application/octet-stream';
+    if (f.bytes) {
+      out.push(new File([f.bytes], f.name, { type }));
+    } else if (f.blob) {
+      out.push(new File([f.blob], f.name, { type }));
+    }
+  }
+  return out;
 }
 
 /**
