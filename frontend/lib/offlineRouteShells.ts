@@ -622,13 +622,19 @@ async function warmRouteAtomic(
 /** Delete every _next/static entry in STATIC_CACHE not part of the
  * current build's liveUrls set. HTML routes and RSC shells are left
  * alone — only hashed chunks churn between deploys. */
-async function sweepOrphans(cache: Cache, liveUrls: Set<string>): Promise<number> {
+async function sweepOrphans(
+  cache: Cache,
+  liveUrls: Set<string>,
+  prevLiveUrls: Set<string>,
+): Promise<number> {
   const keys = await cache.keys();
   let swept = 0;
   for (const req of keys) {
     const path = toPath(req.url);
     if (!path.startsWith('/_next/static/')) continue;
     if (liveUrls.has(path)) continue;
+    // SWEEP-LAZY-CHUNK-FIX-01: lazy chunks (qrcode) never enter liveUrls.
+    if (!prevLiveUrls.has(path)) continue;
     try {
       await cache.delete(req);
       swept += 1;
@@ -845,7 +851,11 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
     const prevLive = snapshot?.liveUrls ?? [];
     if (liveUrls.length > 0 && isBuildChanged(prevLive, liveUrls)) {
       if (shouldSweep(snapshot?.lastSweepAt ?? 0)) {
-        const swept = await sweepOrphans(staticCache, new Set(liveUrls));
+        const swept = await sweepOrphans(
+          staticCache,
+          new Set(liveUrls),
+          new Set(prevLive),
+        );
         if (swept > 0) {
           console.warn(`[route-shells] swept ${swept} orphan chunks`);
         }
