@@ -1,6 +1,7 @@
 'use client';
 
-import { useAuthStore, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectIsHydrated, selectUser } from '@/store/auth.store';
+import { useEffect, useState } from 'react';
 
 /**
  * PLAN Phase 1 (خطة الرئيسية المُعدّلة، القسم 3): يستبدل نص HeroBanner
@@ -10,8 +11,7 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
  * غير مسجّل الدخول → لا يُعرض شيء (الترحيب الشخصي لا معنى له بلا اسم)؛
  * الصفحة تبدأ مباشرة بـ FeaturedCarousel.
  */
-function greeting(): string {
-  const hour = new Date().getHours();
+function greeting(hour: number): string {
   if (hour < 12) return 'صباح الخير';
   if (hour < 17) return 'مساء الخير';
   return 'مساء الخير';
@@ -19,14 +19,21 @@ function greeting(): string {
 
 export function WelcomeBar() {
   const user = useAuthStore(selectUser);
-  if (!user) return null;
+  const isHydrated = useAuthStore(selectIsHydrated);
+  const [greetingText, setGreetingText] = useState('مساء الخير');
+
+  useEffect(() => {
+    setGreetingText(greeting(new Date().getHours()));
+  }, []);
+
+  if (!isHydrated || !user) return null;
 
   const firstName = user.name?.split(' ')[0] ?? user.name;
 
   return (
     <div className="container mx-auto max-w-7xl px-4 pt-4">
       <p className="text-sm text-muted-foreground">
-        {greeting()}، <span className="font-semibold text-foreground">{firstName}</span> 👋
+        {greetingText}، <span className="font-semibold text-foreground">{firstName}</span> 👋
       </p>
     </div>
   );

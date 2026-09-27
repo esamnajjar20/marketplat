@@ -946,9 +946,14 @@ async function handlePageRequest(event, request, url) {
 /** Cache First للصور التي رآها المستخدم — مع سقف MAX_IMAGE_ENTRIES (FIFO).
  * الإعلانات المحفوظة يدويًا تُقرأ أيضًا من SAVED_ADS_CACHE (غير مُصدَّر). */
 async function cacheFirstImage(event, request, url) {
+  console.log('[SW IMAGE] start', request.url);
+
   const cache = await caches.open(IMAGE_CACHE);
   const cached = await cache.match(request);
-  if (cached) return cached;
+  if (cached) {
+    console.log('[SW IMAGE] IMAGE_CACHE HIT', request.url, cached.status);
+    return cached;
+  }
 
   // PHASE-OFFLINE-AD-DETAIL: صورة إعلان محفوظ يدويًا قد لا تكون مرّت
   // بعد بـ IMAGE_CACHE (مثلًا thumbnail بالأسفل بـ loading="lazy" لم
@@ -983,7 +988,9 @@ async function cacheFirstImage(event, request, url) {
   }
 
   try {
+    console.log('[SW IMAGE] NETWORK FETCH', request.url);
     const response = await fetch(request);
+    console.log('[SW IMAGE] NETWORK RESPONSE', request.url, response.status, response.ok);
     // FIX SW-206-IMAGE: استثناء 206 (Partial Content — Range requests
     // من <img loading="lazy">) من التخزين — وإلا قد تُخزَّن نسخة جزئية
     // فاسدة.
@@ -1001,7 +1008,8 @@ async function cacheFirstImage(event, request, url) {
       }
     }
     return response;
-  } catch {
+  } catch (error) {
+    console.error('[SW IMAGE] NETWORK ERROR', request.url, error);
     return Response.error();
   }
 }
@@ -2590,7 +2598,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isImageRequest(request, url)) {
-    event.respondWith(cacheFirstImage(event, request, url));
+    // TEMP DEBUG: bypass image cache completely.
+    // Images go directly to the network for diagnosis.
+    event.respondWith(fetch(request));
     return;
   }
 

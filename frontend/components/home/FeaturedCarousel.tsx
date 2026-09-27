@@ -130,12 +130,21 @@ export function FeaturedCarousel() {
     return () => clearInterval(timer);
   }, [slides.length]);
 
-  // مزامنة التمرير مع الفهرس الحالي
+  // مزامنة التمرير مع الفهرس الحالي أفقيًا فقط.
+  // لا نستخدم scrollIntoView لأنه قد يغيّر vertical page scroll
+  // ويعيد المستخدم للأعلى عند الانتقال التلقائي بين الشرائح.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
+
     const child = el.children[index] as HTMLElement | undefined;
-    child?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    if (!child) return;
+
+    const left = child.offsetLeft - el.offsetLeft;
+    el.scrollTo({
+      left,
+      behavior: 'smooth',
+    });
   }, [index]);
 
   function handleScroll() {
