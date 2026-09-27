@@ -238,6 +238,11 @@ export const queryKeys = {
     sessions: ()               => ['auth', 'sessions']  as const,
   },
 
+  // ── Home (aggregated above-the-fold homepage payload) ────────────
+  home: {
+    page: (city?: string) => ['home', 'page', city ?? null] as const,
+  },
+
   // ── Categories ─────────────────────────────────────────────────
   categories: {
     all:  ()             => ['categories']           as const,

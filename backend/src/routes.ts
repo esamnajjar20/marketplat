@@ -32,6 +32,7 @@ import { activityRouter } from './modules/activity';
 import { recommendationsRouter } from './modules/recommendations';
 import { fraudRouter } from './modules/fraud';
 import { observabilityRouter } from './modules/observability';
+import { homeRouter } from './modules/home';
 import { csrfProtection } from './middlewares/csrf.middleware';
 
 export const router = Router();
@@ -52,6 +53,10 @@ router.use(csrfProtection);
 router.use('/auth', authRouter);
 router.use('/users', usersRouter);
 router.use('/ads', adsRouter);
+// Aggregates the above-the-fold public homepage sections (FeaturedCarousel,
+// CategoriesRow, HomeAboveFold's city/general ads) into one request —
+// see home.validation.ts for exactly what is/isn't included and why.
+router.use('/home', homeRouter);
 router.use('/categories', categoriesRouter);
 router.use('/reports', reportsRouter);
 router.use('/favorites', favoritesRouter);

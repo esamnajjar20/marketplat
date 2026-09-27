@@ -1,9 +1,6 @@
 import type { Metadata } from 'next';
-import { WelcomeBar } from '@/components/home/WelcomeBar';
-import { FeaturedCarousel } from '@/components/home/FeaturedCarousel';
-import { CategoriesRow } from '@/components/home/CategoriesRow';
+import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { TrustLine } from '@/components/home/TrustLine';
-import { HomeAboveFold } from '@/components/home/HomeAboveFold';
 import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
 import { HomeServicesSection } from '@/components/home/HomeServicesSection';
@@ -29,17 +26,10 @@ export const metadata: Metadata = buildMetadata({ title: 'الرئيسية', pat
 export default function HomePage() {
   return (
     <div className="pb-12 sm:pb-16">
-      <WelcomeBar />
-
-      <div className="container mx-auto max-w-7xl space-y-4 px-4 pt-3">
-        <FeaturedCarousel />
-        <CategoriesRow />
-      </div>
-
-      {/* اكتشاف أساسي — فوق الطية، بدون تأجيل */}
-      <div className="mt-2">
-        <HomeAboveFold />
-      </div>
+      {/* اكتشاف أساسي — فوق الطية، بدون تأجيل. WelcomeBar +
+          FeaturedCarousel + CategoriesRow + HomeAboveFold's 8-9
+          requests are now one GET /home — see EagerHomeSections. */}
+      <EagerHomeSections />
 
       {/* تحت الطية: تأجيل أقوى على النت البطيء (LazySection يضيّق rootMargin) */}
       <div className="mt-2">
