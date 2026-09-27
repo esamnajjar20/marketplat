@@ -1,82 +1,39 @@
 'use client';
 
-import { Sparkles, Clock } from 'lucide-react';
-import { CategoryGrid } from '@/components/home/CategoryGrid';
-import { FeaturedAds }  from '@/components/home/FeaturedAds';
+import { Clock } from 'lucide-react';
 import { RecentAds }    from '@/components/home/RecentAds';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
-import { Skeleton }     from '@/components/shared/ui/Skeleton';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
-import { useCategories } from '@/hooks/queries/useCategories';
-import { useAds }       from '@/hooks/queries/useAds';
 import { useAdsForHome } from '@/hooks/queries/useAdsForHome';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { ROUTES }       from '@/lib/constants';
 
 /**
- * FIX UX-GAP-03: CategoryGrid, FeaturedAds, and RecentAds each ran
- * their own useQuery with an independent isLoading flag, so the
- * homepage settled in three separate, differently-timed jumps —
- * whichever section's request resolved first pushed every section
- * below it down, then the next one did the same, then the next.
+ * PLAN Phase 1 (خطة الرئيسية المُعدّلة، القسم 4): هذا الملف كان يحمل
+ * 3 أقسام منسّقة معًا (فئات + مميزة + حديثة) خلف سقف تحميل واحد
+ * (FIX UX-GAP-03 الأصلي). الفئات والمميزة انتقلا إلى CategoriesRow و
+ * FeaturedCarousel الجديدين (يُركّبان مباشرة في page.tsx فوق هذا
+ * المكوّن)، فلم يعد هناك داعٍ لتنسيق تحميلهما هنا — تبقّى قسم "أحدث
+ * الإعلانات" الموعي بالموقع وحده، فبقي بسقف تحميل خاص به (recentChecking
+ * || recentLoading) بدل حذف الملف بالكامل، حفاظًا على منطق useAdsForHome/
+ * useLocationResolver واللافتة الموقعية كما هو دون إعادة كتابته.
  *
- * This wrapper calls the *same* three hooks (identical query keys, so
- * React Query serves the same in-flight/cached request — no
- * duplicate network calls) purely to read their combined loading
- * state. Until every section's data has resolved at least once, the
- * whole block renders one coordinated skeleton shaped like the real
- * layout; once all three are ready, it swaps in the actual sections
- * together in a single paint instead of a cascade.
- *
- * RecommendedAds is deliberately left out of this coordination — it
- * already owns its own self-hiding behavior (renders nothing at all
- * when empty) and sits below the fold, so its independent timing
- * doesn't compound the above-the-fold jump this fix targets.
- *
- * FEAT-HOME-DISCOVERY: same reasoning kept RecentProductsSection,
- * NearbyProvidersSection, and FeaturedStoresSection out of this
- * coordination too — each is a self-contained, self-hiding section
- * (own heading + own loading/empty state) mounted independently in
- * page.tsx below HomeAboveFold, not folded into this wrapper's
- * "wait for everything, then paint once" logic. Coordinating those in
- * too would mean the whole homepage waits on the slowest of them —
- * including NearbyProvidersSection's async permission check — before
- * showing anything at all, which is the opposite of what a Discovery
- * homepage should do.
- *
- * Ads location-awareness: "الأحدث/أحدث الإعلانات" now reads
- * useAdsForHome (GPS → /search?type=ads&sort=distance, city →
- * /ads?city=, fallback → /ads) instead of a plain useAds call — this
- * wrapper calls the *same* hook (not a re-derived query) so the
- * coordinated skeleton's timing and the badge/CTA shown here track
- * exactly what RecentAds itself ends up rendering, same "identical
- * query, no duplicate request" principle as categoriesLoading/
- * featuredLoading above. The CTA ("استخدام موقعي") and location badge
- * live here, next to SectionHeader, rather than inside RecentAds,
- * since SectionHeader (title/heading row) is this file's
- * responsibility both in the loading and loaded branches.
+ * CategoryGrid.tsx و FeaturedAds.tsx نفسهما لم يُحذفا من المشروع (قرار
+ * الخطة، القسم 4) — لم يعودا مستوردين من هنا فقط. الاستيراد الوحيد
+ * المتبقي لهما الآن هو ملفات الاختبار (__tests__/components/CategoryGrid.test.tsx
+ * و __tests__/components/home/HomeAboveFold.test.tsx) — هذا الأخير
+ * سيفشل الآن لأنه يفترض العرض القديم بثلاثة أقسام؛ يحتاج تحديثًا يدويًا
+ * لم يُنفَّذ هنا (لم يتوفر وصول لتشغيل/معاينة الاختبارات في هذه البيئة).
  */
 
 export function HomeAboveFold() {
-  const { isLoading: categoriesLoading } = useCategories();
-  // UX-FIX (audit P2-01): was useAds({ limit: 20 }) — a different query
-  // key than FeaturedAds' own useAds({ isFeatured: true, limit: 4 }),
-  // so this fired a second, unnecessary request and its loading flag
-  // didn't actually track the Featured section it's meant to
-  // coordinate. Matched exactly to FeaturedAds.tsx's real query so
-  // React Query serves the same cache entry (no duplicate request) and
-  // the coordinated skeleton's timing reflects what's actually shown.
-  const { isLoading: featuredLoading } = useAds({ isFeatured: true, limit: 4 });
   const { isChecking: recentChecking, isLoading: recentLoading, source: recentSource, radiusKm: recentRadiusKm } = useAdsForHome();
   const location = useLocationResolver();
 
-  const stillLoading = categoriesLoading || featuredLoading || recentChecking || recentLoading;
+  const stillLoading = recentChecking || recentLoading;
 
-  // Only rendered for city-source results — LocationSourceBadge itself
-  // no-ops gracefully to "نتائج مقترحة" when city is undefined, but
-  // resolving it once here keeps both the loading- and loaded-branch
-  // headings trivially in sync with what RecentAds ends up showing.
+  // مُحلَّل مرة واحدة فقط لغرض عنوان القسم — نفس منطق النسخة الأصلية.
   const badgeCity = location.source === 'city' ? location.city : undefined;
 
   const latestAdsHeadingLoading = (
@@ -98,82 +55,21 @@ export function HomeAboveFold() {
     />
   );
 
-  // HOME-DEAD-CTA-CLEANUP-01: the GPS CTA block was hard-coded off
-  // (showLocateCta = false) — city-only mode by design. Removed the
-  // dead flag and its JSX. GPS comes back via FEATURES.GPS_LOCATION
-  // (lib/featureFlags.ts) when that flips on; the CTA can be restored
-  // then if this section still wants it.
-
   if (stillLoading) {
     return (
-      <>
-        <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-8">
-          <SectionHeader eyebrow="تصفح حسب الفئة" title="ماذا تبحث عنه؟" />
-          <div className="flex gap-2 overflow-x-auto sm:hidden">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-9 w-24 shrink-0 rounded-full" />
-            ))}
-          </div>
-          <div className="hidden grid-cols-3 gap-3 sm:grid md:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
-            ))}
-          </div>
-        </section>
-
-        <section className="relative mt-6 border-y border-border/50 bg-muted/30 py-7 sm:mt-10 sm:py-12">
-          <div className="container relative mx-auto max-w-7xl space-y-5 px-4">
-            <SectionHeader
-              tone="featured"
-              eyebrow="مختارة لأجلك"
-              title="إعلانات مميزة"
-              icon={<Sparkles className="h-3.5 w-3.5" />}
-              cta={{ href: `${ROUTES.search}?type=ads`, label: 'كل الإعلانات ←' }}
-            />
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={i} />)}
-            </div>
-          </div>
-        </section>
-
-        <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-10">
-          {latestAdsHeadingLoading}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 stagger-fade-in">
-            {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
-          </div>
-        </section>
-      </>
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-8">
+        {latestAdsHeadingLoading}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 stagger-fade-in">
+          {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        </div>
+      </section>
     );
   }
 
   return (
-    <>
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-8">
-        <SectionHeader eyebrow="تصفح حسب الفئة" title="ماذا تبحث عنه؟" />
-        <CategoryGrid />
-      </section>
-
-      <section className="relative mt-6 border-y border-border/50 bg-muted/30 py-7 sm:mt-10 sm:py-12">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -end-10 top-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
-        />
-        <div className="container relative mx-auto max-w-7xl space-y-5 px-4">
-          <SectionHeader
-            tone="featured"
-            eyebrow="مختارة لأجلك"
-            title="إعلانات مميزة"
-            icon={<Sparkles className="h-3.5 w-3.5" />}
-            cta={{ href: `${ROUTES.search}?type=ads`, label: 'كل الإعلانات ←' }}
-          />
-          <FeaturedAds />
-        </div>
-      </section>
-
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-8 sm:pt-10">
-        {latestAdsHeadingLoaded}
-        <RecentAds />
-      </section>
-    </>
+    <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-8">
+      {latestAdsHeadingLoaded}
+      <RecentAds />
+    </section>
   );
 }

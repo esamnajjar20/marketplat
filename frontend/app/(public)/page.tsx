@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
-import { HeroBanner } from '@/components/home/HeroBanner';
-import { HomeTrustStrip } from '@/components/home/HomeTrustStrip';
-import { HomeQuickActions } from '@/components/home/HomeQuickActions';
+import { WelcomeBar } from '@/components/home/WelcomeBar';
+import { FeaturedCarousel } from '@/components/home/FeaturedCarousel';
+import { CategoriesRow } from '@/components/home/CategoriesRow';
+import { TrustLine } from '@/components/home/TrustLine';
 import { HomeAboveFold } from '@/components/home/HomeAboveFold';
 import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
@@ -15,19 +16,24 @@ import { buildMetadata } from '@/lib/seo';
 export const metadata: Metadata = buildMetadata({ title: 'الرئيسية', path: '/' });
 
 /**
- * SLOW-NET phase2 — above the fold only:
- *   Hero + quick actions + trust + HomeAboveFold (categories + featured + recent).
- * Everything else mounts near viewport, and on slow links uses whenIdle so
- * the first paint is not competing with secondary section queries.
+ * PLAN Phase 1 (خطة الرئيسية المُعدّلة، القسم 4): HeroBanner (نصّي بلا
+ * صور) + HomeQuickActions + HomeTrustStrip (3 بطاقات) استُبدلت بطبقة
+ * Discover حقيقية — WelcomeBar + FeaturedCarousel (مختلط) +
+ * CategoriesRow (مختلط) — فوق الطية، بدون تأجيل. الكود القديم بقي في
+ * المشروع (لم يُحذف)، فقط لم يعد مستوردًا هنا.
+ *
+ * HomeAboveFold تقلّص هنا ليحمل قسم "أحدث الإعلانات" الموعي بالموقع
+ * فقط (كان يحمل أيضًا CategoryGrid/FeaturedAds، وهما الآن مغطّيان
+ * بالمكوّنين الجديدين أعلاه) — انظر تعليق الملف نفسه.
  */
 export default function HomePage() {
   return (
     <div className="pb-12 sm:pb-16">
-      <HeroBanner />
+      <WelcomeBar />
 
-      <div className="space-y-5 sm:space-y-7">
-        <HomeQuickActions />
-        <HomeTrustStrip />
+      <div className="container mx-auto max-w-7xl space-y-4 px-4 pt-3">
+        <FeaturedCarousel />
+        <CategoriesRow />
       </div>
 
       {/* اكتشاف أساسي — فوق الطية، بدون تأجيل */}
@@ -59,6 +65,8 @@ export default function HomePage() {
           <FeaturedStoresSection />
         </LazySection>
       </div>
+
+      <TrustLine className="mt-4" />
     </div>
   );
 }
