@@ -62,15 +62,17 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
-import { authApi }    from '@/api/auth.api';
 import { usersApi }   from '@/api/users.api';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
 import { CACHE_TTL }    from '@/lib/constants';
-import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
+import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn } from '@/lib/cookies';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 // T735 — see the check just after the refresh await below.
-import { isSessionRevoked } from '@/api/client';
+import {
+  isSessionRevoked,
+  refreshSessionShared,
+} from '@/api/client';
 import { parseApiError } from '@/lib/errorParser';
 
 /**
@@ -149,31 +151,29 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // 1. Get a fresh access token. PROD-FIX-15: no refreshToken
         // argument anymore — the httpOnly cookie (if any) rides along
         // automatically via apiClient's withCredentials:true.
-        const refreshRes = await authApi.refresh({ signal: controller.signal });
+        const refreshRes = await refreshSessionShared();
+        const { expiresIn } = refreshRes.data.data!.tokens;
 
         // T735 — the user could have logged out between this request
         // being sent and its response arriving. clearSensitiveLocalData()
         // (invoked by every logout path: useAuthMutations, session
         // expiry, password change) sets the sessionRevoked flag via
         // invalidateRefreshSession(). Without this check, the resolved
-        // refresh would call setAccessToken + setCookie('app_access_token')
-        // + setCookie('app_has_session') and effectively re-establish
-        // the session the user just ended — the exact class of leak T651
-        // closed inside the response interceptor, in a different code
+        // the shared refresh coordinator would update the access token
+        // and session cookies and effectively re-establish the session
+        // the user just ended — the exact class of leak T651 closed
+        // inside the response interceptor, in a different code path.
         // path with the same consequence on a shared device.
         // T735-REVERTED: temporarily disabled — see "logs me out on
         // every refresh" production regression. The check was meant to
         // discard a refresh response that raced a logout, but if the
         // sessionRevoked flag is ever true when this runs (module-level
         // state from a prior authCleanup call), it returns without
-        // calling setAccessToken, so isAuthenticated stays false and
+        // updating the auth store, so isAuthenticated stays false and
         // ProtectedLayout redirects to /login. Re-enable after root
         // cause is identified.
         // if (isSessionRevoked()) { return; }
 
-        const { accessToken: newAccess, expiresIn } = refreshRes.data.data!.tokens;
-
-        setAccessToken(newAccess);
         // CROSS-ORIGIN-CSRF-FIX: this is the exact call that was
         // failing with 403 on every page reload — frontend and backend
         // are on different origins, so document.cookie can never see
@@ -181,22 +181,11 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // header comment for the full mechanism). Capture the value
         // from this response body instead, into the in-memory store
         // getCsrfToken() now reads from first.
-        setCsrfToken(refreshRes.data.data!.csrfToken);
 
-        // 2. Set middleware cookies so route protection works.
-        // FIX BUG-06: derives maxAge from this response's own
-        // tokens.expiresIn instead of the old fixed constant — reused
-        // below for app_user_role too, since both cookies represent
-        // the same access-token-backed session and should expire
-        // together.
+        // 2. Derive the session cookie lifetime from the refresh response.
+        // Reused below for app_user_role so it expires with the
+        // same access-token-backed session.
         const cookieMaxAge = cookieMaxAgeFromExpiresIn(expiresIn);
-        setCookie('app_access_token', newAccess, cookieMaxAge);
-        // AUDIT-FIX C-1: re-assert the session hint too (the backend
-        // already set/refreshed its own copy via Set-Cookie on this
-        // same /auth/refresh response — this client-side mirror just
-        // means middleware doesn't have to wait on cookie propagation
-        // timing before its very next request sees it).
-        setCookie('app_has_session', '1', SESSION_HINT_COOKIE_MAX_AGE);
 
         // 3. Fetch full profile to get avatarUrl, city, and confirm role.
         // FIX ME-QUERY-UNIFY-01: was a direct usersApi.getMe() call
@@ -391,17 +380,10 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
             await new Promise((r) => setTimeout(r, 700));
             if (isSessionRevoked()) return;
 
-            const retryRes = await authApi.refresh({ signal: controller.signal });
-            if (isSessionRevoked()) return;
-
-            const { accessToken: retryAccess, expiresIn: retryExpires } =
+            const retryRes = await refreshSessionShared();
+            const { expiresIn: retryExpires } =
               retryRes.data.data!.tokens;
-            setAccessToken(retryAccess);
-            setCsrfToken(retryRes.data.data!.csrfToken);
-
-            const retryCookieMaxAge = cookieMaxAgeFromExpiresIn(retryExpires);
-            setCookie('app_access_token', retryAccess, retryCookieMaxAge);
-            setCookie('app_has_session', '1', SESSION_HINT_COOKIE_MAX_AGE);
+            if (isSessionRevoked()) return;
 
             const retryUser = await queryClient.fetchQuery({
               queryKey: queryKeys.auth.me(),
@@ -422,6 +404,8 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
               needsProfileCompletion: retryUser.needsProfileCompletion,
               emailVerified: retryUser.emailVerified,
             });
+            const retryCookieMaxAge =
+              cookieMaxAgeFromExpiresIn(retryExpires);
             setCookie('app_user_role', retryUser.role, retryCookieMaxAge);
 
             void warmSelfDataForOffline(queryClient);

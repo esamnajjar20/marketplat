@@ -231,6 +231,40 @@ function processQueue(error: unknown, token: string | null) {
   refreshQueue = [];
 }
 
+let sharedRefreshPromise: ReturnType<typeof import('@/api/auth.api')['authApi']['refresh']> | null = null;
+
+export async function refreshSessionShared() {
+  if (sharedRefreshPromise) {
+    return sharedRefreshPromise;
+  }
+
+  sharedRefreshPromise = (async () => {
+    const { authApi } = await import('@/api/auth.api');
+    const res = await authApi.refresh();
+
+    if (sessionRevoked) {
+      throw new Error('Session ended during refresh');
+    }
+
+    const { accessToken, expiresIn } = res.data.data!.tokens;
+
+    useAuthStore.getState().setAccessToken(accessToken);
+    useAuthStore.getState().setCsrfToken(res.data.data!.csrfToken);
+    setCookie(
+      'app_access_token',
+      accessToken,
+      cookieMaxAgeFromExpiresIn(expiresIn),
+    );
+    setCookie('app_has_session', '1', SESSION_HINT_COOKIE_MAX_AGE);
+
+    return res;
+  })().finally(() => {
+    sharedRefreshPromise = null;
+  });
+
+  return sharedRefreshPromise;
+}
+
 apiClient.interceptors.response.use(
   (response) => {
     try {
@@ -399,8 +433,7 @@ apiClient.interceptors.response.use(
       // authApi → client → authApi would be circular at module load time,
       // but importing it here (inside the interceptor callback) is safe because
       // the module is already fully initialised by the time any 401 fires.
-      const { authApi } = await import('@/api/auth.api');
-      const res = await authApi.refresh();
+      const res = await refreshSessionShared();
 
       // T651 — invalidateRefreshSession() (logout / logout-all /
       // password change / account deletion) sets sessionRevoked and
@@ -508,8 +541,7 @@ apiClient.interceptors.response.use(
       }
 
       try {
-        const { authApi } = await import('@/api/auth.api');
-        const retryRes = await authApi.refresh();
+        const retryRes = await refreshSessionShared();
         if (sessionRevoked) {
           return Promise.reject(parseApiError(error));
         }
