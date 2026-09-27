@@ -37,6 +37,12 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
 }
 
 export function ServiceListingDetail({ listing, action }: Props) {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
+
   const images = listing.images.length > 0 ? listing.images : [PLACEHOLDER_SVG];
   const [imgIdx, setImgIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -236,7 +242,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
                 <Eye className="h-3.5 w-3.5" aria-hidden />
                 {listing.views} مشاهدة
               </span>
-              <span>{formatRelativeTime(listing.createdAt)}</span>
+              <span>{now === null ? '—' : formatRelativeTime(listing.createdAt, now)}</span>
             </div>
           </header>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CalendarDays, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -30,7 +30,15 @@ function todayIso(): string {
  * backend has no bulk/range availability endpoint to page through.
  */
 export function AvailabilityCalendar({ providerId, onSelectRange, className }: Props) {
-  const [date, setDate] = useState(todayIso());
+  const [date, setDate] = useState('');
+  const [today, setToday] = useState('');
+
+  useEffect(() => {
+    const current = todayIso();
+    setDate(current);
+    setToday(current);
+  }, []);
+
   const { data, isLoading, isError, refetch } = useAvailability(providerId, date);
 
   return (
@@ -40,7 +48,7 @@ export function AvailabilityCalendar({ providerId, onSelectRange, className }: P
         <input
           type="date"
           value={date}
-          min={todayIso()}
+          min={today}
           onChange={(e) => setDate(e.target.value)}
           className="rounded-md border border-input bg-transparent px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />

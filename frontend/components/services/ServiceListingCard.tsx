@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
@@ -64,7 +65,15 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
   const isNegotiable = listing.pricingType === 'NEGOTIABLE' || !listing.price;
 
-  const ageHours = (Date.now() - new Date(listing.createdAt).getTime()) / 3_600_000;
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
+
+  const ageHours = now === null
+    ? Infinity
+    : (now - new Date(listing.createdAt).getTime()) / 3_600_000;
   const timeColorClass =
     ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
 
@@ -208,7 +217,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
                 )}
               </div>
               <span className={cn('shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums', timeColorClass)}>
-                {formatRelativeTime(listing.createdAt)}
+                {now === null ? '—' : formatRelativeTime(listing.createdAt, now)}
               </span>
             </div>
           </div>

@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
@@ -65,7 +66,15 @@ export function ProductCard({ product, className, priority = false }: Props) {
   const hasDiscount = discountPrice !== null;
   const outOfStock = product.availability === 'OUT_OF_STOCK';
 
-  const ageHours = (Date.now() - new Date(product.createdAt).getTime()) / 3_600_000;
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
+
+  const ageHours = now === null
+    ? Infinity
+    : (now - new Date(product.createdAt).getTime()) / 3_600_000;
   const timeColorClass =
     ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
 
@@ -192,7 +201,7 @@ export function ProductCard({ product, className, priority = false }: Props) {
                 متجر
               </span>
               <span className={cn('shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums', timeColorClass)}>
-                {formatRelativeTime(product.createdAt)}
+                {now === null ? '—' : formatRelativeTime(product.createdAt, now)}
               </span>
             </div>
           </div>

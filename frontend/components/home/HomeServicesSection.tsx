@@ -11,6 +11,7 @@ import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { useSequentialGeoSearch } from '@/hooks/queries/useSequentialGeoSearch';
 import { homeSectionLimit } from '@/lib/listLimits';
+import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { formatDistanceKm } from '@/lib/distance';
@@ -19,7 +20,8 @@ import { formatDistanceKm } from '@/lib/distance';
  * خدمات الرئيسية — GPS بتوسيع متسلسل؛ وإلا أحدث الخدمات العامة.
  */
 export function HomeServicesSection() {
-  const limit = homeSectionLimit(8, 4);
+  const dataSaver = useDataSaver();
+  const limit = homeSectionLimit(8, 4, dataSaver);
   const location = useLocationResolver();
   const isGps = location.source === 'gps-current' || location.source === 'gps-saved';
 

@@ -74,13 +74,13 @@ const THRESHOLDS: [number, Intl.RelativeTimeFormatUnit][] = [
  * Human-readable relative time in Arabic.
  * @example formatRelativeTime("2024-01-01T00:00:00Z") → "منذ سنتين"
  */
-export function formatRelativeTime(dateStr: string): string {
+export function formatRelativeTime(dateStr: string, now = Date.now()): string {
   // SW-FMT-INVALID-DATE-01: a null/empty/unparseable date from the
   // backend produced "منذ NaN سنة" or, worse, an Intl RangeError.
   if (!dateStr) return '—';
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return '—';
-  const delta = (date.getTime() - Date.now()) / 1000;
+  const delta = (date.getTime() - now) / 1000;
   const abs = Math.abs(delta);
 
   let prev = 1;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
@@ -52,7 +52,15 @@ export function AdCard({ ad, className, priority = false }: Props) {
   const isSold   = ad.status === 'SOLD';
   const isNew    = ad.condition === 'NEW';
 
-  const ageHours = (Date.now() - new Date(ad.createdAt).getTime()) / 3_600_000;
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
+
+  const ageHours = now === null
+    ? Infinity
+    : (now - new Date(ad.createdAt).getTime()) / 3_600_000;
   const timeColorClass =
     ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
 
@@ -229,7 +237,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
                 )}
               </div>
               <span className={cn('shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums', timeColorClass)}>
-                {formatRelativeTime(ad.createdAt)}
+                {now === null ? '—' : formatRelativeTime(ad.createdAt, now)}
               </span>
             </div>
           </div>

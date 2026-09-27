@@ -7,6 +7,7 @@ import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { ApiError } from '@/components/shared/ApiError';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { homeSectionLimit } from '@/lib/listLimits';
+import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
 /**
@@ -33,8 +34,9 @@ import { ROUTES } from '@/lib/constants';
  * module's existing city-only location support).
  */
 export function PromotedProductsSection() {
+  const dataSaver = useDataSaver();
   const { data, isLoading, isError, error, refetch } = useProducts({
-    limit: homeSectionLimit(8, 4),
+    limit: homeSectionLimit(8, 4, dataSaver),
     sortBy: 'createdAt',
     sortOrder: 'desc',
     hasPromotion: true,

@@ -8,6 +8,7 @@ import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { useStores } from '@/hooks/queries/useStores';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { homeSectionLimit } from '@/lib/listLimits';
+import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
 /**
@@ -15,9 +16,10 @@ import { ROUTES } from '@/lib/constants';
  * لا lat/lng على GET /stores؛ المدينة فقط.
  */
 export function FeaturedStoresSection() {
+  const dataSaver = useDataSaver();
   const location = useLocationResolver();
   const city = location.source === 'city' ? location.city : undefined;
-  const { data, isLoading } = useStores({ limit: homeSectionLimit(6, 4), city });
+  const { data, isLoading } = useStores({ limit: homeSectionLimit(6, 4, dataSaver), city });
   const items = data?.items ?? [];
 
   const badgeSource =

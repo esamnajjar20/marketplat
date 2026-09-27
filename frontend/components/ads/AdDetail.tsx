@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
  * route rather than linking to something broken.
  */
 export function useCategoryHref(categoryId: string | undefined) {
+
   const { data: categories } = useCategories();
   if (!categoryId) return undefined;
   const flat = (categories ?? []).flatMap((c) => [c, ...(c.children ?? [])]);
@@ -53,6 +54,12 @@ export function useCategoryHref(categoryId: string | undefined) {
 interface Props { ad: Ad; isFavorited?: boolean; }
 
 export function AdDetail({ ad, isFavorited = false }: Props) {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
+
   const searchParams = useSearchParams();
   const justPublished = searchParams.get('published') === '1';
   const [imgIdx, setImgIdx] = useState(0);
@@ -257,7 +264,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ad.city}</span>
                 <span className="text-border">|</span>
-                <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{formatRelativeTime(ad.createdAt)}</span>
+                <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{now === null ? '—' : formatRelativeTime(ad.createdAt, now)}</span>
                 <span className="text-border">|</span>
                 <span className="flex items-center gap-1.5"><Eye className="h-4 w-4" />{ad.views} مشاهدة</span>
                 <span className="text-border">|</span>

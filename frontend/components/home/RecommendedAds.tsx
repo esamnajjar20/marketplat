@@ -7,10 +7,12 @@ import { SectionHeader } from '@/components/home/SectionHeader';
 import { useRecommendations } from '@/hooks/queries/useRecommendations';
 import { useAuthStore } from '@/store/auth.store';
 import { homeSectionLimit } from '@/lib/listLimits';
+import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
 export function RecommendedAds() {
-  const limit = homeSectionLimit(8, 4);
+  const dataSaver = useDataSaver();
+  const limit = homeSectionLimit(8, 4, dataSaver);
   const city = useAuthStore((s) => s.user?.city?.trim() || undefined);
   const { data, isLoading, isError, refetch } = useRecommendations({
     limit,
