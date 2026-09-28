@@ -124,7 +124,7 @@ export function useLogin() {
       // has no per-user scoping, so a same-user login leaving it in
       // place is fine — but running it here matches the previous
       // behavior and removes any doubt.
-      clearServiceWorkerApiCache();
+      await clearServiceWorkerApiCache();
       clearNotificationsCache();
 
       // FIX T-01: data.user is AuthResultUser (id/name/email/role only).
@@ -221,7 +221,7 @@ export function useRegister() {
       if (userChanged) {
         await clearSensitiveLocalData();
       }
-      clearServiceWorkerApiCache();
+      await clearServiceWorkerApiCache();
       clearNotificationsCache();
 
       // CROSS-ORIGIN-CSRF-FIX: see the matching comment in useLogin above.

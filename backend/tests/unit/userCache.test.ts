@@ -76,4 +76,29 @@ describe('userCache', () => {
     expect(b?.id).toBe('u1');
     expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
   });
+
+  // FIX USERCACHE-RACE-01: invalidate() during an in-flight DB read must
+  // not let the pre-change snapshot be written back into the cache.
+  it('does not re-cache a snapshot that was invalidated mid-fetch', async () => {
+    let resolveFirst!: (value: unknown) => void;
+    const first = new Promise(resolve => {
+      resolveFirst = resolve;
+    });
+    const find = jest
+      .spyOn(prisma.user, 'findUnique')
+      .mockReturnValueOnce(first as any)
+      // re-read after the invalidation sees the banned state
+      .mockResolvedValueOnce({ id: 'u9', role: 'USER', isActive: false } as any);
+
+    const pending = userCache.getOrFetch('u9');
+    await new Promise(r => setImmediate(r));
+    await userCache.invalidate('u9'); // admin ban lands here
+    resolveFirst({ id: 'u9', role: 'USER', isActive: true }); // stale snapshot
+
+    const result = await pending;
+    expect(find).toHaveBeenCalledTimes(2);
+    expect(result?.isActive).toBe(false);
+    const written = (redis.setex as jest.Mock).mock.calls.map(c => JSON.parse(c[2]));
+    expect(written.some(u => u.isActive === true)).toBe(false);
+  });
 });

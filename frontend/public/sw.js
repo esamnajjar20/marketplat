@@ -102,7 +102,7 @@
 // below); '/offline' added to CORE_ROUTES in offlineRouteShells.ts.
 // Both fixes require a cache bump so every active SW clears the
 // stale entries from v35 and the retry/marker files reset.
-const CACHE_VERSION = 'v41';
+const CACHE_VERSION = 'v42';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -946,12 +946,10 @@ async function handlePageRequest(event, request, url) {
 /** Cache First للصور التي رآها المستخدم — مع سقف MAX_IMAGE_ENTRIES (FIFO).
  * الإعلانات المحفوظة يدويًا تُقرأ أيضًا من SAVED_ADS_CACHE (غير مُصدَّر). */
 async function cacheFirstImage(event, request, url) {
-  console.log('[SW IMAGE] start', request.url);
 
   const cache = await caches.open(IMAGE_CACHE);
   const cached = await cache.match(request);
   if (cached) {
-    console.log('[SW IMAGE] IMAGE_CACHE HIT', request.url, cached.status);
     return cached;
   }
 
@@ -987,10 +985,18 @@ async function cacheFirstImage(event, request, url) {
     }
   }
 
+  // FIX SW-IMAGE-CORE-01: thumbnails warmed by warmCoreBundle live in
+  // CORE_CACHE keyed by their raw URL — serve them before the network.
   try {
-    console.log('[SW IMAGE] NETWORK FETCH', request.url);
+    const coreCache = await caches.open(CORE_CACHE);
+    const coreHit = await coreCache.match(request.url);
+    if (coreHit) return coreHit;
+  } catch {
+    // ignore — fall through to network
+  }
+
+  try {
     const response = await fetch(request);
-    console.log('[SW IMAGE] NETWORK RESPONSE', request.url, response.status, response.ok);
     // FIX SW-206-IMAGE: استثناء 206 (Partial Content — Range requests
     // من <img loading="lazy">) من التخزين — وإلا قد تُخزَّن نسخة جزئية
     // فاسدة.
@@ -1196,76 +1202,71 @@ async function networkFirstApi(event, request, _url) {
   // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
   const fetchPromise = fetch(request);
+  // T710 — never store an auth-keyed response in the SHARED API_CACHE.
+  // The backend's CACHE.NONE middleware sends `Cache-Control: no-store`
+  // but NOT `Vary: Authorization`, so a `/users/me` (or /conversations,
+  // /notifications, ...) response cached under User A would match a
+  // later request for the same URL from a different session.
+  // FIX SW-API-AUTH-TIMEOUT-01: this gate now guards BOTH the normal
+  // path and the late-arriving (post-timeout) path — the latter used to
+  // store auth'd responses without checking it.
+  const hadAuth = request.headers.get('authorization') != null;
+
+  const storeIfPublic = async (response) => {
+    if (hadAuth || !response) return;
+    // FIX SW-CAPTIVE-01 (API variant): رد API حقيقي متوقّع يكون JSON —
+    // صفحة captive portal/edge error بحالة 200 عادة HTML.
+    const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
+    // FIX SW-206-API: استثناء 206 أيضاً.
+    if (response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson) {
+      await putTimestamped(cache, request, response.clone());
+      await trimCache(API_CACHE, MAX_API_ENTRIES);
+    }
+  };
+
   try {
     const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
-    // FIX SW-CAPTIVE-01 (API variant): إضافة لفحص same-origin، رد API حقيقي
-    // متوقّع يكون JSON — صفحة captive portal/edge error بحالة 200 عادة HTML.
-    const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
-    // T710 — never store an auth-keyed response in the SHARED API_CACHE.
-    // The Cache API discriminates entries by URL + any Vary header the
-    // stored RESPONSE declares. The backend's CACHE.NONE middleware
-    // sends `Cache-Control: no-store` but NOT `Vary: Authorization`, so
-    // a `/users/me` (or /conversations, /notifications, ...) response
-    // cached under User A would match a later request for the same URL
-    // from a different session. clearSensitiveLocalData() covers the
-    // login-as-different-user path (T682), but a crash-without-logout
-    // followed by a guest open while offline does not fire that path —
-    // and networkFirstApi's cache fallback would then hand the guest
-    // User A's cached profile. The safest fix is at the source: keep
-    // the SW cache for the genuinely-public resources (ads list,
-    // categories, public profiles) and never store a response that was
-    // requested WITH credentials. The public-cache hit rate is
-    // unaffected — those requests carry no Authorization header.
-    const hadAuth = request.headers.get('authorization') != null;
-    // FIX SW-206-API: استثناء 206 أيضاً.
-    if (!hadAuth && response && response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson) {
-      event.waitUntil(
-        putTimestamped(cache, request, response.clone()).then(() =>
-          trimCache(API_CACHE, MAX_API_ENTRIES),
-        ),
-      );
+    if (!hadAuth) {
+      event.waitUntil(storeIfPublic(response).catch(() => {}));
     }
     return response;
   } catch (err) {
-    // FIX SW-WEAK-NET-TIMEOUT-01: مهلة (نت ضعيف) لا تعني تخلّيًا عن
-    // fetchPromise الحقيقي — لو نجح لاحقًا فعلًا حدِّث الكاش بالخلفية،
-    // بنفس شرط JSON/same-origin أعلاه.
-    if (err && err.name === 'SwTimeoutError') {
-      event.waitUntil(
-        fetchPromise
-          .then(async (response) => {
-            const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
-            if (response && response.ok && isSameOriginResponse(response) && looksLikeJson) {
-              await putTimestamped(cache, request, response.clone());
-              await trimCache(API_CACHE, MAX_API_ENTRIES);
-            }
-          })
-          .catch(() => {}),
-      );
+    const timedOut = !!(err && err.name === 'SwTimeoutError');
+    if (timedOut) {
+      // مهلة (نت ضعيف) لا تعني تخلّيًا عن fetchPromise الحقيقي — لو نجح
+      // لاحقًا حدِّث الكاش بالخلفية (بنفس بوابة hadAuth).
+      event.waitUntil(fetchPromise.then(storeIfPublic).catch(() => {}));
     }
-    const cachedApi = await cache.match(request);
+
+    // FIX SW-VARY-01: entries here come only from anonymous requests and
+    // the backend marks public responses `Vary: Authorization`; without
+    // ignoreVary a logged-in user's request (which carries the header)
+    // could never match them and the cache was useless for members.
+    const cachedApi = await cache.match(request, { ignoreVary: true });
     if (cachedApi) return cachedApi;
 
-    // PHASE-5: user-warmed data. Ordered after API_CACHE (a response
-    // the user's live session produced is fresher than one from a
-    // warming pass minutes ago) and before CORE_CACHE (which holds
-    // public-only data). The key is the full request URL — matching
-    // exactly what lib/offlineWarmingUserData.ts stored.
+    // PHASE-5: user-warmed data. Ordered after API_CACHE and before
+    // CORE_CACHE. The key is the full request URL — matching exactly
+    // what lib/offlineWarmingUserData.ts stored.
     const userDataCache = await caches.open(USER_DATA_CACHE);
-    const cachedUserData = await userDataCache.match(request);
+    const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
     if (cachedUserData) return cachedUserData;
 
     const coreCache = await caches.open(CORE_CACHE);
     const cachedCore = await coreCache.match(request.url);
     if (cachedCore) return cachedCore;
 
-    // PHASE-OFFLINE-AD-DETAIL: GET /ads/:id لإعلان محفوظ يدويًا — آخر
-    // طبقة fallback، بعد API_CACHE (تصفح عادي حديث) وCORE_CACHE (حزمة
-    // استباقية عامة). انظر تعليق lib/offlineSavedAds.ts للسياق الكامل.
+    // PHASE-OFFLINE-AD-DETAIL: GET /ads/:id لإعلان محفوظ يدويًا.
     const savedCache = await caches.open(SAVED_ADS_CACHE);
     const cachedSaved = await savedCache.match(request.url);
     if (cachedSaved) return cachedSaved;
 
+    // FIX SW-TIMEOUT-NOCACHE-01: the timeout fired but nothing is cached.
+    // The real request is still in flight — keep waiting for it instead of
+    // handing the page a synthetic network error on a slow-but-alive link.
+    if (timedOut) {
+      return fetchPromise.catch(() => Response.error());
+    }
     return Response.error();
   }
 }
@@ -2598,9 +2599,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isImageRequest(request, url)) {
-    // TEMP DEBUG: bypass image cache completely.
-    // Images go directly to the network for diagnosis.
-    event.respondWith(fetch(request));
+    // FIX SW-IMAGE-DEBUG-BYPASS-01: removed the temporary network-only debug
+    // bypass — it made IMAGE_CACHE, SAVED_ADS_CACHE and the thumbnails
+    // warmed into CORE_CACHE dead weight (downloaded, never served).
+    event.respondWith(cacheFirstImage(event, request, url));
     return;
   }
 

@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { adsRepository, AdWithAuthor, AdListRow } from './ads.repository';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, GetMyAdsQuery } from './ads.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -84,8 +85,22 @@ export async function bumpAdsCacheVersion(): Promise<void> {
 function buildAdsListCacheKey(version: number, query: GetAdsQuery): string {
   // Stable key regardless of object key insertion order.
   const sorted = Object.keys(query).sort().map(k => `${k}=${(query as any)[k]}`).join('&');
-  return `ads:list:v${version}:${sorted}`;
+  // FIX ADS-CACHE-KEY-01: bound the key length (max 200-char `search` + many
+  // filters otherwise makes multi-KB Redis keys).
+  const body = sorted.length > 120 ? createHash('sha1').update(sorted).digest('hex') : sorted;
+  return `ads:list:v${version}:${body}`;
 }
+
+// FIX ADS-CACHE-STAMPEDE-01: every bumpAdsCacheVersion() invalidates ALL
+// list keys at once, so concurrent identical requests all missed and hit
+// Postgres together. Collapse them per (process, key) into one DB query.
+const adsListInflight = new Map<string, Promise<PaginatedResult<AdListRow>>>();
+
+// FIX ADS-CACHE-POLLUTION-01: free-text searches are near-unique per user;
+// caching them fills Redis with one-hit keys (and lets a client flood it
+// by varying `search`). Short/common terms are still cached; long ones
+// are served from the DB (still singleflighted).
+const ADS_CACHEABLE_SEARCH_MAX = 24;
 
 // TRACK-AD-STORE (phase 2): an ad published under a store is no longer
 // manageable only by the exact account that created it — the store
@@ -389,24 +404,38 @@ export const adsService = {
     // dependency.
     const version = await getAdsCacheVersion();
     const cacheKey = buildAdsListCacheKey(version, query);
+    const cacheable = !query.search || query.search.length <= ADS_CACHEABLE_SEARCH_MAX;
 
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) return JSON.parse(cached) as PaginatedResult<AdListRow>;
-    } catch {
-      logger.warn('Ads list cache read failed, falling back to DB');
+    if (cacheable) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) return JSON.parse(cached) as PaginatedResult<AdListRow>;
+      } catch {
+        logger.warn('Ads list cache read failed, falling back to DB');
+      }
     }
 
-    const { ads, total } = await adsRepository.findMany(query);
-    const result = { items: ads, meta: buildPaginationMeta(total, page, limit) };
+    const pending = adsListInflight.get(cacheKey);
+    if (pending) return pending;
 
-    try {
-      await redis.setex(cacheKey, ADS_LIST_TTL, JSON.stringify(result));
-    } catch {
-      // Fail silently — DB result is still returned
-    }
+    const promise = (async () => {
+      const { ads, total } = await adsRepository.findMany(query);
+      const result = { items: ads, meta: buildPaginationMeta(total, page, limit) };
 
-    return result;
+      if (cacheable) {
+        try {
+          await redis.setex(cacheKey, ADS_LIST_TTL, JSON.stringify(result));
+        } catch {
+          // Fail silently — DB result is still returned
+        }
+      }
+      return result;
+    })().finally(() => {
+      adsListInflight.delete(cacheKey);
+    });
+
+    adsListInflight.set(cacheKey, promise);
+    return promise;
   },
 
   getAdById: async (id: string, viewerIp?: string): Promise<AdWithAuthor> => {

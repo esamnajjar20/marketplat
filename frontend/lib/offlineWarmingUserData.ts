@@ -35,11 +35,12 @@ import { reportProgress } from './warmingProgress';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { getWarmingPlan } from './offlineWarmingPlanner';
 import { isWarmingCancelled } from './offlineRouteShells';
+import { useAuthStore } from '@/store/auth.store';
 
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
 /** Must match sw.js's USER_DATA_CACHE template literally. */
-export const USER_DATA_CACHE = 'market-user-data-v41';
+export const USER_DATA_CACHE = 'market-user-data-v42';
 
 /**
  * Endpoints warmed per user. Each entry becomes one fetch + one
@@ -73,6 +74,40 @@ interface WarmOneResult {
   status: number;
 }
 
+/**
+ * FIX WARM-AUTH-01: the backend's `authenticate` middleware accepts a
+ * Bearer token ONLY (no cookie fallback), so the previous
+ * `credentials: 'include'` request returned 401 for every personal
+ * endpoint — nothing was cached, yet the progress counter still
+ * advanced and the UI reported the pass as complete. The request now
+ * carries `Authorization: Bearer <accessToken>`; on a 401 it refreshes
+ * the session once (shared refresh, so it never races the app's own
+ * axios refresh) and retries.
+ */
+async function fetchWithAuth(
+  fullUrl: string,
+  signal: AbortSignal,
+  allowRefresh: boolean,
+): Promise<Response | null> {
+  const token = useAuthStore.getState().accessToken;
+  if (!token) return null;
+  const res = await fetch(fullUrl, {
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    signal,
+  });
+  if (res.status === 401 && allowRefresh) {
+    try {
+      const { refreshSessionShared } = await import('@/api/client');
+      await refreshSessionShared();
+    } catch {
+      return res; // session really ended — surface the 401
+    }
+    return fetchWithAuth(fullUrl, signal, false);
+  }
+  return res;
+}
+
 async function warmOneEndpoint(
   path: string,
   cache: Cache,
@@ -80,10 +115,8 @@ async function warmOneEndpoint(
 ): Promise<WarmOneResult> {
   const fullUrl = `${API_BASE_URL}${path}`;
   try {
-    const res = await fetch(fullUrl, {
-      credentials: 'include',
-      signal,
-    });
+    const res = await fetchWithAuth(fullUrl, signal, true);
+    if (!res) return { ok: false, status: 0 }; // no session → nothing to warm
     // 404 for endpoints that don't apply to this user (a plain buyer
     // has no /stores/me) is a normal outcome, not a failure. Do NOT
     // cache it — caching a 404 would be served offline in place of a
@@ -99,6 +132,12 @@ async function warmOneEndpoint(
     const headers = new Headers(res.headers);
     headers.set('X-SW-Cached-At', String(Date.now()));
     const body = await res.clone().blob();
+
+    // FIX WARM-LOGOUT-RACE-01: logout may have run clearSensitiveLocalData()
+    // while this request was in flight. Writing now would resurrect the
+    // previous user's data after the wipe.
+    if (!useAuthStore.getState().isAuthenticated) return { ok: false, status: 0 };
+
     const toStore = new Response(body, {
       status: res.status,
       statusText: res.statusText,
@@ -164,8 +203,10 @@ export async function warmUserData(): Promise<void> {
               if (isWarmingCancelled()) return;
               const path = queue.shift();
               if (!path) return;
-              await warmOneEndpoint(path, cache, controller.signal);
-              completed += 1;
+              const r = await warmOneEndpoint(path, cache, controller.signal);
+              // FIX WARM-PROGRESS-HONEST-01: count only endpoints that
+              // actually landed (or legitimately don't apply → 404).
+              if (r.ok) completed += 1;
               reportProgress('userdata', { active: true, completed, total });
             }
           })(),

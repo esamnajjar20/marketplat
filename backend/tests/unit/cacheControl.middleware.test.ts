@@ -42,4 +42,17 @@ describe('cacheControl middleware', () => {
 
     expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=120'));
   });
+
+  it('sets live (short-lived) cache headers with Vary: Authorization', () => {
+    const req = {} as Request;
+    const res = { setHeader: jest.fn() } as unknown as Response;
+
+    CACHE.LIVE(req, res, next);
+
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Cache-Control',
+      'public, max-age=30, stale-while-revalidate=30',
+    );
+    expect(res.setHeader).toHaveBeenCalledWith('Vary', 'Authorization');
+  });
 });

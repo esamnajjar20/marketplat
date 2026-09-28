@@ -39,8 +39,36 @@ import { clearNativeSessionMeta } from '@/lib/capacitor/nativeSessionStorage';
  * FIX PWA-NOTIF-01). منقولة هنا من hooks/mutations/useAuthMutations.ts
  * (لا تزال معاد تصديرها من هناك لتوافق الاستيرادات القديمة) لأنها ليست
  * hook — دالة تصفح عادية يصح استدعاؤها من أي سياق تنظيف. */
-export function clearServiceWorkerApiCache() {
-  navigator.serviceWorker?.controller?.postMessage({ type: 'CLEAR_API_CACHE' });
+export async function clearServiceWorkerApiCache(): Promise<void> {
+  // Ask the SW (if it controls this page) — keeps its in-memory state honest.
+  try {
+    navigator.serviceWorker?.controller?.postMessage({ type: 'CLEAR_API_CACHE' });
+  } catch {
+    /* ignore */
+  }
+
+  // FIX LOGOUT-CACHE-DIRECT-01: postMessage alone is not a guarantee — after a
+  // hard reload (Shift+Reload) the page has NO controller, so the message was
+  // silently dropped and the previous user's cached API responses / personal
+  // shells stayed on disk. Cache Storage is reachable from the page itself,
+  // so delete the user-scoped buckets directly and WAIT for it.
+  // Prefix-matching also covers buckets left behind by older SW versions.
+  if (typeof caches === 'undefined') return;
+  try {
+    const names = await caches.keys();
+    await Promise.all(
+      names
+        .filter(
+          (n) =>
+            n.startsWith('market-api-') ||
+            n.startsWith('market-personal-shell-') ||
+            n.startsWith('market-user-data-'),
+        )
+        .map((n) => caches.delete(n)),
+    );
+  } catch (err) {
+    console.warn('[auth-cleanup] direct cache wipe failed:', err);
+  }
 }
 
 /**
@@ -85,6 +113,23 @@ function clearPushBindingsOnSessionEnd(): void {
  * fire-and-forget — closing the tab mid-logout could leave User A's
  * queued mutations (URLs + bodies) visible until the promise settled.
  */
+/**
+ * Unversioned buckets: not user-scoped and never removed by SW upgrades, so
+ * they would show User A's saved/visited ads to User B on a shared device.
+ * Only wiped on real session end / account switch — NOT on a same-user login.
+ */
+async function clearUnversionedOfflineBuckets(): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  try {
+    await Promise.all([
+      caches.delete('market-saved-ads'),
+      caches.delete('market-auto-read-ads'),
+    ]);
+  } catch (err) {
+    console.warn('[auth-cleanup] unversioned bucket wipe failed:', err);
+  }
+}
+
 export async function clearSensitiveLocalData(): Promise<void> {
   // FIX REFRESH-QUEUE-LOGOUT: reject any requests currently parked in
   // api/client.ts's refresh queue. Their retry would ship the revoked
@@ -111,7 +156,9 @@ export async function clearSensitiveLocalData(): Promise<void> {
   } catch (err) {
     console.warn('[auth-cleanup] queryClient.clear() failed:', err);
   }
-  clearServiceWorkerApiCache();
+  // FIX LOGOUT-CACHE-DIRECT-01: awaited (was fire-and-forget).
+  await clearServiceWorkerApiCache();
+  await clearUnversionedOfflineBuckets();
   // نفس منطق clearServiceWorkerApiCache أعلاه: notifications-cache
   // مخزَّنة محليًا (localStorage) بلا ربط بهوية المستخدم — تنظيفها هنا
   // يمنع ظهور إشعارات المستخدم السابق على جهاز مشترك بعد تسجيل الدخول
@@ -157,6 +204,13 @@ export async function clearSensitiveLocalData(): Promise<void> {
     // because the Cache Storage half is async and logout UX shouldn't
     // block on it.
     void clearAutoReadCache();
+  try {
+    // Index for the 'market-saved-ads' bucket wiped above (must match
+    // SAVED_INDEX_KEY in offlineSavedAds.ts / offlineSavedEntities.ts).
+    localStorage.removeItem('saved-ads-offline');
+  } catch {
+    /* ignore */
+  }
   clearAppBadge();
   clearAllOfflineLists();
   void clearDraftOnlyAdDrafts();

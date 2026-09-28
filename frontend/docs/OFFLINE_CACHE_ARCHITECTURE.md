@@ -27,7 +27,7 @@
 | `market-api-vN` | آخر استجابات GET | Network-first + حد 60 (FIFO) |
 
 **نت ضعيف (غير منقطع لكن بطيء):** `networkFirstApi`/`networkFirstPage`/
-`handleProtectedPage` تتسابق بين `fetch()` ومهلة `NETWORK_TIMEOUT_MS` (4
+`handleProtectedPage` تتسابق بين `fetch()` ومهلة `NETWORK_TIMEOUT_MS` (5
 ثوانٍ). لو فازت المهلة، يُعرض الكاش فورًا — لكن `fetch()` الحقيقي لا يُلغى
 ويستمر بالخلفية؛ إن نجح لاحقًا فعلًا يُحدَّث الكاش من نتيجته. هذا يمنع
 انتظار المستخدم لعشرات الثواني على 2G/3G قبل أن يرى بيانات مخزَّنة أصلاً
@@ -167,3 +167,16 @@ if (conflict.isTerminal) { /* discard / edit */ } else { /* retry */ }
 - غير مدعوم بشكل موثوق من المنصة.
 - المسار المعتمد: `requestQueueReplay()` + زر «مزامنة الآن» + أزرار إعادة المحاولة في الفقاعات/مركز المزامنة.
 - لا حل بالكود وحده؛ هذا هو الإغلاق التشغيلي.
+
+
+---
+
+## تدقيق الكاش والتسخين (2026-09-29) — CACHE_VERSION = v42
+
+- **WARM-AUTH-01**: `warmUserData` يرسل `Authorization: Bearer` (الباك إند لا يقبل الكوكي وحده)، مع تجديد الجلسة مرة واحدة عند 401، ولا يحتسب في التقدم إلا النجاح الفعلي، ولا يكتب بعد تسجيل الخروج.
+- **SW-API-AUTH-TIMEOUT-01**: بوابة `!hadAuth` تشمل مسار الرد المتأخر بعد المهلة أيضًا.
+- **SW-TIMEOUT-NOCACHE-01**: بعد المهلة وبلا نسخة مخزنة يُنتظر `fetch` الأصلي بدل `Response.error()`.
+- **SW-VARY-01**: مطابقة `API_CACHE`/`USER_DATA_CACHE` بـ `ignoreVary` (الردود العامة تحمل `Vary: Authorization`).
+- **SW-IMAGE-DEBUG-BYPASS-01**: حُذف تجاوز كاش الصور المؤقت؛ الصور المسخّنة في `CORE_CACHE` تُخدم قبل الشبكة.
+- **LOGOUT-CACHE-DIRECT-01**: مسح Cache Storage مباشرة من الصفحة وانتظاره (لا اعتماد على `controller.postMessage`)، ويشمل `market-saved-ads` و`market-auto-read-ads` عند نهاية الجلسة/تبديل الحساب فقط (قرار منتج: أزل `clearUnversionedOfflineBuckets` إن أردت بقاءها).
+- **الباك إند**: `USERCACHE-RACE-01` (إبطال أثناء القراءة)، `CACHE.LIVE` (30+30) للإعلانات، `ADS-CACHE-STAMPEDE/POLLUTION/KEY`، `HOME-CACHE-JITTER-01`.

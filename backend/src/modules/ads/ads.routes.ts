@@ -11,16 +11,16 @@ import { CACHE } from '../../middlewares/cacheControl.middleware';
 export const adsRouter = Router();
 
 // Public (with Cache-Control headers)
-adsRouter.get('/', CACHE.SHORT, adsController.getAds); // 30s + swr
+adsRouter.get('/', CACHE.LIVE, adsController.getAds); // 30s + 30s swr
 adsRouter.get('/me', authenticate, CACHE.NONE, adsController.getMyAds);
 // Must stay ahead of GET /:id — Express matches routes in registration
 // order, and while '/me/stats' wouldn't actually collide with the
 // single-segment '/:id' pattern, keeping every '/me/*' route grouped
 // together here avoids relying on that distinction being obvious later.
 adsRouter.get('/me/stats', authenticate, CACHE.NONE, adsController.getMyStats);
-adsRouter.get('/search', CACHE.SHORT, adsController.searchAds); // A-05: replaces /search module
-adsRouter.get('/:id', CACHE.MEDIUM, adsController.getAdById); // 60s + swr
-adsRouter.get('/:id/related', CACHE.SHORT, adsController.getRelatedAds);
+adsRouter.get('/search', CACHE.LIVE, adsController.searchAds); // A-05: replaces /search module
+adsRouter.get('/:id', CACHE.LIVE, adsController.getAdById); // 30s + 30s swr
+adsRouter.get('/:id/related', CACHE.LIVE, adsController.getRelatedAds);
 
 // Protected
 adsRouter.post(

@@ -1,4 +1,9 @@
-import { getCachedHomepage, homeCacheKey, HOME_CACHE_TTL_SECONDS } from '../../src/modules/home/home.cache';
+import {
+  getCachedHomepage,
+  homeCacheKey,
+  HOME_CACHE_TTL_SECONDS,
+  HOME_CACHE_TTL_JITTER_SECONDS,
+} from '../../src/modules/home/home.cache';
 import { homeService } from '../../src/modules/home/home.service';
 import { redis } from '../../src/config/redis';
 
@@ -44,8 +49,12 @@ describe('getCachedHomepage', () => {
       'home:v2:غزة',
       JSON.stringify(full),
       'EX',
-      HOME_CACHE_TTL_SECONDS,
+      expect.any(Number),
     );
+    // FIX HOME-CACHE-JITTER-01: TTL = base + 0..jitter seconds.
+    const ttl = (redis.set as jest.Mock).mock.calls[0][3] as number;
+    expect(ttl).toBeGreaterThanOrEqual(HOME_CACHE_TTL_SECONDS);
+    expect(ttl).toBeLessThanOrEqual(HOME_CACHE_TTL_SECONDS + HOME_CACHE_TTL_JITTER_SECONDS);
   });
 
   it('does not cache a degraded payload', async () => {

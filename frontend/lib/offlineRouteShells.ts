@@ -93,7 +93,7 @@ const PERSONAL_LOCK_NAME = 'marketplat-warming-personal';
 // kept in sync with offlineCoreBundle.ts's CORE_CACHE and
 // offlineWarmingUserData.ts's USER_DATA_CACHE, both of which were
 // already v38.
-const STATIC_CACHE = 'market-static-v41'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
+const STATIC_CACHE = 'market-static-v42'; // يجب مطابقة CACHE_VERSION بـ public/sw.js (FIX SW-AUTH-PASSTHROUGH-01)
 // '/' أُضيفت لاحقًا (نفس شروط الأمان الموثّقة أعلاه تنطبق عليها: لا
 // `export const dynamic`، `metadata` ثابت عبر buildMetadata، وكل أقسامها
 // 'use client' تجلب بياناتها عبر React Query بعد الـ hydration — حتى
@@ -247,7 +247,7 @@ export const PERSONAL_SHELL_ROUTES = PERSONAL_SHELL_ROUTES_ESSENTIAL;
 // FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لنفس السبب أعلاه.
 // SW-FIX-CACHE-VERSION-MISMATCH: was 'v40' — same mismatch as
 // STATIC_CACHE above. See that line's comment.
-const PERSONAL_SHELL_CACHE = 'market-personal-shell-v41';
+const PERSONAL_SHELL_CACHE = 'market-personal-shell-v42';
 
 /**
  * FIX OFFLINE-WARM-TIMESTAMP: نسخة مطابقة لـ sw.js's putTimestamped —

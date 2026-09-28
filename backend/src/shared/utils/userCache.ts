@@ -16,6 +16,31 @@ export const getUserCacheKey = (userId: string): string => `${USER_CACHE_PREFIX}
 
 const inflightMap = new Map<string, Promise<CachedUser | null>>();
 
+// FIX USERCACHE-RACE-01: invalidate() used to be able to run while a
+// getOrFetch() DB read was in flight; that read then wrote its (pre-change)
+// snapshot into Redis/L1 AFTER the invalidation — re-caching a stale
+// isActive/role for up to BASE_TTL (5 min). For a ban that is an auth
+// bypass window. Each invalidation now stamps a per-user generation; a
+// fetch that started before the stamp changed never writes its result.
+// Monotonic global counter + bounded map: eviction only ever makes a
+// comparison differ (=> harmless extra refetch), never falsely match.
+let genCounter = 0;
+const GEN = new Map<string, number>();
+const GEN_MAX = 10_000;
+
+function currentGen(userId: string): number {
+  return GEN.get(userId) ?? 0;
+}
+
+function bumpGen(userId: string): void {
+  GEN.delete(userId);
+  GEN.set(userId, ++genCounter);
+  if (GEN.size > GEN_MAX) {
+    const first = GEN.keys().next().value;
+    if (first) GEN.delete(first);
+  }
+}
+
 const getTTLWithJitter = (): number => BASE_TTL + Math.floor(Math.random() * JITTER);
 
 export interface CachedUser {
@@ -107,7 +132,13 @@ export function initUserCacheInvalidationSubscriber(): void {
       await subscriber.subscribe(INVALIDATION_CHANNEL);
       subscriber.on('message', (channel, message) => {
         if (channel !== INVALIDATION_CHANNEL) return;
-        if (message) l1Del(message);
+        if (message) {
+          l1Del(message);
+          // Invalidation may have been issued by ANOTHER worker: any fetch
+          // in flight on this worker started before it and is now stale.
+          bumpGen(message);
+          inflightMap.delete(message);
+        }
       });
       logger.info('userCache invalidation subscriber ready');
     } catch (err) {
@@ -166,6 +197,8 @@ export const userCache = {
   },
 
   invalidate: async (userId: string): Promise<void> => {
+    bumpGen(userId);
+    inflightMap.delete(userId); // new callers must not join a stale fetch
     l1Del(userId);
     try {
       await redis.del(getUserCacheKey(userId));
@@ -187,28 +220,43 @@ export const userCache = {
     const existing = inflightMap.get(userId);
     if (existing) return existing;
 
-    const fetchPromise = (async (): Promise<CachedUser | null> => {
+    let fetchPromise: Promise<CachedUser | null> | undefined;
+    fetchPromise = (async () => {
+      // Yield once so `fetchPromise` is assigned and registered in
+      // inflightMap before any code path (incl. a synchronous throw)
+      // reaches the finally block below.
+      await Promise.resolve();
       try {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { id: true, role: true, isActive: true, emailVerified: true },
-        });
-        if (!user) return null;
+        // At most one re-read if an invalidation lands mid-flight.
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const genBefore = currentGen(userId);
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, role: true, isActive: true, emailVerified: true },
+          });
+          if (!user) return null;
 
-        const cachedUser: CachedUser = {
-          id: user.id,
-          role: user.role as string,
-          isActive: user.isActive,
-          emailVerified: user.emailVerified,
-        };
+          const cachedUser: CachedUser = {
+            id: user.id,
+            role: user.role as string,
+            isActive: user.isActive,
+            emailVerified: user.emailVerified,
+          };
 
-        await userCache.set(cachedUser);
-        return cachedUser;
+          if (currentGen(userId) === genBefore) {
+            await userCache.set(cachedUser);
+            return cachedUser;
+          }
+          // Invalidated while reading: the snapshot may predate the change.
+          if (attempt === 1) return cachedUser; // serve, but do NOT cache
+        }
+        return null;
       } catch (err) {
         logger.error('Failed to fetch user for cache', { userId, err });
         return null;
       } finally {
-        inflightMap.delete(userId);
+        // Only remove our own entry — invalidate() may have replaced it.
+        if (inflightMap.get(userId) === fetchPromise) inflightMap.delete(userId);
       }
     })();
 

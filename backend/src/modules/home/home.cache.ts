@@ -19,6 +19,13 @@ import type { GetHomepageQuery } from './home.validation';
  * - Redis being down is never fatal: it just falls through to the service.
  */
 export const HOME_CACHE_TTL_SECONDS = 30;
+// FIX HOME-CACHE-JITTER-01: all ≤11 city keys used to expire in lockstep
+// (fixed TTL, written by the same first requests), so the 11+ query
+// assembly for every city re-ran at the same instant each window.
+// 0..HOME_CACHE_TTL_JITTER_SECONDS extra seconds spreads them out.
+export const HOME_CACHE_TTL_JITTER_SECONDS = 10;
+const ttlWithJitter = (): number =>
+  HOME_CACHE_TTL_SECONDS + Math.floor(Math.random() * (HOME_CACHE_TTL_JITTER_SECONDS + 1));
 const KEY_PREFIX = 'home:v2:';
 
 const inflight = new Map<string, Promise<HomepageResult>>();
@@ -38,7 +45,7 @@ async function readCache(key: string): Promise<HomepageResult | null> {
 
 async function writeCache(key: string, payload: HomepageResult): Promise<void> {
   try {
-    await redis.set(key, JSON.stringify(payload), 'EX', HOME_CACHE_TTL_SECONDS);
+    await redis.set(key, JSON.stringify(payload), 'EX', ttlWithJitter());
   } catch (error) {
     logger.warn('[home] cache write failed', error);
   }
