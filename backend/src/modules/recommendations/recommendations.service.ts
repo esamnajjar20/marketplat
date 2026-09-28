@@ -13,19 +13,6 @@ import { GetRecommendationsQuery } from './recommendations.validation';
 
 const DEFAULT_LIMIT = 8;
 
-// Per-source signal strength — a favorite is a deliberate "I want this"
-// action, so it outweighs a category merely browsed or an ad merely
-// viewed in passing. Same relative ordering the gap report itself
-// describes ("المفضلة" listed alongside search/views, favorites
-// consistently being the strongest intent signal across the other
-// modules — see e.g. Favorite's FAV_AD_PRICE_CHANGED notification
-// existing only for favorites, not views).
-const WEIGHTS = {
-  favorited: 3,
-  created: 2,
-  viewed: 1,
-} as const;
-
 // Same fire-and-forget-safe posture as analytics.service.ts's own
 // resolveOptionalUserId (this endpoint is public — see
 // recommendations.routes.ts — but personalizes when a valid session
@@ -39,24 +26,6 @@ const resolveOptionalUserId = (authHeader: string | undefined): string | null =>
     return verifyAccessToken(token).userId;
   } catch {
     return null;
-  }
-};
-
-// Merges category ids from one signal source into the running weight
-// map, taking the MAX weight per category rather than summing — a
-// category the user both favorited AND viewed should rank as "strongly
-// interested" (weight 3), not artificially inflated to 4+ just because
-// two signals happened to agree. Summing would also let a category with
-// many low-value view events outrank one with a single high-value
-// favorite, inverting the intended priority.
-const mergeWeights = (
-  target: Map<string, number>,
-  categoryIds: string[],
-  weight: number
-): void => {
-  for (const categoryId of categoryIds) {
-    const current = target.get(categoryId) ?? 0;
-    if (weight > current) target.set(categoryId, weight);
   }
 };
 
@@ -82,7 +51,7 @@ export const recommendationsService = {
     const userId = resolveOptionalUserId(authHeader);
 
     const excludeIds = new Set<string>();
-    const weights = new Map<string, number>();
+    const categoryInterests: { categoryId: string; score: number }[] = [];
 
     // مدينة المستخدم: من الاستعلام أو من الملف الشخصي (أولوية للاقتراحات)
     let city: string | null = query.city?.trim() || null;
@@ -107,21 +76,21 @@ export const recommendationsService = {
       // there's truly nothing to base a response on.
       const referenceAd = await adsService.findAdForReference(query.excludeAdId);
       if (referenceAd?.categoryId) {
-        mergeWeights(weights, [referenceAd.categoryId], WEIGHTS.favorited);
+        categoryInterests.push({
+          categoryId: referenceAd.categoryId,
+          score: 6,
+        });
       }
     }
 
     if (userId) {
       try {
-        const [favorited, created, viewed, owned] = await Promise.all([
-          recommendationsRepository.favoritedCategoryIds(userId),
-          recommendationsRepository.createdAdCategoryIds(userId),
-          recommendationsRepository.recentlyViewedCategoryIds(userId),
+        const [interests, owned] = await Promise.all([
+          recommendationsRepository.getAdCategoryInterest(userId),
           recommendationsRepository.excludedAdIds(userId),
         ]);
-        mergeWeights(weights, favorited, WEIGHTS.favorited);
-        mergeWeights(weights, created, WEIGHTS.created);
-        mergeWeights(weights, viewed, WEIGHTS.viewed);
+
+        categoryInterests.push(...interests);
         owned.forEach(id => excludeIds.add(id));
       } catch (err) {
         // A personalization failure must never break the rail — fall
@@ -132,9 +101,15 @@ export const recommendationsService = {
       }
     }
 
-    const categoryWeights: CategoryWeight[] = Array.from(weights.entries()).map(
-      ([categoryId, weight]) => ({ categoryId, weight })
-    );
+    const categoryWeights: CategoryWeight[] = Array.from(
+      categoryInterests.reduce((scores, interest) => {
+        scores.set(
+          interest.categoryId,
+          (scores.get(interest.categoryId) ?? 0) + interest.score,
+        );
+        return scores;
+      }, new Map<string, number>()),
+    ).map(([categoryId, weight]) => ({ categoryId, weight }));
 
     const excludeIdList = Array.from(excludeIds);
     const personalized =
@@ -168,10 +143,7 @@ export const recommendationsService = {
   // counterpart of getRecommendations above. Same three-mode shape
   // (excludeProductId → detail-page mode, userId → personalized,
   // neither → trending) and same weighted-category + trending-backfill
-  // core. PR4A adds recentlyViewedCategoryIds at WEIGHTS.viewed, same
-  // three-signal shape (favorited/created/viewed) the AD engine has
-  // always had — see recommendations.repository.ts's own comment for
-  // where PRODUCT_VIEW is emitted from. WEIGHTS itself is unchanged.
+  // core.
   getProductRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined
@@ -179,44 +151,68 @@ export const recommendationsService = {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveOptionalUserId(authHeader);
 
+    let city: string | null = query.city?.trim() || null;
+
+    if (!city && userId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { city: true },
+        });
+        city = user?.city?.trim() || null;
+      } catch (err) {
+        logger.error('Failed to resolve user city for product recommendations', {
+          err,
+          userId,
+        });
+      }
+    }
+
     const excludeIds = new Set<string>();
-    const weights = new Map<string, number>();
+    const categoryInterests: { categoryId: string; score: number }[] = [];
 
     if (query.excludeProductId) {
       excludeIds.add(query.excludeProductId);
       const referenceProduct = await productsService.findProductForReference(query.excludeProductId);
       if (referenceProduct?.categoryId) {
-        mergeWeights(weights, [referenceProduct.categoryId], WEIGHTS.favorited);
+        categoryInterests.push({
+          categoryId: referenceProduct.categoryId,
+          score: 6,
+        });
       }
     }
 
     if (userId) {
       try {
-        const [favorited, created, viewed, owned] = await Promise.all([
-          productRecommendationsRepository.favoritedCategoryIds(userId),
-          productRecommendationsRepository.createdCategoryIds(userId),
-          productRecommendationsRepository.recentlyViewedCategoryIds(userId),
+        const [interests, owned] = await Promise.all([
+          productRecommendationsRepository.getProductCategoryInterest(userId),
           productRecommendationsRepository.excludedIds(userId),
         ]);
-        mergeWeights(weights, favorited, WEIGHTS.favorited);
-        mergeWeights(weights, created, WEIGHTS.created);
-        mergeWeights(weights, viewed, WEIGHTS.viewed);
+
+        categoryInterests.push(...interests);
         owned.forEach(id => excludeIds.add(id));
       } catch (err) {
         logger.error('Failed to gather product recommendation signals', { err, userId });
       }
     }
 
-    const categoryWeights: CategoryWeight[] = Array.from(weights.entries()).map(
-      ([categoryId, weight]) => ({ categoryId, weight })
-    );
+    const categoryWeights: CategoryWeight[] = Array.from(
+      categoryInterests.reduce((scores, interest) => {
+        scores.set(
+          interest.categoryId,
+          (scores.get(interest.categoryId) ?? 0) + interest.score,
+        );
+        return scores;
+      }, new Map<string, number>()),
+    ).map(([categoryId, weight]) => ({ categoryId, weight }));
     const excludeIdList = Array.from(excludeIds);
     const personalized =
       categoryWeights.length > 0
         ? await productRecommendationsRepository.findByWeightedCategories(
             categoryWeights,
             excludeIdList,
-            limit
+            limit,
+            city
           )
         : [];
 
@@ -224,16 +220,17 @@ export const recommendationsService = {
 
     const combinedExcludeIds = [...excludeIdList, ...personalized.map(p => p.id)];
     const remaining = limit - personalized.length;
-    const trending = await productRecommendationsRepository.findTrending(combinedExcludeIds, remaining);
+    const trending = await productRecommendationsRepository.findTrending(
+      combinedExcludeIds,
+      remaining,
+      city
+    );
 
     return [...personalized, ...trending];
   },
 
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): SERVICE_LISTING
   // counterpart — identical shape to getProductRecommendations above.
-  // PR4A adds recentlyViewedCategoryIds at WEIGHTS.viewed, reading
-  // SERVICE_VIEW events emitted from ServiceViewTracker.tsx. WEIGHTS
-  // itself is unchanged.
   getServiceListingRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined
@@ -241,8 +238,25 @@ export const recommendationsService = {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveOptionalUserId(authHeader);
 
+    let city: string | null = query.city?.trim() || null;
+
+    if (!city && userId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { city: true },
+        });
+        city = user?.city?.trim() || null;
+      } catch (err) {
+        logger.error('Failed to resolve user city for service recommendations', {
+          err,
+          userId,
+        });
+      }
+    }
+
     const excludeIds = new Set<string>();
-    const weights = new Map<string, number>();
+    const categoryInterests: { categoryId: string; score: number }[] = [];
 
     if (query.excludeServiceListingId) {
       excludeIds.add(query.excludeServiceListingId);
@@ -250,37 +264,44 @@ export const recommendationsService = {
         query.excludeServiceListingId
       );
       if (referenceListing?.categoryId) {
-        mergeWeights(weights, [referenceListing.categoryId], WEIGHTS.favorited);
+        categoryInterests.push({
+          categoryId: referenceListing.categoryId,
+          score: 6,
+        });
       }
     }
 
     if (userId) {
       try {
-        const [favorited, created, viewed, owned] = await Promise.all([
-          serviceListingRecommendationsRepository.favoritedCategoryIds(userId),
-          serviceListingRecommendationsRepository.createdCategoryIds(userId),
-          serviceListingRecommendationsRepository.recentlyViewedCategoryIds(userId),
+        const [interests, owned] = await Promise.all([
+          serviceListingRecommendationsRepository.getServiceCategoryInterest(userId),
           serviceListingRecommendationsRepository.excludedIds(userId),
         ]);
-        mergeWeights(weights, favorited, WEIGHTS.favorited);
-        mergeWeights(weights, created, WEIGHTS.created);
-        mergeWeights(weights, viewed, WEIGHTS.viewed);
+
+        categoryInterests.push(...interests);
         owned.forEach(id => excludeIds.add(id));
       } catch (err) {
         logger.error('Failed to gather service listing recommendation signals', { err, userId });
       }
     }
 
-    const categoryWeights: CategoryWeight[] = Array.from(weights.entries()).map(
-      ([categoryId, weight]) => ({ categoryId, weight })
-    );
+    const categoryWeights: CategoryWeight[] = Array.from(
+      categoryInterests.reduce((scores, interest) => {
+        scores.set(
+          interest.categoryId,
+          (scores.get(interest.categoryId) ?? 0) + interest.score,
+        );
+        return scores;
+      }, new Map<string, number>()),
+    ).map(([categoryId, weight]) => ({ categoryId, weight }));
     const excludeIdList = Array.from(excludeIds);
     const personalized =
       categoryWeights.length > 0
         ? await serviceListingRecommendationsRepository.findByWeightedCategories(
             categoryWeights,
             excludeIdList,
-            limit
+            limit,
+            city
           )
         : [];
 
@@ -290,7 +311,8 @@ export const recommendationsService = {
     const remaining = limit - personalized.length;
     const trending = await serviceListingRecommendationsRepository.findTrending(
       combinedExcludeIds,
-      remaining
+      remaining,
+      city
     );
 
     return [...personalized, ...trending];

@@ -66,6 +66,87 @@ export interface CategoryWeight {
   weight: number;
 }
 
+export interface CategoryInterest {
+  categoryId: string;
+  score: number;
+}
+
+const BEHAVIOR_SIGNAL_WEIGHTS = {
+  view: 1,
+  created: 2,
+  categoryBrowse: 3,
+  search: 4,
+  favorite: 6,
+  contact: 8,
+} as const;
+
+const BEHAVIOR_DECAY = [
+  { maxDays: 3, multiplier: 1 },
+  { maxDays: 7, multiplier: 0.85 },
+  { maxDays: 14, multiplier: 0.65 },
+  { maxDays: 30, multiplier: 0.4 },
+] as const;
+
+const getBehaviorDecay = (createdAt: Date, nowMs: number): number => {
+  const ageDays =
+    (nowMs - createdAt.getTime()) / (24 * 60 * 60 * 1000);
+
+  for (const bucket of BEHAVIOR_DECAY) {
+    if (ageDays <= bucket.maxDays) return bucket.multiplier;
+  }
+
+  return 0;
+};
+
+const addCategoryInterest = (
+  target: Map<string, number>,
+  categoryId: string | null,
+  signalWeight: number,
+  createdAt: Date,
+  nowMs: number,
+  applyDecay = true,
+): void => {
+  if (!categoryId) return;
+
+  const decay = applyDecay ? getBehaviorDecay(createdAt, nowMs) : 1;
+  if (decay <= 0) return;
+
+  target.set(
+    categoryId,
+    (target.get(categoryId) ?? 0) + signalWeight * decay,
+  );
+};
+
+const aggregateCategorySignals = (
+  rows: Array<{
+    categoryId: string | null;
+    signalWeight: number;
+    createdAt: Date;
+    applyDecay?: boolean;
+  }>,
+): CategoryInterest[] => {
+  const scores = new Map<string, number>();
+  const nowMs = Date.now();
+
+  for (const row of rows) {
+    addCategoryInterest(
+      scores,
+      row.categoryId,
+      row.signalWeight,
+      row.createdAt,
+      nowMs,
+      row.applyDecay ?? true,
+    );
+  }
+
+  return Array.from(scores.entries())
+    .map(([categoryId, score]) => ({ categoryId, score }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.categoryId.localeCompare(b.categoryId);
+    });
+};
+
 // How far back each signal source looks. Favorites/activity are
 // deliberately unbounded (a user's taste doesn't expire), but
 // AnalyticsEvent is high-volume, anonymous-traffic-included telemetry
@@ -73,6 +154,7 @@ export interface CategoryWeight {
 // lookback keeps this a "what are you into lately" signal instead of
 // scanning a user's entire multi-year view history on every request.
 const VIEW_SIGNAL_LOOKBACK_DAYS = 30;
+const CATEGORY_SIGNAL_TAKE = 200;
 
 // PR5B: bounded trending composite score, shared by AD/PRODUCT/
 // SERVICE_LISTING findTrending below (each repository's own
@@ -152,7 +234,8 @@ const trendingCompositeScore = (candidate: TrendingCandidate, nowMs: number): nu
 function rankTrendingCandidates<T extends TrendingCandidate>(
   pools: T[][],
   limit: number,
-  tierKeys?: (item: T) => boolean[]
+  tierKeys?: (item: T) => boolean[],
+  cityMatch?: (item: T) => boolean,
 ): T[] {
   const byId = new Map<string, T>();
   for (const pool of pools) {
@@ -170,7 +253,11 @@ function rankTrendingCandidates<T extends TrendingCandidate>(
         if (tiersA[i] !== tiersB[i]) return tiersA[i] ? -1 : 1;
       }
     }
-    const scoreDiff = trendingCompositeScore(b, nowMs) - trendingCompositeScore(a, nowMs);
+    const cityScoreA = cityMatch?.(a) ? 0.1 : 0;
+    const cityScoreB = cityMatch?.(b) ? 0.1 : 0;
+    const scoreDiff =
+      (trendingCompositeScore(b, nowMs) + cityScoreB) -
+      (trendingCompositeScore(a, nowMs) + cityScoreA);
     if (scoreDiff !== 0) return scoreDiff;
     const createdAtDiff = b.createdAt.getTime() - a.createdAt.getTime();
     if (createdAtDiff !== 0) return createdAtDiff;
@@ -228,6 +315,105 @@ function rankTrendingCandidates<T extends TrendingCandidate>(
 // duplicates because it isn't).
 
 export const productRecommendationsRepository = {
+  // Phase 1: accumulate recent product behavior into category interest.
+  // Ranking does not consume this profile yet; that is the next phase.
+  getProductCategoryInterest: async (
+    userId: string,
+  ): Promise<CategoryInterest[]> => {
+    const since = new Date(
+      Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const rows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+      }[]
+    >`
+      SELECT
+        p."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.view}::float AS "signalWeight",
+        e."createdAt" AS "createdAt"
+      FROM "analytics_events" e
+      JOIN "products" p ON p."id" = e.metadata->>'productId'
+      WHERE e."userId" = ${userId}
+        AND e."event" = ${AnalyticsEventType.PRODUCT_VIEW}::"AnalyticsEventType"
+        AND e."createdAt" >= ${since}
+        AND p."categoryId" IS NOT NULL
+
+      UNION ALL
+
+      SELECT
+        e.metadata->>'categoryId' AS "categoryId",
+        CASE
+          WHEN e."event" = ${AnalyticsEventType.SEARCH}::"AnalyticsEventType"
+            THEN ${BEHAVIOR_SIGNAL_WEIGHTS.search}::float
+          ELSE ${BEHAVIOR_SIGNAL_WEIGHTS.categoryBrowse}::float
+        END AS "signalWeight",
+        e."createdAt" AS "createdAt"
+      FROM "analytics_events" e
+      WHERE e."userId" = ${userId}
+        AND e."event" IN (
+          ${AnalyticsEventType.SEARCH}::"AnalyticsEventType",
+          ${AnalyticsEventType.CATEGORY_BROWSE}::"AnalyticsEventType"
+        )
+        AND e."createdAt" >= ${since}
+        AND e.metadata->>'categoryId' IS NOT NULL
+
+      ORDER BY "createdAt" DESC
+      LIMIT ${CATEGORY_SIGNAL_TAKE}
+    `;
+
+    const createdRows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+        applyDecay: boolean;
+      }[]
+    >`
+      SELECT
+        p."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.created}::float AS "signalWeight",
+        ua."createdAt" AS "createdAt",
+        false AS "applyDecay"
+      FROM "user_activities" ua
+      JOIN "products" p ON p."id" = ua."entityId"
+      WHERE ua."userId" = ${userId}
+        AND ua."type" = ${UserActivityType.PRODUCT_CREATED}::"UserActivityType"
+        AND ua."entityType" = ${ActivityEntityType.PRODUCT}::"ActivityEntityType"
+        AND ua."entityId" IS NOT NULL
+        AND p."categoryId" IS NOT NULL
+      ORDER BY ua."createdAt" DESC
+      LIMIT 50
+    `;
+
+    const favoriteRows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+        applyDecay: boolean;
+      }[]
+    >`
+      SELECT
+        p."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.favorite}::float AS "signalWeight",
+        f."createdAt" AS "createdAt",
+        false AS "applyDecay"
+      FROM "favorites" f
+      JOIN "products" p ON p."id" = f."entityId"
+      WHERE f."userId" = ${userId}
+        AND f."entityType" = 'PRODUCT'
+        AND p."categoryId" IS NOT NULL
+      ORDER BY f."createdAt" DESC
+      LIMIT ${FAVORITE_SIGNAL_TAKE}
+    `;
+
+    return aggregateCategorySignals([...rows, ...createdRows, ...favoriteRows]);
+  },
+
   // Signal #1: categories of products the user has favorited. Same
   // two-step fan-out favoritedCategoryIds (AD) uses — Favorite has no
   // Prisma relation to Product either.
@@ -241,30 +427,6 @@ export const productRecommendationsRepository = {
     if (favoriteRows.length === 0) return [];
     const products = await prisma.product.findMany({
       where: { id: { in: favoriteRows.map(r => r.entityId) }, status: { not: ProductStatus.DELETED } },
-      select: { categoryId: true },
-    });
-    return products.map(p => p.categoryId);
-  },
-
-  // Signal #2: categories of products the user has created (their own
-  // store's listings), from UserActivity's PRODUCT_CREATED rows — same
-  // pattern as AD's createdAdCategoryIds.
-  createdCategoryIds: async (userId: string): Promise<string[]> => {
-    const rows = await prisma.userActivity.findMany({
-      where: {
-        userId,
-        type: UserActivityType.PRODUCT_CREATED,
-        entityType: ActivityEntityType.PRODUCT,
-        entityId: { not: null },
-      },
-      select: { entityId: true },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-    const productIds = rows.flatMap(r => (r.entityId ? [r.entityId] : []));
-    if (productIds.length === 0) return [];
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
       select: { categoryId: true },
     });
     return products.map(p => p.categoryId);
@@ -316,7 +478,8 @@ export const productRecommendationsRepository = {
   findByWeightedCategories: async (
     weights: CategoryWeight[],
     excludeIds: string[],
-    limit: number
+    limit: number,
+    city?: string | null,
   ): Promise<ProductWithStore[]> => {
     if (weights.length === 0) return [];
     const weightValues = Prisma.join(
@@ -330,6 +493,10 @@ export const productRecommendationsRepository = {
       whereParts.push(Prisma.sql`p."id" NOT IN (${Prisma.join(excludeIds)})`);
     }
     const whereSql = Prisma.join(whereParts, ' AND ');
+    const trimmedCity = city?.trim() || null;
+    const cityBoost = trimmedCity
+      ? Prisma.sql`CASE WHEN sd."city" = ${trimmedCity} THEN 2::float ELSE 0::float END`
+      : Prisma.sql`0::float`;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT p."id"
@@ -338,7 +505,7 @@ export const productRecommendationsRepository = {
       JOIN "store_details" sd ON sd."id" = p."storeId"
       JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
       WHERE ${whereSql}
-      ORDER BY w.weight DESC, p."createdAt" DESC
+      ORDER BY (w.weight + ${cityBoost}) DESC, p."createdAt" DESC
       LIMIT ${limit}
     `;
     const ids = idRows.map(r => r.id);
@@ -361,7 +528,11 @@ export const productRecommendationsRepository = {
   // product is always a candidate for the composite score even though
   // it would never appear on a pure `views DESC` page. `where` is
   // unchanged from before PR5B — same object reused for both queries.
-  findTrending: async (excludeIds: string[], limit: number): Promise<ProductWithStore[]> => {
+  findTrending: async (
+    excludeIds: string[],
+    limit: number,
+    city?: string | null,
+  ): Promise<ProductWithStore[]> => {
     const where: Prisma.ProductWhereInput = {
       status: ProductStatus.ACTIVE,
       store: { sellerProfile: { suspended: false } },
@@ -381,11 +552,121 @@ export const productRecommendationsRepository = {
         take: TRENDING_POOL_SIZE,
       }),
     ]);
-    return rankTrendingCandidates([topByViews, mostRecent], limit);
+    const trimmedCity = city?.trim() || null;
+    return rankTrendingCandidates(
+      [topByViews, mostRecent],
+      limit,
+      undefined,
+      trimmedCity
+        ? product => product.store.city === trimmedCity
+        : undefined,
+    );
   },
 };
 
 export const serviceListingRecommendationsRepository = {
+  // Phase 1: accumulate recent service behavior into category interest.
+  // Ranking does not consume this profile yet; that is the next phase.
+  getServiceCategoryInterest: async (
+    userId: string,
+  ): Promise<CategoryInterest[]> => {
+    const since = new Date(
+      Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const rows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+      }[]
+    >`
+      SELECT
+        s."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.view}::float AS "signalWeight",
+        e."createdAt" AS "createdAt"
+      FROM "analytics_events" e
+      JOIN "service_listings" s
+        ON s."id" = e.metadata->>'serviceListingId'
+      WHERE e."userId" = ${userId}
+        AND e."event" = ${AnalyticsEventType.SERVICE_VIEW}::"AnalyticsEventType"
+        AND e."createdAt" >= ${since}
+        AND s."categoryId" IS NOT NULL
+
+      UNION ALL
+
+      SELECT
+        e.metadata->>'categoryId' AS "categoryId",
+        CASE
+          WHEN e."event" = ${AnalyticsEventType.SEARCH}::"AnalyticsEventType"
+            THEN ${BEHAVIOR_SIGNAL_WEIGHTS.search}::float
+          ELSE ${BEHAVIOR_SIGNAL_WEIGHTS.categoryBrowse}::float
+        END AS "signalWeight",
+        e."createdAt" AS "createdAt"
+      FROM "analytics_events" e
+      WHERE e."userId" = ${userId}
+        AND e."event" IN (
+          ${AnalyticsEventType.SEARCH}::"AnalyticsEventType",
+          ${AnalyticsEventType.CATEGORY_BROWSE}::"AnalyticsEventType"
+        )
+        AND e."createdAt" >= ${since}
+        AND e.metadata->>'categoryId' IS NOT NULL
+
+      ORDER BY "createdAt" DESC
+      LIMIT ${CATEGORY_SIGNAL_TAKE}
+    `;
+
+    const createdRows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+        applyDecay: boolean;
+      }[]
+    >`
+      SELECT
+        s."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.created}::float AS "signalWeight",
+        ua."createdAt" AS "createdAt",
+        false AS "applyDecay"
+      FROM "user_activities" ua
+      JOIN "service_listings" s
+        ON s."id" = ua."entityId"
+      WHERE ua."userId" = ${userId}
+        AND ua."type" = ${UserActivityType.SERVICE_CREATED}::"UserActivityType"
+        AND ua."entityType" = ${ActivityEntityType.SERVICE_LISTING}::"ActivityEntityType"
+        AND ua."entityId" IS NOT NULL
+        AND s."categoryId" IS NOT NULL
+      ORDER BY ua."createdAt" DESC
+      LIMIT 50
+    `;
+
+    const favoriteRows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+        applyDecay: boolean;
+      }[]
+    >`
+      SELECT
+        s."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.favorite}::float AS "signalWeight",
+        f."createdAt" AS "createdAt",
+        false AS "applyDecay"
+      FROM "favorites" f
+      JOIN "service_listings" s
+        ON s."id" = f."entityId"
+      WHERE f."userId" = ${userId}
+        AND f."entityType" = 'SERVICE_LISTING'
+        AND s."categoryId" IS NOT NULL
+      ORDER BY f."createdAt" DESC
+      LIMIT ${FAVORITE_SIGNAL_TAKE}
+    `;
+
+    return aggregateCategorySignals([...rows, ...createdRows, ...favoriteRows]);
+  },
+
   favoritedCategoryIds: async (userId: string): Promise<string[]> => {
     const favoriteRows = await prisma.favorite.findMany({
       where: { userId, entityType: 'SERVICE_LISTING' },
@@ -399,27 +680,6 @@ export const serviceListingRecommendationsRepository = {
         id: { in: favoriteRows.map(r => r.entityId) },
         status: { not: ServiceListingStatus.DELETED },
       },
-      select: { categoryId: true },
-    });
-    return listings.map(l => l.categoryId);
-  },
-
-  createdCategoryIds: async (userId: string): Promise<string[]> => {
-    const rows = await prisma.userActivity.findMany({
-      where: {
-        userId,
-        type: UserActivityType.SERVICE_CREATED,
-        entityType: ActivityEntityType.SERVICE_LISTING,
-        entityId: { not: null },
-      },
-      select: { entityId: true },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-    const listingIds = rows.flatMap(r => (r.entityId ? [r.entityId] : []));
-    if (listingIds.length === 0) return [];
-    const listings = await prisma.serviceListing.findMany({
-      where: { id: { in: listingIds } },
       select: { categoryId: true },
     });
     return listings.map(l => l.categoryId);
@@ -469,7 +729,8 @@ export const serviceListingRecommendationsRepository = {
   findByWeightedCategories: async (
     weights: CategoryWeight[],
     excludeIds: string[],
-    limit: number
+    limit: number,
+    city?: string | null,
   ): Promise<ServiceListingWithProvider[]> => {
     if (weights.length === 0) return [];
     const weightValues = Prisma.join(
@@ -483,6 +744,10 @@ export const serviceListingRecommendationsRepository = {
       whereParts.push(Prisma.sql`sl."id" NOT IN (${Prisma.join(excludeIds)})`);
     }
     const whereSql = Prisma.join(whereParts, ' AND ');
+    const trimmedCity = city?.trim() || null;
+    const cityBoost = trimmedCity
+      ? Prisma.sql`CASE WHEN ${trimmedCity} = ANY(spd."serviceAreaCities") THEN 2::float ELSE 0::float END`
+      : Prisma.sql`0::float`;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT sl."id"
@@ -491,7 +756,7 @@ export const serviceListingRecommendationsRepository = {
       JOIN "service_provider_details" spd ON spd."id" = sl."providerId"
       JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
       WHERE ${whereSql}
-      ORDER BY w.weight DESC, sl."createdAt" DESC
+      ORDER BY (w.weight + ${cityBoost}) DESC, sl."createdAt" DESC
       LIMIT ${limit}
     `;
     const ids = idRows.map(r => r.id);
@@ -509,7 +774,11 @@ export const serviceListingRecommendationsRepository = {
 
   // PR5B: same two-pool shape as productRecommendationsRepository's
   // findTrending above — see rankTrendingCandidates' own comment.
-  findTrending: async (excludeIds: string[], limit: number): Promise<ServiceListingWithProvider[]> => {
+  findTrending: async (
+    excludeIds: string[],
+    limit: number,
+    city?: string | null,
+  ): Promise<ServiceListingWithProvider[]> => {
     const where: Prisma.ServiceListingWhereInput = {
       status: ServiceListingStatus.ACTIVE,
       provider: { sellerProfile: { suspended: false } },
@@ -529,7 +798,15 @@ export const serviceListingRecommendationsRepository = {
         take: TRENDING_POOL_SIZE,
       }),
     ]);
-    return rankTrendingCandidates([topByViews, mostRecent], limit);
+    const trimmedCity = city?.trim() || null;
+    return rankTrendingCandidates(
+      [topByViews, mostRecent],
+      limit,
+      undefined,
+      trimmedCity
+        ? listing => listing.provider.serviceAreaCities.includes(trimmedCity)
+        : undefined,
+    );
   },
 };
 
@@ -551,6 +828,121 @@ export const serviceListingRecommendationsRepository = {
 const FAVORITE_SIGNAL_TAKE = 200;
 
 export const recommendationsRepository = {
+  // Phase 1: accumulate recent behavioral signals into category interest.
+  // Each event contributes its signal weight multiplied by time decay.
+  // This method only builds the interest profile; ranking is unchanged
+  // until the next recommendation phase.
+  getAdCategoryInterest: async (
+    userId: string,
+  ): Promise<CategoryInterest[]> => {
+    const since = new Date(
+      Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const rows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+      }[]
+    >`
+      SELECT
+        a."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.view}::float AS "signalWeight",
+        e."createdAt" AS "createdAt"
+      FROM "analytics_events" e
+      JOIN "ads" a ON a."id" = e.metadata->>'adId'
+      WHERE e."userId" = ${userId}
+        AND e."event" = ${AnalyticsEventType.AD_VIEW}::"AnalyticsEventType"
+        AND e."createdAt" >= ${since}
+        AND a."categoryId" IS NOT NULL
+
+      UNION ALL
+
+      SELECT
+        e.metadata->>'categoryId' AS "categoryId",
+        CASE
+          WHEN e."event" = ${AnalyticsEventType.SEARCH}::"AnalyticsEventType"
+            THEN ${BEHAVIOR_SIGNAL_WEIGHTS.search}::float
+          ELSE ${BEHAVIOR_SIGNAL_WEIGHTS.categoryBrowse}::float
+        END AS "signalWeight",
+        e."createdAt" AS "createdAt"
+      FROM "analytics_events" e
+      WHERE e."userId" = ${userId}
+        AND e."event" IN (
+          ${AnalyticsEventType.SEARCH}::"AnalyticsEventType",
+          ${AnalyticsEventType.CATEGORY_BROWSE}::"AnalyticsEventType"
+        )
+        AND e."createdAt" >= ${since}
+        AND e.metadata->>'categoryId' IS NOT NULL
+
+      UNION ALL
+
+      SELECT
+        a."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.contact}::float AS "signalWeight",
+        e."createdAt" AS "createdAt"
+      FROM "analytics_events" e
+      JOIN "ads" a ON a."id" = e.metadata->>'adId'
+      WHERE e."userId" = ${userId}
+        AND e."event" = ${AnalyticsEventType.CONTACT_CLICK}::"AnalyticsEventType"
+        AND e."createdAt" >= ${since}
+        AND e.metadata->>'adId' IS NOT NULL
+        AND a."categoryId" IS NOT NULL
+
+      ORDER BY "createdAt" DESC
+      LIMIT ${CATEGORY_SIGNAL_TAKE}
+    `;
+
+    const createdRows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+        applyDecay: boolean;
+      }[]
+    >`
+      SELECT
+        a."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.created}::float AS "signalWeight",
+        ua."createdAt" AS "createdAt",
+        false AS "applyDecay"
+      FROM "user_activities" ua
+      JOIN "ads" a ON a."id" = ua."entityId"
+      WHERE ua."userId" = ${userId}
+        AND ua."type" = ${UserActivityType.AD_CREATED}::"UserActivityType"
+        AND ua."entityType" = ${ActivityEntityType.AD}::"ActivityEntityType"
+        AND ua."entityId" IS NOT NULL
+        AND a."categoryId" IS NOT NULL
+      ORDER BY ua."createdAt" DESC
+      LIMIT 50
+    `;
+
+    const favoriteRows = await prisma.$queryRaw<
+      {
+        categoryId: string | null;
+        signalWeight: number;
+        createdAt: Date;
+        applyDecay: boolean;
+      }[]
+    >`
+      SELECT
+        a."categoryId" AS "categoryId",
+        ${BEHAVIOR_SIGNAL_WEIGHTS.favorite}::float AS "signalWeight",
+        f."createdAt" AS "createdAt",
+        false AS "applyDecay"
+      FROM "favorites" f
+      JOIN "ads" a ON a."id" = f."entityId"
+      WHERE f."userId" = ${userId}
+        AND f."entityType" = 'AD'
+        AND a."categoryId" IS NOT NULL
+      ORDER BY f."createdAt" DESC
+      LIMIT ${FAVORITE_SIGNAL_TAKE}
+    `;
+
+    return aggregateCategorySignals([...rows, ...createdRows, ...favoriteRows]);
+  },
+
   // Signal #1 (strongest): categories of ads the user has favorited.
   // Mirrors favoritesRepository.findManyByUserId's live-ad filter — a
   // favorite pointing at a since-deleted ad carries no usable category
@@ -616,30 +1008,6 @@ export const recommendationsRepository = {
     return [...viewedAdRows, ...browsedRows].flatMap(r => (r.categoryId ? [r.categoryId] : []));
   },
 
-  // Signal #3: categories of the user's own past activity — ads they
-  // created and ads they favorited, read from UserActivity instead of
-  // a second live join. Gap #10's UserActivity rows carry entityId but
-  // not categoryId directly (see that model's own comment on why it
-  // avoids joins back into the source tables), so this resolves
-  // entityId → categoryId for AD_CREATED rows only; FAVORITE_ADDED is
-  // already covered more cheaply by favoritedCategoryIds above.
-  createdAdCategoryIds: async (userId: string): Promise<string[]> => {
-    const rows = await prisma.userActivity.findMany({
-      where: { userId, type: UserActivityType.AD_CREATED, entityType: ActivityEntityType.AD, entityId: { not: null } },
-      select: { entityId: true },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-    const adIds = rows.flatMap(r => (r.entityId ? [r.entityId] : []));
-    if (adIds.length === 0) return [];
-
-    const ads = await prisma.ad.findMany({
-      where: { id: { in: adIds }, categoryId: { not: null } },
-      select: { categoryId: true },
-    });
-    return ads.flatMap(a => (a.categoryId ? [a.categoryId] : []));
-  },
-
   // Ads the user already has a relationship with — excluded from their
   // own recommendation rail the same way a "you might also like" shelf
   // on any marketplace never re-suggests what you already own or saved.
@@ -699,10 +1067,9 @@ export const recommendationsRepository = {
     }
     const whereSql = Prisma.join(whereParts, ' AND ');
     const trimmedCity = city?.trim() || null;
-    // أولوية المدينة: إعلانات نفس المدينة أولاً ثم وزن الفئة
-    const cityOrder = trimmedCity
-      ? Prisma.sql`CASE WHEN a."city" = ${trimmedCity} THEN 0 ELSE 1 END,`
-      : Prisma.empty;
+    const cityBoost = trimmedCity
+      ? Prisma.sql`CASE WHEN a."city" = ${trimmedCity} THEN 2::float ELSE 0::float END`
+      : Prisma.sql`0::float`;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT a."id"
@@ -710,7 +1077,7 @@ export const recommendationsRepository = {
       JOIN (VALUES ${weightValues}) AS w("categoryId", weight) ON w."categoryId" = a."categoryId"
       JOIN "seller_profiles" sp ON sp."id" = a."sellerProfileId"
       WHERE ${whereSql}
-      ORDER BY ${cityOrder} w.weight DESC, a."isFeatured" DESC, a."createdAt" DESC
+      ORDER BY (w.weight + ${cityBoost}) DESC, a."isFeatured" DESC, a."createdAt" DESC
       LIMIT ${limit}
     `;
 
@@ -744,87 +1111,48 @@ export const recommendationsRepository = {
     limit: number,
     city?: string | null,
   ): Promise<AdListRow[]> => {
-    // SEC-FIX: same suspended-seller leak as findByCategoryWeights
-    // above — sellerProfile is Ad's direct belongs-to relation
-    // (Ad.sellerProfileId), same relation filter ads.repository.ts's
-    // findMany uses.
     const baseWhere: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
       sellerProfile: { suspended: false },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
+
     const trimmedCity = city?.trim() || null;
-
-    // إن وُجدت مدينة: نملأ أولاً من نفس المدينة ثم نكمل من المنصة
-    if (trimmedCity) {
-      const cityWhere: Prisma.AdWhereInput = { ...baseWhere, city: trimmedCity };
-      const [cityTop, cityRecent] = await Promise.all([
-        prisma.ad.findMany({
-          where: cityWhere,
-          select: recommendationAdSelect,
-          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
-          take: TRENDING_POOL_SIZE,
-        }),
-        prisma.ad.findMany({
-          where: cityWhere,
-          select: recommendationAdSelect,
-          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
-          take: TRENDING_POOL_SIZE,
-        }),
-      ]);
-      const cityRanked = rankTrendingCandidates(
-        [cityTop, cityRecent],
-        limit,
-        ad => [ad.isPinned, ad.isFeatured],
-      );
-      if (cityRanked.length >= limit) return cityRanked;
-
-      const cityIds = new Set(cityRanked.map(a => a.id));
-      const restExclude = [...excludeIds, ...cityIds];
-      const restWhere: Prisma.AdWhereInput = {
-        status: AdStatus.ACTIVE,
-        sellerProfile: { suspended: false },
-        ...(restExclude.length > 0 && { id: { notIn: restExclude } }),
-      };
-      const remaining = limit - cityRanked.length;
-      const [topByViews, mostRecent] = await Promise.all([
-        prisma.ad.findMany({
-          where: restWhere,
-          select: recommendationAdSelect,
-          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
-          take: TRENDING_POOL_SIZE,
-        }),
-        prisma.ad.findMany({
-          where: restWhere,
-          select: recommendationAdSelect,
-          orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
-          take: TRENDING_POOL_SIZE,
-        }),
-      ]);
-      const rest = rankTrendingCandidates(
-        [topByViews, mostRecent],
-        remaining,
-        ad => [ad.isPinned, ad.isFeatured],
-      );
-      return [...cityRanked, ...rest];
-    }
 
     const [topByViews, mostRecent] = await Promise.all([
       prisma.ad.findMany({
         where: baseWhere,
         select: recommendationAdSelect,
-        orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { views: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { isPinned: 'desc' },
+          { isFeatured: 'desc' },
+          { views: 'desc' },
+          { createdAt: 'desc' },
+        ],
         take: TRENDING_POOL_SIZE,
       }),
       prisma.ad.findMany({
         where: baseWhere,
         select: recommendationAdSelect,
-        orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { isPinned: 'desc' },
+          { isFeatured: 'desc' },
+          { createdAt: 'desc' },
+        ],
         take: TRENDING_POOL_SIZE,
       }),
     ]);
-    return rankTrendingCandidates([topByViews, mostRecent], limit, ad => [ad.isPinned, ad.isFeatured]);
+
+    return rankTrendingCandidates(
+      [topByViews, mostRecent],
+      limit,
+      ad => [ad.isPinned, ad.isFeatured],
+      trimmedCity
+        ? ad => ad.city === trimmedCity
+        : undefined,
+    );
   },
+
 };
 
 // PR4B (Store Recommendations) — audited against schema.prisma before

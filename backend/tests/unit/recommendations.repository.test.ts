@@ -6,8 +6,8 @@ import {
 } from '../../src/modules/recommendations/recommendations.repository';
 import { prisma } from '../../src/config/prisma';
 
-jest.mock('../../src/config/prisma', () => ({
-  prisma: {
+jest.mock('../../src/config/prisma', () => {
+  const prismaMock = {
     favorite: { findMany: jest.fn() },
     ad: { findMany: jest.fn() },
     product: { findMany: jest.fn() },
@@ -16,8 +16,16 @@ jest.mock('../../src/config/prisma', () => ({
     storeFollower: { findMany: jest.fn() },
     storeDetails: { findFirst: jest.fn(), findMany: jest.fn() },
     $queryRaw: jest.fn(),
-  },
-}));
+    $executeRawUnsafe: jest.fn(),
+  };
+
+  return {
+    prisma: {
+      ...prismaMock,
+      $transaction: jest.fn(async (callback) => callback(prismaMock)),
+    },
+  };
+});
 
 describe('recommendationsRepository', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -36,6 +44,8 @@ describe('recommendationsRepository', () => {
       expect(prisma.favorite.findMany).toHaveBeenCalledWith({
         where: { userId: 'user-1', entityType: 'AD' },
         select: { entityId: true },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
       });
       expect(result).toEqual([]);
       expect(prisma.ad.findMany).not.toHaveBeenCalled();
@@ -65,33 +75,92 @@ describe('recommendationsRepository', () => {
     });
   });
 
-  describe('createdAdCategoryIds', () => {
-    it('returns [] without a second query when the user created no ads', async () => {
-      (prisma.userActivity.findMany as jest.Mock).mockResolvedValue([]);
+  describe('getAdCategoryInterest', () => {
+    it('returns [] when there are no behavioral, created, or favorite signals', async () => {
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
-      const result = await recommendationsRepository.createdAdCategoryIds('user-1');
+      const result = await recommendationsRepository.getAdCategoryInterest('user-1');
 
       expect(result).toEqual([]);
-      expect(prisma.ad.findMany).not.toHaveBeenCalled();
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(3);
     });
 
-    it('resolves entityId → categoryId via a follow-up ad lookup', async () => {
-      (prisma.userActivity.findMany as jest.Mock).mockResolvedValue([
-        { entityId: 'ad-1' },
-        { entityId: 'ad-2' },
-      ]);
-      (prisma.ad.findMany as jest.Mock).mockResolvedValue([
-        { categoryId: 'cat-1' },
-        { categoryId: 'cat-2' },
-      ]);
+    it('aggregates behavioral, created, and favorite category signals', async () => {
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([
+          {
+            categoryId: 'cat-view',
+            signalWeight: 1,
+            createdAt: new Date(),
+          },
+          {
+            categoryId: 'cat-search',
+            signalWeight: 4,
+            createdAt: new Date(),
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            categoryId: 'cat-created',
+            signalWeight: 2,
+            createdAt: new Date(),
+            applyDecay: false,
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            categoryId: 'cat-favorite',
+            signalWeight: 6,
+            createdAt: new Date(),
+            applyDecay: false,
+          },
+        ]);
 
-      const result = await recommendationsRepository.createdAdCategoryIds('user-1');
+      const result = await recommendationsRepository.getAdCategoryInterest('user-1');
 
-      expect(prisma.ad.findMany).toHaveBeenCalledWith({
-        where: { id: { in: ['ad-1', 'ad-2'] }, categoryId: { not: null } },
-        select: { categoryId: true },
-      });
-      expect(result).toEqual(['cat-1', 'cat-2']);
+      expect(result).toEqual([
+        { categoryId: 'cat-favorite', score: 6 },
+        { categoryId: 'cat-search', score: 4 },
+        { categoryId: 'cat-created', score: 2 },
+        { categoryId: 'cat-view', score: 1 },
+      ]);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(3);
+    });
+
+    it('sums repeated signals for the same category', async () => {
+      const now = new Date();
+
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([
+          {
+            categoryId: 'cat-1',
+            signalWeight: 1,
+            createdAt: now,
+          },
+          {
+            categoryId: 'cat-1',
+            signalWeight: 4,
+            createdAt: now,
+          },
+        ])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            categoryId: 'cat-1',
+            signalWeight: 6,
+            createdAt: now,
+            applyDecay: false,
+          },
+        ]);
+
+      const result = await recommendationsRepository.getAdCategoryInterest('user-1');
+
+      expect(result).toEqual([
+        { categoryId: 'cat-1', score: 11 },
+      ]);
     });
   });
 

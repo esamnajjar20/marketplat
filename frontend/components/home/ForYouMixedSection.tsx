@@ -44,22 +44,25 @@ function interleaveMixed(
   ];
   const idx = [0, 0, 0];
   const out: MixedItem[] = [];
-  let turn = 0;
+
   while (out.length < limit) {
     let placed = false;
-    for (let step = 0; step < 3; step++) {
-      const q = (turn + step) % 3;
+
+    for (let q = 0; q < queues.length && out.length < limit; q += 1) {
       const queue = queues[q];
-      if (!queue) continue;
-        const i = idx[q] ?? 0;
-        const item = queue[i];
-        if (item !== undefined) {
-          out.push(item);
-          idx[q] = i + 1;
-        }
+      const i = idx[q] ?? 0;
+      const item = queue?.[i];
+
+      if (item !== undefined) {
+        out.push(item);
+        idx[q] = i + 1;
+        placed = true;
+      }
     }
+
     if (!placed) break;
   }
+
   return out;
 }
 
