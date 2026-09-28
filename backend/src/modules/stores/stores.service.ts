@@ -274,6 +274,18 @@ export const storesService = {
     return { stores, meta: buildPaginationMeta(total, page, limit) };
   },
 
+  getFeaturedStores: async (
+    params: { limit: number; city?: string }
+  ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
+    const { limit, city } = params;
+    const { stores, total } = await storesRepository.findFeatured({ limit, city });
+
+    return {
+      stores,
+      meta: buildPaginationMeta(total, 1, limit),
+    };
+  },
+
   // FEAT-REPORT-USER-STORE: facade for cross-module use (reportsService),
   // same pattern as ads.service.ts's findAdForReference — returns the
   // store without side effects, so reportsService can validate a

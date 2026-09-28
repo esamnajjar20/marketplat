@@ -28,21 +28,20 @@ export const homeService = {
 
     const [
       featuredAds,
-      carouselStores,
-      carouselServices,
+      carouselFeaturedStores,
       adCategories,
       productCategories,
       serviceCategories,
       homeAds,
       recentProducts,
       promotedProducts,
+      carouselPromotedProducts,
       homeServices,
       featuredStores,
       nearbyProviders,
     ] = await Promise.all([
       adsService.getAds({ isFeatured: true, limit: CAROUSEL_LIMIT }),
-      storesService.getStores({ limit: CAROUSEL_LIMIT }),
-      serviceListingsService.getServiceListings({ sortBy: 'views', limit: CAROUSEL_LIMIT }),
+      storesService.getFeaturedStores({ limit: CAROUSEL_LIMIT }),
       categoriesService.getCategories(),
       productCategoriesService.getProductCategories(),
       serviceCategoriesService.getServiceCategories(),
@@ -57,6 +56,13 @@ export const homeService = {
         sortBy: 'createdAt',
         sortOrder: 'desc',
         ...cityFilter,
+      }),
+      // Promotions are marketplace-wide — not city-filtered
+      productsService.getProducts({
+        limit: CAROUSEL_LIMIT,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        hasPromotion: true,
       }),
       // Promotions are marketplace-wide — not city-filtered
       productsService.getProducts({
@@ -78,21 +84,14 @@ export const homeService = {
       }),
     ]);
 
-    const fallbackAds =
-      featuredAds.items.length === 0
-        ? await adsService.getAds({
-            limit: CAROUSEL_LIMIT,
-            sortBy: 'createdAt',
-            sortOrder: 'desc',
-          })
-        : null;
-
     return {
       featuredCarousel: {
         ads: featuredAds,
-        adsFallback: fallbackAds,
-        stores: { items: carouselStores.stores, meta: carouselStores.meta },
-        services: carouselServices,
+        products: carouselPromotedProducts,
+        stores: {
+          items: carouselFeaturedStores.stores,
+          meta: carouselFeaturedStores.meta,
+        },
       },
       categories: {
         ads: adCategories,

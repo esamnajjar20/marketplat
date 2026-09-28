@@ -60,17 +60,6 @@ export function useHomepage() {
         queryKeys.ads.list({ isFeatured: true, limit: 2 }),
         featuredCarousel.ads,
       );
-      if (featuredCarousel.adsFallback) {
-        queryClient.setQueryData(
-          queryKeys.ads.list({ limit: 2, sortBy: 'createdAt', sortOrder: 'desc' }),
-          featuredCarousel.adsFallback,
-        );
-      }
-      queryClient.setQueryData(queryKeys.stores.list({ limit: 2 }), featuredCarousel.stores);
-      queryClient.setQueryData(
-        queryKeys.serviceListings.list({ sortBy: 'views', limit: 2 }),
-        featuredCarousel.services,
-      );
 
       queryClient.setQueryData(queryKeys.categories.all(), categories.ads);
       queryClient.setQueryData(queryKeys.productCategories.all(), categories.products);

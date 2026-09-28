@@ -210,6 +210,34 @@ export const storesRepository = {
     return { stores, total };
   },
 
+  findFeatured: async (
+    params: {
+      limit: number;
+      city?: string;
+    }
+  ): Promise<{ stores: StoreWithSeller[]; total: number }> => {
+    const { limit, city } = params;
+
+    const where: Prisma.StoreDetailsWhereInput = {
+      status: 'ACTIVE',
+      plan: 'FEATURED',
+      sellerProfile: { suspended: false },
+      ...(city && { city }),
+    };
+
+    const [stores, total] = await Promise.all([
+      prisma.storeDetails.findMany({
+        where,
+        include: storeWithSeller,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      }),
+      prisma.storeDetails.count({ where }),
+    ]);
+
+    return { stores, total };
+  },
+
   countActiveProducts: (storeId: string): Promise<number> =>
     prisma.product.count({ where: { storeId, status: 'ACTIVE' } }),
 

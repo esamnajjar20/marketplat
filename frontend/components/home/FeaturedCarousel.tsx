@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAds } from '@/hooks/queries/useAds';
-import { useStores } from '@/hooks/queries/useStores';
-import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
@@ -14,22 +12,20 @@ import { getListThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 
 /**
- * PLAN Phase 1 (القسم 3، "Featured Carousel"): كاروسيل مختلط
- * (إعلان/متجر/خدمة)، يعيد استخدام نمط fallback الموجود فعليًا في
- * FeaturedAds.tsx لمصدر الإعلانات، ويعتمد على ترتيب الباكند الموثّق في
- * store.types.ts (GET /stores يُرجع خطة FEATURED أولًا افتراضيًا) بدل
- * فلترة plan يدويًا على العميل — لا حاجة لمنطق fallback إضافي للمتاجر.
- * الخدمات لا تملك مفهوم "مميز" في هذا الكود؛ تُستخدم views desc كبديل
- * معقول، كما في الخطة الأصلية.
+ * Featured carousel sources:
+ * - Ads: isFeatured=true
+ * - Products: active promotions
+ * - Stores: plan=FEATURED
  *
- * ذاتية الإخفاء بالكامل عند فشل/فراغ المصادر الثلاثة (نفس اصطلاح
- * RecommendedAds/NearbyProvidersSection) بدل رسالة خطأ فوق الطية.
+ * The public /home payload is the primary source. If /home fails,
+ * only featured ads may fall back to their dedicated endpoint.
+ * No latest-ad, generic-store, or popular-service fallback is allowed.
  */
 
 const DISPLAY_PER_SOURCE = 2;
 const AUTO_ADVANCE_MS = 5000;
 
-type SlideType = 'ad' | 'store' | 'service' | 'product';
+type SlideType = 'ad' | 'store' | 'product';
 
 interface Slide {
   key: string;
@@ -44,7 +40,6 @@ const BADGE: Record<SlideType, { label: string; className: string }> = {
   ad: { label: '🏷️ إعلان', className: 'bg-accent text-accent-foreground' },
   product: { label: '🛒 منتج', className: 'bg-emerald-600 text-white' },
   store: { label: '🏪 متجر', className: 'bg-primary text-primary-foreground' },
-  service: { label: '🛠️ خدمة', className: 'bg-blue-600 text-white' },
 };
 
 export function FeaturedCarousel() {
@@ -52,50 +47,22 @@ export function FeaturedCarousel() {
   const [index, setIndex] = useState(0);
   const lastInteractionRef = useRef(0);
 
-  // Prefer GET /home featuredCarousel — only fall back to list endpoints
-  // when /home failed or omitted this slice (never race /home while pending).
+  // Prefer the /home featuredCarousel payload. If /home fails,
+  // only the dedicated featured-ads endpoint is allowed as a fallback.
   const home = useHomepage();
   const fromHome = home.data?.featuredCarousel;
-  const hasHomeCarousel = Boolean(fromHome);
-  const allowFetch = home.isError || (home.isSuccess && !hasHomeCarousel);
 
   const adsFeatured = useAds(
     { isFeatured: true, limit: DISPLAY_PER_SOURCE },
-    { enabled: allowFetch },
+    { enabled: home.isError },
   );
-  const adsFeaturedItems = fromHome?.ads?.items ?? adsFeatured.data?.items ?? [];
-  const adsNeedFallback =
-    allowFetch &&
-    !adsFeatured.isLoading &&
-    !adsFeatured.isError &&
-    adsFeaturedItems.length === 0;
-  const adsFallback = useAds(
-    { limit: DISPLAY_PER_SOURCE, sortBy: 'createdAt', sortOrder: 'desc' },
-    { enabled: adsNeedFallback },
-  );
-  const ads = fromHome
-    ? (fromHome.ads?.items?.length
-        ? fromHome.ads.items
-        : (fromHome.adsFallback?.items ?? []))
-    : adsNeedFallback
-      ? (adsFallback.data?.items ?? [])
-      : adsFeaturedItems;
-  const adsLoading = !fromHome && (adsFeatured.isLoading || (adsNeedFallback && adsFallback.isLoading));
 
-  const storesQ = useStores(
-    { limit: DISPLAY_PER_SOURCE },
-    { enabled: allowFetch },
-  );
-  const stores = fromHome?.stores?.items ?? storesQ.data?.items ?? [];
+  const ads = fromHome?.ads?.items ?? adsFeatured.data?.items ?? [];
+  const stores = fromHome?.stores?.items ?? [];
+  const productItems = fromHome?.products?.items ?? [];
 
-  const servicesQ = useServiceListings(
-    { sortBy: 'views', limit: DISPLAY_PER_SOURCE },
-    { enabled: allowFetch },
-  );
-  const services = fromHome?.services?.items ?? servicesQ.data?.items ?? [];
-
-  const isLoading =
-    home.isPending || adsLoading || (!fromHome && (storesQ.isLoading || servicesQ.isLoading));
+  const adsLoading = home.isError && adsFeatured.isLoading;
+  const isLoading = home.isPending || adsLoading;
 
   const adSlides: Slide[] = ads.map((ad) => ({
     key: `ad-${ad.id}`,
@@ -117,18 +84,10 @@ export function FeaturedCarousel() {
       ? getListThumbnailUrl(store.coverImageUrl, 960, 540)
       : PLACEHOLDER_SVG,
   }));
-  const serviceSlides: Slide[] = services.map((svc) => ({
-    key: `service-${svc.id}`,
-    type: 'service' as const,
-    href: ROUTES.serviceDetail(svc.id),
-    title: svc.title,
-    subtitle: svc.provider.businessName,
-    imageUrl: svc.images[0] ? getListThumbnailUrl(svc.images[0], 960, 540) : PLACEHOLDER_SVG,
-  }));
-
-  // منتجات من حمولة /home (belowFold) — بدون طلب إضافي
-  const productItems = (home.data?.belowFold?.recentProducts?.items ?? []).slice(0, DISPLAY_PER_SOURCE);
-  const productSlides: Slide[] = productItems.map((p) => ({
+  // Products come from the featured carousel payload (promoted products),
+  // not from the recent-products section.
+  const productItemsForSlides = productItems.slice(0, DISPLAY_PER_SOURCE);
+  const productSlides: Slide[] = productItemsForSlides.map((p) => ({
     key: `product-${p.id}`,
     type: 'product' as const,
     href: ROUTES.productDetail(p.id),
@@ -137,9 +96,9 @@ export function FeaturedCarousel() {
     imageUrl: p.images?.[0] ? getListThumbnailUrl(p.images[0], 960, 540) : PLACEHOLDER_SVG,
   }));
 
-  // خلط ذكي بالتناوب بين الأنواع الأربعة حتى لا يطغى نوع واحد
+  // Round-robin across the available featured sources.
   const slides: Slide[] = isLoading ? [] : (() => {
-    const groups = [adSlides, productSlides, storeSlides, serviceSlides].filter((g) => g.length > 0);
+    const groups = [adSlides, productSlides, storeSlides].filter((g) => g.length > 0);
     if (groups.length === 0) return [];
     const maxLen = Math.max(...groups.map((g) => g.length));
     const out: Slide[] = [];

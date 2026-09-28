@@ -22,9 +22,8 @@ interface Page<T> {
 export interface HomepagePayload {
   featuredCarousel: {
     ads: Page<AdListItem>;
-    adsFallback: Page<AdListItem> | null;
+    products: Page<ProductWithStore>;
     stores: Page<StoreWithSeller>;
-    services: Page<ServiceListingWithProvider>;
   };
   categories: {
     ads: Category[];
