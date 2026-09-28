@@ -4,7 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '@/api/reports.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { PaginationParams } from '@/types/api.types';
 
 /**
@@ -17,11 +22,13 @@ import type { PaginationParams } from '@/types/api.types';
  */
 export function useMyReports(params?: PaginationParams) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: queryKeys.myReports.all(params),
     queryFn: () => reportsApi.getMyReports(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.activity,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
   });
 }

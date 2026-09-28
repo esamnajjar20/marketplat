@@ -6,48 +6,51 @@ import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { useStores } from '@/hooks/queries/useStores';
-import { useLocationResolver } from '@/hooks/useLocationResolver';
+import { useHomepage } from '@/hooks/queries/useHomepage';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
 /**
- * متاجر مميزة — ACTIVE عبر الـ API، مع شارة مدينة إن وُجدت.
- * لا lat/lng على GET /stores؛ المدينة فقط.
+ * متاجر مميزة — يفضّل belowFold من GET /home.
  */
 export function FeaturedStoresSection() {
   const dataSaver = useDataSaver();
-  const location = useLocationResolver();
-  const city = location.source === 'city' ? location.city : undefined;
-  const { data, isLoading } = useStores({ limit: homeSectionLimit(6, 4, dataSaver), city });
-  const items = data?.items ?? [];
+  const limit = homeSectionLimit(6, 4, dataSaver);
+  const { city } = useBrowseCity();
+  const home = useHomepage();
+  const seeded = home.data?.belowFold?.featuredStores ?? null;
+  const hasSeed = Boolean(seeded?.items?.length);
+  const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
-  const badgeSource =
-    location.source === 'city' && city
-      ? ('city' as const)
-      : ('general' as const);
+  const { data, isLoading } = useStores({ limit, city }, { enabled: allowFetch });
+  const items = hasSeed ? (seeded!.items ?? []).slice(0, limit) : (data?.items ?? []);
+  const showLoading = hasSeed ? false : home.isPending || isLoading;
+
+  const badgeSource = city ? ('city' as const) : ('general' as const);
 
   const header = (
     <SectionHeader
-      eyebrow="مميز"
-      title="متاجر مميزة"
+      eyebrow="تصفّح"
+      title="متاجر"
       icon={<StoreIcon className="h-3.5 w-3.5 text-accent" />}
       cta={{ href: ROUTES.stores, label: 'عرض الكل ←' }}
       badge={
-        !isLoading ? (
+        !showLoading ? (
           <LocationSourceBadge source={badgeSource} city={city} />
         ) : undefined
       }
     />
   );
 
-  if (isLoading) {
+  if (showLoading) {
     return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10 section-enter">
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
         {header}
-        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3">
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-72 shrink-0 sm:w-auto">
+            <div key={i} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
               <StoreCardSkeleton />
             </div>
           ))}
@@ -56,14 +59,14 @@ export function FeaturedStoresSection() {
     );
   }
 
-  if (items.length === 0) return null;
+  if (items.length < 3) return null;
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-10 section-enter">
+    <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
       {header}
-      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 stagger-fade-in">
+      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory stagger-fade-in [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {items.map((store) => (
-          <div key={store.id} className="w-72 shrink-0 sm:w-auto">
+          <div key={store.id} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
             <StoreCard store={store} />
           </div>
         ))}

@@ -4,29 +4,41 @@ import { serviceListingsService } from '../service-listings/service-listings.ser
 import { categoriesService } from '../categories/categories.service';
 import { productCategoriesService } from '../product-categories/product-categories.service';
 import { serviceCategoriesService } from '../service-categories/service-categories.service';
+import { productsService } from '../products/products.service';
+import { serviceProvidersService } from '../service-providers/service-providers.service';
 import type { GetHomepageQuery } from './home.validation';
 
 const CAROUSEL_LIMIT = 2;
 const HOME_ADS_LIMIT = 6;
+const SECTION_LIMIT = 8;
+const STORES_SECTION_LIMIT = 6;
+const PROVIDERS_SECTION_LIMIT = 6;
 
 /**
- * One aggregation point for every above-the-fold homepage request.
- * Each call below is the exact same service call the individual
- * /ads, /stores, /service-listings, /categories, /product-categories
- * and /service-categories controllers already make — this just runs
- * them in parallel, server-side, instead of as N round trips from
- * the browser. Nothing here changes what those endpoints return.
+ * Aggregates above-the-fold + below-the-fold homepage data.
+ *
+ * SIZE-01: when `city` is set, list sections are fetched ONCE filtered by
+ * that city — no parallel general+city doubles. Without city, one general
+ * set. Categories remain full trees (chips need roots; long client cache).
+ * NOT included: personalized recommendations (public Cache-Control).
  */
 export const homeService = {
   getHomepage: async (query: GetHomepageQuery) => {
+    const cityFilter = query.city ? { city: query.city } : {};
+
     const [
       featuredAds,
-      stores,
-      services,
+      carouselStores,
+      carouselServices,
       adCategories,
       productCategories,
       serviceCategories,
-      generalAds,
+      homeAds,
+      recentProducts,
+      promotedProducts,
+      homeServices,
+      featuredStores,
+      nearbyProviders,
     ] = await Promise.all([
       adsService.getAds({ isFeatured: true, limit: CAROUSEL_LIMIT }),
       storesService.getStores({ limit: CAROUSEL_LIMIT }),
@@ -34,11 +46,38 @@ export const homeService = {
       categoriesService.getCategories(),
       productCategoriesService.getProductCategories(),
       serviceCategoriesService.getServiceCategories(),
-      adsService.getAds({ limit: HOME_ADS_LIMIT, sortBy: 'createdAt', sortOrder: 'desc' }),
+      adsService.getAds({
+        limit: HOME_ADS_LIMIT,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        ...cityFilter,
+      }),
+      productsService.getProducts({
+        limit: SECTION_LIMIT,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        ...cityFilter,
+      }),
+      // Promotions are marketplace-wide — not city-filtered
+      productsService.getProducts({
+        limit: SECTION_LIMIT,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        hasPromotion: true,
+      }),
+      serviceListingsService.getServiceListings({
+        limit: SECTION_LIMIT,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        ...cityFilter,
+      }),
+      storesService.getStores({ limit: STORES_SECTION_LIMIT, ...cityFilter }),
+      serviceProvidersService.getServiceProviders({
+        limit: PROVIDERS_SECTION_LIMIT,
+        ...cityFilter,
+      }),
     ]);
 
-    // Mirrors FeaturedCarousel.tsx's own fallback: only pay for the
-    // second ads query when the featured list actually came back empty.
     const fallbackAds =
       featuredAds.items.length === 0
         ? await adsService.getAds({
@@ -48,32 +87,32 @@ export const homeService = {
           })
         : null;
 
-    // Mirrors useAdsForHome's cityQuery: only fetched when a city was
-    // actually resolvable client-side (see home.validation.ts's comment).
-    const cityAds = query.city
-      ? await adsService.getAds({
-          city: query.city,
-          limit: HOME_ADS_LIMIT,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
-        })
-      : null;
-
     return {
       featuredCarousel: {
         ads: featuredAds,
         adsFallback: fallbackAds,
-        stores: { items: stores.stores, meta: stores.meta },
-        services,
+        stores: { items: carouselStores.stores, meta: carouselStores.meta },
+        services: carouselServices,
       },
       categories: {
         ads: adCategories,
         products: productCategories,
         services: serviceCategories,
       },
-      adsForHome: {
-        general: generalAds,
-        city: cityAds,
+      /** Single page for "أحدث الإعلانات" — already city-scoped when query.city set */
+      adsForHome: homeAds,
+      belowFold: {
+        recentProducts,
+        promotedProducts,
+        homeServices,
+        featuredStores: {
+          items: featuredStores.stores,
+          meta: featuredStores.meta,
+        },
+        nearbyProviders: {
+          items: nearbyProviders.providers,
+          meta: nearbyProviders.meta,
+        },
       },
     };
   },

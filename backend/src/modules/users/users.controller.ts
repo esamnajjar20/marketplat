@@ -17,6 +17,16 @@ export const usersController = {
       next(error);
     }
   },
+  getBootstrap: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const data = await usersService.getBootstrap(user.userId);
+      res.status(200).json(successResponse('Bootstrap fetched', data));
+    } catch (error) {
+      next(error);
+    }
+  },
+
 
   touchPresence: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

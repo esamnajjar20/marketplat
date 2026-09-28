@@ -5,7 +5,12 @@ import { usersApi } from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { pollingInterval } from '@/lib/polling';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 /**
  * GET /users/presence?ids=... — bulk online lookup for however many
@@ -21,13 +26,15 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
  */
 export function usePresence(userIds: string[]) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: queryKeys.presence.bulk(userIds),
     queryFn: () => usersApi.getPresence(userIds).then((r) => r.data.data),
     staleTime: CACHE_TTL.presence,
     refetchInterval: () => pollingInterval(CACHE_TTL.presence, 3),
-    enabled: isAuthenticated && userIds.length > 0,
+    enabled: isAuthenticated && userIds.length > 0 && (hasToken || !isOnline),
   });
 }
 

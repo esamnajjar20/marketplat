@@ -2,13 +2,20 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { favoriteListsApi } from '@/api/favorite-lists.api';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { CACHE_TTL } from '@/lib/constants';
 
 export const favoriteListsQueryKey = ['favorites', 'lists'] as const;
 
 export function useFavoriteLists() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: favoriteListsQueryKey,
@@ -20,6 +27,6 @@ export function useFavoriteLists() {
     // the mistake. Same cleanup as the adminList and
     // conversationUnreadCount ?? removals.
     staleTime: CACHE_TTL.favorites,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
   });
 }

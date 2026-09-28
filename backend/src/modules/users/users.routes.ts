@@ -11,6 +11,7 @@ usersRouter.use(usersRateLimit);
 
 // Protected — /me MUST be registered before /:id
 // Express matches routes in order; if /:id comes first, GET /me matches it with id="me"
+usersRouter.get('/me/bootstrap', authenticate, usersController.getBootstrap);
 usersRouter.get('/me', authenticate, usersController.getMe);
 usersRouter.patch('/me', authenticate, usersController.updateMe);
 usersRouter.delete('/me', authenticate, usersController.deleteMe);

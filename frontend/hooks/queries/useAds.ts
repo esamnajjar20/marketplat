@@ -20,6 +20,11 @@ import { adsApi }    from '@/api/ads.api';
 // unnecessary Promise on every query execution.
 import { usersApi }  from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
 import { CACHE_TTL } from '@/lib/constants';
 import type { AdSearchParams, AdSearchQuery, AdListItem } from '@/types/ad.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -261,10 +266,15 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
  * ads.service.ts's getMyStats — so it's correct at any scale.
  */
 export function useMyAdStats() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+
   return useQuery({
     queryKey:  queryKeys.ads.myStats(),
     queryFn:   () => adsApi.getMyStats().then((r) => r.data.data),
     staleTime: CACHE_TTL.myAds,
+    // FIX AUTH-401-STORM: never fire without a real access token.
+    enabled: isAuthenticated && hasToken,
   });
 }
 

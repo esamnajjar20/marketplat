@@ -11,7 +11,12 @@ import {
   OFFLINE_LIST_KEYS,
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
 import type { StoresQuery, StoreDetails, StoreWithSeller } from '@/types/store.types';
 import {
@@ -40,7 +45,10 @@ import {
  * matters because a caller that shrinks the page size is requesting
  * a different result SET from the browse page's own shape.
  */
-export function useStores(params?: StoresQuery) {
+export function useStores(
+  params?: StoresQuery,
+  options?: { enabled?: boolean },
+) {
   const isBaseBrowse = isUnfilteredFirstPage(params, {
     nonFilterFields: ['page', 'limit'],
   });
@@ -83,6 +91,7 @@ export function useStores(params?: StoresQuery) {
     },
     staleTime: CACHE_TTL.adsList,
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
     ...(cached?.items?.length
       ? {
           initialData: {
@@ -128,6 +137,8 @@ export function useStore(id: string) {
  */
 export function useMyStore() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   // T770 — user-scoped.
   const userId = useAuthStore((s) => s.user?.id ?? null);
 
@@ -148,7 +159,7 @@ export function useMyStore() {
       }
     },
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,
   });
 }
@@ -160,12 +171,14 @@ export function useMyStore() {
  */
 export function useMyStoreAnalytics() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: queryKeys.stores.analytics(),
     queryFn: () => storesApi.getMyStoreAnalytics().then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,
   });
 }
@@ -173,13 +186,15 @@ export function useMyStoreAnalytics() {
 /** GET /stores/me/followed — the caller's followed stores, paginated. */
 export function useMyFollowedStores(params?: { page?: number; limit?: number }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: queryKeys.stores.followed(params),
     queryFn: () => storesApi.getMyFollowedStores(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
   });
 
   // FIX BUG-03: mirrors useFavorites' H-05/API-INT-07 fix exactly — merge

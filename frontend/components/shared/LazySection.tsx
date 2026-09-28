@@ -94,7 +94,9 @@ export function LazySection({
     <div
       ref={ref}
       className={cn(className)}
-      style={!visible ? { minHeight } : undefined}
+      // Phase D: keep minHeight after mount so a short section does not
+      // collapse the reserved slot and shift the rest of the page (CLS).
+      style={{ minHeight }}
       data-lazy={visible ? 'ready' : near ? 'idle' : 'pending'}
     >
       {visible ? children : (fallback ?? <DefaultFallback minHeight={minHeight} />)}
@@ -102,13 +104,24 @@ export function LazySection({
   );
 }
 
+/** Phase D: fixed-height skeleton matching a typical home discovery row. */
 function DefaultFallback({ minHeight }: { minHeight: number }) {
   return (
-    <div className="container mx-auto space-y-4 px-4 pt-10" style={{ minHeight }} aria-hidden>
-      <div className="h-6 w-40 animate-pulse rounded-md bg-muted" />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div
+      className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3"
+      style={{ minHeight }}
+      aria-hidden
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="h-5 w-36 animate-pulse rounded-md bg-muted" />
+        <div className="h-4 w-16 animate-pulse rounded-md bg-muted" />
+      </div>
+      <div className="flex gap-3 overflow-hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="aspect-[4/3] animate-pulse rounded-xl bg-muted" />
+          <div
+            key={i}
+            className="aspect-[4/3] w-40 shrink-0 animate-pulse rounded-xl bg-muted sm:w-auto"
+          />
         ))}
       </div>
     </div>

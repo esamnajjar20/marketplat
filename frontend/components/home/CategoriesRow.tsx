@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { useHomepage } from '@/hooks/queries/useHomepage';
 import { ROUTES } from '@/lib/constants';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
@@ -99,11 +100,28 @@ function interleave(ads: Item[], products: Item[], services: Item[]): Item[] {
 }
 
 export function CategoriesRow() {
-  const { data: adCats, isLoading: adLoading } = useCategories();
-  const { data: productCats, isLoading: productLoading } = useProductCategories();
-  const { data: serviceCats, isLoading: serviceLoading } = useServiceCategories();
+  // Prefer categories from GET /home — only fall back if /home failed/omitted them.
+  const home = useHomepage();
+  const fromHome = home.data?.categories;
+  const hasHomeCats = Boolean(
+    fromHome && (fromHome.ads?.length || fromHome.products?.length || fromHome.services?.length),
+  );
+  const allowFetch = home.isError || (home.isSuccess && !hasHomeCats);
 
-  const isLoading = adLoading || productLoading || serviceLoading;
+  const { data: adCats, isLoading: adLoading } = useCategories({ enabled: allowFetch });
+  const { data: productCats, isLoading: productLoading } = useProductCategories({
+    enabled: allowFetch,
+  });
+  const { data: serviceCats, isLoading: serviceLoading } = useServiceCategories({
+    enabled: allowFetch,
+  });
+
+  const isLoading =
+    home.isPending || (!hasHomeCats && (adLoading || productLoading || serviceLoading));
+
+  const resolvedAdCats = fromHome?.ads ?? adCats;
+  const resolvedProductCats = fromHome?.products ?? productCats;
+  const resolvedServiceCats = fromHome?.services ?? serviceCats;
 
   if (isLoading) {
     return (
@@ -115,17 +133,31 @@ export function CategoriesRow() {
     );
   }
 
-  const ads: Item[] = (adCats ?? [])
+  const ads: Item[] = (resolvedAdCats ?? [])
     .filter((c) => !c.parentId)
     .map((c) => ({ id: c.id, nameAr: c.nameAr, slug: c.slug, type: 'ad' as const, href: ROUTES.category(c.slug) }));
 
-  const products: Item[] = (productCats ?? [])
-    .filter((c) => !c.parentId && c.isActive)
-    .map((c) => ({ id: c.id, nameAr: c.nameAr, slug: c.slug, type: 'product' as const, href: `${ROUTES.search}?type=products&categoryId=${c.id}` }));
+  const products: Item[] = (resolvedProductCats ?? [])
+    .filter((c) => !('parentId' in c) || !c.parentId)
+    .filter((c) => !('isActive' in c) || c.isActive)
+    .map((c) => ({
+      id: c.id,
+      nameAr: c.nameAr,
+      slug: c.slug,
+      type: 'product' as const,
+      href: `${ROUTES.search}?type=products&categoryId=${c.id}`,
+    }));
 
-  const services: Item[] = (serviceCats ?? [])
-    .filter((c) => !c.parentId && c.isActive)
-    .map((c) => ({ id: c.id, nameAr: c.nameAr, slug: c.slug, type: 'service' as const, href: `${ROUTES.search}?type=services&categoryId=${c.id}` }));
+  const services: Item[] = (resolvedServiceCats ?? [])
+    .filter((c) => !('parentId' in c) || !c.parentId)
+    .filter((c) => !('isActive' in c) || c.isActive)
+    .map((c) => ({
+      id: c.id,
+      nameAr: c.nameAr,
+      slug: c.slug,
+      type: 'service' as const,
+      href: `${ROUTES.search}?type=services&categoryId=${c.id}`,
+    }));
 
   const items = interleave(ads, products, services);
   if (items.length === 0) return null;
@@ -138,20 +170,22 @@ export function CategoriesRow() {
           <Link
             key={`${item.type}-${item.id}`}
             href={item.href}
-            className="relative inline-flex shrink-0 flex-col items-center gap-1.5 rounded-2xl border border-border bg-card px-3 py-2.5 text-center shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/40"
+            className="inline-flex w-[4.75rem] shrink-0 flex-col items-center gap-1 rounded-2xl border border-border bg-card px-2 py-2.5 text-center shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/40"
           >
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Icon className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight">
+              {item.nameAr}
+            </span>
             <span
               className={cn(
-                'absolute -top-1 -end-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold',
+                'rounded-full px-1.5 py-0.5 text-[9px] font-semibold',
                 TYPE_BADGE[item.type],
               )}
             >
               {TYPE_LABEL[item.type]}
             </span>
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Icon className="h-5 w-5" aria-hidden />
-            </span>
-            <span className="max-w-20 truncate text-xs font-medium">{item.nameAr}</span>
           </Link>
         );
       })}

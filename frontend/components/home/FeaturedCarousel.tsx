@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAds } from '@/hooks/queries/useAds';
 import { useStores } from '@/hooks/queries/useStores';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
+import { useHomepage } from '@/hooks/queries/useHomepage';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { ROUTES } from '@/lib/constants';
@@ -28,7 +29,7 @@ import { cn } from '@/lib/utils';
 const DISPLAY_PER_SOURCE = 2;
 const AUTO_ADVANCE_MS = 5000;
 
-type SlideType = 'ad' | 'store' | 'service';
+type SlideType = 'ad' | 'store' | 'service' | 'product';
 
 interface Slide {
   key: string;
@@ -40,7 +41,8 @@ interface Slide {
 }
 
 const BADGE: Record<SlideType, { label: string; className: string }> = {
-  ad: { label: '🏷️ إعلان مميز', className: 'bg-accent text-accent-foreground' },
+  ad: { label: '🏷️ إعلان', className: 'bg-accent text-accent-foreground' },
+  product: { label: '🛒 منتج', className: 'bg-emerald-600 text-white' },
   store: { label: '🏪 متجر', className: 'bg-primary text-primary-foreground' },
   service: { label: '🛠️ خدمة', className: 'bg-blue-600 text-white' },
 };
@@ -50,28 +52,50 @@ export function FeaturedCarousel() {
   const [index, setIndex] = useState(0);
   const lastInteractionRef = useRef(0);
 
-  // ── إعلانات: مميزة، وإلا أحدث — يطابق FeaturedAds.tsx تمامًا ──
-  const adsFeatured = useAds({ isFeatured: true, limit: DISPLAY_PER_SOURCE });
-  const adsFeaturedItems = adsFeatured.data?.items ?? [];
+  // Prefer GET /home featuredCarousel — only fall back to list endpoints
+  // when /home failed or omitted this slice (never race /home while pending).
+  const home = useHomepage();
+  const fromHome = home.data?.featuredCarousel;
+  const hasHomeCarousel = Boolean(fromHome);
+  const allowFetch = home.isError || (home.isSuccess && !hasHomeCarousel);
+
+  const adsFeatured = useAds(
+    { isFeatured: true, limit: DISPLAY_PER_SOURCE },
+    { enabled: allowFetch },
+  );
+  const adsFeaturedItems = fromHome?.ads?.items ?? adsFeatured.data?.items ?? [];
   const adsNeedFallback =
-    !adsFeatured.isLoading && !adsFeatured.isError && adsFeaturedItems.length === 0;
+    allowFetch &&
+    !adsFeatured.isLoading &&
+    !adsFeatured.isError &&
+    adsFeaturedItems.length === 0;
   const adsFallback = useAds(
     { limit: DISPLAY_PER_SOURCE, sortBy: 'createdAt', sortOrder: 'desc' },
     { enabled: adsNeedFallback },
   );
-  const ads = adsNeedFallback ? (adsFallback.data?.items ?? []) : adsFeaturedItems;
-  const adsLoading = adsFeatured.isLoading || (adsNeedFallback && adsFallback.isLoading);
+  const ads = fromHome
+    ? (fromHome.ads?.items?.length
+        ? fromHome.ads.items
+        : (fromHome.adsFallback?.items ?? []))
+    : adsNeedFallback
+      ? (adsFallback.data?.items ?? [])
+      : adsFeaturedItems;
+  const adsLoading = !fromHome && (adsFeatured.isLoading || (adsNeedFallback && adsFallback.isLoading));
 
-  // ── متاجر: الباكند يُرجع خطة FEATURED أولًا افتراضيًا (موثّق في
-  //    store.types.ts) — لا فلترة عميل، لا fallback إضافي مطلوب ──
-  const storesQ = useStores({ limit: DISPLAY_PER_SOURCE });
-  const stores = storesQ.data?.items ?? [];
+  const storesQ = useStores(
+    { limit: DISPLAY_PER_SOURCE },
+    { enabled: allowFetch },
+  );
+  const stores = fromHome?.stores?.items ?? storesQ.data?.items ?? [];
 
-  // ── خدمات: لا مفهوم "مميز" في هذا الكود — الأكثر مشاهدة كبديل ──
-  const servicesQ = useServiceListings({ sortBy: 'views', limit: DISPLAY_PER_SOURCE });
-  const services = servicesQ.data?.items ?? [];
+  const servicesQ = useServiceListings(
+    { sortBy: 'views', limit: DISPLAY_PER_SOURCE },
+    { enabled: allowFetch },
+  );
+  const services = fromHome?.services?.items ?? servicesQ.data?.items ?? [];
 
-  const isLoading = adsLoading || storesQ.isLoading || servicesQ.isLoading;
+  const isLoading =
+    home.isPending || adsLoading || (!fromHome && (storesQ.isLoading || servicesQ.isLoading));
 
   const adSlides: Slide[] = ads.map((ad) => ({
     key: `ad-${ad.id}`,
@@ -79,7 +103,9 @@ export function FeaturedCarousel() {
     href: ROUTES.adDetail(ad.id),
     title: ad.title,
     subtitle: `${formatPrice(ad.price)} · ${ad.city}`,
-    imageUrl: ad.images[0] ? getListThumbnailUrl(ad.images[0], 640, 360) : PLACEHOLDER_SVG,
+    // Phase D LCP: carousel is above-the-fold — deliver a sharper still
+    // (960×540) instead of the list-card 640×360 thumbnail.
+    imageUrl: ad.images[0] ? getListThumbnailUrl(ad.images[0], 960, 540) : PLACEHOLDER_SVG,
   }));
   const storeSlides: Slide[] = stores.map((store) => ({
     key: `store-${store.id}`,
@@ -88,7 +114,7 @@ export function FeaturedCarousel() {
     title: store.name,
     subtitle: store.city,
     imageUrl: store.coverImageUrl
-      ? getListThumbnailUrl(store.coverImageUrl, 640, 360)
+      ? getListThumbnailUrl(store.coverImageUrl, 960, 540)
       : PLACEHOLDER_SVG,
   }));
   const serviceSlides: Slide[] = services.map((svc) => ({
@@ -97,13 +123,24 @@ export function FeaturedCarousel() {
     href: ROUTES.serviceDetail(svc.id),
     title: svc.title,
     subtitle: svc.provider.businessName,
-    imageUrl: svc.images[0] ? getListThumbnailUrl(svc.images[0], 640, 360) : PLACEHOLDER_SVG,
+    imageUrl: svc.images[0] ? getListThumbnailUrl(svc.images[0], 960, 540) : PLACEHOLDER_SVG,
   }));
 
-  // تكرار بالتناوب: إعلان، متجر، خدمة، إعلان، متجر، خدمة — بحد أقصى
-  // طول أطول مجموعة (مجموعة أقصر ببساطة تُستنفد أولًا وتُتخطى).
+  // منتجات من حمولة /home (belowFold) — بدون طلب إضافي
+  const productItems = (home.data?.belowFold?.recentProducts?.items ?? []).slice(0, DISPLAY_PER_SOURCE);
+  const productSlides: Slide[] = productItems.map((p) => ({
+    key: `product-${p.id}`,
+    type: 'product' as const,
+    href: ROUTES.productDetail(p.id),
+    title: p.name,
+    subtitle: p.store?.name ? `${p.store.name}${p.price != null ? ` · ${formatPrice(p.price)}` : ''}` : (p.price != null ? formatPrice(p.price) : ''),
+    imageUrl: p.images?.[0] ? getListThumbnailUrl(p.images[0], 960, 540) : PLACEHOLDER_SVG,
+  }));
+
+  // خلط ذكي بالتناوب بين الأنواع الأربعة حتى لا يطغى نوع واحد
   const slides: Slide[] = isLoading ? [] : (() => {
-    const groups = [adSlides, storeSlides, serviceSlides];
+    const groups = [adSlides, productSlides, storeSlides, serviceSlides].filter((g) => g.length > 0);
+    if (groups.length === 0) return [];
     const maxLen = Math.max(...groups.map((g) => g.length));
     const out: Slide[] = [];
     for (let i = 0; i < maxLen; i++) {
@@ -120,9 +157,16 @@ export function FeaturedCarousel() {
     setIndex((i) => Math.min(i, Math.max(slides.length - 1, 0)));
   }, [slides.length]);
 
-  // تقدّم تلقائي كل 5 ثوانٍ، متوقف مؤقتًا 3 ثوانٍ بعد أي تفاعل يدوي
+  // تقدّم تلقائي كل 5 ثوانٍ، متوقف مؤقتًا 3 ثوانٍ بعد أي تفاعل يدوي.
+  // Phase D/a11y: respect prefers-reduced-motion (no auto-advance).
   useEffect(() => {
     if (slides.length < 2) return;
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
     const timer = setInterval(() => {
       if (Date.now() - lastInteractionRef.current < 3000) return;
       setIndex((i) => (i + 1) % slides.length);
@@ -141,9 +185,12 @@ export function FeaturedCarousel() {
     if (!child) return;
 
     const left = child.offsetLeft - el.offsetLeft;
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.scrollTo({
       left,
-      behavior: 'smooth',
+      behavior: reduceMotion ? 'auto' : 'smooth',
     });
   }, [index]);
 
@@ -163,25 +210,57 @@ export function FeaturedCarousel() {
 
   if (slides.length === 0) return null;
 
+  const go = (next: number) => {
+    lastInteractionRef.current = Date.now();
+    setIndex(((next % slides.length) + slides.length) % slides.length);
+  };
+
   return (
-    <div className="space-y-2">
+    <div
+      className="relative space-y-2"
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="محتوى مميز"
+      onFocusCapture={() => {
+        lastInteractionRef.current = Date.now() + 60_000;
+      }}
+      onBlurCapture={() => {
+        lastInteractionRef.current = Date.now();
+      }}
+      onKeyDown={(e) => {
+        if (slides.length < 2) return;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          go(index + 1);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          go(index - 1);
+        }
+      }}
+    >
       <div
         ref={trackRef}
         onScroll={handleScroll}
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto rounded-2xl [&::-webkit-scrollbar]:hidden"
+        tabIndex={0}
+        aria-live="polite"
       >
         {slides.map((slide, i) => (
           <Link
             key={slide.key}
             href={slide.href}
-            onPointerDown={() => { lastInteractionRef.current = Date.now(); }}
+            onPointerDown={() => {
+              lastInteractionRef.current = Date.now();
+            }}
             className="relative aspect-video w-full shrink-0 snap-center overflow-hidden rounded-2xl bg-muted"
+            aria-roledescription="slide"
+            aria-label={`${i + 1} من ${slides.length}: ${slide.title}`}
           >
             <SafeImage
               src={slide.imageUrl}
               alt={slide.title}
               fill
-              sizes="100vw"
+              sizes="(max-width: 1280px) 100vw, 1280px"
               className="object-cover"
               priority={i === 0}
             />
@@ -203,25 +282,46 @@ export function FeaturedCarousel() {
       </div>
 
       {slides.length > 1 && (
-        <div className="flex justify-center gap-1.5" role="tablist" aria-label="شرائح مميزة">
-          {slides.map((slide, i) => (
+        <>
+          <div className="pointer-events-none absolute inset-y-0 start-0 end-0 flex items-center justify-between px-1 sm:px-2">
             <button
-              key={slide.key}
               type="button"
-              role="tab"
-              aria-selected={i === index}
-              aria-label={`الشريحة ${i + 1}`}
-              onClick={() => {
-                lastInteractionRef.current = Date.now();
-                setIndex(i);
-              }}
-              className={cn(
-                'h-1.5 rounded-full transition-all',
-                i === index ? 'w-5 bg-primary' : 'w-1.5 bg-border',
-              )}
-            />
-          ))}
-        </div>
+              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background"
+              aria-label="الشريحة السابقة"
+              onClick={() => go(index - 1)}
+            >
+              <span aria-hidden className="text-lg leading-none">
+                ‹
+              </span>
+            </button>
+            <button
+              type="button"
+              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background"
+              aria-label="الشريحة التالية"
+              onClick={() => go(index + 1)}
+            >
+              <span aria-hidden className="text-lg leading-none">
+                ›
+              </span>
+            </button>
+          </div>
+          <div className="flex justify-center gap-1.5" role="tablist" aria-label="شرائح مميزة">
+            {slides.map((slide, i) => (
+              <button
+                key={slide.key}
+                type="button"
+                role="tab"
+                aria-selected={i === index}
+                aria-label={`الشريحة ${i + 1}`}
+                onClick={() => go(i)}
+                className={cn(
+                  'h-1.5 rounded-full transition-all',
+                  i === index ? 'w-5 bg-primary' : 'w-1.5 bg-border',
+                )}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

@@ -15,6 +15,11 @@ import { AdStatus } from '@prisma/client';
 import { uploadAvatar, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { presence } from '../../shared/utils/presence';
+import { notificationsService } from '../notifications/notifications.service';
+import { conversationsService } from '../conversations/conversations.service';
+import { sellersService } from '../sellers/sellers.service';
+import { favoritesService } from '../favorites/favorites.service';
+
 
 export const usersService = {
   /** PATCH /users/me/presence — heartbeat. No DB write, no response
@@ -35,6 +40,56 @@ export const usersService = {
     const user = await usersRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     return user;
+  },
+
+  /**
+   * GET /users/me/bootstrap — one round-trip for post-login shell data
+   * that used to fire as separate /me, unread-count×2, notifications,
+   * seller profile/attention, ad stats, and favorites page-1 requests.
+   * Each field is independently best-effort (null on soft failure) so a
+   * single downstream outage cannot blank the whole shell.
+   */
+  getBootstrap: async (userId: string) => {
+    const me = await usersService.getMe(userId);
+
+    const soft = async <T>(fn: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await fn();
+      } catch {
+        return null;
+      }
+    };
+
+    const [
+      notificationsUnread,
+      conversationsUnread,
+      notifications,
+      sellerProfile,
+      sellerAttention,
+      adStats,
+      favorites,
+    ] = await Promise.all([
+      soft(() => notificationsService.getUnreadCount(userId)),
+      soft(async () => (await conversationsService.getUnreadCount(userId)).count),
+      soft(() =>
+        notificationsService.getMyNotifications(userId, { page: 1, limit: 10 }),
+      ),
+      soft(() => sellersService.getMySellerProfile(userId)),
+      soft(() => sellersService.getMyAttention(userId)),
+      soft(() => adsService.getMyStats(userId)),
+      soft(() => favoritesService.getMyFavorites(userId, { page: 1, limit: 20 })),
+    ]);
+
+    return {
+      me,
+      notificationsUnread: notificationsUnread ?? 0,
+      conversationsUnread: conversationsUnread ?? 0,
+      notifications,
+      sellerProfile,
+      sellerAttention,
+      adStats,
+      favorites,
+    };
   },
 
   // UNIFIED-PROFILE: a suspended seller's ratings/verification history

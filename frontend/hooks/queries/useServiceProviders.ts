@@ -6,7 +6,12 @@ import { useQuery } from '@tanstack/react-query';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { NearbyServiceProvidersParams, ServiceProvidersQuery, ServiceProviderDetails } from '@/types/service.types';
 import {
   getOfflineJson,
@@ -64,6 +69,8 @@ export function useServiceProvider(id: string) {
  */
 export function useMyServiceProvider() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   // T770 — user-scoped.
   const userId = useAuthStore((s) => s.user?.id ?? null);
 
@@ -84,7 +91,7 @@ export function useMyServiceProvider() {
       }
     },
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,
   });
 }
@@ -145,12 +152,14 @@ export function useNearbyServiceProviders(params: NearbyServiceProvidersParams |
  */
 export function useMyServiceProviderAnalytics(period: '7d' | '30d' | 'all' = 'all') {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
 
   return useQuery({
     queryKey: [...queryKeys.serviceProviders.analytics(), period],
     queryFn: () => serviceProvidersApi.getMyAnalytics(period).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,
   });
 }

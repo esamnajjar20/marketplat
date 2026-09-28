@@ -57,6 +57,8 @@ export function useSellerProfile(id: string) {
  */
 export function useMySellerProfile() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   // T770 — see offlineJsonCache.ts's envelope comment. Passed on both
   // the save and the fallback read so a different user's cached
   // profile can never be served.
@@ -89,7 +91,8 @@ export function useMySellerProfile() {
     // instead of refetching. Explicit invalidation from
     // useSellerMutations still triggers an update after edits.
     refetchOnMount: false,
-    enabled: isAuthenticated,
+    // FIX AUTH-401-STORM: require real token (or offline cache path).
+    enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,
   });
 }

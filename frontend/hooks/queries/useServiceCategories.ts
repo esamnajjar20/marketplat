@@ -15,7 +15,7 @@ import {
  *
  * FIX CATEGORIES-OFFLINE-01: same offline snapshot handling as
  * useProductCategories (and as useCategories already had). */
-export function useServiceCategories() {
+export function useServiceCategories(options?: { enabled?: boolean }) {
   const cached = getOfflineList<unknown>(OFFLINE_LIST_KEYS.serviceCategories);
 
   return useQuery({
@@ -38,6 +38,7 @@ export function useServiceCategories() {
       }
     },
     staleTime: CACHE_TTL.categories,
+    enabled: options?.enabled ?? true,
     ...(cached?.items?.length
       ? {
           initialData: cached.items as never,

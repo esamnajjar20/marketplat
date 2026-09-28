@@ -5,7 +5,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blockedUsersApi } from '@/api/blocked-users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { BlockedUsersQuery } from '@/types/blocked-user.types';
 
 /**
@@ -19,13 +24,15 @@ import type { BlockedUsersQuery } from '@/types/blocked-user.types';
  */
 export function useMyBlockedUsers(params?: BlockedUsersQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: queryKeys.blockedUsers.all(params),
     queryFn: () => blockedUsersApi.getMine(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (hasToken || !isOnline),
   });
 
   useEffect(() => {

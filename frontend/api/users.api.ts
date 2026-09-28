@@ -17,10 +17,56 @@ export interface ChangePasswordPayload {
   newPassword:     string;
 }
 
+
+/** Payload of GET /users/me/bootstrap */
+export interface UserBootstrapPayload {
+  me: User;
+  notificationsUnread: number;
+  conversationsUnread: number;
+  notifications: {
+    items: unknown[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  } | null;
+  sellerProfile: import('@/types/seller.types').SellerProfile | null;
+  sellerAttention: import('@/types/seller.types').SellerAttention | null;
+  adStats: {
+    activeAds: number;
+    soldAds: number;
+    totalViews: number;
+    favoritesCount: number;
+  } | null;
+  favorites: {
+    items: unknown[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  } | null;
+}
+
 export const usersApi = {
   /** FIX AUTH-05: accepts optional config so callers can pass an AbortSignal. */
   getMe: (config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<User>>('/users/me', config),
+
+  /**
+   * GET /users/me/bootstrap — session shell aggregation:
+   * me + unread badges + notifications page-1 + seller profile/attention
+   * + ad stats + favorites page-1. Replaces 6–8 post-login requests.
+   */
+  getBootstrap: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<UserBootstrapPayload>>('/users/me/bootstrap', config),
 
   updateMe: (payload: UpdateProfilePayload) =>
     apiClient.patch<ApiResponse<User>>('/users/me', payload),

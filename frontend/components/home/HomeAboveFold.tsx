@@ -6,7 +6,7 @@ import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useAdsForHome } from '@/hooks/queries/useAdsForHome';
-import { useLocationResolver } from '@/hooks/useLocationResolver';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES }       from '@/lib/constants';
 
 /**
@@ -28,18 +28,16 @@ import { ROUTES }       from '@/lib/constants';
  */
 
 export function HomeAboveFold() {
-  const { isChecking: recentChecking, isLoading: recentLoading, source: recentSource, radiusKm: recentRadiusKm } = useAdsForHome();
-  const location = useLocationResolver();
+  const { isChecking: recentChecking, isLoading: recentLoading, source: recentSource } = useAdsForHome();
+  const { city } = useBrowseCity();
 
   const stillLoading = recentChecking || recentLoading;
-
-  // مُحلَّل مرة واحدة فقط لغرض عنوان القسم — نفس منطق النسخة الأصلية.
-  const badgeCity = location.source === 'city' ? location.city : undefined;
+  const badgeCity = recentSource === 'city' ? city : undefined;
 
   const latestAdsHeadingLoading = (
     <SectionHeader
-      eyebrow="الأحدث"
-      title="أحدث الإعلانات"
+      eyebrow="تصفّح"
+      title="إعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
     />
@@ -47,11 +45,11 @@ export function HomeAboveFold() {
 
   const latestAdsHeadingLoaded = (
     <SectionHeader
-      eyebrow="الأحدث"
-      title="أحدث الإعلانات"
+      eyebrow="تصفّح"
+      title="إعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
-      badge={<LocationSourceBadge source={recentSource} city={badgeCity} radiusKm={recentRadiusKm} />}
+      badge={<LocationSourceBadge source={recentSource} city={badgeCity} />}
     />
   );
 
@@ -59,8 +57,12 @@ export function HomeAboveFold() {
     return (
       <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-8">
         {latestAdsHeadingLoading}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 stagger-fade-in">
-          {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="w-[min(72vw,280px)] shrink-0 sm:w-[240px]">
+              <AdCardSkeleton />
+            </div>
+          ))}
         </div>
       </section>
     );

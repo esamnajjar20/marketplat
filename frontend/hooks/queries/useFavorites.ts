@@ -27,12 +27,19 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
 import { CACHE_TTL }    from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import {
+  useAuthStore,
+  selectIsAuthenticated,
+  selectHasAccessToken,
+} from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
 
 /** GET /favorites — paginated list of the user's favorited ads */
 export function useFavorites(params?: { page?: number; limit?: number; listId?: string }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const queryClient     = useQueryClient();
 
   const query = useQuery({
@@ -40,7 +47,7 @@ export function useFavorites(params?: { page?: number; limit?: number; listId?: 
     // API-INT-07 FIX: pure queryFn — no side effects.
     queryFn:  () => favoritesApi.getAll(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
-    enabled:   isAuthenticated,
+    enabled:   isAuthenticated && (hasToken || !isOnline),
   });
 
   // API-INT-07 FIX: populate the IDs Set as a side effect AFTER the query settles.
@@ -105,13 +112,15 @@ export function useFavorites(params?: { page?: number; limit?: number; listId?: 
  */
 export function useFavoriteCheck(adId: string) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const queryClient     = useQueryClient();
 
   const query = useQuery({
     queryKey: queryKeys.favorites.check(adId),
     queryFn:  () => favoritesApi.check(adId),
     staleTime: CACHE_TTL.favorites,
-    enabled:   isAuthenticated && Boolean(adId),
+    enabled:   isAuthenticated && Boolean(adId) && (hasToken || !isOnline),
   });
 
   // Same API-INT-07 reasoning as useFavorites above: side effect lives
@@ -208,13 +217,15 @@ export function useFavoritesByType<T>(
   params?: { page?: number; limit?: number; listId?: string },
 ) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const queryClient     = useQueryClient();
 
   const query = useQuery({
     queryKey: queryKeys.favorites.entityList(type, params),
     queryFn:  () => favoritesApi.getAllByType<T>(type, params).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
-    enabled:   isAuthenticated,
+    enabled:   isAuthenticated && (hasToken || !isOnline),
   });
 
   useEffect(() => {
@@ -259,13 +270,15 @@ export function useFavoriteEntityCheck(
   enabled: boolean = true,
 ) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
   const queryClient     = useQueryClient();
 
   const query = useQuery({
     queryKey: queryKeys.favorites.entityCheck(type, entityId),
     queryFn:  () => favoritesApi.checkEntity(type, entityId),
     staleTime: CACHE_TTL.favorites,
-    enabled:   isAuthenticated && Boolean(entityId) && enabled,
+    enabled:   isAuthenticated && Boolean(entityId) && enabled && (hasToken || !isOnline),
   });
 
   useEffect(() => {

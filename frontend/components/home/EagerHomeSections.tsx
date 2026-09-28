@@ -2,39 +2,45 @@
 
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { WelcomeBar } from './WelcomeBar';
+import { HomeDiscoverHero } from './HomeDiscoverHero';
+import { HomeCityChips } from './HomeCityChips';
+import { HomeTrustStrip } from './HomeTrustStrip';
 import { FeaturedCarousel } from './FeaturedCarousel';
 import { CategoriesRow } from './CategoriesRow';
 import { HomeAboveFold } from './HomeAboveFold';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
- * Renders exactly what page.tsx used to render inline for
- * WelcomeBar + FeaturedCarousel + CategoriesRow + HomeAboveFold —
- * the 8-9 requests those four issued individually are now one
- * GET /home, fetched here via useHomepage() and seeded into each
- * component's own react-query cache key before they mount (see
- * useHomepage.ts).
+ * Above-the-fold homepage block.
  *
- * On first paint (or if /home errors) each component below still
- * renders and runs its own useQuery as before this change — a
- * slow/broken aggregation endpoint degrades back to the pre-existing
- * per-section requests instead of blocking or blanking the homepage.
+ * Phase D: pending skeleton reserves carousel aspect-video + category
+ * chips so CLS stays low while GET /home resolves.
  */
 export function EagerHomeSections() {
   const homepage = useHomepage();
 
-  // Not `isLoading`: TanStack Query v5's isLoading is `isPending &&
-  // isFetching`, so it's FALSE while the query is merely disabled
-  // (useHomepage gates on auth hydration) even though there's no
-  // data yet — that gap would let this branch mount the real
-  // children (and their own, unseeded fetches) before /home ever
-  // ran. isPending covers "no data yet" regardless of fetch status.
   if (homepage.isPending) {
     return (
       <div className="pb-2">
-        <div className="container mx-auto max-w-7xl space-y-4 px-4 pt-3">
-          <Skeleton className="h-40 w-full rounded-xl" />
-          <Skeleton className="h-16 w-full rounded-xl" />
+        <div className="container mx-auto max-w-7xl space-y-3 px-4 py-4">
+          <Skeleton className="h-8 w-2/3 max-w-md rounded-lg" />
+          <Skeleton className="h-9 w-56 rounded-xl" />
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-16 rounded-2xl" />
+            <Skeleton className="h-16 rounded-2xl" />
+            <Skeleton className="h-16 rounded-2xl" />
+          </div>
+          <Skeleton className="aspect-video w-full rounded-2xl" />
+          <div className="flex gap-2 overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-20 shrink-0 rounded-xl" />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[4/3] rounded-xl" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -43,7 +49,12 @@ export function EagerHomeSections() {
   return (
     <>
       <WelcomeBar />
-      <div className="container mx-auto max-w-7xl space-y-4 px-4 pt-3">
+      <HomeDiscoverHero />
+      <div className="space-y-3 pt-3">
+        <HomeCityChips />
+        <HomeTrustStrip />
+      </div>
+      <div className="container mx-auto max-w-7xl space-y-4 px-4 pt-4">
         <FeaturedCarousel />
         <CategoriesRow />
       </div>

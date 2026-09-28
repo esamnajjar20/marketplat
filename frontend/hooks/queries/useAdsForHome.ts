@@ -1,138 +1,73 @@
 'use client';
 
 import { useAds } from '@/hooks/queries/useAds';
-import { useLocationResolver } from '@/hooks/useLocationResolver';
-import { useSequentialGeoSearch } from '@/hooks/queries/useSequentialGeoSearch';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
+import { useHomepage } from '@/hooks/queries/useHomepage';
 import type { AdListItem } from '@/types/ad.types';
-import type { SearchResult } from '@/types/search.types';
 
 const HOME_LIMIT = 6;
 
-export type AdsForHomeSource = 'gps' | 'city' | 'general';
+export type AdsForHomeSource = 'city' | 'general';
 
 interface AdsForHomeResult {
   isChecking: boolean;
   isLoading: boolean;
   isError: boolean;
+  error: unknown;
   source: AdsForHomeSource;
   radiusKm: number | null;
-  items: { kind: 'search'; data: SearchResult[] } | { kind: 'ads'; data: AdListItem[] };
+  items: { kind: 'ads'; data: AdListItem[] };
   refetch: () => void;
 }
 
 /**
- * أحدث الإعلانات — GPS بتوسيع متسلسل 1→5→10→25→100 ثم القائمة العامة.
+ * أحدث الإعلانات — يفضّل adsForHome من GET /home (نسخة واحدة: مدينة أو عامة).
  */
 export function useAdsForHome(): AdsForHomeResult {
-  const location = useLocationResolver();
+  const { city } = useBrowseCity();
+  const hasCity = Boolean(city);
+  const home = useHomepage();
 
-  const isGps = location.source === 'gps-current' || location.source === 'gps-saved';
-  const isCity = location.source === 'city';
+  const seeded = home.data?.adsForHome ?? null;
+  const hasSeed = Boolean(seeded?.items?.length);
+  const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
-  const geo = useSequentialGeoSearch({
-    enabled: isGps,
-    lat: location.latitude,
-    lng: location.longitude,
-    type: 'ads',
-    limit: HOME_LIMIT,
-  });
-
-  const cityQuery = useAds(
+  const query = useAds(
     {
-      city: isCity ? location.city : undefined,
+      ...(hasCity ? { city } : {}),
       limit: HOME_LIMIT,
       sortBy: 'createdAt',
       sortOrder: 'desc',
     },
-    { enabled: isCity },
+    { enabled: allowFetch },
   );
 
-  // FIX ADS-OFFLINE-CACHE-SCOPE-03: this query's {limit: 6} with no
-  // filters otherwise qualified as isBaseBrowse, so visiting Home
-  // last left only 6 ads in the shared adsBrowse offline slot — a
-  // later offline open of the full /ads page (which fetches 20+ per
-  // page) showed those 6 back to the user. The offline slot belongs
-  // to the browse page's own request shape, not to this small
-  // home-feed fallback. disableOfflineCache opts out explicitly.
-  const generalQuery = useAds(
-    {
-      limit: HOME_LIMIT,
-      sortBy: 'createdAt',
-      sortOrder: 'desc',
-    },
-    { disableOfflineCache: true },
-  );
+  if (hasSeed) {
+    return {
+      isChecking: false,
+      isLoading: false,
+      isError: false,
+      error: null,
+      source: hasCity ? 'city' : 'general',
+      radiusKm: null,
+      items: { kind: 'ads', data: seeded!.items as AdListItem[] },
+      refetch: () => {
+        void home.refetch();
+      },
+    };
+  }
 
-  const isChecking = location.isLoading;
-  const generalItems = generalQuery.data?.items ?? [];
-  const generalResult: AdsForHomeResult = {
-    isChecking,
-    isLoading: generalQuery.isLoading,
-    isError: generalQuery.isError,
-    source: 'general',
+  return {
+    isChecking: home.isPending,
+    isLoading: home.isPending || query.isLoading,
+    isError: !home.isPending && query.isError,
+    error: query.error,
+    source: hasCity ? 'city' : 'general',
     radiusKm: null,
-    items: { kind: 'ads', data: generalItems },
+    items: { kind: 'ads', data: query.data?.items ?? [] },
     refetch: () => {
-      generalQuery.refetch();
+      void home.refetch();
+      void query.refetch();
     },
   };
-
-  if (isGps) {
-    if (!geo.settled || geo.isLoading) {
-      return {
-        isChecking,
-        isLoading: true,
-        isError: false,
-        source: 'gps',
-        radiusKm: null,
-        items: { kind: 'search', data: [] },
-        refetch: geo.refetch,
-      };
-    }
-    if (!geo.isError && geo.items.length > 0) {
-      return {
-        isChecking,
-        isLoading: false,
-        isError: false,
-        source: 'gps',
-        radiusKm: geo.radiusKm,
-        items: { kind: 'search', data: geo.items },
-        refetch: geo.refetch,
-      };
-    }
-    return generalResult;
-  }
-
-  if (isCity) {
-    if (cityQuery.isLoading) {
-      return {
-        isChecking,
-        isLoading: true,
-        isError: false,
-        source: 'city',
-        radiusKm: null,
-        items: { kind: 'ads', data: [] },
-        refetch: () => {
-          cityQuery.refetch();
-        },
-      };
-    }
-    const cityItems = cityQuery.data?.items ?? [];
-    if (!cityQuery.isError && cityItems.length > 0) {
-      return {
-        isChecking,
-        isLoading: false,
-        isError: false,
-        source: 'city',
-        radiusKm: null,
-        items: { kind: 'ads', data: cityItems },
-        refetch: () => {
-          cityQuery.refetch();
-        },
-      };
-    }
-    return generalResult;
-  }
-
-  return generalResult;
 }

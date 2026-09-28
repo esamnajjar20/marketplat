@@ -16,7 +16,7 @@ import {
 } from '@/lib/offlineListCache';
 
 /** All categories (tree structure). Cached for 1 hour + offline snapshot. */
-export function useCategories() {
+export function useCategories(options?: { enabled?: boolean }) {
   const cached = getOfflineList<Category>(OFFLINE_LIST_KEYS.categories);
 
   return useQuery({
@@ -39,6 +39,7 @@ export function useCategories() {
       }
     },
     staleTime: CACHE_TTL.categories,
+    enabled: options?.enabled ?? true,
     ...(cached?.items?.length
       ? {
           initialData: cached.items,

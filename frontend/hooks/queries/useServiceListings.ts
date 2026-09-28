@@ -52,7 +52,10 @@ function offlinePage(items: ServiceListingWithProvider[]): ServicesPage {
  * helper useStores now uses (see that hook's own comment for the
  * full reasoning on why `limit` counts as a filter).
  */
-export function useServiceListings(params?: ServiceListingsQuery) {
+export function useServiceListings(
+  params?: ServiceListingsQuery,
+  options?: { enabled?: boolean },
+) {
   const isBaseBrowse = isUnfilteredFirstPage(params, {
     nonFilterFields: ['page', 'limit'],
   });
@@ -87,6 +90,7 @@ export function useServiceListings(params?: ServiceListingsQuery) {
     },
     staleTime: CACHE_TTL.adsList,
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
     ...(cached?.items?.length
       ? {
           initialData: offlinePage(cached.items),

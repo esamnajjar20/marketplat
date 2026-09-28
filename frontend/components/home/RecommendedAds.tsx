@@ -5,7 +5,7 @@ import { AdCard } from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { useRecommendations } from '@/hooks/queries/useRecommendations';
-import { useAuthStore } from '@/store/auth.store';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
@@ -13,16 +13,17 @@ import { ROUTES } from '@/lib/constants';
 export function RecommendedAds() {
   const dataSaver = useDataSaver();
   const limit = homeSectionLimit(8, 4, dataSaver);
-  const city = useAuthStore((s) => s.user?.city?.trim() || undefined);
+  const { city } = useBrowseCity();
   const { data, isLoading, isError, refetch } = useRecommendations({
     limit,
     city,
   });
 
-  if (!isLoading && !isError && !data?.length) return null;
+  // Phase B: hide when fewer than 3 suggestions (avoids a sparse strip).
+  if (!isLoading && !isError && (data?.length ?? 0) < 3) return null;
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-8 sm:pt-10">
+    <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
       <SectionHeader
         eyebrow="مخصص لك"
         title="قد يعجبك أيضاً"

@@ -501,3 +501,75 @@ export function buildRequestJsonLd(request: {
     '@graph': [node],
   };
 }
+
+/**
+ * Homepage JSON-LD — WebPage + ItemList of primary browse destinations
+ * and Gaza cities for internal discovery signals.
+ */
+export function buildHomePageJsonLd() {
+  const homeUrl = `${APP_URL}/`;
+  const browse = [
+    { name: 'الإعلانات', path: '/search?type=ads' },
+    { name: 'المنتجات', path: '/products' },
+    { name: 'الخدمات', path: '/services' },
+    { name: 'المتاجر', path: '/stores' },
+    { name: 'مقدمو الخدمات', path: '/service-providers' },
+  ];
+  const cities = [
+    'غزة',
+    'خان يونس',
+    'رفح',
+    'دير البلح',
+    'بيت لاهيا',
+    'بيت حانون',
+    'جباليا',
+    'النصيرات',
+    'المغازي',
+    'البريج',
+  ];
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': `${homeUrl}#webpage`,
+        url: homeUrl,
+        name: `${APP_NAME} — سوق غزة المحلي`,
+        description:
+          'منصة إعلانات ومنتجات وخدمات ومتاجر في قطاع غزة — ابحث، اشترِ، أو اعرض مجاناً.',
+        inLanguage: 'ar',
+        isPartOf: { '@id': `${APP_URL}/#website` },
+        about: {
+          '@type': 'Place',
+          name: 'Gaza Strip',
+          addressCountry: 'PS',
+        },
+      },
+      {
+        '@type': 'ItemList',
+        '@id': `${homeUrl}#browse`,
+        name: 'أقسام السوق',
+        numberOfItems: browse.length,
+        itemListElement: browse.map((item, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: item.name,
+          url: `${APP_URL}${item.path}`,
+        })),
+      },
+      {
+        '@type': 'ItemList',
+        '@id': `${homeUrl}#cities`,
+        name: 'مدن قطاع غزة',
+        numberOfItems: cities.length,
+        itemListElement: cities.map((city, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: city,
+          url: `${APP_URL}/search?city=${encodeURIComponent(city)}`,
+        })),
+      },
+    ],
+  };
+}

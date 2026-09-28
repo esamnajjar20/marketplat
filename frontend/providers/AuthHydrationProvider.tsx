@@ -200,15 +200,59 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // cache stays in sync from a single source.
         // controller.signal is still passed through the queryFn so
         // the outer abort semantics are preserved.
-        const user = await queryClient.fetchQuery({
-          queryKey: queryKeys.auth.me(),
-          queryFn: () =>
-            usersApi
-              .getMe({ signal: controller.signal })
-              .then((r) => r.data.data),
-          staleTime: CACHE_TTL.userProfile,
-        });
-        if (!user) throw new Error('empty /users/me response');
+        // BOOTSTRAP-01: one /users/me/bootstrap instead of parallel
+        // /me + unread×2 + notifications + seller + stats + favorites.
+        const bootstrap = await usersApi
+          .getBootstrap({ signal: controller.signal })
+          .then((r) => r.data.data);
+        if (!bootstrap?.me) throw new Error('empty /users/me/bootstrap response');
+        const user = bootstrap.me;
+
+        // Seed the same keys individual hooks read so NotificationBell,
+        // MessagesLink, useMe, useMySellerProfile, useMyAdStats, and
+        // useFavorites do not fire duplicate network requests.
+        queryClient.setQueryData(queryKeys.auth.me(), user);
+        // useUnreadNotificationCount / useUnreadConversationCount return a number
+        queryClient.setQueryData(
+          queryKeys.notifications.unreadCount(),
+          bootstrap.notificationsUnread,
+        );
+        queryClient.setQueryData(
+          queryKeys.conversations.unreadCount(),
+          bootstrap.conversationsUnread,
+        );
+        if (bootstrap.notifications) {
+          queryClient.setQueryData(
+            queryKeys.notifications.mine({ limit: 10 }),
+            bootstrap.notifications,
+          );
+        }
+        if (bootstrap.sellerProfile !== undefined) {
+          queryClient.setQueryData(queryKeys.sellers.me(), bootstrap.sellerProfile);
+        }
+        if (bootstrap.sellerAttention) {
+          queryClient.setQueryData(
+            queryKeys.sellers.attention(),
+            bootstrap.sellerAttention,
+          );
+        }
+        if (bootstrap.adStats) {
+          queryClient.setQueryData(queryKeys.ads.myStats(), bootstrap.adStats);
+        }
+        if (bootstrap.favorites) {
+          queryClient.setQueryData(
+            queryKeys.favorites.all({ page: 1 }),
+            bootstrap.favorites,
+          );
+          const idSet = new Set<string>();
+          for (const fav of bootstrap.favorites.items as Array<{ adId?: string; entityId?: string; ad?: { id?: string } }>) {
+            const id = fav?.adId ?? fav?.entityId ?? fav?.ad?.id;
+            if (typeof id === 'string') idSet.add(id);
+          }
+          if (idSet.size > 0) {
+            queryClient.setQueryData(queryKeys.favorites.ids(), idSet);
+          }
+        }
         setUser({
           id:        user.id,
           name:      user.name,
@@ -385,14 +429,21 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
               retryRes.data.data!.tokens;
             if (isSessionRevoked()) return;
 
-            const retryUser = await queryClient.fetchQuery({
-              queryKey: queryKeys.auth.me(),
-              queryFn: () =>
-                usersApi
-                  .getMe({ signal: controller.signal })
-                  .then((r) => r.data.data),
-              staleTime: CACHE_TTL.userProfile,
-            });
+            const retryBootstrap = await usersApi
+              .getBootstrap({ signal: controller.signal })
+              .then((r) => r.data.data);
+            const retryUser = retryBootstrap?.me;
+            if (retryUser) {
+              queryClient.setQueryData(queryKeys.auth.me(), retryUser);
+              queryClient.setQueryData(
+                queryKeys.notifications.unreadCount(),
+                retryBootstrap.notificationsUnread,
+              );
+              queryClient.setQueryData(
+                queryKeys.conversations.unreadCount(),
+                retryBootstrap.conversationsUnread,
+              );
+            }
             if (!retryUser) throw new Error('empty /users/me response on retry');
             setUser({
               id:        retryUser.id,

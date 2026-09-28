@@ -5,56 +5,57 @@ import { homeApi } from '@/api/home.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
 import type { HomepagePayload } from '@/api/home.api';
+import type { PaginationMeta } from '@/types/api.types';
+
+type PageLike<T> = { items: T[]; meta: PaginationMeta };
 
 /**
- * Fetches the aggregated GET /home payload once, then seeds the exact
- * same react-query cache entries FeaturedCarousel, CategoriesRow and
- * HomeAboveFold's useAds/useStores/useServiceListings/useCategories/
- * useProductCategories/useServiceCategories calls already read from —
- * so those components need no changes at all.
- *
- * Query-key params below must match each component's call EXACTLY
- * (queryKeys' hashing is structural, so key order doesn't matter, but
- * values do) — see FeaturedCarousel.tsx / CategoriesRow.tsx /
- * useAdsForHome.ts for the calls being mirrored.
- *
- * Two bugs fixed here after seeing this fire twice in production
- * (Network tab showed both `home` and `home?city=...` resolving, plus
- * every child section still firing its own request):
- *
- * 1. `city` comes from the auth store, which is NOT populated
- *    synchronously — it hydrates async (see the GET /me calls in the
- *    same trace). A first render with city:undefined produced query
- *    key home.page(undefined) and fired GET /home; once auth
- *    hydrated, city changed and home.page(city) fired a SECOND,
- *    different GET /home?city=... — two full aggregations instead of
- *    one. Fixed by gating on `isHydrated` so this only ever fires
- *    once, after the real city (if any) is already known.
- * 2. Seeding used to happen in a `useEffect` here, in the same
- *    component that conditionally renders the child sections
- *    (EagerHomeSections). React runs a commit's child effects before
- *    its parent's effects, so on the very render where the children
- *    first mounted, each child's own useQuery fired and checked the
- *    cache BEFORE this hook's effect had written to it — the cache
- *    was seeded one tick too late to matter. Fixed by seeding inside
- *    queryFn itself, so the cache is warm before `query.data` (and
- *    therefore the children) ever renders.
+ * Seed a list query key and (when useful) the data-saver shorter-limit
+ * key so homeSectionLimit(8→4 / 6→4) still hits cache.
+ */
+function seedListPage<T>(
+  queryClient: ReturnType<typeof useQueryClient>,
+  keyFactory: (params: Record<string, unknown>) => readonly unknown[],
+  baseParams: Record<string, unknown>,
+  page: PageLike<T> | null | undefined,
+  saverLimit?: number,
+) {
+  if (!page) return;
+  queryClient.setQueryData(keyFactory(baseParams), page);
+  const fullLimit = typeof baseParams.limit === 'number' ? baseParams.limit : undefined;
+  if (saverLimit != null && fullLimit != null && saverLimit < fullLimit && page.items.length) {
+    queryClient.setQueryData(keyFactory({ ...baseParams, limit: saverLimit }), {
+      items: page.items.slice(0, saverLimit),
+      meta: {
+        ...page.meta,
+        limit: saverLimit,
+        total: Math.min(page.meta.total, page.items.slice(0, saverLimit).length),
+      },
+    });
+  }
+}
+
+/**
+ * One GET /home → seeds every public homepage section cache key.
+ * Payload is single-variant (city OR general), no dual lists.
  */
 export function useHomepage() {
   const queryClient = useQueryClient();
   const isHydrated = useAuthStore(selectIsHydrated);
-  const city = useAuthStore((s) => s.user?.city ?? undefined);
+  const { city, isReady } = useBrowseCity();
 
   return useQuery({
     queryKey: queryKeys.home.page(city),
-    enabled: isHydrated,
+    enabled: isHydrated && isReady,
     queryFn: async (): Promise<HomepagePayload> => {
-      const { featuredCarousel, categories, adsForHome } = await homeApi
-        .getHomepage(city)
-        .then((r) => r.data.data);
+      const payload = await homeApi.getHomepage(city).then((r) => r.data.data);
+      if (!payload) {
+        throw new Error('empty /home response');
+      }
+      const { featuredCarousel, categories, adsForHome, belowFold } = payload;
 
-      // ── FeaturedCarousel ──
       queryClient.setQueryData(
         queryKeys.ads.list({ isFeatured: true, limit: 2 }),
         featuredCarousel.ads,
@@ -71,25 +72,77 @@ export function useHomepage() {
         featuredCarousel.services,
       );
 
-      // ── CategoriesRow ──
       queryClient.setQueryData(queryKeys.categories.all(), categories.ads);
       queryClient.setQueryData(queryKeys.productCategories.all(), categories.products);
       queryClient.setQueryData(queryKeys.serviceCategories.all(), categories.services);
 
-      // ── HomeAboveFold (useAdsForHome) ──
-      queryClient.setQueryData(
-        queryKeys.ads.list({ limit: 6, sortBy: 'createdAt', sortOrder: 'desc' }),
-        adsForHome.general,
+      // Seed the exact key the section hooks use (with city when present)
+      seedListPage(
+        queryClient,
+        (p) => queryKeys.ads.list(p),
+        {
+          limit: 6,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+          ...(city ? { city } : {}),
+        },
+        adsForHome,
       );
-      if (adsForHome.city && city) {
-        queryClient.setQueryData(
-          queryKeys.ads.list({ city, limit: 6, sortBy: 'createdAt', sortOrder: 'desc' }),
-          adsForHome.city,
+
+      if (belowFold) {
+        const productBase = {
+          limit: 8,
+          sortBy: 'createdAt' as const,
+          sortOrder: 'desc' as const,
+          ...(city ? { city } : {}),
+        };
+
+        seedListPage(
+          queryClient,
+          (p) => queryKeys.products.list(p),
+          productBase,
+          belowFold.recentProducts,
+          4,
+        );
+        // Promotions are global (no city in key)
+        seedListPage(
+          queryClient,
+          (p) => queryKeys.products.list(p),
+          { limit: 8, sortBy: 'createdAt', sortOrder: 'desc', hasPromotion: true },
+          belowFold.promotedProducts,
+          4,
+        );
+        seedListPage(
+          queryClient,
+          (p) => queryKeys.serviceListings.list(p),
+          {
+            limit: 8,
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+            ...(city ? { city } : {}),
+          },
+          belowFold.homeServices,
+          4,
+        );
+        seedListPage(
+          queryClient,
+          (p) => queryKeys.stores.list(p),
+          { limit: 6, ...(city ? { city } : {}) },
+          belowFold.featuredStores,
+          4,
+        );
+        seedListPage(
+          queryClient,
+          (p) => queryKeys.serviceProviders.list(p),
+          { limit: 6, ...(city ? { city } : {}) },
+          belowFold.nearbyProviders,
         );
       }
 
-      return { featuredCarousel, categories, adsForHome };
+      return payload;
     },
     staleTime: CACHE_TTL.adsList,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }

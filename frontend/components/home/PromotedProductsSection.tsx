@@ -6,6 +6,7 @@ import { SectionHeader } from '@/components/home/SectionHeader';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { ApiError } from '@/components/shared/ApiError';
 import { useProducts } from '@/hooks/queries/useProducts';
+import { useHomepage } from '@/hooks/queries/useHomepage';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
@@ -35,13 +36,26 @@ import { ROUTES } from '@/lib/constants';
  */
 export function PromotedProductsSection() {
   const dataSaver = useDataSaver();
-  const { data, isLoading, isError, error, refetch } = useProducts({
-    limit: homeSectionLimit(8, 4, dataSaver),
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-    hasPromotion: true,
-  });
-  const items = data?.items ?? [];
+  const limit = homeSectionLimit(8, 4, dataSaver);
+  const home = useHomepage();
+  const seeded = home.data?.belowFold?.promotedProducts;
+  const hasSeed = Boolean(seeded?.items?.length);
+  const allowFetch = home.isError || (home.isSuccess && !hasSeed);
+
+  const { data, isLoading, isError, error, refetch } = useProducts(
+    {
+      limit,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      hasPromotion: true,
+    },
+    { enabled: allowFetch },
+  );
+  const items = hasSeed
+    ? (seeded!.items ?? []).slice(0, limit)
+    : (data?.items ?? []);
+  const showLoading = hasSeed ? false : home.isPending || isLoading;
+  const showError = hasSeed ? false : isError;
 
   const header = (
     <SectionHeader
@@ -53,7 +67,7 @@ export function PromotedProductsSection() {
     />
   );
 
-  if (isLoading) {
+  if (showLoading) {
     // FIX UI-REVIEW-2: matches the loaded-state background below so
     // there's no visual flash/shift from white → accent band once
     // data resolves.
@@ -81,21 +95,26 @@ export function PromotedProductsSection() {
   // mean the accent band never appeared at all, not even to show an
   // error, so nothing about a real connectivity problem was visible
   // anywhere on this stretch of the page.
-  if (isError) {
+  if (showError) {
     return (
       <section className="border-y border-accent/10 bg-gradient-to-b from-accent/[0.09] to-transparent py-8 sm:py-10">
         <div className="container mx-auto max-w-7xl space-y-4 px-4">
           {header}
-          <ApiError error={error} onRetry={refetch} variant="inline" />
+          <ApiError
+            error={error}
+            onRetry={() => {
+              void home.refetch();
+              void refetch();
+            }}
+            variant="inline"
+          />
         </div>
       </section>
     );
   }
 
-  // Self-hides entirely when there are no live promotions — see this
-  // component's doc comment for why (no EmptyState here, unlike
-  // RecentProductsSection).
-  if (items.length === 0) return null;
+  // Phase B: hide sparse promo rows (< 3) — same as empty self-hide.
+  if (items.length < 3) return null;
 
   // FIX UI-REVIEW-2: matches HomeAboveFold's "إعلانات مميزة" section
   // (bg-accent/[0.06] border-y band) instead of the plain white

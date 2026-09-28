@@ -18,7 +18,7 @@ import {
  * product-create form rendered an empty category <select>, and the
  * required-field validation blocked submit with no way to satisfy it
  * (the exact "لازم فئة واصلا مش مبين فئات" report). */
-export function useProductCategories() {
+export function useProductCategories(options?: { enabled?: boolean }) {
   const cached = getOfflineList<unknown>(OFFLINE_LIST_KEYS.productCategories);
 
   return useQuery({
@@ -41,6 +41,7 @@ export function useProductCategories() {
       }
     },
     staleTime: CACHE_TTL.categories,
+    enabled: options?.enabled ?? true,
     ...(cached?.items?.length
       ? {
           initialData: cached.items as never,
