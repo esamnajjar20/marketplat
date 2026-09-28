@@ -54,18 +54,25 @@ export function useHomepage() {
       queryClient.setQueryData(queryKeys.productCategories.all(), categories.products);
       queryClient.setQueryData(queryKeys.serviceCategories.all(), categories.services);
 
-      // Seed the exact key the section hooks use (with city when present)
-      seedListPage(
-        queryClient,
-        (p) => queryKeys.ads.list(p),
-        {
-          limit: 6,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
-          ...(city ? { city } : {}),
-        },
-        adsForHome,
-      );
+      // A general fallback must never be seeded into a city-specific
+      // query key. The homepage sections read belowFold directly, so
+      // fallback data remains visible without contaminating browse caches.
+      const canSeedLocationResult = (source: 'city' | 'general') =>
+        !city || source === 'city';
+
+      if (canSeedLocationResult(adsForHome.source)) {
+        seedListPage(
+          queryClient,
+          (p) => queryKeys.ads.list(p),
+          {
+            limit: 6,
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+            ...(city ? { city } : {}),
+          },
+          adsForHome,
+        );
+      }
 
       if (belowFold) {
         const productBase = {
@@ -75,42 +82,54 @@ export function useHomepage() {
           ...(city ? { city } : {}),
         };
 
-        seedListPage(
-          queryClient,
-          (p) => queryKeys.products.list(p),
-          productBase,
-          belowFold.recentProducts,
-        );
-        // Promotions are global (no city in key)
+        if (canSeedLocationResult(belowFold.recentProducts.source)) {
+          seedListPage(
+            queryClient,
+            (p) => queryKeys.products.list(p),
+            productBase,
+            belowFold.recentProducts,
+          );
+        }
+
+        // Promotions are global (no city in key).
         seedListPage(
           queryClient,
           (p) => queryKeys.products.list(p),
           { limit: 8, sortBy: 'createdAt', sortOrder: 'desc', hasPromotion: true },
           belowFold.promotedProducts,
         );
-        seedListPage(
-          queryClient,
-          (p) => queryKeys.serviceListings.list(p),
-          {
-            limit: 8,
-            sortBy: 'createdAt',
-            sortOrder: 'desc',
-            ...(city ? { city } : {}),
-          },
-          belowFold.homeServices,
-        );
-        seedListPage(
-          queryClient,
-          (p) => queryKeys.stores.list(p),
-          { limit: 6, ...(city ? { city } : {}) },
-          belowFold.featuredStores,
-        );
-        seedListPage(
-          queryClient,
-          (p) => queryKeys.serviceProviders.list(p),
-          { limit: 6, ...(city ? { city } : {}) },
-          belowFold.nearbyProviders,
-        );
+
+        if (canSeedLocationResult(belowFold.homeServices.source)) {
+          seedListPage(
+            queryClient,
+            (p) => queryKeys.serviceListings.list(p),
+            {
+              limit: 8,
+              sortBy: 'createdAt',
+              sortOrder: 'desc',
+              ...(city ? { city } : {}),
+            },
+            belowFold.homeServices,
+          );
+        }
+
+        if (canSeedLocationResult(belowFold.featuredStores.source)) {
+          seedListPage(
+            queryClient,
+            (p) => queryKeys.stores.list(p),
+            { limit: 6, ...(city ? { city } : {}) },
+            belowFold.featuredStores,
+          );
+        }
+
+        if (canSeedLocationResult(belowFold.nearbyProviders.source)) {
+          seedListPage(
+            queryClient,
+            (p) => queryKeys.serviceProviders.list(p),
+            { limit: 6, ...(city ? { city } : {}) },
+            belowFold.nearbyProviders,
+          );
+        }
       }
 
       return payload;

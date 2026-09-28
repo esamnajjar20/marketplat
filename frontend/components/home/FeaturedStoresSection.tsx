@@ -5,6 +5,7 @@ import { StoreCard } from '@/components/stores/StoreCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ApiError } from '@/components/shared/ApiError';
 import { useStores } from '@/hooks/queries/useStores';
 import { useHomepage } from '@/hooks/queries/useHomepage';
@@ -33,7 +34,8 @@ export function FeaturedStoresSection() {
   const showLoading = hasSeed ? false : home.isPending || isLoading;
   const showError = hasSeed ? false : isError;
 
-  const badgeSource = city ? ('city' as const) : ('general' as const);
+  const badgeSource = seeded?.source ?? (city ? 'city' : 'general');
+  const badgeCity = badgeSource === 'city' ? city : undefined;
 
   const header = (
     <SectionHeader
@@ -43,7 +45,7 @@ export function FeaturedStoresSection() {
       cta={{ href: ROUTES.stores, label: 'عرض الكل ←' }}
       badge={
         !showLoading ? (
-          <LocationSourceBadge source={badgeSource} city={city} />
+          <LocationSourceBadge source={badgeSource} city={badgeCity} />
         ) : undefined
       }
     />
@@ -80,18 +82,25 @@ export function FeaturedStoresSection() {
     );
   }
 
-  if (items.length < 3) return null;
-
   return (
     <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
       {header}
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory stagger-fade-in [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        {items.map((store) => (
-          <div key={store.id} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
-            <StoreCard store={store} />
-          </div>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<StoreIcon />}
+          title="لا توجد متاجر بعد"
+          description="ستظهر المتاجر هنا عند توفرها."
+          compact
+        />
+      ) : (
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory stagger-fade-in [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+          {items.map((store) => (
+            <div key={store.id} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
+              <StoreCard store={store} />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

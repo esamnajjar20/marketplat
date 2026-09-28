@@ -1,6 +1,7 @@
 'use client';
 
 import { Briefcase } from 'lucide-react';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
@@ -47,7 +48,10 @@ export function HomeServicesSection() {
       cta={{ href: ROUTES.services, label: 'عرض الكل ←' }}
       badge={
         !showLoading ? (
-          <LocationSourceBadge source={city ? 'city' : 'general'} city={city} />
+          <LocationSourceBadge
+            source={seeded?.source ?? (city ? 'city' : 'general')}
+            city={seeded?.source === 'city' ? city : undefined}
+          />
         ) : undefined
       }
     />
@@ -84,8 +88,19 @@ export function HomeServicesSection() {
     );
   }
 
-  // Phase B: skip thin rows that look unfinished on the homepage.
-  if (items.length < 3) return null;
+  if (items.length === 0) {
+    return (
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
+        {header}
+        <EmptyState
+          icon={<Briefcase />}
+          title="لا توجد خدمات بعد"
+          description="ستظهر الخدمات هنا عند توفرها."
+          compact
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">

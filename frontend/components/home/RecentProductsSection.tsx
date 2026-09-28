@@ -55,8 +55,8 @@ export function RecentProductsSection() {
   const showError = hasSeed ? false : isError;
   const isAuth = useAuthStore(selectIsAuthenticated);
 
-  const badgeSource = city ? ('city' as const) : ('general' as const);
-  const badgeCity = city;
+  const badgeSource = seeded?.source ?? (city ? 'city' : 'general');
+  const badgeCity = badgeSource === 'city' ? city : undefined;
 
   const header = (
     <SectionHeader

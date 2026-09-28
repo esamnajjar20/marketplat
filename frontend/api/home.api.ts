@@ -19,6 +19,12 @@ interface Page<T> {
   meta: PaginationMeta;
 }
 
+export type HomepageLocationSource = 'city' | 'general';
+
+export type HomepageLocationPage<T> = Page<T> & {
+  source: HomepageLocationSource;
+};
+
 export interface HomepagePayload {
   featuredCarousel: {
     ads: Page<AdListItem>;
@@ -30,14 +36,14 @@ export interface HomepagePayload {
     products: ProductCategory[];
     services: ServiceCategory[];
   };
-  /** Single list — already scoped to ?city when the client sent one */
-  adsForHome: Page<AdListItem>;
+  /** City results, or general fallback when the selected city has no results. */
+  adsForHome: HomepageLocationPage<AdListItem>;
   belowFold?: {
-    recentProducts: Page<ProductWithStore>;
+    recentProducts: HomepageLocationPage<ProductWithStore>;
     promotedProducts: Page<ProductWithStore>;
-    homeServices: Page<ServiceListingWithProvider>;
-    featuredStores: Page<StoreWithSeller>;
-    nearbyProviders: Page<ServiceProviderDetails>;
+    homeServices: HomepageLocationPage<ServiceListingWithProvider>;
+    featuredStores: HomepageLocationPage<StoreWithSeller>;
+    nearbyProviders: HomepageLocationPage<ServiceProviderDetails>;
   };
 }
 

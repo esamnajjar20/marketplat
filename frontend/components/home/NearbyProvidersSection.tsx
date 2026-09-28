@@ -1,6 +1,7 @@
 'use client';
 
 import { LocateFixed } from 'lucide-react';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
@@ -23,7 +24,8 @@ import { useDataSaver } from '@/lib/useDataSaver';
 export function NearbyProvidersSection() {
   const dataSaver = useDataSaver();
   const limit = homeSectionLimit(6, 4, dataSaver);
-  const { isChecking, data, isLoading, isError, source } = useNearbyProvidersForHome();
+  const { isChecking, data, isLoading, isError, source, refetch } =
+    useNearbyProvidersForHome();
   const { city } = useBrowseCity();
 
   const items = (data?.items ?? []).slice(0, limit);
@@ -33,7 +35,7 @@ export function NearbyProvidersSection() {
   const header = (
     <SectionHeader
       eyebrow="قريبون منك"
-      title="مقدمو خدمات في مدينتك"
+      title={source === 'city' ? 'مقدمو خدمات في مدينتك' : 'مقدمو خدمات'}
       icon={<LocateFixed className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.serviceProviders, label: 'عرض الكل ←' }}
       badge={!showSkeleton ? <LocationSourceBadge source={source} city={badgeCity} /> : undefined}
@@ -61,8 +63,39 @@ export function NearbyProvidersSection() {
     );
   }
 
-  // Phase B: skip thin rows that look unfinished on the homepage.
-  if (isError || items.length < 3) return null;
+  if (isError) {
+    return (
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+        {header}
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed py-8 text-center text-sm">
+          <p className="text-destructive">تعذّر تحميل مقدمي الخدمات</p>
+          <button
+            type="button"
+            onClick={() => {
+              void refetch();
+            }}
+            className="text-primary hover:underline"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+        {header}
+        <EmptyState
+          icon={<LocateFixed />}
+          title="لا يوجد مقدمو خدمات بعد"
+          description="سيظهر مقدمو الخدمات هنا عند توفرهم."
+          compact
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">

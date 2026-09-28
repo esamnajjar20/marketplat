@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Sparkles } from 'lucide-react';
 import { useAds } from '@/hooks/queries/useAds';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 import { getListThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -167,7 +169,22 @@ export function FeaturedCarousel() {
     return <Skeleton className="aspect-video w-full rounded-2xl" />;
   }
 
-  if (slides.length === 0) return null;
+  if (slides.length === 0) {
+    return (
+      <section
+        className="relative space-y-2"
+        aria-label="محتوى مميز"
+      >
+        <EmptyState
+          icon={<Sparkles />}
+          title="محتوى مميز"
+          description="سيظهر هنا المحتوى المميز عند توفره."
+          compact
+        />
+      </section>
+    );
+  }
+
 
   const go = (next: number) => {
     lastInteractionRef.current = Date.now();

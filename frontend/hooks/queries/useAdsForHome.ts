@@ -4,10 +4,11 @@ import { useAds } from '@/hooks/queries/useAds';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import type { AdListItem } from '@/types/ad.types';
+import type { HomepageLocationSource } from '@/api/home.api';
 
 const HOME_LIMIT = 6;
 
-export type AdsForHomeSource = 'city' | 'general';
+export type AdsForHomeSource = HomepageLocationSource;
 
 interface AdsForHomeResult {
   isChecking: boolean;
@@ -48,7 +49,7 @@ export function useAdsForHome(): AdsForHomeResult {
       isLoading: false,
       isError: false,
       error: null,
-      source: hasCity ? 'city' : 'general',
+      source: seeded!.source,
       radiusKm: null,
       items: { kind: 'ads', data: seeded!.items as AdListItem[] },
       refetch: () => {

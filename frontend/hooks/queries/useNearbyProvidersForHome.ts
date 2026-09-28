@@ -36,7 +36,7 @@ export function useNearbyProvidersForHome() {
       data: seeded!,
       isLoading: false,
       isError: false,
-      source: (city ? 'city' : 'general') as NearbyProvidersForHomeSource,
+      source: seeded!.source as NearbyProvidersForHomeSource,
       radiusKm: null as number | null,
       refetch: () => {
         void home.refetch();

@@ -8,6 +8,7 @@ import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import {
   useRecommendations,
   useProductRecommendations,
@@ -97,8 +98,6 @@ export function ForYouMixedSection() {
     limit,
   );
 
-  if (!isLoading && !isError && items.length < 3) return null;
-
   const title = isAuth ? 'مقترحات لك' : 'الأكثر رواجًا';
   const eyebrow = isAuth ? 'مخصص لك' : 'رائج الآن';
 
@@ -136,6 +135,13 @@ export function ForYouMixedSection() {
             إعادة المحاولة
           </button>
         </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={<Sparkles />}
+          title={isAuth ? 'لا توجد اقتراحات لك بعد' : 'لا توجد اقتراحات حاليًا'}
+          description="ستظهر هنا اقتراحات مناسبة عند توفر المزيد من المحتوى."
+          compact
+        />
       ) : (
         <HomeScrollRail className="stagger-fade-in">
           {items.map((item) => (
