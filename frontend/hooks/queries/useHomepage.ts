@@ -12,29 +12,18 @@ import type { PaginationMeta } from '@/types/api.types';
 type PageLike<T> = { items: T[]; meta: PaginationMeta };
 
 /**
- * Seed a list query key and (when useful) the data-saver shorter-limit
- * key so homeSectionLimit(8→4 / 6→4) still hits cache.
+ * Seed the exact list query key used by each homepage section.
+ * Data-saver sections slice the seeded items locally, so a second
+ * shorter-limit cache entry is unnecessary.
  */
 function seedListPage<T>(
   queryClient: ReturnType<typeof useQueryClient>,
   keyFactory: (params: Record<string, unknown>) => readonly unknown[],
   baseParams: Record<string, unknown>,
   page: PageLike<T> | null | undefined,
-  saverLimit?: number,
 ) {
   if (!page) return;
   queryClient.setQueryData(keyFactory(baseParams), page);
-  const fullLimit = typeof baseParams.limit === 'number' ? baseParams.limit : undefined;
-  if (saverLimit != null && fullLimit != null && saverLimit < fullLimit && page.items.length) {
-    queryClient.setQueryData(keyFactory({ ...baseParams, limit: saverLimit }), {
-      items: page.items.slice(0, saverLimit),
-      meta: {
-        ...page.meta,
-        limit: saverLimit,
-        total: Math.min(page.meta.total, page.items.slice(0, saverLimit).length),
-      },
-    });
-  }
 }
 
 /**
@@ -91,7 +80,6 @@ export function useHomepage() {
           (p) => queryKeys.products.list(p),
           productBase,
           belowFold.recentProducts,
-          4,
         );
         // Promotions are global (no city in key)
         seedListPage(
@@ -99,7 +87,6 @@ export function useHomepage() {
           (p) => queryKeys.products.list(p),
           { limit: 8, sortBy: 'createdAt', sortOrder: 'desc', hasPromotion: true },
           belowFold.promotedProducts,
-          4,
         );
         seedListPage(
           queryClient,
@@ -111,14 +98,12 @@ export function useHomepage() {
             ...(city ? { city } : {}),
           },
           belowFold.homeServices,
-          4,
         );
         seedListPage(
           queryClient,
           (p) => queryKeys.stores.list(p),
           { limit: 6, ...(city ? { city } : {}) },
           belowFold.featuredStores,
-          4,
         );
         seedListPage(
           queryClient,
