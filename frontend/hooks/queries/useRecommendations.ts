@@ -33,11 +33,21 @@ import { recommendationsApi } from '@/api/recommendations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 
-export function useRecommendations(params?: GetRecommendationsParams) {
+export interface RecommendationQueryOptions {
+  enabled?: boolean;
+  /** Separates guest (trending) from user (personalized) cache entries. */
+  scope?: 'guest' | 'user';
+}
+
+export function useRecommendations(
+  params?: GetRecommendationsParams,
+  options?: RecommendationQueryOptions,
+) {
   return useQuery({
-    queryKey: queryKeys.recommendations.list(params),
+    queryKey: queryKeys.recommendations.list(params, options?.scope),
     queryFn: () => recommendationsApi.getRecommendations(params).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.recommendations,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -52,10 +62,10 @@ export function useRecommendations(params?: GetRecommendationsParams) {
  */
 export function useProductRecommendations(
   params?: GetProductRecommendationsParams,
-  options?: { enabled?: boolean }
+  options?: RecommendationQueryOptions
 ) {
   return useQuery({
-    queryKey: queryKeys.recommendations.products(params),
+    queryKey: queryKeys.recommendations.products(params, options?.scope),
     queryFn: () =>
       recommendationsApi.getProductRecommendations(params).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.recommendations,
@@ -64,12 +74,16 @@ export function useProductRecommendations(
 }
 
 /** Service-listing-detail-page rail — always enabled, same shape as useRecommendations(). */
-export function useServiceRecommendations(params?: GetServiceRecommendationsParams) {
+export function useServiceRecommendations(
+  params?: GetServiceRecommendationsParams,
+  options?: RecommendationQueryOptions,
+) {
   return useQuery({
-    queryKey: queryKeys.recommendations.services(params),
+    queryKey: queryKeys.recommendations.services(params, options?.scope),
     queryFn: () =>
       recommendationsApi.getServiceRecommendations(params).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.recommendations,
+    enabled: options?.enabled ?? true,
   });
 }
 

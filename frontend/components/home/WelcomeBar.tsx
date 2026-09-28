@@ -11,9 +11,9 @@ import { useEffect, useState } from 'react';
  * غير مسجّل الدخول → لا يُعرض شيء (الترحيب الشخصي لا معنى له بلا اسم)؛
  * الصفحة تبدأ مباشرة بـ FeaturedCarousel.
  */
-function greeting(hour: number): string {
-  if (hour < 12) return 'صباح الخير';
-  if (hour < 17) return 'مساء الخير';
+export function greeting(hour: number): string {
+  // 05:00–11:59 صباح، وما عداه (بما فيه بعد منتصف الليل) مساء.
+  if (hour >= 5 && hour < 12) return 'صباح الخير';
   return 'مساء الخير';
 }
 

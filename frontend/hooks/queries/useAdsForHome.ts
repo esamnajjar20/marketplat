@@ -3,10 +3,13 @@
 import { useAds } from '@/hooks/queries/useAds';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { useHomepage } from '@/hooks/queries/useHomepage';
+import { homeSectionLimit } from '@/lib/listLimits';
+import { useDataSaver } from '@/lib/useDataSaver';
 import type { AdListItem } from '@/types/ad.types';
 import type { HomepageLocationSource } from '@/api/home.api';
 
 const HOME_LIMIT = 6;
+const HOME_LIMIT_SAVER = 4;
 
 export type AdsForHomeSource = HomepageLocationSource;
 
@@ -25,6 +28,8 @@ interface AdsForHomeResult {
  * أحدث الإعلانات — يفضّل adsForHome من GET /home (نسخة واحدة: مدينة أو عامة).
  */
 export function useAdsForHome(): AdsForHomeResult {
+  const dataSaver = useDataSaver();
+  const limit = homeSectionLimit(HOME_LIMIT, HOME_LIMIT_SAVER, dataSaver);
   const { city } = useBrowseCity();
   const hasCity = Boolean(city);
   const home = useHomepage();
@@ -36,7 +41,7 @@ export function useAdsForHome(): AdsForHomeResult {
   const query = useAds(
     {
       ...(hasCity ? { city } : {}),
-      limit: HOME_LIMIT,
+      limit,
       sortBy: 'createdAt',
       sortOrder: 'desc',
     },
@@ -51,7 +56,7 @@ export function useAdsForHome(): AdsForHomeResult {
       error: null,
       source: seeded!.source,
       radiusKm: null,
-      items: { kind: 'ads', data: seeded!.items as AdListItem[] },
+      items: { kind: 'ads', data: (seeded!.items as AdListItem[]).slice(0, limit) },
       refetch: () => {
         void home.refetch();
       },

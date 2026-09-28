@@ -1,7 +1,6 @@
 'use client';
 
 import { Flame } from 'lucide-react';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
@@ -114,21 +113,8 @@ export function PromotedProductsSection() {
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <section className="border-y border-accent/10 bg-gradient-to-b from-accent/[0.09] to-transparent py-8 sm:py-10">
-        <div className="container mx-auto max-w-7xl space-y-4 px-4">
-          {header}
-          <EmptyState
-            icon={<Flame />}
-            title="لا توجد عروض مميزة حاليًا"
-            description="ستظهر العروض هنا عند توفرها."
-            compact
-          />
-        </div>
-      </section>
-    );
-  }
+  // لا نستهلك مساحة في الرئيسية عند عدم وجود عروض حية.
+  if (items.length === 0) return null;
 
   // FIX UI-REVIEW-2: matches HomeAboveFold's "إعلانات مميزة" section
   // (bg-accent/[0.06] border-y band) instead of the plain white

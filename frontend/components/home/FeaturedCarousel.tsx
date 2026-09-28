@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 import { useAds } from '@/hooks/queries/useAds';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 import { getListThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -26,6 +25,36 @@ import { cn } from '@/lib/utils';
 
 const DISPLAY_PER_SOURCE = 2;
 const AUTO_ADVANCE_MS = 5000;
+/** Tailwind `gap-3` between slides (px). */
+const SLIDE_GAP_PX = 12;
+
+/**
+ * Slide index from the track's scroll offset. `scrollLeft` is negative in RTL
+ * (and the gap between slides is part of each step), so the naive
+ * `scrollLeft / clientWidth` pinned the index to 0 for RTL users.
+ */
+export function slideIndexFromScroll(
+  scrollLeft: number,
+  clientWidth: number,
+  count: number,
+  gap: number = SLIDE_GAP_PX,
+): number {
+  if (clientWidth <= 0 || count <= 0) return 0;
+  const step = clientWidth + gap;
+  const next = Math.round(Math.abs(scrollLeft) / step);
+  return Math.max(0, Math.min(next, count - 1));
+}
+
+/** Horizontal scroll target for a slide index (sign follows direction). */
+export function scrollLeftForSlide(
+  index: number,
+  clientWidth: number,
+  isRtl: boolean,
+  gap: number = SLIDE_GAP_PX,
+): number {
+  const offset = index * (clientWidth + gap);
+  return isRtl ? -offset : offset;
+}
 
 type SlideType = 'ad' | 'store' | 'product';
 
@@ -48,22 +77,30 @@ export function FeaturedCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const lastInteractionRef = useRef(0);
+  // scroll events fired by our own scrollTo() must not be read as user swipes.
+  const programmaticUntilRef = useRef(0);
+  const [paused, setPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   // Prefer the /home featuredCarousel payload. If /home fails,
   // only the dedicated featured-ads endpoint is allowed as a fallback.
   const home = useHomepage();
   const fromHome = home.data?.featuredCarousel;
 
+  // Fall back to the dedicated endpoint when /home failed, or when the
+  // server isolated a failure of just this slice (ads === null).
+  const needsAdsFallback =
+    home.isError || (home.isSuccess && (fromHome?.ads ?? null) === null);
   const adsFeatured = useAds(
     { isFeatured: true, limit: DISPLAY_PER_SOURCE },
-    { enabled: home.isError },
+    { enabled: needsAdsFallback },
   );
 
   const ads = fromHome?.ads?.items ?? adsFeatured.data?.items ?? [];
   const stores = fromHome?.stores?.items ?? [];
   const productItems = fromHome?.products?.items ?? [];
 
-  const adsLoading = home.isError && adsFeatured.isLoading;
+  const adsLoading = needsAdsFallback && adsFeatured.isLoading;
   const isLoading = home.isPending || adsLoading;
 
   const adSlides: Slide[] = ads.map((ad) => ({
@@ -120,71 +157,54 @@ export function FeaturedCarousel() {
 
   // تقدّم تلقائي كل 5 ثوانٍ، متوقف مؤقتًا 3 ثوانٍ بعد أي تفاعل يدوي.
   // Phase D/a11y: respect prefers-reduced-motion (no auto-advance).
+  // يُقرأ بعد الـ mount لتفادي اختلاف الـ hydration مع HTML القادم من السيرفر.
   useEffect(() => {
-    if (slides.length < 2) return;
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
+    setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }, []);
+  const autoPlaying = slides.length > 1 && !paused && !reduceMotion;
+
+  useEffect(() => {
+    if (!autoPlaying) return;
     const timer = setInterval(() => {
       if (Date.now() - lastInteractionRef.current < 3000) return;
       setIndex((i) => (i + 1) % slides.length);
     }, AUTO_ADVANCE_MS);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [autoPlaying, slides.length]);
 
   // مزامنة التمرير مع الفهرس الحالي أفقيًا فقط.
-  // لا نستخدم scrollIntoView لأنه قد يغيّر vertical page scroll
-  // ويعيد المستخدم للأعلى عند الانتقال التلقائي بين الشرائح.
+  // لا نستخدم scrollIntoView لأنه قد يغيّر vertical page scroll.
+  // RTL: قيمة scrollLeft سالبة، لذا نحسب الهدف بحسب اتجاه العنصر.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
 
-    const child = el.children[index] as HTMLElement | undefined;
-    if (!child) return;
-
-    const left = child.offsetLeft - el.offsetLeft;
-    const reduceMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollTo({
-      left,
-      behavior: reduceMotion ? 'auto' : 'smooth',
-    });
-  }, [index]);
+    const isRtl = getComputedStyle(el).direction === 'rtl';
+    const target = scrollLeftForSlide(index, el.clientWidth, isRtl);
+    // لا نُعيد التمرير إن كان المستخدم قد وصل للشريحة بنفسه (تفادي الصراع مع السحب).
+    if (slideIndexFromScroll(el.scrollLeft, el.clientWidth, slides.length) === index &&
+        Math.abs(Math.abs(el.scrollLeft) - Math.abs(target)) < 2) {
+      return;
+    }
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    programmaticUntilRef.current = Date.now() + (reduce ? 50 : 700);
+    el.scrollTo({ left: target, behavior: reduce ? 'auto' : 'smooth' });
+  }, [index, slides.length]);
 
   function handleScroll() {
     const el = trackRef.current;
     if (!el || slides.length === 0) return;
+    if (Date.now() < programmaticUntilRef.current) return;
     lastInteractionRef.current = Date.now();
-    const slideWidth = el.clientWidth;
-    if (slideWidth === 0) return;
-    const next = Math.round(el.scrollLeft / slideWidth);
-    setIndex(Math.max(0, Math.min(next, slides.length - 1)));
+    setIndex(slideIndexFromScroll(el.scrollLeft, el.clientWidth, slides.length));
   }
 
   if (isLoading) {
     return <Skeleton className="aspect-video w-full rounded-2xl" />;
   }
 
-  if (slides.length === 0) {
-    return (
-      <section
-        className="relative space-y-2"
-        aria-label="محتوى مميز"
-      >
-        <EmptyState
-          icon={<Sparkles />}
-          title="محتوى مميز"
-          description="سيظهر هنا المحتوى المميز عند توفره."
-          compact
-        />
-      </section>
-    );
-  }
-
+  // لا محتوى مميز: لا نعرض بطاقة فارغة في أعلى الصفحة.
+  if (slides.length === 0) return null;
 
   const go = (next: number) => {
     lastInteractionRef.current = Date.now();
@@ -197,6 +217,12 @@ export function FeaturedCarousel() {
       role="region"
       aria-roledescription="carousel"
       aria-label="محتوى مميز"
+      onMouseEnter={() => {
+        lastInteractionRef.current = Date.now() + 60_000;
+      }}
+      onMouseLeave={() => {
+        lastInteractionRef.current = Date.now();
+      }}
       onFocusCapture={() => {
         lastInteractionRef.current = Date.now() + 60_000;
       }}
@@ -219,7 +245,7 @@ export function FeaturedCarousel() {
         onScroll={handleScroll}
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto rounded-2xl [&::-webkit-scrollbar]:hidden"
         tabIndex={0}
-        aria-live="polite"
+        aria-live={autoPlaying ? 'off' : 'polite'}
       >
         {slides.map((slide, i) => (
           <Link
@@ -281,20 +307,36 @@ export function FeaturedCarousel() {
               </span>
             </button>
           </div>
-          <div className="flex justify-center gap-1.5" role="tablist" aria-label="شرائح مميزة">
+          <div className="flex items-center justify-center gap-1" role="group" aria-label="شرائح مميزة">
+            <button
+              type="button"
+              onClick={() => setPaused((p) => !p)}
+              aria-pressed={paused}
+              aria-label={paused ? 'تشغيل التقدّم التلقائي' : 'إيقاف التقدّم التلقائي مؤقتًا'}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {paused ? (
+                <Play className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <Pause className="h-3.5 w-3.5" aria-hidden />
+              )}
+            </button>
             {slides.map((slide, i) => (
               <button
                 key={slide.key}
                 type="button"
-                role="tab"
-                aria-selected={i === index}
+                aria-current={i === index ? 'true' : undefined}
                 aria-label={`الشريحة ${i + 1}`}
                 onClick={() => go(i)}
-                className={cn(
-                  'h-1.5 rounded-full transition-all',
-                  i === index ? 'w-5 bg-primary' : 'w-1.5 bg-border',
-                )}
-              />
+                className="flex h-8 w-6 items-center justify-center"
+              >
+                <span
+                  className={cn(
+                    'h-1.5 rounded-full transition-all',
+                    i === index ? 'w-5 bg-primary' : 'w-1.5 bg-border',
+                  )}
+                />
+              </button>
             ))}
           </div>
         </>

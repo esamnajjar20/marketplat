@@ -28,7 +28,7 @@ export function HomeTrustStrip({ className }: { className?: string }) {
   return (
     <section
       className={cn('container mx-auto max-w-7xl px-4', className)}
-      aria-label="لماذا MarketPlat"
+      aria-label="لماذا سوق غزة"
     >
       <ul className="grid grid-cols-3 gap-2 sm:gap-3">
         {ITEMS.map(({ icon: Icon, title, desc }) => (

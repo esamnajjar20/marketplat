@@ -43,12 +43,22 @@ export const queryKeys = {
   // segment so an ad rail and a product rail can never collide on the
   // same cache entry even if both happened to be called with `{}`.
   recommendations: {
-    list: (params?: { limit?: number; excludeAdId?: string; city?: string }) =>
-      ['recommendations', params ?? {}] as const,
-    products: (params?: { limit?: number; excludeProductId?: string; city?: string }) =>
-      ['recommendations', 'product', params ?? {}] as const,
-    services: (params?: { limit?: number; excludeServiceListingId?: string; city?: string }) =>
-      ['recommendations', 'service', params ?? {}] as const,
+    // `scope` ('guest' | 'user') keeps a guest's trending rail and a
+    // logged-in user's personalized rail in separate cache entries — the
+    // request params are identical for both, so without it a fresh login
+    // could keep showing the guest results under a "for you" heading.
+    list: (
+      params?: { limit?: number; excludeAdId?: string; city?: string },
+      scope?: 'guest' | 'user',
+    ) => ['recommendations', params ?? {}, ...(scope ? [scope] : [])] as const,
+    products: (
+      params?: { limit?: number; excludeProductId?: string; city?: string },
+      scope?: 'guest' | 'user',
+    ) => ['recommendations', 'product', params ?? {}, ...(scope ? [scope] : [])] as const,
+    services: (
+      params?: { limit?: number; excludeServiceListingId?: string; city?: string },
+      scope?: 'guest' | 'user',
+    ) => ['recommendations', 'service', params ?? {}, ...(scope ? [scope] : [])] as const,
     stores: (params?: { limit?: number; excludeStoreId?: string; lat?: number; lng?: number }) =>
       ['recommendations', 'store', params ?? {}] as const,
   },

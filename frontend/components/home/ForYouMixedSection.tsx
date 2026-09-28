@@ -14,7 +14,7 @@ import {
   useProductRecommendations,
   useServiceRecommendations,
 } from '@/hooks/queries/useRecommendations';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { useDataSaver } from '@/lib/useDataSaver';
@@ -76,19 +76,26 @@ export function ForYouMixedSection() {
   const limit = homeSectionLimit(9, 6, dataSaver);
   const perType = Math.max(3, Math.ceil(limit / 3));
   const isAuth = useAuthStore(selectIsAuthenticated);
-  const { city } = useBrowseCity();
+  const isHydrated = useAuthStore(selectIsHydrated);
+  const { city, isReady } = useBrowseCity();
 
-  const adsQ = useRecommendations({ limit: perType, city });
-  const productsQ = useProductRecommendations({
-    limit: perType,
-    ...(city ? { city } : {}),
-  });
-  const servicesQ = useServiceRecommendations({
-    limit: perType,
-    ...(city ? { city } : {}),
-  });
+  // Wait until auth + browse city are resolved: firing earlier sends the
+  // request as a guest (and without the city), then repeats it once auth
+  // resolves — 6 wasted requests, and a title that flips after hydration.
+  const opts = { enabled: isHydrated && isReady, scope: isAuth ? 'user' : 'guest' } as const;
 
-  const isLoading = adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
+  const adsQ = useRecommendations({ limit: perType, ...(city ? { city } : {}) }, opts);
+  const productsQ = useProductRecommendations(
+    { limit: perType, ...(city ? { city } : {}) },
+    opts,
+  );
+  const servicesQ = useServiceRecommendations(
+    { limit: perType, ...(city ? { city } : {}) },
+    opts,
+  );
+
+  const isLoading =
+    !opts.enabled || adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
   const isError = adsQ.isError && productsQ.isError && servicesQ.isError;
 
   const items = interleaveMixed(
@@ -98,8 +105,9 @@ export function ForYouMixedSection() {
     limit,
   );
 
-  const title = isAuth ? 'مقترحات لك' : 'الأكثر رواجًا';
-  const eyebrow = isAuth ? 'مخصص لك' : 'رائج الآن';
+  const personalized = isHydrated && isAuth;
+  const title = personalized ? 'مقترحات لك' : 'الأكثر رواجًا';
+  const eyebrow = personalized ? 'مخصص لك' : 'رائج الآن';
 
   return (
     <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">

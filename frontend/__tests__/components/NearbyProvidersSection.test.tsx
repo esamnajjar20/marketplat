@@ -1,163 +1,101 @@
 /**
  * __tests__/components/NearbyProvidersSection.test.tsx
  *
- * Phase 4 rewrite: the section now reads useNearbyProvidersForHome
- * (gps → nearby search, city → city directory, general → unfiltered
- * fallback/cascade target) instead of the old GPS-only
- * useNearbyServiceProvidersIfGranted, and additionally reads
- * useLocationResolver directly for the "استخدام موقعي" CTA's
- * visibility + click handler. Coverage:
- *  - loading (isChecking or isLoading) → skeleton, no cards
- *  - error → renders null
- *  - resolved but empty → renders null
- *  - resolved with items (gps/city/general) → heading + cards + CTA link
- *  - location badge reflects the *actual* source of the shown data
- *  - "استخدام موقعي" CTA shown unless already gps-current/gps-saved
- *  - CTA calls requestLocation() on click
+ * The section reads useNearbyProvidersForHome (city → city directory,
+ * general → unfiltered fallback). No GPS / "use my location" CTA anymore.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
 import { useNearbyProvidersForHome } from '@/hooks/queries/useNearbyProvidersForHome';
-import { useLocationResolver } from '@/hooks/useLocationResolver';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
 
 vi.mock('@/hooks/queries/useNearbyProvidersForHome', () => ({
   useNearbyProvidersForHome: vi.fn(),
 }));
-
-vi.mock('@/hooks/useLocationResolver', () => ({
-  useLocationResolver: vi.fn(),
-}));
-
+vi.mock('@/hooks/useBrowseCity', () => ({ useBrowseCity: vi.fn() }));
+vi.mock('@/lib/useDataSaver', () => ({ useDataSaver: () => false }));
 vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>
   ),
 }));
-
 vi.mock('@/components/services/ServiceProviderCard', () => ({
   ServiceProviderCard: ({ provider }: { provider: { id: string; businessName: string } }) => (
     <div data-testid={`provider-${provider.id}`}>{provider.businessName}</div>
   ),
 }));
 
-function mockProvidersHook(overrides: Record<string, unknown> = {}) {
-  (useNearbyProvidersForHome as ReturnType<typeof vi.fn>).mockReturnValue({
+const refetch = vi.fn();
+
+function mockHook(overrides: Record<string, unknown> = {}) {
+  vi.mocked(useNearbyProvidersForHome).mockReturnValue({
     isChecking: false,
     data: undefined,
     isLoading: false,
     isError: false,
     source: 'general',
+    refetch,
     ...overrides,
-  });
+  } as never);
 }
 
-const requestLocation = vi.fn();
-
-function mockLocation(overrides: Record<string, unknown> = {}) {
-  (useLocationResolver as ReturnType<typeof vi.fn>).mockReturnValue({
-    source: 'fallback',
-    isLoading: false,
-    requestLocation,
-    ...overrides,
-  });
-}
+const ONE = { items: [{ id: 'p1', businessName: 'كهربائي سريع' }] };
 
 describe('NearbyProvidersSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLocation();
+    vi.mocked(useBrowseCity).mockReturnValue({ city: undefined } as never);
   });
 
-  it('renders a skeleton (no cards) while the resolver is still checking', () => {
-    mockProvidersHook({ isChecking: true });
-    render(<NearbyProvidersSection />);
+  it('renders a skeleton (no cards) while checking or loading', () => {
+    mockHook({ isChecking: true });
+    const { rerender } = render(<NearbyProvidersSection />);
     expect(screen.queryByTestId(/provider-/)).not.toBeInTheDocument();
-    expect(screen.getByText('مقدمو خدمات قريبون منك')).toBeInTheDocument();
-  });
+    expect(screen.getByText('مقدمو خدمات')).toBeInTheDocument();
 
-  it('renders a skeleton (no cards) while the query is loading', () => {
-    mockProvidersHook({ isLoading: true });
-    render(<NearbyProvidersSection />);
+    mockHook({ isLoading: true });
+    rerender(<NearbyProvidersSection />);
     expect(screen.queryByTestId(/provider-/)).not.toBeInTheDocument();
   });
 
-  it('renders nothing on error — no error UI for this secondary section', () => {
-    mockProvidersHook({ isError: true });
-    const { container } = render(<NearbyProvidersSection />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('renders nothing when resolved with zero providers (even after cascade)', () => {
-    mockProvidersHook({ data: { items: [] } });
-    const { container } = render(<NearbyProvidersSection />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('renders heading, cards, and a "عرض الكل" CTA when providers resolve', () => {
-    mockProvidersHook({ data: { items: [{ id: 'p1', businessName: 'كهربائي سريع' }] } });
+  it('shows an error message with a working retry', async () => {
+    mockHook({ isError: true });
     render(<NearbyProvidersSection />);
+    expect(screen.getByText('تعذّر تحميل مقدمي الخدمات')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('إعادة المحاولة'));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
 
-    expect(screen.getByText('مقدمو خدمات قريبون منك')).toBeInTheDocument();
+  it('shows an empty state when there are no providers', () => {
+    mockHook({ data: { items: [] } });
+    render(<NearbyProvidersSection />);
+    expect(screen.getByText('لا يوجد مقدمو خدمات بعد')).toBeInTheDocument();
+  });
+
+  it('general results: neutral eyebrow (not "قريبون منك"), generic title and badge', () => {
+    mockHook({ source: 'general', data: ONE });
+    render(<NearbyProvidersSection />);
     expect(screen.getByTestId('provider-p1')).toBeInTheDocument();
-    expect(screen.getByText('عرض الكل ←')).toBeInTheDocument();
-  });
-
-  it('links the "عرض الكل" CTA to /service-providers', () => {
-    mockProvidersHook({ data: { items: [{ id: 'p1', businessName: 'كهربائي سريع' }] } });
-    render(<NearbyProvidersSection />);
-    expect(screen.getByText('عرض الكل ←').closest('a')).toHaveAttribute('href', '/service-providers');
-  });
-
-  it('shows "قريب منك" badge when the section source is gps', () => {
-    mockProvidersHook({ source: 'gps', data: { items: [{ id: 'p1', businessName: 'كهربائي' }] } });
-    mockLocation({ source: 'gps-current' });
-    render(<NearbyProvidersSection />);
-    expect(screen.getByText('قريب منك')).toBeInTheDocument();
-  });
-
-  it('shows city badge when the section source is city', () => {
-    mockProvidersHook({ source: 'city', data: { items: [{ id: 'p1', businessName: 'كهربائي' }] } });
-    mockLocation({ source: 'city', city: 'غزة' });
-    render(<NearbyProvidersSection />);
-    expect(screen.getByText('نتائج في غزة')).toBeInTheDocument();
-  });
-
-  it('shows the generic "نتائج مقترحة" badge when the section source is general, even if the resolver itself resolved gps (cascade case)', () => {
-    mockProvidersHook({ source: 'general', data: { items: [{ id: 'p1', businessName: 'كهربائي' }] } });
-    mockLocation({ source: 'gps-current' });
-    render(<NearbyProvidersSection />);
+    expect(screen.getByText('اكتشف')).toBeInTheDocument();
+    expect(screen.queryByText('قريبون منك')).not.toBeInTheDocument();
+    expect(screen.getByText('مقدمو خدمات')).toBeInTheDocument();
     expect(screen.getByText('نتائج مقترحة')).toBeInTheDocument();
   });
 
-  it('shows the "استخدام موقعي" CTA when the resolver has not resolved GPS yet', () => {
-    mockProvidersHook({ data: { items: [{ id: 'p1', businessName: 'كهربائي' }] } });
-    mockLocation({ source: 'fallback' });
+  it('city results: "قريبون منك" eyebrow, city title and city badge', () => {
+    vi.mocked(useBrowseCity).mockReturnValue({ city: 'غزة' } as never);
+    mockHook({ source: 'city', data: ONE });
     render(<NearbyProvidersSection />);
-    expect(screen.getByText('استخدام موقعي')).toBeInTheDocument();
+    expect(screen.getByText('قريبون منك')).toBeInTheDocument();
+    expect(screen.getByText('مقدمو خدمات في مدينتك')).toBeInTheDocument();
+    expect(screen.getByText('نتائج في غزة')).toBeInTheDocument();
   });
 
-  it('hides the "استخدام موقعي" CTA once the resolver already has gps-current', () => {
-    mockProvidersHook({ source: 'gps', data: { items: [{ id: 'p1', businessName: 'كهربائي' }] } });
-    mockLocation({ source: 'gps-current' });
+  it('links "view all" to /service-providers', () => {
+    mockHook({ data: ONE });
     render(<NearbyProvidersSection />);
-    expect(screen.queryByText('استخدام موقعي')).not.toBeInTheDocument();
-  });
-
-  it('hides the "استخدام موقعي" CTA when the resolver already has a valid saved GPS', () => {
-    mockProvidersHook({ source: 'gps', data: { items: [{ id: 'p1', businessName: 'كهربائي' }] } });
-    mockLocation({ source: 'gps-saved' });
-    render(<NearbyProvidersSection />);
-    expect(screen.queryByText('استخدام موقعي')).not.toBeInTheDocument();
-  });
-
-  it('calls requestLocation() when the CTA is clicked', async () => {
-    mockProvidersHook({ data: { items: [{ id: 'p1', businessName: 'كهربائي' }] } });
-    mockLocation({ source: 'fallback' });
-    render(<NearbyProvidersSection />);
-
-    await userEvent.click(screen.getByText('استخدام موقعي'));
-    expect(requestLocation).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('الكل').closest('a')).toHaveAttribute('href', '/service-providers');
   });
 });

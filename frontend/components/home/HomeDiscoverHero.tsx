@@ -34,16 +34,23 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
         className="pointer-events-none absolute -start-16 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl"
       />
       <div className="relative container mx-auto max-w-7xl space-y-3 px-4 py-4 sm:space-y-3.5 sm:py-5">
-        {showGuestCopy ? (
-          <div className="space-y-1">
-            <h1 className="text-balance text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              سوق غزة المحلي — ابحث، اشترِ، أو اعرض
-            </h1>
+        {/* h1 دائمًا في الـ HTML (SEO/قارئات الشاشة). يظهر بصريًا للزائر فقط،
+            وللمسجّل يبقى sr-only فلا يرى شعارًا تسويقيًا. */}
+        <div className={showGuestCopy ? 'space-y-1' : undefined}>
+          <h1
+            className={cn(
+              'text-balance font-bold tracking-tight text-foreground',
+              showGuestCopy ? 'text-xl sm:text-2xl' : 'sr-only',
+            )}
+          >
+            سوق غزة المحلي — ابحث، اشترِ، أو اعرض
+          </h1>
+          {showGuestCopy ? (
             <p className="max-w-xl text-pretty text-sm text-muted-foreground">
               إعلانات ومنتجات وخدمات من جيرانك — تواصل مباشر بلا وسطاء.
             </p>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button

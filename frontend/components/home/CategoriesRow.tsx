@@ -15,42 +15,47 @@ import {
 } from 'lucide-react';
 
 /**
- * PLAN Phase 1 (القسم 3، البند "Categories Row" + القسم 6 "تصادم أسماء
- * التصنيفات"): يدمج 3 جداول DB مستقلة (فئات الإعلانات/المنتجات/الخدمات)
- * في صف واحد. بما أنه لا يوجد رابط في الباكند بين الجداول الثلاثة، هذا
- * المكوّن يُزيل التكرار دفاعيًا بمطابقة nameAr بعد تطبيع بسيط (trim +
- * توحيد المسافات) بدل الافتراض بعدم وجود تصادم — إن تصادم اسمان يبقى
- * أولهما ظهورًا فقط (أولوية: إعلانات ثم منتجات ثم خدمات).
+ * يدمج 3 جداول فئات مستقلة (إعلانات/منتجات/خدمات) في صف واحد مرتّب بالتناوب.
  *
- * ⚠️ لم يُتحقق من العدد/الأسماء الفعلية في قاعدة بيانات حقيقية (لا
- * وصول شبكة في بيئة البناء) — هذا الدمج والـdedup مبنيان دفاعيًا على
- * افتراض أسوأ الحالات، لا على فحص فعلي. راجع القسم 5 (المرحلة 0) قبل
- * الاعتماد النهائي.
+ * لا يوجد dedupe بالاسم بين الأنواع: مفتاح كل عنصر يتضمن نوعه، وشارة النوع
+ * تفرّق بين "سيارات" إعلانات و"سيارات" منتجات. الـ dedupe القديم كان يُخفي
+ * فئة منتجات/خدمات كاملة إن تطابق اسمها مع فئة إعلانات، فتصبح غير قابلة
+ * للوصول من الرئيسية. التكرار يُزال داخل النوع الواحد فقط.
  */
 
-const CATEGORY_ICON_RULES: Array<{ icon: LucideIcon; keywords: string[] }> = [
-  { icon: Car, keywords: ['car', 'vehicle', 'auto', 'سيار', 'مركب'] },
-  { icon: Home, keywords: ['real-estate', 'realestate', 'property', 'عقار', 'شقة', 'أرض', 'ارض'] },
-  { icon: Smartphone, keywords: ['electronic', 'phone', 'mobile', 'إلكترون', 'الكترون', 'موبايل', 'جوال'] },
-  { icon: Sofa, keywords: ['furniture', 'home-goods', 'أثاث', 'اثاث', 'منزل'] },
-  { icon: Briefcase, keywords: ['job', 'work', 'career', 'وظائف', 'وظيف', 'عمل'] },
-  { icon: Shirt, keywords: ['fashion', 'clothes', 'clothing', 'ملابس', 'أزياء', 'ازياء'] },
-  { icon: Baby, keywords: ['baby', 'kids', 'child', 'أطفال', 'اطفال', 'مواليد'] },
-  { icon: Dumbbell, keywords: ['sport', 'fitness', 'رياض'] },
-  { icon: Wrench, keywords: ['service', 'repair', 'خدم', 'صيان'] },
-  { icon: PawPrint, keywords: ['pet', 'animal', 'حيوان'] },
-  { icon: BookOpen, keywords: ['book', 'education', 'كتب', 'تعليم'] },
+// كلمات إنجليزية تُطابَق كـ tokens كاملة (car ≠ healthcare)، والعربية بالاحتواء.
+const CATEGORY_ICON_RULES: Array<{ icon: LucideIcon; latin: string[]; arabic: string[] }> = [
+  { icon: Car, latin: ['car', 'cars', 'vehicle', 'vehicles', 'auto'], arabic: ['سيار', 'مركب'] },
+  { icon: Home, latin: ['real', 'estate', 'realestate', 'property', 'properties'], arabic: ['عقار', 'شقة', 'أرض', 'ارض'] },
+  { icon: Smartphone, latin: ['electronic', 'electronics', 'phone', 'phones', 'mobile', 'mobiles'], arabic: ['إلكترون', 'الكترون', 'موبايل', 'جوال'] },
+  { icon: Sofa, latin: ['furniture', 'home-goods'], arabic: ['أثاث', 'اثاث'] },
+  { icon: Briefcase, latin: ['job', 'jobs', 'work', 'career', 'careers'], arabic: ['وظائف', 'وظيف'] },
+  { icon: Shirt, latin: ['fashion', 'clothes', 'clothing'], arabic: ['ملابس', 'أزياء', 'ازياء'] },
+  { icon: Baby, latin: ['baby', 'kids', 'child', 'children'], arabic: ['أطفال', 'اطفال', 'مواليد'] },
+  { icon: Dumbbell, latin: ['sport', 'sports', 'fitness'], arabic: ['رياض'] },
+  { icon: Wrench, latin: ['repair', 'maintenance'], arabic: ['صيان', 'إصلاح', 'اصلاح'] },
+  { icon: PawPrint, latin: ['pet', 'pets', 'animal', 'animals'], arabic: ['حيوان'] },
+  { icon: BookOpen, latin: ['book', 'books', 'education'], arabic: ['كتب', 'تعليم'] },
 ];
 
-function iconFor(slug: string, nameAr: string): LucideIcon {
-  const haystack = `${slug} ${nameAr}`.toLowerCase();
-  const match = CATEGORY_ICON_RULES.find((rule) => rule.keywords.some((kw) => haystack.includes(kw)));
-  return match?.icon ?? Tag;
+export function iconFor(slug: string, nameAr: string, type: SourceType = 'ad'): LucideIcon {
+  const tokens = new Set(slug.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  // دعم المفاتيح المركبة مثل "home-goods".
+  const slugLower = slug.toLowerCase();
+  const arabic = nameAr;
+  const match = CATEGORY_ICON_RULES.find(
+    (rule) =>
+      rule.latin.some((kw) => tokens.has(kw) || slugLower === kw) ||
+      rule.arabic.some((kw) => arabic.includes(kw)),
+  );
+  if (match) return match.icon;
+  // فئات الخدمات بلا تطابق: أيقونة الخدمات بدل أيقونة الوسم العامة.
+  return type === 'service' ? Wrench : Tag;
 }
 
-type SourceType = 'ad' | 'product' | 'service';
+export type SourceType = 'ad' | 'product' | 'service';
 
-interface Item {
+export interface Item {
   id: string;
   nameAr: string;
   slug: string;
@@ -74,27 +79,34 @@ function normalize(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** ترتيب مخلوط: 2 إعلان، 1 منتج، 1 إعلان، 1 خدمة، تكرار — يطابق الخطة الأصلية. */
-function interleave(ads: Item[], products: Item[], services: Item[]): Item[] {
-  const pattern: SourceType[] = ['ad', 'ad', 'product', 'ad', 'service', 'ad', 'product', 'service'];
-  const queues: Record<SourceType, Item[]> = { ad: [...ads], product: [...products], service: [...services] };
+/** يزيل التكرار داخل النوع الواحد فقط (أول ظهور يفوز). */
+function dedupeWithinType(items: Item[]): Item[] {
   const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = normalize(item.nameAr);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** ترتيب مخلوط: 2 إعلان، 1 منتج، 1 إعلان، 1 خدمة، تكرار — يطابق الخطة الأصلية. */
+export function interleave(ads: Item[], products: Item[], services: Item[]): Item[] {
+  const pattern: SourceType[] = ['ad', 'ad', 'product', 'ad', 'service', 'ad', 'product', 'service'];
+  const queues: Record<SourceType, Item[]> = {
+    ad: dedupeWithinType(ads),
+    product: dedupeWithinType(products),
+    service: dedupeWithinType(services),
+  };
   const out: Item[] = [];
+  const total = queues.ad.length + queues.product.length + queues.service.length;
   let guard = 0;
-  const total = ads.length + products.length + services.length;
 
   while (out.length < total && guard < total * pattern.length) {
     const want = pattern[guard % pattern.length]!;
     guard++;
-    const queue = queues[want];
-    while (queue.length) {
-      const next = queue.shift()!;
-      const key = normalize(next.nameAr);
-      if (seen.has(key)) continue; // تصادم اسم — أول ظهور يفوز
-      seen.add(key);
-      out.push(next);
-      break;
-    }
+    const next = queues[want].shift();
+    if (next) out.push(next);
   }
   return out;
 }
@@ -103,19 +115,25 @@ export function CategoriesRow() {
   // Prefer categories from GET /home — only fall back if /home failed/omitted them.
   const home = useHomepage();
   const fromHome = home.data?.categories;
-  const hasHomeCats = fromHome !== undefined;
-  const allowFetch = home.isError || (home.isSuccess && !hasHomeCats);
+  // Each list is fetched on its own only if /home failed, or if the server
+  // isolated a failure of just that slice (null).
+  const homeSettled = home.isError || home.isSuccess;
+  const needAds = home.isError || (home.isSuccess && (fromHome?.ads ?? null) === null);
+  const needProducts = home.isError || (home.isSuccess && (fromHome?.products ?? null) === null);
+  const needServices = home.isError || (home.isSuccess && (fromHome?.services ?? null) === null);
 
-  const { data: adCats, isLoading: adLoading } = useCategories({ enabled: allowFetch });
+  const { data: adCats, isLoading: adLoading } = useCategories({ enabled: needAds });
   const { data: productCats, isLoading: productLoading } = useProductCategories({
-    enabled: allowFetch,
+    enabled: needProducts,
   });
   const { data: serviceCats, isLoading: serviceLoading } = useServiceCategories({
-    enabled: allowFetch,
+    enabled: needServices,
   });
 
   const isLoading =
-    home.isPending || (!hasHomeCats && (adLoading || productLoading || serviceLoading));
+    home.isPending ||
+    (homeSettled &&
+      ((needAds && adLoading) || (needProducts && productLoading) || (needServices && serviceLoading)));
 
   const resolvedAdCats = fromHome?.ads ?? adCats;
   const resolvedProductCats = fromHome?.products ?? productCats;
@@ -163,7 +181,7 @@ export function CategoriesRow() {
   return (
     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
       {items.map((item) => {
-        const Icon = iconFor(item.slug, item.nameAr);
+        const Icon = iconFor(item.slug, item.nameAr, item.type);
         return (
           <Link
             key={`${item.type}-${item.id}`}

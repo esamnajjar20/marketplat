@@ -15,7 +15,12 @@ import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
 /**
- * متاجر مميزة — يفضّل belowFold من GET /home.
+ * قسم "متاجر" في الرئيسية — يفضّل belowFold.featuredStores من GET /home.
+ *
+ * ملاحظة تسمية: رغم اسم المكوّن، هذا القسم يعرض متاجر المدينة/العامة
+ * (getStores) وليس المتاجر ذات الخطة FEATURED؛ المتاجر المميزة تظهر في
+ * FeaturedCarousel أعلى الصفحة. العنوان المعروض "متاجر" صحيح، والاسم
+ * التاريخي للمكوّن أُبقي لتفادي كسر الاستيرادات والاختبارات.
  */
 export function FeaturedStoresSection() {
   const dataSaver = useDataSaver();

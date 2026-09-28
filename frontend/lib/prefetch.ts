@@ -34,6 +34,7 @@ import { API_BASE_URL } from './constants';
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type { Category }    from '@/types/category.types';
 import type { AdListItem, Ad } from '@/types/ad.types';
+import type { HomepagePayload } from '@/api/home.api';
 
 // ── Raw fetch (no Axios — server context) ─────────────────────────
 
@@ -184,3 +185,48 @@ export async function prefetchAdDetail(
 export function dehydrateClient(qc: QueryClient) {
   return dehydrate(qc);
 }
+
+
+/**
+ * Prefetch the guest (no-city) homepage payload.
+ *
+ * Stored under the exact key useHomepage() reads for "no city", and resolved
+ * to the same unwrapped payload as its `.then(r => r.data.data)`. Visitors
+ * with a profile/browse city still fetch their own variant on the client
+ * (keepPreviousData shows this general payload meanwhile).
+ *
+ * prefetchQuery never throws: if the backend is down the query is simply
+ * left out of the dehydrated state and the client fetches as before.
+ */
+export async function prefetchHomepage(
+  qc: QueryClient,
+  timeoutMs: number = HOME_PREFETCH_TIMEOUT_MS,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, timeoutMs);
+  });
+
+  try {
+    // Never let a cold/slow backend hold the whole HTML hostage: if /home is
+    // not back within the budget, ship the page without it and let the client
+    // fetch (the un-awaited request is simply left out of dehydrate()).
+    await Promise.race([
+      qc.prefetchQuery({
+        queryKey: queryKeys.home.page(undefined),
+        queryFn:  async () => {
+          const res = await serverFetch<HomepagePayload>('/home');
+          if (!res.data) throw new Error('empty /home response');
+          return res.data;
+        },
+        staleTime: 60 * 1000,
+      }),
+      timeout,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Max time the server waits for /home before rendering without it. */
+const HOME_PREFETCH_TIMEOUT_MS = 2500;

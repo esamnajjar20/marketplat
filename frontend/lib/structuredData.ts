@@ -20,7 +20,7 @@
  * block and injecting arbitrary HTML. JSON.stringify alone does NOT
  * escape `<`, so the escaping is not optional.
  */
-import { APP_URL, APP_NAME } from './constants';
+import { APP_URL, APP_NAME, CITIES } from './constants';
 import type { Ad } from '@/types/ad.types';
 
 /**
@@ -515,18 +515,7 @@ export function buildHomePageJsonLd() {
     { name: 'المتاجر', path: '/stores' },
     { name: 'مقدمو الخدمات', path: '/service-providers' },
   ];
-  const cities = [
-    'غزة',
-    'خان يونس',
-    'رفح',
-    'دير البلح',
-    'بيت لاهيا',
-    'بيت حانون',
-    'جباليا',
-    'النصيرات',
-    'المغازي',
-    'البريج',
-  ];
+  const cities: readonly string[] = CITIES;
 
   return {
     '@context': 'https://schema.org',

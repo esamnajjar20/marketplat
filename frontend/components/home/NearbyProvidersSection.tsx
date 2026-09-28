@@ -34,7 +34,7 @@ export function NearbyProvidersSection() {
 
   const header = (
     <SectionHeader
-      eyebrow="قريبون منك"
+      eyebrow={source === 'city' ? 'قريبون منك' : 'اكتشف'}
       title={source === 'city' ? 'مقدمو خدمات في مدينتك' : 'مقدمو خدمات'}
       icon={<LocateFixed className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.serviceProviders, label: 'عرض الكل ←' }}
