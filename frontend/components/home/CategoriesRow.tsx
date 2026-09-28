@@ -1,67 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { useCategories } from '@/hooks/queries/useCategories';
-import { useProductCategories } from '@/hooks/queries/useProductCategories';
-import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
-import { useHomepage } from '@/hooks/queries/useHomepage';
+import { useCategoryItems } from '@/hooks/queries/useCategoryItems';
 import { ROUTES } from '@/lib/constants';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
-import {
-  Car, Home, Smartphone, Sofa, Briefcase, Shirt,
-  Baby, Dumbbell, Wrench, PawPrint, BookOpen, Tag, LayoutGrid,
-  type LucideIcon,
-} from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
+import { iconFor, TYPE_LABEL, type SourceType } from '@/lib/categoryItems';
 
 /**
  * يدمج 3 جداول فئات مستقلة (إعلانات/منتجات/خدمات) في صف واحد مرتّب بالتناوب.
  *
  * لا يوجد dedupe بالاسم بين الأنواع: مفتاح كل عنصر يتضمن نوعه، وشارة النوع
- * تفرّق بين "سيارات" إعلانات و"سيارات" منتجات. الـ dedupe القديم كان يُخفي
- * فئة منتجات/خدمات كاملة إن تطابق اسمها مع فئة إعلانات، فتصبح غير قابلة
- * للوصول من الرئيسية. التكرار يُزال داخل النوع الواحد فقط.
+ * تفرّق بين "سيارات" إعلانات و"سيارات" منتجات. التكرار يُزال داخل النوع
+ * الواحد فقط. المنطق المشترك في lib/categoryItems + hooks/queries/useCategoryItems؛
+ * و"كل الفئات" يفتح فهرساً كاملاً في /categories (الصف مقصوص على 24).
  */
 
-// كلمات إنجليزية تُطابَق كـ tokens كاملة (car ≠ healthcare)، والعربية بالاحتواء.
-const CATEGORY_ICON_RULES: Array<{ icon: LucideIcon; latin: string[]; arabic: string[] }> = [
-  { icon: Car, latin: ['car', 'cars', 'vehicle', 'vehicles', 'auto'], arabic: ['سيار', 'مركب'] },
-  { icon: Home, latin: ['real', 'estate', 'realestate', 'property', 'properties'], arabic: ['عقار', 'شقة', 'أرض', 'ارض'] },
-  { icon: Smartphone, latin: ['electronic', 'electronics', 'phone', 'phones', 'mobile', 'mobiles'], arabic: ['إلكترون', 'الكترون', 'موبايل', 'جوال'] },
-  { icon: Sofa, latin: ['furniture', 'home-goods'], arabic: ['أثاث', 'اثاث'] },
-  { icon: Briefcase, latin: ['job', 'jobs', 'work', 'career', 'careers'], arabic: ['وظائف', 'وظيف'] },
-  { icon: Shirt, latin: ['fashion', 'clothes', 'clothing'], arabic: ['ملابس', 'أزياء', 'ازياء'] },
-  { icon: Baby, latin: ['baby', 'kids', 'child', 'children'], arabic: ['أطفال', 'اطفال', 'مواليد'] },
-  { icon: Dumbbell, latin: ['sport', 'sports', 'fitness'], arabic: ['رياض'] },
-  { icon: Wrench, latin: ['repair', 'maintenance'], arabic: ['صيان', 'إصلاح', 'اصلاح'] },
-  { icon: PawPrint, latin: ['pet', 'pets', 'animal', 'animals'], arabic: ['حيوان'] },
-  { icon: BookOpen, latin: ['book', 'books', 'education'], arabic: ['كتب', 'تعليم'] },
-];
-
-export function iconFor(slug: string, nameAr: string, type: SourceType = 'ad'): LucideIcon {
-  const tokens = new Set(slug.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
-  // دعم المفاتيح المركبة مثل "home-goods".
-  const slugLower = slug.toLowerCase();
-  const arabic = nameAr;
-  const match = CATEGORY_ICON_RULES.find(
-    (rule) =>
-      rule.latin.some((kw) => tokens.has(kw) || slugLower === kw) ||
-      rule.arabic.some((kw) => arabic.includes(kw)),
-  );
-  if (match) return match.icon;
-  // فئات الخدمات بلا تطابق: أيقونة الخدمات بدل أيقونة الوسم العامة.
-  return type === 'service' ? Wrench : Tag;
-}
-
-export type SourceType = 'ad' | 'product' | 'service';
-
-export interface Item {
-  id: string;
-  nameAr: string;
-  slug: string;
-  type: SourceType;
-  href: string;
-}
+// إعادة تصدير للتوافق مع من يستورد من هذا الملف (الاختبارات).
+export { iconFor, interleave } from '@/lib/categoryItems';
+export type { Item, SourceType } from '@/lib/categoryItems';
 
 const TYPE_BADGE: Record<SourceType, string> = {
   ad: 'bg-accent/15 text-accent',
@@ -69,78 +27,11 @@ const TYPE_BADGE: Record<SourceType, string> = {
   service: 'bg-blue-500/15 text-blue-600',
 };
 
-const TYPE_LABEL: Record<SourceType, string> = {
-  ad: 'إعلانات',
-  product: 'منتجات',
-  service: 'خدمات',
-};
-
-function normalize(name: string): string {
-  return name.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-/** يزيل التكرار داخل النوع الواحد فقط (أول ظهور يفوز). */
-function dedupeWithinType(items: Item[]): Item[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const key = normalize(item.nameAr);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-/** ترتيب مخلوط: 2 إعلان، 1 منتج، 1 إعلان، 1 خدمة، تكرار — يطابق الخطة الأصلية. */
-export function interleave(ads: Item[], products: Item[], services: Item[]): Item[] {
-  const pattern: SourceType[] = ['ad', 'ad', 'product', 'ad', 'service', 'ad', 'product', 'service'];
-  const queues: Record<SourceType, Item[]> = {
-    ad: dedupeWithinType(ads),
-    product: dedupeWithinType(products),
-    service: dedupeWithinType(services),
-  };
-  const out: Item[] = [];
-  const total = queues.ad.length + queues.product.length + queues.service.length;
-  let guard = 0;
-
-  while (out.length < total && guard < total * pattern.length) {
-    const want = pattern[guard % pattern.length]!;
-    guard++;
-    const next = queues[want].shift();
-    if (next) out.push(next);
-  }
-  return out;
-}
-
 /** Root categories shown on the homepage; the rest are one tap away via "كل الفئات". */
 export const MAX_HOME_CATEGORIES = 24;
 
 export function CategoriesRow() {
-  // Prefer categories from GET /home — only fall back if /home failed/omitted them.
-  const home = useHomepage();
-  const fromHome = home.data?.categories;
-  // Each list is fetched on its own only if /home failed, or if the server
-  // isolated a failure of just that slice (null).
-  const homeSettled = home.isError || home.isSuccess;
-  const needAds = home.isError || (home.isSuccess && (fromHome?.ads ?? null) === null);
-  const needProducts = home.isError || (home.isSuccess && (fromHome?.products ?? null) === null);
-  const needServices = home.isError || (home.isSuccess && (fromHome?.services ?? null) === null);
-
-  const { data: adCats, isLoading: adLoading } = useCategories({ enabled: needAds });
-  const { data: productCats, isLoading: productLoading } = useProductCategories({
-    enabled: needProducts,
-  });
-  const { data: serviceCats, isLoading: serviceLoading } = useServiceCategories({
-    enabled: needServices,
-  });
-
-  const isLoading =
-    home.isPending ||
-    (homeSettled &&
-      ((needAds && adLoading) || (needProducts && productLoading) || (needServices && serviceLoading)));
-
-  const resolvedAdCats = fromHome?.ads ?? adCats;
-  const resolvedProductCats = fromHome?.products ?? productCats;
-  const resolvedServiceCats = fromHome?.services ?? serviceCats;
+  const { items: all, isLoading } = useCategoryItems();
 
   if (isLoading) {
     return (
@@ -152,33 +43,6 @@ export function CategoriesRow() {
     );
   }
 
-  const ads: Item[] = (resolvedAdCats ?? [])
-    .filter((c) => !c.parentId)
-    .map((c) => ({ id: c.id, nameAr: c.nameAr, slug: c.slug, type: 'ad' as const, href: ROUTES.category(c.slug) }));
-
-  const products: Item[] = (resolvedProductCats ?? [])
-    .filter((c) => !('parentId' in c) || !c.parentId)
-    .filter((c) => !('isActive' in c) || c.isActive)
-    .map((c) => ({
-      id: c.id,
-      nameAr: c.nameAr,
-      slug: c.slug,
-      type: 'product' as const,
-      href: `${ROUTES.search}?type=products&categoryId=${c.id}`,
-    }));
-
-  const services: Item[] = (resolvedServiceCats ?? [])
-    .filter((c) => !('parentId' in c) || !c.parentId)
-    .filter((c) => !('isActive' in c) || c.isActive)
-    .map((c) => ({
-      id: c.id,
-      nameAr: c.nameAr,
-      slug: c.slug,
-      type: 'service' as const,
-      href: `${ROUTES.search}?type=services&categoryId=${c.id}`,
-    }));
-
-  const all = interleave(ads, products, services);
   if (all.length === 0) return null;
   const items = all.slice(0, MAX_HOME_CATEGORIES);
 
@@ -200,7 +64,7 @@ export function CategoriesRow() {
             </span>
             <span
               className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                'rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
                 TYPE_BADGE[item.type],
               )}
             >
@@ -210,7 +74,7 @@ export function CategoriesRow() {
         );
       })}
       <Link
-        href={ROUTES.search}
+        href={ROUTES.categories}
         className="inline-flex w-20 shrink-0 flex-col items-center gap-1 rounded-2xl border border-dashed border-border bg-card px-2 py-2.5 text-center transition-all hover:-translate-y-0.5 hover:border-primary/40"
       >
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-foreground">

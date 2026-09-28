@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { homeService, isHomepageDegraded } from './home.service';
+import { isHomepageDegraded } from './home.service';
+import { getCachedHomepage } from './home.cache';
 import { getHomepageSchema } from './home.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 
@@ -7,7 +8,7 @@ export const homeController = {
   getHomepage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { query } = getHomepageSchema.parse({ query: req.query });
-      const homepage = await homeService.getHomepage(query);
+      const homepage = await getCachedHomepage(query);
       // Same cache posture as the individual list endpoints it replaces
       // (/ads, /stores, /service-listings all use SHORT-equivalent
       // 30s+90s SWR) — anonymous homepage traffic is the overwhelming

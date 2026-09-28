@@ -8,6 +8,8 @@ import { productCategoriesService } from '../../src/modules/product-categories/p
 import { serviceCategoriesService } from '../../src/modules/service-categories/service-categories.service';
 import { productsService } from '../../src/modules/products/products.service';
 import { serviceProvidersService } from '../../src/modules/service-providers/service-providers.service';
+import { recommendationsService } from '../../src/modules/recommendations/recommendations.service';
+import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/modules/ads/ads.service');
 jest.mock('../../src/modules/stores/stores.service');
@@ -17,6 +19,8 @@ jest.mock('../../src/modules/product-categories/product-categories.service');
 jest.mock('../../src/modules/service-categories/service-categories.service');
 jest.mock('../../src/modules/products/products.service');
 jest.mock('../../src/modules/service-providers/service-providers.service');
+jest.mock('../../src/modules/recommendations/recommendations.service');
+jest.mock('../../src/config/prisma', () => ({ prisma: { ad: { count: jest.fn() } } }));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
@@ -37,6 +41,10 @@ function mockAllOk() {
     providers: [{ id: 'p1' }],
     meta,
   });
+  (recommendationsService.getRecommendations as jest.Mock).mockResolvedValue([{ id: 'ra' }]);
+  (recommendationsService.getProductRecommendations as jest.Mock).mockResolvedValue([{ id: 'rp' }]);
+  (recommendationsService.getServiceListingRecommendations as jest.Mock).mockResolvedValue([{ id: 'rs' }]);
+  (prisma.ad.count as jest.Mock).mockResolvedValueOnce(120).mockResolvedValueOnce(7);
 }
 
 describe('homeService.getHomepage', () => {
@@ -88,6 +96,10 @@ describe('homeService.getHomepage', () => {
     (productsService.getProducts as jest.Mock).mockRejectedValue(fail);
     (serviceListingsService.getServiceListings as jest.Mock).mockRejectedValue(fail);
     (serviceProvidersService.getServiceProviders as jest.Mock).mockRejectedValue(fail);
+    (recommendationsService.getRecommendations as jest.Mock).mockRejectedValue(fail);
+    (recommendationsService.getProductRecommendations as jest.Mock).mockRejectedValue(fail);
+    (recommendationsService.getServiceListingRecommendations as jest.Mock).mockRejectedValue(fail);
+    (prisma.ad.count as jest.Mock).mockReset().mockRejectedValue(fail);
     await expect(homeService.getHomepage({})).rejects.toThrow('all sections failed');
   });
 
@@ -97,6 +109,42 @@ describe('homeService.getHomepage', () => {
     );
     const result = await homeService.getHomepage({ city: 'غزة' });
     expect(result.adsForHome?.source).toBe('general');
+  });
+});
+
+describe('guest trending + stats', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockAllOk();
+  });
+
+  it('bundles anonymous trending for all three types (no auth header)', async () => {
+    const result = await homeService.getHomepage({ city: 'غزة' });
+    expect(result.guestTrending.ads).toEqual([{ id: 'ra' }]);
+    expect(result.guestTrending.products).toEqual([{ id: 'rp' }]);
+    expect(result.guestTrending.services).toEqual([{ id: 'rs' }]);
+    expect(recommendationsService.getRecommendations).toHaveBeenCalledWith(
+      { limit: 3, city: 'غزة' },
+      undefined,
+    );
+  });
+
+  it('isolates a failing trending slice as null and marks the page degraded', async () => {
+    (recommendationsService.getProductRecommendations as jest.Mock).mockRejectedValue(new Error('x'));
+    const result = await homeService.getHomepage({});
+    expect(result.guestTrending.products).toBeNull();
+    expect(result.guestTrending.ads).not.toBeNull();
+    expect(isHomepageDegraded(result)).toBe(true);
+  });
+
+  it('exposes live counters, and a stats failure does not degrade the page', async () => {
+    const ok = await homeService.getHomepage({});
+    expect(ok.stats).toEqual({ activeAds: 120, adsLast24h: 7 });
+
+    (prisma.ad.count as jest.Mock).mockReset().mockRejectedValue(new Error('x'));
+    const failed = await homeService.getHomepage({});
+    expect(failed.stats).toBeNull();
+    expect(isHomepageDegraded(failed)).toBe(false);
   });
 });
 

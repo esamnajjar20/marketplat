@@ -68,7 +68,7 @@ export function RecentProductsSection() {
   const header = (
     <SectionHeader
       eyebrow="تصفّح"
-      title="منتجات"
+      title="أحدث المنتجات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.products, label: 'عرض الكل ←' }}
       badge={

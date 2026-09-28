@@ -2,6 +2,7 @@ import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { HomeSafeBuyingTips } from '@/components/home/HomeSafeBuyingTips';
 import { HomeGuestPublishBar } from '@/components/home/HomeGuestPublishBar';
 import { HomeBrowseLinks } from '@/components/home/HomeBrowseLinks';
+import { HomeAppPromo } from '@/components/home/HomeAppPromo';
 import { ForYouMixedSection } from '@/components/home/ForYouMixedSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
 import { HomeServicesSection } from '@/components/home/HomeServicesSection';
@@ -58,6 +59,7 @@ export function HomePageContent() {
         </div>
 
         <div className="mt-8 space-y-4 sm:mt-10">
+          <HomeAppPromo />
           <HomeSafeBuyingTips />
           <HomeBrowseLinks />
         </div>

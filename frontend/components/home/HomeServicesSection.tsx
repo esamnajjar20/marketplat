@@ -1,13 +1,12 @@
 'use client';
 
 import { Briefcase } from 'lucide-react';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
-import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScrollRail';
+import { HomeScrollRailItem } from '@/components/home/HomeScrollRail';
+import { HomeRailShell } from '@/components/home/HomeRailShell';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
-import { StoreCardSkeleton } from '@/components/shared/skeletons';
-import { ApiError } from '@/components/shared/ApiError';
+import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
@@ -44,7 +43,7 @@ export function HomeServicesSection() {
   const header = (
     <SectionHeader
       eyebrow="تصفّح"
-      title="خدمات"
+      title="أحدث الخدمات"
       icon={<Briefcase className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.services, label: 'عرض الكل ←' }}
       badge={
@@ -60,61 +59,30 @@ export function HomeServicesSection() {
     />
   );
 
-  if (showLoading) {
-    return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
-        {header}
-        <HomeScrollRail>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <HomeScrollRailItem key={i}>
-              <StoreCardSkeleton />
-            </HomeScrollRailItem>
-          ))}
-        </HomeScrollRail>
-      </section>
-    );
-  }
-
-  if (showError) {
-    return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
-        {header}
-        <ApiError
-          error={error}
-          onRetry={() => {
-            void home.refetch();
-            void refetch();
-          }}
-          variant="inline"
-        />
-      </section>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
-        {header}
-        <EmptyState
-          icon={<Briefcase />}
-          title="لا توجد خدمات بعد"
-          description="ستظهر الخدمات هنا عند توفرها."
-          compact
-        />
-      </section>
-    );
-  }
+  const status = showLoading ? 'loading' : showError ? 'error' : items.length === 0 ? 'empty' : 'ready';
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
-      {header}
-      <HomeScrollRail className="stagger-fade-in">
-        {items.map((listing) => (
-          <HomeScrollRailItem key={listing.id}>
-            <ServiceListingCard listing={listing} />
-          </HomeScrollRailItem>
-        ))}
-      </HomeScrollRail>
-    </section>
+    <HomeRailShell
+      header={header}
+      status={status}
+      skeleton={<ServiceListingCardSkeleton />}
+      skeletonCount={4}
+      error={error}
+      onRetry={() => {
+        void home.refetch();
+        void refetch();
+      }}
+      empty={{
+        icon: <Briefcase />,
+        title: 'لا توجد خدمات بعد',
+        description: 'ستظهر الخدمات هنا عند توفرها.',
+      }}
+    >
+      {items.map((listing) => (
+        <HomeScrollRailItem key={listing.id}>
+          <ServiceListingCard listing={listing} />
+        </HomeScrollRailItem>
+      ))}
+    </HomeRailShell>
   );
 }

@@ -43,6 +43,14 @@ export interface HomepagePayload {
   };
   /** City results, or general fallback when the selected city has no results. */
   adsForHome: HomepageLocationPage<AdListItem> | null;
+  /** Anonymous "الأكثر رواجًا" shelf (3 per type); a null slice means it failed server-side. */
+  guestTrending?: {
+    ads: AdListItem[] | null;
+    products: ProductWithStore[] | null;
+    services: ServiceListingWithProvider[] | null;
+  };
+  /** Live counters for the trust strip; null when the count failed. */
+  stats?: { activeAds: number; adsLast24h: number } | null;
   belowFold?: {
     recentProducts: HomepageLocationPage<ProductWithStore> | null;
     promotedProducts: Page<ProductWithStore> | null;

@@ -36,3 +36,8 @@ export function getRawApiUrl(): string | undefined {
 export function getRawVapidPublicKey(): string | undefined {
   return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 }
+
+/** Public Android install URL (Play Store or direct APK). Unset → no promo is shown. */
+export function getRawAndroidAppUrl(): string | undefined {
+  return process.env.NEXT_PUBLIC_ANDROID_APP_URL;
+}

@@ -36,7 +36,7 @@ describe('HomeAboveFold', () => {
   it('renders the ads rail with the city badge when ready', () => {
     vi.mocked(useAdsForHome).mockReturnValue({ isChecking: false, isLoading: false, source: 'city' } as never);
     render(<HomeAboveFold />);
-    expect(screen.getByText('إعلانات')).toBeInTheDocument();
+    expect(screen.getByText('أحدث الإعلانات')).toBeInTheDocument();
     expect(screen.getByTestId('recent-ads')).toBeInTheDocument();
     expect(screen.getByTestId('badge')).toHaveTextContent('city:غزة');
   });

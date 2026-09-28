@@ -38,16 +38,25 @@ export function HomeScrollRail({
     if (!el) return;
     update();
     el.addEventListener('scroll', update, { passive: true });
-    let observer: ResizeObserver | undefined;
+    let resizeObserver: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(update);
-      observer.observe(el);
+      resizeObserver = new ResizeObserver(update);
+      resizeObserver.observe(el);
+    }
+    // Adding/removing cards changes scrollWidth without resizing the strip
+    // itself, so watch its children instead of depending on `children`
+    // (which re-bound every listener on each render).
+    let mutationObserver: MutationObserver | undefined;
+    if (typeof MutationObserver !== 'undefined') {
+      mutationObserver = new MutationObserver(update);
+      mutationObserver.observe(el, { childList: true });
     }
     return () => {
       el.removeEventListener('scroll', update);
-      observer?.disconnect();
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
     };
-  }, [update, children]);
+  }, [update]);
 
   const scrollByPage = (direction: 'prev' | 'next') => {
     const el = ref.current;

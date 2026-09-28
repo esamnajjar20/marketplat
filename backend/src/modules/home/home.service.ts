@@ -6,6 +6,8 @@ import { productCategoriesService } from '../product-categories/product-categori
 import { serviceCategoriesService } from '../service-categories/service-categories.service';
 import { productsService } from '../products/products.service';
 import { serviceProvidersService } from '../service-providers/service-providers.service';
+import { recommendationsService } from '../recommendations/recommendations.service';
+import { prisma } from '../../config/prisma';
 import { logger } from '../../shared/utils/logger';
 import type { GetHomepageQuery } from './home.validation';
 
@@ -15,6 +17,14 @@ const HOME_ADS_LIMIT = 6;
 const SECTION_LIMIT = 8;
 const STORES_SECTION_LIMIT = 6;
 const PROVIDERS_SECTION_LIMIT = 6;
+/**
+ * Per-type size of the guest "الأكثر رواجًا" shelf. Must equal the
+ * `perType` the frontend's ForYouMixedSection asks for (always 3: it is
+ * max(3, ceil(limit / 3)) for both the 9 and the data-saver 6 limits), or the
+ * seeded cache key would not match and the client would refetch anyway.
+ */
+const GUEST_TRENDING_PER_TYPE = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Aggregates above-the-fold + below-the-fold homepage data.
@@ -68,6 +78,15 @@ async function settle<T>(name: string, promise: Promise<T>): Promise<T | null> {
 type Sortable = { sortBy: 'createdAt'; sortOrder: 'desc' };
 const LATEST: Sortable = { sortBy: 'createdAt', sortOrder: 'desc' };
 
+/** Live counters shown in the trust strip. Only ACTIVE ads count. */
+async function homeStats(): Promise<{ activeAds: number; adsLast24h: number }> {
+  const [activeAds, adsLast24h] = await Promise.all([
+    prisma.ad.count({ where: { status: 'ACTIVE' } }),
+    prisma.ad.count({ where: { status: 'ACTIVE', createdAt: { gte: new Date(Date.now() - DAY_MS) } } }),
+  ]);
+  return { activeAds, adsLast24h };
+}
+
 export const homeService = {
   getHomepage: async (query: GetHomepageQuery) => {
     const cityFilter = query.city ? { city: query.city } : {};
@@ -84,6 +103,10 @@ export const homeService = {
       homeServices,
       featuredStores,
       nearbyProviders,
+      guestAds,
+      guestProducts,
+      guestServices,
+      stats,
     ] = await Promise.all([
       settle('featuredAds', adsService.getAds({ isFeatured: true, limit: CAROUSEL_LIMIT })),
       settle('carouselStores', storesService.getFeaturedStores({ limit: CAROUSEL_LIMIT })),
@@ -146,6 +169,26 @@ export const homeService = {
           (result) => result.providers.length > 0,
         ),
       ),
+      // Guest trending shelf (was 3 client requests per visitor). Called with
+      // no auth header, so it is the anonymous trending result — identical for
+      // every guest of a given city, hence safe inside the shared payload.
+      settle(
+        'guestTrendingAds',
+        recommendationsService.getRecommendations({ limit: GUEST_TRENDING_PER_TYPE, ...cityFilter }, undefined),
+      ),
+      settle(
+        'guestTrendingProducts',
+        recommendationsService.getProductRecommendations({ limit: GUEST_TRENDING_PER_TYPE, ...cityFilter }, undefined),
+      ),
+      settle(
+        'guestTrendingServices',
+        recommendationsService.getServiceListingRecommendations(
+          { limit: GUEST_TRENDING_PER_TYPE, ...cityFilter },
+          undefined,
+        ),
+      ),
+      // Real counters for the trust strip. Cosmetic: a failure yields null.
+      settle('stats', homeStats()),
     ]);
 
     const sections = [
@@ -184,6 +227,12 @@ export const homeService = {
       },
       /** Single page for "أحدث الإعلانات" — already city-scoped when query.city set */
       adsForHome: homeAds,
+      guestTrending: {
+        ads: guestAds,
+        products: guestProducts,
+        services: guestServices,
+      },
+      stats,
       belowFold: {
         recentProducts,
         promotedProducts,
@@ -203,10 +252,12 @@ export type HomepageResult = Awaited<ReturnType<typeof homeService.getHomepage>>
 
 /** True when at least one section failed and was replaced by null. */
 export function isHomepageDegraded(payload: HomepageResult): boolean {
-  const { featuredCarousel, categories, adsForHome, belowFold } = payload;
+  const { featuredCarousel, categories, adsForHome, belowFold, guestTrending } = payload;
+  // `stats` is cosmetic and deliberately not part of the degraded check.
   return [
     ...Object.values(featuredCarousel),
     ...Object.values(categories),
+    ...Object.values(guestTrending),
     adsForHome,
     ...Object.values(belowFold),
   ].some((section) => section === null);

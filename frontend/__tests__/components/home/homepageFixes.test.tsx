@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
-import { Car, Tag, Wrench } from 'lucide-react';
+import { Car, Home, Smartphone, Tag, Wrench } from 'lucide-react';
 import { greeting } from '@/components/home/WelcomeBar';
 import {
   slideIndexFromScroll,
@@ -91,6 +91,15 @@ describe('CategoriesRow helpers', () => {
   it('matches latin slugs by whole token (car ≠ healthcare)', () => {
     expect(iconFor('cars', 'سيارات')).toBe(Car);
     expect(iconFor('healthcare', 'رعاية صحية')).toBe(Tag);
+  });
+
+  it('matches Arabic names from the start of a word, not by containment', () => {
+    // "ارض" must not match inside "معارض"
+    expect(iconFor('x', 'معارض')).toBe(Tag);
+    expect(iconFor('x', 'أراضي')).toBe(Home);
+    expect(iconFor('x', 'الأراضي والعقارات')).toBe(Home);
+    expect(iconFor('x', 'إلكترونيات')).toBe(Smartphone);
+    expect(iconFor('x', 'معارض سيارات')).toBe(Car);
   });
 
   it('gives unmatched service categories the wrench, others the tag', () => {

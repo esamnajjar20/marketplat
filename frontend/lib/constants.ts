@@ -26,6 +26,7 @@ export const ROUTES = {
   // REORG-03: was `/my-ads/${id}` — renamed to match the edit-route
   // naming pattern used by myServiceEdit/myStoreProductEdit below.
   adEdit:        (id: string)   => `/my-ads/${id}/edit`,
+  categories:    '/categories',
   category:      (slug: string) => `/categories/${slug}`,
   userProfile:   (id: string)   => `/profile/${id}`,
   sellerProfile: (id: string)   => `/sellers/${id}`,

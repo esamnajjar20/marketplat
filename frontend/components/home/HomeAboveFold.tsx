@@ -26,7 +26,7 @@ export function HomeAboveFold() {
   const latestAdsHeadingLoading = (
     <SectionHeader
       eyebrow="تصفّح"
-      title="إعلانات"
+      title="أحدث الإعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
     />
@@ -35,7 +35,7 @@ export function HomeAboveFold() {
   const latestAdsHeadingLoaded = (
     <SectionHeader
       eyebrow="تصفّح"
-      title="إعلانات"
+      title="أحدث الإعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
       badge={<LocationSourceBadge source={recentSource} city={badgeCity} requestedCity={city} quiet />}

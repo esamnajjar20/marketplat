@@ -40,6 +40,7 @@ vi.mock('@/components/home/LocationSourceBadge', () => ({
 }));
 vi.mock('@/components/shared/skeletons', () => ({
   StoreCardSkeleton: () => <div data-testid="skeleton" />,
+  ServiceListingCardSkeleton: () => <div data-testid="skeleton" />,
 }));
 vi.mock('@/components/shared/ApiError', () => ({
   ApiError: ({ message }: { message?: string }) => <div>{message ?? 'error'}</div>,

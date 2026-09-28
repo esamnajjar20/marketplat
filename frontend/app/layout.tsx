@@ -81,10 +81,9 @@ export const metadata: Metadata = {
   robots:      { index: true, follow: true },
 
   // FIX SEO-03: locale is ar_PS
-  // FIX SEO-04: `/og-default.jpg` referenced a file that never existed —
-  // public/ was completely empty, so every shared link showed a broken
-  // image. Omitted until a real 1200×630 default OG image is added to
-  // public/og-default.jpg, at which point restore the `images` field below.
+  // FIX SEO-04 (resolved): public/og-default.png (1200×630) now exists, so the
+  // default share image is restored below. Pages built with buildMetadata()
+  // inherit it too (see lib/seo.ts → DEFAULT_OG_IMAGE).
   openGraph: {
     type:      'website',
     locale:    'ar_PS',
@@ -92,11 +91,13 @@ export const metadata: Metadata = {
     siteName:  APP_NAME,
     title:     APP_NAME,
     description: 'منصة الإعلانات المبوّبة الأولى في غزة',
+    images: [{ url: '/og-default.png', width: 1200, height: 630, alt: APP_NAME }],
   },
 
   twitter: {
     card:  'summary_large_image',
     title: APP_NAME,
+    images: ['/og-default.png'],
   },
 
   // FIX PWA-04: manifest.ts ينتج /manifest.webmanifest تلقائيًا، لكن

@@ -3,11 +3,10 @@
 import { Store as StoreIcon } from 'lucide-react';
 import { StoreCard } from '@/components/stores/StoreCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
-import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScrollRail';
+import { HomeScrollRailItem } from '@/components/home/HomeScrollRail';
+import { HomeRailShell } from '@/components/home/HomeRailShell';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { ApiError } from '@/components/shared/ApiError';
 import { useStores } from '@/hooks/queries/useStores';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
@@ -62,56 +61,30 @@ export function FeaturedStoresSection() {
     />
   );
 
-  if (showLoading) {
-    return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
-        {header}
-        <HomeScrollRail>
-          {Array.from({ length: limit }).map((_, i) => (
-            <HomeScrollRailItem key={i}>
-              <StoreCardSkeleton />
-            </HomeScrollRailItem>
-          ))}
-        </HomeScrollRail>
-      </section>
-    );
-  }
-
-  if (showError) {
-    return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
-        {header}
-        <ApiError
-          error={error}
-          onRetry={() => {
-            void home.refetch();
-            void refetch();
-          }}
-          variant="inline"
-        />
-      </section>
-    );
-  }
+  const status = showLoading ? 'loading' : showError ? 'error' : items.length === 0 ? 'empty' : 'ready';
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
-      {header}
-      {items.length === 0 ? (
-        <EmptyState
-          icon={<StoreIcon />}
-          title="لا توجد متاجر بعد"
-          description="ستظهر المتاجر هنا عند توفرها."
-          compact
-        />
-      ) : (
-        <HomeScrollRail className="stagger-fade-in">
-          {items.map((store) => (
-            <HomeScrollRailItem key={store.id}>
-              <StoreCard store={store} />
-            </HomeScrollRailItem>
-          ))}
-        </HomeScrollRail>
-      )}
-    </section>
+    <HomeRailShell
+      header={header}
+      status={status}
+      skeleton={<StoreCardSkeleton />}
+      skeletonCount={limit}
+      error={error}
+      onRetry={() => {
+        void home.refetch();
+        void refetch();
+      }}
+      empty={{
+        icon: <StoreIcon />,
+        title: 'لا توجد متاجر بعد',
+        description: 'ستظهر المتاجر هنا عند توفرها.',
+      }}
+    >
+      {items.map((store) => (
+        <HomeScrollRailItem key={store.id}>
+          <StoreCard store={store} />
+        </HomeScrollRailItem>
+      ))}
+    </HomeRailShell>
   );
 }

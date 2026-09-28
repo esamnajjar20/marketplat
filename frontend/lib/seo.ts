@@ -8,6 +8,14 @@
 import type { Metadata } from 'next';
 import { APP_NAME, APP_URL } from './constants';
 
+/**
+ * Default social-share image (1200×630) served from public/. Used whenever a
+ * page has no image of its own, so WhatsApp/Facebook/X previews never render
+ * as a bare text card. Relative on purpose: `metadataBase` in the root layout
+ * resolves it to an absolute URL.
+ */
+export const DEFAULT_OG_IMAGE = '/og-default.png';
+
 interface BaseMetadataOptions {
   title: string;
   description?: string;
@@ -25,6 +33,9 @@ export function buildMetadata({
   image,
 }: BaseMetadataOptions): Metadata {
   const url = `${APP_URL}${path}`;
+  const ogImages = image
+    ? [{ url: image }]
+    : [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: APP_NAME }];
 
   return {
     title,
@@ -39,13 +50,13 @@ export function buildMetadata({
       url,
       siteName:    APP_NAME,
       type:        'website',
-      ...(image && { images: [{ url: image }] }),
+      images:      ogImages,
     },
     twitter: {
       card:        'summary_large_image',
       title:       `${title} | ${APP_NAME}`,
       description,
-      ...(image && { images: [image] }),
+      images:      [image ?? DEFAULT_OG_IMAGE],
     },
   };
 }

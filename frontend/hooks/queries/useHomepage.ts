@@ -42,7 +42,24 @@ function seedHomeCaches(
   if (seededPayloads.has(payload)) return;
   seededPayloads.add(payload);
 
-  const { featuredCarousel, categories, adsForHome, belowFold } = payload;
+  const { featuredCarousel, categories, adsForHome, belowFold, guestTrending } = payload;
+
+  // Guest "الأكثر رواجًا": ForYouMixedSection asks for 3 per type with the
+  // 'guest' scope. The server already applied the city (with its own general
+  // backfill), so it is safe to seed under the requested city's key. Signed-in
+  // users read the 'user' scope and are unaffected.
+  if (guestTrending) {
+    const params = { limit: 3, ...(city ? { city } : {}) };
+    if (guestTrending.ads) {
+      queryClient.setQueryData(queryKeys.recommendations.list(params, 'guest'), guestTrending.ads);
+    }
+    if (guestTrending.products) {
+      queryClient.setQueryData(queryKeys.recommendations.products(params, 'guest'), guestTrending.products);
+    }
+    if (guestTrending.services) {
+      queryClient.setQueryData(queryKeys.recommendations.services(params, 'guest'), guestTrending.services);
+    }
+  }
 
   if (featuredCarousel.ads) {
     queryClient.setQueryData(
@@ -163,7 +180,9 @@ export function useHomepage() {
     placeholderData: (previous) =>
       previous ?? queryClient.getQueryData<HomepagePayload>(queryKeys.home.page(undefined)),
     staleTime: CACHE_TTL.adsList,
-    refetchOnMount: false,
+    // No `refetchOnMount` override: the QueryClient default refetches on
+    // mount only when the data is older than staleTime (90s). The previous
+    // `false` pinned stale data (sold/deleted ads) until gcTime (10 min).
     refetchOnWindowFocus: false,
   });
 

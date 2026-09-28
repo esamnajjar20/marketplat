@@ -8,7 +8,7 @@
  * either way.
  */
 import { describe, it, expect } from 'vitest';
-import { buildMetadata, buildAdMetadata, buildCategoryMetadata } from '@/lib/seo';
+import { buildMetadata, buildAdMetadata, buildCategoryMetadata, DEFAULT_OG_IMAGE } from '@/lib/seo';
 import { APP_NAME, APP_URL } from '@/lib/constants';
 
 describe('buildMetadata', () => {
@@ -33,10 +33,12 @@ describe('buildMetadata', () => {
     expect(metadata.twitter?.title).toBe(`عنوان الصفحة | ${APP_NAME}`);
   });
 
-  it('omits openGraph/twitter images when no image is given', () => {
+  it('falls back to the default share image when no image is given', () => {
     const metadata = buildMetadata({ title: 'بدون صورة' });
-    expect(metadata.openGraph?.images).toBeUndefined();
-    expect(metadata.twitter?.images).toBeUndefined();
+    expect(metadata.openGraph?.images).toEqual([
+      { url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: APP_NAME },
+    ]);
+    expect(metadata.twitter?.images).toEqual([DEFAULT_OG_IMAGE]);
   });
 
   it('includes the image in both openGraph and twitter when given', () => {
@@ -72,11 +74,13 @@ describe('buildAdMetadata', () => {
     expect(metadata.openGraph?.images).toEqual([{ url: baseAd.images[0] }]);
   });
 
-  it('does not throw and omits the image when the ad has no images', () => {
+  it('does not throw and falls back to the default image when the ad has no images', () => {
     const adWithoutImages = { ...baseAd, images: [] };
     expect(() => buildAdMetadata(adWithoutImages)).not.toThrow();
     const metadata = buildAdMetadata(adWithoutImages);
-    expect(metadata.openGraph?.images).toBeUndefined();
+    expect(metadata.openGraph?.images).toEqual([
+      { url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: APP_NAME },
+    ]);
   });
 
   it('is indexable by default (ad pages should be crawled)', () => {

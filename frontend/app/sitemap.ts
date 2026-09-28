@@ -232,6 +232,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency:  'always',
       priority:         0.8,
     },
+    {
+      url:              `${APP_URL}/categories`,
+      lastModified:     new Date(),
+      changeFrequency:  'weekly',
+      priority:         0.7,
+    },
   ];
 
   // 2. Category pages
