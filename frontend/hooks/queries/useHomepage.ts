@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { homeApi } from '@/api/home.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -136,7 +136,7 @@ function seedHomeCaches(
  *   app/(public)/page.tsx) and arrives through <HydrationBoundary>; the
  *   effect below then seeds the section caches, since queryFn never ran
  *   on the client in that case.
- * - `placeholderData: keepPreviousData` keeps the current sections on
+ * - `placeholderData` keeps the current sections on
  *   screen while a different city loads, instead of collapsing the whole
  *   page back to skeletons on every city change.
  */
@@ -156,7 +156,12 @@ export function useHomepage() {
       seedHomeCaches(queryClient, payload, city);
       return payload;
     },
-    placeholderData: keepPreviousData,
+    // Keep the previous payload on screen while a new city loads. On first
+    // load with a city (signed-in user with a profile city) there is no
+    // previous payload, so fall back to the server-prefetched general one —
+    // HomeBusyBoundary dims it — instead of collapsing to a full skeleton.
+    placeholderData: (previous) =>
+      previous ?? queryClient.getQueryData<HomepagePayload>(queryKeys.home.page(undefined)),
     staleTime: CACHE_TTL.adsList,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

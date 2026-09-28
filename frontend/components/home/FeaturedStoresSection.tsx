@@ -3,6 +3,7 @@
 import { Store as StoreIcon } from 'lucide-react';
 import { StoreCard } from '@/components/stores/StoreCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
+import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -11,6 +12,7 @@ import { useStores } from '@/hooks/queries/useStores';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { homeSectionLimit } from '@/lib/listLimits';
+import { collectIds, dedupeKeepingMin } from '@/lib/homeDedupe';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
@@ -35,7 +37,11 @@ export function FeaturedStoresSection() {
     { limit, city },
     { enabled: allowFetch },
   );
-  const items = hasSeed ? (seeded!.items ?? []).slice(0, limit) : (data?.items ?? []);
+  // Stores already featured in the carousel are not repeated here.
+  const carouselStoreIds = collectIds(home.data?.featuredCarousel?.stores?.items);
+  const items = hasSeed
+    ? dedupeKeepingMin(seeded!.items ?? [], carouselStoreIds).slice(0, limit)
+    : (data?.items ?? []);
   const showLoading = hasSeed ? false : home.isPending || isLoading;
   const showError = hasSeed ? false : isError;
 
@@ -50,7 +56,7 @@ export function FeaturedStoresSection() {
       cta={{ href: ROUTES.stores, label: 'عرض الكل ←' }}
       badge={
         !showLoading ? (
-          <LocationSourceBadge source={badgeSource} city={badgeCity} />
+          <LocationSourceBadge source={badgeSource} city={badgeCity} requestedCity={city} quiet />
         ) : undefined
       }
     />
@@ -60,13 +66,13 @@ export function FeaturedStoresSection() {
     return (
       <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
         {header}
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        <HomeScrollRail>
           {Array.from({ length: limit }).map((_, i) => (
-            <div key={i} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
+            <HomeScrollRailItem key={i}>
               <StoreCardSkeleton />
-            </div>
+            </HomeScrollRailItem>
           ))}
-        </div>
+        </HomeScrollRail>
       </section>
     );
   }
@@ -98,13 +104,13 @@ export function FeaturedStoresSection() {
           compact
         />
       ) : (
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory stagger-fade-in [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        <HomeScrollRail className="stagger-fade-in">
           {items.map((store) => (
-            <div key={store.id} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
+            <HomeScrollRailItem key={store.id}>
               <StoreCard store={store} />
-            </div>
+            </HomeScrollRailItem>
           ))}
-        </div>
+        </HomeScrollRail>
       )}
     </section>
   );

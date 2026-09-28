@@ -24,6 +24,9 @@ vi.mock('@/components/home/NearbyProvidersSection', () => ({ NearbyProvidersSect
 vi.mock('@/components/home/HomeSafeBuyingTips', () => ({ HomeSafeBuyingTips: stub('tips') }));
 vi.mock('@/components/home/HomeBrowseLinks', () => ({ HomeBrowseLinks: stub('browse-links') }));
 vi.mock('@/components/home/HomeGuestPublishBar', () => ({ HomeGuestPublishBar: stub('guest-bar') }));
+vi.mock('@/components/home/HomeBusyBoundary', () => ({
+  HomeBusyBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock('@/components/shared/LazySection', () => ({
   LazySection: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

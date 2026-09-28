@@ -21,7 +21,9 @@ export const homeController = {
           ? 'public, max-age=5'
           : 'public, max-age=30, stale-while-revalidate=90',
       );
-      res.setHeader('Vary', 'Authorization');
+      // No Vary: Authorization — /home is identical for every viewer (no
+      // per-user fields such as isFavorited), so keying the cache on the
+      // header would only fragment it.
       res.status(200).json(successResponse('Homepage fetched', homepage));
     } catch (error) {
       next(error);

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, AlertTriangle } from 'lucide-react';
 import { AdCard } from '@/components/ads/AdCard';
@@ -94,8 +95,22 @@ export function ForYouMixedSection() {
     opts,
   );
 
-  const isLoading =
-    !opts.enabled || adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
+  const anyLoading = adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
+  const anyData = Boolean(adsQ.data?.length || productsQ.data?.length || servicesQ.data?.length);
+
+  // The three requests are independent: if one is slow but another already
+  // returned items, stop showing skeletons after a short grace period instead
+  // of waiting for the slowest. (Waiting briefly first avoids the shelf
+  // reshuffling as each type arrives.)
+  const [graceExpired, setGraceExpired] = useState(false);
+  const waitingOnSlowOne = opts.enabled && anyLoading && anyData;
+  useEffect(() => {
+    if (!waitingOnSlowOne) return;
+    const t = setTimeout(() => setGraceExpired(true), 1500);
+    return () => clearTimeout(t);
+  }, [waitingOnSlowOne]);
+
+  const isLoading = !opts.enabled || (anyLoading && !(anyData && graceExpired));
   const isError = adsQ.isError && productsQ.isError && servicesQ.isError;
 
   const items = interleaveMixed(

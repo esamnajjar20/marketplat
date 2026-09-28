@@ -67,11 +67,14 @@ interface Slide {
   imageUrl: string;
 }
 
-const BADGE: Record<SlideType, { label: string; className: string }> = {
-  ad: { label: '🏷️ إعلان', className: 'bg-accent text-accent-foreground' },
-  product: { label: '🛒 منتج', className: 'bg-emerald-600 text-white' },
-  store: { label: '🏪 متجر', className: 'bg-primary text-primary-foreground' },
+const BADGE: Record<SlideType, { emoji: string; label: string; className: string }> = {
+  ad: { emoji: '🏷️', label: 'إعلان', className: 'bg-accent text-accent-foreground' },
+  product: { emoji: '🛒', label: 'منتج', className: 'bg-emerald-600 text-white' },
+  store: { emoji: '🏪', label: 'متجر', className: 'bg-primary text-primary-foreground' },
 };
+
+/** 16:9 on phones; wider/shorter on desktop so the carousel does not fill the fold. */
+export const CAROUSEL_ASPECT = 'aspect-video md:aspect-[21/9] lg:aspect-[3/1]';
 
 export function FeaturedCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -200,7 +203,7 @@ export function FeaturedCarousel() {
   }
 
   if (isLoading) {
-    return <Skeleton className="aspect-video w-full rounded-2xl" />;
+    return <Skeleton className={cn(CAROUSEL_ASPECT, 'w-full rounded-2xl')} />;
   }
 
   // لا محتوى مميز: لا نعرض بطاقة فارغة في أعلى الصفحة.
@@ -254,7 +257,10 @@ export function FeaturedCarousel() {
             onPointerDown={() => {
               lastInteractionRef.current = Date.now();
             }}
-            className="relative aspect-video w-full shrink-0 snap-center overflow-hidden rounded-2xl bg-muted"
+            className={cn(
+              'relative w-full shrink-0 snap-center overflow-hidden rounded-2xl bg-muted',
+              CAROUSEL_ASPECT,
+            )}
             aria-roledescription="slide"
             aria-label={`${i + 1} من ${slides.length}: ${slide.title}`}
           >
@@ -273,6 +279,7 @@ export function FeaturedCarousel() {
                 BADGE[slide.type].className,
               )}
             >
+              <span aria-hidden>{BADGE[slide.type].emoji} </span>
               {BADGE[slide.type].label}
             </span>
             <div className="absolute inset-x-0 bottom-0 space-y-0.5 p-3 text-white">

@@ -32,4 +32,14 @@ describe('LocationSourceBadge', () => {
     expect(screen.getByText('نتائج مقترحة')).toBeInTheDocument();
     expect(screen.queryByText(/نتائج في/)).not.toBeInTheDocument();
   });
+
+  it('explains the fallback when a requested city had no results', () => {
+    render(<LocationSourceBadge source="general" requestedCity="رفح" />);
+    expect(screen.getByText('لا نتائج في رفح — نتائج عامة')).toBeInTheDocument();
+  });
+
+  it('renders nothing in quiet mode for general results without a city', () => {
+    const { container } = render(<LocationSourceBadge source="general" quiet />);
+    expect(container).toBeEmptyDOMElement();
+  });
 });

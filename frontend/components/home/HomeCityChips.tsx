@@ -39,13 +39,12 @@ export function HomeCityChips() {
         </span>
         <div
           className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          role="listbox"
+          role="group"
           aria-label="اختر مدينة لتصفية النتائج"
         >
           <button
             type="button"
-            role="option"
-            aria-selected={!city}
+            aria-pressed={!city}
             onClick={() => setCity(undefined)}
             className={cn(
               'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
@@ -62,8 +61,7 @@ export function HomeCityChips() {
               <button
                 key={c}
                 type="button"
-                role="option"
-                aria-selected={selected}
+                aria-pressed={selected}
                 onClick={() => setCity(selected ? undefined : c)}
                 className={cn(
                   'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors',

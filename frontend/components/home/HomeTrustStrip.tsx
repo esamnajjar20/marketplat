@@ -41,7 +41,7 @@ export function HomeTrustStrip({ className }: { className?: string }) {
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-bold text-foreground sm:text-sm">{title}</span>
-              <span className="mt-0.5 hidden text-[11px] leading-snug text-muted-foreground sm:block">
+              <span className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
                 {desc}
               </span>
             </span>

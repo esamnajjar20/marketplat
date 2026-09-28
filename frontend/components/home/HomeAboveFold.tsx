@@ -38,7 +38,7 @@ export function HomeAboveFold() {
       title="إعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
-      badge={<LocationSourceBadge source={recentSource} city={badgeCity} />}
+      badge={<LocationSourceBadge source={recentSource} city={badgeCity} requestedCity={city} quiet />}
     />
   );
 

@@ -4,6 +4,7 @@ import { useAds } from '@/hooks/queries/useAds';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { homeSectionLimit } from '@/lib/listLimits';
+import { collectIds, dedupeKeepingMin } from '@/lib/homeDedupe';
 import { useDataSaver } from '@/lib/useDataSaver';
 import type { AdListItem } from '@/types/ad.types';
 import type { HomepageLocationSource } from '@/api/home.api';
@@ -49,6 +50,9 @@ export function useAdsForHome(): AdsForHomeResult {
   );
 
   if (hasSeed) {
+    // Featured ads already shown in the carousel are not repeated here.
+    const carouselIds = collectIds(home.data?.featuredCarousel?.ads?.items);
+    const seededItems = dedupeKeepingMin(seeded!.items as AdListItem[], carouselIds);
     return {
       isChecking: false,
       isLoading: false,
@@ -56,7 +60,7 @@ export function useAdsForHome(): AdsForHomeResult {
       error: null,
       source: seeded!.source,
       radiusKm: null,
-      items: { kind: 'ads', data: (seeded!.items as AdListItem[]).slice(0, limit) },
+      items: { kind: 'ads', data: seededItems.slice(0, limit) },
       refetch: () => {
         void home.refetch();
       },

@@ -2,11 +2,23 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
+import { CITIES } from '@/lib/constants';
 import {
   readBrowseCity,
   writeBrowseCity,
   subscribeBrowseCity,
 } from '@/lib/browseCity';
+
+/**
+ * /home only understands the fixed CITIES list (the backend treats anything
+ * else as "no city"). A free-text profile city such as "غزة " or "Gaza" must
+ * not be shown as an active filter while the results are actually general.
+ */
+function matchKnownCity(value: string | undefined | null): string | undefined {
+  const normalized = value?.trim().replace(/\s+/g, ' ');
+  if (!normalized) return undefined;
+  return (CITIES as readonly string[]).includes(normalized) ? normalized : undefined;
+}
 
 /**
  * Effective homepage city filter:
@@ -18,23 +30,24 @@ import {
  */
 export function useBrowseCity() {
   const isHydrated = useAuthStore(selectIsHydrated);
-  const profileCity = useAuthStore((s) => s.user?.city?.trim() || undefined);
+  const rawProfileCity = useAuthStore((s) => s.user?.city);
+  const profileCity = matchKnownCity(rawProfileCity);
 
   const [guestCity, setGuestCity] = useState<string | undefined>(() => {
     if (typeof window === 'undefined') return undefined;
-    return readBrowseCity();
+    return matchKnownCity(readBrowseCity());
   });
   const [guestReady, setGuestReady] = useState(() => typeof window !== 'undefined');
 
   useEffect(() => {
-    setGuestCity(readBrowseCity());
+    setGuestCity(matchKnownCity(readBrowseCity()));
     setGuestReady(true);
     return subscribeBrowseCity(() => setGuestCity(readBrowseCity()));
   }, []);
 
   const setCity = useCallback((city: string | undefined) => {
     writeBrowseCity(city);
-    setGuestCity(city?.trim() || undefined);
+    setGuestCity(matchKnownCity(city));
   }, []);
 
   const city = profileCity || guestCity;

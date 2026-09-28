@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Compass } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { WelcomeBar } from '@/components/home/WelcomeBar';
 import { CreateSheet } from '@/components/layout/CreateSheet';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
@@ -36,11 +37,13 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
       <div className="relative container mx-auto max-w-7xl space-y-3 px-4 py-4 sm:space-y-3.5 sm:py-5">
         {/* h1 دائمًا في الـ HTML (SEO/قارئات الشاشة). يظهر بصريًا للزائر فقط،
             وللمسجّل يبقى sr-only فلا يرى شعارًا تسويقيًا. */}
-        <div className={showGuestCopy ? 'space-y-1' : undefined}>
+        {/* Fixed-height slot: the guest tagline and the signed-in greeting both
+            fill it after hydration, so nothing below moves (CLS). */}
+        <div className={cn('min-h-[3.25rem] sm:min-h-[3.5rem]', showGuestCopy && 'space-y-1')}>
           <h1
             className={cn(
               'text-balance font-bold tracking-tight text-foreground',
-              showGuestCopy ? 'text-xl sm:text-2xl' : 'sr-only',
+              showGuestCopy ? 'text-lg sm:text-2xl' : 'sr-only',
             )}
           >
             سوق غزة المحلي — ابحث، اشترِ، أو اعرض
@@ -50,6 +53,7 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
               إعلانات ومنتجات وخدمات من جيرانك — تواصل مباشر بلا وسطاء.
             </p>
           ) : null}
+          {isHydrated && isAuthenticated ? <WelcomeBar /> : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

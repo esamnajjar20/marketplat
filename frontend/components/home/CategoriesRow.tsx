@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import {
   Car, Home, Smartphone, Sofa, Briefcase, Shirt,
-  Baby, Dumbbell, Wrench, PawPrint, BookOpen, Tag,
+  Baby, Dumbbell, Wrench, PawPrint, BookOpen, Tag, LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -111,6 +111,9 @@ export function interleave(ads: Item[], products: Item[], services: Item[]): Ite
   return out;
 }
 
+/** Root categories shown on the homepage; the rest are one tap away via "كل الفئات". */
+export const MAX_HOME_CATEGORIES = 24;
+
 export function CategoriesRow() {
   // Prefer categories from GET /home — only fall back if /home failed/omitted them.
   const home = useHomepage();
@@ -175,8 +178,9 @@ export function CategoriesRow() {
       href: `${ROUTES.search}?type=services&categoryId=${c.id}`,
     }));
 
-  const items = interleave(ads, products, services);
-  if (items.length === 0) return null;
+  const all = interleave(ads, products, services);
+  if (all.length === 0) return null;
+  const items = all.slice(0, MAX_HOME_CATEGORIES);
 
   return (
     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
@@ -186,17 +190,17 @@ export function CategoriesRow() {
           <Link
             key={`${item.type}-${item.id}`}
             href={item.href}
-            className="inline-flex w-[4.75rem] shrink-0 flex-col items-center gap-1 rounded-2xl border border-border bg-card px-2 py-2.5 text-center shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/40"
+            className="inline-flex w-20 shrink-0 flex-col items-center gap-1 rounded-2xl border border-border bg-card px-2 py-2.5 text-center shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/40"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Icon className="h-5 w-5" aria-hidden />
             </span>
-            <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight">
+            <span className="line-clamp-2 w-full text-xs font-medium leading-tight">
               {item.nameAr}
             </span>
             <span
               className={cn(
-                'rounded-full px-1.5 py-0.5 text-[9px] font-semibold',
+                'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
                 TYPE_BADGE[item.type],
               )}
             >
@@ -205,6 +209,15 @@ export function CategoriesRow() {
           </Link>
         );
       })}
+      <Link
+        href={ROUTES.search}
+        className="inline-flex w-20 shrink-0 flex-col items-center gap-1 rounded-2xl border border-dashed border-border bg-card px-2 py-2.5 text-center transition-all hover:-translate-y-0.5 hover:border-primary/40"
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-foreground">
+          <LayoutGrid className="h-5 w-5" aria-hidden />
+        </span>
+        <span className="line-clamp-2 w-full text-xs font-medium leading-tight">كل الفئات</span>
+      </Link>
     </div>
   );
 }

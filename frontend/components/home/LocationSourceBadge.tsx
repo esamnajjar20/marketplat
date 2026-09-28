@@ -9,12 +9,16 @@ interface Props {
   city?: string;
   /** نصف القطر الفعلي عند البحث الجغرافي */
   radiusKm?: number | null;
+  /** المدينة المطلوبة فعلاً؛ إن كانت النتائج عامة يُعرض سبب الرجوع للنتائج العامة. */
+  requestedCity?: string;
+  /** لا تعرض شارة "نتائج مقترحة" العامة عند عدم اختيار مدينة (تقليل التكرار في الرئيسية). */
+  quiet?: boolean;
 }
 
 /**
  * مؤشر مصدر النتائج — مع عرض النطاق عند GPS (مثل: ضمن 5 كم).
  */
-export function LocationSourceBadge({ source, city, radiusKm }: Props) {
+export function LocationSourceBadge({ source, city, radiusKm, requestedCity, quiet }: Props) {
   if (source === 'gps') {
     const label =
       radiusKm != null && radiusKm > 0
@@ -36,6 +40,16 @@ export function LocationSourceBadge({ source, city, radiusKm }: Props) {
       </Badge>
     );
   }
+
+  if (source === 'general' && requestedCity) {
+    return (
+      <Badge variant="outline" className="font-normal text-muted-foreground">
+        لا نتائج في {requestedCity} — نتائج عامة
+      </Badge>
+    );
+  }
+
+  if (quiet && source === 'general') return null;
 
   return (
     <Badge variant="outline" className="font-normal text-muted-foreground">

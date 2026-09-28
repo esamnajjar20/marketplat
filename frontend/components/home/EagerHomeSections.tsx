@@ -1,7 +1,6 @@
 'use client';
 
 import { useHomepage } from '@/hooks/queries/useHomepage';
-import { WelcomeBar } from './WelcomeBar';
 import { HomeDiscoverHero } from './HomeDiscoverHero';
 import { HomeCityChips } from './HomeCityChips';
 import { HomeTrustStrip } from './HomeTrustStrip';
@@ -30,7 +29,7 @@ export function EagerHomeSections() {
             <Skeleton className="h-16 rounded-2xl" />
             <Skeleton className="h-16 rounded-2xl" />
           </div>
-          <Skeleton className="aspect-video w-full rounded-2xl" />
+          <Skeleton className="aspect-video w-full rounded-2xl md:aspect-[21/9] lg:aspect-[3/1]" />
           <div className="flex gap-2 overflow-hidden">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-20 shrink-0 rounded-xl" />
@@ -48,7 +47,6 @@ export function EagerHomeSections() {
 
   return (
     <>
-      <WelcomeBar />
       <HomeDiscoverHero />
       <div className="space-y-3 pt-3">
         <HomeCityChips />

@@ -38,7 +38,11 @@ export function NearbyProvidersSection() {
       title={source === 'city' ? 'مقدمو خدمات في مدينتك' : 'مقدمو خدمات'}
       icon={<LocateFixed className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.serviceProviders, label: 'عرض الكل ←' }}
-      badge={!showSkeleton ? <LocationSourceBadge source={source} city={badgeCity} /> : undefined}
+      badge={
+        !showSkeleton ? (
+          <LocationSourceBadge source={source} city={badgeCity} requestedCity={city} quiet />
+        ) : undefined
+      }
     />
   );
 

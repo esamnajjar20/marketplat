@@ -31,10 +31,8 @@ export function WelcomeBar() {
   const firstName = user.name?.split(' ')[0] ?? user.name;
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 pt-4">
-      <p className="text-sm text-muted-foreground">
-        {greetingText}، <span className="font-semibold text-foreground">{firstName}</span> 👋
-      </p>
-    </div>
+    <p className="text-sm text-muted-foreground">
+      {greetingText}، <span className="font-semibold text-foreground">{firstName}</span> 👋
+    </p>
   );
 }

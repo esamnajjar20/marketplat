@@ -4,6 +4,7 @@ import { Briefcase } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
+import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { ApiError } from '@/components/shared/ApiError';
@@ -51,6 +52,8 @@ export function HomeServicesSection() {
           <LocationSourceBadge
             source={seeded?.source ?? (city ? 'city' : 'general')}
             city={seeded?.source === 'city' ? city : undefined}
+            requestedCity={city}
+            quiet
           />
         ) : undefined
       }
@@ -61,13 +64,13 @@ export function HomeServicesSection() {
     return (
       <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
         {header}
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        <HomeScrollRail>
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
+            <HomeScrollRailItem key={i}>
               <StoreCardSkeleton />
-            </div>
+            </HomeScrollRailItem>
           ))}
-        </div>
+        </HomeScrollRail>
       </section>
     );
   }
@@ -105,13 +108,13 @@ export function HomeServicesSection() {
   return (
     <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
       {header}
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory stagger-fade-in [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+      <HomeScrollRail className="stagger-fade-in">
         {items.map((listing) => (
-          <div key={listing.id} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
+          <HomeScrollRailItem key={listing.id}>
             <ServiceListingCard listing={listing} />
-          </div>
+          </HomeScrollRailItem>
         ))}
-      </div>
+      </HomeScrollRail>
     </section>
   );
 }

@@ -37,8 +37,13 @@ export function LazySection({
   whenIdle = false,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [visible, setVisible] = useState(false);
+  // Set once the mounted children render nothing (e.g. a section that
+  // self-hides when it has no data). Without it the reserved minHeight stays
+  // forever and leaves a blank gap in the page.
+  const [collapsed, setCollapsed] = useState(false);
   const margin = rootMargin ?? defaultRootMargin();
 
   useEffect(() => {
@@ -90,16 +95,34 @@ export function LazySection({
     };
   }, [near, whenIdle, visible]);
 
+  // After mount, watch the children's own box. minHeight is kept while they
+  // render content (CLS), and released only when they render nothing at all.
+  useEffect(() => {
+    if (!visible) return;
+    const node = contentRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const sync = () => setCollapsed(node.offsetHeight === 0);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [visible]);
+
   return (
     <div
       ref={ref}
       className={cn(className)}
       // Phase D: keep minHeight after mount so a short section does not
-      // collapse the reserved slot and shift the rest of the page (CLS).
-      style={{ minHeight }}
+      // collapse the reserved slot and shift the rest of the page (CLS) —
+      // unless the section rendered nothing (see `collapsed`).
+      style={{ minHeight: collapsed ? 0 : minHeight }}
       data-lazy={visible ? 'ready' : near ? 'idle' : 'pending'}
     >
-      {visible ? children : (fallback ?? <DefaultFallback minHeight={minHeight} />)}
+      {visible ? (
+        <div ref={contentRef}>{children}</div>
+      ) : (
+        (fallback ?? <DefaultFallback minHeight={minHeight} />)
+      )}
     </div>
   );
 }
