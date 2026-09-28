@@ -33,12 +33,16 @@ export interface GetRecommendationsParams {
 export interface GetProductRecommendationsParams {
   limit?: number;
   excludeProductId?: string;
+  /** تفضيل منتجات نفس المدينة في الترتيب */
+  city?: string;
 }
 
 /** Service-detail-page mode: rank by this listing's own category and exclude it. */
 export interface GetServiceRecommendationsParams {
   limit?: number;
   excludeServiceListingId?: string;
+  /** تفضيل خدمات نفس المدينة في الترتيب */
+  city?: string;
 }
 
 /**

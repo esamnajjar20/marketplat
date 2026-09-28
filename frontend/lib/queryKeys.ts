@@ -43,11 +43,11 @@ export const queryKeys = {
   // segment so an ad rail and a product rail can never collide on the
   // same cache entry even if both happened to be called with `{}`.
   recommendations: {
-    list: (params?: { limit?: number; excludeAdId?: string }) =>
+    list: (params?: { limit?: number; excludeAdId?: string; city?: string }) =>
       ['recommendations', params ?? {}] as const,
-    products: (params?: { limit?: number; excludeProductId?: string }) =>
+    products: (params?: { limit?: number; excludeProductId?: string; city?: string }) =>
       ['recommendations', 'product', params ?? {}] as const,
-    services: (params?: { limit?: number; excludeServiceListingId?: string }) =>
+    services: (params?: { limit?: number; excludeServiceListingId?: string; city?: string }) =>
       ['recommendations', 'service', params ?? {}] as const,
     stores: (params?: { limit?: number; excludeStoreId?: string; lat?: number; lng?: number }) =>
       ['recommendations', 'store', params ?? {}] as const,

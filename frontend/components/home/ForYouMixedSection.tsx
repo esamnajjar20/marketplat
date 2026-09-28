@@ -78,8 +78,14 @@ export function ForYouMixedSection() {
   const { city } = useBrowseCity();
 
   const adsQ = useRecommendations({ limit: perType, city });
-  const productsQ = useProductRecommendations({ limit: perType });
-  const servicesQ = useServiceRecommendations({ limit: perType });
+  const productsQ = useProductRecommendations({
+    limit: perType,
+    ...(city ? { city } : {}),
+  });
+  const servicesQ = useServiceRecommendations({
+    limit: perType,
+    ...(city ? { city } : {}),
+  });
 
   const isLoading = adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
   const isError = adsQ.isError && productsQ.isError && servicesQ.isError;

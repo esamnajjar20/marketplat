@@ -3,8 +3,10 @@
 import { useServiceProviders } from '@/hooks/queries/useServiceProviders';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { useHomepage } from '@/hooks/queries/useHomepage';
+import { homeSectionLimit } from '@/lib/listLimits';
+import { useDataSaver } from '@/lib/useDataSaver';
 
-const HOME_LIMIT = 6;
+
 
 export type NearbyProvidersForHomeSource = 'city' | 'general';
 
@@ -12,15 +14,17 @@ export type NearbyProvidersForHomeSource = 'city' | 'general';
  * مقدمو خدمات — يفضّل belowFold.nearbyProviders من GET /home (نسخة واحدة).
  */
 export function useNearbyProvidersForHome() {
+  const dataSaver = useDataSaver();
+  const limit = homeSectionLimit(6, 4, dataSaver);
   const { city } = useBrowseCity();
   const home = useHomepage();
   const seeded = home.data?.belowFold?.nearbyProviders ?? null;
-  const hasSeed = Boolean(seeded?.items?.length);
+  const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
   const query = useServiceProviders(
     {
-      limit: HOME_LIMIT,
+      limit,
       ...(city ? { city } : {}),
     },
     { enabled: allowFetch },

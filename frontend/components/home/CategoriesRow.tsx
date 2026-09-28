@@ -103,9 +103,7 @@ export function CategoriesRow() {
   // Prefer categories from GET /home — only fall back if /home failed/omitted them.
   const home = useHomepage();
   const fromHome = home.data?.categories;
-  const hasHomeCats = Boolean(
-    fromHome && (fromHome.ads?.length || fromHome.products?.length || fromHome.services?.length),
-  );
+  const hasHomeCats = fromHome !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasHomeCats);
 
   const { data: adCats, isLoading: adLoading } = useCategories({ enabled: allowFetch });

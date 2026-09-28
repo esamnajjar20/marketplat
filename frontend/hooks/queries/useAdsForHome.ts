@@ -29,7 +29,7 @@ export function useAdsForHome(): AdsForHomeResult {
   const home = useHomepage();
 
   const seeded = home.data?.adsForHome ?? null;
-  const hasSeed = Boolean(seeded?.items?.length);
+  const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
   const query = useAds(

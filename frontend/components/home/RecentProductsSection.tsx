@@ -14,6 +14,8 @@ import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
+import { homeSectionLimit } from '@/lib/listLimits';
+import { useDataSaver } from '@/lib/useDataSaver';
 
 /**
  * FEAT-HOME-DISCOVERY: "أحدث المنتجات" Home section — deliberately
@@ -30,37 +32,30 @@ import { ROUTES } from '@/lib/constants';
  * scroll-on-mobile layout per the Home discovery spec, unlike
  * RecentAds' stacked grid-on-mobile.
  *
- * Phase 4: GET /products has no lat/lng param (audit §3) — only
- * `city` — so only the resolver's 'city' source maps to anything here;
- * gps-current/gps-saved/fallback all fall through to the general,
- * unfiltered recent list rather than guessing a city from coordinates.
- * This section never disappears or blocks on location either way.
+ * Location: browse city when selected, otherwise general results.
+ * The homepage does not use GPS for this section.
  */
 export function RecentProductsSection() {
+  const dataSaver = useDataSaver();
+  const limit = homeSectionLimit(8, 4, dataSaver);
   const { city } = useBrowseCity();
   const home = useHomepage();
   const seeded = home.data?.belowFold?.recentProducts ?? null;
-  const hasSeed = Boolean(seeded?.items?.length);
+  const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
   const { data, isLoading, isError, error, refetch } = useProducts(
-    { limit: 8, sortBy: 'createdAt', sortOrder: 'desc', city },
+    { limit, sortBy: 'createdAt', sortOrder: 'desc', city },
     { enabled: allowFetch },
   );
-  const items = hasSeed ? (seeded!.items ?? []) : (data?.items ?? []);
+  const items = hasSeed
+    ? (seeded!.items ?? []).slice(0, limit)
+    : (data?.items ?? []);
   const showLoading = hasSeed ? false : home.isPending || isLoading;
   const showError = hasSeed ? false : isError;
   const isAuth = useAuthStore(selectIsAuthenticated);
 
-  // FIX UI-REVIEW-3: this section resolves the exact same city-vs-
-  // fallback location split as NearbyProvidersSection/HomeAboveFold's
-  // "أحدث الإعلانات" — city genuinely reorders these results (unlike
-  // FeaturedStoresSection, where plan-based ranking dominates and city
-  // only affects backfill) — but had no "استخدام موقعي" CTA or source
-  // badge, so a user who hadn't granted location here had no way to
-  // improve these particular results, unlike the two sibling sections
-  // that already offer it. Same pattern, same copy, same placement.
-    const badgeSource = city ? ('city' as const) : ('general' as const);
+  const badgeSource = city ? ('city' as const) : ('general' as const);
   const badgeCity = city;
 
   const header = (

@@ -22,7 +22,7 @@ export function HomeServicesSection() {
   const { city } = useBrowseCity();
   const home = useHomepage();
   const seeded = home.data?.belowFold?.homeServices ?? null;
-  const hasSeed = Boolean(seeded?.items?.length);
+  const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
   const { data, isLoading, isError, error, refetch } = useServiceListings(

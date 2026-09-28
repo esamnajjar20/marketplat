@@ -5,6 +5,7 @@ import { StoreCard } from '@/components/stores/StoreCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { ApiError } from '@/components/shared/ApiError';
 import { useStores } from '@/hooks/queries/useStores';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
@@ -21,12 +22,16 @@ export function FeaturedStoresSection() {
   const { city } = useBrowseCity();
   const home = useHomepage();
   const seeded = home.data?.belowFold?.featuredStores ?? null;
-  const hasSeed = Boolean(seeded?.items?.length);
+  const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
-  const { data, isLoading } = useStores({ limit, city }, { enabled: allowFetch });
+  const { data, isLoading, isError, error, refetch } = useStores(
+    { limit, city },
+    { enabled: allowFetch },
+  );
   const items = hasSeed ? (seeded!.items ?? []).slice(0, limit) : (data?.items ?? []);
   const showLoading = hasSeed ? false : home.isPending || isLoading;
+  const showError = hasSeed ? false : isError;
 
   const badgeSource = city ? ('city' as const) : ('general' as const);
 
@@ -49,12 +54,28 @@ export function FeaturedStoresSection() {
       <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3 section-enter">
         {header}
         <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: limit }).map((_, i) => (
             <div key={i} className="w-[min(72vw,280px)] shrink-0 snap-start sm:w-[240px]">
               <StoreCardSkeleton />
             </div>
           ))}
         </div>
+      </section>
+    );
+  }
+
+  if (showError) {
+    return (
+      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+        {header}
+        <ApiError
+          error={error}
+          onRetry={() => {
+            void home.refetch();
+            void refetch();
+          }}
+          variant="inline"
+        />
       </section>
     );
   }

@@ -13,28 +13,12 @@ export const LOCATION_STORAGE_KEY = 'location:gps';
 const STORAGE_KEY = LOCATION_STORAGE_KEY;
 const SAVED_GPS_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
-// COMPAT-AUDIT fix: useLocationResolver() is called independently from
-// four separate Home sections (HomeAboveFold, RecentProductsSection,
-// FeaturedStoresSection, NearbyProvidersSection) — each is its own
-// hook instance with its own useState, by design (the Phase 2 spec
-// explicitly forbids adding a Zustand store or any new shared-state
-// system for this). That's fine for permission-checking and city
-// (city comes from the auth store, which *is* already shared), but it
-// meant a GPS fix obtained via one section's "استخدام موقعي" CTA (or
-// silently, if permission was already granted) never reached the other
-// three sections' independent state — localStorage's own native
-// `storage` event only fires for *other tabs*, never same-tab writes,
-// so nothing told the other three instances to re-read it. They'd
-// stay on their stale source (city/fallback) until a full page
-// reload, even though a fresh, valid GPS fix already existed.
-//
-// This is a plain EventTarget used purely as a same-tab signal — it
-// carries no data itself (every listener still independently calls
-// readSavedGps()/reacts via its own useState), so it isn't a shared
-// state container the way a Zustand store or Context provider would
-// be; it's the same "notify other listeners a write happened"
-// mechanism the native `storage` event already provides across tabs,
-// just extended to also cover the same tab.
+// COMPAT-AUDIT: useLocationResolver is still used by the standalone
+// service-providers directory. The EventTarget below synchronizes
+// saved GPS updates between independent hook instances in the same
+// tab, while localStorage's native `storage` event handles other tabs.
+// It carries no location data and is not a shared application state
+// store.
 const gpsUpdateBus = typeof window !== 'undefined' ? new EventTarget() : null;
 const GPS_UPDATED_EVENT = 'location-resolver:gps-updated';
 

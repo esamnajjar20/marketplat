@@ -39,7 +39,7 @@ export function PromotedProductsSection() {
   const limit = homeSectionLimit(8, 4, dataSaver);
   const home = useHomepage();
   const seeded = home.data?.belowFold?.promotedProducts;
-  const hasSeed = Boolean(seeded?.items?.length);
+  const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
 
   const { data, isLoading, isError, error, refetch } = useProducts(
@@ -76,7 +76,7 @@ export function PromotedProductsSection() {
         <div className="container mx-auto max-w-7xl space-y-4 px-4">
           {header}
           <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
+            {Array.from({ length: limit }).map((_, i) => (
               <div key={i} className="w-40 shrink-0 sm:w-auto">
                 <ProductCardSkeleton />
               </div>
