@@ -30,12 +30,12 @@ export function HomeSafeBuyingTips() {
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="container mx-auto max-w-7xl px-4 py-2 sm:py-3">
+    <section className="py-1 sm:py-2">
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/60 shadow-xs">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/40"
+          className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-3.5 text-start transition-colors hover:bg-muted/40 active:bg-muted/50 sm:min-h-0 sm:px-4 sm:py-3"
           aria-expanded={open}
         >
           <span className="min-w-0">

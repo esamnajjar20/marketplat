@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play, Sparkles } from 'lucide-react';
 import { useAds } from '@/hooks/queries/useAds';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -11,6 +11,7 @@ import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 import { getListThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { SectionHeader } from '@/components/home/SectionHeader';
 
 /**
  * Featured carousel sources:
@@ -73,8 +74,8 @@ const BADGE: Record<SlideType, { emoji: string; label: string; className: string
   store: { emoji: '🏪', label: 'متجر', className: 'bg-primary text-primary-foreground' },
 };
 
-/** 16:9 on phones; wider/shorter on desktop so the carousel does not fill the fold. */
-export const CAROUSEL_ASPECT = 'aspect-video md:aspect-[21/9] lg:aspect-[3/1]';
+/** Shorter on phones so featured does not own the whole fold; wider on desktop. */
+export const CAROUSEL_ASPECT = 'aspect-[16/10] sm:aspect-video md:aspect-[21/9] lg:aspect-[3/1]';
 
 export function FeaturedCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -203,7 +204,17 @@ export function FeaturedCarousel() {
   }
 
   if (isLoading) {
-    return <Skeleton className={cn(CAROUSEL_ASPECT, 'w-full rounded-2xl')} />;
+    return (
+      <div className="space-y-2.5">
+        <SectionHeader
+          tone="featured"
+          eyebrow="مدفوع"
+          title="مميز"
+          icon={<Sparkles className="h-3.5 w-3.5" />}
+        />
+        <Skeleton className={cn(CAROUSEL_ASPECT, 'w-full rounded-2xl')} />
+      </div>
+    );
   }
 
   // لا محتوى مميز: لا نعرض بطاقة فارغة في أعلى الصفحة.
@@ -215,6 +226,13 @@ export function FeaturedCarousel() {
   };
 
   return (
+    <div className="space-y-2.5">
+      <SectionHeader
+        tone="featured"
+        eyebrow="مدفوع"
+        title="مميز"
+        icon={<Sparkles className="h-3.5 w-3.5" />}
+      />
     <div
       className="relative space-y-2"
       role="region"
@@ -246,7 +264,7 @@ export function FeaturedCarousel() {
       <div
         ref={trackRef}
         onScroll={handleScroll}
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto rounded-2xl [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain rounded-2xl touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
         tabIndex={0}
         aria-live={autoPlaying ? 'off' : 'polite'}
       >
@@ -295,7 +313,7 @@ export function FeaturedCarousel() {
           <div className="pointer-events-none absolute inset-y-0 start-0 end-0 flex items-center justify-between px-1 sm:px-2">
             <button
               type="button"
-              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background"
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 sm:h-9 sm:w-9"
               aria-label="الشريحة السابقة"
               onClick={() => go(index - 1)}
             >
@@ -305,7 +323,7 @@ export function FeaturedCarousel() {
             </button>
             <button
               type="button"
-              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background"
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 sm:h-9 sm:w-9"
               aria-label="الشريحة التالية"
               onClick={() => go(index + 1)}
             >
@@ -335,7 +353,7 @@ export function FeaturedCarousel() {
                 aria-current={i === index ? 'true' : undefined}
                 aria-label={`الشريحة ${i + 1}`}
                 onClick={() => go(i)}
-                className="flex h-8 w-6 items-center justify-center"
+                className="flex h-10 w-8 items-center justify-center sm:h-8 sm:w-6"
               >
                 <span
                   className={cn(
@@ -348,6 +366,7 @@ export function FeaturedCarousel() {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }

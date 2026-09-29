@@ -15,55 +15,46 @@ import { HomeBusyBoundary } from '@/components/home/HomeBusyBoundary';
 import { LazySection } from '@/components/shared/LazySection';
 
 /**
- * Homepage body (client tree).
+ * Homepage body (UI-HOME-01 + UI-HOME-02 + desktop polish).
  *
- * Phase 2 layout:
- * 1. Above-fold (carousel + categories + latest ads) — EagerHomeSections
- * 2. For you / trending
- * 3. Type rails (products → services → stores)
- * 4. Secondary (promoted + nearby) — loaded later
- * 5. Trust / promo footer links
- *
- * Spacing tightened on mobile to reduce scroll fatigue; bottom padding
- * clears the fixed BottomNav + optional guest publish bar.
+ * Mobile: single column, paid featured first in EagerHomeSections.
+ * Desktop (lg+): secondary rails sit in a 2-column grid to reduce length.
  */
 export function HomePageContent() {
   return (
     <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-16 md:pb-16">
       <HomeBusyBoundary>
-        {/* 1: carousel + categories + ads rail */}
         <EagerHomeSections />
 
-        <div className="mt-5 space-y-7 sm:mt-8 sm:space-y-10">
-          {/* 2: personalized / trending */}
+        <div className="mt-4 space-y-6 sm:mt-8 sm:space-y-8 lg:space-y-10">
           <LazySection minHeight={280} rootMargin="40px 0px" whenIdle>
             <ForYouMixedSection />
           </LazySection>
 
-          {/* 3: primary type rails */}
-          <LazySection minHeight={300} rootMargin="48px 0px" whenIdle>
-            <RecentProductsSection />
-          </LazySection>
-
-          <LazySection minHeight={280} rootMargin="56px 0px" whenIdle>
-            <HomeServicesSection />
-          </LazySection>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
+            <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
+              <RecentProductsSection />
+            </LazySection>
+            <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
+              <HomeServicesSection />
+            </LazySection>
+          </div>
 
           <LazySection minHeight={280} rootMargin="56px 0px" whenIdle>
             <FeaturedStoresSection />
           </LazySection>
 
-          {/* 4: secondary rails — further down the fold */}
-          <LazySection minHeight={260} rootMargin="80px 0px" whenIdle>
-            <PromotedProductsSection />
-          </LazySection>
-
-          <LazySection minHeight={260} rootMargin="80px 0px" whenIdle>
-            <NearbyProvidersSection />
-          </LazySection>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
+            <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
+              <PromotedProductsSection />
+            </LazySection>
+            <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
+              <NearbyProvidersSection />
+            </LazySection>
+          </div>
         </div>
 
-        <div className="mt-7 space-y-4 sm:mt-10">
+        <div className="mx-auto mt-5 max-w-7xl space-y-3 px-3 sm:mt-10 sm:space-y-4 sm:px-4">
           <HomeAppPromo />
           <HomeSafeBuyingTips />
           <HomeBrowseLinks />

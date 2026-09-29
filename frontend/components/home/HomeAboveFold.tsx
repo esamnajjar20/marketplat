@@ -44,7 +44,7 @@ export function HomeAboveFold() {
 
   if (stillLoading) {
     return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-8">
+      <section className="container mx-auto max-w-7xl space-y-3 px-3 pt-3 sm:px-4 sm:pt-6">
         {latestAdsHeadingLoading}
         <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -58,7 +58,7 @@ export function HomeAboveFold() {
   }
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-4 px-4 pt-6 sm:pt-8">
+    <section className="container mx-auto max-w-7xl space-y-3 px-3 pt-3 sm:px-4 sm:pt-6">
       {latestAdsHeadingLoaded}
       <RecentAds />
     </section>

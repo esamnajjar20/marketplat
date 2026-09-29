@@ -9,6 +9,7 @@ import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { ApiError }       from '@/components/shared/ApiError';
 import { Button }         from '@/components/shared/ui/Button';
 import { useAdsForHome }  from '@/hooks/queries/useAdsForHome';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES }         from '@/lib/constants';
 
@@ -19,6 +20,7 @@ import { ROUTES }         from '@/lib/constants';
 export function RecentAds() {
   const { isLoading, isError, error, items, refetch } = useAdsForHome();
   const isAuth = useAuthStore(selectIsAuthenticated);
+  const { city, setCity, canChange } = useBrowseCity();
 
   if (isLoading) {
     return (
@@ -37,21 +39,37 @@ export function RecentAds() {
   }
 
   if (items.data.length === 0) {
+    const cityEmpty = Boolean(city);
     return (
       <EmptyState
         icon={<PackageSearch className="h-8 w-8" />}
-        title="لا توجد إعلانات بعد"
-        description={isAuth ? 'كن أول من ينشر إعلاناً في سوق غزة' : 'سجّل دخولك لتكون أول من ينشر إعلاناً في سوق غزة'}
+        title={cityEmpty ? `لا إعلانات في ${city}` : 'لا توجد إعلانات بعد'}
+        description={
+          cityEmpty
+            ? 'جرّب عرض كل المدن أو نشر أول إعلان في مدينتك.'
+            : isAuth
+              ? 'كن أول من ينشر إعلاناً في سوق غزة'
+              : 'سجّل دخولك لتكون أول من ينشر إعلاناً في سوق غزة'
+        }
         action={
-          isAuth ? (
-            <Button asChild size="sm">
-              <Link href={ROUTES.adCreate}>نشر إعلان مجاناً</Link>
-            </Button>
-          ) : (
-            <Button asChild size="sm" variant="outline">
-              <Link href={`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adCreate)}`}>تسجيل الدخول لنشر إعلان</Link>
-            </Button>
-          )
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {cityEmpty && canChange ? (
+              <Button type="button" size="sm" variant="outline" onClick={() => setCity(undefined)}>
+                عرض كل غزة
+              </Button>
+            ) : null}
+            {isAuth ? (
+              <Button asChild size="sm">
+                <Link href={ROUTES.adCreate}>نشر إعلان مجاناً</Link>
+              </Button>
+            ) : (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adCreate)}`}>
+                  تسجيل الدخول لنشر إعلان
+                </Link>
+              </Button>
+            )}
+          </div>
         }
       />
     );

@@ -63,6 +63,7 @@ export function HomeServicesSection() {
 
   return (
     <HomeRailShell
+      variant="default"
       header={header}
       status={status}
       skeleton={<ServiceListingCardSkeleton />}

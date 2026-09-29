@@ -9,10 +9,23 @@ interface Props {
   icon?: ReactNode;
   cta?: { href: string; label: string };
   badge?: ReactNode;
-  /** featured = stronger accent treatment for hero-ish sections */
-  tone?: 'default' | 'featured';
+  /**
+   * Visual role of the section:
+   * - default: organic browse rails
+   * - featured: paid / highlighted
+   * - personal: for-you / recommendations
+   * - nearby: location-aware
+   */
+  tone?: 'default' | 'featured' | 'personal' | 'nearby';
   className?: string;
 }
+
+const EYEBROW: Record<NonNullable<Props['tone']>, string> = {
+  default: 'text-muted-foreground',
+  featured: 'text-accent',
+  personal: 'text-primary',
+  nearby: 'text-emerald-600 dark:text-emerald-400',
+};
 
 export function SectionHeader({
   eyebrow,
@@ -26,17 +39,12 @@ export function SectionHeader({
   const featured = tone === 'featured';
 
   return (
-    <div
-      className={cn(
-        'flex items-end justify-between gap-3',
-        className,
-      )}
-    >
+    <div className={cn('flex items-end justify-between gap-3', className)}>
       <div className="min-w-0 space-y-1">
         <p
           className={cn(
             'flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider',
-            featured ? 'text-accent' : 'text-muted-foreground',
+            EYEBROW[tone],
           )}
         >
           {icon}
@@ -58,10 +66,14 @@ export function SectionHeader({
         <Link
           href={cta.href}
           className={cn(
-            'inline-flex shrink-0 items-center gap-0.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+            'inline-flex min-h-9 shrink-0 items-center gap-0.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors active:scale-[0.98] sm:min-h-0 sm:px-2.5 sm:py-1',
             featured
               ? 'border-accent/30 bg-accent/10 text-accent hover:bg-accent/15'
-              : 'border-border/80 bg-card text-muted-foreground hover:border-primary/30 hover:text-primary',
+              : tone === 'nearby'
+                ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400'
+                : tone === 'personal'
+                  ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15'
+                  : 'border-border/80 bg-card text-muted-foreground hover:border-primary/30 hover:text-primary',
           )}
         >
           {cta.label.replace(/\s*←\s*$/, '').replace(/^عرض الكل/, 'الكل') || cta.label}

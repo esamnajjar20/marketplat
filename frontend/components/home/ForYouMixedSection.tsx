@@ -125,9 +125,9 @@ export function ForYouMixedSection() {
   const eyebrow = personalized ? 'مخصص لك' : 'رائج الآن';
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+    <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl bg-primary/[0.03] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
       <SectionHeader
-        tone="featured"
+        tone="personal"
         eyebrow={eyebrow}
         title={title}
         icon={<Sparkles className="h-3.5 w-3.5" />}

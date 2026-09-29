@@ -65,6 +65,7 @@ export function FeaturedStoresSection() {
 
   return (
     <HomeRailShell
+      variant="soft"
       header={header}
       status={status}
       skeleton={<StoreCardSkeleton />}

@@ -34,7 +34,7 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
         aria-hidden
         className="pointer-events-none absolute -start-16 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl"
       />
-      <div className="relative container mx-auto max-w-7xl space-y-3 px-4 py-4 sm:space-y-3.5 sm:py-5">
+      <div className="relative container mx-auto max-w-7xl space-y-2.5 px-4 py-3 sm:space-y-3 sm:py-4">
         {/* h1 دائمًا في الـ HTML (SEO/قارئات الشاشة). يظهر بصريًا للزائر فقط،
             وللمسجّل يبقى sr-only فلا يرى شعارًا تسويقيًا. */}
         {/* Fixed-height slot: the guest tagline and the signed-in greeting both
@@ -43,7 +43,7 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
           <h1
             className={cn(
               'text-balance font-bold tracking-tight text-foreground',
-              showGuestCopy ? 'text-lg sm:text-2xl' : 'sr-only',
+              showGuestCopy ? 'text-base leading-snug sm:text-2xl' : 'sr-only',
             )}
           >
             سوق غزة المحلي — ابحث، اشترِ، أو اعرض
@@ -56,11 +56,11 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
           {isHydrated && isAuthenticated ? <WelcomeBar /> : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             size="sm"
-            className="h-9 gap-1.5 rounded-xl px-3.5 font-semibold"
+            className="h-11 min-h-11 flex-1 gap-1.5 rounded-xl px-3 font-semibold sm:h-9 sm:min-h-0 sm:flex-none sm:px-3.5"
             onClick={() => setCreateOpen(true)}
           >
             <Plus className="h-4 w-4" aria-hidden />
@@ -70,16 +70,21 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
             type="button"
             size="sm"
             variant="outline"
-            className="h-9 gap-1.5 rounded-xl border-border/80 bg-card/70 px-3.5 font-semibold"
+            className="h-11 min-h-11 gap-1.5 rounded-xl border-border/80 bg-card/70 px-3 font-semibold sm:h-9 sm:min-h-0 sm:px-3.5"
             onClick={() => setExploreOpen(true)}
           >
             <Compass className="h-4 w-4 text-primary" aria-hidden />
             استكشف
           </Button>
           {!isAuthenticated && isHydrated ? (
-            <Button asChild size="sm" variant="ghost" className="h-9 rounded-xl text-muted-foreground">
+            <Button
+              asChild
+              size="sm"
+              variant="ghost"
+              className="h-11 min-h-11 shrink-0 rounded-xl px-2.5 text-muted-foreground sm:h-9 sm:min-h-0 sm:px-3"
+            >
               <Link href={ROUTES.login} prefetch={false}>
-                تسجيل الدخول
+                دخول
               </Link>
             </Button>
           ) : null}
