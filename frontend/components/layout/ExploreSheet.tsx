@@ -10,13 +10,15 @@ import {
   Users,
   Trophy,
   ClipboardList,
+  ChevronLeft,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 /**
  * BottomNav "استكشاف" sheet — discovery only (no account hubs).
- * Order matches BROWSE_LINKS (minus الرئيسية which is already on the bar).
+ * Phase 2: denser list with chevrons + safe-area padding; prefetch off.
  */
 const EXPLORE_LINKS = [
   { label: 'بحث شامل', href: ROUTES.search, icon: Search },
@@ -39,28 +41,35 @@ export function ExploreSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="p-0">
-        <SheetHeader>
-          <SheetTitle>استكشاف</SheetTitle>
+        <SheetHeader className="border-b border-border/60 px-4 pb-3 pt-1">
+          <SheetTitle className="text-base font-bold">استكشاف</SheetTitle>
+          <p className="text-2xs text-muted-foreground">تصفّح أقسام المنصة</p>
         </SheetHeader>
-        <nav aria-label="استكشاف المنصة" className="flex flex-col gap-1 px-4 pb-6">
+        <nav
+          aria-label="استكشاف المنصة"
+          className="flex flex-col gap-0.5 px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2"
+        >
           {EXPLORE_LINKS.map(({ label, href, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              // FIX RSC-PREFETCH-STORM-01: this list renders 8
-              // discovery links in one sheet. Next.js auto-prefetches
-              // every <Link> that enters the viewport, so simply
-              // mounting the sheet fired 8 concurrent RSC fetches for
-              // pages the user hasn't decided to visit — each queued
-              // behind Chrome's 6-connections-per-origin limit and
-              // competing with the actual content on a weak network.
-              // The click still works, it just fetches on demand.
+              // Avoid RSC prefetch storm when sheet mounts (8 links).
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              className={cn(
+                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground',
+                'transition-colors hover:bg-muted',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              )}
             >
-              <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-              {label}
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/80 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
+                <Icon className="h-4.5 w-4.5 h-[18px] w-[18px]" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">{label}</span>
+              <ChevronLeft
+                className="h-4 w-4 shrink-0 text-muted-foreground opacity-50 group-hover:opacity-80"
+                aria-hidden
+              />
             </Link>
           ))}
         </nav>

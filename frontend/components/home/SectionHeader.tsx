@@ -35,7 +35,7 @@ export function SectionHeader({
       <div className="min-w-0 space-y-1">
         <p
           className={cn(
-            'flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider',
+            'flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider',
             featured ? 'text-accent' : 'text-muted-foreground',
           )}
         >

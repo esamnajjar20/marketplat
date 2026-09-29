@@ -1,62 +1,112 @@
 'use client';
 
 import Link from 'next/link';
-import { Megaphone, Package, Wrench, ClipboardList } from 'lucide-react';
+import { Megaphone, Package, Wrench, ClipboardList, ChevronLeft } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 /**
- * CREATE-SHEET: BottomNav's raised center button used to be a single
- * Link straight to /ads/create (or /settings/seller for non-sellers) —
- * fine while "إعلان" was the only listing type, but the platform now
- * also has products (stores) and services (providers) as first-class
- * things a user can create, with no shared entry point for "أضف" other
- * than this one button. Rather than picking a single default
- * destination, tapping "+" now opens this sheet with all three —
- * mirrors ExploreSheet one-for-one (same Sheet primitive, same
- * list-of-links layout, same open/onOpenChange contract).
- *
- * Deliberately routes to each vertical's own creation page (adCreate /
- * myStoreProductCreate / myServiceCreate) rather than pre-resolving
- * which the user already has a profile for: all three pages are
- * already gated (CreateAdGate / CreateProductGate / CreateServiceListingGate)
- * and show a "become a seller / open a store / become a provider" CTA
- * first when the profile is missing, redirecting back here (`from`)
- * once it's created — so this sheet doesn't need to duplicate that
- * seller/store/provider lookup just to decide where "+" points.
- *
- * OPEN-REQUESTS: fourth entry is "طلب / احتياج" → ROUTES.requestNew (/requests/new).
- * This is the primary open marketplace (SERVICE | PRODUCT | RENTAL). Any
- * authenticated user can publish; offer eligibility is enforced server-side
- * by request type.
+ * CREATE-SHEET: BottomNav "+" opens this sheet with all create destinations.
+ * Phase 2: card grid, visual hierarchy (primary = إعلان), clearer copy,
+ * safer bottom padding for home indicator.
  */
 const CREATE_LINKS = [
-  { label: 'إعلان جديد', description: 'انشر إعلان بيع', href: ROUTES.adCreate, icon: Megaphone },
-  { label: 'منتج جديد', description: 'أضف منتجًا إلى متجرك', href: ROUTES.myStoreProductCreate, icon: Package },
-  { label: 'خدمة جديدة', description: 'اعرض خدمة تقدمها', href: ROUTES.myServiceCreate, icon: Wrench },
-  { label: 'طلب / احتياج', description: 'خدمة، منتج أو إيجار — واستقبل العروض', href: ROUTES.requestNew, icon: ClipboardList },
+  {
+    label: 'إعلان جديد',
+    description: 'بيع شيء بسرعة — مجاني',
+    href: ROUTES.adCreate,
+    icon: Megaphone,
+    /** Strongest CTA — most common conversion */
+    primary: true,
+    iconClass: 'bg-primary/12 text-primary',
+  },
+  {
+    label: 'منتج جديد',
+    description: 'أضف لمنتجات متجرك',
+    href: ROUTES.myStoreProductCreate,
+    icon: Package,
+    primary: false,
+    iconClass: 'bg-accent/12 text-accent',
+  },
+  {
+    label: 'خدمة جديدة',
+    description: 'اعرض خدمة تقدّمها',
+    href: ROUTES.myServiceCreate,
+    icon: Wrench,
+    primary: false,
+    iconClass: 'bg-success/12 text-success',
+  },
+  {
+    label: 'طلب / احتياج',
+    description: 'انشر طلبك واستقبل العروض',
+    href: ROUTES.requestNew,
+    icon: ClipboardList,
+    primary: false,
+    iconClass: 'bg-warning/15 text-warning-foreground',
+  },
 ] as const;
 
-export function CreateSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function CreateSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="p-0">
-        <SheetHeader>
-          <SheetTitle>أضف</SheetTitle>
+        <SheetHeader className="border-b border-border/60 px-4 pb-3 pt-1">
+          <SheetTitle className="text-base font-bold">ماذا تريد أن تضيف؟</SheetTitle>
+          <p className="text-2xs text-muted-foreground">
+            اختر النوع — يمكنك إكمال التفاصيل في الخطوة التالية
+          </p>
         </SheetHeader>
-        <nav aria-label="إضافة عنصر جديد" className="flex flex-col gap-1 px-4 pb-4">
-          {CREATE_LINKS.map(({ label, description, href, icon: Icon }) => (
+
+        <nav
+          aria-label="إضافة عنصر جديد"
+          className="flex flex-col gap-2 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3"
+        >
+          {CREATE_LINKS.map(({ label, description, href, icon: Icon, primary, iconClass }) => (
             <Link
               key={href}
               href={href}
+              prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              className={cn(
+                'group flex items-center gap-3 rounded-xl border px-3 py-3 transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                primary
+                  ? 'border-primary/35 bg-primary/5 shadow-sm hover:bg-primary/10'
+                  : 'border-border/70 bg-card hover:border-border hover:bg-muted/60',
+              )}
             >
-              <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden={true} />
-              <span className="flex flex-col">
-                {label}
-                <span className="text-xs font-normal text-muted-foreground">{description}</span>
+              <span
+                className={cn(
+                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+                  iconClass,
+                )}
+              >
+                <Icon className="h-5 w-5" aria-hidden />
               </span>
+              <span className="min-w-0 flex-1">
+                <span
+                  className={cn(
+                    'block text-sm font-semibold text-foreground',
+                    primary && 'text-primary',
+                  )}
+                >
+                  {label}
+                </span>
+                <span className="mt-0.5 block text-2xs text-muted-foreground sm:text-xs">
+                  {description}
+                </span>
+              </span>
+              <ChevronLeft
+                className="h-4 w-4 shrink-0 text-muted-foreground opacity-60 transition-transform group-hover:-translate-x-0.5 group-hover:opacity-100"
+                aria-hidden
+              />
             </Link>
           ))}
         </nav>

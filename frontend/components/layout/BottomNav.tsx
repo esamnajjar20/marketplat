@@ -119,7 +119,7 @@ export function BottomNav() {
         prefetch={false}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
+          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -159,7 +159,7 @@ export function BottomNav() {
         aria-current={isExploreActive ? 'page' : undefined}
         aria-haspopup="dialog"
         className={cn(
-          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-[11px] font-medium transition-colors',
+          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors',
           isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -181,14 +181,20 @@ export function BottomNav() {
             onClick={() => setCreateOpen(true)}
             aria-haspopup="dialog"
             aria-label={draftsCount > 0 ? `أضف — ${draftsCount} مسودة معلّقة` : 'أضف'}
-            className="flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105 hover:shadow-lg"
+            className={cn(
+              'flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full',
+              'border-4 border-background bg-primary text-primary-foreground',
+              'shadow-md shadow-primary/25 transition-transform',
+              'hover:scale-105 hover:shadow-lg active:scale-95',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            )}
           >
-            <Plus className="h-5 w-5" aria-hidden={true} />
+            <Plus className="h-6 w-6" strokeWidth={2.5} aria-hidden={true} />
           </button>
           {isAuthenticated && draftsCount > 0 && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -top-0.5 -end-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold leading-none text-warning-foreground shadow-sm"
+              className="pointer-events-none absolute -top-0.5 -end-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-warning px-1 text-2xs font-semibold leading-none text-warning-foreground shadow-sm"
             >
               {draftsCount > 9 ? '9+' : draftsCount}
             </span>
@@ -198,7 +204,7 @@ export function BottomNav() {
             pattern — this button was the only one in the bar with no
             visible text, breaking visual consistency with its
             siblings. */}
-        <span className="text-[11px] font-medium text-muted-foreground">أضف</span>
+        <span className="text-2xs font-medium text-muted-foreground">أضف</span>
       </div>
 
       {trailingItems.map(renderItem)}
@@ -214,12 +220,12 @@ export function BottomNav() {
             prefetch={false}
             aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) || pathname.startsWith('/profile/') ? 'page' : undefined}
             className={cn(
-              'flex w-full flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+              'flex w-full flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium transition-colors',
               pathname.startsWith('/profile/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <span className="relative inline-flex">
-              <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-[10px]" />
+              <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-2xs" />
             </span>
             حسابي
           </Link>
@@ -228,7 +234,7 @@ export function BottomNav() {
               href={ROUTES.settings.sync}
               prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
-              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
+              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
             >
               {queuedCount > 9 ? '9+' : queuedCount}
             </Link>
@@ -239,7 +245,7 @@ export function BottomNav() {
           <button
             type="button"
             onClick={toggleMobileNav}
-            className="flex w-full flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="flex w-full flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <span className="relative inline-flex">
               <Menu className="h-5 w-5" aria-hidden={true} />
@@ -251,7 +257,7 @@ export function BottomNav() {
               href={ROUTES.settings.sync}
               prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
-              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-[9px] font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
+              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
             >
               {queuedCount > 9 ? '9+' : queuedCount}
             </Link>

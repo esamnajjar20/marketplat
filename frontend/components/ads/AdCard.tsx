@@ -5,10 +5,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Badge } from '@/components/ui/badge';
 import { MapPin, Heart, Star, BadgeCheck } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
-import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG, getAvatarUrl } from '@/lib/cloudinary';
+import {
+  getListThumbnailUrl,
+  getPlaceholderUrl,
+  isCloudinaryUrl,
+  PLACEHOLDER_SVG,
+  getAvatarUrl,
+} from '@/lib/cloudinary';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
@@ -22,18 +29,13 @@ interface Props {
   /**
    * FIX PERF-05: next/image lazy-loads by default, which is correct
    * for a grid of cards below the fold but actively hurts LCP
-   * (Largest Contentful Paint) for cards that render above the fold —
-   * their image request doesn't even start until the browser notices
-   * them entering the viewport, adding a needless round trip to the
-   * page's most visually significant paint. Callers rendering a fixed
-   * number of cards near the top of a page (e.g. FeaturedAds) should
-   * pass this for roughly the first row.
+   * for cards above the fold. Pass priority for roughly the first row.
    */
   priority?: boolean;
 }
 
 /**
- * Improved AdCard — refined hierarchy without overlapping elements.
+ * AdCard — listing card with unified Badge + typography scale.
  * Favorite stays top-end; condition/featured stay top-start.
  * Hover lift uses isolation so cards don't stack over neighbours incorrectly.
  */
@@ -48,9 +50,9 @@ export function AdCard({ ad, className, priority = false }: Props) {
   }
 
   const rawImage = ad.images[0];
-  const thumb    = rawImage ? getListThumbnailUrl(rawImage, 320, 224) : PLACEHOLDER_SVG;
-  const isSold   = ad.status === 'SOLD';
-  const isNew    = ad.condition === 'NEW';
+  const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 224) : PLACEHOLDER_SVG;
+  const isSold = ad.status === 'SOLD';
+  const isNew = ad.condition === 'NEW';
 
   const [now, setNow] = useState<number | null>(null);
 
@@ -58,11 +60,14 @@ export function AdCard({ ad, className, priority = false }: Props) {
     setNow(Date.now());
   }, []);
 
-  const ageHours = now === null
-    ? Infinity
-    : (now - new Date(ad.createdAt).getTime()) / 3_600_000;
+  const ageHours =
+    now === null ? Infinity : (now - new Date(ad.createdAt).getTime()) / 3_600_000;
   const timeColorClass =
-    ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
+    ageHours < 24
+      ? 'text-success'
+      : ageHours < 24 * 7
+        ? 'text-warning'
+        : 'text-muted-foreground';
 
   const isAuth = useAuthStore(selectIsAuthenticated);
   const isFavorited = useIsFavorited(ad.id);
@@ -73,9 +78,6 @@ export function AdCard({ ad, className, priority = false }: Props) {
   function handleFavoriteClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    // SW-FIX-ADCARD-LOGIN: send the user to login with a return path,
-    // same pattern as StickyContactBar / StorePublisherCard. Was a bare
-    // toast that left the buyer on the same page with no path forward.
     if (!isAuth) {
       toast.error('سجّل الدخول لحفظ الإعلان');
       router.push(`${ROUTES.login}?from=${encodeURIComponent(detailHref)}`);
@@ -85,7 +87,8 @@ export function AdCard({ ad, className, priority = false }: Props) {
     toggleFavorite.mutate(ad.id);
   }
 
-  const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
+  const blurDataURL =
+    rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
 
   const store = ad.store;
   const isStoreAd = Boolean(store?.id);
@@ -113,9 +116,7 @@ export function AdCard({ ad, className, priority = false }: Props) {
           'active:scale-[0.98]',
           'group-hover/card:border-primary/30 group-hover/card:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-          ad.isFeatured && !isSold
-            ? 'border-accent/40'
-            : 'border-border/80',
+          ad.isFeatured && !isSold ? 'border-accent/40' : 'border-border/80',
           className,
         )}
       >
@@ -145,24 +146,17 @@ export function AdCard({ ad, className, priority = false }: Props) {
             </div>
           )}
 
-          {/* Top-start badges only — never share the end corner with the heart */}
+          {/* Top-start badges — never share the end corner with the heart */}
           <div className="absolute top-2 start-2 z-[1] flex max-w-[70%] flex-col items-start gap-1">
             {ad.condition && (
-              <span
-                className={cn(
-                  'rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide shadow-sm backdrop-blur-md',
-                  isNew
-                    ? 'bg-success/90 text-success-foreground'
-                    : 'border border-white/20 bg-black/45 text-white',
-                )}
-              >
+              <Badge size="xs" variant={isNew ? 'overlay-success' : 'overlay'}>
                 {CONDITION_LABELS[ad.condition] ?? ad.condition}
-              </span>
+              </Badge>
             )}
             {ad.isFeatured && !isSold && (
-              <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm">
+              <Badge size="xs" variant="accent">
                 ★ مميز
-              </span>
+              </Badge>
             )}
           </div>
         </div>
@@ -179,24 +173,24 @@ export function AdCard({ ad, className, priority = false }: Props) {
               {formatPrice(ad.price)}
             </span>
             {isSold && (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+              <Badge size="sm" variant="secondary">
                 تم البيع
-              </span>
+              </Badge>
             )}
             {ad.isNegotiable && !isSold && (
-              <span className="rounded-full border border-primary/25 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              <Badge size="sm" variant="soft">
                 قابل للتفاوض
-              </span>
+              </Badge>
             )}
           </div>
 
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-[15px]">
+          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-card-title">
             {ad.title}
           </h3>
 
           <div className="mt-auto flex flex-col gap-1.5 border-t border-border/40 pt-2">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
               <span className="truncate">{ad.city}</span>
             </span>
 
@@ -224,19 +218,31 @@ export function AdCard({ ad, className, priority = false }: Props) {
 
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-1">
-                {!isStoreAd && ad.sellerProfile && ad.sellerProfile.totalRatings > 0 && (
-                  <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted-foreground">
-                    <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
-                    {parseFloat(ad.sellerProfile.averageRating).toFixed(1)}
-                  </span>
-                )}
-                {!isStoreAd && ad.sellerProfile && ad.sellerProfile.totalRatings === 0 && (
-                  <span className="rounded-full bg-muted/80 px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
-                    بائع جديد
-                  </span>
-                )}
+                {!isStoreAd &&
+                  ad.sellerProfile &&
+                  ad.sellerProfile.totalRatings > 0 && (
+                    <span className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground">
+                      <Star
+                        className="h-3 w-3 fill-rating text-rating"
+                        aria-hidden
+                      />
+                      {parseFloat(ad.sellerProfile.averageRating).toFixed(1)}
+                    </span>
+                  )}
+                {!isStoreAd &&
+                  ad.sellerProfile &&
+                  ad.sellerProfile.totalRatings === 0 && (
+                    <Badge size="sm" variant="secondary">
+                      بائع جديد
+                    </Badge>
+                  )}
               </div>
-              <span className={cn('shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums', timeColorClass)}>
+              <span
+                className={cn(
+                  'shrink-0 whitespace-nowrap text-2xs font-medium tabular-nums',
+                  timeColorClass,
+                )}
+              >
                 {now === null ? '—' : formatRelativeTime(ad.createdAt, now)}
               </span>
             </div>
@@ -265,7 +271,9 @@ export function AdCard({ ad, className, priority = false }: Props) {
             className={cn(
               'h-4 w-4 transition-colors',
               popKey > 0 && 'motion-safe:animate-heart-pop',
-              isFavorited ? 'fill-destructive text-destructive' : 'text-foreground/80',
+              isFavorited
+                ? 'fill-destructive text-destructive'
+                : 'text-foreground/80',
             )}
           />
         </button>

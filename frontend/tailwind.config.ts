@@ -130,6 +130,25 @@ const config: Config = {
         mono: ['var(--font-ibm-plex-mono)', 'monospace'],
       },
 
+      /**
+       * Typography scale — replaces ad-hoc text-[9px]/[10px]/[11px]/[15px].
+       * Use text-2xs / text-3xs in cards, badges, and dense meta rows.
+       */
+      fontSize: {
+        '3xs': ['0.5625rem', { lineHeight: '0.75rem' }], // 9px
+        '2xs': ['0.625rem', { lineHeight: '0.875rem' }], // 10px
+        xs: ['0.75rem', { lineHeight: '1rem' }],
+        sm: ['0.875rem', { lineHeight: '1.25rem' }],
+        base: ['1rem', { lineHeight: '1.5rem' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem' }],
+        xl: ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+        /** Card titles on ≥sm — slightly larger than sm without jumping to base */
+        'card-title': ['0.9375rem', { lineHeight: '1.375rem' }], // 15px
+      },
+
       keyframes: {
         'accordion-down': {
           from: { height: '0' },

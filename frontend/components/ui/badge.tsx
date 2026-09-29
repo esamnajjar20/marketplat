@@ -3,8 +3,16 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Badge — unified status / label chip.
+ *
+ * Sizes:
+ *   - default: standard UI (filters, forms)
+ *   - sm: dense rows & card meta
+ *   - xs: image overlays & very tight spaces (AdCard condition / featured)
+ */
 const badgeVariants = cva(
-  'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {
@@ -22,19 +30,27 @@ const badgeVariants = cva(
         accent:
           'border-transparent bg-accent text-accent-foreground shadow-xs hover:bg-accent/80',
         /** Soft tints — low-noise status chips on dense UIs */
-        soft:
-          'border-transparent bg-primary-soft text-primary',
-        'soft-success':
-          'border-transparent bg-success-soft text-success',
-        'soft-warning':
-          'border-transparent bg-warning-soft text-warning-foreground',
-        'soft-accent':
-          'border-transparent bg-accent-soft text-accent',
+        soft: 'border-transparent bg-primary-soft text-primary',
+        'soft-success': 'border-transparent bg-success-soft text-success',
+        'soft-warning': 'border-transparent bg-warning-soft text-warning-foreground',
+        'soft-accent': 'border-transparent bg-accent-soft text-accent',
         outline: 'text-foreground border-border',
+        /** Dark glass for image overlays (condition on photos) */
+        overlay:
+          'border-white/20 bg-black/45 text-white shadow-sm backdrop-blur-md',
+        /** Solid success glass for "new" on photos */
+        'overlay-success':
+          'border-transparent bg-success/90 text-success-foreground shadow-sm backdrop-blur-md',
+      },
+      size: {
+        default: 'rounded-md px-2.5 py-0.5 text-xs',
+        sm: 'rounded-full px-1.5 py-0.5 text-2xs leading-none',
+        xs: 'rounded-full px-2 py-0.5 text-2xs font-bold tracking-wide leading-none',
       },
     },
     defaultVariants: {
       variant: 'default',
+      size: 'default',
     },
   },
 );
@@ -43,8 +59,10 @@ export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+function Badge({ className, variant, size, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant, size }), className)} {...props} />
+  );
 }
 
 export { Badge, badgeVariants };
