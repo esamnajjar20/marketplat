@@ -108,6 +108,12 @@ export function useAds(
     Boolean(params?.userId) ||
     Boolean(params?.storeId) ||
     params?.isFeatured !== undefined;
+  // FIX ADS-OFFLINE-SORT-01: treat non-default sort as a different offline
+  // shape — a price-sorted page-1 must not overwrite the default
+  // createdAt-desc adsBrowse slot (and vice versa offline).
+  const hasNonDefaultSort =
+    (params?.sortBy != null && params.sortBy !== 'createdAt') ||
+    (params?.sortOrder != null && params.sortOrder !== 'desc');
   // FIX ADS-OFFLINE-CACHE-SCOPE-03: also honor disableOfflineCache — see
   // the option's own comment on the signature above.
   //
@@ -122,7 +128,9 @@ export function useAds(
     !options?.disableOfflineCache &&
     (!params?.page || params.page === 1) &&
     params?.limit === undefined &&
-    !hasRealFilter;
+    !hasRealFilter &&
+    !hasNonDefaultSort;
+  // Memoize offline read: getOfflineList does JSON.parse — avoid per-render cost.
   const cached = isBaseBrowse
     ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse)
     : null;

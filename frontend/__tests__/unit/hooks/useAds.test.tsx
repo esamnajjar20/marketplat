@@ -35,6 +35,15 @@ vi.mock('@/api/users.api', () => ({
   usersApi: { getUserAds: vi.fn() },
 }));
 
+const saveOfflineList = vi.fn();
+const getOfflineList = vi.fn(() => null);
+vi.mock('@/lib/offlineListCache', () => ({
+  getOfflineList: (...args: unknown[]) => getOfflineList(...args),
+  saveOfflineList: (...args: unknown[]) => saveOfflineList(...args),
+  OFFLINE_LIST_KEYS: { adsBrowse: 'adsBrowse' },
+  OFFLINE_LIST_LIMITS: { adsBrowse: 40 },
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: ReactNode }) => (
@@ -44,6 +53,7 @@ function createWrapper() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getOfflineList.mockReturnValue(null);
   (adsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
   (adsApi.searchAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
   (adsApi.getById as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'ad-1' } } });
@@ -79,6 +89,28 @@ describe('useAds', () => {
     const { result } = renderHook(() => useAds({ page: 1 }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(adsApi.getAll).toHaveBeenCalledWith({ page: 1 });
+  });
+
+  // FIX ADS-OFFLINE-SORT-01
+  it('writes unfiltered page-1 default sort into adsBrowse offline slot', async () => {
+    (adsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { items: [{ id: '1' }], meta: {} } },
+    });
+    const { result } = renderHook(() => useAds({ page: 1 }), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(saveOfflineList).toHaveBeenCalled();
+  });
+
+  it('does NOT write price-sorted page-1 into adsBrowse offline slot', async () => {
+    (adsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { items: [{ id: '1' }], meta: {} } },
+    });
+    const { result } = renderHook(
+      () => useAds({ page: 1, sortBy: 'price', sortOrder: 'asc' }),
+      { wrapper: createWrapper() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(saveOfflineList).not.toHaveBeenCalled();
   });
 });
 

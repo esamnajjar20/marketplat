@@ -3,6 +3,8 @@ import { HOME_CITIES } from '../../modules/home/home.validation';
 import { categoriesService } from '../../modules/categories/categories.service';
 import { productCategoriesService } from '../../modules/product-categories/product-categories.service';
 import { serviceCategoriesService } from '../../modules/service-categories/service-categories.service';
+import { adsService } from '../../modules/ads/ads.service';
+import type { GetAdsQuery } from '../../modules/ads/ads.validation';
 import { guardedCache } from './cacheGuard';
 import { cacheMetrics } from './cacheMetrics';
 import { cacheClient } from './swrCache';
@@ -57,12 +59,33 @@ const homeTask = (city: string | undefined): WarmupTask => ({
 
 // Order matters: general first (most traffic), then the category trees (every
 // city homepage embeds them, so they are already cached when cities rebuild),
-// then the ten city variants.
+// then default first-page public lists (FIX ADS-WARM-TTL-01 — hard TTL 600s
+// so the 240s keep-warm interval can hold them), then the ten city variants.
 export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   homeTask(undefined),
   { name: 'categories', run: () => categoriesService.getCategories() },
   { name: 'product-categories', run: () => productCategoriesService.getProductCategories() },
   { name: 'service-categories', run: () => serviceCategoriesService.getServiceCategories() },
+  // Default first pages only (no filters/search) — matches frontend
+  // offlineCoreBundle / ads page defaults.
+  {
+    name: 'ads:list:default',
+    run: () =>
+      adsService.getAds({
+        page: 1,
+        limit: 20,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      } satisfies GetAdsQuery),
+  },
+  {
+    name: 'ads:list:featured',
+    run: () =>
+      adsService.getAds({
+        isFeatured: true,
+        limit: 4,
+      } satisfies GetAdsQuery),
+  },
   ...HOME_CITIES.map(city => homeTask(city)),
 ];
 

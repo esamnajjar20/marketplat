@@ -255,7 +255,7 @@ function loadServiceWorker() {
   // same execution, since sw.js itself is read-only source we don't
   // want to modify just for testability.
   vm.runInContext(
-    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__withNetworkTimeout = withNetworkTimeout;`,
+    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__USER_DATA_CACHE = USER_DATA_CACHE;\nself.__NAVIGATE_TIMEOUT_MS = NAVIGATE_TIMEOUT_MS;\nself.__NAVIGATE_TIMEOUT_CACHED_MS = NAVIGATE_TIMEOUT_CACHED_MS;\nself.__withNetworkTimeout = withNetworkTimeout;`,
     sandbox,
     { filename: 'sw.js' },
   );
@@ -382,18 +382,22 @@ describe('sw.js — service worker logic', () => {
   });
 
   describe('CLEAR_API_CACHE message listener (audit #2 — logout cache leak fix)', () => {
-    it('registers a message listener that deletes API_CACHE and PERSONAL_SHELL_CACHE on CLEAR_API_CACHE', async () => {
+    it('registers a message listener that deletes API_CACHE, PERSONAL_SHELL_CACHE and USER_DATA_CACHE on CLEAR_API_CACHE', async () => {
       const messageHandlers = ctx.listeners['message'] ?? [];
       expect(messageHandlers.length).toBeGreaterThan(0);
 
       const apiCacheName = ctx.sandbox.self.__API_CACHE;
       const shellCacheName = ctx.sandbox.self.__PERSONAL_SHELL_CACHE;
+      const userDataCacheName = ctx.sandbox.self.__USER_DATA_CACHE;
       expect(apiCacheName).toMatch(/market-api-/);
       expect(shellCacheName).toMatch(/market-personal-shell-/);
+      expect(userDataCacheName).toMatch(/market-user-data-/);
       await ctx.fakeCaches.open(apiCacheName);
       await ctx.fakeCaches.open(shellCacheName);
+      await ctx.fakeCaches.open(userDataCacheName);
       expect(await ctx.fakeCaches.keys()).toContain(apiCacheName);
       expect(await ctx.fakeCaches.keys()).toContain(shellCacheName);
+      expect(await ctx.fakeCaches.keys()).toContain(userDataCacheName);
 
       const waitUntilCalls: Promise<unknown>[] = [];
       const fakeEvent = {
@@ -406,6 +410,7 @@ describe('sw.js — service worker logic', () => {
 
       expect(await ctx.fakeCaches.keys()).not.toContain(apiCacheName);
       expect(await ctx.fakeCaches.keys()).not.toContain(shellCacheName);
+      expect(await ctx.fakeCaches.keys()).not.toContain(userDataCacheName);
     });
 
     it('ignores unrelated message types without touching any cache', async () => {
@@ -523,6 +528,119 @@ describe('sw.js — service worker logic', () => {
 
       const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
       expect(await cache.match(request)).toBeUndefined();
+    });
+
+    // FIX SW-AUTH-PUBLIC-LIST-01
+    it('stores authenticated public list GETs (/ads) in USER_DATA_CACHE, not API_CACHE', async () => {
+      ctx.setFetch(async () =>
+        new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const event = makeEvent();
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/ads?page=1',
+        headers: { authorization: 'Bearer tok' },
+      });
+      const url = new URL(request.url);
+
+      await ctx.sandbox.networkFirstApi(event, request, url);
+      await Promise.all(event._waits);
+
+      const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE);
+      expect(await apiCache.match(request)).toBeUndefined();
+      expect(await userDataCache.match(request)).toBeDefined();
+    });
+
+    it('does NOT store authenticated private paths (/ads/me) in any shared cache', async () => {
+      ctx.setFetch(async () =>
+        new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const event = makeEvent();
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/ads/me',
+        headers: { authorization: 'Bearer tok' },
+      });
+      const url = new URL(request.url);
+
+      await ctx.sandbox.networkFirstApi(event, request, url);
+      await Promise.all(event._waits);
+
+      const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE);
+      expect(await apiCache.match(request)).toBeUndefined();
+      expect(await userDataCache.match(request)).toBeUndefined();
+    });
+
+    it('keeps different query strings as separate USER_DATA_CACHE keys', async () => {
+      ctx.setFetch(async () =>
+        new Response(JSON.stringify({ items: [{ id: 'a' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const event1 = makeEvent();
+      const req1 = makeFakeRequest({
+        url: 'https://example.com/api/v1/ads?page=1&sortBy=createdAt',
+        headers: { authorization: 'Bearer tok' },
+      });
+      await ctx.sandbox.networkFirstApi(event1, req1, new URL(req1.url));
+      await Promise.all(event1._waits);
+
+      ctx.setFetch(async () =>
+        new Response(JSON.stringify({ items: [{ id: 'b' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const event2 = makeEvent();
+      const req2 = makeFakeRequest({
+        url: 'https://example.com/api/v1/ads?page=1&sortBy=price',
+        headers: { authorization: 'Bearer tok' },
+      });
+      await ctx.sandbox.networkFirstApi(event2, req2, new URL(req2.url));
+      await Promise.all(event2._waits);
+
+      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE);
+      const c1 = await userDataCache.match(req1);
+      const c2 = await userDataCache.match(req2);
+      expect(c1).toBeDefined();
+      expect(c2).toBeDefined();
+      expect(await c1!.json()).toEqual({ items: [{ id: 'a' }] });
+      expect(await c2!.json()).toEqual({ items: [{ id: 'b' }] });
+    });
+
+    it('still stores anonymous public list GETs in API_CACHE', async () => {
+      ctx.setFetch(async () =>
+        new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const event = makeEvent();
+      const request = makeFakeRequest({ url: 'https://example.com/api/v1/ads?page=1' });
+      const url = new URL(request.url);
+
+      await ctx.sandbox.networkFirstApi(event, request, url);
+      await Promise.all(event._waits);
+
+      const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      expect(await apiCache.match(request)).toBeDefined();
+    });
+  });
+
+  describe('navigate timeout constants (FIX NAV-TIMEOUT-CACHED-01)', () => {
+    it('exposes a shorter cached navigate timeout than the uncached one', () => {
+      expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_MS).toBe(10000);
+      expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_CACHED_MS).toBe(3500);
+      expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_CACHED_MS).toBeLessThan(
+        ctx.sandbox.self.__NAVIGATE_TIMEOUT_MS,
+      );
     });
   });
 

@@ -102,7 +102,12 @@
 // below); '/offline' added to CORE_ROUTES in offlineRouteShells.ts.
 // Both fixes require a cache bump so every active SW clears the
 // stale entries from v35 and the retry/marker files reset.
-const CACHE_VERSION = 'v42';
+// FIX SW-AUTH-PUBLIC-LIST-01 + NAV-TIMEOUT-CACHED-01 + WARM-ADAPTIVE:
+// v43 — (1) allowlist public list GETs into USER_DATA_CACHE even when
+// Authorization is present so logged-in users on weak net get fallback.
+// (2) shorter navigate timeout when a cached shell exists.
+// (3) adaptive front-end warming (see offlineWarmingPlanner).
+const CACHE_VERSION = 'v43';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -215,6 +220,10 @@ const NETWORK_TIMEOUT_MS = 5000
 
 /** Navigate documents need longer on weak links — 3s caused false /offline. */
 const NAVIGATE_TIMEOUT_MS = 10000
+/** FIX NAV-TIMEOUT-CACHED-01: when a cached shell already exists, fail over
+ * faster (3.5s) so the user sees content instead of a blank screen for 10s.
+ * The real fetch continues in the background and updates the cache. */
+const NAVIGATE_TIMEOUT_CACHED_MS = 3500
 
 /** FIX QUEUE-HOL-01: max consecutive soft failures on the same head entry
  * before marking failed (unblocks the rest of the queue). */
@@ -410,6 +419,35 @@ function isAuthPage(url) {
 
 function isApiRequest(url) {
   return url.pathname.includes('/api/');
+}
+
+/**
+ * FIX SW-AUTH-PUBLIC-LIST-01: public, mostly viewer-independent list endpoints
+ * that are safe to store even when the request carries Authorization.
+ * Logged-in responses may include isFavorited flags — that is fine because
+ * USER_DATA_CACHE is wiped on logout (CLEAR_API_CACHE / logout path).
+ * Without this, apiClient always attaches Authorization → networkFirstApi
+ * never wrote the response → weak-net logged-in users waited axios 15s +
+ * retry (~30s) instead of falling back after NETWORK_TIMEOUT_MS.
+ * Only first-page / unfiltered-style GETs; filtered/search still skip store.
+ */
+const PUBLIC_LIST_API_PREFIXES = [
+  '/api/v1/ads',
+  '/api/v1/products',
+  '/api/v1/stores',
+  '/api/v1/services',
+  '/api/v1/service-listings',
+  '/api/v1/categories',
+  '/api/v1/product-categories',
+  '/api/v1/service-categories',
+  '/api/v1/home',
+];
+
+function isPublicListApiPath(url) {
+  // pathname has no query — /api/v1/ads?page=1 → pathname '/api/v1/ads'.
+  // Detail routes are /api/v1/ads/<id> and must NOT match (saved ads cache).
+  const path = url.pathname;
+  return PUBLIC_LIST_API_PREFIXES.some((prefix) => path === prefix);
 }
 
 /** الصور: destination='image' يغطي عناصر <img>، وفحص المضيف يغطي الجلب
@@ -717,9 +755,12 @@ async function networkFirstPage(event, request, cacheKey) {
   const cache = await caches.open(STATIC_CACHE);
   // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
+  // FIX NAV-TIMEOUT-CACHED-01: shorter timeout when a cached shell exists.
+  const hasCachedShell = !!(await cache.match(cacheKey));
+  const navigateTimeout = hasCachedShell ? NAVIGATE_TIMEOUT_CACHED_MS : NAVIGATE_TIMEOUT_MS;
   const fetchPromise = fetch(request);
   try {
-    const response = await withNetworkTimeout(fetchPromise, NAVIGATE_TIMEOUT_MS);
+    const response = await withNetworkTimeout(fetchPromise, navigateTimeout);
     if (response && response.ok && isSameOriginResponse(response)) {
       const toStore = isRscShellRequest(request)
         ? await stripVaryAndClone(response.clone())
@@ -831,9 +872,17 @@ async function handleProtectedPage(event, request, url) {
 
   // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
+  // FIX NAV-TIMEOUT-CACHED-01: shorter timeout when a personal shell is cached.
+  let navigateTimeout = NETWORK_TIMEOUT_MS;
+  if (useShellCache) {
+    const shellCache = await caches.open(PERSONAL_SHELL_CACHE);
+    if (await shellCache.match(cacheKey)) {
+      navigateTimeout = NAVIGATE_TIMEOUT_CACHED_MS;
+    }
+  }
   const fetchPromise = fetch(request);
   try {
-    const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
+    const response = await withNetworkTimeout(fetchPromise, navigateTimeout);
     // FIX SW-206-PROTECTED: استثناء 206 (Partial Content) — نفس منطق
     // staleWhileRevalidate وnetworkFirstPage.
     if (useShellCache && response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
@@ -1143,12 +1192,25 @@ function inferCacheTier(cacheName, request) {
   return 10;
 }
 
+/** FIX SW-TRIM-THROTTLE-01: avoid running full trim after every put.
+ * Entry-over-cap still runs immediately; byte-cap / healthy caches at
+ * most once per TRIM_MIN_INTERVAL_MS per cache name. */
+const TRIM_MIN_INTERVAL_MS = 30_000;
+const lastTrimAtByCache = new Map();
+
 async function trimCache(cacheName, maxEntries, maxBytes) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
 
   // Fast path 1: entry cap not reached AND no byte cap requested.
   if (keys.length <= maxEntries && maxBytes === undefined) return;
+
+  // Over entry cap → always trim. Otherwise throttle expensive byte work.
+  if (keys.length <= maxEntries) {
+    const last = lastTrimAtByCache.get(cacheName) || 0;
+    if (Date.now() - last < TRIM_MIN_INTERVAL_MS) return;
+  }
+  lastTrimAtByCache.set(cacheName, Date.now());
 
   // SW-SMART-CACHE-FASTPATH: when a byte cap is set and the entry count
   // is under its cap, sampling ~50 entries to estimate the total is far
@@ -1157,21 +1219,33 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
   // at the cost of a rare full read when the estimate is close to the
   // cap. Only used when we would otherwise have to do a full byte
   // enumeration anyway.
+  // FIX SW-TRIM-SIZE-01: when Content-Length is absent (streamed HTML/RSC),
+  // treat the sample as ~48KB so the 30MB byte cap is not silently ignored.
+  const MISSING_LEN_ESTIMATE = 48 * 1024;
+
   if (maxBytes !== undefined && keys.length <= maxEntries) {
     const sampleSize = Math.min(50, keys.length);
     let sampleBytes = 0;
+    let measured = 0;
     for (let i = 0; i < sampleSize; i += 1) {
       const res = await cache.match(keys[i]);
       const len = res && res.headers.get('content-length');
       const n = len ? Number(len) : 0;
-      if (Number.isFinite(n) && n > 0) sampleBytes += n;
+      if (Number.isFinite(n) && n > 0) {
+        sampleBytes += n;
+        measured += 1;
+      } else {
+        sampleBytes += MISSING_LEN_ESTIMATE;
+      }
     }
     const avg = sampleSize > 0 ? sampleBytes / sampleSize : 0;
     const estimated = avg * keys.length;
     // 90% margin: if the estimate is comfortably under the cap, trust
     // it. If it's near or over, fall through to the full enumeration
     // for accuracy — an underestimate must never let us skip a trim.
-    if (estimated < maxBytes * 0.9) return;
+    // If almost nothing had Content-Length, always fall through when
+    // entry count is high (estimate is rough).
+    if (estimated < maxBytes * 0.9 && measured >= sampleSize * 0.3) return;
   }
 
   const now = Date.now();
@@ -1181,9 +1255,10 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
       const raw = res && res.headers.get('X-SW-Cached-At');
       const ts = raw ? Number(raw) : 0;
       // Content-Length may be missing (chunked HTML, compressed responses).
-      // Missing = size 0 = no size penalty; the entry cap still protects us.
+      // Use a conservative estimate so the byte cap still applies.
       const lenRaw = res && res.headers.get('content-length');
-      const size = lenRaw ? Number(lenRaw) : 0;
+      const parsed = lenRaw ? Number(lenRaw) : NaN;
+      const size = Number.isFinite(parsed) && parsed > 0 ? parsed : MISSING_LEN_ESTIMATE;
       const tier = inferCacheTier(cacheName, key);
       const ageHours = ts > 0 ? (now - ts) / 3_600_000 : 9999;
       const sizeKB = Number.isFinite(size) && size > 0 ? size / 1024 : 0;
@@ -1219,7 +1294,7 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
 /** Network First لطلبات API (GET) — عند فشل الشبكة: API_CACHE أولًا (آخر
  * استجابة فعلية زارها المستخدم)، ثم CORE_CACHE (الحزمة الأساسية المحمَّلة
  * استباقيًا عبر warmCoreBundle لمسارات لم تُزَر من قبل). */
-async function networkFirstApi(event, request, _url) {
+async function networkFirstApi(event, request, url) {
   const cache = await caches.open(API_CACHE);
   // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
@@ -1232,32 +1307,43 @@ async function networkFirstApi(event, request, _url) {
   // FIX SW-API-AUTH-TIMEOUT-01: this gate now guards BOTH the normal
   // path and the late-arriving (post-timeout) path — the latter used to
   // store auth'd responses without checking it.
+  // FIX SW-AUTH-PUBLIC-LIST-01: public list GETs (ads/products/…) may still
+  // be stored in USER_DATA_CACHE when Authorization is present — that cache
+  // is cleared on logout, so isFavorited leakage across users is avoided.
   const hadAuth = request.headers.get('authorization') != null;
+  const publicListOk = isPublicListApiPath(url);
 
-  const storeIfPublic = async (response) => {
-    if (hadAuth || !response) return;
+  const storeIfAllowed = async (response) => {
+    if (!response) return;
     // FIX SW-CAPTIVE-01 (API variant): رد API حقيقي متوقّع يكون JSON —
     // صفحة captive portal/edge error بحالة 200 عادة HTML.
     const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
     // FIX SW-206-API: استثناء 206 أيضاً.
-    if (response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson) {
+    if (!(response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson)) {
+      return;
+    }
+    if (!hadAuth) {
       await putTimestamped(cache, request, response.clone());
       await trimCache(API_CACHE, MAX_API_ENTRIES);
+      return;
+    }
+    // Logged-in public lists → USER_DATA_CACHE only (cleared on logout).
+    if (publicListOk) {
+      const userDataCache = await caches.open(USER_DATA_CACHE);
+      await putTimestamped(userDataCache, request, response.clone());
     }
   };
 
   try {
     const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
-    if (!hadAuth) {
-      event.waitUntil(storeIfPublic(response).catch(() => {}));
-    }
+    event.waitUntil(storeIfAllowed(response).catch(() => {}));
     return response;
   } catch (err) {
     const timedOut = !!(err && err.name === 'SwTimeoutError');
     if (timedOut) {
       // مهلة (نت ضعيف) لا تعني تخلّيًا عن fetchPromise الحقيقي — لو نجح
-      // لاحقًا حدِّث الكاش بالخلفية (بنفس بوابة hadAuth).
-      event.waitUntil(fetchPromise.then(storeIfPublic).catch(() => {}));
+      // لاحقًا حدِّث الكاش بالخلفية (بنفس بوابة التخزين).
+      event.waitUntil(fetchPromise.then(storeIfAllowed).catch(() => {}));
     }
 
     // FIX SW-VARY-01: entries here come only from anonymous requests and
@@ -1267,9 +1353,8 @@ async function networkFirstApi(event, request, _url) {
     const cachedApi = await cache.match(request, { ignoreVary: true });
     if (cachedApi) return cachedApi;
 
-    // PHASE-5: user-warmed data. Ordered after API_CACHE and before
-    // CORE_CACHE. The key is the full request URL — matching exactly
-    // what lib/offlineWarmingUserData.ts stored.
+    // PHASE-5 + SW-AUTH-PUBLIC-LIST-01: user-warmed data and auth'd public
+    // lists. Ordered after API_CACHE and before CORE_CACHE.
     const userDataCache = await caches.open(USER_DATA_CACHE);
     const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
     if (cachedUserData) return cachedUserData;

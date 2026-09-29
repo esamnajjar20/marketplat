@@ -13,6 +13,7 @@
 'use client';
 
 import { getWarmingMode } from './warmingPreferences';
+import { shouldPauseWarming, getAverageRequestMs } from './connectionQuality';
 
 // NOTE: getWarmingPlan() no longer produces 'critical' (see FIX WARM-DEADCODE-01);
 // the member stays in the union because downstream consumers and their tests
@@ -165,18 +166,58 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  // WARMING-MODES-03: the user's mode wins outright — no silent throttle based
-  // on inferred network quality. 'fast' warms the top ROUTE_BUDGETS.core routes
-  // (12 public + 8 personal); 'full' warms every known route. Weak links are the
-  // user's call to make via the mode selector, not ours to second-guess.
-  //
-  // FIX WARM-DEADCODE-01: getWarmingMode() only ever returns 'off' | 'fast' |
-  // 'full', and all three are handled above/below — the former measured-speed /
-  // effectiveType / downlink tiers (critical, mid-slow, auto) sat after these
-  // returns and could never run, which made the file read as if warming adapted
-  // to slow networks when it does not. They were removed. To bring adaptive
-  // behaviour back, add an explicit 'auto' WarmingMode instead of a hidden one.
+  // FIX WARM-TIMEOUT-CIRCUIT-01: stop background warming after repeated
+  // network failures so we do not keep burning a weak radio.
+  if (shouldPauseWarming()) {
+    return {
+      tier: 'none',
+      concurrency: 0,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 0,
+      requestTimeoutMs: 0,
+      minRoutes: 0,
+      reason: 'timeout-circuit',
+    };
+  }
+
+  // FIX WARM-ADAPTIVE-01 / WARM-ADAPTIVE-3G-01: throttle by effectiveType,
+  // downlink, and measured RTT. 2g → critical; 3g / high RTT → smaller core.
+  const effectiveType = (conn?.effectiveType || '').toLowerCase();
+  const downlink = typeof conn?.downlink === 'number' ? conn.downlink : undefined;
+  const avgMs = getAverageRequestMs();
+  const isVerySlow =
+    effectiveType === '2g' ||
+    effectiveType === 'slow-2g' ||
+    (downlink !== undefined && downlink > 0 && downlink < 0.4);
+  const isModeratelySlow =
+    !isVerySlow &&
+    (effectiveType === '3g' ||
+      (downlink !== undefined && downlink > 0 && downlink < 1.5) ||
+      (avgMs != null && avgMs >= 2500));
+
+  const criticalPlan = (reason: string): WarmingPlan => ({
+    tier: 'critical',
+    concurrency: 1,
+    interBatchDelayMs: 0,
+    interRouteDelayMs: 2500,
+    requestTimeoutMs: 25_000,
+    minRoutes: ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal,
+    reason,
+  });
+
   if (userMode === 'fast') {
+    if (isVerySlow) return criticalPlan('user-fast-2g');
+    if (isModeratelySlow) {
+      return {
+        tier: 'critical',
+        concurrency: 1,
+        interBatchDelayMs: 0,
+        interRouteDelayMs: 1800,
+        requestTimeoutMs: 20_000,
+        minRoutes: ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal,
+        reason: 'user-fast-3g',
+      };
+    }
     return {
       tier: 'core',
       concurrency: 1,
@@ -188,8 +229,19 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  // userMode === 'full': every known route. Parallel batches of 2, tight
-  // delays — for a link good enough that ~2.2 MB of shells is not a burden.
+  // userMode === 'full'
+  if (isVerySlow) return criticalPlan('user-full-2g');
+  if (isModeratelySlow) {
+    return {
+      tier: 'core',
+      concurrency: 1,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 1500,
+      requestTimeoutMs: 18_000,
+      minRoutes: CORE_ROUTE_BUDGET,
+      reason: 'user-full-3g',
+    };
+  }
   return {
     tier: 'full',
     concurrency: 2,

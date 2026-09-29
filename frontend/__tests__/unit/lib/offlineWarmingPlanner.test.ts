@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 let mode: 'off' | 'fast' | 'full' = 'fast';
 vi.mock('@/lib/warmingPreferences', () => ({ getWarmingMode: () => mode }));
-vi.mock('@/lib/connectionQuality', () => ({ getAverageRequestMs: () => null }));
+vi.mock('@/lib/connectionQuality', () => ({ getAverageRequestMs: () => null, shouldPauseWarming: () => false }));
 vi.mock('../../../lib/warmingPreferences', () => ({ getWarmingMode: () => mode }));
-vi.mock('../../../lib/connectionQuality', () => ({ getAverageRequestMs: () => null }));
+vi.mock('../../../lib/connectionQuality', () => ({ getAverageRequestMs: () => null, shouldPauseWarming: () => false }));
 
 import {
   getWarmingPlan,
@@ -48,15 +48,51 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     expect(selectRoutesByPlan(getWarmingPlan(), [...CORE_ROUTES])).toEqual([]);
   });
 
-  it("the plan follows the user's mode, not the measured/reported network (FIX WARM-DEADCODE-01)", () => {
+  it("on a normal link, the plan follows the user's mode (4g / no connection API)", () => {
     Object.defineProperty(globalThis, 'navigator', {
-      value: { onLine: true, connection: { effectiveType: '2g', downlink: 0.05 } },
+      value: { onLine: true, connection: { effectiveType: '4g', downlink: 10 } },
       configurable: true,
     });
     mode = 'fast';
     expect(getWarmingPlan()).toMatchObject({ tier: 'core', reason: 'user-fast', concurrency: 1 });
     mode = 'full';
     expect(getWarmingPlan()).toMatchObject({ tier: 'full', reason: 'user-full' });
+  });
+
+  // FIX WARM-ADAPTIVE-01: 2g / slow-2g / very low downlink throttle to critical
+  it("2g throttles 'fast' and 'full' down to critical (FIX WARM-ADAPTIVE-01)", () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '2g', downlink: 0.05 } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan()).toMatchObject({
+      tier: 'critical',
+      reason: 'user-fast-2g',
+      concurrency: 1,
+      minRoutes: ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal,
+    });
+    mode = 'full';
+    expect(getWarmingPlan()).toMatchObject({
+      tier: 'critical',
+      reason: 'user-full-2g',
+      concurrency: 1,
+    });
+  });
+
+  it("slow-2g and downlink < 0.4 also force critical", () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: 'slow-2g' } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan().tier).toBe('critical');
+
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '3g', downlink: 0.3 } },
+      configurable: true,
+    });
+    expect(getWarmingPlan().tier).toBe('critical');
   });
 
   it('saveData and being offline still disable warming, whatever the mode', () => {
@@ -73,3 +109,14 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     expect(getWarmingPlan().tier).toBe('none');
   });
 });
+
+  it("3g throttles 'fast' to critical and 'full' to core (FIX WARM-ADAPTIVE-3G-01)", () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '3g', downlink: 0.8 } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'critical', reason: 'user-fast-3g' });
+    mode = 'full';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'core', reason: 'user-full-3g' });
+  });

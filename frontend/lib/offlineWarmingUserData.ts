@@ -37,11 +37,12 @@ import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
 import { isWarmingCancelled } from './offlineRouteShells';
 import { useAuthStore } from '@/store/auth.store';
+import { USER_DATA_CACHE_NAME } from '@/lib/cacheVersion';
 
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
 /** Must match sw.js's USER_DATA_CACHE template literally. */
-export const USER_DATA_CACHE = 'market-user-data-v42';
+export const USER_DATA_CACHE = USER_DATA_CACHE_NAME;
 
 /**
  * FIX WARM-USERDATA-TTL-01: كل مسار له نافذة طزاجة خاصة به. قبل ذلك لم

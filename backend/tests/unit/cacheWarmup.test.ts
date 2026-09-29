@@ -23,6 +23,9 @@ jest.mock('../../src/modules/product-categories/product-categories.service', () 
 jest.mock('../../src/modules/service-categories/service-categories.service', () => ({
   serviceCategoriesService: { getServiceCategories: jest.fn().mockResolvedValue([]) },
 }));
+jest.mock('../../src/modules/ads/ads.service', () => ({
+  adsService: { getAds: jest.fn().mockResolvedValue({ items: [], meta: {} }) },
+}));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
@@ -35,14 +38,37 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
     resetCacheGuard();
   });
 
-  it('covers general home, the three category trees, and every allow-listed city', () => {
+  it('covers general home, category trees, default ads lists, and every allow-listed city (FIX ADS-WARM-TTL-01)', () => {
     expect(WARMUP_TASKS.map(t => t.name)).toEqual([
       'home:general',
       'categories',
       'product-categories',
       'service-categories',
+      'ads:list:default',
+      'ads:list:featured',
       ...HOME_CITIES.map(city => `home:${city}`),
     ]);
+  });
+
+  it('ads list warmup tasks call getAds with the default first-page queries', async () => {
+    const { adsService } = jest.requireMock('../../src/modules/ads/ads.service') as {
+      adsService: { getAds: jest.Mock };
+    };
+    adsService.getAds.mockClear();
+    const defaultTask = WARMUP_TASKS.find(t => t.name === 'ads:list:default')!;
+    const featuredTask = WARMUP_TASKS.find(t => t.name === 'ads:list:featured')!;
+    await defaultTask.run();
+    await featuredTask.run();
+    expect(adsService.getAds).toHaveBeenNthCalledWith(1, {
+      page: 1,
+      limit: 20,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    });
+    expect(adsService.getAds).toHaveBeenNthCalledWith(2, {
+      isFeatured: true,
+      limit: 4,
+    });
   });
 
   it('home tasks are age-gated so an idle healthy cache is not rebuilt every cycle (FIX CACHE-KEEPWARM-AGE-01)', async () => {

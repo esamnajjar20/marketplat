@@ -7,10 +7,33 @@ export type ConnectionQuality = 'fast' | 'slow' | 'offline' | 'unknown';
 
 const MAX_SAMPLES = 5;
 const FAST_MS = 1000;
-const SLOW_MS = 3000;
+/** Ignore sub-this timings — almost always Cache API / SW hits, not real RTT. */
+const MIN_NETWORK_SAMPLE_MS = 80;
 
 const samples: number[] = [];
+/** Consecutive request failures / soft timeouts — used to pause warming. */
+let consecutiveFailures = 0;
 const listeners = new Set<() => void>();
+
+/** Call when an API request fails or hits a soft timeout (not SW cache hits). */
+export function recordRequestFailure(): void {
+  consecutiveFailures += 1;
+  notify();
+}
+
+/** Call when a network request succeeds (real RTT recorded). */
+export function recordRequestSuccess(): void {
+  consecutiveFailures = 0;
+}
+
+export function getConsecutiveFailures(): number {
+  return consecutiveFailures;
+}
+
+/** True when recent traffic suggests the link cannot sustain background warming. */
+export function shouldPauseWarming(): boolean {
+  return consecutiveFailures >= 3;
+}
 
 function notify() {
   listeners.forEach((fn) => {
@@ -22,11 +45,16 @@ function notify() {
   });
 }
 
-/** Record a finished request duration (ms). Call from axios interceptors. */
+/** Record a finished request duration (ms). Call from axios interceptors.
+ * FIX CONN-QUALITY-SW-01: drop near-instant samples (SW/Cache API hits) so
+ * they do not pull the average into 'fast' while the real network is slow. */
 export function recordRequestTiming(durationMs: number) {
   if (!Number.isFinite(durationMs) || durationMs < 0) return;
+  if (durationMs < MIN_NETWORK_SAMPLE_MS) return;
   samples.push(durationMs);
   while (samples.length > MAX_SAMPLES) samples.shift();
+  // A measured network sample implies the request completed — clear failure streak.
+  consecutiveFailures = 0;
   notify();
 }
 
@@ -78,7 +106,7 @@ export function getConnectionQuality(): ConnectionQuality {
   const avg = averageMs();
   if (avg != null) {
     if (avg < FAST_MS) return 'fast';
-    if (avg < SLOW_MS) return 'slow';
+    // avg >= FAST_MS → slow for UX purposes.
     return 'slow';
   }
 

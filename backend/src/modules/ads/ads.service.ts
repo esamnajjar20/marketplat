@@ -62,7 +62,11 @@ import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
  */
 const ADS_LIST_SOFT_TTL_MS = 30_000; // ads change frequently
 const ADS_LIST_SOFT_JITTER_MS = 5_000;
-const ADS_LIST_HARD_TTL_SECONDS = 120;
+// FIX ADS-WARM-TTL-01: raised 120 → 600 so keep-warm (every 240s) can actually
+// hold first-page default lists between cycles. Generation invalidation still
+// purges on write; SWR serves soft-stale immediately. Safe because only
+// unfiltered/default first pages are warmed (see cacheWarmup WARMUP_TASKS).
+const ADS_LIST_HARD_TTL_SECONDS = 600;
 const ADS_LIST_LOCK_TTL_MS = 10_000;
 
 // Invalidation helpers live in ads.cache.keys.ts (import-cycle-free); re-exported
