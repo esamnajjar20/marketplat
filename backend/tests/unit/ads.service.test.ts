@@ -284,7 +284,7 @@ describe('AdsService', () => {
 
     it('falls back to the repository when the cache read throws', async () => {
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
-      (redis.get as jest.Mock).mockRejectedValueOnce(new Error('Redis connection lost'));
+      (redis.mget as jest.Mock).mockRejectedValueOnce(new Error('Redis connection lost'));
 
       const result = await adsService.getAds(query);
 
@@ -294,14 +294,21 @@ describe('AdsService', () => {
 
     it('still returns the DB result when the cache write fails', async () => {
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
-      (redis.setex as jest.Mock).mockRejectedValueOnce(new Error('Redis connection lost'));
-
-      const result = await adsService.getAds(query);
-
-      expect(result.items).toEqual([mockAd]);
+      const realSet = (redis.set as jest.Mock).getMockImplementation()!;
+      // Fail only the envelope write (ads:list2:*), not the generation-token setup.
+      (redis.set as jest.Mock).mockImplementation(async (key: string, ...rest: unknown[]) => {
+        if (String(key).startsWith('ads:list2:')) throw new Error('Redis connection lost');
+        return realSet(key, ...rest);
+      });
+      try {
+        const result = await adsService.getAds(query);
+        expect(result.items).toEqual([mockAd]);
+      } finally {
+        (redis.set as jest.Mock).mockImplementation(realSet);
+      }
     });
 
-    it('invalidates the cache (version bump) after createAd, so a subsequent getAds re-hits the repository', async () => {
+    it('soft-invalidates after createAd: the stale list is served once, then refreshed in the background (FIX ADS-CACHE-SWR-01)', async () => {
       // createAd's transaction path calls tx.ad.create() directly against
       // the real (unmocked) prisma client — a fake hardcoded 'user-1'
       // string violates the ads_userId_fkey constraint. adsRepository.create
@@ -316,9 +323,12 @@ describe('AdsService', () => {
 
       await adsService.getAds(query); // populates cache, 1 repository call
       await adsService.createAd(realUserId, { title: 'New', description: 'desc', city: 'غزة' } as any, []);
-      await adsService.getAds(query); // must NOT be served from the now-stale cache
+      await adsService.getAds(query); // served stale immediately (no synchronous DB hit)…
+      expect(adsRepository.findMany).toHaveBeenCalledTimes(1);
 
-      expect(adsRepository.findMany).toHaveBeenCalledTimes(2);
+      await new Promise(resolve => setImmediate(resolve));
+      await new Promise(resolve => setImmediate(resolve));
+      expect(adsRepository.findMany).toHaveBeenCalledTimes(2); // …and refreshed in the background
     });
 
     it('invalidates the cache after updateAd (covers mark-as-sold via status change)', async () => {

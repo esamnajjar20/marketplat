@@ -26,6 +26,7 @@ import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { logger } from '../../shared/utils/logger';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
+import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
 
 const MAX_LISTING_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images — see config/limits.ts
 
@@ -222,10 +223,13 @@ export const serviceListingsService = {
   getServiceListings: async (
     query: GetServiceListingsQuery
   ): Promise<PaginatedResult<ServiceListingWithProvider>> => {
-    const { listings, total } = await serviceListingsRepository.findMany(query);
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    return { items: listings, meta: buildPaginationMeta(total, page, limit) };
+    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    return cachedPublicList('service-listings', query, async () => {
+      const { listings, total } = await serviceListingsRepository.findMany(query);
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 20;
+      return { items: listings, meta: buildPaginationMeta(total, page, limit) };
+    });
   },
 
   // FEAT-FAVORITE-POLYMORPHIC PR2: facade for cross-module use
@@ -293,6 +297,11 @@ export const serviceListingsService = {
     }
 
     const updated = await serviceListingsRepository.update(id, input);
+    if (input.status && input.status !== 'ACTIVE') {
+      await hidePublicEntities('service-listings');
+    } else {
+      await bumpPublicListCache('service-listings');
+    }
 
     // Gap #10: fire-and-forget, see createServiceListing's own comment.
     activityService.record({ userId, ...activityTemplates.serviceUpdated(updated.id, updated.title) });
@@ -321,6 +330,7 @@ export const serviceListingsService = {
     }
 
     await serviceListingsRepository.softDelete(id);
+    await hidePublicEntities('service-listings');
 
     // Gap #10: fire-and-forget, see createServiceListing's own comment.
     activityService.record({ userId, ...activityTemplates.serviceDeleted(listing.id, listing.title) });

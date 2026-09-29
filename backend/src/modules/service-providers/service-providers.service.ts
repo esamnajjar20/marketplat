@@ -24,6 +24,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { withServiceProviderCreationLock } from '../../shared/utils/serviceProviderLock';
 import { getPaginationParams, PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
+import { cachedPublicList, bumpPublicListCache } from '../../shared/utils/publicListCache';
 
 // ANALYTICS: mirrors stores.service.ts's StoreAnalytics shape (same
 // "views / pipeline counts / top items" structure) adapted to what a
@@ -187,7 +188,9 @@ export const serviceProvidersService = {
     const details = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
     if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
-    return serviceProvidersRepository.update(details.id, input);
+    const updated = await serviceProvidersRepository.update(details.id, input);
+    await bumpPublicListCache('service-providers');
+    return updated;
   },
 
   // Feature-completeness fix: logoUrl was fully supported end-to-end
@@ -207,6 +210,7 @@ export const serviceProvidersService = {
 
     try {
       const updated = await serviceProvidersRepository.update(details.id, { logoUrl: url });
+      await bumpPublicListCache('service-providers');
       if (details.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(details.logoUrl);
         if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
@@ -264,9 +268,12 @@ export const serviceProvidersService = {
   getServiceProviders: async (
     query: GetServiceProvidersQuery
   ): Promise<{ providers: ServiceProviderDetails[]; meta: PaginationMeta }> => {
-    const { page, limit, skip, take } = getPaginationParams(query.page, query.limit);
-    const { rows, total } = await serviceProvidersRepository.findMany(query, skip, take);
-    return { providers: rows, meta: buildPaginationMeta(total, page, limit) };
+    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    return cachedPublicList('service-providers', query, async () => {
+      const { page, limit, skip, take } = getPaginationParams(query.page, query.limit);
+      const { rows, total } = await serviceProvidersRepository.findMany(query, skip, take);
+      return { providers: rows, meta: buildPaginationMeta(total, page, limit) };
+    });
   },
 
   findNearby: async (

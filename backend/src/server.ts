@@ -23,7 +23,7 @@ import {
 } from './shared/utils/tokenStore';
 import { activityBuffer } from './shared/utils/activityBuffer';
 import { redisMemoryMonitor } from './shared/utils/redisMemoryMonitor';
-import { scheduleCacheWarmup } from './shared/utils/cacheWarmup';
+import { startCacheKeepWarm } from './shared/utils/cacheWarmup';
 import { checkConnectionCapacity } from './shared/utils/capacityCheck';
 
 // TERMUX/PROOT SUPPORT: on Android + Termux + proot-distro Ubuntu,
@@ -154,6 +154,9 @@ const bootstrap = async (): Promise<void> => {
     // docker-compose.yml's noeviction policy.
     redisMemoryMonitor.start();
 
+    // FIX CACHE-KEEPWARM-01: stopped on shutdown (see below).
+    let stopCacheKeepWarm: (() => void) | undefined;
+
     const server = app.listen(env.port, () => {
       logger.info('🚀 Server running', {
         port: env.port,
@@ -161,13 +164,15 @@ const bootstrap = async (): Promise<void> => {
         url: `http://localhost:${env.port}`,
         docs: `http://localhost:${env.port}/api/docs`,
       });
-      // FIX CACHE-WARMUP-01: fill the public Redis caches before the first
-      // visitor has to — see shared/utils/cacheWarmup.ts.
-      scheduleCacheWarmup();
+      // FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01: fill the public Redis caches
+      // before the first visitor has to, and keep them warm afterwards —
+      // see shared/utils/cacheWarmup.ts.
+      stopCacheKeepWarm = startCacheKeepWarm();
     });
 
     const shutdown = async (signal: string) => {
       logger.info(`${signal} received — shutting down gracefully`);
+      stopCacheKeepWarm?.();
 
       // M-08: .unref() prevents the timer from keeping the event loop alive
       // if the server closes cleanly before 10s

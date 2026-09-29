@@ -1,0 +1,30 @@
+# معمارية الكاش والتسخين (Backend)
+
+## الطبقات
+1. **المتصفح/SW**: ترويسات `Cache-Control` من `cacheControl.middleware.ts` (`LIVE` = 30+30، `SHORT` = 90+60، `LONG` = 3600+600). الفرونت لا يقرأ قيم `stale-while-revalidate` أصلاً؛ الـ Service Worker له استراتيجياته الخاصة، فتغيير الترويسات لا يؤثر على منطق التسخين هناك.
+2. **Redis SWR** (`shared/utils/swrCache.ts`): محرك واحد لكل الكاشات العامة: الرئيسية، قوائم الإعلانات، قوائم stores/products/service-listings/service-providers.
+3. **التسخين** (`shared/utils/cacheWarmup.ts`): عند الإقلاع ثم كل 4 دقائق.
+4. **الإبطال**: أجيال (generation tokens) وليس حذف مفاتيح.
+
+## الإبطال بالأجيال
+كل مفتاح كاش مختوم بـ token الجيل الذي كان ساري عند **بدء** بنائه. الإبطال = استبدال الـ token بقيمة عشوائية جديدة. أي قيمة مختومة بجيل قديم تُتجاهل عند القراءة مهما كان وقت كتابتها، فلا يمكن لتحديث خلفي بدأ قبل الحذف أن يُرجع المحتوى المحذوف.
+
+| القوة | متى | الأثر |
+|---|---|---|
+| **Hard** | حذف، بيع/غير ACTIVE، حظر، إيقاف بائع، حذف حساب، تغيير حالة إدارية | لا يُخدَم أي شيء قديم؛ إعادة بناء متزامنة |
+| **Soft** | إنشاء، تعديل، صور، featured/pinned | يُخدَم القديم فوراً مرة واحدة، وعملية واحدة تحدّث بالخلفية |
+
+مفاتيح الأجيال: `home:gen`، `ads:gen:hard`، `ads:gen:soft`، `plist:gen:{hard|soft}:<ns>`.
+كل قراءة كاش = `MGET` واحد للقيمة + الأجيال (رحلة Redis واحدة).
+
+## الرئيسية
+`home:v4:<city|general>`، soft 30–40ث، hard 10 دقائق. بعد أي إبطال hard يُعاد تسخين المفتاح العام تلقائياً بعد 1.5ث (مع دمج التتابعات).
+
+## التسخين المستمر
+كل 4 دقائق (أقل بكثير من hard TTL): يفحص الرئيسية العامة + 10 مدن + 3 تصنيفات، ويعيد بناء ما هو ناقص/مُبطَل/منتهي soft فقط. عملية واحدة تقود الدورة عبر قفل `cache:keepwarm:leader` (PM2 cluster أو عدة replicas). إذا Redis غير متاح تُتخطى الدورة.
+
+## القياس
+`cacheMetrics` (لكل namespace): `hit / stale / miss / bypass / refresh_ok / refresh_fail / lock_skip` + نسبة `servedFromCache`. تُطبع في اللوج كل دورة تسخين بوسم `[cache-metrics]`. مؤشرات الصحة: `miss` المنخفض على `home`، و`bypass` قرب الصفر (وإلا فـ Redis بطيء/معطّل)، و`refresh_fail` صفر.
+
+## عند إضافة mutation جديد
+بعد كتابة الـ DB: إن كان يجب **إخفاء** كيان → `bumpAdsCacheVersionAndHome()` (إعلانات) أو `hidePublicEntities(ns)` (غيرها). تعديل عادي → `bumpAdsCacheVersion()` أو `bumpPublicListCache(ns)`.

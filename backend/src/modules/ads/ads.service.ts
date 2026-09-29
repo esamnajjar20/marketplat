@@ -11,9 +11,14 @@ import { uploadImage, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { viewsBuffer } from '../../shared/utils/viewsBuffer';
 import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
-import { redis } from '../../config/redis';
-import { guardedCache, withCacheTimeout } from '../../shared/utils/cacheGuard';
-import { invalidateHomeCache } from '../home/home.cache.keys';
+import { swrGet } from '../../shared/utils/swrCache';
+import {
+  ADS_GEN_HARD_KEY,
+  ADS_GEN_SOFT_KEY,
+  bumpAdsCacheVersion,
+  bumpAdsCacheHard,
+  bumpAdsCacheVersionAndHome,
+} from './ads.cache.keys';
 import { logger } from '../../shared/utils/logger';
 import { env } from '../../config/env';
 import { AdStatus } from '@prisma/client';
@@ -30,102 +35,53 @@ import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
 /**
- * FIX AUDIT-V4-06: GET /ads previously hit Postgres on every single
- * request with no caching layer at all (unlike /categories, which
- * already had a Redis cache-aside pattern). Adds the same kind of
- * caching here, with two adaptations specific to ads:
+ * FIX AUDIT-V4-06: GET /ads previously hit Postgres on every single request.
+ * The list is heavily filtered/paginated/sorted, so the cache key is derived
+ * from the actual query params.
  *
- * 1. The list is heavily filtered/paginated/sorted, so there's no
- *    single cache key like categories:all — the key is derived from
- *    the actual query params.
- * 2. Ads change far more often than categories (new ads, sold, edited,
- *    images added/removed), so instead of deleting every possible
- *    filtered cache key on every mutation (which would require an
- *    expensive Redis SCAN to even find them), a version number is
- *    bumped on every mutation and baked into the cache key itself.
- *    Old-version keys simply age out via their own short TTL rather
- *    than being actively deleted — cheap, correct, and self-healing
- *    even if a mutation's invalidation call itself fails.
- */
-const ADS_CACHE_VERSION_KEY = 'ads:cache_version';
-const ADS_LIST_TTL = 30; // seconds — short, since ads change frequently
-
-async function getAdsCacheVersion(): Promise<number> {
-  try {
-    // FIX REDIS-CACHE-TIMEOUT-01: time-boxed + circuit-broken (see
-    // cacheGuard.ts) so a slow/down Redis can't stall every /ads request.
-    const v = await guardedCache(() => redis.get(ADS_CACHE_VERSION_KEY));
-    return v ? parseInt(v, 10) : 0;
-  } catch {
-    return 0; // cache miss on the version itself just means key "v0" — harmless
-  }
-}
-
-// BUGFIX (found during a post-implementation code audit): exported —
-// previously module-private, only ever called from within this file's
-// own createAd/updateAd/deleteAd/addImages/removeImage. admin.service.ts's
-// forceDeleteAd/setAdFeatured/setAdPinned mutate the exact same `Ad` rows
-// this cache is built from, but never invalidated it — an admin
-// force-deleting an ad for a genuinely urgent reason (fraud, policy
-// violation, a legal takedown request) could still see that ad served
-// from the GET /ads list cache to other users for up to its full 30s
-// TTL, directly undermining the "urgent" part of an urgent removal.
-// Exporting this one function (rather than duplicating the same
-// redis.incr(ADS_CACHE_VERSION_KEY) logic in admin.service.ts, which
-// would reintroduce the exact kind of silently-divergible duplicate
-// this audit already found and removed once — see tokenStore.ts's
-// getBlacklistKey) keeps a single source of truth for how this cache is
-// invalidated, regardless of which module ends up mutating an ad.
-export async function bumpAdsCacheVersion(): Promise<void> {
-  try {
-    // Timeout only (no circuit breaker): an invalidation must still be
-    // attempted while the breaker is open, otherwise entries written before
-    // the outage could be read as fresh after the breaker closes.
-    await withCacheTimeout(() => redis.incr(ADS_CACHE_VERSION_KEY));
-  } catch {
-    // If this fails, old cached pages simply live out their 30s TTL —
-    // worst case is briefly stale list data, not incorrect data.
-    logger.warn('Failed to bump ads cache version — stale reads possible for up to 30s');
-  }
-}
-
-/**
- * FIX HOME-CACHE-INVALIDATE-01: bumpAdsCacheVersion() only invalidates the
- * /ads list keys. The GET /home payload (key home:v3:*) embeds ads too, so a
- * deleted / sold / admin-removed ad stayed on the homepage until that entry
- * expired. Call this for the mutations that must HIDE an ad (delete, sold,
- * admin takedown) — after the bump, because the homepage rebuild reads ads
- * through the versioned list cache.
+ * FIX ADS-CACHE-SWR-01: the cache used to bake a version number into the KEY
+ * and bump it on every mutation. That had three costs: (1) every bump dropped
+ * ALL list keys at once, so after each edit every distinct query paid a
+ * synchronous DB round trip (per-process singleflight only — PM2 workers did
+ * not share it); (2) every request did two sequential Redis reads (version,
+ * then value); (3) dead versioned keys piled up until their TTL.
  *
- * Deliberately not folded into bumpAdsCacheVersion(): create/edit/image
- * changes bump too, and clearing ≤11 homepage entries (11+ queries each to
- * rebuild) on every edit would defeat the home cache under normal write
- * traffic. A newly created ad appearing on the homepage within the soft TTL
- * is fine; a removed ad lingering is not.
+ * Now the key is stable and the value is a stale-while-revalidate envelope
+ * (see shared/utils/swrCache.ts) stamped with two generation tokens, fetched
+ * together with the value in ONE MGET:
+ *  - HARD generation: bumped by mutations that must HIDE an ad (delete, sold /
+ *    non-ACTIVE, admin takedown). A stamp mismatch makes the entry unusable, so
+ *    a removed ad is never served from cache.
+ *  - SOFT generation: bumped by everything else (create, edit, images,
+ *    featured/pinned). A mismatch serves the previous payload immediately and
+ *    refreshes it in the background under a cross-process lock, so a burst of
+ *    writes never turns into a burst of synchronous rebuilds.
+ * Browsers/CDN already hold these lists for up to 30s + 30s (CACHE.LIVE), so a
+ * one-request soft-stale window adds no staleness clients weren't allowed to
+ * see already.
  */
-export async function bumpAdsCacheVersionAndHome(): Promise<void> {
-  await bumpAdsCacheVersion();
-  await invalidateHomeCache();
-}
+const ADS_LIST_SOFT_TTL_MS = 30_000; // ads change frequently
+const ADS_LIST_SOFT_JITTER_MS = 5_000;
+const ADS_LIST_HARD_TTL_SECONDS = 120;
+const ADS_LIST_LOCK_TTL_MS = 10_000;
 
-function buildAdsListCacheKey(version: number, query: GetAdsQuery): string {
+// Invalidation helpers live in ads.cache.keys.ts (import-cycle-free); re-exported
+// so existing importers of ads.service keep working.
+export { bumpAdsCacheVersion, bumpAdsCacheHard, bumpAdsCacheVersionAndHome };
+
+function buildAdsListCacheKey(query: GetAdsQuery): string {
   // Stable key regardless of object key insertion order.
   const sorted = Object.keys(query).sort().map(k => `${k}=${(query as any)[k]}`).join('&');
   // FIX ADS-CACHE-KEY-01: bound the key length (max 200-char `search` + many
   // filters otherwise makes multi-KB Redis keys).
   const body = sorted.length > 120 ? createHash('sha1').update(sorted).digest('hex') : sorted;
-  return `ads:list:v${version}:${body}`;
+  return `ads:list2:${body}`;
 }
-
-// FIX ADS-CACHE-STAMPEDE-01: every bumpAdsCacheVersion() invalidates ALL
-// list keys at once, so concurrent identical requests all missed and hit
-// Postgres together. Collapse them per (process, key) into one DB query.
-const adsListInflight = new Map<string, Promise<PaginatedResult<AdListRow>>>();
 
 // FIX ADS-CACHE-POLLUTION-01: free-text searches are near-unique per user;
 // caching them fills Redis with one-hit keys (and lets a client flood it
 // by varying `search`). Short/common terms are still cached; long ones
-// are served from the DB (still singleflighted).
+// are served from the DB (still singleflighted by the SWR engine).
 const ADS_CACHEABLE_SEARCH_MAX = 24;
 
 // TRACK-AD-STORE (phase 2): an ad published under a store is no longer
@@ -424,44 +380,24 @@ export const adsService = {
     const page = query.page || 1;
     const limit = query.limit || 20;
 
-    // FIX AUDIT-V4-06: cache-aside read. Cache failures (Redis down,
-    // parse error) fall through to the DB silently — caching is
-    // strictly a performance optimization here, never a correctness
+    // FIX AUDIT-V4-06 / ADS-CACHE-SWR-01: cache-aside with stale-while-
+    // revalidate. Cache failures (Redis down, parse error) fall through to the
+    // DB — caching is a performance optimization, never a correctness
     // dependency.
-    const version = await getAdsCacheVersion();
-    const cacheKey = buildAdsListCacheKey(version, query);
-    const cacheable = !query.search || query.search.length <= ADS_CACHEABLE_SEARCH_MAX;
-
-    if (cacheable) {
-      try {
-        const cached = await guardedCache(() => redis.get(cacheKey));
-        if (cached) return JSON.parse(cached) as PaginatedResult<AdListRow>;
-      } catch {
-        logger.warn('Ads list cache read failed, falling back to DB');
-      }
-    }
-
-    const pending = adsListInflight.get(cacheKey);
-    if (pending) return pending;
-
-    const promise = (async () => {
-      const { ads, total } = await adsRepository.findMany(query);
-      const result = { items: ads, meta: buildPaginationMeta(total, page, limit) };
-
-      if (cacheable) {
-        try {
-          await guardedCache(() => redis.setex(cacheKey, ADS_LIST_TTL, JSON.stringify(result)));
-        } catch {
-          // Fail silently — DB result is still returned
-        }
-      }
-      return result;
-    })().finally(() => {
-      adsListInflight.delete(cacheKey);
+    return swrGet<PaginatedResult<AdListRow>>({
+      name: 'ads:list',
+      key: buildAdsListCacheKey(query),
+      hardGenKey: ADS_GEN_HARD_KEY,
+      softGenKey: ADS_GEN_SOFT_KEY,
+      softTtlMs: () => ADS_LIST_SOFT_TTL_MS + Math.floor(Math.random() * (ADS_LIST_SOFT_JITTER_MS + 1)),
+      hardTtlSec: ADS_LIST_HARD_TTL_SECONDS,
+      lockTtlMs: ADS_LIST_LOCK_TTL_MS,
+      cacheable: !query.search || query.search.length <= ADS_CACHEABLE_SEARCH_MAX,
+      build: async () => {
+        const { ads, total } = await adsRepository.findMany(query);
+        return { items: ads, meta: buildPaginationMeta(total, page, limit) };
+      },
     });
-
-    adsListInflight.set(cacheKey, promise);
-    return promise;
   },
 
   getAdById: async (id: string, viewerIp?: string): Promise<AdWithAuthor> => {

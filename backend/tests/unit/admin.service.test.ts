@@ -241,18 +241,19 @@ describe('AdminService', () => {
      * pinned flag, or force-deleting an ad, could still see the stale
      * value served to browsing users for up to the cache's 30s TTL.
      * Confirmed here via the same redis mock ads.service.ts's own cache
-     * reads from (tests/setup.ts) — the version counter must actually
-     * increment.
+     * reads from (tests/setup.ts) — the generation token must actually
+     * change (soft for featured/pinned, hard for a takedown).
      */
-    it('BUGFIX: bumps the ads list cache version so the change is visible immediately', async () => {
+    it('BUGFIX: bumps the ads list cache generation so the change is visible immediately', async () => {
       const { redis } = await import('../../src/config/redis');
       jest.spyOn(prisma.ad, 'update').mockResolvedValue({ id: 'ad-1', isFeatured: true } as any);
 
-      const before = await redis.get('ads:cache_version');
+      const before = await redis.get('ads:gen:soft');
       await adminService.setAdFeatured('ad-1', true);
-      const after = await redis.get('ads:cache_version');
+      const after = await redis.get('ads:gen:soft');
 
-      expect(Number(after ?? 0)).toBe(Number(before ?? 0) + 1);
+      expect(after).not.toBeNull();
+      expect(after).not.toBe(before); // FIX ADS-CACHE-SWR-01: a fresh generation token
     });
   });
 
@@ -266,15 +267,16 @@ describe('AdminService', () => {
       await expect(adminService.setAdPinned('missing', true)).rejects.toThrow(NotFoundError);
     });
 
-    it('BUGFIX: bumps the ads list cache version so the change is visible immediately', async () => {
+    it('BUGFIX: bumps the ads list cache generation so the change is visible immediately', async () => {
       const { redis } = await import('../../src/config/redis');
       jest.spyOn(prisma.ad, 'update').mockResolvedValue({ id: 'ad-1', isPinned: true } as any);
 
-      const before = await redis.get('ads:cache_version');
+      const before = await redis.get('ads:gen:soft');
       await adminService.setAdPinned('ad-1', true);
-      const after = await redis.get('ads:cache_version');
+      const after = await redis.get('ads:gen:soft');
 
-      expect(Number(after ?? 0)).toBe(Number(before ?? 0) + 1);
+      expect(after).not.toBeNull();
+      expect(after).not.toBe(before); // FIX ADS-CACHE-SWR-01: a fresh generation token
     });
   });
 
@@ -290,18 +292,19 @@ describe('AdminService', () => {
      * violation, a legal takedown) is exactly the case where "still
      * visible to other users for up to 30 more seconds" matters most.
      */
-    it('BUGFIX: bumps the ads list cache version so the deleted ad stops appearing immediately', async () => {
+    it('BUGFIX: bumps the ads list cache generation so the deleted ad stops appearing immediately', async () => {
       const { redis } = await import('../../src/config/redis');
       jest.spyOn(prisma.ad, 'update').mockResolvedValue({ id: 'ad-1', status: 'DELETED' } as any);
 
-      const before = await redis.get('ads:cache_version');
+      const before = await redis.get('ads:gen:hard');
       await adminService.forceDeleteAd('ad-1');
-      const after = await redis.get('ads:cache_version');
+      const after = await redis.get('ads:gen:hard');
 
-      expect(Number(after ?? 0)).toBe(Number(before ?? 0) + 1);
+      expect(after).not.toBeNull();
+      expect(after).not.toBe(before); // FIX ADS-CACHE-SWR-01: a fresh generation token
     });
 
-    it('does NOT bump the cache version when the update fails (P2025) — nothing actually changed', async () => {
+    it('does NOT bump the cache generation when the update fails (P2025) — nothing actually changed', async () => {
       const { redis } = await import('../../src/config/redis');
       const err = new Prisma.PrismaClientKnownRequestError('Not found', {
         code: 'P2025',
@@ -309,9 +312,9 @@ describe('AdminService', () => {
       });
       jest.spyOn(prisma.ad, 'update').mockRejectedValue(err);
 
-      const before = await redis.get('ads:cache_version');
+      const before = await redis.get('ads:gen:hard');
       await expect(adminService.forceDeleteAd('missing')).rejects.toThrow(NotFoundError);
-      const after = await redis.get('ads:cache_version');
+      const after = await redis.get('ads:gen:hard');
 
       expect(after).toBe(before);
     });

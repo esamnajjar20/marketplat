@@ -29,6 +29,7 @@ import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { activityService, activityTemplates } from '../activity';
 import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
+import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
 
 const isPrismaError = (err: unknown, code: string): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
@@ -179,6 +180,7 @@ export const storesService = {
   updateMyStore: async (userId: string, input: UpdateStoreInput): Promise<StoreDetails> => {
     const store = await requireOwnStore(userId);
     const updated = await storesRepository.update(store.id, input);
+    await bumpPublicListCache('stores');
 
     // Gap #10: fire-and-forget, see createStore's own comment above.
     activityService.record({ userId, ...activityTemplates.storeUpdated(updated.id, updated.name) });
@@ -199,6 +201,7 @@ export const storesService = {
 
     try {
       const updated = await storesRepository.update(store.id, { logoUrl: url });
+      await bumpPublicListCache('stores');
       if (store.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.logoUrl);
         if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
@@ -216,6 +219,7 @@ export const storesService = {
 
     try {
       const updated = await storesRepository.update(store.id, { coverImageUrl: url });
+      await bumpPublicListCache('stores');
       if (store.coverImageUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.coverImageUrl);
         if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
@@ -270,20 +274,24 @@ export const storesService = {
     query: GetStoresQuery
   ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
     const { page = 1, limit = 20 } = query;
-    const { stores, total } = await storesRepository.findMany(query);
-    return { stores, meta: buildPaginationMeta(total, page, limit) };
+    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    return cachedPublicList('stores', query, async () => {
+      const { stores, total } = await storesRepository.findMany(query);
+      return { stores, meta: buildPaginationMeta(total, page, limit) };
+    });
   },
 
   getFeaturedStores: async (
     params: { limit: number; city?: string }
   ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
     const { limit, city } = params;
-    const { stores, total } = await storesRepository.findFeatured({ limit, city });
-
-    return {
-      stores,
-      meta: buildPaginationMeta(total, 1, limit),
-    };
+    return cachedPublicList('stores', { __op: 'featured', limit, city }, async () => {
+      const { stores, total } = await storesRepository.findFeatured({ limit, city });
+      return {
+        stores,
+        meta: buildPaginationMeta(total, 1, limit),
+      };
+    });
   },
 
   // FEAT-REPORT-USER-STORE: facade for cross-module use (reportsService),
@@ -326,6 +334,9 @@ export const storesService = {
     const store = await storesRepository.findById(id);
     if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     const updated = await storesRepository.updateStatus(id, input.status);
+    // A store leaving ACTIVE (BLOCKED) must vanish from lists + homepage now;
+    // approving (→ ACTIVE) is covered by the same bump.
+    await hidePublicEntities('stores');
 
     // AUDIT-FIX (issue #10 follow-up): this admin action wrote no audit
     // trail at all — same gap sellersService.setVerification/setSuspension
@@ -384,6 +395,7 @@ updateStorePlan: async (
     const store = await storesRepository.findById(id);
     if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     const updated = await storesRepository.updatePlan(id, input.plan);
+    await bumpPublicListCache('stores');
 
     void auditLog({
       event: AuditEvent.ADMIN_STORE_PLAN_CHANGED,

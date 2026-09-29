@@ -12,6 +12,8 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { blockedUsersService } from '../blocked-users';
+import { hidePublicEntities, ALL_PUBLIC_LIST_NAMESPACES } from '../../shared/utils/publicListCache';
+import { bumpAdsCacheHard } from '../ads/ads.cache.keys';
 
 export const sellersService = {
   createSellerProfile: async (
@@ -346,6 +348,15 @@ export const sellersService = {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
     const updated = await sellersRepository.setSuspension(sellerProfileId, suspended);
+
+    // FIX SUSPENSION-CACHE-01: a suspended seller's ads, products, stores,
+    // listings and provider profile are filtered out of every public list
+    // (and un-suspending brings them back). None of the caches knew about it,
+    // so a suspended seller stayed visible on lists and the homepage until
+    // the entries expired. Ads first, then lists + home (home reads through
+    // both).
+    await bumpAdsCacheHard();
+    await hidePublicEntities(...ALL_PUBLIC_LIST_NAMESPACES);
 
     // EPIC 1.1: same missing-audit-trail gap as setVerification above.
     auditLog({

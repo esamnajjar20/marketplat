@@ -15,6 +15,7 @@ import { adminStatsCache } from '../../shared/utils/adminStatsCache';
 // mutate Ad rows the GET /ads list cache is built from, but previously
 // never invalidated it.
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.service';
+import { hidePublicEntities } from '../../shared/utils/publicListCache';
 
 /** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
 let _systemHealthMem: { at: number; value: any } | null = null;
@@ -680,6 +681,7 @@ export const adminService = {
       where: { id: productId },
       data: { status },
     });
+    await hidePublicEntities('products');
     auditLog({
       event: AuditEventType.ADMIN_AD_DELETED, // closest existing event; details carry product
       userId: adminUserId,
@@ -744,6 +746,7 @@ export const adminService = {
       where: { id: listingId },
       data: { status },
     });
+    await hidePublicEntities('service-listings');
     auditLog({
       event: AuditEventType.ADMIN_AD_DELETED,
       userId: adminUserId,

@@ -22,6 +22,7 @@ import { createEntityImageOperations } from '../../shared/utils/entityImageOpera
 import { promotionsService, EffectivePrice } from '../promotions/promotions.service';
 import { fraudService } from '../fraud';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
+import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
 
 const MAX_PRODUCT_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images / service-listings.images — see config/limits.ts
 
@@ -247,17 +248,20 @@ export const productsService = {
   getProducts: async (
     query: GetProductsQuery
   ): Promise<PaginatedResult<ProductWithEffectivePrice<ProductWithStore>>> => {
-    const { products, total } = await productsRepository.findMany(query);
-    // PROMO-1: one batched query for the whole page's live promotions
-    // rather than N+1 — see promotionsService.getEffectivePrices.
-    const effectivePrices = await promotionsService.getEffectivePrices(products);
-    const items = products.map(product => ({
-      ...product,
-      effectivePrice: effectivePrices.get(product.id)!,
-    }));
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    return cachedPublicList('products', query, async () => {
+      const { products, total } = await productsRepository.findMany(query);
+      // PROMO-1: one batched query for the whole page's live promotions
+      // rather than N+1 — see promotionsService.getEffectivePrices.
+      const effectivePrices = await promotionsService.getEffectivePrices(products);
+      const items = products.map(product => ({
+        ...product,
+        effectivePrice: effectivePrices.get(product.id)!,
+      }));
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 20;
+      return { items, meta: buildPaginationMeta(total, page, limit) };
+    });
   },
 
   // FEAT-FAVORITE-POLYMORPHIC PR2: facade for cross-module use
@@ -333,6 +337,13 @@ export const productsService = {
       );
     }
     const updated = await productsRepository.update(id, patch);
+    // Edits (incl. stock/availability): soft invalidation (stale once, then
+    // refreshed). A status change away from ACTIVE must hide the product now.
+    if (patch.status && patch.status !== 'ACTIVE') {
+      await hidePublicEntities('products');
+    } else {
+      await bumpPublicListCache('products');
+    }
 
     // Gap #10: fire-and-forget, see createProduct's own comment above.
     activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });
@@ -376,6 +387,7 @@ export const productsService = {
     }
 
     await productsRepository.softDelete(id);
+    await hidePublicEntities('products');
 
     await Promise.all(
       product.images.map(imageUrl => {

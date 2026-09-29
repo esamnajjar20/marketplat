@@ -19,6 +19,7 @@ import { notificationsService } from '../notifications/notifications.service';
 import { conversationsService } from '../conversations/conversations.service';
 import { sellersService } from '../sellers/sellers.service';
 import { favoritesService } from '../favorites/favorites.service';
+import { bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 
 
 export const usersService = {
@@ -239,6 +240,11 @@ export const usersService = {
 
     // S-04: invalidate all active sessions + cache
     await Promise.all([userCache.invalidate(userId), tokenStore.deleteAllRefreshTokens(userId)]);
+
+    // FIX ACCOUNT-DELETE-CACHE-01: the transaction above flips this user's
+    // ACTIVE ads to DELETED, but nothing invalidated the ads-list / homepage
+    // caches, so a deleted account's ads kept showing for up to ~40s.
+    await bumpAdsCacheVersionAndHome();
 
     // Cloudinary cleanup is deliberately after the transaction (the
     // DB state is authoritative; the images are orphaned-by-design
