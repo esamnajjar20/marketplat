@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Badge } from '@/components/ui/badge';
 import { MapPin } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
@@ -9,21 +12,11 @@ import { formatDistanceKm } from '@/lib/distance';
 import { useAuthStore } from '@/store/auth.store';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
 
-/**
- * Phase 3 (audit §4): distanceKm only ever exists on nearby-search
- * results (GET /service-providers/nearby). The Phase 3 city/browse
- * directory (GET /service-providers?city=) returns bare
- * ServiceProviderDetails rows with no distance at all — so this prop
- * type widens to plain ServiceProviderDetails with distanceKm optional,
- * rather than requiring NearbyServiceProviderRow unconditionally.
- */
 interface Props {
   provider: ServiceProviderDetails & { distanceKm?: number };
   className?: string;
 }
 
-// FIX P2-3: see ServiceListingCard.tsx — same semantic-token swap,
-// same three-state map duplicated across all three availability cards.
 const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
   AVAILABLE: 'bg-success',
   BUSY: 'bg-warning',
@@ -37,24 +30,13 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
 };
 
 /**
- * Card for /service-providers results — both the nearby search (has
- * distanceKm) and the Phase 3 city/browse directory (no distanceKm).
- * Deliberately only reads plain ServiceProviderDetails fields
- * (businessName, logoUrl, description, serviceAreaCities, contactPhone,
- * availabilityStatus) plus optional distanceKm — unlike
- * ServiceListingCard/ServiceProviderHeader, neither response has a
- * nested sellerProfile, so there's no verified badge or rating to show here.
+ * Directory card for /service-providers — design system aligned.
  */
 export function ServiceProviderCard({ provider, className }: Props) {
   const avatar = getAvatarUrl(provider.logoUrl ?? '', 96);
   const userCity = useAuthStore((s) => s.user?.city ?? null);
 
-  // Phase 3 (audit §4 decision): when distanceKm is absent (city-based
-  // results have none), show the city shared between the provider's
-  // serviceAreaCities and the viewer's own city instead of a distance —
-  // never render "undefined < 1" or an empty label.
-  const distanceLabel =
-    formatDistanceKm(provider.distanceKm);
+  const distanceLabel = formatDistanceKm(provider.distanceKm);
   const sharedCity =
     distanceLabel === null && userCity
       ? provider.serviceAreaCities.find((city) => city === userCity)
@@ -63,34 +45,58 @@ export function ServiceProviderCard({ provider, className }: Props) {
   return (
     <Link
       href={ROUTES.serviceProvider(provider.id)}
+      prefetch={false}
       className={cn(
-        'group flex gap-3 rounded-xl border bg-card p-3 transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
-        className
+        'group flex gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm',
+        'transition-all duration-200 active:scale-[0.98]',
+        'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+        className,
       )}
     >
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
-        <SafeImage variant="avatar" src={avatar} alt={provider.businessName} fill className="object-cover" sizes="64px" />
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/50">
+        <SafeImage
+          variant="avatar"
+          src={avatar}
+          alt={provider.businessName}
+          fill
+          className="object-cover"
+          sizes="64px"
+        />
       </div>
 
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate font-medium">{provider.businessName}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="truncate text-sm font-semibold sm:text-card-title">
+            {provider.businessName}
+          </h3>
           {distanceLabel !== null ? (
-            <span className="shrink-0 text-xs font-medium text-primary">{distanceLabel}</span>
+            <span className="shrink-0 text-2xs font-medium text-primary sm:text-xs">
+              {distanceLabel}
+            </span>
           ) : sharedCity ? (
-            <span className="shrink-0 text-xs font-medium text-primary">{sharedCity}</span>
+            <span className="shrink-0 text-2xs font-medium text-primary sm:text-xs">
+              {sharedCity}
+            </span>
           ) : null}
-          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            <span className={cn('h-1.5 w-1.5 rounded-full', AVAILABILITY_DOT[provider.availabilityStatus])} />
+          <Badge size="sm" variant="secondary" className="gap-1.5">
+            <span
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                AVAILABILITY_DOT[provider.availabilityStatus],
+              )}
+            />
             {AVAILABILITY_LABEL[provider.availabilityStatus]}
-          </span>
+          </Badge>
         </div>
         <p className="line-clamp-1 text-sm text-muted-foreground">{provider.description}</p>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 shrink-0" />
+        <div className="flex items-center gap-1 text-2xs text-muted-foreground sm:text-xs">
+          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span className="truncate">{provider.serviceAreaCities.join('، ')}</span>
         </div>
-        <p className="text-xs text-muted-foreground">{formatPhone(provider.contactPhone)}</p>
+        <p className="text-2xs text-muted-foreground sm:text-xs">
+          {formatPhone(provider.contactPhone)}
+        </p>
       </div>
     </Link>
   );

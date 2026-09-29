@@ -63,7 +63,7 @@ export function ExploreSheet({
               )}
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/80 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
-                <Icon className="h-4.5 w-4.5 h-[18px] w-[18px]" aria-hidden />
+                <Icon className="h-[18px] w-[18px]" aria-hidden />
               </span>
               <span className="min-w-0 flex-1">{label}</span>
               <ChevronLeft

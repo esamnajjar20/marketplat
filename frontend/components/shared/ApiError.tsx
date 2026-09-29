@@ -52,9 +52,12 @@ export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
       ? 'خطأ في الخادم'
       : 'حدث خطأ ما';
 
+  const teamNote = 'تم إبلاغ فريقنا — حاول مرة أخرى بعد قليل.';
   const description =
     statusCode >= 500
-      ? `${message} تم إبلاغ فريقنا — حاول مرة أخرى بعد قليل.`
+      ? message.includes('فريقنا') || message.includes('مرة أخرى')
+        ? message
+        : `${message} ${teamNote}`
       : message;
 
   const content = (

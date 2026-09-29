@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Badge } from '@/components/ui/badge';
 import { BadgeCheck, Clock, MapPin, Star } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -25,7 +26,6 @@ import type {
 interface Props {
   listing: ServiceListingWithProvider;
   className?: string;
-  /** Same as AdCard: pass for above-the-fold cards to improve LCP. */
   priority?: boolean;
 }
 
@@ -48,7 +48,7 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
 }
 
 /**
- * Service listing card — availability top-start, favorite top-end only.
+ * Service listing card — unified Badge + typography (Phase 3+).
  */
 export function ServiceListingCard({ listing, className, priority = false }: Props) {
   const router = useRouter();
@@ -61,7 +61,8 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
 
   const rawImage = listing.images[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 224) : PLACEHOLDER_SVG;
-  const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
+  const blurDataURL =
+    rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
   const isNegotiable = listing.pricingType === 'NEGOTIABLE' || !listing.price;
 
@@ -71,17 +72,23 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
     setNow(Date.now());
   }, []);
 
-  const ageHours = now === null
-    ? Infinity
-    : (now - new Date(listing.createdAt).getTime()) / 3_600_000;
+  const ageHours =
+    now === null
+      ? Infinity
+      : (now - new Date(listing.createdAt).getTime()) / 3_600_000;
   const timeColorClass =
-    ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
+    ageHours < 24
+      ? 'text-success'
+      : ageHours < 24 * 7
+        ? 'text-warning'
+        : 'text-muted-foreground';
 
   const providerLogo = getAvatarUrl(listing.provider.logoUrl ?? '', 32);
-  const rating = listing.provider.sellerProfile.averageRating
-    ? parseFloat(listing.provider.sellerProfile.averageRating)
-    : NaN;
+  const ratingRaw = listing.provider.sellerProfile?.averageRating;
+  const rating = ratingRaw != null && ratingRaw !== '' ? parseFloat(String(ratingRaw)) : NaN;
+  /** Avoid showing 0.0 / negative as a real rating */
   const hasRating = Number.isFinite(rating) && rating > 0;
+
   const cityHint =
     listing.serviceLocation === 'AT_CUSTOMER'
       ? 'عند العميل'
@@ -133,9 +140,8 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
             aria-hidden
           />
 
-          {/* Availability top-start — never share the end corner with favorite */}
           <div className="absolute top-2 start-2 z-[1] flex max-w-[70%] flex-col items-start gap-1">
-            <span className="flex items-center gap-1.5 rounded-full bg-foreground/75 px-2 py-0.5 text-[10px] font-medium text-background shadow-sm backdrop-blur-md">
+            <Badge size="xs" variant="overlay" className="gap-1.5">
               <span
                 className={cn(
                   'h-1.5 w-1.5 rounded-full ring-1 ring-white/30',
@@ -143,7 +149,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
                 )}
               />
               {AVAILABILITY_LABEL[listing.provider.availabilityStatus]}
-            </span>
+            </Badge>
           </div>
         </div>
 
@@ -153,13 +159,13 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
               {priceLabel}
             </p>
             {isNegotiable && listing.pricingType === 'NEGOTIABLE' && (
-              <span className="rounded-full border border-primary/25 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              <Badge size="sm" variant="soft">
                 قابل للتفاوض
-              </span>
+              </Badge>
             )}
           </div>
 
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-[15px]">
+          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-card-title">
             {listing.title}
           </h3>
 
@@ -175,7 +181,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
                 {listing.durationEstimate && (
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
-                    {listing.durationEstimate}
+                    <span>{listing.durationEstimate}</span>
                   </span>
                 )}
               </div>
@@ -195,10 +201,10 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                 {listing.provider.businessName}
               </span>
-              {listing.provider.sellerProfile.verified && (
+              {listing.provider.sellerProfile?.verified && (
                 <BadgeCheck
                   className="h-3.5 w-3.5 shrink-0 text-primary"
-                  aria-label="مقدم خدمة موثّق"
+                  aria-label="موثّق"
                 />
               )}
             </div>
@@ -206,17 +212,22 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-1">
                 {hasRating ? (
-                  <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted-foreground">
+                  <span className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground">
                     <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
                     {rating.toFixed(1)}
                   </span>
                 ) : (
-                  <span className="rounded-full bg-muted/80 px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+                  <Badge size="sm" variant="secondary">
                     مقدم خدمة
-                  </span>
+                  </Badge>
                 )}
               </div>
-              <span className={cn('shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums', timeColorClass)}>
+              <span
+                className={cn(
+                  'shrink-0 whitespace-nowrap text-2xs font-medium tabular-nums',
+                  timeColorClass,
+                )}
+              >
                 {now === null ? '—' : formatRelativeTime(listing.createdAt, now)}
               </span>
             </div>

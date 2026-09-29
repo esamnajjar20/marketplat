@@ -12,7 +12,7 @@ import {
   formatRequestBudget,
 } from '@/lib/requestStatus';
 import type { RequestListItem } from '@/types/request.types';
-import { Badge } from '@/components/shared/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -30,16 +30,19 @@ export function RequestCard({ request: r, showStatus = false, className }: Props
     <li className={cn('list-none', className)}>
       <Link
         href={ROUTES.request(r.id)}
+        prefetch={false}
         className={cn(
           'block rounded-xl border border-border/80 bg-card p-3.5 shadow-xs sm:p-4',
           'transition-colors hover:border-primary/30 hover:bg-muted/30',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         )}
       >
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant={REQUEST_TYPE_VARIANT[r.type]}>{REQUEST_TYPE_LABEL[r.type]}</Badge>
+        <div className="flex flex-wrap items-center gap-2 text-2xs sm:text-xs">
+          <Badge size="sm" variant={REQUEST_TYPE_VARIANT[r.type]}>
+            {REQUEST_TYPE_LABEL[r.type]}
+          </Badge>
           {showStatus && (
-            <Badge variant={REQUEST_STATUS_VARIANT[r.status]}>
+            <Badge size="sm" variant={REQUEST_STATUS_VARIANT[r.status]}>
               {REQUEST_STATUS_LABEL[r.status]}
             </Badge>
           )}
@@ -56,11 +59,13 @@ export function RequestCard({ request: r, showStatus = false, className }: Props
             </span>
           )}
           {r.createdAt && (
-            <span className="text-muted-foreground ms-auto">{formatRelativeTime(r.createdAt)}</span>
+            <span className="ms-auto text-muted-foreground tabular-nums">
+              {formatRelativeTime(r.createdAt)}
+            </span>
           )}
         </div>
 
-        <h2 className="mt-2 text-[0.95rem] font-semibold leading-snug sm:text-base tracking-tight text-foreground">
+        <h2 className="mt-2 text-sm font-semibold leading-snug tracking-tight text-foreground sm:text-card-title">
           {r.title}
         </h2>
         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
@@ -68,14 +73,16 @@ export function RequestCard({ request: r, showStatus = false, className }: Props
         </p>
 
         {budget && (
-          <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-foreground/80">
+          <p className="mt-2 inline-flex items-center gap-1.5 text-2xs font-medium text-foreground/80 sm:text-xs">
             <Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
             الميزانية: {budget}
           </p>
         )}
 
         {r.customer?.name && (
-          <p className="mt-2 text-xs text-muted-foreground">بواسطة {r.customer.name}</p>
+          <p className="mt-2 text-2xs text-muted-foreground sm:text-xs">
+            بواسطة {r.customer.name}
+          </p>
         )}
       </Link>
     </li>

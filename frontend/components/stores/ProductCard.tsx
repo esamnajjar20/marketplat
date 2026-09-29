@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Badge } from '@/components/ui/badge';
 import { PackageX, Clock3, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
@@ -34,7 +35,7 @@ const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
 };
 
 /**
- * Product card — badges top-start, favorite top-end only (no overlap).
+ * Product card — unified Badge + typography scale (Phase 3+).
  */
 export function ProductCard({ product, className, priority = false }: Props) {
   const router = useRouter();
@@ -47,8 +48,9 @@ export function ProductCard({ product, className, priority = false }: Props) {
 
   const rawImage = product.images?.[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 224) : PLACEHOLDER_SVG;
-  const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
-  // FIX: الـ API يُرجع price/discountPrice مسطّحة، فنحسب effectivePrice محلياً
+  const blurDataURL =
+    rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
+
   const rawPrice = Number(product.price ?? 0);
   const rawDiscount =
     product.discountPrice != null ? Number(product.discountPrice) : null;
@@ -72,11 +74,16 @@ export function ProductCard({ product, className, priority = false }: Props) {
     setNow(Date.now());
   }, []);
 
-  const ageHours = now === null
-    ? Infinity
-    : (now - new Date(product.createdAt).getTime()) / 3_600_000;
+  const ageHours =
+    now === null
+      ? Infinity
+      : (now - new Date(product.createdAt).getTime()) / 3_600_000;
   const timeColorClass =
-    ageHours < 24 ? 'text-success' : ageHours < 24 * 7 ? 'text-warning' : 'text-muted-foreground';
+    ageHours < 24
+      ? 'text-success'
+      : ageHours < 24 * 7
+        ? 'text-warning'
+        : 'text-muted-foreground';
 
   const storeLogo = getAvatarUrl(product.store?.logoUrl ?? '', 32);
 
@@ -125,22 +132,21 @@ export function ProductCard({ product, className, priority = false }: Props) {
             aria-hidden
           />
 
-          {/* All image badges top-start — leave top-end free for favorite */}
           <div className="absolute top-2 start-2 z-[1] flex max-w-[70%] flex-col items-start gap-1">
             {hasActivePromotion && discountPercentage !== null && (
-              <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground shadow-sm">
-                🔥 خصم {discountPercentage}%
-              </span>
+              <Badge size="xs" variant="destructive">
+                خصم {discountPercentage}%
+              </Badge>
             )}
             {product.availability !== 'IN_STOCK' && (
-              <span className="flex items-center gap-1 rounded-full bg-foreground/75 px-2 py-0.5 text-[10px] font-medium text-background shadow-sm backdrop-blur-md">
+              <Badge size="xs" variant="overlay" className="gap-1">
                 {product.availability === 'OUT_OF_STOCK' ? (
                   <PackageX className="h-3 w-3" aria-hidden />
                 ) : (
                   <Clock3 className="h-3 w-3" aria-hidden />
                 )}
                 {AVAILABILITY_LABEL[product.availability]}
-              </span>
+              </Badge>
             )}
           </div>
         </div>
@@ -153,7 +159,7 @@ export function ProductCard({ product, className, priority = false }: Props) {
                 outOfStock ? 'text-muted-foreground line-through' : 'text-primary',
               )}
             >
-              {formatPrice(hasDiscount ? discountPrice : product.price)}
+              {formatPrice(hasDiscount && discountPrice != null ? discountPrice : product.price)}
             </p>
             {hasDiscount && (
               <p className="font-mono text-xs text-muted-foreground line-through">
@@ -162,12 +168,12 @@ export function ProductCard({ product, className, priority = false }: Props) {
             )}
           </div>
 
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-[15px]">
+          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-card-title">
             {product.name}
           </h3>
 
           {product.wholesalePrice && product.wholesaleMinQty && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground sm:text-xs">
               {formatPrice(product.wholesalePrice)} عند شراء {product.wholesaleMinQty}+
             </p>
           )}
@@ -197,10 +203,15 @@ export function ProductCard({ product, className, priority = false }: Props) {
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="rounded-full bg-muted/80 px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+              <Badge size="sm" variant="secondary">
                 متجر
-              </span>
-              <span className={cn('shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums', timeColorClass)}>
+              </Badge>
+              <span
+                className={cn(
+                  'shrink-0 whitespace-nowrap text-2xs font-medium tabular-nums',
+                  timeColorClass,
+                )}
+              >
                 {now === null ? '—' : formatRelativeTime(product.createdAt, now)}
               </span>
             </div>
