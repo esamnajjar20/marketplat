@@ -12,6 +12,8 @@ import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/u
 import { viewsBuffer } from '../../shared/utils/viewsBuffer';
 import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
 import { redis } from '../../config/redis';
+import { guardedCache, withCacheTimeout } from '../../shared/utils/cacheGuard';
+import { invalidateHomeCache } from '../home/home.cache.keys';
 import { logger } from '../../shared/utils/logger';
 import { env } from '../../config/env';
 import { AdStatus } from '@prisma/client';
@@ -50,7 +52,9 @@ const ADS_LIST_TTL = 30; // seconds — short, since ads change frequently
 
 async function getAdsCacheVersion(): Promise<number> {
   try {
-    const v = await redis.get(ADS_CACHE_VERSION_KEY);
+    // FIX REDIS-CACHE-TIMEOUT-01: time-boxed + circuit-broken (see
+    // cacheGuard.ts) so a slow/down Redis can't stall every /ads request.
+    const v = await guardedCache(() => redis.get(ADS_CACHE_VERSION_KEY));
     return v ? parseInt(v, 10) : 0;
   } catch {
     return 0; // cache miss on the version itself just means key "v0" — harmless
@@ -74,12 +78,34 @@ async function getAdsCacheVersion(): Promise<number> {
 // invalidated, regardless of which module ends up mutating an ad.
 export async function bumpAdsCacheVersion(): Promise<void> {
   try {
-    await redis.incr(ADS_CACHE_VERSION_KEY);
+    // Timeout only (no circuit breaker): an invalidation must still be
+    // attempted while the breaker is open, otherwise entries written before
+    // the outage could be read as fresh after the breaker closes.
+    await withCacheTimeout(() => redis.incr(ADS_CACHE_VERSION_KEY));
   } catch {
     // If this fails, old cached pages simply live out their 30s TTL —
     // worst case is briefly stale list data, not incorrect data.
     logger.warn('Failed to bump ads cache version — stale reads possible for up to 30s');
   }
+}
+
+/**
+ * FIX HOME-CACHE-INVALIDATE-01: bumpAdsCacheVersion() only invalidates the
+ * /ads list keys. The GET /home payload (key home:v3:*) embeds ads too, so a
+ * deleted / sold / admin-removed ad stayed on the homepage until that entry
+ * expired. Call this for the mutations that must HIDE an ad (delete, sold,
+ * admin takedown) — after the bump, because the homepage rebuild reads ads
+ * through the versioned list cache.
+ *
+ * Deliberately not folded into bumpAdsCacheVersion(): create/edit/image
+ * changes bump too, and clearing ≤11 homepage entries (11+ queries each to
+ * rebuild) on every edit would defeat the home cache under normal write
+ * traffic. A newly created ad appearing on the homepage within the soft TTL
+ * is fine; a removed ad lingering is not.
+ */
+export async function bumpAdsCacheVersionAndHome(): Promise<void> {
+  await bumpAdsCacheVersion();
+  await invalidateHomeCache();
 }
 
 function buildAdsListCacheKey(version: number, query: GetAdsQuery): string {
@@ -408,7 +434,7 @@ export const adsService = {
 
     if (cacheable) {
       try {
-        const cached = await redis.get(cacheKey);
+        const cached = await guardedCache(() => redis.get(cacheKey));
         if (cached) return JSON.parse(cached) as PaginatedResult<AdListRow>;
       } catch {
         logger.warn('Ads list cache read failed, falling back to DB');
@@ -424,7 +450,7 @@ export const adsService = {
 
       if (cacheable) {
         try {
-          await redis.setex(cacheKey, ADS_LIST_TTL, JSON.stringify(result));
+          await guardedCache(() => redis.setex(cacheKey, ADS_LIST_TTL, JSON.stringify(result)));
         } catch {
           // Fail silently — DB result is still returned
         }
@@ -644,7 +670,13 @@ export const adsService = {
     // FIX AUDIT-V4-06: covers both field edits and status changes
     // (e.g. mark-as-sold) — a sold ad must stop appearing as available
     // in cached /ads results immediately, not after up to 30s.
-    await bumpAdsCacheVersion();
+    // A status change away from ACTIVE (sold/expired/...) must also leave
+    // the homepage immediately (FIX HOME-CACHE-INVALIDATE-01).
+    if (input.status && input.status !== AdStatus.ACTIVE) {
+      await bumpAdsCacheVersionAndHome();
+    } else {
+      await bumpAdsCacheVersion();
+    }
 
     // Gap #10: fire-and-forget, see createAd's own comment above for
     // the contract this relies on.
@@ -900,8 +932,9 @@ export const adsService = {
     }
     await adsRepository.softDelete(adId);
     // FIX AUDIT-V4-06: a deleted ad must stop appearing in /ads results
-    // immediately, not after up to 30s of cache TTL.
-    await bumpAdsCacheVersion();
+    // immediately, not after up to 30s of cache TTL. Also clears the
+    // homepage cache, which embeds ads (FIX HOME-CACHE-INVALIDATE-01).
+    await bumpAdsCacheVersionAndHome();
 
     // Gap #10: fire-and-forget, see createAd's own comment above for
     // the contract this relies on. Logged for `userId` (the acting

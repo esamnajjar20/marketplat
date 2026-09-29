@@ -62,8 +62,10 @@ export const adsController = {
     try {
       const { query } = getAdsSchema.parse({ query: req.query });
       const result = await adsService.getAds(query);
-      res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=90');
-      res.setHeader('Vary', 'Authorization');
+      // FIX CACHE-HTTP-STALENESS-02: no Cache-Control override here. The
+      // route already applies CACHE.LIVE (30s + 30s swr, Vary: Authorization);
+      // this handler used to overwrite it with 30s + 90s swr, silently
+      // undoing CACHE-HTTP-STALENESS-01 for the ads list.
       res
         .status(200)
         .json(successResponse('Ads fetched', result.items, { pagination: result.meta }));

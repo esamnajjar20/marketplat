@@ -15,7 +15,9 @@ import { logger } from '../../shared/utils/logger';
 const isPrismaError = (err: unknown, code: string): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
 
-const SERVICE_CATEGORIES_CACHE_KEY = 'service_categories:all';
+// FIX CATEGORIES-CACHE-VERSION-01: versioned key — bump the suffix whenever
+// the cached payload shape changes (see categories.service.ts).
+const SERVICE_CATEGORIES_CACHE_KEY = 'service_categories:all:v1';
 const SERVICE_CATEGORIES_TTL = 60 * 60; // 1 hour — same as categories, rarely changes
 
 const invalidateServiceCategoriesCache = async (): Promise<void> => {

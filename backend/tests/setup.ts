@@ -299,6 +299,10 @@ afterAll(async () => { if (!skipDb) await prisma.$disconnect(); });
 afterEach(async () => {
   const { redis } = await import('../src/config/redis');
   (redis as any).__clear?.();
+  // FIX REDIS-CACHE-TIMEOUT-01: the cache circuit breaker is module state —
+  // close it so one test's simulated Redis failures never bleed into the next.
+  const { resetCacheGuard } = await import('../src/shared/utils/cacheGuard');
+  resetCacheGuard();
   if (skipDb) return;
 
   // audit_logs is intentionally append-only at the DB level (see

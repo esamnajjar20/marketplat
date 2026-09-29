@@ -14,7 +14,7 @@ import { adminStatsCache } from '../../shared/utils/adminStatsCache';
 // needed here — setAdFeatured/setAdPinned/forceDeleteAd below all
 // mutate Ad rows the GET /ads list cache is built from, but previously
 // never invalidated it.
-import { bumpAdsCacheVersion } from '../ads/ads.service';
+import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.service';
 
 /** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
 let _systemHealthMem: { at: number; value: any } | null = null;
@@ -300,7 +300,9 @@ export const adminService = {
       // urgent reason (fraud, a policy violation, a legal takedown
       // request) is exactly the case where "still visible to other
       // users for up to 30 more seconds" matters most.
-      await bumpAdsCacheVersion();
+      // FIX HOME-CACHE-INVALIDATE-01: also clear the homepage cache — an
+      // urgent takedown must not linger on /home until its entry expires.
+      await bumpAdsCacheVersionAndHome();
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       throw e;

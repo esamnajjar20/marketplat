@@ -14,7 +14,11 @@ import { logger } from '../../shared/utils/logger';
 const isPrismaError = (err: unknown, code: string): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
 
-const CATEGORIES_CACHE_KEY = 'categories:all';
+// FIX CATEGORIES-CACHE-VERSION-01: versioned key. Warmup/cache-aside never
+// overwrite an existing key, so a deploy that changes the payload shape would
+// otherwise keep serving the old shape for up to the 1h TTL. Bump the suffix
+// whenever the cached shape changes.
+const CATEGORIES_CACHE_KEY = 'categories:all:v1';
 const CATEGORIES_TTL = 60 * 60; // 1 hour — categories rarely change
 
 const invalidateCategoriesCache = async (): Promise<void> => {

@@ -36,7 +36,7 @@ describe('productCategoriesService', () => {
       const result = await productCategoriesService.createProductCategory(input);
 
       expect(result).toEqual(mockCategory);
-      expect(redis.del).toHaveBeenCalledWith('product_categories:all');
+      expect(redis.del).toHaveBeenCalledWith('product_categories:all:v1');
     });
 
     it('throws BadRequestError when the name already exists', async () => {
@@ -133,7 +133,7 @@ describe('productCategoriesService', () => {
 
       expect(result).toEqual([mockCategory]);
       expect(redis.setex).toHaveBeenCalledWith(
-        'product_categories:all',
+        'product_categories:all:v1',
         3600,
         JSON.stringify([mockCategory])
       );
@@ -328,7 +328,7 @@ describe('productCategoriesService', () => {
       await productCategoriesService.deleteProductCategory('cat-1');
 
       expect(productCategoriesRepository.delete).toHaveBeenCalledWith('cat-1');
-      expect(redis.del).toHaveBeenCalledWith('product_categories:all');
+      expect(redis.del).toHaveBeenCalledWith('product_categories:all:v1');
     });
   });
 });
