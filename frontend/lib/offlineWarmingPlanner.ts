@@ -52,7 +52,7 @@ function readConnection(): NetworkInformationLike | null {
  * Minimum shells per initial pass — even on voucher-class links.
  * Combined public + personal priority lists are long enough to fill this.
  */
-export const MIN_WARM_ROUTES = 20;
+export const MIN_WARM_ROUTES = 20; // total (public + personal) — only used by the auto 'full' branch
 
 /**
  * Marketplace usage order (highest first).
@@ -74,24 +74,29 @@ const PRIORITY_ROUTES = [
   '/services',
   '/service-providers',
   '/sellers/ranking',
-  // ── 2. Publish (the flows that actually write data) ───────────
+  // QR-share receiver: without it the sender's QR is useless offline.
+  '/shared',
+  // ── 2. Offline reading tools (public) ─────────────────────────
+  '/saved-ads',
+  '/downloads',
+  // ── 3. Personal essentials: publish + engage ─────────────────
+  // FIX WARM-LIGHT-02: reordered so a small personal budget keeps the
+  // pages people actually reopen offline (publish a listing / a request,
+  // read messages + notifications) before seller-only tools.
   '/ads/create',
-  '/my-store/products/new',
-  '/my-services/new',
   '/requests/new',
-  // ── 3. Engage (personal) ──────────────────────────────────────
   '/messages',
   '/notifications',
   '/favorites',
   '/dashboard',
   '/my-ads',
+  '/my-store/products/new',
+  '/my-services/new',
   '/my-store',
   '/my-store/products',
   '/my-services',
   '/my-requests',
   // ── 4. User content / actions ─────────────────────────────────
-  '/saved-ads',
-  '/downloads',
   '/activity',
   '/saved-searches',
   '/saved-payments',
@@ -103,11 +108,29 @@ const PRIORITY_ROUTES = [
   '/settings/offline',
 ];
 
-/** Max shells on 'core' when list is longer — at least MIN_WARM_ROUTES. */
-const CORE_ROUTE_BUDGET = 25;
+/**
+ * FIX WARM-LIGHT-01: route budgets are PER LIST and per tier.
+ *
+ * Before, one number (25 / 20) was applied to the public list (18 routes)
+ * and to the personal list (~37 routes) SEPARATELY — both under/near the
+ * cap for the public list and the personal list being sliced only at 25,
+ * so 'fast' ("top 25 pages, ~1 MB") really warmed ~43-55 routes, ~58 files
+ * each (≈ 20-30 MB on the device). Anything outside the budget is still
+ * cached the first time the user visits it (networkFirstPage) or on demand
+ * via the per-row "retry" button in /settings/offline.
+ *
+ * 'full' (explicit user choice) is unchanged: every known route.
+ */
+export const ROUTE_BUDGETS = {
+  core: { public: 12, personal: 8 },
+  critical: { public: 8, personal: 4 },
+} as const;
 
-/** Critical (very slow) still attempts this many, sequentially. */
-const CRITICAL_ROUTE_BUDGET = MIN_WARM_ROUTES;
+/** Total routes per pass for a tier (public + personal). */
+const CORE_ROUTE_BUDGET = ROUTE_BUDGETS.core.public + ROUTE_BUDGETS.core.personal;
+
+/** Critical (very slow) still attempts these, sequentially. */
+const CRITICAL_ROUTE_BUDGET = ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal;
 
 export function getWarmingPlan(): WarmingPlan {
   const userMode = getWarmingMode();
@@ -152,7 +175,7 @@ export function getWarmingPlan(): WarmingPlan {
 
   // WARMING-MODES-03: user mode wins outright — no silent throttle
   // based on inferred network quality. If the user picks 'fast' we
-  // warm 25 routes; 'full' warms everything. Weak links are the user's
+  // warm ~20 routes (12 public + 8 personal); 'full' warms everything. Weak links are the user's
   // call to make via the mode selector, not ours to second-guess.
   if (userMode === 'fast') {
     return {
@@ -256,13 +279,15 @@ export function getWarmingPlan(): WarmingPlan {
 export function selectRoutesByPlan(
   plan: WarmingPlan,
   routesInPriorityOrder: string[],
+  /** Which list is being selected — each has its own budget on core/critical. */
+  kind: 'public' | 'personal' = 'public',
 ): string[] {
   switch (plan.tier) {
     case 'none':
       return [];
     case 'critical':
     case 'core': {
-      const budget = Math.max(plan.minRoutes || MIN_WARM_ROUTES, MIN_WARM_ROUTES);
+      const budget = ROUTE_BUDGETS[plan.tier][kind];
       const inInput = new Set(routesInPriorityOrder);
       const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
       if (priority.length >= budget) {

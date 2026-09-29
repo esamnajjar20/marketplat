@@ -5,7 +5,7 @@
  *
  * Three modes:
  *   off   — no automatic warming
- *   fast  — top 25 pages (browse + publish essentials)
+ *   fast  — top 20 pages (browse + publish essentials)
  *   full  — every known route
  *
  * Warming runs automatically every 6 hours (see OfflineBootstrap's
@@ -26,14 +26,14 @@ export const WARMING_MODE_LABELS: Record<WarmingMode, string> = {
 
 export const WARMING_MODE_DESCRIPTIONS: Record<WarmingMode, string> = {
   off:  'لا نُحضّر شيئاً. الصفحات تُخزَّن عند زيارتك لها فقط.',
-  fast: 'أهم 25 صفحة — أخف وأسرع وأقل استهلاكاً للبيانات.',
+  fast: 'أهم 20 صفحة — أخف وأسرع وأقل استهلاكاً للبيانات. باقي الصفحات تُخزَّن عند زيارتها.',
   full: 'كل الصفحات — أوفلاين كامل لكن يستهلك بيانات أكثر.',
 };
 
 export const WARMING_MODE_BYTES_EST: Record<WarmingMode, string> = {
   off:  '0 MB',
-  fast: '~1 MB',
-  full: '~2.2 MB',
+  fast: '~5 MB',
+  full: '~20 MB',
 };
 
 let current: WarmingMode = 'fast';

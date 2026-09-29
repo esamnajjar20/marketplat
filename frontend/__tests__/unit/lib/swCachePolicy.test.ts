@@ -49,7 +49,7 @@ describe('user-data warming', () => {
   it('authenticates with a Bearer token and counts only real successes', () => {
     expect(userData).toMatch(/Authorization: `Bearer \$\{token\}`/);
     expect(userData).toMatch(/if \(r\.ok\) completed \+= 1;/);
-    expect(userData).toMatch(/isAuthenticated\) return \{ ok: false/);
+    expect(userData).toMatch(/usedSession && !useAuthStore\.getState\(\)\.isAuthenticated/);
   });
 });
 

@@ -88,15 +88,19 @@ async function fetchWithAuth(
   fullUrl: string,
   signal: AbortSignal,
   allowRefresh: boolean,
-): Promise<Response | null> {
+): Promise<Response> {
   const token = useAuthStore.getState().accessToken;
-  if (!token) return null;
+  // No session: still request (public endpoints such as /product-categories
+  // keep warming for guests); personal endpoints simply answer 401 and are
+  // not cached.
   const res = await fetch(fullUrl, {
     credentials: 'include',
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    headers: token
+      ? { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+      : { Accept: 'application/json' },
     signal,
   });
-  if (res.status === 401 && allowRefresh) {
+  if (res.status === 401 && token && allowRefresh) {
     try {
       const { refreshSessionShared } = await import('@/api/client');
       await refreshSessionShared();
@@ -114,9 +118,9 @@ async function warmOneEndpoint(
   signal: AbortSignal,
 ): Promise<WarmOneResult> {
   const fullUrl = `${API_BASE_URL}${path}`;
+  const usedSession = !!useAuthStore.getState().accessToken;
   try {
     const res = await fetchWithAuth(fullUrl, signal, true);
-    if (!res) return { ok: false, status: 0 }; // no session → nothing to warm
     // 404 for endpoints that don't apply to this user (a plain buyer
     // has no /stores/me) is a normal outcome, not a failure. Do NOT
     // cache it — caching a 404 would be served offline in place of a
@@ -136,7 +140,9 @@ async function warmOneEndpoint(
     // FIX WARM-LOGOUT-RACE-01: logout may have run clearSensitiveLocalData()
     // while this request was in flight. Writing now would resurrect the
     // previous user's data after the wipe.
-    if (!useAuthStore.getState().isAuthenticated) return { ok: false, status: 0 };
+    if (usedSession && !useAuthStore.getState().isAuthenticated) {
+      return { ok: false, status: 0 };
+    }
 
     const toStore = new Response(body, {
       status: res.status,

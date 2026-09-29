@@ -27,7 +27,7 @@
  * PHASE-3 (تكملة): أُضيفت صفحتا ads وservice-listings الافتراضيتان بنفس
  * المنطق (نفس URL اللي يفتحه المتصفح العام بدون فلتر) — الآن ~65-70 طلب
  * إجمالًا (4 قوائم بيانات + صورها المصغّرة، لا يزال محدودًا بـ
- * thumbnailUrls.slice(0, 24) بالأسفل). لا حاجة لتغيير extractThumbnailUrls:
+ * thumbnailUrls.slice(0, 12) بالأسفل). لا حاجة لتغيير extractThumbnailUrls:
  * ads/service-listings يحملان images[] بنفس بنية products، فالفحص
  * الموجود أصلًا (obj.images[0]) يغطيهما دون أي تعديل.
  */
@@ -290,7 +290,7 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
       }
     }
 
-    const thumbnails = thumbnailUrls.slice(0, 24);
+    const thumbnails = thumbnailUrls.slice(0, 12);
     total = urls.length + thumbnails.length;
     notifyWarmup({ active: true, completed, total });
 

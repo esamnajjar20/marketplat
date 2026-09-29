@@ -1012,6 +1012,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
     const routesEarlyP = selectRoutesByPlan(
       plan,
       PERSONAL_SHELL_ROUTES_ESSENTIAL,
+      'personal',
     );
     const incompletePersonal = routesEarlyP.filter(
       (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
@@ -1071,7 +1072,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
       }
     });
 
-    const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL);
+    const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL, 'personal');
     if (routes.length === 0) return;
 
     reportProgress('personal', { active: true, completed: 0, total: routes.length });

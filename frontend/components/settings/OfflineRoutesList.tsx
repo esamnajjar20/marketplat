@@ -108,6 +108,13 @@ export function OfflineRoutesList() {
   // reading blob size — expensive enough to run ONCE per mount rather
   // than on every 5s refresh tick. Empty map = not computed yet.
   const [sizes, setSizes] = useState<Map<string, number>>(new Map());
+  // FIX WARM-SIZE-DEDUPE-01: chunks are shared across routes (~89% overlap),
+  // so summing per-route sizes counted the same bytes many times (the header
+  // showed 30 MB while the device really held ~23 MB). This is the size of
+  // the UNIQUE chunks only; per-row sizes stay as "what this route needs".
+  const [uniqueBytes, setUniqueBytes] = useState<number | null>(null);
+  // Bumped after bulk deletes so the (unique) total is recomputed from the cache.
+  const [sizesTick, setSizesTick] = useState(0);
   const [sizesComputing, setSizesComputing] = useState(false);
   const [sortMode, setSortMode] = useState<'default' | 'size' | 'fresh'>('default');
 
@@ -161,6 +168,8 @@ export function OfflineRoutesList() {
         }
 
         const next = new Map<string, number>();
+        const seenChunks = new Set<string>();
+        let uniqueSum = 0;
         for (const { route, personal } of routes) {
           if (cancelled) return;
           const key = personal ? 'personal:' + route : route;
@@ -171,19 +180,29 @@ export function OfflineRoutesList() {
             for (const cache of opened) {
               const hit = await cache.match(chunkPath).catch(() => undefined);
               if (hit) {
-                try { total += (await hit.clone().blob()).size; } catch { /* ignore */ }
+                try {
+                  const size = (await hit.clone().blob()).size;
+                  total += size;
+                  if (!seenChunks.has(chunkPath)) {
+                    seenChunks.add(chunkPath);
+                    uniqueSum += size;
+                  }
+                } catch { /* ignore */ }
                 break;
               }
             }
           }
           next.set(key, total);
         }
-        if (!cancelled) setSizes(next);
+        if (!cancelled) {
+          setSizes(next);
+          setUniqueBytes(uniqueSum);
+        }
       } catch { /* best-effort */ }
       finally { if (!cancelled) setSizesComputing(false); }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [sizesTick]);
 
   const filtered = useMemo(() => {
     let list: Row[];
@@ -218,10 +237,11 @@ export function OfflineRoutesList() {
   // computed size. Includes filtered-out rows — 'size on disk'
   // shouldn't change when the user toggles a filter.
   const totalBytes = useMemo(() => {
+    if (uniqueBytes !== null) return uniqueBytes;
     let sum = 0;
     for (const v of sizes.values()) sum += v;
     return sum;
-  }, [sizes]);
+  }, [sizes, uniqueBytes]);
 
   // Top 5 largest deletable routes.
   const largestRoutes = useMemo(() => {
@@ -369,6 +389,7 @@ export function OfflineRoutesList() {
         for (const k of cleared) next.set(k, 0);
         return next;
       });
+      setSizesTick((t) => t + 1);
     } finally {
       setBulkBusy(null);
       await refresh();
