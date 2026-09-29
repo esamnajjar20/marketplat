@@ -439,12 +439,61 @@ const FETCH_TIMEOUT_MS = 15000;
 // per day — intermediate passes are cheap no-ops for fresh routes.
 const ROUTE_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
 
-function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+/**
+ * FIX WARM-TIMEOUT-PLAN-01: the deadline is max(FETCH_TIMEOUT_MS, the plan's
+ * requestTimeoutMs). It used to be the fixed 15s and ignore the plan (18-30s on
+ * slow tiers), which only offlineCoreBundle honoured.
+ */
+function shellTimeoutMs(): number {
+  return Math.max(FETCH_TIMEOUT_MS, getWarmingPlan().requestTimeoutMs || 0);
+}
+
+// NOTE: the timer covers time-to-headers only (it is cleared when fetch()
+// resolves). It starts when fetch() is CALLED, so a request that the browser
+// holds in its per-origin queue burns its budget while waiting — which is why
+// chunk fetches go through settlePool() below instead of being fired all at once.
+function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = shellTimeoutMs(),
+): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...options, signal: controller.signal }).finally(() =>
     clearTimeout(timer),
   );
+}
+
+/**
+ * FIX WARM-CHUNK-POOL-01: chunks of one route were fetched with an unbounded
+ * Promise.allSettled — 40-60 requests at once behind Chrome's 6-connections-per-
+ * origin ceiling. Each one's timeout started ticking while it sat in the queue,
+ * so on a slow link the tail timed out even though the link was working (and the
+ * user's own page requests queued behind the warm-up). A small pool keeps every
+ * timer measuring real latency and leaves connections free for the page.
+ */
+const CHUNK_FETCH_CONCURRENCY = 4;
+
+export async function settlePool<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let next = 0;
+  const lane = async (): Promise<void> => {
+    while (next < items.length) {
+      const i = next;
+      next += 1;
+      try {
+        results[i] = { status: 'fulfilled', value: await worker(items[i] as T) };
+      } catch (reason) {
+        results[i] = { status: 'rejected', reason };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, lane));
+  return results;
 }
 
 // WARM-INFLIGHT-DEDUP — before this, both warmRouteShells and
@@ -536,17 +585,15 @@ async function warmRouteAtomic(
 
     // 3. Stage every chunk. Skip ones already in STATIC_CACHE from an
     //    earlier pass — they are already live.
-    const stageResults = await Promise.allSettled(
-      chunkUrls.map(async (url) => {
-        const alreadyLive = await staticCache.match(url);
-        if (alreadyLive) return { url, skipped: true };
-        const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
-        if (!res.ok) throw new Error(`chunk-${res.status}`);
-        await putTimestamped(stagingCache, url, res);
-        stagedPaths.push(url);
-        return { url, skipped: false };
-      }),
-    );
+    const stageResults = await settlePool(chunkUrls, CHUNK_FETCH_CONCURRENCY, async (url) => {
+      const alreadyLive = await staticCache.match(url);
+      if (alreadyLive) return { url, skipped: true };
+      const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`chunk-${res.status}`);
+      await putTimestamped(stagingCache, url, res);
+      stagedPaths.push(url);
+      return { url, skipped: false };
+    });
 
     // 4. Verify — every chunk present in EITHER cache.
     const missing: string[] = [];
@@ -921,16 +968,14 @@ async function warmPersonalRouteAtomic(
       .map((m) => m[1])
       .filter((u): u is string => Boolean(u));
 
-    await Promise.allSettled(
-      chunkUrls.map(async (url) => {
-        const alreadyLive = await staticCache.match(url);
-        if (alreadyLive) return;
-        const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
-        if (!res.ok) throw new Error(`chunk-${res.status}`);
-        await putTimestamped(stagingCache, url, res);
-        stagedPaths.push(url);
-      }),
-    );
+    await settlePool(chunkUrls, CHUNK_FETCH_CONCURRENCY, async (url) => {
+      const alreadyLive = await staticCache.match(url);
+      if (alreadyLive) return;
+      const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`chunk-${res.status}`);
+      await putTimestamped(stagingCache, url, res);
+      stagedPaths.push(url);
+    });
 
     const missing: string[] = [];
     for (const url of chunkUrls) {

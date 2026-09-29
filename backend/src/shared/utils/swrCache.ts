@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { redis } from '../../config/redis';
+import * as redisConfig from '../../config/redis';
 import { logger } from './logger';
 import { guardedCache, withCacheTimeout } from './cacheGuard';
 import { cacheMetrics } from './cacheMetrics';
@@ -60,6 +60,8 @@ export interface SwrOptions<T> {
 }
 
 interface Envelope<T> {
+  /** Epoch ms when the payload was written. Optional: envelopes written before FIX CACHE-KEEPWARM-AGE-01 lack it. */
+  writtenAt?: number;
   softExpiresAt: number; // epoch ms
   hard: string;
   soft?: string;
@@ -72,6 +74,17 @@ interface CacheState {
   soft: string | null;
 }
 
+/**
+ * FIX CACHE-REDIS-SPLIT-01: every SWR key (payloads, generation tokens, refresh
+ * locks, keep-warm leader) goes through the dedicated cache client when
+ * REDIS_CACHE_HOST is configured, so an LRU-evicting cache instance can never
+ * evict sessions / rate-limit counters (see config/redis.ts). Without it the
+ * shared client is used, exactly as before. The `??` also keeps test doubles
+ * that only export `redis` working.
+ */
+export const cacheClient = (): typeof redisConfig.redis =>
+  (redisConfig as { cacheRedis?: typeof redisConfig.redis }).cacheRedis ?? redisConfig.redis;
+
 const inflight = new Map<string, Promise<unknown>>();
 
 const newToken = (): string => randomUUID();
@@ -83,7 +96,7 @@ export async function bumpGeneration(genKey: string): Promise<boolean> {
       // Timeout only (no circuit breaker): an invalidation must still be
       // attempted while the breaker is open, otherwise entries written before
       // the outage could be read as fresh after the breaker closes.
-      await withCacheTimeout(() => redis.set(genKey, newToken()));
+      await withCacheTimeout(() => cacheClient().set(genKey, newToken()));
       return true;
     } catch (error) {
       if (attempt === 1) {
@@ -97,14 +110,14 @@ export async function bumpGeneration(genKey: string): Promise<boolean> {
 /** First reader creates the token (NX), everyone then reads the same one. */
 async function ensureGeneration(genKey: string): Promise<string> {
   const token = newToken();
-  await guardedCache(() => redis.set(genKey, token, 'NX'));
-  const current = await guardedCache(() => redis.get(genKey));
+  await guardedCache(() => cacheClient().set(genKey, token, 'NX'));
+  const current = await guardedCache(() => cacheClient().get(genKey));
   return current ?? token;
 }
 
 async function readState<T>(o: SwrOptions<T>): Promise<CacheState> {
   const keys = o.softGenKey ? [o.key, o.hardGenKey, o.softGenKey] : [o.key, o.hardGenKey];
-  const values = await guardedCache(() => redis.mget(...keys));
+  const values = await guardedCache(() => cacheClient().mget(...keys));
   const raw = values[0] ?? null;
   const hard = values[1] ?? (await ensureGeneration(o.hardGenKey));
   const soft = o.softGenKey ? (values[2] ?? (await ensureGeneration(o.softGenKey))) : null;
@@ -142,13 +155,15 @@ function classify<T>(
 
 async function writeEnvelope<T>(o: SwrOptions<T>, state: CacheState, payload: T): Promise<void> {
   try {
+    const now = Date.now();
     const envelope: Envelope<T> = {
-      softExpiresAt: Date.now() + o.softTtlMs(),
+      writtenAt: now,
+      softExpiresAt: now + o.softTtlMs(),
       hard: state.hard,
       ...(state.soft !== null && { soft: state.soft }),
       payload,
     };
-    await guardedCache(() => redis.set(o.key, JSON.stringify(envelope), 'EX', o.hardTtlSec));
+    await guardedCache(() => cacheClient().set(o.key, JSON.stringify(envelope), 'EX', o.hardTtlSec));
   } catch (error) {
     logger.warn(`[swr:${o.name}] cache write failed`, error);
   }
@@ -189,7 +204,7 @@ async function acquireLock<T>(o: SwrOptions<T>): Promise<string | null> {
   const token = newToken();
   try {
     const res = await guardedCache(() =>
-      redis.set(`${o.key}:refresh-lock`, token, 'PX', o.lockTtlMs, 'NX'),
+      cacheClient().set(`${o.key}:refresh-lock`, token, 'PX', o.lockTtlMs, 'NX'),
     );
     return res === 'OK' ? token : null;
   } catch {
@@ -201,7 +216,7 @@ async function acquireLock<T>(o: SwrOptions<T>): Promise<string | null> {
 async function releaseLock<T>(o: SwrOptions<T>, token: string): Promise<void> {
   if (token === 'local') return;
   try {
-    await withCacheTimeout(() => redis.eval(RELEASE_LOCK_LUA, 1, `${o.key}:refresh-lock`, token));
+    await withCacheTimeout(() => cacheClient().eval(RELEASE_LOCK_LUA, 1, `${o.key}:refresh-lock`, token));
   } catch {
     // Harmless: the lock expires on its own after lockTtlMs.
   }
@@ -266,17 +281,45 @@ export async function swrGet<T>(o: SwrOptions<T>): Promise<T> {
   return (await swrGetWithStatus(o)).value;
 }
 
+export interface EnsureFreshOptions {
+  /**
+   * FIX CACHE-KEEPWARM-AGE-01: keep-warm exists to stop a key from falling off
+   * its HARD TTL, not to chase the (much shorter) soft TTL — real traffic
+   * already refreshes soft-stale entries in the background. With this set, an
+   * entry that is only soft-expired is left alone while it is younger than
+   * `maxAgeMs`. Entries that are missing, hard-invalidated, soft-INVALIDATED
+   * (an edit happened) or lacking a write timestamp are still rebuilt.
+   * Must stay below hardTtl - keep-warm interval, or a key can expire between
+   * two cycles.
+   */
+  maxAgeMs?: number;
+}
+
 /**
  * Keep-warm entry point: rebuild the key only if it is missing, invalidated or
- * past its soft TTL, and only if no other process is already doing it.
- * Throws when Redis is unreachable (there is nothing to warm then) — the
+ * due (see EnsureFreshOptions), and only if no other process is already doing
+ * it. Throws when Redis is unreachable (there is nothing to warm then) — the
  * caller decides how to log it.
  */
 export async function swrEnsureFresh<T>(
   o: SwrOptions<T>,
+  opts: EnsureFreshOptions = {},
 ): Promise<'fresh' | 'refreshed' | 'skipped'> {
   const state = await readState(o);
-  if (classify(o, state, parseEnvelope<T>(state.raw)) === 'fresh') return 'fresh';
+  const envelope = parseEnvelope<T>(state.raw);
+  const verdict = classify(o, state, envelope);
+  if (verdict === 'fresh') return 'fresh';
+
+  if (
+    verdict === 'stale' &&
+    opts.maxAgeMs !== undefined &&
+    envelope &&
+    typeof envelope.writtenAt === 'number' &&
+    (!o.softGenKey || envelope.soft === state.soft) && // soft-expired only, not soft-invalidated
+    Date.now() - envelope.writtenAt < opts.maxAgeMs
+  ) {
+    return 'fresh';
+  }
 
   const token = await acquireLock(o);
   if (!token) {

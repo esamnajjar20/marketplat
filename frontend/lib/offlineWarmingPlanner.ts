@@ -4,9 +4,8 @@
  * Decides how aggressive the offline warming pass should be, based on
  * measured network quality (Gaza-first).
  *
- * FIX WARM-MIN-20-01: even on slow links we warm at least MIN_WARM_ROUTES
- * shells (sequential, long timeouts) — user requirement for usable offline
- * coverage. Previously `critical` returned zero routes.
+ * FIX WARM-MIN-20-01 (superseded by WARM-DEADCODE-01): the measured-speed
+ * tiers this note described are gone; 'fast' warms ROUTE_BUDGETS.core.
  *
  * FIX WARM-PRIORITY-MARKETPLACE-01: PRIORITY_ROUTES ordered by real usage
  * for a classifieds marketplace (browse → search → chat → sell → tools).
@@ -14,8 +13,10 @@
 'use client';
 
 import { getWarmingMode } from './warmingPreferences';
-import { getAverageRequestMs } from './connectionQuality';
 
+// NOTE: getWarmingPlan() no longer produces 'critical' (see FIX WARM-DEADCODE-01);
+// the member stays in the union because downstream consumers and their tests
+// still branch on it.
 export type WarmingTier = 'none' | 'critical' | 'core' | 'full';
 
 export interface WarmingPlan {
@@ -47,12 +48,6 @@ function readConnection(): NetworkInformationLike | null {
     null
   );
 }
-
-/**
- * Minimum shells per initial pass — even on voucher-class links.
- * Combined public + personal priority lists are long enough to fill this.
- */
-export const MIN_WARM_ROUTES = 20; // total (public + personal) — only used by the auto 'full' branch
 
 /**
  * Marketplace usage order (highest first).
@@ -129,9 +124,6 @@ export const ROUTE_BUDGETS = {
 /** Total routes per pass for a tier (public + personal). */
 const CORE_ROUTE_BUDGET = ROUTE_BUDGETS.core.public + ROUTE_BUDGETS.core.personal;
 
-/** Critical (very slow) still attempts these, sequentially. */
-const CRITICAL_ROUTE_BUDGET = ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal;
-
 export function getWarmingPlan(): WarmingPlan {
   const userMode = getWarmingMode();
 
@@ -173,10 +165,17 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  // WARMING-MODES-03: user mode wins outright — no silent throttle
-  // based on inferred network quality. If the user picks 'fast' we
-  // warm ~20 routes (12 public + 8 personal); 'full' warms everything. Weak links are the user's
-  // call to make via the mode selector, not ours to second-guess.
+  // WARMING-MODES-03: the user's mode wins outright — no silent throttle based
+  // on inferred network quality. 'fast' warms the top ROUTE_BUDGETS.core routes
+  // (12 public + 8 personal); 'full' warms every known route. Weak links are the
+  // user's call to make via the mode selector, not ours to second-guess.
+  //
+  // FIX WARM-DEADCODE-01: getWarmingMode() only ever returns 'off' | 'fast' |
+  // 'full', and all three are handled above/below — the former measured-speed /
+  // effectiveType / downlink tiers (critical, mid-slow, auto) sat after these
+  // returns and could never run, which made the file read as if warming adapted
+  // to slow networks when it does not. They were removed. To bring adaptive
+  // behaviour back, add an explicit 'auto' WarmingMode instead of a hidden one.
   if (userMode === 'fast') {
     return {
       tier: 'core',
@@ -189,86 +188,16 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  if (userMode === 'full') {
-    // Every known route. Parallel batches of 2, tight delays — for a
-    // link good enough that ~2.2 MB of shells is not a burden.
-    return {
-      tier: 'full',
-      concurrency: 2,
-      interBatchDelayMs: 300,
-      interRouteDelayMs: 400,
-      requestTimeoutMs: 12_000,
-      minRoutes: 9_999,
-      reason: 'user-full',
-    };
-  }
-
-  const avgMs = getAverageRequestMs();
-
-  // Measured very slow: still warm MIN_WARM_ROUTES, just sequential + long gaps.
-  if (avgMs != null && avgMs >= 4000) {
-    return {
-      tier: 'critical',
-      concurrency: 1,
-      interBatchDelayMs: 0,
-      interRouteDelayMs: 2000,
-      requestTimeoutMs: 30_000,
-      minRoutes: CRITICAL_ROUTE_BUDGET,
-      reason: `measured-very-slow(avgMs=${Math.round(avgMs)})`,
-    };
-  }
-
-  const type = conn?.effectiveType;
-  const downlink = typeof conn?.downlink === 'number' ? conn.downlink : null;
-
-  if (
-    type === 'slow-2g' ||
-    type === '2g' ||
-    (downlink !== null && downlink < 0.16)
-  ) {
-    return {
-      tier: 'critical',
-      concurrency: 1,
-      interBatchDelayMs: 0,
-      interRouteDelayMs: 2000,
-      requestTimeoutMs: 28_000,
-      minRoutes: CRITICAL_ROUTE_BUDGET,
-      reason: `voucher-class(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
-    };
-  }
-
-  if (type === '3g' || (downlink !== null && downlink < 1.5) || (avgMs != null && avgMs >= 1500)) {
-    return {
-      tier: 'core',
-      concurrency: 2,
-      interBatchDelayMs: 300,
-      interRouteDelayMs: 800,
-      requestTimeoutMs: 20_000,
-      minRoutes: CORE_ROUTE_BUDGET,
-      reason: `mid-slow(type=${type ?? '?'},downlink=${downlink ?? '?'},avgMs=${avgMs != null ? Math.round(avgMs) : '?'})`,
-    };
-  }
-
-  if (!conn && avgMs == null) {
-    return {
-      tier: 'core',
-      concurrency: 2,
-      interBatchDelayMs: 250,
-      interRouteDelayMs: 600,
-      requestTimeoutMs: 18_000,
-      minRoutes: CORE_ROUTE_BUDGET,
-      reason: 'no-connection-api-default-core',
-    };
-  }
-
+  // userMode === 'full': every known route. Parallel batches of 2, tight
+  // delays — for a link good enough that ~2.2 MB of shells is not a burden.
   return {
     tier: 'full',
-    concurrency: 3,
-    interBatchDelayMs: 200,
-    interRouteDelayMs: 150,
+    concurrency: 2,
+    interBatchDelayMs: 300,
+    interRouteDelayMs: 400,
     requestTimeoutMs: 12_000,
-    minRoutes: MIN_WARM_ROUTES,
-    reason: `full(type=${type ?? '?'},downlink=${downlink ?? '?'})`,
+    minRoutes: 9_999,
+    reason: 'user-full',
   };
 }
 

@@ -8,8 +8,11 @@
  *   fast  — top 20 pages (browse + publish essentials)
  *   full  — every known route
  *
- * Warming runs automatically every 6 hours (see OfflineBootstrap's
- * PERIODIC_WARM_MS) and can be triggered on demand from
+ * Warming is scheduled by lib/offlineWarmingScheduler.ts: shortly after load /
+ * login / reconnect / tab-visible, plus a cheap in-app tick every 10 minutes
+ * while visible. The tick is not a re-download: each phase has its own
+ * freshness gate (shells 6h full / 30min partial, routes 24h, core bundle
+ * 1.5-6h, user data 10min-2h). It can also be triggered on demand from
  * /settings/offline.
  */
 'use client';

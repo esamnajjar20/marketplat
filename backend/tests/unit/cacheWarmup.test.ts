@@ -10,7 +10,10 @@ import { resetCacheGuard } from '../../src/shared/utils/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
-jest.mock('../../src/modules/home/home.cache', () => ({ ensureHomepageFresh: jest.fn().mockResolvedValue('fresh') }));
+jest.mock('../../src/modules/home/home.cache', () => ({
+  ensureHomepageFresh: jest.fn().mockResolvedValue('fresh'),
+  HOME_KEEPWARM_MAX_AGE_MS: 300_000,
+}));
 jest.mock('../../src/modules/categories/categories.service', () => ({
   categoriesService: { getCategories: jest.fn().mockResolvedValue([]) },
 }));
@@ -40,6 +43,15 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
       'service-categories',
       ...HOME_CITIES.map(city => `home:${city}`),
     ]);
+  });
+
+  it('home tasks are age-gated so an idle healthy cache is not rebuilt every cycle (FIX CACHE-KEEPWARM-AGE-01)', async () => {
+    const { ensureHomepageFresh } = jest.requireMock('../../src/modules/home/home.cache') as {
+      ensureHomepageFresh: jest.Mock;
+    };
+    ensureHomepageFresh.mockClear();
+    await WARMUP_TASKS[0].run();
+    expect(ensureHomepageFresh).toHaveBeenCalledWith({ city: undefined }, { maxAgeMs: 300_000 });
   });
 
   it('runs every task, sequentially, and reports counts', async () => {

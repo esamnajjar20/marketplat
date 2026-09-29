@@ -213,6 +213,46 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
       expect(builds()).toBe(2);
     });
 
+    describe('maxAgeMs (FIX CACHE-KEEPWARM-AGE-01)', () => {
+      const rewrite = (patch: (e: Record<string, unknown>) => void): void => {
+        const entry = fake.__store.get('k') as { value: string };
+        const envelope = JSON.parse(entry.value) as Record<string, unknown>;
+        patch(envelope);
+        entry.value = JSON.stringify(envelope);
+      };
+
+      it('leaves a soft-expired but young entry alone, rebuilds it once it is old', async () => {
+        const { options, builds } = setup();
+        await swrEnsureFresh(options);
+        await sleep(70); // soft TTL (50ms) elapsed
+        expect(await swrEnsureFresh(options, { maxAgeMs: 60_000 })).toBe('fresh');
+        expect(builds()).toBe(1);
+
+        rewrite(e => { e.writtenAt = Date.now() - 120_000; });
+        expect(await swrEnsureFresh(options, { maxAgeMs: 60_000 })).toBe('refreshed');
+        expect(builds()).toBe(2);
+      });
+
+      it('still rebuilds an entry without a write timestamp (pre-upgrade envelope)', async () => {
+        const { options, builds } = setup();
+        await swrEnsureFresh(options);
+        await sleep(70);
+        rewrite(e => { delete e.writtenAt; });
+        expect(await swrEnsureFresh(options, { maxAgeMs: 60_000 })).toBe('refreshed');
+        expect(builds()).toBe(2);
+      });
+
+      it('never skips a hard-invalidated or soft-invalidated entry, however young', async () => {
+        const { options, builds } = setup({ softGenKey: 'gen:soft' });
+        await swrEnsureFresh(options);
+        await bumpGeneration('gen:soft'); // an edit happened
+        expect(await swrEnsureFresh(options, { maxAgeMs: 60_000 })).toBe('refreshed');
+        await bumpGeneration('gen:hard'); // a takedown
+        expect(await swrEnsureFresh(options, { maxAgeMs: 60_000 })).toBe('refreshed');
+        expect(builds()).toBe(3);
+      });
+    });
+
     it('is skipped when another process holds the refresh lock', async () => {
       const { options } = setup();
       await fake.redis.set('k:refresh-lock', 'x', 'PX', 5_000, 'NX');

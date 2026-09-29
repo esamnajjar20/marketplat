@@ -72,6 +72,20 @@ const envSchema = z.object({
     .string()
     .default('false')
     .transform(v => v === 'true'),
+  // FIX CACHE-REDIS-SPLIT-01: optional SECOND Redis used only for disposable
+  // public caches (SWR payloads, generation tokens, refresh locks, keep-warm
+  // leader). Run it with an evicting policy (allkeys-lru) so a full cache can
+  // never reject invalidations, while the primary instance keeps `noeviction`
+  // for sessions / rate limits. Unset = the primary instance is used, as before.
+  REDIS_CACHE_HOST: z.string().optional(),
+  REDIS_CACHE_PORT: z.string().regex(/^\d+$/).optional(),
+  // Falls back to REDIS_PASSWORD / REDIS_TLS / REDIS_USERNAME when unset.
+  REDIS_CACHE_PASSWORD: z.string().optional(),
+  REDIS_CACHE_USERNAME: z.string().optional(),
+  REDIS_CACHE_TLS: z
+    .string()
+    .optional()
+    .transform(v => (v === undefined || v === '' ? undefined : v === 'true')),
   // TRUST_PROXY must be a number (1 = trust one proxy hop, e.g. nginx/Cloudflare).
   // String "1" is NOT equivalent to number 1 in Express trust proxy logic.
   //
@@ -525,6 +539,16 @@ export const env = {
     password: (_env.REDIS_PASSWORD || '').trim() || undefined,
     tls: _env.REDIS_TLS,
   },
+  // null → cache keys share the primary `redis` client (see config/redis.ts).
+  redisCache: (_env.REDIS_CACHE_HOST || '').trim()
+    ? {
+        host: (_env.REDIS_CACHE_HOST || '').trim(),
+        port: parseInt(_env.REDIS_CACHE_PORT ?? _env.REDIS_PORT, 10),
+        username: (_env.REDIS_CACHE_USERNAME || _env.REDIS_USERNAME || '').trim() || undefined,
+        password: (_env.REDIS_CACHE_PASSWORD || _env.REDIS_PASSWORD || '').trim() || undefined,
+        tls: _env.REDIS_CACHE_TLS ?? _env.REDIS_TLS,
+      }
+    : null,
   security: {
     // Parse to number — Express trust proxy requires a number, not a string
     trustProxy: parseInt(_env.TRUST_PROXY, 10),

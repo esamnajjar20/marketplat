@@ -47,4 +47,29 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     mode = 'off';
     expect(selectRoutesByPlan(getWarmingPlan(), [...CORE_ROUTES])).toEqual([]);
   });
+
+  it("the plan follows the user's mode, not the measured/reported network (FIX WARM-DEADCODE-01)", () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '2g', downlink: 0.05 } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'core', reason: 'user-fast', concurrency: 1 });
+    mode = 'full';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'full', reason: 'user-full' });
+  });
+
+  it('saveData and being offline still disable warming, whatever the mode', () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { saveData: true } },
+      configurable: true,
+    });
+    mode = 'full';
+    expect(getWarmingPlan().tier).toBe('none');
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: false },
+      configurable: true,
+    });
+    expect(getWarmingPlan().tier).toBe('none');
+  });
 });

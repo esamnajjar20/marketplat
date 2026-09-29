@@ -19,6 +19,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      # FIX CACHE-REDIS-SPLIT-01: public SWR caches live on a separate,
+      # evicting instance (service `redis-cache` below). Remove these two
+      # lines to fall back to the single noeviction instance.
+      - REDIS_CACHE_HOST=redis-cache
+      - REDIS_CACHE_PORT=6379
       - FRONTEND_URL=${FRONTEND_URL}
       - TRUST_PROXY=1
       - BLACKLIST_STRICT=true
@@ -47,6 +52,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-cache:
         condition: service_healthy
     networks:
       - classifieds-network
@@ -253,6 +260,27 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - classifieds-network
+
+  # FIX CACHE-REDIS-SPLIT-01: disposable cache instance. Unlike `redis` above
+  # it evicts (allkeys-lru) and persists nothing: it holds only SWR payloads,
+  # generation tokens, refresh locks and the keep-warm leader key, all of which
+  # are safe to lose (tokens are random, so a lost generation key just makes
+  # older entries unreadable). Sessions, refresh tokens and rate-limit counters
+  # stay on the noeviction instance. Shares REDIS_PASSWORD.
+  redis-cache:
+    image: redis:7-alpine
+    container_name: classifieds-redis-cache
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory ${REDIS_CACHE_MAXMEMORY:-256mb} --maxmemory-policy allkeys-lru
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     healthcheck:
       test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping']
       interval: 10s

@@ -72,3 +72,39 @@ export const redis = new Redis({
 
 redis.on('connect', () => logger.info('✅ Redis connected'));
 redis.on('error', err => logger.error('Redis error', { err: err.message }));
+
+/**
+ * FIX CACHE-REDIS-SPLIT-01: client for the disposable public caches.
+ *
+ * The primary instance runs `noeviction` on purpose (FIX D-15: sessions and
+ * rate-limit counters must never be silently evicted). The price is that once
+ * it is full EVERY write fails — including the generation-token overwrite that
+ * makes a takedown ("hard" invalidation) effective. Pointing the SWR caches at
+ * a separate LRU instance removes that coupling: a full cache evicts old
+ * entries instead of rejecting invalidations. Eviction is safe here — generation
+ * tokens are random, so an evicted token just makes older envelopes unreadable.
+ *
+ * Without REDIS_CACHE_HOST this IS the primary client (no behaviour change).
+ */
+export const cacheRedis: Redis = env.redisCache
+  ? new Redis({
+      host: env.redisCache.host,
+      port: env.redisCache.port,
+      username: env.redisCache.username,
+      password: env.redisCache.password,
+      family: 4,
+      keepAlive: 10_000,
+      enableReadyCheck: false,
+      lazyConnect: true,
+      connectTimeout: 10_000,
+      tls: env.redisCache.tls ? {} : undefined,
+      retryStrategy: times => Math.min(times * 50, 2000),
+      // Cache calls are already bounded by cacheGuard (300ms + breaker).
+      maxRetriesPerRequest: 1,
+    })
+  : redis;
+
+if (cacheRedis !== redis) {
+  cacheRedis.on('connect', () => logger.info('✅ Redis (cache) connected'));
+  cacheRedis.on('error', err => logger.error('Redis (cache) error', { err: err.message }));
+}

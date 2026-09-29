@@ -1,11 +1,11 @@
-import { redis } from '../../config/redis';
-import { ensureHomepageFresh } from '../../modules/home/home.cache';
+import { ensureHomepageFresh, HOME_KEEPWARM_MAX_AGE_MS } from '../../modules/home/home.cache';
 import { HOME_CITIES } from '../../modules/home/home.validation';
 import { categoriesService } from '../../modules/categories/categories.service';
 import { productCategoriesService } from '../../modules/product-categories/product-categories.service';
 import { serviceCategoriesService } from '../../modules/service-categories/service-categories.service';
 import { guardedCache } from './cacheGuard';
 import { cacheMetrics } from './cacheMetrics';
+import { cacheClient } from './swrCache';
 import { logger } from './logger';
 
 /**
@@ -23,7 +23,9 @@ import { logger } from './logger';
  *    trees are covered;
  *  - a keep-warm loop re-checks them every KEEP_WARM_INTERVAL_MS (well under
  *    the 10-minute hard TTL) and rebuilds only what is missing, invalidated or
- *    past its soft TTL — a healthy cache costs 11 cheap Redis reads per cycle;
+ *    older than HOME_KEEPWARM_MAX_AGE_MS (so it never falls off the hard TTL,
+ *    and never re-runs an assembly real traffic just refreshed) — a healthy
+ *    cache costs 11 cheap Redis reads per cycle;
  *  - the loop is leader-elected through a Redis lock, so PM2 cluster workers
  *    (or several Railway replicas) don't all rebuild the same keys;
  *  - rebuilds go through the same lock/singleflight/generation logic real
@@ -47,7 +49,10 @@ export interface WarmupTask {
 
 const homeTask = (city: string | undefined): WarmupTask => ({
   name: `home:${city ?? 'general'}`,
-  run: () => ensureHomepageFresh({ city }),
+  // Age-gated: a key that real traffic (or the post-invalidation rewarm) rebuilt
+  // recently is skipped, so an idle-but-healthy cache costs 11 cheap reads per
+  // cycle instead of 11 full assemblies.
+  run: () => ensureHomepageFresh({ city }, { maxAgeMs: HOME_KEEPWARM_MAX_AGE_MS }),
 });
 
 // Order matters: general first (most traffic), then the category trees (every
@@ -91,7 +96,7 @@ export async function warmPublicCaches(
 async function acquireLeadership(intervalMs: number): Promise<boolean> {
   try {
     const res = await guardedCache(() =>
-      redis.set(KEEP_WARM_LEADER_KEY, String(process.pid), 'PX', Math.max(1_000, intervalMs - 5_000), 'NX'),
+      cacheClient().set(KEEP_WARM_LEADER_KEY, String(process.pid), 'PX', Math.max(1_000, intervalMs - 5_000), 'NX'),
     );
     return res === 'OK';
   } catch {

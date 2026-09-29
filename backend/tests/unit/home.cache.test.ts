@@ -7,10 +7,13 @@ import {
   HOME_CACHE_HARD_TTL_SECONDS,
   HOME_REFRESH_LOCK_TTL_MS,
   HOME_REWARM_DELAY_MS,
+  HOME_REWARM_CITY_PAUSE_MS,
+  HOME_KEEPWARM_MAX_AGE_MS,
   cancelPendingHomeRewarm,
 } from '../../src/modules/home/home.cache';
 import { HOME_GEN_KEY, invalidateHomeCache } from '../../src/modules/home/home.cache.keys';
 import { homeService } from '../../src/modules/home/home.service';
+import { HOME_CITIES } from '../../src/modules/home/home.validation';
 import { resetCacheGuard } from '../../src/shared/utils/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
@@ -201,6 +204,43 @@ describe('getCachedHomepage', () => {
         jest.useRealTimers();
       }
     });
+
+    it('then re-warms every city variant, sequentially (FIX HOME-REWARM-CITIES-01)', async () => {
+      jest.useFakeTimers();
+      try {
+        getHomepage.mockResolvedValue(fresh);
+        await invalidateHomeCache();
+        await jest.advanceTimersByTimeAsync(
+          HOME_REWARM_DELAY_MS + (HOME_CITIES.length + 2) * HOME_REWARM_CITY_PAUSE_MS,
+        );
+        expect(getHomepage).toHaveBeenCalledTimes(1 + HOME_CITIES.length);
+        for (const city of HOME_CITIES) {
+          expect(stored(`home:v4:${city}`)!.payload).toEqual(fresh);
+        }
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('a second invalidation inside the min gap re-warms only the general key', async () => {
+      jest.useFakeTimers();
+      try {
+        getHomepage.mockResolvedValue(fresh);
+        await invalidateHomeCache();
+        await jest.advanceTimersByTimeAsync(
+          HOME_REWARM_DELAY_MS + (HOME_CITIES.length + 2) * HOME_REWARM_CITY_PAUSE_MS,
+        );
+        getHomepage.mockClear();
+
+        await invalidateHomeCache();
+        await jest.advanceTimersByTimeAsync(
+          HOME_REWARM_DELAY_MS + (HOME_CITIES.length + 2) * HOME_REWARM_CITY_PAUSE_MS,
+        );
+        expect(getHomepage).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe('ensureHomepageFresh (keep-warm)', () => {
@@ -209,6 +249,25 @@ describe('getCachedHomepage', () => {
       await expect(ensureHomepageFresh({ city: 'رفح' })).resolves.toBe('refreshed');
       await expect(ensureHomepageFresh({ city: 'رفح' })).resolves.toBe('fresh');
       expect(getHomepage).toHaveBeenCalledTimes(1);
+    });
+
+    it('with maxAgeMs, a soft-expired but young entry is not rebuilt (FIX CACHE-KEEPWARM-AGE-01)', async () => {
+      getHomepage.mockResolvedValue(full);
+      await ensureHomepageFresh({ city: 'رفح' });
+      const entry = fake.__store.get('home:v4:رفح')!;
+      const envelope = JSON.parse(entry.value);
+      envelope.softExpiresAt = Date.now() - 1_000;
+      entry.value = JSON.stringify(envelope);
+
+      await expect(ensureHomepageFresh({ city: 'رفح' }, { maxAgeMs: HOME_KEEPWARM_MAX_AGE_MS })).resolves.toBe('fresh');
+      expect(getHomepage).toHaveBeenCalledTimes(1);
+      await expect(ensureHomepageFresh({ city: 'رفح' })).resolves.toBe('refreshed');
+      expect(getHomepage).toHaveBeenCalledTimes(2);
+    });
+
+    it('keep-warm max age leaves room before the hard TTL for a full keep-warm interval', () => {
+      const KEEP_WARM_INTERVAL_MS = 4 * 60_000; // cacheWarmup.ts
+      expect(HOME_KEEPWARM_MAX_AGE_MS + KEEP_WARM_INTERVAL_MS).toBeLessThan(HOME_CACHE_HARD_TTL_SECONDS * 1000);
     });
   });
 
