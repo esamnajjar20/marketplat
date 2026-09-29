@@ -10,64 +10,67 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/shared/ui/Sheet';
+import { Badge } from '@/components/ui/badge';
 import { SearchFilters } from './SearchFilters';
 
-// FIX SHEET-BADGE-SORT-01: this list used to be FILTER_KEYS.filter(get)
-// minus a lat/lng dedup, and it silently ignored `sort`. On mobile the
-// sort control lives in SearchSortBar (above the results, not inside
-// the sheet) -- so a user who set sort=newest would open the filter
-// sheet, see a badge of 0, and reasonably conclude nothing was
-// filtered. SearchResults' own hasActiveFilters already counts
-// sort !== 'relevance' -- mirroring that here keeps the desktop reset
-// button and the mobile badge in agreement. `q` is still deliberately
-// excluded: it is the query, not a filter, and SearchFilters' own
-// reset button preserves it for the same reason.
+// FIX SHEET-BADGE-SORT-01: count mirrors SearchResults hasActiveFilters
+// (includes sort ≠ relevance). `q` excluded — it is the query, not a filter.
 const IS_SORT_ACTIVE = (v: string | null) => v !== null && v !== 'relevance';
 
 /**
- * Mobile filter entry — short trigger + sheet. Closing the sheet is the
- * "apply" gesture (URL already updated live); count badge shows active set.
+ * Mobile filter entry — Phase 3: clearer trigger badge + sheet header
+ * aligned with CreateSheet / ExploreSheet.
  */
 export function SearchFiltersSheet() {
   const [open, setOpen] = useState(false);
   const sp = useSearchParams();
 
   const activeCount =
-    (sp.get('city')            ? 1 : 0) +
-    (sp.get('categoryId')      ? 1 : 0) +
+    (sp.get('city') ? 1 : 0) +
+    (sp.get('categoryId') ? 1 : 0) +
     (sp.get('lat') && sp.get('lng') ? 1 : 0) +
-    (IS_SORT_ACTIVE(sp.get('sort'))  ? 1 : 0);
+    (IS_SORT_ACTIVE(sp.get('sort')) ? 1 : 0);
 
   return (
     <div className="lg:hidden">
       <Button
         variant="outline"
-        className="w-full justify-center gap-2"
+        className="h-10 w-full justify-center gap-2 rounded-xl"
         onClick={() => setOpen(true)}
         aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <SlidersHorizontal className="h-4 w-4" aria-hidden />
         تصفية
         {activeCount > 0 && (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+          <Badge
+            size="sm"
+            variant="default"
+            className="min-w-5 justify-center px-1.5"
+            aria-label={`${activeCount} فلاتر نشطة`}
+          >
             {activeCount}
-          </span>
+          </Badge>
         )}
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="flex max-h-[92dvh] flex-col p-0">
-          <SheetHeader>
-            <SheetTitle>تصفية النتائج</SheetTitle>
-            <p className="px-1 text-sm text-muted-foreground">
+          <SheetHeader className="border-b border-border/60 px-4 pb-3 pt-1">
+            <SheetTitle className="text-base font-bold">تصفية النتائج</SheetTitle>
+            <p className="text-2xs text-muted-foreground sm:text-xs">
               الموقع والمدينة أولًا — الفئة تحت «خيارات أكثر». التغييرات تُطبَّق فورًا.
             </p>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
             <SearchFilters />
           </div>
-          <div className="sticky bottom-0 border-t bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <Button type="button" className="w-full font-semibold" onClick={() => setOpen(false)}>
+          <div className="sticky bottom-0 border-t border-border/60 bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+            <Button
+              type="button"
+              className="h-11 w-full rounded-xl font-semibold"
+              onClick={() => setOpen(false)}
+            >
               عرض النتائج
               {activeCount > 0 ? ` (${activeCount})` : ''}
             </Button>

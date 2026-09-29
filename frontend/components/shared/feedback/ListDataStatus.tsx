@@ -1,18 +1,15 @@
 'use client';
 
 /**
- * SLOW-NET phase4 — visible feedback when list UI is served from cache
- * or is refreshing silently (keepPreviousData / offline list / SW).
+ * SLOW-NET — visible feedback when list UI is from cache or refreshing.
+ * Phase 3: design tokens instead of hardcoded amber classes.
  */
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Props {
-  /** True while a network refetch is in flight */
   isFetching?: boolean;
-  /** True when some list data is already on screen */
   hasData?: boolean;
-  /** Optional: true when TanStack reports placeholder/previous data */
   isPlaceholderData?: boolean;
   className?: string;
 }
@@ -45,7 +42,7 @@ export function ListDataStatus({
       <p
         role="status"
         className={cn(
-          'mb-2 text-center text-xs text-amber-700 dark:text-amber-400',
+          'mb-2 rounded-lg bg-warning-soft px-3 py-1.5 text-center text-2xs font-medium text-warning-foreground sm:text-xs',
           className,
         )}
       >
@@ -59,7 +56,7 @@ export function ListDataStatus({
       <p
         role="status"
         className={cn(
-          'mb-2 animate-pulse text-center text-xs text-muted-foreground',
+          'mb-2 animate-pulse text-center text-2xs text-muted-foreground sm:text-xs',
           className,
         )}
       >

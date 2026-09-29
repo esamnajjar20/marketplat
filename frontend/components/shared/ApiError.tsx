@@ -1,37 +1,32 @@
 /**
  * ApiError — unified error display for API call failures.
  *
- * Dispatches to the correct specialised component based on statusCode:
  *   401 → Unauthorized
  *   403 → Forbidden
- *   404 → inline not-found message
- *   500+ → generic server error
+ *   404 → not-found
+ *   500+ → server error
  *
- * Usage:
- *   const { error } = useAd(id);
- *   if (error) return <ApiError error={error} />;
+ * Phase 3: visual alignment with EmptyState (icon well + hierarchy).
  */
 'use client';
 
 import { SearchX, AlertTriangle } from 'lucide-react';
 import { Unauthorized } from './Unauthorized';
-import { Forbidden }    from './Forbidden';
-import { Button }       from '@/components/shared/ui/Button';
+import { Forbidden } from './Forbidden';
+import { Button } from '@/components/shared/ui/Button';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import type { ParsedError } from '@/lib/errorParser';
 
 interface ApiErrorProps {
-  /** A ParsedError from errorParser, or any Error-like object. */
   error: ParsedError | Error | unknown;
-  /** Called when the user clicks "Try again". If omitted, button is hidden. */
   onRetry?: () => void;
-  /** Override the default full-page layout with a compact inline card. */
   variant?: 'page' | 'inline';
 }
 
 function getStatusCode(error: unknown): number {
   if (error && typeof error === 'object') {
     if ('statusCode' in error) return (error as { statusCode: number }).statusCode;
-    if ('status'     in error) return (error as { status: number }).status;
+    if ('status' in error) return (error as { status: number }).status;
   }
   return 500;
 }
@@ -45,61 +40,56 @@ function getMessage(error: unknown): string {
 
 export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
   const statusCode = getStatusCode(error);
-  const message    = getMessage(error);
+  const message = getMessage(error);
 
-  // Delegate to specialised components for auth errors
   if (statusCode === 401) return <Unauthorized />;
   if (statusCode === 403) return <Forbidden />;
 
-  const isInline = variant === 'inline';
+  const is404 = statusCode === 404;
+  const title = is404
+    ? 'غير موجود'
+    : statusCode >= 500
+      ? 'خطأ في الخادم'
+      : 'حدث خطأ ما';
+
+  const description =
+    statusCode >= 500
+      ? `${message} تم إبلاغ فريقنا — حاول مرة أخرى بعد قليل.`
+      : message;
 
   const content = (
-    <div className="flex flex-col items-center gap-4 text-center">
-      {/* FIX P2-2: emoji glyphs replaced with the same lucide-react icons
-          used app-wide — SearchX matches AdDetailSection.tsx's 404 state,
-          AlertTriangle is already the generic error icon in every list
-          empty-state (MyAdsList, AdminReportsTable, ConversationList, …).
-          Emoji render inconsistently across platforms/fonts; these don't. */}
-      {statusCode === 404 ? (
-        <SearchX className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
-      ) : (
-        <AlertTriangle className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
-      )}
-
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">
-          {statusCode === 404
-            ? 'غير موجود'
-            : statusCode >= 500
-              ? 'خطأ في الخادم'
-              : 'حدث خطأ ما'}
-        </h2>
-        <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
-        {statusCode >= 500 && (
-          <p className="text-xs text-muted-foreground">
-            تم إبلاغ فريقنا بالمشكلة. يرجى المحاولة مرة أخرى بعد قليل.
-          </p>
-        )}
-      </div>
-
-      {onRetry && (
-        <Button onClick={onRetry} variant="outline" size="sm">
-          إعادة المحاولة
-        </Button>
-      )}
-    </div>
+    <EmptyState
+      tone={is404 ? 'muted' : 'warning'}
+      compact={variant === 'inline'}
+      icon={
+        is404 ? (
+          <SearchX aria-hidden />
+        ) : (
+          <AlertTriangle aria-hidden />
+        )
+      }
+      title={title}
+      description={description}
+      action={
+        onRetry ? (
+          <Button onClick={onRetry} variant="outline" size="sm" className="rounded-xl">
+            إعادة المحاولة
+          </Button>
+        ) : undefined
+      }
+    />
   );
 
-  if (isInline) {
+  if (variant === 'inline') {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-dashed py-12">
+      <div className="flex items-center justify-center rounded-xl border border-dashed border-border/80 bg-surface-1/50 py-6">
         {content}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4">
+    <div className="flex min-h-[50vh] items-center justify-center px-4 sm:min-h-[60vh]">
       {content}
     </div>
   );

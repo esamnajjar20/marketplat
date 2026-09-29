@@ -7,12 +7,20 @@ interface Props {
   description?: string;
   action?: ReactNode;
   className?: string;
-  /** حجم أخف للأقسام داخل الصفحة */
+  /** أخف للأقسام داخل الصفحة */
   compact?: boolean;
+  /**
+   * tone:
+   * - default: primary soft icon (empty lists)
+   * - muted: neutral (optional / secondary)
+   * - warning: soft warning (offline / attention)
+   */
+  tone?: 'default' | 'muted' | 'warning';
 }
 
 /**
- * حالة فارغة / خطأ — هادئة، مفهومة، مع مساحة تنفّس.
+ * حالة فارغة موحّدة — هادئة، مفهومة، مع مساحة تنفّس.
+ * Phase 3: tone variants + consistent icon well.
  */
 export function EmptyState({
   icon,
@@ -21,12 +29,20 @@ export function EmptyState({
   action,
   className,
   compact = false,
+  tone = 'default',
 }: Props) {
+  const iconWell =
+    tone === 'warning'
+      ? 'bg-warning-soft text-warning-foreground'
+      : tone === 'muted'
+        ? 'bg-muted text-muted-foreground'
+        : 'bg-primary/10 text-primary';
+
   return (
     <div
       className={cn(
         'flex flex-col items-center justify-center text-center section-enter',
-        compact ? 'gap-3 py-10' : 'gap-4 py-14 sm:py-16',
+        compact ? 'gap-3 py-8 sm:py-10' : 'gap-4 py-12 sm:py-16',
         className,
       )}
       role="status"
@@ -34,8 +50,10 @@ export function EmptyState({
       {icon && (
         <div
           className={cn(
-            'flex items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-xs [&_svg]:h-7 [&_svg]:w-7 sm:[&_svg]:h-8 sm:[&_svg]:w-8',
+            'flex items-center justify-center rounded-2xl shadow-xs',
+            '[&_svg]:h-7 [&_svg]:w-7 sm:[&_svg]:h-8 sm:[&_svg]:w-8',
             compact ? 'h-12 w-12' : 'h-14 w-14 sm:h-16 sm:w-16',
+            iconWell,
           )}
         >
           {icon}

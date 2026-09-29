@@ -2,9 +2,15 @@
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Badge } from '@/components/ui/badge';
 import { MapPin, Star, BadgeCheck, Eye } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
-import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import {
+  getListThumbnailUrl,
+  getPlaceholderUrl,
+  isCloudinaryUrl,
+  PLACEHOLDER_SVG,
+} from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import { formatDistanceKm } from '@/lib/distance';
 import type { SearchResult, SearchResultType } from '@/types/search.types';
@@ -14,20 +20,27 @@ interface Props {
   className?: string;
 }
 
-const TYPE_BADGE: Record<SearchResultType, { label: string; className: string }> = {
-  ad:      { label: 'إعلان', className: 'bg-foreground/80 text-background backdrop-blur-md' },
-  product: { label: 'منتج',  className: 'bg-primary text-primary-foreground shadow-sm' },
-  store:   { label: 'محل',   className: 'bg-accent text-accent-foreground shadow-sm' },
-  service: { label: 'خدمة',  className: 'bg-success text-success-foreground shadow-sm' },
+const TYPE_BADGE: Record<
+  SearchResultType,
+  { label: string; variant: 'overlay' | 'default' | 'accent' | 'success' }
+> = {
+  ad: { label: 'إعلان', variant: 'overlay' },
+  product: { label: 'منتج', variant: 'default' },
+  store: { label: 'محل', variant: 'accent' },
+  service: { label: 'خدمة', variant: 'success' },
 };
 
 /**
- * Unified search result card — matches dedicated cards; type badge top-start only.
+ * Unified search result card — aligned with AdCard (Badge + typography scale).
  */
 export function UnifiedResultCard({ result, className }: Props) {
-  const thumb = result.image ? getListThumbnailUrl(result.image, 400, 280) : PLACEHOLDER_SVG;
+  const thumb = result.image
+    ? getListThumbnailUrl(result.image, 400, 280)
+    : PLACEHOLDER_SVG;
   const blurDataURL =
-    result.image && isCloudinaryUrl(result.image) ? getPlaceholderUrl(result.image) : undefined;
+    result.image && isCloudinaryUrl(result.image)
+      ? getPlaceholderUrl(result.image)
+      : undefined;
   const badge = TYPE_BADGE[result.type];
   const distanceLabel = formatDistanceKm(result.distanceKm);
 
@@ -67,14 +80,13 @@ export function UnifiedResultCard({ result, className }: Props) {
             aria-hidden
           />
 
-          <span
-            className={cn(
-              'absolute top-2 start-2 z-[1] rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide shadow-sm',
-              badge.className,
-            )}
+          <Badge
+            size="xs"
+            variant={badge.variant}
+            className="absolute top-2 start-2 z-[1]"
           >
             {badge.label}
-          </span>
+          </Badge>
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
@@ -83,7 +95,7 @@ export function UnifiedResultCard({ result, className }: Props) {
               {formatPrice(result.price)}
             </p>
           )}
-          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground sm:text-[15px]">
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground sm:text-card-title">
             {result.title}
           </h3>
 
@@ -103,11 +115,14 @@ export function UnifiedResultCard({ result, className }: Props) {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground sm:text-xs">
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{result.seller.name}</span>
                 {result.seller.verified && (
-                  <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="بائع موثّق" />
+                  <BadgeCheck
+                    className="h-3.5 w-3.5 shrink-0 text-primary"
+                    aria-label="بائع موثّق"
+                  />
                 )}
               </span>
               <span className="flex shrink-0 items-center gap-2">
@@ -123,7 +138,9 @@ export function UnifiedResultCard({ result, className }: Props) {
                     <span>{result.views}</span>
                   </span>
                 )}
-                <span className="font-medium tabular-nums">{formatRelativeTime(result.createdAt)}</span>
+                <span className="font-medium tabular-nums">
+                  {formatRelativeTime(result.createdAt)}
+                </span>
               </span>
             </div>
           </div>
