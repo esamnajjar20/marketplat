@@ -1015,6 +1015,28 @@ async function cacheFirstImage(event, request, url) {
     }
     return response;
   } catch (error) {
+    // FIX SW-IMAGE-CORE-NEXT-01: warmCoreBundle now warms the exact
+    // thumbnail URL the cards pass to next/image (getListThumbnailUrl),
+    // stored in CORE_CACHE under that URL. The browser's real request is
+    // /_next/image?url=<that URL>&w=..., whose `w`/`q` are chosen at render
+    // time and can't be predicted — so on a NETWORK FAILURE ONLY, fall back
+    // to the warmed un-optimised copy (same trade-off as the saved-ads
+    // fallback above: a slightly heavier image instead of a broken one).
+    // Deliberately NOT tried before the network: online users keep the
+    // optimised AVIF/WebP variant.
+    if (url.pathname === '/_next/image') {
+      try {
+        const inner = url.searchParams.get('url');
+        if (inner) {
+          const coreCache = await caches.open(CORE_CACHE);
+          // searchParams.get() already decoded it once — decoding again would corrupt URLs containing %XX.
+          const warmed = await coreCache.match(inner);
+          if (warmed) return warmed;
+        }
+      } catch {
+        // ignore — fall through to the error below
+      }
+    }
     console.error('[SW IMAGE] NETWORK ERROR', request.url, error);
     return Response.error();
   }

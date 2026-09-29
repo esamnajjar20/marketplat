@@ -804,7 +804,12 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
         continue;
       }
 
-      const delay = backoffForAttempts(prior?.attempts ?? 0);
+      // FIX WARM-BACKOFF-01: backoff is a FAILURE penalty. It used to be
+      // applied to every route with attempts > 0 — and `attempts` was
+      // incremented on success too — so each daily refresh of a healthy
+      // route slept 2s, 4s, 8s … up to 30 min INSIDE the warming loop
+      // (holding the lock and blocking every route behind it).
+      const delay = prior?.status === 'failed' ? backoffForAttempts(prior.attempts) : 0;
       if (delay > 0) {
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -814,7 +819,8 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
       await patchRouteStatus(route, {
         status: result.ok ? 'complete' : 'failed',
         chunks: result.urls.map(toPath),
-        attempts: (prior?.attempts ?? 0) + 1,
+        // FIX WARM-BACKOFF-01: a success resets the failure counter.
+        attempts: result.ok ? 0 : (prior?.attempts ?? 0) + 1,
         lastAttempt: Date.now(),
         warmedAt: result.ok ? Date.now() : prior?.warmedAt,
         lastError: result.ok ? undefined : result.error,
@@ -1099,7 +1105,12 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
         if (htmlHit) continue;
       }
 
-      const delay = backoffForAttempts(prior?.attempts ?? 0);
+      // FIX WARM-BACKOFF-01: backoff is a FAILURE penalty. It used to be
+      // applied to every route with attempts > 0 — and `attempts` was
+      // incremented on success too — so each daily refresh of a healthy
+      // route slept 2s, 4s, 8s … up to 30 min INSIDE the warming loop
+      // (holding the lock and blocking every route behind it).
+      const delay = prior?.status === 'failed' ? backoffForAttempts(prior.attempts) : 0;
       if (delay > 0) {
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -1114,7 +1125,8 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
       await patchRouteStatus(key, {
         status: result.ok ? 'complete' : 'failed',
         chunks: result.urls.map(toPath),
-        attempts: (prior?.attempts ?? 0) + 1,
+        // FIX WARM-BACKOFF-01: a success resets the failure counter.
+        attempts: result.ok ? 0 : (prior?.attempts ?? 0) + 1,
         lastAttempt: Date.now(),
         warmedAt: result.ok ? Date.now() : prior?.warmedAt,
         lastError: result.ok ? undefined : result.error,

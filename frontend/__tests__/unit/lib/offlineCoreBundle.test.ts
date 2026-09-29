@@ -2,8 +2,12 @@
  * __tests__/unit/lib/offlineCoreBundle.test.ts
  */
 import { describe, it, expect } from 'vitest';
+import { getListThumbnailUrl, getAvatarUrl } from '@/lib/cloudinary';
 import {
   CORE_CACHE,
+  THUMB_CAPS,
+  CORE_TTL_BY_TIER_MS,
+  collectThumbnailUrls,
   buildCoreUrls,
   getWarmupProgress,
   onWarmupProgress,
@@ -48,5 +52,45 @@ describe('offlineCoreBundle', () => {
     const off = onWarmupProgress(listener);
     expect(typeof off).toBe('function');
     off();
+  });
+
+  // FIX WARM-THUMBS-01
+  describe('collectThumbnailUrls', () => {
+    const cl = (n: number) => `https://res.cloudinary.com/demo/image/upload/v1/ad_${n}.jpg`;
+    const items = (n: number) => Array.from({ length: n }, (_, i) => ({ images: [cl(i)] }));
+
+    it('warms the EXACT url the cards render (getListThumbnailUrl 320x224), not the raw image', () => {
+      const out = collectThumbnailUrls({ ads: { data: [{ images: [cl(1)] }] } });
+      expect(out).toEqual([getListThumbnailUrl(cl(1), 320, 224)]);
+      expect(out).not.toContain(cl(1));
+    });
+
+    it('caps each list separately so ads/services/stores are not starved by products', () => {
+      const out = collectThumbnailUrls({
+        ads: { data: items(30) },
+        products: { data: items(30).map((x, i) => ({ images: [cl(100 + i)] })) },
+        services: { data: items(30).map((x, i) => ({ images: [cl(200 + i)] })) },
+        stores: { data: Array.from({ length: 10 }, (_, i) => ({ logoUrl: cl(300 + i) })) },
+      });
+      const total = THUMB_CAPS.ads + THUMB_CAPS.products + THUMB_CAPS.services + THUMB_CAPS.stores;
+      expect(out).toHaveLength(total);
+      expect(out).toContain(getListThumbnailUrl(cl(0), 320, 224)); // ads present
+      expect(out).toContain(getAvatarUrl(cl(300), 96)); // store logos present
+    });
+
+    it('ignores malformed items and non-array data', () => {
+      expect(
+        collectThumbnailUrls({
+          ads: { data: [null, {}, { images: [] }, { images: [42] }] },
+          products: { data: 'nope' },
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  // FIX WARM-CORE-TTL-01
+  it('core freshness window shrinks on better networks', () => {
+    expect(CORE_TTL_BY_TIER_MS.full).toBeLessThan(CORE_TTL_BY_TIER_MS.core);
+    expect(CORE_TTL_BY_TIER_MS.core).toBeLessThan(CORE_TTL_BY_TIER_MS.critical);
   });
 });

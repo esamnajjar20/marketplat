@@ -5,6 +5,11 @@
  * إطلاق core + shells + personal + userdata بالتوازي. عند online ينتظر
  * انتهاء replay الطابور قبل التسخين حتى لا تُسرق الباندويث من إرسال
  * الإعلانات/الرسائل المعلّقة.
+ *
+ * FIX WARM-SCHEDULE-01: "متى نسخّن" صار في offlineWarmingScheduler (دمج
+ * المحفّزات، تأجيل لما بعد التحميل/idle، فقط والتبويب ظاهر، حد أدنى بين
+ * التشغيلات، ونبضة كل 10 دقائق بدل مؤقّت 6 ساعات). كل مرحلة داخل الـ
+ * pipeline لها نافذة طزاجة خاصة، فالنبضة رخيصة إن لم يكن هناك شيء قديم.
  */
 'use client';
 
@@ -13,10 +18,12 @@ import { requestQueueReplay } from '@/lib/offlineQueue';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
+import { setQueueReplayInFlight } from '@/lib/offlineWarmingPipeline';
 import {
-  runWarmingPipeline,
-  setQueueReplayInFlight,
-} from '@/lib/offlineWarmingPipeline';
+  scheduleWarming,
+  cancelScheduledWarming,
+  TICK_MS,
+} from '@/lib/offlineWarmingScheduler';
 import { ensurePushSubscriptionSynced } from '@/lib/pwa';
 import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
@@ -29,14 +36,7 @@ let __offlineBootstrapInitialized = false;
 // UNHANDLED-REJECTION-FIX-01: every fire-and-forget call below must
 // end in .catch — `void promise` alone still lets a rejection escape
 // to the global handler, which is what was reaching Sentry as
-// "Unhandled promise rejection". This wrapper centralises the catch
-// so a single point needs updating if the pipeline's contract changes.
-function safeRunWarming(opts: Parameters<typeof runWarmingPipeline>[0]): void {
-  void runWarmingPipeline(opts).catch((err) => {
-    console.warn('[offline] runWarmingPipeline failed:', err);
-  });
-}
-
+// "Unhandled promise rejection".
 function safeFire(label: string, p: Promise<unknown>): void {
   void p.catch((err) => {
     console.warn('[offline] ' + label + ' failed:', err);
@@ -81,9 +81,10 @@ export function OfflineBootstrap() {
       initSwTokenSync();
     }
 
-    // Queue first, then warming pipeline (pipeline waits if replay still active).
+    // Queue first (immediately — user's pending ad/message must not wait);
+    // warming is scheduled, not fired: see offlineWarmingScheduler.
     replayThenPublishDrafts();
-    safeRunWarming({ authenticated: isAuthenticated });
+    scheduleWarming('mount', { authenticated: isAuthenticated });
 
     const PERIODIC_QUEUE_MS = 5 * 60 * 1000;
     const periodicId = window.setInterval(() => {
@@ -92,31 +93,51 @@ export function OfflineBootstrap() {
       }
     }, PERIODIC_QUEUE_MS);
 
-    // PERIODIC-WARM-6H-01: top-up once every 6 hours. The user drives
-    // warming manually from /settings/offline; this timer exists so a
-    // long-running session still picks up new content without the user
-    // having to think about it. Fires only when online.
-    const PERIODIC_WARM_MS = 6 * 60 * 60 * 1000;
-    const warmId = window.setInterval(() => {
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
-        safeRunWarming({
+    // FIX WARM-TICK-01: replaces the 6h PERIODIC_WARM_MS timer. A cheap
+    // 10-minute freshness tick while the app is open and visible; the
+    // pipeline's per-phase freshness windows decide whether anything is
+    // actually fetched (usually nothing). Keeps messages/notifications
+    // minutes-fresh for a user who goes offline mid-session.
+    const tickId = window.setInterval(() => {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.onLine &&
+        document.visibilityState === 'visible'
+      ) {
+        scheduleWarming('tick', {
           authenticated: useAuthStore.getState().isAuthenticated,
-          skipQueueWait: true,
         });
       }
-    }, PERIODIC_WARM_MS);
+    }, TICK_MS);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         replayThenPublishDrafts();
+        // A PWA resumed after hours in the background: timers were frozen,
+        // so this is the moment to top up whatever went stale.
+        scheduleWarming('visible', {
+          authenticated: useAuthStore.getState().isAuthenticated,
+        });
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // bfcache restore fires pageshow(persisted) without a reload/mount.
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        scheduleWarming('visible', {
+          authenticated: useAuthStore.getState().isAuthenticated,
+        });
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+
     return () => {
       window.clearInterval(periodicId);
-      window.clearInterval(warmId);
+      window.clearInterval(tickId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+      cancelScheduledWarming();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap
   }, []);
@@ -125,7 +146,7 @@ export function OfflineBootstrap() {
     const onOnline = () => {
       // Replay first; pipeline waits for setQueueReplayInFlight(false).
       replayThenPublishDrafts();
-      safeRunWarming({
+      scheduleWarming('online', {
         authenticated: useAuthStore.getState().isAuthenticated,
       });
     };
@@ -135,8 +156,9 @@ export function OfflineBootstrap() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    // Auth just became true — run personal + user-data phases via pipeline.
-    safeRunWarming({ authenticated: true });
+    // Auth just became true — personal + user-data phases. Merged with any
+    // run already pending from mount (authenticated flag is OR-ed).
+    scheduleWarming('auth', { authenticated: true });
 
     void (async () => {
       if (await supportsWebPush()) {

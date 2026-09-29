@@ -23,6 +23,7 @@ import {
 } from './shared/utils/tokenStore';
 import { activityBuffer } from './shared/utils/activityBuffer';
 import { redisMemoryMonitor } from './shared/utils/redisMemoryMonitor';
+import { scheduleCacheWarmup } from './shared/utils/cacheWarmup';
 import { checkConnectionCapacity } from './shared/utils/capacityCheck';
 
 // TERMUX/PROOT SUPPORT: on Android + Termux + proot-distro Ubuntu,
@@ -160,6 +161,9 @@ const bootstrap = async (): Promise<void> => {
         url: `http://localhost:${env.port}`,
         docs: `http://localhost:${env.port}/api/docs`,
       });
+      // FIX CACHE-WARMUP-01: fill the public Redis caches before the first
+      // visitor has to — see shared/utils/cacheWarmup.ts.
+      scheduleCacheWarmup();
     });
 
     const shutdown = async (signal: string) => {

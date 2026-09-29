@@ -40,11 +40,10 @@ import {
 } from '@/lib/warmingPreferences';
 import { readSnapshot, clearSnapshot } from '@/lib/offlineWarmingState';
 import {
-  warmRouteShellsAtomic, warmPersonalShellsAtomic,
   requestWarmingCancel, resetWarmingCancel, isWarmingCancelled,
   getKnownRoutes, clearSingleRouteCache,
 } from '@/lib/offlineRouteShells';
-import { warmUserData } from '@/lib/offlineWarmingUserData';
+import { runWarmingPipeline } from '@/lib/offlineWarmingPipeline';
 import {
   subscribeWarmingProgress,
   type AggregatedProgress,
@@ -184,13 +183,19 @@ export function OfflineControlClient() {
     toast.success('تم الحفظ: ' + WARMING_MODE_LABELS[next]);
   }
 
-  async function runWarmingPipelineLocal(): Promise<void> {
+  // FIX WARM-MANUAL-01: كان الزر يطلق shells + personal + userData بالتوازي
+  // (أقفال منفصلة تتنافس على نفس الباندويث) ولا يمس الحزمة الأساسية أبدًا
+  // (قوائم الإعلانات/المنتجات كانت تبقى قديمة رغم الضغط على "ابدأ التسخين"),
+  // وuserData بلا force. الآن يمر عبر نفس الـ pipeline المتسلسل مع force.
+  // يرجع false لو كان تسخين آخر يعمل (لا نعلن "انتهى" زورًا — WARM-RAN-01).
+  async function runWarmingPipelineLocal(): Promise<boolean> {
     resetWarmingCancel();
-    await Promise.allSettled([
-      warmRouteShellsAtomic(true),
-      warmPersonalShellsAtomic(true),
-      warmUserData(),
-    ]);
+    const { ran } = await runWarmingPipeline({
+      authenticated: true,
+      force: true,
+      skipQueueWait: true,
+    });
+    return ran;
   }
 
   async function handleStartNow() {
@@ -204,11 +209,13 @@ export function OfflineControlClient() {
     }
     setBusy('start');
     try {
-      await runWarmingPipelineLocal();
+      const ran = await runWarmingPipelineLocal();
       await readSnapshotLive();
       await readStorage();
       if (isWarmingCancelled()) {
         toast.info('أُلغي التسخين');
+      } else if (!ran) {
+        toast.info('التسخين يعمل بالفعل في الخلفية — حاول بعد قليل');
       } else {
         toast.success('انتهى التسخين');
       }

@@ -30,6 +30,14 @@ let pipelineInFlight = false;
 // until the next periodic timer. Tracking that here lets us re-run
 // the personal phase automatically when the first pass finishes.
 let pendingAuthenticatedRerun = false;
+// Read by offlineWarmingScheduler to rate-limit the cheap "tick / visible /
+// online" triggers (each phase already has its own freshness gate, this only
+// avoids re-entering the pipeline needlessly on a flapping connection).
+let lastPipelineStartedAt = 0;
+let lastPipelineAuthenticated = false;
+export function getLastPipelineRun(): { startedAt: number; authenticated: boolean } {
+  return { startedAt: lastPipelineStartedAt, authenticated: lastPipelineAuthenticated };
+}
 let queueReplayInFlight = false;
 let queueReplayWaiters: Array<() => void> = [];
 
@@ -98,6 +106,8 @@ export async function runWarmingPipeline(
   }
 
   pipelineInFlight = true;
+  lastPipelineStartedAt = Date.now();
+  if (options.authenticated) lastPipelineAuthenticated = true;
   try {
     if (!options.skipQueueWait) {
       await waitForQueueReplayIdle();
@@ -105,7 +115,10 @@ export async function runWarmingPipeline(
 
     // Phase 2 — core JSON bundle (categories, featured listings).
     try {
-      await warmCoreBundle();
+      // FIX WARM-FORCE-CORE-01: `force` was passed only to the shell
+      // phases, so the manual "warm now" button never refreshed the core
+      // lists (they stayed up to several hours old).
+      await warmCoreBundle({ force: options.force === true });
     } catch (err) {
       console.warn('[warm-pipeline] core failed:', err);
     }
@@ -126,7 +139,7 @@ export async function runWarmingPipeline(
       }
       // Phase 5 — auth-scoped API + self profile JSON.
       try {
-        await warmUserData();
+        await warmUserData({ force: options.force === true });
       } catch (err) {
         console.warn('[warm-pipeline] user data failed:', err);
       }

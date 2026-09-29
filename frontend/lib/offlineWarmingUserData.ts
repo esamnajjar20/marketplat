@@ -13,9 +13,10 @@
  * the panels have the last values they had when warming last ran.
  *
  * Scope is deliberately narrow:
- *   - Only called when the network is 'full' tier (4G / WiFi). On Gaza's
- *     usual 2G/3G the ~55 KB payload would compete with the shell
- *     warming that has higher priority.
+ *   - Runs on every tier except 'none' (sequential + long timeouts on
+ *     slow links), but each endpoint has its OWN freshness window (see
+ *     USER_DATA_TTL_MS) — a pass only fetches what is actually due, so the
+ *     frequent "tick" calls from OfflineBootstrap cost nothing when fresh.
  *   - Only endpoints the user's own account owns.
  *   - Responses land in a dedicated cache (market-user-data-*) that
  *     is versioned by CACHE_VERSION (see USER_DATA_CACHE below).
@@ -33,7 +34,7 @@
 import { API_BASE_URL } from './constants';
 import { reportProgress } from './warmingProgress';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
-import { getWarmingPlan } from './offlineWarmingPlanner';
+import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
 import { isWarmingCancelled } from './offlineRouteShells';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -43,31 +44,110 @@ const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 export const USER_DATA_CACHE = 'market-user-data-v42';
 
 /**
- * Endpoints warmed per user. Each entry becomes one fetch + one
- * cache.put. Keep this list small — every added URL is bandwidth on
- * the user's next 4G visit.
+ * FIX WARM-USERDATA-TTL-01: كل مسار له نافذة طزاجة خاصة به. قبل ذلك لم
+ * يكن هناك أي throttle: كل فتح تطبيق / online / تسجيل دخول كان يعيد
+ * جلب الـ13 مسارًا (+5 طلبات self-warm) حتى لو جُلبت قبل ثوانٍ.
+ *
+ *   volatile — تتغير بسرعة (رسائل، إشعارات، عدّادات، لوحة التحكم، إعلاناتي)
+ *   stable   — تتغير نادرًا (الهوية، ملفات البائع/المتجر/الخدمة، التصنيفات)
+ *
+ * على الشبكات الضعيفة (critical) تُضرب المدد ×3 لتوفير الباقة.
  */
-const USER_DATA_ENDPOINTS = [
-  // Identity
-  '/users/me',
-  // Dashboard panels
-  '/ads/me/stats',
-  '/sellers/me/attention',
-  '/activity?limit=8',
-  // Lists the user actually opens
-  '/favorites?page=1&limit=20',
-  '/ads/me?page=1&limit=20',
-  '/notifications?limit=20',
-  '/notifications/unread-count',
-  '/conversations?limit=20',
-  '/conversations/unread-count',
-  // Seller / provider (return 404 for plain buyers — tolerated)
-  '/stores/me',
-  '/service-providers/me',
-  '/sellers/me/profile',
+export type UserDataGroup = 'volatile' | 'stable';
+
+export const USER_DATA_TTL_MS: Record<UserDataGroup, number> = {
+  volatile: 10 * 60 * 1000,
+  stable: 2 * 60 * 60 * 1000,
+};
+const CRITICAL_TTL_MULTIPLIER = 3;
+
+/**
+ * Endpoints warmed per user, in priority order (what people open offline
+ * most first — a pass cut short by a bad link still got the best ones).
+ * Each entry becomes one fetch + one cache.put. Keep this list small.
+ */
+export const USER_DATA_ENDPOINTS: ReadonlyArray<{ path: string; group: UserDataGroup }> = [
+  { path: '/conversations?limit=20', group: 'volatile' },
+  { path: '/conversations/unread-count', group: 'volatile' },
+  { path: '/notifications?limit=20', group: 'volatile' },
+  { path: '/notifications/unread-count', group: 'volatile' },
+  { path: '/users/me', group: 'stable' },
+  { path: '/ads/me?page=1&limit=20', group: 'volatile' },
+  { path: '/favorites?page=1&limit=20', group: 'volatile' },
+  { path: '/ads/me/stats', group: 'volatile' },
+  { path: '/sellers/me/attention', group: 'volatile' },
+  { path: '/activity?limit=8', group: 'volatile' },
+  // Seller / provider (return 404 for plain buyers — tolerated & remembered)
+  { path: '/stores/me', group: 'stable' },
+  { path: '/service-providers/me', group: 'stable' },
+  { path: '/sellers/me/profile', group: 'stable' },
   // Form data for create pages
-  '/product-categories',
-] as const;
+  { path: '/product-categories', group: 'stable' },
+];
+
+interface FreshEntry {
+  /** Date.now() of the last successful warm. */
+  t: number;
+  /** HTTP status (200, or 404 = "doesn't apply to this user"). */
+  s: number;
+}
+type FreshMap = Record<string, FreshEntry>;
+
+const CACHE_VERSION_SUFFIX = USER_DATA_CACHE.split('-').pop() ?? 'unknown';
+
+// Keyed by user id: a different account on the same device must never
+// inherit "fresh" markers (its cache entries belong to the previous user).
+function freshKey(userId: string): string {
+  return `marketplat:user-data:fresh:${CACHE_VERSION_SUFFIX}:${userId}`;
+}
+
+function readFreshMap(userId: string): FreshMap {
+  try {
+    const raw = localStorage.getItem(freshKey(userId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as FreshMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFreshMap(userId: string, map: FreshMap): void {
+  try {
+    localStorage.setItem(freshKey(userId), JSON.stringify(map));
+  } catch {
+    // private mode / quota — next pass simply re-fetches.
+  }
+}
+
+/**
+ * Pure: which endpoints are due? `hasCachedBody(path)` lets the caller
+ * confirm the body is really in the cache (logout wipes the cache but not
+ * localStorage) — 404 markers have no body by design and skip that check.
+ */
+export function pickDueEndpoints(
+  map: FreshMap,
+  opts: {
+    now: number;
+    force: boolean;
+    critical: boolean;
+    hasCachedBody: (path: string) => boolean;
+  },
+): Array<{ path: string; group: UserDataGroup }> {
+  if (opts.force) return [...USER_DATA_ENDPOINTS];
+  const mult = opts.critical ? CRITICAL_TTL_MULTIPLIER : 1;
+  return USER_DATA_ENDPOINTS.filter(({ path, group }) => {
+    const entry = map[path];
+    if (!entry) return true;
+    // A remembered 404 ("no store / no provider profile yet") re-checks on
+    // the SHORT window: the user may create that profile at any moment and
+    // must not wait hours for it to reach the offline cache.
+    const ttl = entry.s === 404 ? USER_DATA_TTL_MS.volatile : USER_DATA_TTL_MS[group];
+    if (opts.now - entry.t >= ttl * mult) return true;
+    if (entry.s === 404) return false;
+    return !opts.hasCachedBody(path);
+  });
+}
 
 interface WarmOneResult {
   ok: boolean;
@@ -115,10 +195,16 @@ async function fetchWithAuth(
 async function warmOneEndpoint(
   path: string,
   cache: Cache,
-  signal: AbortSignal,
+  timeoutMs: number,
 ): Promise<WarmOneResult> {
   const fullUrl = `${API_BASE_URL}${path}`;
   const usedSession = !!useAuthStore.getState().accessToken;
+  // FIX WARM-USERDATA-TIMEOUT-01: per-REQUEST deadline. One shared timer
+  // (20s / 45s) used to cover the whole sequential pass, so on a slow link
+  // the tail endpoints were aborted on every run and never landed.
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  const signal = controller.signal;
   try {
     const res = await fetchWithAuth(fullUrl, signal, true);
     // 404 for endpoints that don't apply to this user (a plain buyer
@@ -155,64 +241,88 @@ async function warmOneEndpoint(
     return { ok: true, status: res.status };
   } catch {
     return { ok: false, status: 0 };
+  } finally {
+    window.clearTimeout(timer);
   }
 }
 
 /**
- * Warm every user-data endpoint. Called from OfflineBootstrap after
- * authentication is confirmed. Silent, best-effort, bounded.
+ * Warm the user-data endpoints that are DUE. Called from the warming
+ * pipeline after authentication is confirmed. Silent, best-effort, bounded.
+ *
+ * `force` (manual "warm now" button) ignores the freshness windows.
  */
-export async function warmUserData(): Promise<void> {
+export async function warmUserData(options: { force?: boolean } = {}): Promise<void> {
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
   if (!navigator.onLine) return;
 
+  const force = options.force === true;
   const plan = getWarmingPlan();
-  // FIX WARM-UNIFY-SELF-01: also warm self profile + category trees into
-  // React Query / offline JSON (same data create-forms need offline).
-  try {
-    const { getQueryClient } = await import('@/lib/queryClient');
-    const { warmSelfDataForOffline } = await import('@/lib/offlineSelfWarm');
-    await warmSelfDataForOffline(getQueryClient());
-  } catch (err) {
-    console.warn('[user-data] self-warm failed:', err);
-  }
+  // FIX WARM-USERDATA-GUARD-01: this check used to come AFTER the
+  // self-warm block, so users who switched warming off (or have Data
+  // Saver on) still paid ~5 background requests on every pass. Nothing
+  // may hit the network before the plan says warming is allowed.
+  if (isWarmingDisabled(plan)) return;
 
-  // FIX WARM-MIN-20-01: run on critical too (sequential, long timeout) so
-  // dashboard panels are not empty offline on voucher links. Still skip
-  // only when warming is fully disabled.
-  if (plan.tier === 'none') return;
+  const userId = useAuthStore.getState().user?.id ?? 'anon';
+  const critical = plan.tier === 'critical';
 
   await runUnderWarmingLock(async () => {
     const cache = await caches.open(USER_DATA_CACHE);
-    const controller = new AbortController();
-    const timeoutMs = plan.tier === 'critical' ? 45_000 : 20_000;
-    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    const map = readFreshMap(userId);
 
+    // Pre-compute which cached bodies really exist (logout wipes the
+    // cache but not localStorage markers).
+    const present = new Set<string>();
+    for (const { path } of USER_DATA_ENDPOINTS) {
+      if (await cache.match(`${API_BASE_URL}${path}`)) present.add(path);
+    }
+    const due = pickDueEndpoints(map, {
+      now: Date.now(),
+      force,
+      critical,
+      hasCachedBody: (path) => present.has(path),
+    });
+    if (due.length === 0) return; // nothing stale → no requests, no UI flicker
+
+    // FIX WARM-UNIFY-SELF-01: self profile + category trees into React
+    // Query / offline JSON (create-forms need them offline). Only when a
+    // "stable" endpoint is due — they share that freshness window.
+    if (due.some((d) => d.group === 'stable')) {
+      try {
+        const { getQueryClient } = await import('@/lib/queryClient');
+        const { warmSelfDataForOffline } = await import('@/lib/offlineSelfWarm');
+        await warmSelfDataForOffline(getQueryClient());
+      } catch (err) {
+        console.warn('[user-data] self-warm failed:', err);
+      }
+    }
+
+    const timeoutMs = critical ? 45_000 : 20_000;
     let completed = 0;
-    const total = USER_DATA_ENDPOINTS.length;
+    const total = due.length;
     reportProgress('userdata', { active: true, completed: 0, total });
 
     try {
       // Sequential on critical; modest parallel otherwise.
-      const CONCURRENCY = plan.tier === 'critical' ? 1 : plan.tier === 'core' ? 2 : 4;
-      const queue: string[] = [...USER_DATA_ENDPOINTS];
+      const CONCURRENCY = critical ? 1 : plan.tier === 'core' ? 2 : 4;
+      const queue = [...due];
       const workers: Promise<void>[] = [];
 
       for (let i = 0; i < CONCURRENCY; i += 1) {
         workers.push(
           (async () => {
             while (queue.length > 0) {
-              if (controller.signal.aborted) return;
               // WARM-RAN-01: respond to the user's Cancel button.
-              // Previously only the 20-45s abort timer could stop it.
               if (isWarmingCancelled()) return;
-              const path = queue.shift();
-              if (!path) return;
-              const r = await warmOneEndpoint(path, cache, controller.signal);
+              const next = queue.shift();
+              if (!next) return;
+              const r = await warmOneEndpoint(next.path, cache, timeoutMs);
               // FIX WARM-PROGRESS-HONEST-01: count only endpoints that
               // actually landed (or legitimately don't apply → 404).
               if (r.ok) completed += 1;
+              if (r.ok) map[next.path] = { t: Date.now(), s: r.status };
               reportProgress('userdata', { active: true, completed, total });
             }
           })(),
@@ -220,7 +330,10 @@ export async function warmUserData(): Promise<void> {
       }
       await Promise.all(workers);
     } finally {
-      window.clearTimeout(timeout);
+      // Only persist markers for the account that is still signed in.
+      if ((useAuthStore.getState().user?.id ?? 'anon') === userId) {
+        writeFreshMap(userId, map);
+      }
       reportProgress('userdata', { active: false, completed, total });
     }
   }, USER_DATA_LOCK_NAME);
