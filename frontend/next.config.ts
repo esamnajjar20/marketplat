@@ -120,6 +120,16 @@ const nextConfig: NextConfig = {
     // MY-SERVICES-HUB-01: same for the three provider-workspace pages.
     // Only these exact paths — /my-services/new and /my-services/:id/edit stay routes.
     const serviceTabs = ['requests', 'appointments', 'analytics'];
+    // SETTINGS-HUB-01: five account-settings pages → /settings?tab=…
+    const settingsTabs = [
+      { source: '/settings/profile', destination: '/settings' },
+      { source: '/settings/security', destination: '/settings?tab=security' },
+      { source: '/settings/sessions', destination: '/settings?tab=sessions' },
+      { source: '/settings/notifications', destination: '/settings?tab=notifications' },
+      { source: '/settings/blocked-users', destination: '/settings?tab=blocked-users' },
+      { source: '/settings/seller', destination: '/settings?tab=profile&section=seller' },
+      { source: '/settings/service-provider', destination: '/settings?tab=profile&section=service' },
+    ];
     return [
       ...tabs.map((tab) => ({
         source: `/my-store/${tab}`,
@@ -129,6 +139,11 @@ const nextConfig: NextConfig = {
       ...serviceTabs.map((tab) => ({
         source: `/my-services/${tab}`,
         destination: `/my-services?tab=${tab}`,
+        permanent: false,
+      })),
+      ...settingsTabs.map(({ source, destination }) => ({
+        source,
+        destination,
         permanent: false,
       })),
     ];

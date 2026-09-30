@@ -46,7 +46,7 @@ export function OnboardingChecklist() {
       done: hasAd,
       href: hasSellerProfile
         ? ROUTES.adCreate
-        : `${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.adCreate)}`,
+        : `${ROUTES.settings.seller}&from=${encodeURIComponent(ROUTES.adCreate)}`,
       label: 'انشر إعلانك الأول (سلعة فردية)',
       icon: PlusCircle,
     },
@@ -54,7 +54,7 @@ export function OnboardingChecklist() {
       done: hasStore,
       href: hasSellerProfile
         ? ROUTES.myStore
-        : `${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.myStore)}`,
+        : `${ROUTES.settings.seller}&from=${encodeURIComponent(ROUTES.myStore)}`,
       label: 'افتح متجرك (كتالوج منتجات)',
       icon: Package,
     },
@@ -62,7 +62,7 @@ export function OnboardingChecklist() {
       done: hasProvider,
       href: hasSellerProfile
         ? ROUTES.settings.serviceProvider
-        : `${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.settings.serviceProvider)}`,
+        : `${ROUTES.settings.seller}&from=${encodeURIComponent(ROUTES.settings.serviceProvider)}`,
       label: 'سجّل كمزود خدمة (طلبات ومواعيد)',
       icon: Wrench,
     },

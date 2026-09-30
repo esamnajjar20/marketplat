@@ -2,13 +2,14 @@
 
 /**
  * دمج إعدادات الملف الثلاثة (شخصي / بائع / مقدم خدمة) في سطح واحد
- * مع تبويبات — الروابط القديمة /settings/seller و /settings/service-provider
- * تبقى شغّالة وتفتح التبويب المناسب.
+ * مع تبويبات — يعمل داخل SETTINGS-HUB-01 عبر ?section=…
+ * والروابط القديمة /settings/seller و /settings/service-provider تبقى
+ * شغّالة عبر redirects → /settings?tab=profile&section=…
  */
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Suspense } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { User, Store, Wrench } from 'lucide-react';
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm';
 import { DataSaverToggle } from '@/components/shared/DataSaverToggle';
@@ -16,29 +17,43 @@ import { SellerSettingsSection } from '@/components/sellers/SellerSettingsSectio
 import { ServiceProviderSettingsSection } from '@/components/services/ServiceProviderSettingsSection';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-
-type ProfileTab = 'personal' | 'seller' | 'service';
+import {
+  resolveProfileSection,
+  settingsProfileSectionHref,
+  type ProfileSection,
+} from '@/lib/settingsHubTabs';
 
 const TABS: {
-  id: ProfileTab;
+  id: ProfileSection;
   label: string;
-  href: string;
   icon: typeof User;
 }[] = [
-  { id: 'personal', label: 'الشخصي', href: ROUTES.settings.profile, icon: User },
-  { id: 'seller', label: 'البائع', href: ROUTES.settings.seller, icon: Store },
-  { id: 'service', label: 'مقدم الخدمة', href: ROUTES.settings.serviceProvider, icon: Wrench },
+  { id: 'personal', label: 'الشخصي', icon: User },
+  { id: 'seller', label: 'البائع', icon: Store },
+  { id: 'service', label: 'مقدم الخدمة', icon: Wrench },
 ];
-
-function tabFromPath(pathname: string): ProfileTab {
-  if (pathname.startsWith(ROUTES.settings.seller)) return 'seller';
-  if (pathname.startsWith(ROUTES.settings.serviceProvider)) return 'service';
-  return 'personal';
-}
 
 export function UnifiedProfileSettings() {
   const pathname = usePathname();
-  const active = tabFromPath(pathname);
+  const sp = useSearchParams();
+  const search = sp.toString() ? `?${sp.toString()}` : '';
+  const urlSection = resolveProfileSection(search, pathname);
+
+  const [active, setActive] = useState<ProfileSection>(urlSection);
+
+  useEffect(() => {
+    setActive(urlSection);
+  }, [urlSection]);
+
+  const selectSection = useCallback((section: ProfileSection) => {
+    const href = settingsProfileSectionHref(section);
+    try {
+      window.history.replaceState(window.history.state, '', href);
+    } catch {
+      /* non-fatal */
+    }
+    setActive(section);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -47,14 +62,15 @@ export function UnifiedProfileSettings() {
         aria-label="أقسام الملف"
         className="flex gap-1 rounded-xl border border-border/60 bg-muted/60 p-1"
       >
-        {TABS.map(({ id, label, href, icon: Icon }) => {
+        {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
           return (
-            <Link
+            <button
               key={id}
-              href={href}
+              type="button"
               role="tab"
               aria-selected={isActive}
+              onClick={() => selectSection(id)}
               className={cn(
                 'flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-medium transition-colors sm:text-sm',
                 isActive
@@ -64,7 +80,7 @@ export function UnifiedProfileSettings() {
             >
               <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
               <span className="truncate">{label}</span>
-            </Link>
+            </button>
           );
         })}
       </div>

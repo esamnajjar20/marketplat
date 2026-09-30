@@ -105,14 +105,15 @@ export const ROUTES = {
   myStoreSettings:      '/my-store?tab=settings',
   myFollowedStores:     '/my-store/followed',
   settings: {
+    // SETTINGS-HUB-01: one route; tabs live in ?tab=…
     root:          '/settings',
-    profile:       '/settings/profile',
-    security:      '/settings/security',
-    sessions:      '/settings/sessions',
-    notifications: '/settings/notifications',
-    seller:        '/settings/seller',
-    serviceProvider: '/settings/service-provider',
-    blockedUsers:  '/settings/blocked-users',
+    profile:       '/settings',
+    security:      '/settings?tab=security',
+    sessions:      '/settings?tab=sessions',
+    notifications: '/settings?tab=notifications',
+    seller:        '/settings?tab=profile&section=seller',
+    serviceProvider: '/settings?tab=profile&section=service',
+    blockedUsers:  '/settings?tab=blocked-users',
     // OFFLINE-HUB-01: storage / sync / drafts / offline are hub tabs. Linking
     // straight to the hub (not the legacy redirect) keeps soft navigation
     // working with no network.

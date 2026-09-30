@@ -1,10 +1,20 @@
-import { redirect } from 'next/navigation';
-import { ROUTES } from '@/lib/constants';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { SettingsTabsHub } from '@/components/settings/SettingsTabsHub';
+import { buildMetadata } from '@/lib/seo';
 
-// FIX (audit #13): /settings had no page.tsx. It's already in
-// middleware.ts's PROTECTED_PREFIXES and every in-app link goes straight
-// to ROUTES.settings.profile, but a direct visit to the bare /settings
-// URL (bookmark, typed address) 404'd instead of landing anywhere useful.
-export default function SettingsRootPage() {
-  redirect(ROUTES.settings.profile);
+export const metadata: Metadata = buildMetadata({ title: 'الإعدادات', noIndex: true });
+
+// SETTINGS-HUB-01: one route for profile + security + sessions +
+// notifications + blocked-users. The active tab lives in ?tab=… and is
+// resolved on the client (useSearchParams) so the cached HTML shell is
+// identical for every tab. Legacy sub-paths redirect via next.config.
+export default function SettingsPage() {
+  return (
+    <div className="space-y-6">
+      <Suspense>
+        <SettingsTabsHub />
+      </Suspense>
+    </div>
+  );
 }

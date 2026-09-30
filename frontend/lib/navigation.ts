@@ -12,6 +12,7 @@
  */
 import { DEFAULT_MY_STORE_TAB, resolveMyStoreTab } from '@/lib/myStoreHubTabs';
 import { DEFAULT_MY_SERVICES_TAB, resolveMyServicesTab } from '@/lib/myServicesHubTabs';
+import { DEFAULT_SETTINGS_TAB, resolveSettingsTab } from '@/lib/settingsHubTabs';
 import {
   Home,
   Search,
@@ -169,6 +170,14 @@ export function navChildIsActive(
     if (pathname !== ROUTES.myServices) return false;
     const want = resolveMyServicesTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_MY_SERVICES_TAB;
     const have = resolveMyServicesTab(search) ?? DEFAULT_MY_SERVICES_TAB;
+    return want === have;
+  }
+
+  // SETTINGS-HUB-01: all settings children share pathname /settings.
+  if (childPath === ROUTES.settings.root) {
+    if (pathname !== ROUTES.settings.root) return false;
+    const want = resolveSettingsTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_SETTINGS_TAB;
+    const have = resolveSettingsTab(search) ?? DEFAULT_SETTINGS_TAB;
     return want === have;
   }
 

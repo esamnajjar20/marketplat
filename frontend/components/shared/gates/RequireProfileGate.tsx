@@ -131,7 +131,7 @@ export function RequireProfileGate<T>({
         description={description}
         action={
           <Button asChild>
-            <Link href={`${setupHref}?from=${encodeURIComponent(from)}`}>{ctaLabel}</Link>
+            <Link href={`${setupHref}${setupHref.includes('?') ? '&' : '?'}from=${encodeURIComponent(from)}`}>{ctaLabel}</Link>
           </Button>
         }
       />

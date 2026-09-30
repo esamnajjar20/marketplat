@@ -136,7 +136,14 @@ export function IncomingServiceRequestsList() {
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-  const status = (sp.get('status') ?? undefined) as ServiceRequestStatus | undefined;
+  // SR-STATUS-VALIDATE-01: was `as ServiceRequestStatus` — a URL carrying a
+  // value that isn't in the backend enum (e.g. ?status=PAUSED from an old
+  // link) was passed straight through and 400'd with a ZodError. Only pass
+  // status to the API when it is one of the six known values.
+  const rawStatus = sp.get('status');
+  const status = rawStatus && (FILTER_TABS as readonly string[]).includes(rawStatus)
+    ? (rawStatus as ServiceRequestStatus)
+    : undefined;
   const [appointmentTarget, setAppointmentTarget] = useState<{
     providerId: string;
     requestId: string;

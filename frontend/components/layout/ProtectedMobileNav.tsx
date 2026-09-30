@@ -354,10 +354,10 @@ export function ProtectedMobileNav() {
                 href={ROUTES.settings.seller}
                 prefetch={false}
                 onClick={close}
-                aria-current={pathname.startsWith(ROUTES.settings.seller) ? 'page' : undefined}
+                aria-current={pathname === ROUTES.settings.root ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
-                  pathname.startsWith(ROUTES.settings.seller)
+                  pathname === ROUTES.settings.root
                     ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-muted',
                 )}
@@ -430,7 +430,13 @@ export function ProtectedMobileNav() {
             </li>
           )}
           <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />
-          <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />
+          <Suspense fallback={<DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />}>
+            <WithSearch>
+              {(search) => (
+                <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} search={search} />
+              )}
+            </WithSearch>
+          </Suspense>
 
           {isAdmin && (
             <li>

@@ -241,12 +241,29 @@ export function ProtectedSidebar() {
           />
         )}
         {sellerLoaded && !isSeller && (
-          <NavLink
-            label="أنشئ حساب بائع"
-            href={ROUTES.settings.seller}
-            icon={Store}
-            isActive={pathname.startsWith(ROUTES.settings.seller)}
-          />
+          <Suspense
+            fallback={
+              <NavLink
+                label="أنشئ حساب بائع"
+                href={ROUTES.settings.seller}
+                icon={Store}
+                isActive={false}
+              />
+            }
+          >
+            <WithSearch>
+              {(search) => (
+                <NavLink
+                  label="أنشئ حساب بائع"
+                  href={ROUTES.settings.seller}
+                  icon={Store}
+                  isActive={
+                    pathname === ROUTES.settings.root && search.includes('section=seller')
+                  }
+                />
+              )}
+            </WithSearch>
+          </Suspense>
         )}
 
         {/* 4. متجري + عرض متجري */}
@@ -294,8 +311,15 @@ export function ProtectedSidebar() {
         {/* 8. نشاطي — secondary destinations (favorites, reports, …) */}
         <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />
 
-        {/* 9. الإعدادات — settingsGroupFor drops متجري when STORE_GROUP is shown */}
-        <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />
+        {/* 9. الإعدادات — settingsGroupFor drops متجري when STORE_GROUP is shown.
+            SETTINGS-HUB-01: pass search so tab active state works. */}
+        <Suspense fallback={<DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />}>
+          <WithSearch>
+            {(search) => (
+              <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} search={search} />
+            )}
+          </WithSearch>
+        </Suspense>
       </nav>
     </aside>
   );

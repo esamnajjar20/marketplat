@@ -35,10 +35,11 @@ import { UserAvatar } from '@/components/shared/UserAvatar';
  *     can never be mistaken for a normal nav link.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link       from 'next/link';
 import { usePathname } from 'next/navigation';
+import { WithSearch } from '@/components/layout/WithSearch';
 import {
   PlusCircle,
   LayoutDashboard, ListOrdered, Heart, BellPlus, History, Shield,
@@ -185,13 +186,14 @@ function NavSection({
  * /dashboard first. Mirrors ProtectedMobileNav's DrawerDisclosureGroup.
  */
 function DisclosureGroup({
-  group, pathname, onNavigate,
+  group, pathname, onNavigate, search = '',
 }: {
   group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
   onNavigate: () => void;
+  search?: string;
 }) {
-  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c));
+  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c, search));
   const [isOpen, setIsOpen] = useState(isAnyChildActive);
   const Icon = group.icon;
 
@@ -215,7 +217,7 @@ function DisclosureGroup({
       {isOpen && (
         <ul className="mt-1 flex flex-col gap-1">
           {group.children.map((child) => {
-            const isActive = navChildIsActive(pathname, child);
+            const isActive = navChildIsActive(pathname, child, search);
             return (
               <li key={child.href}>
                 <Link
@@ -436,10 +438,10 @@ export function MobileNav() {
                         <Link
                           href={ROUTES.settings.seller}
                           onClick={closeMobileNav}
-                          aria-current={pathname.startsWith(ROUTES.settings.seller) ? 'page' : undefined}
+                          aria-current={pathname === ROUTES.settings.root ? 'page' : undefined}
                           className={cn(
                             'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors',
-                            pathname.startsWith(ROUTES.settings.seller)
+                            pathname === ROUTES.settings.root
                               ? 'bg-primary text-primary-foreground'
                               : 'hover:bg-muted',
                           )}
@@ -523,7 +525,13 @@ export function MobileNav() {
                 <div className="border-t pt-3">
                   <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">النظام</p>
                   <ul className="flex flex-col gap-1">
-                    <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={closeMobileNav} />
+                    <Suspense fallback={<DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={closeMobileNav} />}>
+                      <WithSearch>
+                        {(search) => (
+                          <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={closeMobileNav} search={search} />
+                        )}
+                      </WithSearch>
+                    </Suspense>
                     {isAdmin && (
                       <li>
                         <Link

@@ -86,7 +86,7 @@ export function CreateAdGate() {
           // creation succeeds, instead of stranding the user on
           // /settings/seller.
           <Button asChild>
-            <Link href={`${ROUTES.settings.seller}?from=${encodeURIComponent(ROUTES.adCreate)}`}>
+            <Link href={`${ROUTES.settings.seller}&from=${encodeURIComponent(ROUTES.adCreate)}`}>
               إنشاء ملف البائع
             </Link>
           </Button>
