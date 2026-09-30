@@ -12,7 +12,8 @@
  */
 import { DEFAULT_MY_STORE_TAB, resolveMyStoreTab } from '@/lib/myStoreHubTabs';
 import { DEFAULT_MY_SERVICES_TAB, resolveMyServicesTab } from '@/lib/myServicesHubTabs';
-import { DEFAULT_SETTINGS_TAB, resolveSettingsTab } from '@/lib/settingsHubTabs';
+import { DEFAULT_ACTIVITY_TAB, resolveActivityTab } from '@/lib/activityHubTabs';
+import { DEFAULT_SETTINGS_TAB, resolveSettingsTab } from '@/lib/settingsHubTabs'; // SETTINGS-HUB-RESTORE-01
 import {
   Home,
   Search,
@@ -47,13 +48,14 @@ export const ACTIVITY_GROUP = {
   href: ROUTES.activity,
   icon: History,
   children: [
-    { label: 'المفضلة', href: ROUTES.favorites },
-    { label: 'المحفوظات (دفع وبطاقات)', href: ROUTES.savedPayments },
-    { label: 'التنزيلات', href: ROUTES.downloads },
-    { label: 'إعلانات محفوظة دون نت', href: ROUTES.savedAds },
-    { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches },
+    // ACTIVITY-HUB-01 tabs
     { label: 'سجل النشاط', href: ROUTES.activity },
+    { label: 'إعلاناتي', href: ROUTES.myAds },
+    { label: 'طلباتي', href: ROUTES.myServiceRequests },
     { label: 'بلاغاتي', href: ROUTES.myReports },
+    // Other personal surfaces (own routes / other hubs)
+    { label: 'المفضلة', href: ROUTES.favorites },
+    { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches },
   ],
 } as const;
 
@@ -173,11 +175,21 @@ export function navChildIsActive(
     return want === have;
   }
 
+
   // SETTINGS-HUB-01: all settings children share pathname /settings.
+  // SETTINGS-HUB-RESTORE-01: restored after activity-hub-01.zip overwrote it.
   if (childPath === ROUTES.settings.root) {
     if (pathname !== ROUTES.settings.root) return false;
     const want = resolveSettingsTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_SETTINGS_TAB;
     const have = resolveSettingsTab(search) ?? DEFAULT_SETTINGS_TAB;
+    return want === have;
+  }
+
+  // ACTIVITY-HUB-01: all activity children share pathname /activity.
+  if (childPath === ROUTES.activity) {
+    if (pathname !== ROUTES.activity) return false;
+    const want = resolveActivityTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_ACTIVITY_TAB;
+    const have = resolveActivityTab(search) ?? DEFAULT_ACTIVITY_TAB;
     return want === have;
   }
 

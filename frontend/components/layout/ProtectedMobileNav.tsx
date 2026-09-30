@@ -338,10 +338,10 @@ export function ProtectedMobileNav() {
                 href={ROUTES.myAds}
                 prefetch={false}
                 onClick={close}
-                aria-current={pathname.startsWith(ROUTES.myAds) ? 'page' : undefined}
+                aria-current={pathname === ROUTES.activity ? 'page' : undefined}
                 className={cn(
                   'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-                  pathname.startsWith(ROUTES.myAds) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                  pathname === ROUTES.activity ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
                 )}
               >
                 إعلاناتي
@@ -429,7 +429,14 @@ export function ProtectedMobileNav() {
               </Link>
             </li>
           )}
-          <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />
+          <Suspense fallback={<DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />}>
+            <WithSearch>
+              {(search) => (
+                <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} search={search} />
+              )}
+            </WithSearch>
+          </Suspense>
+          {/* SETTINGS-SIDEBAR-RESTORE-01: pass search so /settings?tab=… active state works. */}
           <Suspense fallback={<DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />}>
             <WithSearch>
               {(search) => (

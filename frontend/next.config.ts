@@ -120,7 +120,8 @@ const nextConfig: NextConfig = {
     // MY-SERVICES-HUB-01: same for the three provider-workspace pages.
     // Only these exact paths — /my-services/new and /my-services/:id/edit stay routes.
     const serviceTabs = ['requests', 'appointments', 'analytics'];
-    // SETTINGS-HUB-01: five account-settings pages → /settings?tab=…
+    // SETTINGS-HUB-01 (SETTINGS-HUB-RESTORE-01): five account-settings pages
+    // + two profile sub-sections redirect into /settings?tab=…
     const settingsTabs = [
       { source: '/settings/profile', destination: '/settings' },
       { source: '/settings/security', destination: '/settings?tab=security' },
@@ -146,6 +147,10 @@ const nextConfig: NextConfig = {
         destination,
         permanent: false,
       })),
+      // ACTIVITY-HUB-01
+      { source: '/my-ads', destination: '/activity?tab=ads', permanent: false },
+      { source: '/my-requests', destination: '/activity?tab=requests', permanent: false },
+      { source: '/my-reports', destination: '/activity?tab=reports', permanent: false },
     ];
   },
 

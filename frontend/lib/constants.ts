@@ -30,7 +30,7 @@ export const ROUTES = {
   category:      (slug: string) => `/categories/${slug}`,
   userProfile:   (id: string)   => `/profile/${id}`,
   sellerProfile: (id: string)   => `/sellers/${id}`,
-  myAds:         '/my-ads',
+  myAds:         '/activity?tab=ads',  // ACTIVITY-HUB-01
   favorites:     '/favorites',
   sellersRanking: '/sellers/ranking',
   savedSearches: '/saved-searches',
@@ -42,7 +42,7 @@ export const ROUTES = {
   offlineHub:    '/offline',
   activity:      '/activity',
   // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter's own filed reports.
-  myReports:     '/my-reports',
+  myReports:     '/activity?tab=reports',  // ACTIVITY-HUB-01
   messages:      '/messages',
   notifications: '/notifications',
   conversationDetail: (id: string) => `/messages/${id}`,
@@ -55,7 +55,7 @@ export const ROUTES = {
   myServiceCreate:      '/my-services/new',
   myServiceEdit:         (id: string) => `/my-services/${id}/edit`,
   // Epic 3.1: customer-side "my requests" list, and provider-side inbox.
-  myServiceRequests:     '/my-requests',
+  myServiceRequests:     '/activity?tab=requests',  // ACTIVITY-HUB-01
   // MY-SERVICES-HUB-01: these three are TABS of /my-services (see lib/myServicesHubTabs.ts).
   // Never append '?x=y' to them — use myServicesTabHref(tab, {x:'y'}) instead.
   incomingServiceRequests: '/my-services?tab=requests',
@@ -105,7 +105,7 @@ export const ROUTES = {
   myStoreSettings:      '/my-store?tab=settings',
   myFollowedStores:     '/my-store/followed',
   settings: {
-    // SETTINGS-HUB-01: one route; tabs live in ?tab=…
+    // SETTINGS-HUB-01 (SETTINGS-HUB-CONST-RESTORE): one route; tabs in ?tab=…
     root:          '/settings',
     profile:       '/settings',
     security:      '/settings?tab=security',

@@ -233,33 +233,32 @@ export function ProtectedSidebar() {
         {/* 3. إعلاناتي (seller) — skeleton while roles unknown (slow net) */}
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && isSeller && (
-          <NavLink
-            label="إعلاناتي"
-            href={ROUTES.myAds}
-            icon={ListOrdered}
-            isActive={pathname.startsWith(ROUTES.myAds)}
-          />
-        )}
-        {sellerLoaded && !isSeller && (
           <Suspense
             fallback={
-              <NavLink
-                label="أنشئ حساب بائع"
-                href={ROUTES.settings.seller}
-                icon={Store}
-                isActive={false}
-              />
+              <NavLink label="إعلاناتي" href={ROUTES.myAds} icon={ListOrdered} isActive={false} />
             }
           >
+            <WithSearch>
+              {(search) => (
+                <NavLink
+                  label="إعلاناتي"
+                  href={ROUTES.myAds}
+                  icon={ListOrdered}
+                  isActive={pathname === ROUTES.activity && search.includes('tab=ads')}
+                />
+              )}
+            </WithSearch>
+          </Suspense>
+        )}
+        {sellerLoaded && !isSeller && (
+          <Suspense fallback={<NavLink label="أنشئ حساب بائع" href={ROUTES.settings.seller} icon={Store} isActive={false} />}>
             <WithSearch>
               {(search) => (
                 <NavLink
                   label="أنشئ حساب بائع"
                   href={ROUTES.settings.seller}
                   icon={Store}
-                  isActive={
-                    pathname === ROUTES.settings.root && search.includes('section=seller')
-                  }
+                  isActive={pathname === ROUTES.settings.root && search.includes('section=seller')}
                 />
               )}
             </WithSearch>
@@ -309,15 +308,17 @@ export function ProtectedSidebar() {
         )}
 
         {/* 8. نشاطي — secondary destinations (favorites, reports, …) */}
-        <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />
+        <Suspense fallback={<DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />}>
+          <WithSearch>
+            {(search) => <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} search={search} />}
+          </WithSearch>
+        </Suspense>
 
         {/* 9. الإعدادات — settingsGroupFor drops متجري when STORE_GROUP is shown.
-            SETTINGS-HUB-01: pass search so tab active state works. */}
+            SETTINGS-SIDEBAR-RESTORE-01: pass search so /settings?tab=… active state works. */}
         <Suspense fallback={<DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />}>
           <WithSearch>
-            {(search) => (
-              <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} search={search} />
-            )}
+            {(search) => <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} search={search} />}
           </WithSearch>
         </Suspense>
       </nav>
