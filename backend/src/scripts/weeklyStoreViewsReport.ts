@@ -71,7 +71,7 @@ async function main(): Promise<void> {
         .notifyUser(userId, {
           title,
           body,
-          url: '/my-store/analytics',
+          url: '/my-store?tab=analytics',
           tag: 'weekly-store-views-report',
         })
         .catch(() => {});

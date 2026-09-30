@@ -110,6 +110,20 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // MY-STORE-HUB-01: the seven store-management pages are now tabs of
+  // /my-store. Temporary (307) redirects keep old bookmarks, push-notification
+  // deep links (backend/src/modules/notifications, weeklyStoreViewsReport,
+  // myPromotionsExpiring) and emailed links working. Next forwards the
+  // incoming query string (e.g. ?availability=OUT_OF_STOCK) to the destination.
+  async redirects() {
+    const tabs = ['products', 'collections', 'promotions', 'inventory', 'members', 'analytics', 'settings'];
+    return tabs.map((tab) => ({
+      source: `/my-store/${tab}`,
+      destination: `/my-store?tab=${tab}`,
+      permanent: false,
+    }));
+  },
+
   async headers() {
     // FIX SEC-06: the Content-Security-Policy header previously built here
     // used a static 'unsafe-inline' for script-src in ALL environments,

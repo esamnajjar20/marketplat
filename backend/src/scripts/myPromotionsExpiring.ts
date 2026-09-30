@@ -156,7 +156,7 @@ async function notify(
     .notifyUser(userId, {
       title,
       body,
-      url: '/my-store/promotions',
+      url: '/my-store?tab=promotions',
       tag: `promotion-${promotion.id}-${event}`,
     })
     .catch(() => {});

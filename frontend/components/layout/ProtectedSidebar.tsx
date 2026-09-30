@@ -63,9 +63,10 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link           from 'next/link';
 import { usePathname } from 'next/navigation';
+import { WithSearch } from '@/components/layout/WithSearch';
 import {
   LayoutDashboard,
   ListOrdered,
@@ -136,12 +137,13 @@ function NavLink({
 }
 
 function DisclosureGroup({
-  group, pathname,
+  group, pathname, search = '',
 }: {
   group: typeof ACTIVITY_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
+  search?: string;
 }) {
-  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c));
+  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c, search));
   // Starts open if the user is already somewhere inside the group, so
   // landing on e.g. /my-services/requests doesn't hide the very link
   // that got them there.
@@ -174,7 +176,7 @@ function DisclosureGroup({
               key={child.href}
               label={child.label}
               href={child.href}
-              isActive={navChildIsActive(pathname, child)}
+              isActive={navChildIsActive(pathname, child, search)}
               indent
             />
           ))}
@@ -248,7 +250,13 @@ export function ProtectedSidebar() {
         )}
 
         {/* 4. متجري + عرض متجري */}
-        {isSeller && <DisclosureGroup group={STORE_GROUP} pathname={pathname} />}
+        {isSeller && (
+          <Suspense fallback={<DisclosureGroup group={STORE_GROUP} pathname={pathname} />}>
+            <WithSearch>
+              {(search) => <DisclosureGroup group={STORE_GROUP} pathname={pathname} search={search} />}
+            </WithSearch>
+          </Suspense>
+        )}
         {isSeller && myStore?.status === 'ACTIVE' && (
           <NavLink
             label="عرض متجري"

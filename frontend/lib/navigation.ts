@@ -10,6 +10,7 @@
  * 3. Create actions live in CreateSheet (+), not duplicated in every group.
  * 4. settingsGroupFor(isSeller) drops "إدارة المتجر" when STORE_GROUP shows.
  */
+import { DEFAULT_MY_STORE_TAB, resolveMyStoreTab } from '@/lib/myStoreHubTabs';
 import {
   Home,
   Search,
@@ -147,7 +148,20 @@ export function settingsGroupFor(isSeller: boolean): NavDisclosureGroup {
 export function navChildIsActive(
   pathname: string,
   child: { href: string },
+  /** Current `location.search` (e.g. '?tab=products'). Only consulted for
+   * /my-store hub tabs, whose identity lives in the query (MY-STORE-HUB-01). */
+  search = '',
 ): boolean {
+  // MY-STORE-HUB-01: hub tabs share ONE pathname — compare the tab too.
+  // '/my-store' (overview) is active only when no other tab is selected.
+  const [childPath, childQuery = ''] = child.href.split('?');
+  if (childPath === ROUTES.myStore) {
+    if (pathname !== ROUTES.myStore) return false;
+    const want = resolveMyStoreTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_MY_STORE_TAB;
+    const have = resolveMyStoreTab(search) ?? DEFAULT_MY_STORE_TAB;
+    return want === have;
+  }
+
   if (pathname === child.href) return true;
 
   // /requests is the market feed; do not mark it active on account sub-routes

@@ -238,7 +238,7 @@ describe('NotificationBell', () => {
       await openMenu(user);
 
       const link = (await screen.findByText('بدأ عرضك')).closest('a');
-      expect(link).toHaveAttribute('href', '/my-store/promotions');
+      expect(link).toHaveAttribute('href', '/my-store?tab=promotions');
     });
 
     it('renders PROMOTION_STATUS_CHANGE as a link even without data (still a known type, unlike PROMOTION)', async () => {
@@ -253,7 +253,7 @@ describe('NotificationBell', () => {
       await openMenu(user);
 
       const link = (await screen.findByText('انتهى عرضك')).closest('a');
-      expect(link).toHaveAttribute('href', '/my-store/promotions');
+      expect(link).toHaveAttribute('href', '/my-store?tab=promotions');
     });
   });
 

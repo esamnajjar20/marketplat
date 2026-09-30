@@ -215,7 +215,7 @@ export function MyStoreInventory() {
     // refinements of the same view — pushing made Back require N presses
     // to actually leave the page after setting three filters, matching
     // the same reasoning already applied to SearchFilters.
-    router.replace(`${ROUTES.myStoreInventory}?${params.toString()}`);
+    router.replace(`${ROUTES.myStore}?${params.toString()}`);
   }
 
   function setFilter(next: StockFilter) {
@@ -345,7 +345,7 @@ export function MyStoreInventory() {
         <Pagination
           totalPages={totalPages}
           currentPage={page}
-          baseUrl={ROUTES.myStoreInventory}
+          baseUrl={ROUTES.myStore}
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}

@@ -412,7 +412,7 @@ describe('ProtectedMobileNav', () => {
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
       fireEvent.click(toggle);
       expect(screen.getByText('منتجاتي').closest('a')?.getAttribute('href')).toBe(
-        '/my-store/products',
+        '/my-store?tab=products',
       );
       expect(screen.getByText('المتاجر المتابَعة').closest('a')?.getAttribute('href')).toBe(
         '/my-store/followed',

@@ -28,6 +28,7 @@ import { useMyStore } from '@/hooks/queries/useStores';
 import { useMyAttention } from '@/hooks/queries/useSellers';
 import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
 import { ROUTES } from '@/lib/constants';
+import { myStoreTabHref } from '@/lib/myStoreHubTabs';
 import { BecomeStoreOwnerCard } from './BecomeStoreOwnerCard';
 import { useRequestStoreFeature } from '@/hooks/mutations/useStoreMutations';
 import type { ParsedError } from '@/lib/errorParser';
@@ -109,7 +110,7 @@ function HubBody({ store }: { store: StoreDetails }) {
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
           {attention.productsOutOfStock > 0 && (
             <Link
-              href={`${ROUTES.myStoreProducts}?availability=OUT_OF_STOCK`}
+              href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}
               className="text-primary hover:underline"
             >
               {attention.productsOutOfStock} منتج غير متوفر

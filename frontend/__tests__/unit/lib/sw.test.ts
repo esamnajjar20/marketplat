@@ -318,6 +318,36 @@ describe('sw.js — service worker logic', () => {
     });
   });
 
+  describe('hubDocumentKey (MY-STORE-HUB-01 — every ?tab= variant shares the one warmed /my-store shell)', () => {
+    const nav = (u: string) => ({ mode: 'navigate', url: u }) as any;
+
+    it('keys /my-store navigations that carry a query by bare pathname', () => {
+      const hubDocumentKey = ctx.sandbox.hubDocumentKey;
+      for (const u of [
+        'https://example.com/my-store?tab=members',
+        'https://example.com/my-store?tab=products&page=2&status=ACTIVE',
+      ]) {
+        expect(hubDocumentKey(nav(u), new URL(u))).toBe('https://example.com/my-store');
+      }
+    });
+
+    it('leaves the exact request as the key everywhere else', () => {
+      const hubDocumentKey = ctx.sandbox.hubDocumentKey;
+      const bare = nav('https://example.com/my-store');
+      expect(hubDocumentKey(bare, new URL(bare.url))).toBe(bare);
+      const other = nav('https://example.com/my-services?x=1');
+      expect(hubDocumentKey(other, new URL(other.url))).toBe(other);
+      const sub = nav('https://example.com/my-store/products/new?draftId=1');
+      expect(hubDocumentKey(sub, new URL(sub.url))).toBe(sub);
+    });
+
+    it('does not normalise non-navigation (fetch/RSC) requests', () => {
+      const hubDocumentKey = ctx.sandbox.hubDocumentKey;
+      const req = { mode: 'cors', url: 'https://example.com/my-store?tab=members' } as any;
+      expect(hubDocumentKey(req, new URL(req.url))).toBe(req);
+    });
+  });
+
   describe('isNeverCache (auth/csrf exclusion)', () => {
     it('never caches /auth/ and /csrf paths', () => {
       const isNeverCache = ctx.sandbox.isNeverCache;

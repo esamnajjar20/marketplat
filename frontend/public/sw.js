@@ -477,6 +477,18 @@ function isRscShellRequest(request) {
 }
 
 /** يجب مطابقة lib/offlineRouteShells.ts's rscShellKey() حرفيًا. */
+/** MY-STORE-HUB-01: /my-store?tab=members, /my-store?tab=products&page=2 …
+ * are all the SAME document (tab lives in the query, resolved on the client).
+ * Key hard navigations by bare pathname so they hit the single warmed shell
+ * instead of missing the cache and falling to /offline. Only /my-store is
+ * normalised — every other URL keeps its exact-request key. */
+function hubDocumentKey(request, url) {
+  if (request.mode === 'navigate' && url.pathname === '/my-store' && url.search) {
+    return url.origin + url.pathname;
+  }
+  return request;
+}
+
 function rscShellKey(pathname) {
   return `${pathname}?__offline_rsc_shell`;
 }
@@ -859,7 +871,7 @@ const protectedNavGeneration = new Map();
 
 async function handleProtectedPage(event, request, url) {
   const useShellCache = isPersonalShellRoute(url);
-  const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
+  const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : hubDocumentKey(request, url);
 
   const myGeneration = (protectedNavGeneration.get(url.pathname) || 0) + 1;
   protectedNavGeneration.set(url.pathname, myGeneration);

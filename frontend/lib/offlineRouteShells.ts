@@ -191,7 +191,9 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/my-ads',
   '/ads/create',
   '/my-store',
-  '/my-store/products',
+  // MY-STORE-HUB-01: products/collections/promotions/inventory/members/
+  // analytics/settings are tabs of '/my-store' (one document) — intentionally
+  // absent. Create/edit flows keep their own routes.
   '/my-store/products/new',
   '/my-services',
   '/my-services/new',
@@ -204,12 +206,6 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/settings/notifications',
   '/activity',
   '/saved-searches',
-  '/my-store/inventory',
-  '/my-store/members',
-  '/my-store/promotions',
-  '/my-store/collections',
-  '/my-store/analytics',
-  '/my-store/settings',
   '/my-services/requests',
   '/my-services/appointments',
   '/my-services/analytics',

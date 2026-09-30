@@ -558,7 +558,7 @@ export const notificationEvents = {
     void pushService.notifyUser(targetUserId, {
       title,
       body,
-      url: `/my-store/members`,
+      url: '/my-store?tab=members',
       tag: `store-invite-${memberId}`,
     }).catch(() => {});
     return notificationsRepository.create({

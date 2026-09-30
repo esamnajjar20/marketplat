@@ -87,18 +87,20 @@ export const ROUTES = {
   // existing GET /products (useProducts with no storeId), no new API.
   products:             '/products',
   myStore:              '/my-store',
-  myStoreInventory:      '/my-store/inventory',
-  myStoreMembers:        '/my-store/members',
-  myStoreProducts:       '/my-store/products',
+  // MY-STORE-HUB-01: these seven are TABS of /my-store now (see lib/myStoreHubTabs.ts).
+  // Never append '?x=y' to them — use myStoreTabHref(tab, {x:'y'}) instead.
+  myStoreInventory:      '/my-store?tab=inventory',
+  myStoreMembers:        '/my-store?tab=members',
+  myStoreProducts:       '/my-store?tab=products',
   myStoreProductCreate:  '/my-store/products/new',
   myStoreProductEdit:    (id: string) => `/my-store/products/${id}/edit`,
-  myStorePromotions:     '/my-store/promotions',
+  myStorePromotions:     '/my-store?tab=promotions',
   // P1: owner-facing collections tab + per-collection product manager.
-  myStoreCollections:      '/my-store/collections',
+  myStoreCollections:      '/my-store?tab=collections',
   myStoreCollectionManage: (id: string) => `/my-store/collections/${id}`,
   // STORE-ANALYTICS (Foundation v1)
-  myStoreAnalytics:      '/my-store/analytics',
-  myStoreSettings:      '/my-store/settings',
+  myStoreAnalytics:      '/my-store?tab=analytics',
+  myStoreSettings:      '/my-store?tab=settings',
   myFollowedStores:     '/my-store/followed',
   settings: {
     root:          '/settings',

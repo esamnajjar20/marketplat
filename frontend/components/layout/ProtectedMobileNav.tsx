@@ -50,10 +50,11 @@
  */
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { WithSearch } from '@/components/layout/WithSearch';
 import { ChevronDown, ChevronRight, User, ExternalLink, Store } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
@@ -79,13 +80,14 @@ const NAV_ID = 'protected-mobile-nav-drawer';
 const TOGGLE_ID = 'protected-mobile-nav-toggle';
 
 function DrawerDisclosureGroup({
-  group, pathname, onNavigate,
+  group, pathname, onNavigate, search = '',
 }: {
   group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup; // + requests/settings via NavDisclosureGroup
   pathname: string;
   onNavigate: () => void;
+  search?: string;
 }) {
-  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c));
+  const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c, search));
   const [isOpen, setIsOpen] = useState(isAnyChildActive);
 
   return (
@@ -107,7 +109,7 @@ function DrawerDisclosureGroup({
       {isOpen && (
         <ul className="mt-1 flex flex-col gap-1">
           {group.children.map((child) => {
-            const isActive = navChildIsActive(pathname, child);
+            const isActive = navChildIsActive(pathname, child, search);
             return (
               <li key={child.href}>
                 <Link
@@ -366,7 +368,13 @@ export function ProtectedMobileNav() {
             </li>
           )}
           {isSeller && (
-            <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />
+            <Suspense fallback={<DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} />}>
+              <WithSearch>
+                {(search) => (
+                  <DrawerDisclosureGroup group={STORE_GROUP} pathname={pathname} onNavigate={close} search={search} />
+                )}
+              </WithSearch>
+            </Suspense>
           )}
           {isSeller && myStore?.status === 'ACTIVE' && (
             <li>

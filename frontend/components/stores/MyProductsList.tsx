@@ -29,6 +29,7 @@ import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useDeleteProduct, useToggleProductStatus } from '@/hooks/mutations/useProductMutations';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
+import { myStoreTabHref } from '@/lib/myStoreHubTabs';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ProductAvailability, ProductStatus } from '@/types/product.types';
@@ -47,7 +48,7 @@ const AVAIL_LABELS: Record<ProductAvailability, string> = {
 
 export function MyProductsList() {
   const router = useRouter();
-  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStoreProducts);
+  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStore);
   const availability = (sp.get('availability') as ProductAvailability | null) || undefined;
   const searchQ = sp.get('q') ?? '';
   const [searchInput, setSearchInput] = useState(searchQ);
@@ -75,7 +76,7 @@ export function MyProductsList() {
   const totalPages = data?.meta?.totalPages ?? 1;
 
   const isOutOfRange = useOutOfRangeRedirect({
-    baseUrl: ROUTES.myStoreProducts,
+    baseUrl: ROUTES.myStore,
     page,
     totalPages: data?.meta?.totalPages,
     hasData: !!data,
@@ -86,7 +87,7 @@ export function MyProductsList() {
     const params = new URLSearchParams(sp.toString());
     mutator(params);
     params.delete('page');
-    router.push(`${ROUTES.myStoreProducts}?${params.toString()}`);
+    router.push(`${ROUTES.myStore}?${params.toString()}`);
   }
 
   function setAvailability(val: string) {
@@ -365,7 +366,7 @@ export function MyProductsList() {
                     </Button>
                   </Link>
                   {product.status === 'ACTIVE' && (
-                    <Link href={`${ROUTES.myStorePromotions}?productId=${product.id}`}>
+                    <Link href={myStoreTabHref('promotions', { productId: product.id })}>
                       <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`عرض لـ ${product.name}`} title="إنشاء عرض">
                         <Tag className="h-3.5 w-3.5" />
                       </Button>
@@ -412,7 +413,7 @@ export function MyProductsList() {
         <Pagination
           totalPages={totalPages}
           currentPage={page}
-          baseUrl={ROUTES.myStoreProducts}
+          baseUrl={ROUTES.myStore}
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}

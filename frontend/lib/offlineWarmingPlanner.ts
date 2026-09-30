@@ -87,7 +87,6 @@ const PRIORITY_ROUTES = [
   '/my-store/products/new',
   '/my-services/new',
   '/my-store',
-  '/my-store/products',
   '/my-services',
   '/my-requests',
   // ── 4. User content / actions ─────────────────────────────────
