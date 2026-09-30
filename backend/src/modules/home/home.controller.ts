@@ -17,15 +17,19 @@ export const homeController = {
       // linger in browser/CDN copies for up to 2 minutes.
       // A degraded page (some section failed → null) must not be pinned in
       // the CDN for 2 minutes; let it recover on the next request.
+      // HOME-VARY-FIX-01: overwrite the Vary header that the global CORS
+      // middleware sets (credentials:true forces `Vary: Origin`). Cloudflare
+      // refuses to cache any response that Varies on Origin, so /home was
+      // never cached at the edge despite the Cache-Control below. /home is
+      // identical for every viewer (no per-user fields), so Origin is not a
+      // legitimate cache key here — only Accept-Encoding matters.
+      res.setHeader('Vary', 'Accept-Encoding');
       res.setHeader(
         'Cache-Control',
         isHomepageDegraded(homepage)
           ? 'public, max-age=5'
-          : 'public, max-age=30, stale-while-revalidate=30',
+          : 'public, s-maxage=60, max-age=30, stale-while-revalidate=300',
       );
-      // No Vary: Authorization — /home is identical for every viewer (no
-      // per-user fields such as isFavorited), so keying the cache on the
-      // header would only fragment it.
       res.status(200).json(successResponse('Homepage fetched', homepage));
     } catch (error) {
       next(error);
