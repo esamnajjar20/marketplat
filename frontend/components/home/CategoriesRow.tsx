@@ -54,6 +54,9 @@ export function CategoriesRow() {
           <Link
             key={`${item.type}-${item.id}`}
             href={item.href}
+            // FIX RSC-PREFETCH-STORM-02: up to 10 chips → up to 10 RSC
+            // prefetches per homepage load; fetch on tap instead.
+            prefetch={false}
             className="inline-flex min-h-[4.5rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-border bg-card px-1.5 py-2 text-center shadow-xs transition-all active:scale-[0.97] hover:border-primary/40 sm:w-20 sm:py-2.5 sm:hover:-translate-y-0.5"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary sm:h-11 sm:w-11">
@@ -75,6 +78,7 @@ export function CategoriesRow() {
       })}
       <Link
         href={ROUTES.categories}
+        prefetch={false}
         className="inline-flex min-h-[4.5rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border bg-card px-1.5 py-2 text-center transition-all active:scale-[0.97] hover:border-primary/40 sm:w-20 sm:py-2.5 sm:hover:-translate-y-0.5"
       >
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground sm:h-11 sm:w-11">

@@ -272,6 +272,9 @@ export function FeaturedCarousel() {
           <Link
             key={slide.key}
             href={slide.href}
+            // FIX RSC-PREFETCH-STORM-02: each slide links to a dynamic detail
+            // page; prefetching all of them on load cost a request per slide.
+            prefetch={false}
             onPointerDown={() => {
               lastInteractionRef.current = Date.now();
             }}

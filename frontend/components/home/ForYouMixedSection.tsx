@@ -14,6 +14,7 @@ import {
   useRecommendations,
   useProductRecommendations,
   useServiceRecommendations,
+  useMixedRecommendations,
 } from '@/hooks/queries/useRecommendations';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
@@ -82,43 +83,52 @@ export function ForYouMixedSection() {
 
   // Wait until auth + browse city are resolved: firing earlier sends the
   // request as a guest (and without the city), then repeats it once auth
-  // resolves — 6 wasted requests, and a title that flips after hydration.
-  const opts = { enabled: isHydrated && isReady, scope: isAuth ? 'user' : 'guest' } as const;
+  // resolves — wasted requests, and a title that flips after hydration.
+  const ready = isHydrated && isReady;
+  const cityParam = city ? { city } : {};
 
-  const adsQ = useRecommendations({ limit: perType, ...(city ? { city } : {}) }, opts);
-  const productsQ = useProductRecommendations(
-    { limit: perType, ...(city ? { city } : {}) },
-    opts,
+  // RECS-MIXED-01: a signed-in visitor's personalized shelf is ONE request
+  // (type=mixed) instead of three. A guest's shelf is already seeded into
+  // the three per-type keys by GET /home (see useHomepage), so those hooks
+  // stay in charge for guests and normally never hit the network. Each
+  // side is disabled for the other audience.
+  const mixedQ = useMixedRecommendations(
+    { limit: perType, ...cityParam },
+    { enabled: ready && isAuth, scope: 'user' },
   );
-  const servicesQ = useServiceRecommendations(
-    { limit: perType, ...(city ? { city } : {}) },
-    opts,
-  );
+  const guestOpts = { enabled: ready && !isAuth, scope: 'guest' } as const;
+  const adsQ = useRecommendations({ limit: perType, ...cityParam }, guestOpts);
+  const productsQ = useProductRecommendations({ limit: perType, ...cityParam }, guestOpts);
+  const servicesQ = useServiceRecommendations({ limit: perType, ...cityParam }, guestOpts);
 
-  const anyLoading = adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
-  const anyData = Boolean(adsQ.data?.length || productsQ.data?.length || servicesQ.data?.length);
+  const adsData = isAuth ? mixedQ.data?.ads : adsQ.data;
+  const productsData = isAuth ? mixedQ.data?.products : productsQ.data;
+  const servicesData = isAuth ? mixedQ.data?.services : servicesQ.data;
+
+  const enabled = ready;
+  const anyLoading = isAuth
+    ? mixedQ.isLoading
+    : adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
+  const anyData = Boolean(adsData?.length || productsData?.length || servicesData?.length);
 
   // The three requests are independent: if one is slow but another already
   // returned items, stop showing skeletons after a short grace period instead
   // of waiting for the slowest. (Waiting briefly first avoids the shelf
   // reshuffling as each type arrives.)
   const [graceExpired, setGraceExpired] = useState(false);
-  const waitingOnSlowOne = opts.enabled && anyLoading && anyData;
+  const waitingOnSlowOne = enabled && anyLoading && anyData;
   useEffect(() => {
     if (!waitingOnSlowOne) return;
     const t = setTimeout(() => setGraceExpired(true), 1500);
     return () => clearTimeout(t);
   }, [waitingOnSlowOne]);
 
-  const isLoading = !opts.enabled || (anyLoading && !(anyData && graceExpired));
-  const isError = adsQ.isError && productsQ.isError && servicesQ.isError;
+  const isLoading = !enabled || (anyLoading && !(anyData && graceExpired));
+  const isError = isAuth
+    ? mixedQ.isError
+    : adsQ.isError && productsQ.isError && servicesQ.isError;
 
-  const items = interleaveMixed(
-    adsQ.data ?? [],
-    productsQ.data ?? [],
-    servicesQ.data ?? [],
-    limit,
-  );
+  const items = interleaveMixed(adsData ?? [], productsData ?? [], servicesData ?? [], limit);
 
   const personalized = isHydrated && isAuth;
   const title = personalized ? 'مقترحات لك' : 'الأكثر رواجًا';
@@ -149,6 +159,10 @@ export function ForYouMixedSection() {
           <button
             type="button"
             onClick={() => {
+              if (isAuth) {
+                void mixedQ.refetch();
+                return;
+              }
               void adsQ.refetch();
               void productsQ.refetch();
               void servicesQ.refetch();
@@ -183,7 +197,7 @@ export function ForYouMixedSection() {
 
       {!isAuth && (
         <p className="text-center text-xs text-muted-foreground">
-          <Link href={ROUTES.login} className="text-primary hover:underline">
+          <Link href={ROUTES.login} prefetch={false} className="text-primary hover:underline">
             سجّل دخولك
           </Link>
           {' '}لتخصيص الاقتراحات حسب اهتماماتك

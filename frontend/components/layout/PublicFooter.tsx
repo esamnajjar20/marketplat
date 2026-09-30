@@ -34,7 +34,7 @@ export function PublicFooter() {
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           <div className="col-span-2 space-y-4 md:col-span-1">
-            <Link href={ROUTES.home} className="inline-block">
+            <Link href={ROUTES.home} prefetch={false} className="inline-block">
               <Logo />
             </Link>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
@@ -68,19 +68,21 @@ export function PublicFooter() {
             © {new Date().getFullYear()} {APP_NAME}. جميع الحقوق محفوظة.
           </p>
           <div className="flex flex-wrap justify-center gap-3 text-xs">
-            <Link href={ROUTES.privacy} className="hover:text-primary">
+            {/* FIX RSC-PREFETCH-STORM-02: privacy/terms are the largest RSC
+                payloads (tens of KB) and were prefetched on every page load. */}
+            <Link href={ROUTES.privacy} prefetch={false} className="hover:text-primary">
               الخصوصية
             </Link>
             <span aria-hidden className="text-border">
               ·
             </span>
-            <Link href={ROUTES.terms} className="hover:text-primary">
+            <Link href={ROUTES.terms} prefetch={false} className="hover:text-primary">
               الشروط
             </Link>
             <span aria-hidden className="text-border">
               ·
             </span>
-            <Link href={ROUTES.contact} className="hover:text-primary">
+            <Link href={ROUTES.contact} prefetch={false} className="hover:text-primary">
               تواصل
             </Link>
           </div>
