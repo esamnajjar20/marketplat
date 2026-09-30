@@ -200,6 +200,8 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/settings/sync',
   '/settings/storage',
   '/settings/offline',
+  // WARM-PINNED-OFFLINE-01: مركز المسودات (مسودات أوفلاين) — مثبّت مع التخزين/المزامنة.
+  '/settings/drafts',
   '/settings',
   '/settings/profile',
   '/settings/notifications',
@@ -434,11 +436,11 @@ const LAST_DRIP_WARMED_KEY = `marketplat:drip-last-pass:${CACHE_VERSION_SUFFIX}`
 // many of the 20 succeed per cycle.
 const FETCH_TIMEOUT_MS = 15000;
 
-// WARM-REFRESH-24H-01: a route is considered stale and eligible for
-// re-fetch after this long. Warming runs every 6h (see
-// OfflineBootstrap's PERIODIC_WARM_MS) but only rebuilds a route once
-// per day — intermediate passes are cheap no-ops for fresh routes.
-const ROUTE_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
+// WARM-REFRESH-6H-01: a route is considered stale and eligible for
+// re-fetch after this long. Aligned with WARM_INTERVAL_MS (6h), so every
+// full warming pass rebuilds the routes; passes closer together than that
+// are cheap no-ops for fresh routes.
+const ROUTE_REFRESH_AFTER_MS = 6 * 60 * 60 * 1000;
 
 /**
  * FIX WARM-TIMEOUT-PLAN-01: the deadline is max(FETCH_TIMEOUT_MS, the plan's
@@ -528,6 +530,48 @@ function rscShellKey(path: string): string {
   return `${path}?__offline_rsc_shell`;
 }
 
+// VISIT-WINS-01 — warming is a fallback, the user's own visit is the truth.
+//
+// The service worker (sw.js networkFirstPage / handleProtectedPage) writes
+// every page the user actually opens into the SAME caches and under the SAME
+// keys the warming engine uses, stamped with X-SW-Cached-At. Before this,
+// warming knew nothing about that: its freshness clock (snapshot.warmedAt)
+// only moved on warming passes, so a page the user had just opened was
+// re-fetched anyway, and a warm write could land on top of the copy the user
+// had just seen.
+//
+// Rules now:
+//   1. A cached copy written by a visit AFTER the last warming of that route
+//      (cachedAt > warmedAt) is a "visit copy". Warming never overwrites a
+//      visit copy that is still inside ROUTE_REFRESH_AFTER_MS.
+//   2. A route's freshness = the newer of (last warming, last cached write),
+//      so a route the user opened an hour ago is not re-fetched by warming.
+//   3. Warming still runs for routes that were never visited or whose copy
+//      has aged out, so offline availability is unchanged.
+async function cachedAtOf(cache: Cache, key: string): Promise<number> {
+  try {
+    const hit = await cache.match(key);
+    const raw = hit?.headers.get('X-SW-Cached-At');
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** True when the cached copy is a still-fresh copy written by a visit
+ * after the last warming pass — warming must leave it alone. */
+function isFreshVisitCopy(cachedAt: number, warmedAt: number | undefined): boolean {
+  if (!cachedAt) return false;
+  if (Date.now() - cachedAt > ROUTE_REFRESH_AFTER_MS) return false;
+  return cachedAt > (warmedAt ?? 0);
+}
+
+/** Freshness clock of a route: newest of last warming and last cache write. */
+function routeFreshAt(warmedAt: number | undefined, cachedAt: number): number {
+  return Math.max(warmedAt ?? 0, cachedAt);
+}
+
 // PROXY-WARMING — atomic per-route warming engine.
 //
 // The legacy warmRouteShells used Promise.allSettled over CORE_ROUTES
@@ -557,12 +601,17 @@ interface WarmResult {
   ok: boolean;
   urls: string[];
   error?: string;
+  /** VISIT-WINS-01: set when a newer copy written by a real user visit was
+   * kept instead of the warmed one. Holds that copy's cached-at time, which
+   * becomes the route's freshness clock (not "now"). */
+  keptVisitAt?: number;
 }
 
 async function warmRouteAtomic(
   route: string,
   staticCache: Cache,
   stagingCache: Cache,
+  priorWarmedAt?: number,
 ): Promise<WarmResult> {
   const stagedPaths: string[] = [];
   try {
@@ -627,6 +676,18 @@ async function warmRouteAtomic(
     }
 
     // 6. Commit HTML — from here the route is offline-complete.
+    //    VISIT-WINS-01: if the user opened this page since the last warming
+    //    (or while this pass was running), their copy is newer and is what
+    //    they saw — keep it. Chunks above were verified either way, so the
+    //    route stays offline-complete.
+    const visitAt = await cachedAtOf(staticCache, route);
+    if (isFreshVisitCopy(visitAt, priorWarmedAt)) {
+      return {
+        ok: true,
+        urls: [route, ...chunkUrls, rscShellKey(route)],
+        keptVisitAt: visitAt,
+      };
+    }
     await putTimestamped(staticCache, route, htmlRes);
 
     // 7. RSC shell — best effort. Its absence degrades offline SPA
@@ -843,10 +904,14 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
     for (const route of routes) {
       if (isWarmingCancelled()) break;
       const prior = snapshot?.routes[route];
+      // VISIT-WINS-01: a page the user opened recently is already fresh —
+      // measure staleness from the newer of (last warming, last cache write).
+      const cachedAt = await cachedAtOf(staticCache, route);
       const isStale =
         force ||
         (prior?.status === 'complete' &&
-          (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS));
+          (!prior.warmedAt ||
+            Date.now() - routeFreshAt(prior.warmedAt, cachedAt) > ROUTE_REFRESH_AFTER_MS));
       if (!isStale && prior?.status === 'complete' && prior.chunks.length > 0) {
         liveUrls.push(...prior.chunks.map(toPath));
         continue;
@@ -862,7 +927,13 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
-      const result = await warmRouteAtomic(route, staticCache, stagingCache);
+      // force (manual button) always replaces; otherwise visit copies win.
+      const result = await warmRouteAtomic(
+        route,
+        staticCache,
+        stagingCache,
+        force ? Number.MAX_SAFE_INTEGER : prior?.warmedAt,
+      );
 
       await patchRouteStatus(route, {
         status: result.ok ? 'complete' : 'failed',
@@ -870,7 +941,7 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
         // FIX WARM-BACKOFF-01: a success resets the failure counter.
         attempts: result.ok ? 0 : (prior?.attempts ?? 0) + 1,
         lastAttempt: Date.now(),
-        warmedAt: result.ok ? Date.now() : prior?.warmedAt,
+        warmedAt: result.ok ? (result.keptVisitAt ?? Date.now()) : prior?.warmedAt,
         lastError: result.ok ? undefined : result.error,
       });
 
@@ -950,6 +1021,7 @@ async function warmPersonalRouteAtomic(
   staticCache: Cache,
   personalCache: Cache,
   stagingCache: Cache,
+  priorWarmedAt?: number,
 ): Promise<WarmResult> {
   const stagedPaths: string[] = [];
   try {
@@ -999,6 +1071,12 @@ async function warmPersonalRouteAtomic(
       }
     }
 
+    // VISIT-WINS-01: same rule as warmRouteAtomic — never replace a copy
+    // the user's own visit wrote after the last warming.
+    const visitAt = await cachedAtOf(personalCache, route);
+    if (isFreshVisitCopy(visitAt, priorWarmedAt)) {
+      return { ok: true, urls: [route, ...chunkUrls], keptVisitAt: visitAt };
+    }
     await putTimestamped(personalCache, route, htmlRes);
 
     try {
@@ -1141,10 +1219,13 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
       const key = `personal:${route}`;
       const prior = snapshot?.routes[key];
 
+      // VISIT-WINS-01: freshness = newer of (last warming, last cache write).
+      const cachedAt = await cachedAtOf(personalCache, route);
       const isStale =
         force ||
         (prior?.status === 'complete' &&
-          (!prior.warmedAt || Date.now() - prior.warmedAt > ROUTE_REFRESH_AFTER_MS));
+          (!prior.warmedAt ||
+            Date.now() - routeFreshAt(prior.warmedAt, cachedAt) > ROUTE_REFRESH_AFTER_MS));
       if (!isStale && prior?.status === 'complete') {
         // Sanity: logout wipes PERSONAL_SHELL_CACHE but not IndexedDB.
         const htmlHit = await personalCache.match(route);
@@ -1166,6 +1247,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
         staticCache,
         personalCache,
         stagingCache,
+        force ? Number.MAX_SAFE_INTEGER : prior?.warmedAt,
       );
 
       await patchRouteStatus(key, {
@@ -1174,7 +1256,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
         // FIX WARM-BACKOFF-01: a success resets the failure counter.
         attempts: result.ok ? 0 : (prior?.attempts ?? 0) + 1,
         lastAttempt: Date.now(),
-        warmedAt: result.ok ? Date.now() : prior?.warmedAt,
+        warmedAt: result.ok ? (result.keptVisitAt ?? Date.now()) : prior?.warmedAt,
         lastError: result.ok ? undefined : result.error,
       });
 
@@ -1252,7 +1334,8 @@ export async function retrySinglePublicRoute(route: string): Promise<boolean> {
 
   const staticCache = await caches.open(STATIC_CACHE);
   const stagingCache = await caches.open(STAGING_CACHE);
-  const result = await warmRouteAtomic(route, staticCache, stagingCache);
+  // Manual retry is an explicit user request → always replace (VISIT-WINS-01 bypass).
+  const result = await warmRouteAtomic(route, staticCache, stagingCache, Number.MAX_SAFE_INTEGER);
 
   await patchRouteStatus(route, {
     status: result.ok ? 'complete' : 'failed',
@@ -1282,11 +1365,13 @@ export async function retrySinglePersonalRoute(route: string): Promise<boolean> 
   const staticCache = await caches.open(STATIC_CACHE);
   const personalCache = await caches.open(PERSONAL_SHELL_CACHE);
   const stagingCache = await caches.open(STAGING_CACHE);
+  // Manual retry is an explicit user request → always replace (VISIT-WINS-01 bypass).
   const result = await warmPersonalRouteAtomic(
     route,
     staticCache,
     personalCache,
     stagingCache,
+    Number.MAX_SAFE_INTEGER,
   );
 
   await patchRouteStatus(`personal:${route}`, {

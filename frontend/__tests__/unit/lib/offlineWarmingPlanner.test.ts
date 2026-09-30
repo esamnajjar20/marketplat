@@ -10,6 +10,7 @@ import {
   getWarmingPlan,
   selectRoutesByPlan,
   ROUTE_BUDGETS,
+  PINNED_OFFLINE_ROUTES,
 } from '../../../lib/offlineWarmingPlanner';
 import { CORE_ROUTES, PERSONAL_SHELL_ROUTES_ESSENTIAL } from '../../../lib/offlineRouteShells';
 
@@ -26,12 +27,36 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     const plan = getWarmingPlan();
     const pub = selectRoutesByPlan(plan, [...CORE_ROUTES], 'public');
     const per = selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal');
-    expect(pub).toHaveLength(ROUTE_BUDGETS.core.public);
-    expect(per).toHaveLength(ROUTE_BUDGETS.core.personal);
-    expect(pub.length + per.length).toBeLessThanOrEqual(20);
+    // WARM-PINNED-OFFLINE-01: pinned offline/sync/storage routes are extra to the budget.
+    const pinnedPub = PINNED_OFFLINE_ROUTES.filter((r) => CORE_ROUTES.includes(r as never)).length;
+    const pinnedPer = PINNED_OFFLINE_ROUTES.filter((r) =>
+      PERSONAL_SHELL_ROUTES_ESSENTIAL.includes(r as never),
+    ).length;
+    expect(pub).toHaveLength(ROUTE_BUDGETS.core.public + pinnedPub);
+    expect(per).toHaveLength(ROUTE_BUDGETS.core.personal + pinnedPer);
+    expect(pub.length + per.length).toBeLessThanOrEqual(30);
     // essentials survive the cut
     expect(pub).toEqual(expect.arrayContaining(['/offline', '/', '/ads', '/shared']));
     expect(per).toEqual(expect.arrayContaining(['/messages', '/ads/create']));
+  });
+
+  it('storage / sync / offline-work pages are always selected, first, on every tier', () => {
+    const pinnedPersonal = ['/settings/offline', '/settings/sync', '/settings/storage', '/settings/drafts'];
+    for (const m of ['fast', 'full'] as const) {
+      mode = m;
+      for (const conn of [undefined, { effectiveType: '2g' }, { effectiveType: '3g' }]) {
+        Object.defineProperty(globalThis, 'navigator', {
+          value: { onLine: true, connection: conn },
+          configurable: true,
+        });
+        const plan = getWarmingPlan();
+        const per = selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal');
+        const pub = selectRoutesByPlan(plan, [...CORE_ROUTES], 'public');
+        expect(per.slice(0, pinnedPersonal.length).sort()).toEqual([...pinnedPersonal].sort());
+        expect(pub[0]).toBe('/offline');
+        expect(pub).toEqual(expect.arrayContaining(['/saved-ads', '/downloads']));
+      }
+    }
   });
 
   it("'full' (explicit user choice) still warms every known route", () => {

@@ -105,6 +105,31 @@ const PRIORITY_ROUTES = [
 ];
 
 /**
+ * WARM-PINNED-OFFLINE-01: صفحات التخزين والمزامنة والعمل بدون إنترنت.
+ *
+ * هذه الصفحات هي أدوات النجاة عند انقطاع الشبكة (إدارة الكاش والمساحة،
+ * طابور المزامنة، مركز المسودات، التحكم بالتسخين، والتنزيلات/الإعلانات
+ * المحفوظة). كانت في ذيل PRIORITY_ROUTES، فتقع خارج ميزانية الروتات على
+ * طبقتي core/critical (شخصي: 8 و4 فقط) ولا تُخزَّن إلا بعد أول زيارة —
+ * أي أن أول فتح لها أوفلاين يوصل المستخدم لـ /offline بدل الصفحة نفسها.
+ *
+ * الآن: تُسخَّن دائماً وأولاً، وخارج الميزانية (إضافية عليها). عددها صغير
+ * (3 عامة + 4 شخصية) فلا تكسر سقف البيانات عملياً. لا تُطبَّق على طبقة
+ * 'none' (المستخدم أوقف التسخين / لا شبكة / توفير بيانات).
+ */
+export const PINNED_OFFLINE_ROUTES = [
+  // public
+  '/offline',
+  '/saved-ads',
+  '/downloads',
+  // personal
+  '/settings/offline',
+  '/settings/sync',
+  '/settings/storage',
+  '/settings/drafts',
+] as const;
+
+/**
  * FIX WARM-LIGHT-01: route budgets are PER LIST and per tier.
  *
  * Before, one number (25 / 20) was applied to the public list (18 routes)
@@ -263,29 +288,27 @@ export function selectRoutesByPlan(
   /** Which list is being selected — each has its own budget on core/critical. */
   kind: 'public' | 'personal' = 'public',
 ): string[] {
+  if (plan.tier === 'none') return [];
+
+  const inInput = new Set(routesInPriorityOrder);
+  // WARM-PINNED-OFFLINE-01: المثبّتة أولاً وخارج الميزانية.
+  const pinned = (PINNED_OFFLINE_ROUTES as readonly string[]).filter((r) => inInput.has(r));
+  const pinnedSet = new Set(pinned);
+  const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r) && !pinnedSet.has(r));
+  const remaining = routesInPriorityOrder.filter(
+    (r) => !pinnedSet.has(r) && !priority.includes(r),
+  );
+  const ordered = [...priority, ...remaining];
+
   switch (plan.tier) {
-    case 'none':
-      return [];
     case 'critical':
     case 'core': {
       const budget = ROUTE_BUDGETS[plan.tier][kind];
-      const inInput = new Set(routesInPriorityOrder);
-      const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
-      if (priority.length >= budget) {
-        return priority.slice(0, budget);
-      }
-      const remaining = routesInPriorityOrder.filter((r) => !priority.includes(r));
-      return [...priority, ...remaining].slice(0, budget);
+      return [...pinned, ...ordered.slice(0, budget)];
     }
     case 'full':
     default:
-      // Prefer priority order, then the rest of the input list.
-      {
-        const inInput = new Set(routesInPriorityOrder);
-        const priority = PRIORITY_ROUTES.filter((r) => inInput.has(r));
-        const remaining = routesInPriorityOrder.filter((r) => !priority.includes(r));
-        return [...priority, ...remaining];
-      }
+      return [...pinned, ...ordered];
   }
 }
 
