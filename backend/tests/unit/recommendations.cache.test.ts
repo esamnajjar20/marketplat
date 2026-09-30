@@ -82,4 +82,23 @@ describe('recommendations cache (RECS-CACHE-01)', () => {
     const after = await getCachedRecommendations({ limit: 8 }, null, build);
     expect(after.value).toEqual(['without-removed-ad']);
   });
+
+  it('does not pin a value the caller marks incomplete (shouldCache), so it heals next request', async () => {
+    const build = jest
+      .fn()
+      .mockResolvedValueOnce({ ads: null, products: [], services: [] })
+      .mockResolvedValueOnce({ ads: [{ id: 'a' }], products: [], services: [] });
+    const complete = (v: { ads: unknown }) => v.ads !== null;
+    const first = await getCachedRecommendations({ type: 'mixed', limit: 3 }, null, build, complete);
+    const second = await getCachedRecommendations({ type: 'mixed', limit: 3 }, null, build, complete);
+    expect(first.value.ads).toBeNull();
+    expect(second.value.ads).toEqual([{ id: 'a' }]);
+    expect(build).toHaveBeenCalledTimes(2);
+  });
+
+  it('mixed and single-type entries never collide', () => {
+    expect(recommendationsCacheKey({ type: 'mixed', limit: 3 }, null)).not.toBe(
+      recommendationsCacheKey({ limit: 3 }, null),
+    );
+  });
 });

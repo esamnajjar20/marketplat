@@ -61,6 +61,9 @@ export const queryKeys = {
     ) => ['recommendations', 'service', params ?? {}, ...(scope ? [scope] : [])] as const,
     stores: (params?: { limit?: number; excludeStoreId?: string; lat?: number; lng?: number }) =>
       ['recommendations', 'store', params ?? {}] as const,
+    // RECS-MIXED-01: ads + products + services in one response (home shelf).
+    mixed: (params?: { limit?: number; city?: string }, scope?: 'guest' | 'user') =>
+      ['recommendations', 'mixed', params ?? {}, ...(scope ? [scope] : [])] as const,
   },
 
   // ── Users ──────────────────────────────────────────────────────

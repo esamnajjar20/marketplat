@@ -78,6 +78,10 @@ const isCacheable = (query: GetRecommendationsQuery): boolean =>
   (query.city?.length ?? 0) <= RECS_MAX_CACHEABLE_CITY;
 
 /**
+ * `shouldCache` lets a caller refuse to pin a degraded value (the mixed
+ * shelf returns null for a failed rail; it must heal on the next request,
+ * not be served for the TTL).
+ *
  * `build` receives the normalized query and MUST resolve the caller from
  * `userId` (not from the request's Bearer header) — see the service's
  * userIdOverride for why.
@@ -86,6 +90,7 @@ export function getCachedRecommendations<T>(
   query: GetRecommendationsQuery,
   userId: string | null,
   build: (normalized: GetRecommendationsQuery) => Promise<T>,
+  shouldCache?: (value: T) => boolean,
 ): Promise<{ value: T; status: SwrStatus }> {
   const normalized = normalizeRecommendationsQuery(query);
   return swrGetWithStatus<T>({
@@ -96,6 +101,7 @@ export function getCachedRecommendations<T>(
     hardTtlSec: userId ? RECS_USER_HARD_TTL_SECONDS : RECS_GUEST_HARD_TTL_SECONDS,
     lockTtlMs: RECS_LOCK_TTL_MS,
     build: () => build(normalized),
+    ...(shouldCache && { shouldCache }),
     cacheable: isCacheable(normalized),
   });
 }

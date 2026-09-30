@@ -59,6 +59,22 @@ export interface GetStoreRecommendationsParams {
   lng?: number;
 }
 
+/**
+ * RECS-MIXED-01: one request for the home "مقترحات لك" shelf. `limit` is
+ * PER TYPE. A rail that failed on the server arrives as null (the other
+ * rails are still valid) — treat null as "empty", never as an error.
+ */
+export interface GetMixedRecommendationsParams {
+  limit?: number;
+  city?: string;
+}
+
+export interface MixedRecommendations {
+  ads: AdListItem[] | null;
+  products: ProductWithStore[] | null;
+  services: ServiceListingWithProvider[] | null;
+}
+
 export const recommendationsApi = {
   getRecommendations: (params?: GetRecommendationsParams) =>
     apiClient.get<ApiResponse<AdListItem[]>>('/recommendations', { params }),
@@ -76,5 +92,10 @@ export const recommendationsApi = {
   getStoreRecommendations: (params?: GetStoreRecommendationsParams) =>
     apiClient.get<ApiResponse<StoreWithSeller[]>>('/recommendations', {
       params: { ...params, type: 'store' },
+    }),
+
+  getMixedRecommendations: (params?: GetMixedRecommendationsParams) =>
+    apiClient.get<ApiResponse<MixedRecommendations>>('/recommendations', {
+      params: { ...params, type: 'mixed' },
     }),
 };

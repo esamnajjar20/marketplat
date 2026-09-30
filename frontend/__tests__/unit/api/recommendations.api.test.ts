@@ -86,3 +86,17 @@ describe('recommendationsApi.getStoreRecommendations', () => {
     });
   });
 });
+
+describe('recommendationsApi.getMixedRecommendations (RECS-MIXED-01)', () => {
+  it('sends type=mixed with the per-type limit and city', async () => {
+    await recommendationsApi.getMixedRecommendations({ limit: 3, city: 'غزة' });
+    expect(apiClient.get).toHaveBeenCalledWith('/recommendations', {
+      params: { limit: 3, city: 'غزة', type: 'mixed' },
+    });
+  });
+
+  it('sends type=mixed even with no other params', async () => {
+    await recommendationsApi.getMixedRecommendations();
+    expect(apiClient.get).toHaveBeenCalledWith('/recommendations', { params: { type: 'mixed' } });
+  });
+});

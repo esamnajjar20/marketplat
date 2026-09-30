@@ -35,16 +35,33 @@ export const recommendationsController = {
       // so the cache key, the builder and any background refresh all
       // agree on identity (see recommendations.cache.ts).
       const userId = resolveOptionalUserId(authHeader);
-      const build = (q: GetRecommendationsQuery) =>
-        q.type === 'product'
-          ? recommendationsService.getProductRecommendations(q, authHeader, userId)
-          : q.type === 'service'
-            ? recommendationsService.getServiceListingRecommendations(q, authHeader, userId)
-            : q.type === 'store'
-              ? recommendationsService.getStoreRecommendations(q, authHeader, userId)
-              : recommendationsService.getRecommendations(q, authHeader, userId);
+      const build = (q: GetRecommendationsQuery): Promise<unknown> => {
+        switch (q.type) {
+          case 'mixed':
+            return recommendationsService.getMixedRecommendations(q, authHeader, userId);
+          case 'product':
+            return recommendationsService.getProductRecommendations(q, authHeader, userId);
+          case 'service':
+            return recommendationsService.getServiceListingRecommendations(q, authHeader, userId);
+          case 'store':
+            return recommendationsService.getStoreRecommendations(q, authHeader, userId);
+          default:
+            return recommendationsService.getRecommendations(q, authHeader, userId);
+        }
+      };
 
-      const { value: items, status } = await getCachedRecommendations(query, userId, build);
+      // RECS-MIXED-01: a mixed shelf with a failed rail (null) is served
+      // but never pinned, so it heals on the next request.
+      const isComplete = (value: unknown): boolean =>
+        query.type !== 'mixed' ||
+        Object.values(value as Record<string, unknown>).every(section => section !== null);
+
+      const { value: items, status } = await getCachedRecommendations(
+        query,
+        userId,
+        build,
+        isComplete,
+      );
       res.setHeader('X-App-Cache', status);
 
       res.status(200).json(successResponse('Recommendations fetched', items));

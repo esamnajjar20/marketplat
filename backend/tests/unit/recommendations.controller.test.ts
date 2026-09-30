@@ -1,5 +1,5 @@
 import { recommendationsController } from '../../src/modules/recommendations/recommendations.controller';
-import { recommendationsService } from '../../src/modules/recommendations/recommendations.service';
+import { recommendationsService, resolveOptionalUserId } from '../../src/modules/recommendations/recommendations.service'; // RECS-CACHE-FIX-01
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/recommendations/recommendations.service');
@@ -51,7 +51,7 @@ describe('recommendationsController', () => {
   });
 
   it('passes the resolved userId down so a refresh never re-verifies the token', async () => {
-    (recommendationsService.resolveOptionalUserId as jest.Mock).mockReturnValue('user-1');
+    (resolveOptionalUserId as jest.Mock).mockReturnValue('user-1'); // RECS-CACHE-FIX-01
     (recommendationsService.getRecommendations as jest.Mock).mockResolvedValue([]);
     await recommendationsController.getRecommendations(
       mockRequest({ query: {}, headers: { authorization: 'Bearer t' } }),
@@ -63,6 +63,26 @@ describe('recommendationsController', () => {
       'Bearer t',
       'user-1',
     );
+  });
+
+  it('routes type=mixed to getMixedRecommendations (RECS-MIXED-01)', async () => {
+    (recommendationsService.getMixedRecommendations as jest.Mock).mockResolvedValue({
+      ads: [],
+      products: [],
+      services: [],
+    });
+    const res = makeRes();
+    await recommendationsController.getRecommendations(
+      mockRequest({ query: { type: 'mixed', limit: '3' } }),
+      res,
+      mockNext(),
+    );
+    expect(recommendationsService.getMixedRecommendations).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'mixed', limit: 3 }),
+      undefined,
+      undefined,
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('routes type=store to getStoreRecommendations', async () => {

@@ -517,4 +517,42 @@ describe('recommendationsService', () => {
       expect(recommendationsRepository.findTrending).toHaveBeenCalled();
     });
   });
+
+  describe('getMixedRecommendations (RECS-MIXED-01)', () => {
+    const stubAllTrending = () => {
+      (recommendationsRepository.findTrending as jest.Mock).mockResolvedValue([mockAd('a-1')]);
+      (productRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([mockProduct('p-1')]);
+      (serviceListingRecommendationsRepository.findTrending as jest.Mock).mockResolvedValue([
+        mockListing('s-1'),
+      ]);
+    };
+
+    it('returns all three rails from one call (guest)', async () => {
+      stubAllTrending();
+      const result = await recommendationsService.getMixedRecommendations({ limit: 3 }, undefined, null);
+      expect(result.ads).toHaveLength(1);
+      expect(result.products).toHaveLength(1);
+      expect(result.services).toHaveLength(1);
+    });
+
+    it('isolates a failing rail: it becomes null, the others still return', async () => {
+      stubAllTrending();
+      (productRecommendationsRepository.findTrending as jest.Mock).mockRejectedValue(new Error('db'));
+      const result = await recommendationsService.getMixedRecommendations({ limit: 3 }, undefined, null);
+      expect(result.products).toBeNull();
+      expect(result.ads).toHaveLength(1);
+      expect(result.services).toHaveLength(1);
+    });
+
+    it('does not leak per-entity exclude ids into the other rails', async () => {
+      stubAllTrending();
+      await recommendationsService.getMixedRecommendations(
+        { limit: 3, excludeAdId: 'ad-x', excludeProductId: 'prod-x' },
+        undefined,
+        null,
+      );
+      expect(adsService.findAdForReference).not.toHaveBeenCalled();
+      expect(productsService.findProductForReference).not.toHaveBeenCalled();
+    });
+  });
 });

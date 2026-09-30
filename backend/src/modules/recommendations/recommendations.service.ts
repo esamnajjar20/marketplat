@@ -41,6 +41,12 @@ const resolveUserId = (
 ): string | null =>
   userIdOverride !== undefined ? userIdOverride : resolveOptionalUserId(authHeader);
 
+export interface MixedRecommendations {
+  ads: AdListRow[] | null;
+  products: ProductWithStore[] | null;
+  services: ServiceListingWithProvider[] | null;
+}
+
 export const recommendationsService = {
   // GET /recommendations. Two modes, chosen by which signals are
   // available rather than by a caller-supplied "mode" flag:
@@ -331,6 +337,63 @@ export const recommendationsService = {
     );
 
     return [...personalized, ...trending];
+  },
+
+  // RECS-MIXED-01: the three home-shelf rails in one call. Same engines as
+  // the single-type methods above — this only removes 2 round trips, the
+  // duplicated bearer verification and the duplicated city lookup (each
+  // single-type method resolves the profile city on its own).
+  //
+  // Section isolation, same posture as home.service.ts's settle(): one
+  // failing rail resolves to null instead of failing the whole shelf, and
+  // the cache layer refuses to pin a response that contains a null.
+  getMixedRecommendations: async (
+    query: GetRecommendationsQuery,
+    authHeader: string | undefined,
+    userIdOverride?: string | null,
+  ): Promise<MixedRecommendations> => {
+    const userId = resolveUserId(authHeader, userIdOverride);
+
+    let city: string | null = query.city?.trim() || null;
+    if (!city && userId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { city: true },
+        });
+        city = user?.city?.trim() || null;
+      } catch (err) {
+        logger.error('Failed to resolve user city for mixed recommendations', { err, userId });
+      }
+    }
+
+    // Per-entity exclusion params make no sense for a mixed shelf (each
+    // names one entity of one type) and must not leak into the others.
+    const shared: GetRecommendationsQuery = {
+      limit: query.limit,
+      ...(city ? { city } : {}),
+    };
+
+    const settle = async <T>(name: string, run: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await run();
+      } catch (err) {
+        logger.error(`[recommendations] mixed section "${name}" failed`, { err, userId });
+        return null;
+      }
+    };
+
+    const [ads, products, services] = await Promise.all([
+      settle('ads', () => recommendationsService.getRecommendations(shared, authHeader, userId)),
+      settle('products', () =>
+        recommendationsService.getProductRecommendations(shared, authHeader, userId),
+      ),
+      settle('services', () =>
+        recommendationsService.getServiceListingRecommendations(shared, authHeader, userId),
+      ),
+    ]);
+
+    return { ads, products, services };
   },
 
   // PR4B (Store Recommendations). Unlike the three entities above, this

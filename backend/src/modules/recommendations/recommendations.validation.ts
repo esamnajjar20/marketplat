@@ -33,7 +33,11 @@ const getRecommendationsQueryObjectSchema = z.object({
   // PR4B: 'store' added — see recommendations.repository.ts's
   // storeRecommendationsRepository for why it doesn't reuse the
   // CategoryWeight engine the other three types share.
-  type: z.enum(['ad', 'product', 'service', 'store']).optional(),
+  //
+  // RECS-MIXED-01: 'mixed' returns { ads, products, services } in ONE
+  // response (the home "مقترحات لك" shelf used to send 3 requests).
+  // `limit` applies PER TYPE. Stores are not part of the mixed shelf.
+  type: z.enum(['ad', 'product', 'service', 'store', 'mixed']).optional(),
   // Type-specific "exclude + weight toward this one's category"
   // params, parallel to excludeAdId above. Kept as separate named
   // fields rather than one generic `excludeId` so each stays

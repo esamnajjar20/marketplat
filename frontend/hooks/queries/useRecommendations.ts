@@ -28,6 +28,7 @@ import type {
   GetProductRecommendationsParams,
   GetServiceRecommendationsParams,
   GetStoreRecommendationsParams,
+  GetMixedRecommendationsParams,
 } from '@/api/recommendations.api';
 import { recommendationsApi } from '@/api/recommendations.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -100,5 +101,25 @@ export function useStoreRecommendations(params?: GetStoreRecommendationsParams) 
     queryFn: () =>
       recommendationsApi.getStoreRecommendations(params).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.recommendations,
+  });
+}
+
+/**
+ * RECS-MIXED-01: the home shelf's three rails in ONE request (was 3).
+ * Used for signed-in visitors, whose personalized shelf is not part of the
+ * shared /home payload; guests keep reading the three seeded keys.
+ */
+export function useMixedRecommendations(
+  params?: GetMixedRecommendationsParams,
+  options?: RecommendationQueryOptions,
+) {
+  return useQuery({
+    queryKey: queryKeys.recommendations.mixed(params, options?.scope),
+    queryFn: () =>
+      recommendationsApi
+        .getMixedRecommendations(params)
+        .then((r) => r.data.data ?? { ads: null, products: null, services: null }),
+    staleTime: CACHE_TTL.recommendations,
+    enabled: options?.enabled ?? true,
   });
 }
