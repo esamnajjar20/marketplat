@@ -21,7 +21,7 @@
  *    the tab you left.
  */
 
-import { Suspense, useCallback } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react'; // MY-STORE-TAB-STATE-FIX-01
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -167,7 +167,20 @@ function TabBody({ tab }: { tab: MyStoreTab }) {
 
 export function MyStoreTabsHub() {
   const sp = useSearchParams();
-  const active: MyStoreTab = resolveMyStoreTab(sp.toString() ? `?${sp.toString()}` : '') ?? DEFAULT_MY_STORE_TAB;
+  const urlTab: MyStoreTab =
+    resolveMyStoreTab(sp.toString() ? `?${sp.toString()}` : '') ?? DEFAULT_MY_STORE_TAB;
+
+  // MY-STORE-TAB-STATE-FIX-01: Next.js does NOT reliably re-render on
+  // history.replaceState (its router only syncs on push/replace via the
+  // Link/Router APIs). Keeping a local tab state alongside the URL is what
+  // makes the click actually switch the panel; the useEffect below keeps
+  // the state in sync when the URL changes externally (deep link, back/
+  // forward, or a Link inside the panel that we couldn't intercept).
+  const [active, setActive] = useState<MyStoreTab>(urlTab);
+
+  useEffect(() => {
+    setActive(urlTab);
+  }, [urlTab]);
 
   const writeUrl = useCallback((search: string) => {
     try {
@@ -180,6 +193,7 @@ export function MyStoreTabsHub() {
   const select = useCallback(
     (tab: MyStoreTab) => {
       writeUrl(searchForTabSwitch(tab));
+      setActive(tab);              // ← MY-STORE-TAB-STATE-FIX-01: re-render
       window.scrollTo({ top: 0 });
     },
     [writeUrl],
@@ -201,6 +215,8 @@ export function MyStoreTabsHub() {
         e.preventDefault();
         e.stopPropagation();
         writeUrl(url.search);
+        const next = resolveMyStoreTab(url.search) ?? DEFAULT_MY_STORE_TAB;
+        setActive(next);            // ← MY-STORE-TAB-STATE-FIX-01
         window.scrollTo({ top: 0 });
       } catch {
         /* unparsable link — let the browser handle it */
