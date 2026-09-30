@@ -84,7 +84,7 @@ async function main(): Promise<void> {
         .notifyUser(userId, {
           title,
           body,
-          url: '/my-services/analytics',
+          url: '/my-services?tab=analytics',
           tag: 'weekly-service-views-report',
         })
         .catch(() => {});

@@ -331,12 +331,24 @@ describe('sw.js — service worker logic', () => {
       }
     });
 
+    it('keys /my-services navigations that carry a query by bare pathname (MY-SERVICES-HUB-01)', () => {
+      const hubDocumentKey = ctx.sandbox.hubDocumentKey;
+      for (const u of [
+        'https://example.com/my-services?tab=requests',
+        'https://example.com/my-services?tab=requests&page=2&status=PENDING',
+      ]) {
+        expect(hubDocumentKey(nav(u), new URL(u))).toBe('https://example.com/my-services');
+      }
+    });
+
     it('leaves the exact request as the key everywhere else', () => {
       const hubDocumentKey = ctx.sandbox.hubDocumentKey;
       const bare = nav('https://example.com/my-store');
       expect(hubDocumentKey(bare, new URL(bare.url))).toBe(bare);
-      const other = nav('https://example.com/my-services?x=1');
+      const other = nav('https://example.com/ads?x=1');
       expect(hubDocumentKey(other, new URL(other.url))).toBe(other);
+      const svcSub = nav('https://example.com/my-services/new?draftId=1');
+      expect(hubDocumentKey(svcSub, new URL(svcSub.url))).toBe(svcSub);
       const sub = nav('https://example.com/my-store/products/new?draftId=1');
       expect(hubDocumentKey(sub, new URL(sub.url))).toBe(sub);
     });

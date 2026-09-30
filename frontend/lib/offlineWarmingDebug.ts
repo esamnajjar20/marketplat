@@ -116,9 +116,6 @@ const PERSONAL_ROUTES = [
   '/my-store/products/new',
   '/my-services',
   '/my-services/new',
-  '/my-services/requests',
-  '/my-services/appointments',
-  '/my-services/analytics',
   '/my-requests',
   '/requests/new',
 ] as const;

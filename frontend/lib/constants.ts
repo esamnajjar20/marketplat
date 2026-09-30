@@ -56,15 +56,17 @@ export const ROUTES = {
   myServiceEdit:         (id: string) => `/my-services/${id}/edit`,
   // Epic 3.1: customer-side "my requests" list, and provider-side inbox.
   myServiceRequests:     '/my-requests',
-  incomingServiceRequests: '/my-services/requests',
+  // MY-SERVICES-HUB-01: these three are TABS of /my-services (see lib/myServicesHubTabs.ts).
+  // Never append '?x=y' to them — use myServicesTabHref(tab, {x:'y'}) instead.
+  incomingServiceRequests: '/my-services?tab=requests',
   // AUDIT-FIX (issue #6): GET /service-requests/:id + useServiceRequest
   // existed fully but had no page — full details/attachedImages were
   // clipped to two lines in the list rows with no way to see more.
   serviceRequestDetail:  (id: string) => `/service-requests/${id}`,
   // Epic 4: provider-side appointments calendar.
-  myServiceAppointments:   '/my-services/appointments',
+  myServiceAppointments:   '/my-services?tab=appointments',
   // ANALYTICS: mirrors myStoreAnalytics below.
-  myServiceProviderAnalytics: '/my-services/analytics',
+  myServiceProviderAnalytics: '/my-services?tab=analytics',
   // T780 — service-broadcasts routes removed. Backend dropped the
   // service_request_broadcasts / service_quotes tables (migration
   // 20260917121810); the pages under app/(protected)/service-broadcasts/

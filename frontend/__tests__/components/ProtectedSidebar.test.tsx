@@ -236,8 +236,8 @@ describe('ProtectedSidebar', () => {
       mockUsePathname.mockReturnValue('/dashboard');
       renderWithClient(<ProtectedSidebar />);
       fireEvent.click(screen.getByRole('button', { name: /خدماتي/ }));
-      expect(screen.getByText('الطلبات الواردة').closest('a')?.getAttribute('href')).toBe('/my-services/requests');
-      expect(screen.getByText('مواعيدي').closest('a')?.getAttribute('href')).toBe('/my-services/appointments');
+      expect(screen.getByText('الطلبات الواردة').closest('a')?.getAttribute('href')).toBe('/my-services?tab=requests');
+      expect(screen.getByText('مواعيدي').closest('a')?.getAttribute('href')).toBe('/my-services?tab=appointments');
       expect(screen.getByText('طلباتي').closest('a')?.getAttribute('href')).toBe('/my-requests');
     });
 

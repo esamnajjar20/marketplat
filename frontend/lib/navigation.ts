@@ -11,6 +11,7 @@
  * 4. settingsGroupFor(isSeller) drops "إدارة المتجر" when STORE_GROUP shows.
  */
 import { DEFAULT_MY_STORE_TAB, resolveMyStoreTab } from '@/lib/myStoreHubTabs';
+import { DEFAULT_MY_SERVICES_TAB, resolveMyServicesTab } from '@/lib/myServicesHubTabs';
 import {
   Home,
   Search,
@@ -149,7 +150,8 @@ export function navChildIsActive(
   pathname: string,
   child: { href: string },
   /** Current `location.search` (e.g. '?tab=products'). Only consulted for
-   * /my-store hub tabs, whose identity lives in the query (MY-STORE-HUB-01). */
+   * /my-store and /my-services hub tabs, whose identity lives in the query
+   * (MY-STORE-HUB-01, MY-SERVICES-HUB-01). */
   search = '',
 ): boolean {
   // MY-STORE-HUB-01: hub tabs share ONE pathname — compare the tab too.
@@ -159,6 +161,14 @@ export function navChildIsActive(
     if (pathname !== ROUTES.myStore) return false;
     const want = resolveMyStoreTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_MY_STORE_TAB;
     const have = resolveMyStoreTab(search) ?? DEFAULT_MY_STORE_TAB;
+    return want === have;
+  }
+
+  // MY-SERVICES-HUB-01: same for the /my-services hub tabs.
+  if (childPath === ROUTES.myServices) {
+    if (pathname !== ROUTES.myServices) return false;
+    const want = resolveMyServicesTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_MY_SERVICES_TAB;
+    const have = resolveMyServicesTab(search) ?? DEFAULT_MY_SERVICES_TAB;
     return want === have;
   }
 

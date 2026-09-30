@@ -195,6 +195,8 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   // analytics/settings are tabs of '/my-store' (one document) — intentionally
   // absent. Create/edit flows keep their own routes.
   '/my-store/products/new',
+  // MY-SERVICES-HUB-01: requests/appointments/analytics are tabs of '/my-services'
+  // (one document) — intentionally absent.
   '/my-services',
   '/my-services/new',
   '/requests/new',
@@ -206,9 +208,6 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/settings/notifications',
   '/activity',
   '/saved-searches',
-  '/my-services/requests',
-  '/my-services/appointments',
-  '/my-services/analytics',
   '/settings/security',
   '/settings/sessions',
   '/settings/seller',

@@ -481,9 +481,15 @@ function isRscShellRequest(request) {
  * are all the SAME document (tab lives in the query, resolved on the client).
  * Key hard navigations by bare pathname so they hit the single warmed shell
  * instead of missing the cache and falling to /offline. Only /my-store is
- * normalised — every other URL keeps its exact-request key. */
+ * normalised (plus /my-services, MY-SERVICES-HUB-01) — every other URL
+ * keeps its exact-request key. */
 function hubDocumentKey(request, url) {
-  if (request.mode === 'navigate' && url.pathname === '/my-store' && url.search) {
+  // MY-SERVICES-HUB-01: /my-services?tab=… is the same kind of single hub document.
+  if (
+    request.mode === 'navigate' &&
+    (url.pathname === '/my-store' || url.pathname === '/my-services') &&
+    url.search
+  ) {
     return url.origin + url.pathname;
   }
   return request;

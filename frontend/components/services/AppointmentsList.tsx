@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useMyAppointments } from '@/hooks/queries/useAppointments';
 import { useUpdateAppointmentStatus } from '@/hooks/mutations/useAppointmentMutations';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
-import { ROUTES } from '@/lib/constants';
+import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
 import { formatDateTime } from '@/lib/formatters';
 import {
   APPOINTMENT_STATUS_LABELS,
@@ -127,7 +127,8 @@ export function AppointmentsList({ providerId }: Props) {
       const params = new URLSearchParams(sp.toString());
       if (totalPages > 1) params.set('page', String(totalPages));
       else params.delete('page');
-      router.replace(`${ROUTES.myServiceAppointments}?${params.toString()}`);
+      params.set('tab', 'appointments'); // MY-SERVICES-HUB-01: tab lives in the query
+      router.replace(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
     }
   }, [data, page, totalPages, sp, router]);
 
@@ -196,7 +197,7 @@ export function AppointmentsList({ providerId }: Props) {
         <Pagination
           totalPages={totalPages}
           currentPage={page}
-          baseUrl={ROUTES.myServiceAppointments}
+          baseUrl={MY_SERVICES_HUB_PATH}
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}

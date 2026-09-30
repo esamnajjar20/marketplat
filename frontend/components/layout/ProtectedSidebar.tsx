@@ -271,7 +271,11 @@ export function ProtectedSidebar() {
           <div className="h-9 animate-pulse rounded-md bg-muted/60" aria-hidden />
         )}
         {!showProviderSkeleton && isProvider && (
-          <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />
+          <Suspense fallback={<DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />}>
+            <WithSearch>
+              {(search) => <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} search={search} />}
+            </WithSearch>
+          </Suspense>
         )}
 
         {/* 6. طلباتي (open marketplace hub) */}

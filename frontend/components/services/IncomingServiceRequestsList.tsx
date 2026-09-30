@@ -15,6 +15,7 @@ import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
+import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
 import { formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
@@ -153,7 +154,8 @@ export function IncomingServiceRequestsList() {
       const params = new URLSearchParams(sp.toString());
       if (totalPages > 1) params.set('page', String(totalPages));
       else params.delete('page');
-      router.replace(`${ROUTES.incomingServiceRequests}?${params.toString()}`);
+      params.set('tab', 'requests'); // MY-SERVICES-HUB-01: tab lives in the query
+      router.replace(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
     }
   }, [data, page, totalPages, sp, router]);
 
@@ -161,7 +163,8 @@ export function IncomingServiceRequestsList() {
     const params = new URLSearchParams(sp.toString());
     if (s) params.set('status', s); else params.delete('status');
     params.delete('page');
-    router.push(`${ROUTES.incomingServiceRequests}?${params.toString()}`);
+    params.set('tab', 'requests'); // MY-SERVICES-HUB-01
+    router.push(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
   }
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
@@ -266,7 +269,7 @@ export function IncomingServiceRequestsList() {
         <Pagination
           totalPages={totalPages}
           currentPage={page}
-          baseUrl={ROUTES.incomingServiceRequests}
+          baseUrl={MY_SERVICES_HUB_PATH}
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}

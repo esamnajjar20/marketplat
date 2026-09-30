@@ -401,7 +401,13 @@ export function ProtectedMobileNav() {
             </li>
           )}
           {!showProviderSkeleton && isProvider && (
-            <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />
+            <Suspense fallback={<DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} />}>
+              <WithSearch>
+                {(search) => (
+                  <DrawerDisclosureGroup group={SERVICES_GROUP} pathname={pathname} onNavigate={close} search={search} />
+                )}
+              </WithSearch>
+            </Suspense>
           )}
           <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={close} />
           {user && (

@@ -388,10 +388,10 @@ describe('ProtectedMobileNav', () => {
       fireEvent.click(toggle);
       expect(toggle.getAttribute('aria-expanded')).toBe('true');
       expect(screen.getByText('الطلبات الواردة').closest('a')?.getAttribute('href')).toBe(
-        '/my-services/requests',
+        '/my-services?tab=requests',
       );
       expect(screen.getByText('مواعيدي').closest('a')?.getAttribute('href')).toBe(
-        '/my-services/appointments',
+        '/my-services?tab=appointments',
       );
       expect(screen.getByText('طلباتي').closest('a')?.getAttribute('href')).toBe('/my-requests');
     });

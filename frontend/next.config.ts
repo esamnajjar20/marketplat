@@ -117,11 +117,21 @@ const nextConfig: NextConfig = {
   // incoming query string (e.g. ?availability=OUT_OF_STOCK) to the destination.
   async redirects() {
     const tabs = ['products', 'collections', 'promotions', 'inventory', 'members', 'analytics', 'settings'];
-    return tabs.map((tab) => ({
-      source: `/my-store/${tab}`,
-      destination: `/my-store?tab=${tab}`,
-      permanent: false,
-    }));
+    // MY-SERVICES-HUB-01: same for the three provider-workspace pages.
+    // Only these exact paths — /my-services/new and /my-services/:id/edit stay routes.
+    const serviceTabs = ['requests', 'appointments', 'analytics'];
+    return [
+      ...tabs.map((tab) => ({
+        source: `/my-store/${tab}`,
+        destination: `/my-store?tab=${tab}`,
+        permanent: false,
+      })),
+      ...serviceTabs.map((tab) => ({
+        source: `/my-services/${tab}`,
+        destination: `/my-services?tab=${tab}`,
+        permanent: false,
+      })),
+    ];
   },
 
   async headers() {

@@ -29,3 +29,19 @@ describe('navChildIsActive — /my-store hub tabs (MY-STORE-HUB-01)', () => {
     expect(navChildIsActive('/my-store/followed', child('المتاجر المتابَعة'), '')).toBe(true);
   });
 });
+
+describe('navChildIsActive — /my-services hub tabs (MY-SERVICES-HUB-01)', () => {
+  const svc = (href: string) => ({ href });
+  it('overview is active only when no other tab is selected', () => {
+    expect(navChildIsActive('/my-services', svc('/my-services'), '')).toBe(true);
+    expect(navChildIsActive('/my-services', svc('/my-services'), '?tab=requests')).toBe(false);
+  });
+  it('a tab child is active only for its own ?tab=', () => {
+    expect(navChildIsActive('/my-services', svc('/my-services?tab=requests'), '?tab=requests&page=2')).toBe(true);
+    expect(navChildIsActive('/my-services', svc('/my-services?tab=requests'), '?tab=analytics')).toBe(false);
+    expect(navChildIsActive('/my-services', svc('/my-services?tab=analytics'), '')).toBe(false);
+  });
+  it('is inactive away from /my-services (e.g. /my-services/new)', () => {
+    expect(navChildIsActive('/my-services/new', svc('/my-services'), '')).toBe(false);
+  });
+});
