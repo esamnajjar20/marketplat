@@ -115,11 +115,8 @@ export const SETTINGS_GROUP = {
     { label: 'الجلسات', href: ROUTES.settings.sessions },
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
-    { label: 'التخزين والبيانات', href: ROUTES.settings.storage },
-    { label: 'المزامنة (عمليات دون اتصال)', href: ROUTES.settings.sync },
-    // SW-FIX-OFFLINE-NAV: Warming Engine user controls —
-    // sibling of sync (both belong to the offline surface).
-    { label: 'العمل بدون إنترنت', href: ROUTES.settings.offline },
+    // OFFLINE-HUB-01: التخزين + المزامنة + العمل بدون إنترنت → مدخل واحد.
+    { label: 'مركز الأوفلاين', href: ROUTES.offlineHub },
   ],
 } as const;
 

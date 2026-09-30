@@ -19,7 +19,7 @@ describe('CreateSheet (UI-PHASE-D)', () => {
     expect(screen.getByText('طلب / احتياج')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /متابعة المسودات/ })).toHaveAttribute(
       'href',
-      '/settings/drafts',
+      '/offline?tab=drafts',
     );
   });
 

@@ -72,9 +72,7 @@ const PRIORITY_ROUTES = [
   '/sellers/ranking',
   // QR-share receiver: without it the sender's QR is useless offline.
   '/shared',
-  // ── 2. Offline reading tools (public) ─────────────────────────
-  '/saved-ads',
-  '/downloads',
+  // ── 2. Offline reading tools: now tabs of '/offline' (first above) ──
   // ── 3. Personal essentials: publish + engage ─────────────────
   // FIX WARM-LIGHT-02: reordered so a small personal budget keeps the
   // pages people actually reopen offline (publish a listing / a request,
@@ -98,36 +96,19 @@ const PRIORITY_ROUTES = [
   '/saved-payments',
   '/complete-profile',
   '/my-reports',
-  // ── 5. Settings + offline tools ───────────────────────────────
-  '/settings/sync',
-  '/settings/storage',
-  '/settings/offline',
 ];
 
 /**
- * WARM-PINNED-OFFLINE-01: صفحات التخزين والمزامنة والعمل بدون إنترنت.
+ * WARM-PINNED-OFFLINE-01 / OFFLINE-HUB-01: the offline surface is ONE route.
  *
- * هذه الصفحات هي أدوات النجاة عند انقطاع الشبكة (إدارة الكاش والمساحة،
- * طابور المزامنة، مركز المسودات، التحكم بالتسخين، والتنزيلات/الإعلانات
- * المحفوظة). كانت في ذيل PRIORITY_ROUTES، فتقع خارج ميزانية الروتات على
- * طبقتي core/critical (شخصي: 8 و4 فقط) ولا تُخزَّن إلا بعد أول زيارة —
- * أي أن أول فتح لها أوفلاين يوصل المستخدم لـ /offline بدل الصفحة نفسها.
- *
- * الآن: تُسخَّن دائماً وأولاً، وخارج الميزانية (إضافية عليها). عددها صغير
- * (3 عامة + 4 شخصية) فلا تكسر سقف البيانات عملياً. لا تُطبَّق على طبقة
- * 'none' (المستخدم أوقف التسخين / لا شبكة / توفير بيانات).
+ * '/offline' is the service-worker fallback AND the "مركز الأوفلاين" hub
+ * (saved ads, downloads, drafts, sync, storage, warming controls as tabs).
+ * It is always warmed first and sits outside the core/critical budgets, on
+ * every tier except 'none' (user off / no network / saveData). Its tab bodies
+ * are statically imported, so warming its HTML also caches every chunk the
+ * tabs need — that is what makes all of them work with no network.
  */
-export const PINNED_OFFLINE_ROUTES = [
-  // public
-  '/offline',
-  '/saved-ads',
-  '/downloads',
-  // personal
-  '/settings/offline',
-  '/settings/sync',
-  '/settings/storage',
-  '/settings/drafts',
-] as const;
+export const PINNED_OFFLINE_ROUTES = ['/offline'] as const;
 
 /**
  * FIX WARM-LIGHT-01: route budgets are PER LIST and per tier.

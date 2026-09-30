@@ -40,8 +40,7 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     expect(per).toEqual(expect.arrayContaining(['/messages', '/ads/create']));
   });
 
-  it('storage / sync / offline-work pages are always selected, first, on every tier', () => {
-    const pinnedPersonal = ['/settings/offline', '/settings/sync', '/settings/storage', '/settings/drafts'];
+  it("the merged offline hub ('/offline') is always selected, first, on every tier", () => {
     for (const m of ['fast', 'full'] as const) {
       mode = m;
       for (const conn of [undefined, { effectiveType: '2g' }, { effectiveType: '3g' }]) {
@@ -49,13 +48,17 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
           value: { onLine: true, connection: conn },
           configurable: true,
         });
-        const plan = getWarmingPlan();
-        const per = selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal');
-        const pub = selectRoutesByPlan(plan, [...CORE_ROUTES], 'public');
-        expect(per.slice(0, pinnedPersonal.length).sort()).toEqual([...pinnedPersonal].sort());
+        const pub = selectRoutesByPlan(getWarmingPlan(), [...CORE_ROUTES], 'public');
         expect(pub[0]).toBe('/offline');
-        expect(pub).toEqual(expect.arrayContaining(['/saved-ads', '/downloads']));
       }
+    }
+  });
+
+  it('routes that now redirect into the hub are never warmed (they would fail atomically)', () => {
+    const redirecting = ['/saved-ads', '/downloads', '/settings/sync', '/settings/storage', '/settings/offline', '/settings/drafts'];
+    for (const r of redirecting) {
+      expect(CORE_ROUTES).not.toContain(r);
+      expect(PERSONAL_SHELL_ROUTES_ESSENTIAL).not.toContain(r);
     }
   });
 

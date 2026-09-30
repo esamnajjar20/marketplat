@@ -17,7 +17,7 @@
  */
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WifiOff, RotateCw, AlertTriangle, X } from 'lucide-react';
 import Link from 'next/link';
@@ -35,6 +35,8 @@ import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { formatNumber } from '@/lib/formatters';
 import { formatSyncEta } from '@/lib/connectionQuality';
+import { OfflineHub } from '@/components/offline/OfflineHub';
+import { resolveOfflineTab, type OfflineTab } from '@/lib/offlineHubTabs';
 
 export default function OfflinePage() {
   const router = useRouter();
@@ -48,6 +50,18 @@ export default function OfflinePage() {
   const [failedItems, setFailedItems] = useState<QueuedRequestSummary[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  // OFFLINE-HUB-01: tab requested by the URL (?tab=… or a legacy path the SW
+  // answered with this fallback). null = plain fallback / bare /offline.
+  const [initialTab, setInitialTab] = useState<OfflineTab | null>(null);
+  // True when the user came here on purpose (explicit tab). The 'online'
+  // event must then NOT bounce them to '/' while they manage their data.
+  const deliberateRef = useRef(false);
+
+  useEffect(() => {
+    const tab = resolveOfflineTab(window.location.search, window.location.pathname);
+    deliberateRef.current = tab !== null;
+    setInitialTab(tab);
+  }, []);
 
   const refreshQueue = useCallback(() => {
     getQueuedRequestCounts().then(({ pending }) => setPendingCount(pending)).catch(() => undefined);
@@ -82,7 +96,9 @@ export default function OfflinePage() {
       // FIX OFFLINE-FALSE-TIMEOUT-01: /offline may appear after a navigate
       // soft-timeout while navigator.onLine is still true — the 'online'
       // event never fires. Same recovery path as a real online transition.
-      router.push('/');
+      // OFFLINE-HUB-01: auto-exit only when this page is acting as the
+      // fallback. A deliberate visit (explicit tab) stays put.
+      if (!deliberateRef.current) router.push('/');
     };
 
     const handleOnline = () => {
@@ -159,7 +175,8 @@ export default function OfflinePage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8 text-center">
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 px-4 py-8">
+      <div className="flex flex-col items-center gap-5 text-center">
       <span
         className={`flex h-20 w-20 items-center justify-center rounded-full ${
           isOnline ? 'bg-online/10 text-online' : 'bg-muted text-muted-foreground'
@@ -169,12 +186,12 @@ export default function OfflinePage() {
       </span>
 
       <h1 className="text-2xl font-semibold">
-        {isOnline ? 'الاتصال عاد — جارٍ التحديث' : 'لا يوجد اتصال بالإنترنت'}
+        {isOnline ? 'مركز الأوفلاين' : 'لا يوجد اتصال بالإنترنت'}
       </h1>
 
       <p className="max-w-sm text-muted-foreground">
         {isOnline
-          ? 'أنت متصل الآن، يمكنك العودة لتصفح الموقع.'
+          ? 'أنت متصل الآن. أدِر المحفوظات والمسودات والمزامنة والتخزين من هنا، أو عُد لتصفح الموقع.'
           : 'تحقق من اتصالك بالشبكة. الصفحات التي زرتها سابقًا قد تكون متاحة دون إنترنت.'}
       </p>
 
@@ -234,29 +251,14 @@ export default function OfflinePage() {
         {isOnline ? 'إعادة المحاولة' : 'العودة للرئيسية'}
       </Button>
 
-      {!isOnline && (
-        <div className="mt-2 flex max-w-sm flex-col gap-2 text-sm">
-          <p className="text-muted-foreground">متاح على هذا الجهاز دون نت:</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/downloads">التنزيلات / كتالوجات</Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/saved-payments">دفع وبطاقات محفوظة</Link>
-            </Button>
-            {/* PHASE-OFFLINE-AD-DETAIL */}
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/saved-ads">إعلانات محفوظة دون اتصال</Link>
-            </Button>
-            {/* OFFLINE-PAGE-FIXES-01: direct path to warming controls.
-                Protected route — redirects to /login if not signed in,
-                which is fine (the user learns they need to log in). */}
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/settings/offline">إدارة التسخين</Link>
-            </Button>
-          </div>
-        </div>
-      )}
+      <Button variant="ghost" size="sm" asChild>
+        <Link href="/saved-payments">دفع وبطاقات محفوظة</Link>
+      </Button>
+      </div>
+
+      {/* OFFLINE-HUB-01: replaces the old link list (التنزيلات / إعلانات
+          محفوظة / إدارة التسخين) — those are now tabs below. */}
+      <OfflineHub initialTab={initialTab} />
     </main>
   );
 }

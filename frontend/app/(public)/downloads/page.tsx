@@ -1,23 +1,12 @@
-import type { Metadata } from 'next';
-import { DownloadsPageClient } from '@/components/downloads/DownloadsPageClient';
-import { buildMetadata } from '@/lib/seo';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'التنزيلات',
-  path: '/downloads',
-  noIndex: true,
-});
-
-export default function DownloadsPage() {
-  return (
-    <div className="container mx-auto max-w-2xl space-y-6 px-4 py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold">التنزيلات</h1>
-        <p className="text-sm text-muted-foreground">
-          سجل كتالوجات المتاجر التي حمّلتها للعرض دون اتصال. أعد التحميل من صفحة المتجر عند الحاجة.
-        </p>
-      </header>
-      <DownloadsPageClient />
-    </div>
-  );
+/**
+ * OFFLINE-HUB-01: /downloads is now a tab of the merged offline hub.
+ * Kept as a thin redirect so bookmarks, push-notification links and old
+ * in-flight navigations still land in the right place. Do NOT add this path
+ * back to the warming lists: a redirecting route always fails atomic warming
+ * (`html-…-redirected`).
+ */
+export default function LegacyOfflineRoute(): never {
+  redirect('/offline?tab=saved');
 }

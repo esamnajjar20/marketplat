@@ -55,7 +55,7 @@ function flushConflictToast(): void {
       label: 'راجع',
       onClick: () => {
         if (typeof window !== 'undefined') {
-          window.location.assign('/settings/sync');
+          window.location.assign('/offline?tab=sync');
         }
       },
     },

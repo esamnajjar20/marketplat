@@ -34,10 +34,12 @@ export const ROUTES = {
   favorites:     '/favorites',
   sellersRanking: '/sellers/ranking',
   savedSearches: '/saved-searches',
-  downloads:     '/downloads',
+  // OFFLINE-HUB-01: /downloads and /saved-ads are tabs of /offline now.
+  downloads:     '/offline?tab=saved',
   savedPayments: '/saved-payments',
   // PHASE-OFFLINE-AD-DETAIL: إعلانات محفوظة يدويًا للعمل بدون اتصال.
-  savedAds:      '/saved-ads',
+  savedAds:      '/offline?tab=saved',
+  offlineHub:    '/offline',
   activity:      '/activity',
   // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter's own filed reports.
   myReports:     '/my-reports',
@@ -107,13 +109,16 @@ export const ROUTES = {
     seller:        '/settings/seller',
     serviceProvider: '/settings/service-provider',
     blockedUsers:  '/settings/blocked-users',
-    storage:       '/settings/storage',
-    sync:          '/settings/sync',
-    drafts:        '/settings/drafts',
+    // OFFLINE-HUB-01: storage / sync / drafts / offline are hub tabs. Linking
+    // straight to the hub (not the legacy redirect) keeps soft navigation
+    // working with no network.
+    storage:       '/offline?tab=storage',
+    sync:          '/offline?tab=sync',
+    drafts:        '/offline?tab=drafts',
     // SW-FIX-OFFLINE-NAV: /settings/offline existed as a page
     // (Warming Engine user controls) but was never reachable
     // from the UI — no ROUTES constant, no sidebar/mobile link.
-    offline:       '/settings/offline',
+    offline:       '/offline?tab=warming',
   },
   admin: {
     root:              '/admin',

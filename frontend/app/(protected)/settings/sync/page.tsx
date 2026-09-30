@@ -1,21 +1,12 @@
+import { redirect } from 'next/navigation';
+
 /**
- * مركز المزامنة — /settings/sync
- * مكان واحد لطابور العمليات + مسودات الإعلانات + إعادة المحاولة.
+ * OFFLINE-HUB-01: /settings/sync is now a tab of the merged offline hub.
+ * Kept as a thin redirect so bookmarks, push-notification links and old
+ * in-flight navigations still land in the right place. Do NOT add this path
+ * back to the warming lists: a redirecting route always fails atomic warming
+ * (`html-…-redirected`).
  */
-import type { Metadata } from 'next';
-import { SyncCenterClient } from '@/components/settings/SyncCenterClient';
-import { buildMetadata } from '@/lib/seo';
-
-// SW-FIX-SYNC-NOINDEX: every other /settings/* page routes through
-// buildMetadata with noIndex: true — this one used a raw Metadata
-// literal and was missing it, leaving the page indexable. Same
-// title/description, just through the shared helper.
-export const metadata: Metadata = buildMetadata({
-  title: 'المزامنة',
-  description: 'حالة العمليات والمسودات غير المتزامنة',
-  noIndex: true,
-});
-
-export default function SyncSettingsPage() {
-  return <SyncCenterClient />;
+export default function LegacyOfflineRoute(): never {
+  redirect('/offline?tab=sync');
 }

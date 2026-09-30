@@ -161,8 +161,8 @@ export const CORE_ROUTES = [
   // but the receiver opens /shared and finds nothing warmed — the
   // whole feature is useless on a disconnected device.
   '/shared',
-  '/saved-ads',
-  '/downloads',
+  // OFFLINE-HUB-01: /saved-ads and /downloads are tabs of '/offline' now
+  // (redirect stubs — a redirecting route always fails atomic warming).
   '/saved-payments',
   '/about',
   '/contact',
@@ -197,11 +197,8 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/my-services/new',
   '/requests/new',
   '/my-requests',
-  '/settings/sync',
-  '/settings/storage',
-  '/settings/offline',
-  // WARM-PINNED-OFFLINE-01: مركز المسودات (مسودات أوفلاين) — مثبّت مع التخزين/المزامنة.
-  '/settings/drafts',
+  // OFFLINE-HUB-01: /settings/{sync,storage,offline,drafts} moved into the
+  // '/offline' hub (one document covers all four) — intentionally absent.
   '/settings',
   '/settings/profile',
   '/settings/notifications',
