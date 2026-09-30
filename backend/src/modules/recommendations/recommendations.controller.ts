@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { recommendationsService } from './recommendations.service';
+import { recommendationsService, resolveOptionalUserId } from './recommendations.service';
+import { getCachedRecommendations } from './recommendations.cache';
+import type { GetRecommendationsQuery } from './recommendations.validation';
 import { getRecommendationsSchema } from './recommendations.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 
@@ -29,14 +31,21 @@ export const recommendationsController = {
       // a proxy from serving one user's rail to another.
       res.setHeader('Vary', 'Authorization');
 
-      const items =
-        query.type === 'product'
-          ? await recommendationsService.getProductRecommendations(query, authHeader)
-          : query.type === 'service'
-            ? await recommendationsService.getServiceListingRecommendations(query, authHeader)
-            : query.type === 'store'
-              ? await recommendationsService.getStoreRecommendations(query, authHeader)
-              : await recommendationsService.getRecommendations(query, authHeader);
+      // RECS-CACHE-01: the caller is resolved ONCE here and passed down,
+      // so the cache key, the builder and any background refresh all
+      // agree on identity (see recommendations.cache.ts).
+      const userId = resolveOptionalUserId(authHeader);
+      const build = (q: GetRecommendationsQuery) =>
+        q.type === 'product'
+          ? recommendationsService.getProductRecommendations(q, authHeader, userId)
+          : q.type === 'service'
+            ? recommendationsService.getServiceListingRecommendations(q, authHeader, userId)
+            : q.type === 'store'
+              ? recommendationsService.getStoreRecommendations(q, authHeader, userId)
+              : recommendationsService.getRecommendations(q, authHeader, userId);
+
+      const { value: items, status } = await getCachedRecommendations(query, userId, build);
+      res.setHeader('X-App-Cache', status);
 
       res.status(200).json(successResponse('Recommendations fetched', items));
     } catch (error) {

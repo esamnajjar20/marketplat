@@ -486,4 +486,35 @@ describe('recommendationsService', () => {
       });
     });
   });
+
+  // RECS-CACHE-01: the SWR cache resolves the caller once and passes it in,
+  // so a background refresh never re-verifies an (possibly expired) token.
+  describe('userIdOverride (RECS-CACHE-01)', () => {
+    it('uses the supplied userId and does NOT re-verify the Bearer token', async () => {
+      const verifySpy = jest.spyOn(jwtUtils, 'verifyAccessToken');
+      verifySpy.mockClear();
+      (recommendationsRepository.getAdCategoryInterest as jest.Mock).mockResolvedValue([
+        { categoryId: 'cat-1', score: 6 },
+      ]);
+      (recommendationsRepository.excludedAdIds as jest.Mock).mockResolvedValue([]);
+      (recommendationsRepository.findByWeightedCategories as jest.Mock).mockResolvedValue([
+        mockAd('p-1'),
+      ]);
+      (recommendationsRepository.findTrending as jest.Mock).mockResolvedValue([]);
+
+      await recommendationsService.getRecommendations({ limit: 1 }, 'Bearer expired', 'user-9');
+
+      expect(verifySpy).not.toHaveBeenCalled();
+      expect(recommendationsRepository.getAdCategoryInterest).toHaveBeenCalledWith('user-9');
+    });
+
+    it('null means guest even when a Bearer header is present', async () => {
+      (recommendationsRepository.findTrending as jest.Mock).mockResolvedValue([mockAd('t-1')]);
+
+      await recommendationsService.getRecommendations({ limit: 1 }, 'Bearer whatever', null);
+
+      expect(recommendationsRepository.getAdCategoryInterest).not.toHaveBeenCalled();
+      expect(recommendationsRepository.findTrending).toHaveBeenCalled();
+    });
+  });
 });

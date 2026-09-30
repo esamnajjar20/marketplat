@@ -19,7 +19,7 @@ const DEFAULT_LIMIT = 8;
 // happens to be present). Duplicated rather than imported: that
 // function lives in analytics.service.ts as a local, unexported const,
 // same as this one.
-const resolveOptionalUserId = (authHeader: string | undefined): string | null => {
+export const resolveOptionalUserId = (authHeader: string | undefined): string | null => {
   if (!authHeader?.startsWith('Bearer ')) return null;
   try {
     const token = authHeader.split(' ')[1];
@@ -28,6 +28,18 @@ const resolveOptionalUserId = (authHeader: string | undefined): string | null =>
     return null;
   }
 };
+
+// RECS-CACHE-01: the SWR cache (recommendations.cache.ts) resolves the
+// caller once, keys the entry by that identity, and passes it in here.
+// A background refresh must NOT re-verify the original Bearer token:
+// it may have expired by then, which would silently rebuild the entry
+// as a guest rail and store it under the user's key. `undefined` keeps
+// the pre-existing behaviour (resolve from the header).
+const resolveUserId = (
+  authHeader: string | undefined,
+  userIdOverride: string | null | undefined,
+): string | null =>
+  userIdOverride !== undefined ? userIdOverride : resolveOptionalUserId(authHeader);
 
 export const recommendationsService = {
   // GET /recommendations. Two modes, chosen by which signals are
@@ -45,10 +57,11 @@ export const recommendationsService = {
   // `limit` when enough active ads exist platform-wide.
   getRecommendations: async (
     query: GetRecommendationsQuery,
-    authHeader: string | undefined
+    authHeader: string | undefined,
+    userIdOverride?: string | null,
   ): Promise<AdListRow[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
-    const userId = resolveOptionalUserId(authHeader);
+    const userId = resolveUserId(authHeader, userIdOverride);
 
     const excludeIds = new Set<string>();
     const categoryInterests: { categoryId: string; score: number }[] = [];
@@ -146,10 +159,11 @@ export const recommendationsService = {
   // core.
   getProductRecommendations: async (
     query: GetRecommendationsQuery,
-    authHeader: string | undefined
+    authHeader: string | undefined,
+    userIdOverride?: string | null,
   ): Promise<ProductWithStore[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
-    const userId = resolveOptionalUserId(authHeader);
+    const userId = resolveUserId(authHeader, userIdOverride);
 
     let city: string | null = query.city?.trim() || null;
 
@@ -233,10 +247,11 @@ export const recommendationsService = {
   // counterpart — identical shape to getProductRecommendations above.
   getServiceListingRecommendations: async (
     query: GetRecommendationsQuery,
-    authHeader: string | undefined
+    authHeader: string | undefined,
+    userIdOverride?: string | null,
   ): Promise<ServiceListingWithProvider[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
-    const userId = resolveOptionalUserId(authHeader);
+    const userId = resolveUserId(authHeader, userIdOverride);
 
     let city: string | null = query.city?.trim() || null;
 
@@ -335,10 +350,11 @@ export const recommendationsService = {
   // landing on the exact same ranked query an anonymous caller gets.
   getStoreRecommendations: async (
     query: GetRecommendationsQuery,
-    authHeader: string | undefined
+    authHeader: string | undefined,
+    userIdOverride?: string | null,
   ): Promise<StoreWithSeller[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
-    const userId = resolveOptionalUserId(authHeader);
+    const userId = resolveUserId(authHeader, userIdOverride);
 
     const excludeIds = new Set<string>();
     if (query.excludeStoreId) excludeIds.add(query.excludeStoreId);

@@ -3,13 +3,33 @@ import { recommendationsService } from '../../src/modules/recommendations/recomm
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/recommendations/recommendations.service');
+// RECS-CACHE-01: the controller now goes through the SWR cache. Replace it
+// with a pass-through so these tests keep exercising routing only (the
+// cache itself is covered in recommendations.cache.test.ts).
+jest.mock('../../src/modules/recommendations/recommendations.cache', () => ({
+  getCachedRecommendations: jest.fn(
+    async (
+      query: unknown,
+      _userId: string | null,
+      build: (q: unknown) => Promise<unknown>,
+    ) => ({ value: await build(query), status: 'miss' }),
+  ),
+}));
+
+// The shared mockResponse() has no setHeader; the controller sets Vary and
+// X-App-Cache, so add it locally.
+const makeRes = () => {
+  const res = mockResponse();
+  (res as unknown as { setHeader: jest.Mock }).setHeader = jest.fn();
+  return res;
+};
 
 describe('recommendationsController', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('getRecommendations (default ads) returns 200', async () => {
     (recommendationsService.getRecommendations as jest.Mock).mockResolvedValue([]);
-    const res = mockResponse();
+    const res = makeRes();
     await recommendationsController.getRecommendations(
       mockRequest({ query: {} }),
       res,
@@ -18,9 +38,36 @@ describe('recommendationsController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('exposes the cache verdict as X-App-Cache and keeps Vary: Authorization', async () => {
+    (recommendationsService.getRecommendations as jest.Mock).mockResolvedValue([]);
+    const res = makeRes();
+    await recommendationsController.getRecommendations(
+      mockRequest({ query: {} }),
+      res,
+      mockNext(),
+    );
+    expect(res.setHeader).toHaveBeenCalledWith('Vary', 'Authorization');
+    expect(res.setHeader).toHaveBeenCalledWith('X-App-Cache', 'miss');
+  });
+
+  it('passes the resolved userId down so a refresh never re-verifies the token', async () => {
+    (recommendationsService.resolveOptionalUserId as jest.Mock).mockReturnValue('user-1');
+    (recommendationsService.getRecommendations as jest.Mock).mockResolvedValue([]);
+    await recommendationsController.getRecommendations(
+      mockRequest({ query: {}, headers: { authorization: 'Bearer t' } }),
+      makeRes(),
+      mockNext(),
+    );
+    expect(recommendationsService.getRecommendations).toHaveBeenCalledWith(
+      expect.any(Object),
+      'Bearer t',
+      'user-1',
+    );
+  });
+
   it('routes type=store to getStoreRecommendations', async () => {
     (recommendationsService.getStoreRecommendations as jest.Mock).mockResolvedValue([]);
-    const res = mockResponse();
+    const res = makeRes();
     await recommendationsController.getRecommendations(
       mockRequest({ query: { type: 'store' } }),
       res,
@@ -32,7 +79,7 @@ describe('recommendationsController', () => {
 
   it('routes type=product to getProductRecommendations', async () => {
     (recommendationsService.getProductRecommendations as jest.Mock).mockResolvedValue([]);
-    const res = mockResponse();
+    const res = makeRes();
     await recommendationsController.getRecommendations(
       mockRequest({ query: { type: 'product' } }),
       res,
@@ -43,7 +90,7 @@ describe('recommendationsController', () => {
 
   it('routes type=service to getServiceListingRecommendations', async () => {
     (recommendationsService.getServiceListingRecommendations as jest.Mock).mockResolvedValue([]);
-    const res = mockResponse();
+    const res = makeRes();
     await recommendationsController.getRecommendations(
       mockRequest({ query: { type: 'service' } }),
       res,
@@ -57,7 +104,7 @@ describe('recommendationsController', () => {
     const next = mockNext();
     await recommendationsController.getRecommendations(
       mockRequest({ query: {} }),
-      mockResponse(),
+      makeRes(),
       next,
     );
     expect(next).toHaveBeenCalledWith(expect.any(Error));
