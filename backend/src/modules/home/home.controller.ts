@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { isHomepageDegraded } from './home.service';
-import { getCachedHomepage } from './home.cache';
+import { getCachedHomepageWithStatus } from './home.cache'; // HOME-STATUS-HEADER-01
 import { getHomepageSchema } from './home.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 
@@ -8,7 +8,9 @@ export const homeController = {
   getHomepage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { query } = getHomepageSchema.parse({ query: req.query });
-      const homepage = await getCachedHomepage(query);
+      const { value: homepage, status } = await getCachedHomepageWithStatus(query);
+      // HOME-STATUS-HEADER-01: expose cache verdict for diagnostics.
+      res.setHeader('X-App-Cache', status);
       // Same cache posture as the list endpoints it replaces (/ads,
       // /stores, /products, /service-listings: 30s + 30s swr, i.e.
       // CACHE.LIVE) — anonymous homepage traffic is the overwhelming

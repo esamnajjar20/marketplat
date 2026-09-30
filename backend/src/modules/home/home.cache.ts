@@ -1,5 +1,11 @@
 import { logger } from '../../shared/utils/logger';
-import { swrGet, swrEnsureFresh, type SwrOptions } from '../../shared/utils/swrCache';
+import {
+  swrGet,
+  swrEnsureFresh,
+  swrGetWithStatus,
+  type SwrOptions,
+  type SwrStatus,
+} from '../../shared/utils/swrCache'; // HOME-STATUS-HEADER-01
 import { homeService, isHomepageDegraded, type HomepageResult } from './home.service';
 import { HOME_CITIES, type GetHomepageQuery } from './home.validation';
 import { homeCacheKeyForCity, HOME_GEN_KEY, onHomeInvalidated } from './home.cache.keys';
@@ -63,6 +69,19 @@ const homeOptions = (query: GetHomepageQuery): SwrOptions<HomepageResult> => ({
 
 export function getCachedHomepage(query: GetHomepageQuery): Promise<HomepageResult> {
   return swrGet(homeOptions(query));
+}
+
+/**
+ * HOME-STATUS-HEADER-01: returns the cache verdict (hit | stale | miss |
+ * bypass) alongside the payload. The controller surfaces it as
+ * `X-App-Cache` so `curl -I` can prove whether Redis SWR actually
+ * served the request — without this header, external timing tests
+ * cannot distinguish "Redis hit + big JSON" from "DB rebuild".
+ */
+export function getCachedHomepageWithStatus(
+  query: GetHomepageQuery,
+): Promise<{ value: HomepageResult; status: SwrStatus }> {
+  return swrGetWithStatus(homeOptions(query));
 }
 
 /**
