@@ -483,11 +483,23 @@ function isRscShellRequest(request) {
  * instead of missing the cache and falling to /offline. Only /my-store is
  * normalised (plus /my-services, MY-SERVICES-HUB-01) — every other URL
  * keeps its exact-request key. */
+// HUB-DOCKEY-EXT-01: every hub route is ONE warmed document whose tabs live
+// in ?tab=…, resolved on the client. A hard navigation to /settings?tab=security
+// (or /activity?tab=ads, …) must hit that single shell instead of missing the
+// cache and falling to /offline. Set membership (not a growing || chain) keeps
+// this correct as more hubs are added.
+const HUB_PATHS = new Set([
+  '/my-store',
+  '/my-services',
+  '/settings',
+  '/activity',
+  '/offline',
+]);
+
 function hubDocumentKey(request, url) {
-  // MY-SERVICES-HUB-01: /my-services?tab=… is the same kind of single hub document.
   if (
     request.mode === 'navigate' &&
-    (url.pathname === '/my-store' || url.pathname === '/my-services') &&
+    HUB_PATHS.has(url.pathname) &&
     url.search
   ) {
     return url.origin + url.pathname;

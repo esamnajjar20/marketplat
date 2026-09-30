@@ -188,7 +188,6 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/notifications',
   '/favorites',
   '/dashboard',
-  '/my-ads',
   '/ads/create',
   '/my-store',
   // MY-STORE-HUB-01: products/collections/promotions/inventory/members/
@@ -200,21 +199,14 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/my-services',
   '/my-services/new',
   '/requests/new',
-  '/my-requests',
   // OFFLINE-HUB-01: /settings/{sync,storage,offline,drafts} moved into the
-  // '/offline' hub (one document covers all four) — intentionally absent.
+  // '/offline' hub. SETTINGS-HUB-01 + HUB-WARMING-CLEANUP-01: /settings/{profile,
+  // security,sessions,notifications,seller,service-provider,blocked-users} now
+  // redirect to /settings?tab=… — only the hub route stays here.
   '/settings',
-  '/settings/profile',
-  '/settings/notifications',
   '/activity',
   '/saved-searches',
-  '/settings/security',
-  '/settings/sessions',
-  '/settings/seller',
-  '/settings/service-provider',
-  '/settings/blocked-users',
   '/complete-profile',
-  '/my-reports',
   // OFFLINE-BAD-ROUTE-02: '/service-requests' removed — no page.tsx
   // exists at that path (only /service-requests/[id]/page.tsx). Warming
   // it returned 404 HTML on every attempt and pinned one 'failed' entry

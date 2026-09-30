@@ -83,18 +83,18 @@ const PRIORITY_ROUTES = [
   '/notifications',
   '/favorites',
   '/dashboard',
-  '/my-ads',
   '/my-store/products/new',
   '/my-services/new',
   '/my-store',
   '/my-services',
-  '/my-requests',
   // ── 4. User content / actions ─────────────────────────────────
   '/activity',
+  // SETTINGS-HUB-01 + HUB-WARMING-CLEANUP-01: the hub route only —
+  // the old /settings/* sub-paths redirect and are intentionally absent.
+  '/settings',
   '/saved-searches',
   '/saved-payments',
   '/complete-profile',
-  '/my-reports',
 ];
 
 /**
