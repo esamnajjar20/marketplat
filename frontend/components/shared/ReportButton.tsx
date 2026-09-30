@@ -71,7 +71,7 @@ export function ReportButton<TData, TError>({
       <button
         type="button"
         onClick={handleOpen}
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+        className="flex min-h-10 items-center gap-1.5 rounded-lg px-1.5 text-xs text-muted-foreground transition-colors hover:text-destructive"
       >
         <Flag className="h-3.5 w-3.5" />
         {triggerLabel}

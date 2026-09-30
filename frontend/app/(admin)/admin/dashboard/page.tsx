@@ -1,36 +1,28 @@
-import type { Metadata }   from 'next';
-import { AdminStatsGrid }  from '@/components/admin/AdminStatsGrid';
+import type { Metadata } from 'next';
+import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
 import { AdminRecentActivity } from '@/components/admin/AdminRecentActivity';
 import { BroadcastNotificationButton } from '@/components/admin/BroadcastNotificationButton';
 import { AdminOpsQueue } from '@/components/admin/AdminOpsQueue';
 import { AdminPlatformTrends } from '@/components/admin/AdminPlatformTrends';
-import { buildMetadata }   from '@/lib/seo';
+import { AdminPageShell } from '@/components/admin/AdminPageShell';
+import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'لوحة الإدارة', noIndex: true });
 
 export default function AdminDashboardPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">نظرة عامة</h1>
-        {/*
-         * FEAT: closes the gap where POST /admin/notifications/broadcast
-         * existed fully server-side with no reachable UI anywhere.
-         */}
-        <BroadcastNotificationButton />
-      </div>
+    <AdminPageShell
+      title="نظرة عامة"
+      description="ملخص المنصة، الطوابير، وأحدث النشاط."
+      actions={<BroadcastNotificationButton />}
+    >
       <AdminOpsQueue />
       <AdminPlatformTrends />
       <AdminStatsGrid />
-      {/*
-       * FIX DEAD-04: AdminRecentActivity was fully built and tested but
-       * never rendered anywhere — the dashboard showed stats with no
-       * activity feed at all beneath them.
-       */}
-      <div className="space-y-3">
-        <h2 className="font-semibold">أحدث الإعلانات</h2>
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">أحدث الإعلانات</h2>
         <AdminRecentActivity />
-      </div>
-    </div>
+      </section>
+    </AdminPageShell>
   );
 }

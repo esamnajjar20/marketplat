@@ -24,13 +24,9 @@ function ActiveListBanner() {
 export function FavoritesPageLayout() {
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">المفضلة</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          اختر قائمة من الشريط لعرض محتواها، أو «الكل» لرؤية كل العناصر المحفوظة.
-          انقل عنصرًا إلى قائمة عبر زر «نقل إلى قائمة» تحت كل بطاقة.
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        اختر قائمة من الشريط، أو «الكل». انقل عنصرًا عبر «نقل إلى قائمة» تحت البطاقة.
+      </p>
       <Suspense>
         <ActiveListBanner />
       </Suspense>

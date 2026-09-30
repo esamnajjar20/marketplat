@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const { q } = await searchParams;
 
   return (
-    <div className="pb-8">
+    <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">
       {/*
         Same brand band treatment as the home hero (bg-primary, quiet
         woven texture) but compressed to a slim utility strip — enough

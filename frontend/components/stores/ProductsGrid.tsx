@@ -13,6 +13,8 @@ import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
+import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import type { ProductSortField } from '@/types/product.types';
 
 /**
@@ -58,7 +60,7 @@ export function ProductsGrid() {
     return (
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className={cn("grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4")}>
+        <div className={cn(LIST_CARD_GRID_CLASS)}>
           {Array.from({ length: 12 }).map((_, i) => <ProductCardSkeleton key={i} />)}
         </div>
       </div>
@@ -89,12 +91,15 @@ export function ProductsGrid() {
           because this page's free-text param is `search`, not `q` (see
           SaveSearchButton's own doc comment for why that differs by
           page). */}
-      <div className="flex items-center justify-between">
+      <div className="space-y-1.5">
+      <BrowseCityHint />
+      <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
         </p>
         <SaveSearchButton type="products" queryParamKey="search" />
+      </div>
       </div>
 
       {items.length === 0 ? (
@@ -111,7 +116,7 @@ export function ProductsGrid() {
         // ~1600px instead of an extra column of actual content. Same
         // change applied to ServiceListingsGrid/search+ads
         // SearchResults/StoresGrid.
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 stagger-fade-in">
+        <div className={cn(LIST_CARD_GRID_CLASS, "stagger-fade-in")}>
           {items.map((product) => (
             <div key={product.id} className="space-y-1.5">
               {/* Store attribution — the one thing StoreProducts.tsx

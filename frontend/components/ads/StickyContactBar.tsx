@@ -11,6 +11,8 @@ import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
 import type { AdAuthor } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { OfflineNotice } from '@/components/shared/OfflineActionGate';
 
 interface Props {
   adId: string;
@@ -51,6 +53,7 @@ export function StickyContactBar({ adId, price, isNegotiable, seller, className 
   }
 
   const pending = startConversation.isPending;
+  const online = useOnlineStatus();
 
   return (
     <div
@@ -63,6 +66,7 @@ export function StickyContactBar({ adId, price, isNegotiable, seller, className 
       )}
     >
       <div className="mx-auto max-w-lg px-3 py-2.5 sm:px-4">
+        <OfflineNotice className="mb-1.5" message="التواصل يحتاج اتصالاً — حاول عند عودة الشبكة" />
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate font-mono text-base font-bold tabular-nums leading-tight text-primary sm:text-lg">
@@ -78,7 +82,7 @@ export function StickyContactBar({ adId, price, isNegotiable, seller, className 
             type="button"
             size="lg"
             className="h-12 min-w-0 shrink-0 gap-1.5 rounded-xl px-3.5 text-sm font-semibold shadow-md xs:px-5 sm:min-w-[10rem] sm:gap-2 sm:text-base active:scale-[0.98]"
-            disabled={pending}
+            disabled={pending || !online}
             onClick={handleMessage}
             aria-label={isAuth ? `مراسلة ${seller.name}` : 'سجّل الدخول لمراسلة البائع'}
             aria-busy={pending}

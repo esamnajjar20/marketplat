@@ -56,7 +56,7 @@ export function UnifiedProfileSettings() {
               role="tab"
               aria-selected={isActive}
               className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors sm:text-sm',
+                'flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-medium transition-colors sm:text-sm',
                 isActive
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
@@ -73,9 +73,28 @@ export function UnifiedProfileSettings() {
         {active === 'personal' && (
           <div className="space-y-6">
             <ProfileSettingsForm />
-            <section className="space-y-2">
+            <section className="space-y-3 rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
               <h2 className="text-sm font-semibold">تفضيلات الجهاز</h2>
+              <p className="text-xs text-muted-foreground">توفير البيانات على الشبكات الضعيفة.</p>
               <DataSaverToggle />
+            </section>
+            <section className="space-y-2 rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
+              <h2 className="text-sm font-semibold">الإشعارات والأمان</h2>
+              <p className="text-xs text-muted-foreground">إدارة التنبيهات وكلمة المرور من الإعدادات الفرعية.</p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={ROUTES.settings.notifications}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-border/80 bg-background px-3 text-sm font-medium hover:border-primary/40"
+                >
+                  إعدادات الإشعارات
+                </Link>
+                <Link
+                  href={ROUTES.settings.security}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-border/80 bg-background px-3 text-sm font-medium hover:border-primary/40"
+                >
+                  الأمان
+                </Link>
+              </div>
             </section>
           </div>
         )}

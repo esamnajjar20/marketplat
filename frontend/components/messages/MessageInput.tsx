@@ -30,6 +30,7 @@ const QUICK_TEMPLATES = [
 const WARN_THRESHOLD = MAX_LENGTH * 0.9;
 
 export function MessageInput({ conversationId, disabled }: Props) {
+  const [lastSendError, setLastSendError] = useState<string | null>(null);
   const [body, setBody] = useState('');
   const [draftReady, setDraftReady] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -165,6 +166,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         // was dead weight that axios then had to strip.
         await apiClient.post(`/conversations/${conversationId}/messages/image`, form);
         setBody('');
+        setLastSendError(null);
         clearMessageDraft(conversationId);
         clearImage();
         void queryClient.invalidateQueries({
@@ -172,7 +174,9 @@ export function MessageInput({ conversationId, disabled }: Props) {
         });
         void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
       } catch (err) {
-        toast.error(parseApiError(err).message);
+        const msg = parseApiError(err).message;
+        setLastSendError(msg);
+        toast.error(msg);
       } finally {
         setUploading(false);
       }
@@ -186,11 +190,14 @@ export function MessageInput({ conversationId, disabled }: Props) {
       { body: trimmed },
       {
         onError: (err) => {
-          if (!parseApiError(err).queued) {
+          const parsed = parseApiError(err);
+          if (!parsed.queued) {
             setBody(trimmed);
             saveMessageDraft(conversationId, trimmed);
+            setLastSendError(parsed.message || 'تعذّر الإرسال');
           }
         },
+        onSuccess: () => setLastSendError(null),
       },
     );
     requestAnimationFrame(() => textareaRef.current?.focus());
@@ -249,6 +256,33 @@ export function MessageInput({ conversationId, disabled }: Props) {
           ))}
         </div>
       )}
+
+      {lastSendError ? (
+        <div
+          role="alert"
+          className="flex items-start gap-2 border-b border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+        >
+          <span className="min-w-0 flex-1">{lastSendError}</span>
+          <button
+            type="button"
+            className="shrink-0 font-semibold underline-offset-2 hover:underline"
+            onClick={() => {
+              setLastSendError(null);
+              textareaRef.current?.form?.requestSubmit();
+            }}
+          >
+            إعادة
+          </button>
+          <button
+            type="button"
+            className="shrink-0 text-muted-foreground"
+            aria-label="إخفاء"
+            onClick={() => setLastSendError(null)}
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit} className="px-3 py-2.5">
         <div

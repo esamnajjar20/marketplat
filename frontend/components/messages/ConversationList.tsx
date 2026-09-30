@@ -120,7 +120,7 @@ export function ConversationList({ selectedId }: Props = {}) {
       <EmptyState
         icon={<MessageSquare className="h-10 w-10" />}
         title="لا توجد محادثات بعد"
-        description="ابدأ من إعلان أو ملف بائع عبر «راسل البائع» — ستظهر محادثاتك هنا."
+        description="ابدأ من إعلان أو خدمة عبر «راسل البائع» — المحادثات تظهر هنا مع آخر رسالة وعدد غير المقروء."
         action={
           <div className="flex flex-col items-center gap-2 sm:flex-row">
             {/* SW-FIX-MSG-PREFETCH-MALFORM: `prefetch={false}` was placed
@@ -131,7 +131,10 @@ export function ConversationList({ selectedId }: Props = {}) {
               <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={ROUTES.home}>العودة للرئيسية</Link>
+              <Link prefetch={false} href={ROUTES.ads}>كل الإعلانات</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link href={ROUTES.home}>الرئيسية</Link>
             </Button>
           </div>
         }
@@ -158,7 +161,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="بحث في المحادثات…"
-            className="w-full rounded-full border bg-muted/50 py-2 pe-9 ps-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
+            className="w-full min-h-11 rounded-full border bg-muted/50 py-2.5 pe-9 ps-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
             aria-label="بحث في المحادثات"
           />
           {query && (
@@ -181,8 +184,8 @@ export function ConversationList({ selectedId }: Props = {}) {
             }}
             className={
               !unreadOnly && !archivedOnly
-                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
-                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground'
+                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
+                : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'
             }
           >
             الكل
@@ -195,8 +198,8 @@ export function ConversationList({ selectedId }: Props = {}) {
             }}
             className={
               unreadOnly && !archivedOnly
-                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
-                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground'
+                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
+                : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'
             }
           >
             غير مقروء{totalUnread > 0 ? ` (${totalUnread})` : ''}
@@ -209,8 +212,8 @@ export function ConversationList({ selectedId }: Props = {}) {
             }}
             className={
               archivedOnly
-                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
-                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground'
+                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
+                : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'
             }
           >
             الأرشيف
@@ -237,7 +240,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             onClick={() => setUnreadOnly(false)}
             className={
               !unreadOnly
-                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
+                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
                 : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground'
             }
           >
@@ -248,7 +251,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             onClick={() => setUnreadOnly(true)}
             className={
               unreadOnly
-                ? 'rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground'
+                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
                 : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground'
             }
           >
@@ -296,7 +299,7 @@ export function ConversationList({ selectedId }: Props = {}) {
                 href={ROUTES.conversationDetail(conversation.id)}
                 aria-current={isSelected ? 'page' : undefined}
                 className={cn(
-                  'group relative flex items-center gap-3 px-4 py-3.5 transition-colors active:scale-[0.99] touch-manipulation',
+                  'group relative flex min-h-[4.5rem] items-center gap-3 px-4 py-3.5 transition-colors active:scale-[0.99] touch-manipulation',
                   'hover:bg-muted/50',
                   isSelected && 'bg-primary/5 hover:bg-primary/8 dark:bg-primary/10 dark:hover:bg-primary/15',
                   hasUnread && !isSelected && 'bg-primary/[0.03]',

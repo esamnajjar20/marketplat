@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, ShieldCheck, Hash, X } from 'lucide-react';
+import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
@@ -21,6 +21,7 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { autoSaveVisitedAd } from '@/lib/offlineAutoRead';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
+import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -338,6 +339,10 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             </p>
           </div>
 
+          <div className="md:hidden">
+            <DetailSafetyTips />
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {ad.status !== 'ACTIVE' && (
               <Badge variant={AD_STATUS_VARIANT[ad.status]}>
@@ -418,17 +423,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
           <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
 
-          <div className="rounded-2xl bg-muted/60 p-5 space-y-3">
-            <h4 className="flex items-center gap-2 text-primary font-semibold text-sm">
-              <ShieldCheck className="h-4 w-4" />
-              نصائح للسلامة
-            </h4>
-            <ul className="text-xs text-muted-foreground space-y-1.5 list-disc list-inside leading-relaxed">
-              <li>قابل البائع في مكان عام وآمن.</li>
-              <li>تأكد من حالة السلعة قبل الشراء.</li>
-              <li>لا تقم بتحويل الأموال مسبقاً.</li>
-            </ul>
-          </div>
+          <DetailSafetyTips defaultOpen />
         </div>
       </aside>
 

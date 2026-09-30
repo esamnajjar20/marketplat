@@ -11,10 +11,12 @@ import type { StoreWithSeller } from '@/types/store.types';
 interface Props {
   store: StoreWithSeller;
   className?: string;
+  density?: 'default' | 'compact';
 }
 
 /** Directory card for /stores — aligned with design system. */
-export function StoreCard({ store, className }: Props) {
+export function StoreCard({ store, className, density = 'default' }: Props) {
+  const compact = density === 'compact';
   const avatar = getAvatarUrl(store.logoUrl ?? '', 96);
   const rating = parseFloat(store.sellerProfile.averageRating);
 
@@ -24,7 +26,8 @@ export function StoreCard({ store, className }: Props) {
         href={ROUTES.storeDetail(store.id)}
         prefetch={false}
         className={cn(
-          'group flex gap-3 rounded-xl border border-border/80 bg-card p-3 pe-11 shadow-sm',
+          'group flex rounded-xl border border-border/80 bg-card shadow-sm pe-11',
+          compact ? 'gap-2.5 p-2.5' : 'gap-3 p-3',
           'transition-all duration-200 active:scale-[0.98]',
           'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',

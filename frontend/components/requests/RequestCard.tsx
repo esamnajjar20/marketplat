@@ -33,7 +33,7 @@ export function RequestCard({ request: r, showStatus = false, className }: Props
         prefetch={false}
         className={cn(
           'block rounded-xl border border-border/80 bg-card p-3.5 shadow-xs sm:p-4',
-          'transition-colors hover:border-primary/30 hover:bg-muted/30',
+          'transition-colors hover:border-primary/30 hover:bg-muted/30 active:scale-[0.99]',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         )}
       >
@@ -84,6 +84,13 @@ export function RequestCard({ request: r, showStatus = false, className }: Props
             بواسطة {r.customer.name}
           </p>
         )}
+
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/50 pt-2.5">
+          <span className="text-2xs text-muted-foreground sm:text-xs">
+            {typeof offers === 'number' ? (offers === 1 ? 'عرض واحد' : offers === 2 ? 'عرضان' : `${offers} عروض`) : 'اطّلع على التفاصيل'}
+          </span>
+          <span className="text-xs font-semibold text-primary">قدّم عرضاً ←</span>
+        </div>
       </Link>
     </li>
   );

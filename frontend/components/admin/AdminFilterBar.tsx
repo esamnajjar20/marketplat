@@ -109,7 +109,7 @@ export function AdminFilterBar({
                 [tabParam]: tab.value === defaultTab ? null : tab.value,
               })}
               className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm',
+                'min-h-9 rounded-md px-3 py-2 text-xs font-medium transition-colors sm:text-sm',
                 active
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',

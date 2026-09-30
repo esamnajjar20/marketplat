@@ -1,15 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { Megaphone, Package, Wrench, ClipboardList, ChevronLeft } from 'lucide-react';
+import {
+  Megaphone,
+  Package,
+  Wrench,
+  ClipboardList,
+  ChevronLeft,
+  FileEdit,
+} from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 /**
- * CREATE-SHEET: BottomNav "+" opens this sheet with all create destinations.
- * Phase 2: card grid, visual hierarchy (primary = إعلان), clearer copy,
- * safer bottom padding for home indicator.
+ * CREATE-SHEET — single publish entry from BottomNav "+" (UI-PHASE-D).
+ * Policy: one primary create surface; guest floating bar only reinforces
+ * the same CreateSheet — no third competing destination.
  */
 const CREATE_LINKS = [
   {
@@ -17,7 +24,6 @@ const CREATE_LINKS = [
     description: 'بيع شيء بسرعة — مجاني',
     href: ROUTES.adCreate,
     icon: Megaphone,
-    /** Strongest CTA — most common conversion */
     primary: true,
     iconClass: 'bg-primary/12 text-primary',
   },
@@ -60,13 +66,13 @@ export function CreateSheet({
         <SheetHeader className="border-b border-border/60 px-4 pb-3 pt-1">
           <SheetTitle className="text-base font-bold">ماذا تريد أن تضيف؟</SheetTitle>
           <p className="text-2xs text-muted-foreground">
-            اختر النوع — يمكنك إكمال التفاصيل في الخطوة التالية
+            اختر النوع — المسودات تُحفظ تلقائياً ويمكن إكمالها لاحقاً
           </p>
         </SheetHeader>
 
         <nav
           aria-label="إضافة عنصر جديد"
-          className="flex flex-col gap-2 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3"
+          className="flex flex-col gap-2 px-4 pt-3"
         >
           {CREATE_LINKS.map(({ label, description, href, icon: Icon, primary, iconClass }) => (
             <Link
@@ -75,7 +81,7 @@ export function CreateSheet({
               prefetch={false}
               onClick={() => onOpenChange(false)}
               className={cn(
-                'group flex items-center gap-3 rounded-xl border px-3 py-3 transition-colors',
+                'group flex min-h-14 items-center gap-3 rounded-xl border px-3 py-3 transition-colors active:scale-[0.99]',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 primary
                   ? 'border-primary/35 bg-primary/5 shadow-sm hover:bg-primary/10'
@@ -110,6 +116,19 @@ export function CreateSheet({
             </Link>
           ))}
         </nav>
+
+        <div className="mt-2 border-t border-border/60 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
+          <Link
+            href={ROUTES.settings.drafts}
+            prefetch={false}
+            onClick={() => onOpenChange(false)}
+            className="flex min-h-11 items-center gap-2 rounded-xl px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          >
+            <FileEdit className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">متابعة المسودات غير المكتملة</span>
+            <ChevronLeft className="h-4 w-4 opacity-50" aria-hidden />
+          </Link>
+        </div>
       </SheetContent>
     </Sheet>
   );

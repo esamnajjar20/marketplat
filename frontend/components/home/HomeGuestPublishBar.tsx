@@ -77,14 +77,14 @@ export function HomeGuestPublishBar() {
         >
           <p className="min-w-0 flex-1 text-sm text-foreground">
             <span className="font-semibold">اعرض إعلانك مجاناً</span>
-            <span className="mt-0.5 hidden text-2xs text-muted-foreground sm:block sm:text-xs">
+            <span className="mt-0.5 block text-2xs text-muted-foreground sm:text-xs">
               وصل لجيرانك خلال دقائق
             </span>
           </p>
           <Button
             type="button"
             size="sm"
-            className="h-10 min-h-10 shrink-0 gap-1.5 rounded-xl font-semibold sm:h-9 sm:min-h-0"
+            className="h-10 min-h-10 shrink-0 gap-1.5 rounded-xl font-semibold"
             onClick={() => setCreateOpen(true)}
           >
             <Plus className="h-4 w-4" aria-hidden />
@@ -92,7 +92,7 @@ export function HomeGuestPublishBar() {
           </Button>
           <button
             type="button"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:p-1.5"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="إخفاء"
             onClick={dismiss}
           >

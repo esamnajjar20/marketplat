@@ -1,18 +1,25 @@
-import type { Metadata }  from 'next';
-import { Suspense }       from 'react';
-import { AdminAdsTable }  from '@/components/admin/AdminAdsTable';
-import { buildMetadata }  from '@/lib/seo';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { AdminAdsTable } from '@/components/admin/AdminAdsTable';
+import { AdminPageShell } from '@/components/admin/AdminPageShell';
+import { buildMetadata } from '@/lib/seo';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 export const metadata: Metadata = buildMetadata({ title: 'إدارة الإعلانات', noIndex: true });
 
 export default function AdminAdsPage() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold">إدارة الإعلانات</h1>
-      <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+    <AdminPageShell
+      title="إدارة الإعلانات"
+      description="مراجعة الإعلانات، الحالة، والإجراءات الجماعية."
+    >
+      <Suspense
+        fallback={
+          <PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز الجدول…" />
+        }
+      >
         <AdminAdsTable />
       </Suspense>
-    </div>
+    </AdminPageShell>
   );
 }

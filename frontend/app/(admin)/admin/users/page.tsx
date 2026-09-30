@@ -1,22 +1,27 @@
-import type { Metadata }   from 'next';
-import { Suspense }        from 'react';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { AdminExportButton } from '@/components/admin/AdminExportButton';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
-import { buildMetadata }   from '@/lib/seo';
-import { LoadingSpinner }  from '@/components/shared/feedback/LoadingSpinner';
+import { AdminPageShell } from '@/components/admin/AdminPageShell';
+import { buildMetadata } from '@/lib/seo';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 export const metadata: Metadata = buildMetadata({ title: 'إدارة المستخدمين', noIndex: true });
 
 export default function AdminUsersPage() {
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-<h1 className="text-xl font-bold">إدارة المستخدمين</h1>
-        <AdminExportButton kind="users" label="تصدير CSV" />
-      </div>
-      <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+    <AdminPageShell
+      title="إدارة المستخدمين"
+      description="حسابات، أدوار، وحالة الحساب."
+      actions={<AdminExportButton kind="users" label="تصدير CSV" />}
+    >
+      <Suspense
+        fallback={
+          <PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز الجدول…" />
+        }
+      >
         <AdminUsersTable />
       </Suspense>
-    </div>
+    </AdminPageShell>
   );
 }

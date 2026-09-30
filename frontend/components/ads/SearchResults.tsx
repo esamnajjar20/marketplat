@@ -19,6 +19,7 @@ import type { AdSortField } from '@/types/ad.types';
 import { LayoutGrid, LayoutList, Search } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 
 interface Props {
   /**
@@ -118,7 +119,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         {view === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div className={cn(LIST_CARD_GRID_CLASS)}>
             {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
           </div>
         ) : (
@@ -208,7 +209,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
         <EmptySearchSuggestions />
         </>
       ) : view === 'grid' ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 stagger-fade-in">
+        <div className={cn(LIST_CARD_GRID_CLASS, "stagger-fade-in")}>
           {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
         </div>
       ) : (

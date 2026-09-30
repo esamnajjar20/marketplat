@@ -110,11 +110,12 @@ export function NotificationsPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">الإشعارات</h1>
-          {unreadCount > 0 && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
+          {unreadCount > 0 ? (
+            <p className="text-sm font-medium text-muted-foreground">
               {unreadCount} غير مقروء
             </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">لا يوجد غير مقروء</p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -125,7 +126,7 @@ export function NotificationsPage() {
               size="sm"
               disabled={markAllRead.isPending}
               onClick={() => markAllRead.mutate()}
-              className="gap-1.5"
+              className="min-h-10 gap-1.5"
             >
               {markAllRead.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -274,6 +275,16 @@ export function NotificationsPage() {
               readTab === 'unread'
                 ? 'كل شيء مقروء — ستظهر الإشعارات الجديدة هنا.'
                 : 'ستظهر هنا التنبيهات عند وصول رسائل أو تحديثات تهمّك.'
+            }
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={ROUTES.messages}>الرسائل</Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <Link href={ROUTES.home}>الرئيسية</Link>
+                </Button>
+              </div>
             }
           />
         ) : (

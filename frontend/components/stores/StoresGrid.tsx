@@ -1,5 +1,8 @@
 'use client';
 
+import { cn } from '@/lib/utils';
+import { LIST_STORE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
+
 import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { StoreCard } from './StoreCard';
@@ -49,7 +52,7 @@ export function StoresGrid() {
             stores/page.tsx) — store cards are horizontal list-style
             (flex row, min-w-0 flex-1 text) so they reflow safely into
             more columns, they just never had the breakpoints to do so. */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+        <div className={cn(LIST_STORE_GRID_CLASS)}>
           {Array.from({ length: 6 }).map((_, i) => <StoreCardSkeleton key={i} />)}
         </div>
       </div>
@@ -102,7 +105,7 @@ export function StoresGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد متاجر مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 stagger-fade-in">
+        <div className={cn(LIST_STORE_GRID_CLASS, "stagger-fade-in")}>
           {items.map((store) => (
             <StoreCard key={store.id} store={store} />
           ))}

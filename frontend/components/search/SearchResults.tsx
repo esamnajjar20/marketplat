@@ -1,5 +1,10 @@
 'use client';
 
+import { cn } from '@/lib/utils';
+import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
+import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
+import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
+
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -97,7 +102,7 @@ export function SearchResults() {
   // previous expression missed.
   const hasActiveFilters = Boolean(city || categoryId || (sort && sort !== 'relevance') || lat !== undefined || lng !== undefined);
 
-  const { data, isLoading: searchLoading, isError, refetch } = useSearch({
+  const { data, isLoading: searchLoading, isFetching, isError, isPlaceholderData, refetch } = useSearch({
     q,
     city,
     type,
@@ -165,7 +170,7 @@ export function SearchResults() {
             other ad grid in the app (RecentAds/FeaturedAds/etc.) reaches
             4 columns. Same fix mirrored below and in ads/SearchResults.tsx
             (categories/[slug] uses the identical 1-col-sidebar layout). */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+        <div className={cn(LIST_CARD_GRID_CLASS)}>
           {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       </div>
@@ -215,6 +220,8 @@ export function SearchResults() {
 
   return (
     <div className="space-y-4">
+      <BrowseCityHint />
+      <ListDataStatus isFetching={isFetching} hasData={items.length > 0 || Boolean(data)} isPlaceholderData={isPlaceholderData} />
       {lat !== undefined && lng !== undefined && effectiveRadius != null && (
         <div className="flex flex-wrap items-center gap-2">
           <LocationSourceBadge source="gps" radiusKm={effectiveRadius} />
@@ -297,7 +304,7 @@ export function SearchResults() {
         <EmptySearchAlternatives />
         </>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 stagger-fade-in">
+        <div className={cn(LIST_CARD_GRID_CLASS, "stagger-fade-in")}>
           {viewMode === 'map' ? (
             <div className="col-span-full">
               <SearchResultsMap points={mapPoints} userLocation={userLocation} />

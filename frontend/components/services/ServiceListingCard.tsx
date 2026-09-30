@@ -27,6 +27,7 @@ interface Props {
   listing: ServiceListingWithProvider;
   className?: string;
   priority?: boolean;
+  density?: 'default' | 'compact';
 }
 
 const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
@@ -50,7 +51,8 @@ function formatServicePrice(pricingType: ServicePricingType, price: string | nul
 /**
  * Service listing card — unified Badge + typography (Phase 3+).
  */
-export function ServiceListingCard({ listing, className, priority = false }: Props) {
+export function ServiceListingCard({ listing, className, priority = false, density = 'default' }: Props) {
+  const compact = density === 'compact';
   const router = useRouter();
   const detailHref = ROUTES.serviceDetail(listing.id);
   function warmDetail() {
@@ -123,13 +125,13 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
           className,
         )}
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <div className={cn('relative overflow-hidden bg-muted', compact ? 'aspect-[3/2]' : 'aspect-[4/3]')}>
           <SafeImage
             src={thumb}
             alt={listing.title}
             fill
             className="object-cover transition-transform duration-400 ease-out group-hover/card:scale-[1.04]"
-            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 20vw"
+            sizes={compact ? '(max-width:640px) 60vw, 220px' : '(max-width:640px) 50vw, (max-width:1024px) 33vw, 20vw'}
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
@@ -153,7 +155,7 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
+        <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-primary sm:text-xl">
               {priceLabel}
@@ -165,11 +167,11 @@ export function ServiceListingCard({ listing, className, priority = false }: Pro
             )}
           </div>
 
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-card-title">
+          <h3 className={cn('line-clamp-2 min-h-0 flex-1 font-medium leading-snug text-foreground', compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-card-title')}>
             {listing.title}
           </h3>
 
-          <div className="mt-auto flex flex-col gap-1.5 border-t border-border/40 pt-2">
+          <div className={cn('mt-auto flex flex-col border-t border-border/40', compact ? 'gap-1 pt-1.5' : 'gap-1.5 pt-2')}>
             {(cityHint || listing.durationEstimate) && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {cityHint && (

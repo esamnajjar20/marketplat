@@ -1,24 +1,32 @@
 import type { Metadata } from 'next';
-import { Suspense }      from 'react';
-import { MyAdsList }     from '@/components/profile/MyAdsList';
+import { Suspense } from 'react';
+import Link from 'next/link';
+import { Plus } from 'lucide-react';
+import { MyAdsList } from '@/components/profile/MyAdsList';
+import { AccountPageShell } from '@/components/shared/account/AccountPageShell';
+import { Button } from '@/components/shared/ui/Button';
 import { buildMetadata } from '@/lib/seo';
-import Link              from 'next/link';
-import { Button }        from '@/components/shared/ui/Button';
-import { Plus }          from 'lucide-react';
-import { ROUTES }        from '@/lib/constants';
+import { ROUTES } from '@/lib/constants';
 
 export const metadata: Metadata = buildMetadata({ title: 'إعلاناتي', noIndex: true });
 
 export default function MyAdsPage() {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">إعلاناتي</h1>
+    <AccountPageShell
+      title="إعلاناتي"
+      description="إدارة الإعلانات النشطة والمباعة — صفِّ حسب الحالة أو حدّد عدة عناصر."
+      actions={
         <Link prefetch={false} href={ROUTES.adCreate}>
-          <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />إعلان جديد</Button>
+          <Button size="sm" className="min-h-10 gap-1.5">
+            <Plus className="h-4 w-4" aria-hidden />
+            إعلان جديد
+          </Button>
         </Link>
-      </div>
-      <Suspense><MyAdsList /></Suspense>
-    </div>
+      }
+    >
+      <Suspense>
+        <MyAdsList />
+      </Suspense>
+    </AccountPageShell>
   );
 }

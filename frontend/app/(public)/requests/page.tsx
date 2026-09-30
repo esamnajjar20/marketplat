@@ -37,24 +37,28 @@ export default function OpenRequestsPage() {
   const totalPages = meta?.pagination?.totalPages ?? meta?.totalPages ?? 1;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-24 sm:space-y-5 sm:p-4 sm:pb-10" dir="rtl">
-      <header className="space-y-1">
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">سوق الطلبات</h1>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          تصفّح ما يبحث عنه الناس وقدّم عرضك. لنشر احتياجك استخدم زر «أضف».
-        </p>
+    <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:space-y-5 sm:p-4 sm:pb-10" dir="rtl">
+      <header className="space-y-3">
+        <div className="space-y-1">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">سوق الطلبات</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            تصفّح ما يبحث عنه الناس وقدّم عرضك — أو انشر احتياجك من زر «+».
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" className="min-h-10" asChild>
+            <Link href={ROUTES.requestNew}>أضف طلباً</Link>
+          </Button>
+          <Button variant="outline" size="sm" className="min-h-10" asChild>
+            <Link href={ROUTES.myRequests}>طلباتي</Link>
+          </Button>
+          <Button variant="outline" size="sm" className="min-h-10" asChild>
+            <Link href={ROUTES.myRequestOffers}>عروضي</Link>
+          </Button>
+        </div>
       </header>
 
       <RequestFilters type={type} city={city} q={q} />
-
-      <div className="flex flex-wrap gap-2 text-sm">
-        <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myRequests}>طلباتي</Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myRequestOffers}>عروضي</Link>
-        </Button>
-      </div>
 
       {isLoading && !data && <RequestListSkeleton />}
       <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} />

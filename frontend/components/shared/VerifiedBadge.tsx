@@ -1,16 +1,30 @@
 import { BadgeCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 /**
- * Shared "verified" badge overlay for profile/store/provider avatars.
- *
- * Uses `end-0` (CSS logical property), not `right-0`, so positioning
- * stays correct if this app ever supports LTR locales — same fix
- * class as UX-07 (MobileNav) and UX-09 (ProtectedSidebar).
+ * Shared verified badge for avatars (UI-PHASE-E: a11y + size).
  */
-export function VerifiedBadge() {
+export function VerifiedBadge({
+  className,
+  size = 'md',
+}: {
+  className?: string;
+  size?: 'sm' | 'md';
+}) {
+  const box = size === 'sm' ? 'h-5 w-5' : 'h-6 w-6';
+  const icon = size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5';
   return (
-    <div className="absolute bottom-0 end-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm">
-      <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
+    <div
+      className={cn(
+        'absolute bottom-0 end-0 flex items-center justify-center rounded-full border-2 border-background bg-primary shadow-sm',
+        box,
+        className,
+      )}
+      title="موثّق"
+      aria-label="حساب موثّق"
+      role="img"
+    >
+      <BadgeCheck className={cn(icon, 'text-primary-foreground')} aria-hidden />
     </div>
   );
 }

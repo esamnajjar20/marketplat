@@ -50,7 +50,7 @@ export function FavoritesTabs() {
             aria-selected={type === tab.value}
             onClick={() => handleChange(tab.value)}
             className={cn(
-              'shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+              'min-h-11 shrink-0 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',
               type === tab.value
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'

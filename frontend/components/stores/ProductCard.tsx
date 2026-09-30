@@ -26,6 +26,8 @@ interface Props {
   className?: string;
   /** Same as AdCard: pass for above-the-fold cards to improve LCP. */
   priority?: boolean;
+  /** Homepage rails use compact; browse grids use default. */
+  density?: 'default' | 'compact';
 }
 
 const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
@@ -37,7 +39,8 @@ const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
 /**
  * Product card — unified Badge + typography scale (Phase 3+).
  */
-export function ProductCard({ product, className, priority = false }: Props) {
+export function ProductCard({ product, className, priority = false, density = 'default' }: Props) {
+  const compact = density === 'compact';
   const router = useRouter();
   const detailHref = ROUTES.productDetail(product.id);
   function warmDetail() {
@@ -112,7 +115,7 @@ export function ProductCard({ product, className, priority = false }: Props) {
           className,
         )}
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <div className={cn('relative overflow-hidden bg-muted', compact ? 'aspect-[3/2]' : 'aspect-[4/3]')}>
           <SafeImage
             src={thumb}
             alt={product.name}
@@ -151,11 +154,12 @@ export function ProductCard({ product, className, priority = false }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
+        <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>
           <div className="flex flex-wrap items-baseline gap-2">
             <p
               className={cn(
-                'font-mono text-lg font-bold tabular-nums tracking-tight sm:text-xl',
+                'font-mono font-bold tabular-nums tracking-tight',
+                compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl',
                 outOfStock ? 'text-muted-foreground line-through' : 'text-primary',
               )}
             >
@@ -168,7 +172,7 @@ export function ProductCard({ product, className, priority = false }: Props) {
             )}
           </div>
 
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-card-title">
+          <h3 className={cn('line-clamp-2 min-h-0 flex-1 font-medium leading-snug text-foreground', compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-card-title')}>
             {product.name}
           </h3>
 
@@ -178,7 +182,7 @@ export function ProductCard({ product, className, priority = false }: Props) {
             </p>
           )}
 
-          <div className="mt-auto flex flex-col gap-1.5 border-t border-border/40 pt-2">
+          <div className={cn('mt-auto flex flex-col border-t border-border/40', compact ? 'gap-1 pt-1.5' : 'gap-1.5 pt-2')}>
             {product.store.city && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />

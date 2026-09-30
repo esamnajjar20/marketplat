@@ -142,7 +142,7 @@ export function NetworkStatusBanner() {
         <div
           role="status"
           className={cn(
-            'fixed bottom-20 start-3 z-[60] flex items-center gap-1.5 rounded-full',
+            'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] start-3 z-[60] flex items-center gap-1.5 rounded-full',
             'bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium shadow-lg',
             'sm:bottom-6',
           )}
@@ -176,7 +176,7 @@ export function NetworkStatusBanner() {
         <div
           role="status"
           className={cn(
-            'fixed bottom-20 start-3 z-[55] flex max-w-[min(100%,280px)] items-center gap-1.5 rounded-full',
+            'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] start-3 z-[55] flex max-w-[min(100%,280px)] items-center gap-1.5 rounded-full',
             'bg-amber-500/95 text-amber-950 px-3 py-1.5 text-xs font-medium shadow-lg',
             'sm:bottom-6',
           )}

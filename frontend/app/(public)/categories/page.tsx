@@ -21,7 +21,7 @@ export default async function CategoriesIndexPage() {
   await prefetchHomepage(qc);
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 px-4 py-6">
+    <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:space-y-6 sm:px-4 sm:py-6 sm:pb-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">كل الفئات</h1>
         <p className="text-sm text-muted-foreground">اختر فئة لتصفّح الإعلانات أو المنتجات أو الخدمات.</p>

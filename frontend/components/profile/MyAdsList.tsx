@@ -262,10 +262,10 @@ export function MyAdsList() {
           {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
             <button key={val} onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}
-              className={`shrink-0 rounded-full px-3 py-1 text-sm transition-colors ${
+              className={`min-h-10 shrink-0 rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
                 (status ?? '') === val
                   ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:bg-muted'
+                  : 'border border-border/80 text-muted-foreground hover:bg-muted'
               }`}>
               {label}
             </button>
