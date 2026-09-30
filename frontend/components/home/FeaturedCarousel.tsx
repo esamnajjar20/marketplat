@@ -264,7 +264,7 @@ export function FeaturedCarousel() {
       <div
         ref={trackRef}
         onScroll={handleScroll}
-        className="flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain rounded-2xl touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
+        className="flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain rounded-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
         tabIndex={0}
         aria-live={autoPlaying ? 'off' : 'polite'}
       >

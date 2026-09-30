@@ -76,7 +76,7 @@ export function HomeScrollRail({
       <div
         ref={ref}
         className={cn(
-          '-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain touch-pan-x px-4 pb-1 snap-x snap-mandatory',
+          '-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 snap-x snap-mandatory',
           '[&::-webkit-scrollbar]:hidden [scrollbar-width:none]',
           className,
         )}
@@ -117,7 +117,7 @@ export function HomeScrollRailItem({
   return (
     <div
       className={cn(
-        'w-[min(68vw,280px)] shrink-0 snap-start sm:w-[240px]',
+        'w-[min(58vw,200px)] shrink-0 snap-start sm:w-[200px] md:w-[220px]',
         className,
       )}
     >

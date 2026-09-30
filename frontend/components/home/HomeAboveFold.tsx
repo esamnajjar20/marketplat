@@ -48,7 +48,7 @@ export function HomeAboveFold() {
         {latestAdsHeadingLoading}
         <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[min(72vw,280px)] shrink-0 sm:w-[240px]">
+            <div key={i} className="w-[min(58vw,200px)] shrink-0 sm:w-[200px] md:w-[220px]">
               <AdCardSkeleton />
             </div>
           ))}

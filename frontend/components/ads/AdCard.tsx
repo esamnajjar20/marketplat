@@ -32,6 +32,11 @@ interface Props {
    * for cards above the fold. Pass priority for roughly the first row.
    */
   priority?: boolean;
+  /**
+   * Homepage horizontal rails: slightly shorter image + tighter type
+   * so more of the next card peeks on mobile.
+   */
+  density?: 'default' | 'compact';
 }
 
 /**
@@ -39,7 +44,8 @@ interface Props {
  * Favorite stays top-end; condition/featured stay top-start.
  * Hover lift uses isolation so cards don't stack over neighbours incorrectly.
  */
-export function AdCard({ ad, className, priority = false }: Props) {
+export function AdCard({ ad, className, priority = false, density = 'default' }: Props) {
+  const compact = density === 'compact';
   const router = useRouter();
   const detailHref = ROUTES.adDetail(ad.id);
 
@@ -121,13 +127,13 @@ export function AdCard({ ad, className, priority = false }: Props) {
         )}
       >
         {/* Image */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <div className={cn('relative overflow-hidden bg-muted', compact ? 'aspect-[3/2]' : 'aspect-[4/3]')}>
           <SafeImage
             src={thumb}
             alt={ad.title}
             fill
             className="object-cover transition-transform duration-400 ease-out group-hover/card:scale-[1.04]"
-            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 20vw"
+            sizes={compact ? '(max-width:640px) 60vw, 220px' : '(max-width:640px) 50vw, (max-width:1024px) 33vw, 20vw'}
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
@@ -162,11 +168,12 @@ export function AdCard({ ad, className, priority = false }: Props) {
         </div>
 
         {/* Content */}
-        <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
+        <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>
           <div className="flex flex-wrap items-center gap-1.5">
             <span
               className={cn(
-                'font-mono text-lg font-bold tracking-tight sm:text-xl',
+                'font-mono font-bold tracking-tight',
+                compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl',
                 isSold ? 'text-muted-foreground line-through' : 'text-primary',
               )}
             >
@@ -184,11 +191,11 @@ export function AdCard({ ad, className, priority = false }: Props) {
             )}
           </div>
 
-          <h3 className="line-clamp-2 min-h-0 flex-1 text-sm font-medium leading-snug text-foreground sm:text-card-title">
+          <h3 className={cn('line-clamp-2 min-h-0 flex-1 font-medium leading-snug text-foreground', compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-card-title')}>
             {ad.title}
           </h3>
 
-          <div className="mt-auto flex flex-col gap-1.5 border-t border-border/40 pt-2">
+          <div className={cn('mt-auto flex flex-col border-t border-border/40', compact ? 'gap-1 pt-1.5' : 'gap-1.5 pt-2')}>
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
               <span className="truncate">{ad.city}</span>

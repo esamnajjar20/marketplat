@@ -170,7 +170,7 @@ export function ForYouMixedSection() {
           {items.map((item) => (
             <HomeScrollRailItem key={`${item.kind}-${item.data.id}`}>
               {item.kind === 'ad' ? (
-                <AdCard ad={item.data} />
+                <AdCard ad={item.data} density="compact" />
               ) : item.kind === 'product' ? (
                 <ProductCard product={item.data} />
               ) : (

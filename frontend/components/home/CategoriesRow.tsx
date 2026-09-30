@@ -47,7 +47,7 @@ export function CategoriesRow() {
   const items = all.slice(0, MAX_HOME_CATEGORIES);
 
   return (
-    <div className="-mx-3 flex gap-2 overflow-x-auto overscroll-x-contain touch-pan-x px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-4 sm:px-4">
+    <div className="-mx-3 flex gap-2 overflow-x-auto overscroll-x-contain px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-4 sm:px-4">
       {items.map((item) => {
         const Icon = iconFor(item.slug, item.nameAr, item.type);
         return (

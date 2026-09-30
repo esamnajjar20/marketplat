@@ -9,7 +9,7 @@ import {
   slideIndexFromScroll,
   scrollLeftForSlide,
 } from '@/components/home/FeaturedCarousel';
-import { iconFor, interleave, type Item } from '@/components/home/CategoriesRow';
+import { iconFor, interleave, MAX_HOME_CATEGORIES, type Item } from '@/components/home/CategoriesRow';
 import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useProducts } from '@/hooks/queries/useProducts';
@@ -66,6 +66,10 @@ describe('carousel scroll maths (RTL-safe)', () => {
 });
 
 describe('CategoriesRow helpers', () => {
+  it('exports a mobile-friendly homepage category cap of 10', () => {
+    expect(MAX_HOME_CATEGORIES).toBe(10);
+  });
+
   const item = (type: Item['type'], id: string, nameAr: string): Item => ({
     id, nameAr, slug: id, type, href: `/${id}`,
   });
