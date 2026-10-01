@@ -1,6 +1,8 @@
 /**
  * مصدر واحد لأيقونات/تسميات/روابط/فئات الإشعارات —
  * تستهلكه NotificationBell و NotificationsPage.
+ *
+ * PHASE-A: مزامنة كاملة مع prisma NotificationType.
  */
 import {
   Bell,
@@ -14,6 +16,7 @@ import {
   Store,
   ClipboardList,
   Users,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -25,6 +28,8 @@ export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   FAV_AD_SOLD: Tag,
   PROMOTION: Megaphone,
   WEEKLY_AD_VIEWS_REPORT: BarChart3,
+  WEEKLY_STORE_VIEWS_REPORT: BarChart3,
+  WEEKLY_SERVICE_VIEWS_REPORT: BarChart3,
   SAVED_SEARCH_MATCH: Search,
   PROMOTION_STATUS_CHANGE: Flame,
   STORE_NEW_PRODUCT: Store,
@@ -33,6 +38,8 @@ export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   STORE_PROMOTION_STARTED: Flame,
   STORE_PRODUCT_RESTOCKED: Package,
   STORE_MEMBER_INVITED: Users,
+  NEW_SERVICE_QUOTE: Wrench,
+  SERVICE_QUOTE_ACCEPTED: Wrench,
 };
 
 export const TYPE_LABEL: Record<NotificationType, string> = {
@@ -40,7 +47,9 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   FAV_AD_PRICE_CHANGED: 'تغيير سعر',
   FAV_AD_SOLD: 'تم البيع',
   PROMOTION: 'ترويج',
-  WEEKLY_AD_VIEWS_REPORT: 'تقرير مشاهدات',
+  WEEKLY_AD_VIEWS_REPORT: 'تقرير مشاهدات إعلان',
+  WEEKLY_STORE_VIEWS_REPORT: 'تقرير مشاهدات متجر',
+  WEEKLY_SERVICE_VIEWS_REPORT: 'تقرير مشاهدات خدمة',
   SAVED_SEARCH_MATCH: 'بحث محفوظ',
   PROMOTION_STATUS_CHANGE: 'عرضي',
   STORE_NEW_PRODUCT: 'منتج جديد',
@@ -49,6 +58,8 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   STORE_PROMOTION_STARTED: 'عرض متجر',
   STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
   STORE_MEMBER_INVITED: 'دعوة متجر',
+  NEW_SERVICE_QUOTE: 'عرض سعر خدمة',
+  SERVICE_QUOTE_ACCEPTED: 'قبول عرض خدمة',
 };
 
 export type NotificationCategoryId =
@@ -85,12 +96,22 @@ export const NOTIFICATION_CATEGORIES: {
   {
     id: 'services',
     label: 'خدمات',
-    types: ['NEW_REQUEST_OFFER', 'REQUEST_OFFER_ACCEPTED'],
+    types: [
+      'NEW_REQUEST_OFFER',
+      'REQUEST_OFFER_ACCEPTED',
+      'NEW_SERVICE_QUOTE',
+      'SERVICE_QUOTE_ACCEPTED',
+    ],
   },
   {
     id: 'system',
     label: 'النظام',
-    types: ['PROMOTION', 'WEEKLY_AD_VIEWS_REPORT'],
+    types: [
+      'PROMOTION',
+      'WEEKLY_AD_VIEWS_REPORT',
+      'WEEKLY_STORE_VIEWS_REPORT',
+      'WEEKLY_SERVICE_VIEWS_REPORT',
+    ],
   },
 ];
 
@@ -126,11 +147,29 @@ export function hrefFor(notification: Notification): string | null {
     if (rid) return `/requests/${rid}`;
     return '/requests';
   }
-  if (notification.type === 'STORE_NEW_PRODUCT' && d?.storeId) {
-    return ROUTES.storeDetail(d.storeId);
+  if (notification.type === 'NEW_SERVICE_QUOTE' || notification.type === 'SERVICE_QUOTE_ACCEPTED') {
+    if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
+    if (d?.broadcastId) return `/service-requests/${d.broadcastId}`;
+    return ROUTES.notifications;
+  }
+  if (notification.type === 'STORE_NEW_PRODUCT') {
+    if (d?.productId) return ROUTES.productDetail(d.productId);
+    if (d?.storeId) return ROUTES.storeDetail(d.storeId);
   }
   if (notification.type === 'STORE_MEMBER_INVITED') {
     return ROUTES.myStoreMembers;
+  }
+  if (
+    notification.type === 'WEEKLY_AD_VIEWS_REPORT' ||
+    notification.type === 'WEEKLY_STORE_VIEWS_REPORT' ||
+    notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT'
+  ) {
+    if (notification.type === 'WEEKLY_STORE_VIEWS_REPORT') return ROUTES.myStoreAnalytics;
+    if (notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT') return ROUTES.notifications;
+    return ROUTES.notifications;
+  }
+  if (notification.type === 'PROMOTION') {
+    return ROUTES.home;
   }
   return null;
 }
@@ -153,17 +192,11 @@ export function groupNotificationsByDay(items: Notification[]): { label: string;
   const map = new Map<string, Notification[]>();
   for (const n of items) {
     const label = dayBucketLabel(n.createdAt);
-    // NONNULL-NOTIFICATION-MAP-01: previously `map.get(label)!.push(n)`
-    // and `map.get(label)!` in the return — both rely on an invariant
-    // (the key was just set) that TypeScript can't verify, so a future
-    // refactor that moves the set() elsewhere silently crashes at
-    // runtime. The `?? []` fallbacks are zero-cost and self-defending.
     const bucket = map.get(label);
     if (!bucket) {
-      const fresh: Notification[] = [];
+      const fresh: Notification[] = [n];
       map.set(label, fresh);
       order.push(label);
-      fresh.push(n);
     } else {
       bucket.push(n);
     }
@@ -171,54 +204,38 @@ export function groupNotificationsByDay(items: Notification[]): { label: string;
   return order.map((label) => ({ label, items: map.get(label) ?? [] }));
 }
 
-export { Bell };
-
-
-/** PHASE-2: collapse consecutive same-type notifications that share an entity key. */
+/**
+ * Collapse near-identical consecutive notifications (same type + title)
+ * into a single display row with a count — keeps the list scannable.
+ */
 export function groupNotificationsByContext(
   items: Notification[],
 ): { key: string; items: Notification[]; label: string }[] {
-  const groups: {
-    key: string;
-    items: Notification[];
-    label: string;
-  }[] = [];
-
-  function entityKey(n: Notification): string {
-    const d = n.data ?? {};
-    const id =
-      d.adId ||
-      d.conversationId ||
-      d.productId ||
-      d.storeId ||
-      d.listingId ||
-      d.broadcastId ||
-      d.savedSearchId ||
-      '';
-    return `${n.type}:${id}`;
-  }
-
+  const groups: { key: string; items: Notification[]; label: string }[] = [];
   for (const n of items) {
-    const key = entityKey(n);
+    const baseTitle = n.title;
+    const key = `${n.type}:${baseTitle}`;
     const last = groups[groups.length - 1];
     if (last && last.key === key) {
       last.items.push(n);
-      continue;
+      const count = last.items.length;
+      last.label = count > 1 ? `${count}× ${baseTitle}` : baseTitle;
+    } else {
+      groups.push({
+        key,
+        items: [n],
+        label: baseTitle,
+      });
     }
-    groups.push({
-      key: `${key}:${n.id}`,
-      items: [n],
-      label: n.title,
-    });
   }
+  return groups;
+}
 
-  return groups.map((g) => {
-    if (g.items.length <= 1) return g;
-    const count = g.items.length;
-    const baseTitle = g.items[0]?.title ?? '';
-    return {
-      ...g,
-      label: count > 1 ? `${count}× ${baseTitle}` : baseTitle,
-    };
-  });
+/** Safe icon lookup — never returns undefined for unknown future types. */
+export function iconFor(type: string): LucideIcon {
+  return (TYPE_ICON as Record<string, LucideIcon>)[type] ?? Bell;
+}
+
+export function labelFor(type: string): string {
+  return (TYPE_LABEL as Record<string, string>)[type] ?? 'إشعار';
 }

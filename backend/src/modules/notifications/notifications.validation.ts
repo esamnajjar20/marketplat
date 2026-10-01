@@ -33,6 +33,8 @@ const notificationTypeEnum = z.enum([
   'NEW_REQUEST_OFFER',
   'REQUEST_OFFER_ACCEPTED',
   'STORE_MEMBER_INVITED',
+  'NEW_SERVICE_QUOTE',
+  'SERVICE_QUOTE_ACCEPTED',
 ]);
 
 /** فئة واجهة المستخدم → مجموعة أنواع (نفس تجميع الواجهة). */
@@ -54,8 +56,15 @@ export const NOTIFICATION_CATEGORY_TYPES = {
   services: [
     'NEW_REQUEST_OFFER',
     'REQUEST_OFFER_ACCEPTED',
+    'NEW_SERVICE_QUOTE',
+    'SERVICE_QUOTE_ACCEPTED',
   ],
-  system: ['PROMOTION', 'WEEKLY_AD_VIEWS_REPORT'],
+  system: [
+    'PROMOTION',
+    'WEEKLY_AD_VIEWS_REPORT',
+    'WEEKLY_STORE_VIEWS_REPORT',
+    'WEEKLY_SERVICE_VIEWS_REPORT',
+  ],
 } as const;
 
 export type NotificationCategory = keyof typeof NOTIFICATION_CATEGORY_TYPES;

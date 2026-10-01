@@ -34,7 +34,6 @@ import { SecuritySettingsForm } from '@/components/profile/SecuritySettingsForm'
 import { DeleteAccountSection } from '@/components/profile/DeleteAccountSection';
 import { ActiveSessionsList } from '@/components/profile/ActiveSessionsList';
 import { NotificationSettingsForm } from '@/components/profile/NotificationSettingsForm';
-import { PushNotificationToggle } from '@/components/pwa/PushNotificationToggle';
 import { BlockedUsersList } from '@/components/profile/BlockedUsersList';
 import { ViewMyProfileLink } from '@/components/profile/ViewMyProfileLink';
 import {
@@ -72,22 +71,17 @@ function TabBody({ tab }: { tab: SettingsTab }) {
         </div>
       );
     case 'notifications':
+      // PHASE-B: مصدر واحد — الجهاز + المحتوى + ساعات الهدوء داخل
+      // NotificationSettingsForm (بدون تكرار PushNotificationToggle هنا).
       return (
-        <div className="space-y-8">
+        <div className="space-y-6">
           <div>
-            <h1 className="text-xl font-bold">إدارة أذونات الإشعارات</h1>
+            <h1 className="text-xl font-bold">الإشعارات</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              تحكم بإذن الجهاز وأنواع التنبيهات التي تريد استلامها.
+              جهازك، أنواع التنبيهات، ووقت الإرسال — كل ذلك في مكان واحد.
             </p>
           </div>
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground">1 · إذن هذا الجهاز</h2>
-            <PushNotificationToggle />
-          </section>
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground">2 · ماذا يصلك؟</h2>
-            <NotificationSettingsForm />
-          </section>
+          <NotificationSettingsForm />
         </div>
       );
     case 'blocked-users':

@@ -93,7 +93,12 @@ export const notificationsService = {
           'STORE_MEMBER_INVITED',
         ],
         services: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED', 'NEW_REQUEST_OFFER', 'REQUEST_OFFER_ACCEPTED'],
-        system: ['PROMOTION', 'WEEKLY_AD_VIEWS_REPORT'],
+        system: [
+          'PROMOTION',
+          'WEEKLY_AD_VIEWS_REPORT',
+          'WEEKLY_STORE_VIEWS_REPORT',
+          'WEEKLY_SERVICE_VIEWS_REPORT',
+        ],
       };
       types = map[query.category];
     }

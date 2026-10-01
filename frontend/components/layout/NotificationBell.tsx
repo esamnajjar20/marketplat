@@ -25,7 +25,8 @@ import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/types/notification.types';
-import { TYPE_ICON, TYPE_LABEL, hrefFor } from '@/lib/notificationMeta';
+import { hrefFor, iconFor, labelFor } from '@/lib/notificationMeta';
+import { getBrowserNotificationPermission, isPushSupported } from '@/lib/pwa';
 import { onPwaUpdateAvailable } from '@/components/pwa/UpdatePrompt';
 
 function NotificationRow({
@@ -35,7 +36,7 @@ function NotificationRow({
   notification: Notification;
   onNotificationClick: (notification: Notification) => void;
 }) {
-  const Icon = TYPE_ICON[notification.type] ?? Bell;
+  const Icon = iconFor(notification.type);
   const href = hrefFor(notification);
   const isUnread = !notification.readAt;
 
@@ -119,7 +120,7 @@ function NotificationGroupRow({
   onNotificationClick: (notification: Notification) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const Icon = TYPE_ICON[type] ?? Bell;
+  const Icon = iconFor(type);
   const unreadCount = notifications.filter((n) => !n.readAt).length;
 
   if (expanded) {
@@ -131,7 +132,7 @@ function NotificationGroupRow({
           className="flex w-full items-center gap-2 p-2 text-xs text-muted-foreground hover:bg-muted/50"
         >
           <ChevronDown className="h-3.5 w-3.5 rotate-180" />
-          طي {TYPE_LABEL[type]}
+          طي {labelFor(type)}
         </button>
         <div className="divide-y border-t">
           {notifications.map((n) => (
@@ -166,7 +167,7 @@ function NotificationGroupRow({
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex items-start justify-between gap-2">
           <p className={cn('text-sm', unreadCount > 0 && 'font-medium')}>
-            {TYPE_LABEL[type]} ({notifications.length})
+            {labelFor(type)} ({notifications.length})
           </p>
           {unreadCount > 0 && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
         </div>
@@ -186,9 +187,15 @@ export function NotificationBell() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
+  const [pushDenied, setPushDenied] = useState(false);
 
   useEffect(() => {
     return onPwaUpdateAvailable(setPwaReg);
+  }, []);
+
+  useEffect(() => {
+    if (!isPushSupported()) return;
+    setPushDenied(getBrowserNotificationPermission() === 'denied');
   }, []);
 
   const items = notificationsPage?.items ?? [];
@@ -228,8 +235,17 @@ export function NotificationBell() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between p-3">
+        <div className="flex items-center justify-between gap-2 p-3">
           <DropdownMenuLabel className="p-0 font-normal">الإشعارات</DropdownMenuLabel>
+          <div className="flex items-center gap-2">
+          {pushDenied && (
+            <Link
+              href={ROUTES.settings.notifications}
+              className="text-[10px] text-amber-700 hover:underline dark:text-amber-300"
+            >
+              الجهاز متوقف
+            </Link>
+          )}
           {unreadCount > 0 && (
             <button
               type="button"
@@ -241,6 +257,7 @@ export function NotificationBell() {
               تعليم الكل كمقروء
             </button>
           )}
+          </div>
         </div>
         <DropdownMenuSeparator className="m-0" />
 

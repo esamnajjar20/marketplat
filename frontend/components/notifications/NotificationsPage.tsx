@@ -13,6 +13,7 @@ import {
   WifiOff,
   MailOpen,
   Circle,
+  Smartphone,
 } from 'lucide-react';
 import { useMyNotifications, useUnreadNotificationCount } from '@/hooks/queries/useNotifications';
 import {
@@ -25,8 +26,8 @@ import {
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import {
-  TYPE_ICON,
-  TYPE_LABEL,
+  iconFor,
+  labelFor,
   hrefFor,
   NOTIFICATION_CATEGORIES,
   groupNotificationsByDay,
@@ -39,6 +40,10 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import type { Notification } from '@/types/notification.types';
 import { onPwaUpdateAvailable } from '@/components/pwa/UpdatePrompt';
+import {
+  getBrowserNotificationPermission,
+  isPushSupported,
+} from '@/lib/pwa';
 
 const PAGE_SIZE = 20;
 
@@ -49,6 +54,8 @@ export function NotificationsPage() {
   const [category, setCategory] = useState<NotificationCategoryId>('all');
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
+  // PHASE-A: device push permission for empty-state CTA + status chip
+  const [pushPerm, setPushPerm] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
   // SW-FIX-NOTIF-CONFIRM-DIALOG: replaced window.confirm with the shared
   // ConfirmDialog (same as every other destructive action in the app).
   const [confirmDeleteRead, setConfirmDeleteRead] = useState(false);
@@ -56,6 +63,14 @@ export function NotificationsPage() {
 
   useEffect(() => {
     return onPwaUpdateAvailable(setPwaReg);
+  }, []);
+
+  useEffect(() => {
+    if (!isPushSupported()) {
+      setPushPerm('unsupported');
+      return;
+    }
+    setPushPerm(getBrowserNotificationPermission());
   }, []);
 
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
@@ -240,6 +255,23 @@ export function NotificationsPage() {
         ))}
       </div>
 
+      {/* PHASE-A: device permission hint when blocked */}
+      {pushPerm === 'denied' && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:text-amber-100">
+          <Smartphone className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">إشعارات الجهاز متوقفة</p>
+            <p className="text-xs opacity-90">
+              المتصفح رفض الإذن. افتح إعدادات الموقع في المتصفح واسمح بالإشعارات، أو راجع{' '}
+              <Link href={ROUTES.settings.notifications} className="underline underline-offset-2">
+                إعدادات الإشعارات
+              </Link>
+              .
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         {isLoading ? (
           <div className="divide-y" role="status" aria-label="جارٍ التحميل">
@@ -274,10 +306,24 @@ export function NotificationsPage() {
             description={
               readTab === 'unread'
                 ? 'كل شيء مقروء — ستظهر الإشعارات الجديدة هنا.'
-                : 'ستظهر هنا التنبيهات عند وصول رسائل أو تحديثات تهمّك.'
+                : category !== 'all'
+                  ? 'جرّب فئة أخرى أو انتظر تنبيهات جديدة.'
+                  : pushPerm === 'denied'
+                    ? 'إذن إشعارات الجهاز مرفوض. فعّله من إعدادات المتصفح أو من إعدادات الحساب لتصلك التنبيهات على الجوال.'
+                    : pushPerm === 'default' || pushPerm === 'unsupported'
+                      ? 'ستظهر هنا التنبيهات عند وصول رسائل أو تحديثات. يمكنك أيضاً تفعيل إشعارات الجهاز لتصلك وأنت خارج الموقع.'
+                      : 'ستظهر هنا التنبيهات عند وصول رسائل أو تحديثات تهمّك.'
             }
             action={
               <div className="flex flex-wrap items-center justify-center gap-2">
+                {(pushPerm === 'default' || pushPerm === 'denied') && (
+                  <Button asChild size="sm">
+                    <Link href={ROUTES.settings.notifications} className="gap-1.5">
+                      <Smartphone className="h-4 w-4" />
+                      إعدادات الإشعارات
+                    </Link>
+                  </Button>
+                )}
                 <Button asChild size="sm" variant="outline">
                   <Link href={ROUTES.messages}>الرسائل</Link>
                 </Button>
@@ -313,7 +359,7 @@ export function NotificationsPage() {
                 </div>
                 <ul className="divide-y">
                   {group.items.map((n) => {
-                    const Icon = TYPE_ICON[n.type] ?? Bell;
+                    const Icon = iconFor(n.type);
                     const href = hrefFor(n);
                     const unread = !n.readAt;
                     const inner = (
@@ -345,7 +391,7 @@ export function NotificationsPage() {
                                 {n.title}
                               </p>
                               <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                {TYPE_LABEL[n.type] ?? n.type}
+                                {labelFor(n.type)}
                               </p>
                             </div>
                             <div className="flex shrink-0 items-center gap-0.5">
