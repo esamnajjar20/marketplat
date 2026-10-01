@@ -70,6 +70,7 @@ export function RequestFilters({
   q,
   sort = 'newest',
   className,
+  // default true: type chips live in RequestsPageClient Hero — avoid duplicate filters
   hideTypeChips = true,
 }: Props) {
   const router = useRouter();

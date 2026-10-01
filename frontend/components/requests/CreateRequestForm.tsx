@@ -58,6 +58,9 @@ type DraftValues = {
   city: string;
   budgetMin: string;
   budgetMax: string;
+  /** آخر خطوة وصل إليها المستخدم — تُستعاد عند العودة للمسودة */
+  step?: number;
+  expiresInDays?: string;
 };
 
 type CatNode = { id: string; nameAr?: string; name?: string; children?: CatNode[] };
@@ -72,7 +75,10 @@ function flattenCats(nodes: CatNode[] | undefined, prefix = ''): { id: string; l
   return out;
 }
 
-/** استنتاج خطوة البداية من اكتمال المسودة (تجنّب إعادة المستخدم للخطوة 1). */
+/**
+ * استعادة خطوة الـ Stepper من المسودة.
+ * يفضّل `step` المحفوظ صراحةً؛ وإلا يُستنتج من اكتمال الحقول.
+ */
 function inferStepFromDraft(d: {
   categoryId?: string;
   title?: string;
@@ -80,14 +86,16 @@ function inferStepFromDraft(d: {
   city?: string;
   budgetMin?: string;
   budgetMax?: string;
+  step?: number;
 }): number {
+  if (typeof d.step === 'number' && d.step >= 1 && d.step <= 4) {
+    return Math.floor(d.step);
+  }
   const hasCat = Boolean(d.categoryId?.trim());
   const hasDetails =
     (d.title?.trim().length ?? 0) >= 5 && (d.description?.trim().length ?? 0) >= 10;
-  const hasLocationOrBudget = Boolean(
-    d.city?.trim() || d.budgetMin?.trim() || d.budgetMax?.trim(),
-  );
-  if (hasCat && hasDetails && hasLocationOrBudget) return 4;
+  // الحقول في الخطوة 3 اختيارية — إن اكتملت التفاصيل نضع المستخدم على خطوة 3
+  // (لا نفرض المراجعة تلقائياً إلا إن كان step محفوظاً = 4).
   if (hasCat && hasDetails) return 3;
   if (hasCat) return 2;
   return 1;
@@ -156,11 +164,12 @@ export function CreateRequestForm() {
           city: seed.city,
           budgetMin: seed.budgetMin,
           budgetMax: seed.budgetMax,
+          step: seed.step,
         })
       : 1,
   );
   const [type, setType] = useState<RequestType>(seed?.type ?? 'SERVICE');
-  const [expiresInDays, setExpiresInDays] = useState<string>('7');
+  const [expiresInDays, setExpiresInDays] = useState<string>(seed?.expiresInDays ?? '7');
   const [categoryId, setCategoryId] = useState(seed?.categoryId ?? '');
   const [title, setTitle] = useState(seed?.title ?? '');
   const [description, setDescription] = useState(seed?.description ?? '');
@@ -173,7 +182,7 @@ export function CreateRequestForm() {
 
   const { clearDraft, lastSavedAt } = useFormDraft<DraftValues>(
     'open-request:create',
-    { type, categoryId, title, description, city, budgetMin, budgetMax },
+    { type, categoryId, title, description, city, budgetMin, budgetMax, step, expiresInDays },
     { enabled: !offlineDraftId },
   );
 
@@ -196,6 +205,7 @@ export function CreateRequestForm() {
         setCity(String(p.city ?? ''));
         setBudgetMin(p.budgetMin != null ? String(p.budgetMin) : '');
         setBudgetMax(p.budgetMax != null ? String(p.budgetMax) : '');
+        if (p.expiresInDays != null) setExpiresInDays(String(p.expiresInDays));
         setStep(
           inferStepFromDraft({
             categoryId: String(p.categoryId ?? ''),
@@ -204,6 +214,7 @@ export function CreateRequestForm() {
             city: String(p.city ?? ''),
             budgetMin: p.budgetMin != null ? String(p.budgetMin) : '',
             budgetMax: p.budgetMax != null ? String(p.budgetMax) : '',
+            step: typeof p.step === 'number' ? p.step : undefined,
           }),
         );
         setActiveOfflineDraftId(d.id);

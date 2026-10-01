@@ -35,6 +35,8 @@ export const requestsApi = {
     categoryId?: string;
     city?: string;
     q?: string;
+    /** Server-side sort — newest | expiring | budget_high | fewest_offers */
+    sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
   }) => apiClient.get<ApiResponse<RequestListItem[]>>('/requests', { params }),
 
   getMyRequests: (params?: { page?: number; limit?: number; status?: string }) =>

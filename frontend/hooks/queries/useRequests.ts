@@ -13,6 +13,7 @@ export function useOpenRequests(params?: {
   categoryId?: string;
   city?: string;
   q?: string;
+  sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
 }) {
   return useQuery({
     queryKey: queryKeys.requests.open(params),

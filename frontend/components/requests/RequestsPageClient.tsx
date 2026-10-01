@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   ClipboardList,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useOpenRequests } from '@/hooks/queries/useRequests';
 import { ROUTES } from '@/lib/constants';
-import type { RequestListItem, RequestType } from '@/types/request.types';
+import type { RequestType } from '@/types/request.types';
 import { Button } from '@/components/shared/ui/Button';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -69,30 +68,6 @@ function emptyDescription(opts: {
   return `لا نتائج لـ ${parts.join(' · ')}. جرّب مسح الفلاتر أو نشر طلب جديد.`;
 }
 
-function budgetScore(r: RequestListItem): number {
-  const max = r.budgetMax != null && r.budgetMax !== '' ? Number(r.budgetMax) : NaN;
-  const min = r.budgetMin != null && r.budgetMin !== '' ? Number(r.budgetMin) : NaN;
-  if (Number.isFinite(max)) return max;
-  if (Number.isFinite(min)) return min;
-  return -1;
-}
-
-function sortRequests(items: RequestListItem[], sort: RequestSort): RequestListItem[] {
-  if (sort === 'newest' || items.length <= 1) return items;
-  const copy = [...items];
-  if (sort === 'expiring') {
-    copy.sort((a, b) => {
-      const ta = a.expiresAt ? new Date(a.expiresAt).getTime() : Number.POSITIVE_INFINITY;
-      const tb = b.expiresAt ? new Date(b.expiresAt).getTime() : Number.POSITIVE_INFINITY;
-      return ta - tb;
-    });
-  } else if (sort === 'budget_high') {
-    copy.sort((a, b) => budgetScore(b) - budgetScore(a));
-  } else if (sort === 'fewest_offers') {
-    copy.sort((a, b) => (a._count?.offers ?? 0) - (b._count?.offers ?? 0));
-  }
-  return copy;
-}
 
 export function RequestsPageClient() {
   const searchParams = useSearchParams();
@@ -112,10 +87,11 @@ export function RequestsPageClient() {
     q,
     page,
     limit: 20,
+    sort,
   });
 
-  const itemsRaw = Array.isArray(data?.data) ? data.data : [];
-  const items = useMemo(() => sortRequests(itemsRaw, sort), [itemsRaw, sort]);
+  // Server applies sort across the full result set; items are already ordered.
+  const items = Array.isArray(data?.data) ? data.data : [];
 
   const meta = (
     data as
@@ -213,11 +189,6 @@ export function RequestsPageClient() {
       <div className="container mx-auto max-w-7xl space-y-4 px-3 py-5 sm:px-4 sm:py-6">
         <RequestFilters type={type} city={city} q={q} sort={sort} hideTypeChips />
 
-        {sort === 'budget_high' || sort === 'fewest_offers' || sort === 'expiring' ? (
-          <p className="text-2xs text-muted-foreground sm:text-xs" role="note">
-            الترتيب يُطبَّق على نتائج هذه الصفحة فقط (حتى 20 طلباً). للفرز الشامل على كل السوق يلزم دعم من الخادم لاحقاً.
-          </p>
-        ) : null}
 
         <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} />
 

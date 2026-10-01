@@ -34,6 +34,14 @@ export const requestIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Request ID is required') }),
 });
 
+/** Open-feed sort — must match frontend RequestSort / API query `sort`. */
+export const openRequestSortEnum = z.enum([
+  'newest',
+  'expiring',
+  'budget_high',
+  'fewest_offers',
+]);
+
 export const getOpenRequestsSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
@@ -42,6 +50,7 @@ export const getOpenRequestsSchema = z.object({
     categoryId: z.string().min(1).optional(),
     city: z.string().min(1).optional(),
     q: z.string().min(1).max(100).optional(),
+    sort: openRequestSortEnum.optional(),
   }),
 });
 

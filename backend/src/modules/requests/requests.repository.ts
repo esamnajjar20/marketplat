@@ -88,8 +88,9 @@ export const requestsRepository = {
     categoryId?: string;
     city?: string;
     q?: string;
+    sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
   }): Promise<{ requests: RequestListItem[]; total: number }> => {
-    const { page = 1, limit = 20, type, categoryId, city, q } = query;
+    const { page = 1, limit = 20, type, categoryId, city, q, sort = 'newest' } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const now = new Date();
     const search = q?.trim();
@@ -115,11 +116,21 @@ export const requestsRepository = {
       ...(city && { city: { contains: city, mode: 'insensitive' as const } }),
     };
 
+    // Server-side sort for the whole result set (not just the current page).
+    const orderBy: Prisma.RequestOrderByWithRelationInput[] =
+      sort === 'expiring'
+        ? [{ expiresAt: 'asc' }, { createdAt: 'desc' }]
+        : sort === 'budget_high'
+          ? [{ budgetMax: 'desc' }, { budgetMin: 'desc' }, { createdAt: 'desc' }]
+          : sort === 'fewest_offers'
+            ? [{ offers: { _count: 'asc' } }, { createdAt: 'desc' }]
+            : [{ createdAt: 'desc' }];
+
     const [requests, total] = await Promise.all([
       prisma.request.findMany({
         where,
         include: requestListInclude,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take,
       }),
