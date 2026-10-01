@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { CITIES, ROUTES } from '@/lib/constants';
 
 const BROWSE = [
-  { label: 'الإعلانات', href: `${ROUTES.search}?type=ads` },
+  { label: 'الإعلانات', href: ROUTES.ads },
   { label: 'المنتجات', href: ROUTES.products },
   { label: 'الخدمات', href: ROUTES.services },
   { label: 'المتاجر', href: ROUTES.stores },

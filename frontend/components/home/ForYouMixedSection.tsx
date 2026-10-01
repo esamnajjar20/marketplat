@@ -141,7 +141,7 @@ export function ForYouMixedSection() {
         eyebrow={eyebrow}
         title={title}
         icon={<Sparkles className="h-3.5 w-3.5" />}
-        cta={{ href: ROUTES.search, label: 'استكشف المزيد ←' }}
+        cta={{ href: ROUTES.suggestions, label: 'استكشف المزيد ←' }}
       />
 
       {isLoading ? (

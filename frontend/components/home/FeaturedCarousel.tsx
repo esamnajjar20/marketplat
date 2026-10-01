@@ -75,7 +75,7 @@ const BADGE: Record<SlideType, { emoji: string; label: string; className: string
 };
 
 /** Shorter on phones so featured does not own the whole fold; wider on desktop. */
-export const CAROUSEL_ASPECT = 'aspect-[16/10] sm:aspect-video md:aspect-[21/9] lg:aspect-[3/1]';
+export const CAROUSEL_ASPECT = 'aspect-[16/10] sm:aspect-[2/1] md:aspect-[21/9] lg:aspect-[3/1]';
 
 export function FeaturedCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -279,7 +279,8 @@ export function FeaturedCarousel() {
               lastInteractionRef.current = Date.now();
             }}
             className={cn(
-              'relative w-full shrink-0 snap-center overflow-hidden rounded-2xl bg-muted',
+              'group relative w-full shrink-0 snap-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border/40 shadow-md',
+              'transition-transform duration-300 hover:shadow-lg',
               CAROUSEL_ASPECT,
             )}
             aria-roledescription="slide"
@@ -290,22 +291,23 @@ export function FeaturedCarousel() {
               alt={slide.title}
               fill
               sizes="(max-width: 1280px) 100vw, 1280px"
-              className="object-cover"
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               priority={i === 0}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent" />
             <span
               className={cn(
-                'absolute top-3 start-3 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm',
+                'absolute top-3 start-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide shadow-md backdrop-blur-sm',
                 BADGE[slide.type].className,
               )}
             >
-              <span aria-hidden>{BADGE[slide.type].emoji} </span>
+              <span aria-hidden>{BADGE[slide.type].emoji}</span>
               {BADGE[slide.type].label}
             </span>
-            <div className="absolute inset-x-0 bottom-0 space-y-0.5 p-3 text-white">
-              <p className="truncate text-sm font-bold">{slide.title}</p>
-              <p className="truncate text-xs opacity-90">{slide.subtitle}</p>
+            <div className="absolute inset-x-0 bottom-0 space-y-1 p-3.5 sm:p-4 text-white">
+              <p className="truncate text-base font-bold leading-snug drop-shadow-sm sm:text-lg">{slide.title}</p>
+              <p className="truncate text-xs opacity-95 sm:text-sm">{slide.subtitle}</p>
             </div>
           </Link>
         ))}

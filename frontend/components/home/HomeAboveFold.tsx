@@ -14,6 +14,8 @@ import { ROUTES }       from '@/lib/constants';
  * بينما الفئات وFeaturedCarousel تُركّبان مباشرة في page.tsx.
  * يستخدم هذا القسم useAdsForHome مع مدينة التصفح عند توفرها،
  * ثم يعرض النتائج العامة عند عدم وجود مدينة.
+ *
+ * CTA يوجّه إلى صفحة الإعلانات (/ads) وليس البحث.
  */
 
 export function HomeAboveFold() {
@@ -28,7 +30,7 @@ export function HomeAboveFold() {
       eyebrow="تصفّح"
       title="أحدث الإعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
-      cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
+      cta={{ href: ROUTES.ads, label: 'عرض الكل ←' }}
     />
   );
 
@@ -37,7 +39,7 @@ export function HomeAboveFold() {
       eyebrow="تصفّح"
       title="أحدث الإعلانات"
       icon={<Clock className="h-3.5 w-3.5" />}
-      cta={{ href: `${ROUTES.search}?type=ads`, label: 'عرض الكل ←' }}
+      cta={{ href: ROUTES.ads, label: 'عرض الكل ←' }}
       badge={<LocationSourceBadge source={recentSource} city={badgeCity} requestedCity={city} quiet />}
     />
   );
@@ -46,9 +48,9 @@ export function HomeAboveFold() {
     return (
       <section className="container mx-auto max-w-7xl space-y-3 px-3 pt-3 sm:px-4 sm:pt-6">
         {latestAdsHeadingLoading}
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[min(58vw,200px)] shrink-0 sm:w-[200px] md:w-[220px]">
+        <div className="-mx-4 grid grid-flow-col grid-rows-2 gap-3 overflow-x-auto px-4 pb-1 auto-cols-[calc((100%-0.75rem)/2)] [&::-webkit-scrollbar]:hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="min-w-0">
               <AdCardSkeleton />
             </div>
           ))}

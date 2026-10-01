@@ -28,7 +28,7 @@ export function RecommendedAds() {
         eyebrow="مخصص لك"
         title="قد يعجبك أيضاً"
         icon={<Sparkle className="h-3.5 w-3.5" />}
-        cta={{ href: `${ROUTES.search}?type=ads`, label: 'المزيد' }}
+        cta={{ href: ROUTES.ads, label: 'المزيد' }}
         badge={
           city ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">

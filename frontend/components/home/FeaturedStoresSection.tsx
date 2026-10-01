@@ -82,7 +82,7 @@ export function FeaturedStoresSection() {
       }}
     >
       {items.map((store) => (
-        <HomeScrollRailItem key={store.id}>
+        <HomeScrollRailItem key={store.id} size="store">
           <StoreCard store={store} />
         </HomeScrollRailItem>
       ))}

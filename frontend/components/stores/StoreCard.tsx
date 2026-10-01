@@ -27,21 +27,21 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
         prefetch={false}
         className={cn(
           'group flex rounded-xl border border-border/80 bg-card shadow-sm pe-11',
-          compact ? 'gap-2.5 p-2.5' : 'gap-3 p-3',
+          compact ? 'gap-2.5 p-2.5' : 'gap-3.5 p-3.5',
           'transition-all duration-200 active:scale-[0.98]',
           'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
           className,
         )}
       >
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/50">
+        <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/50 sm:h-[4.5rem] sm:w-[4.5rem]">
           <SafeImage
             variant="avatar"
             src={avatar}
             alt={store.name}
             fill
             className="object-cover"
-            sizes="64px"
+            sizes="72px"
           />
         </div>
 

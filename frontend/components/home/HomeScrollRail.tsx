@@ -6,19 +6,20 @@ import { cn } from '@/lib/utils';
 
 /**
  * Horizontal browse strip used by type sections on the homepage.
- * Cards stay a fixed min-width so the user can swipe sideways; on md+ screens
- * (no touch swipe, hidden scrollbar) prev/next arrows appear when the strip
- * overflows. Arrows are RTL-aware: in RTL, scrollLeft is 0 at the start and
- * goes negative as the user scrolls on.
+ *
+ * Layout: 2 cards visible across the width, 2 rows tall (grid-flow-col grid-rows-2),
+ * so the user sees a 2×2 block and can swipe sideways for more.
+ * On md+ screens prev/next arrows appear when the strip overflows.
  */
 export function HomeScrollRail({
   children,
   className,
+  rows = 2,
 }: {
   children: ReactNode;
   className?: string;
-  /** Applied to each direct child wrapper if you pass raw nodes via map outside */
-  itemClassName?: string;
+  /** Number of rows in the horizontal grid (default 2 for 2×2 visible). */
+  rows?: 1 | 2;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [canPrev, setCanPrev] = useState(false);
@@ -43,9 +44,6 @@ export function HomeScrollRail({
       resizeObserver = new ResizeObserver(update);
       resizeObserver.observe(el);
     }
-    // Adding/removing cards changes scrollWidth without resizing the strip
-    // itself, so watch its children instead of depending on `children`
-    // (which re-bound every listener on each render).
     let mutationObserver: MutationObserver | undefined;
     if (typeof MutationObserver !== 'undefined') {
       mutationObserver = new MutationObserver(update);
@@ -62,7 +60,6 @@ export function HomeScrollRail({
     const el = ref.current;
     if (!el) return;
     const isRtl = getComputedStyle(el).direction === 'rtl';
-    // "next" moves toward the end of the content: left in RTL, right in LTR.
     const sign = (direction === 'next' ? 1 : -1) * (isRtl ? -1 : 1);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.scrollBy({ left: sign * el.clientWidth * 0.8, behavior: reduce ? 'auto' : 'smooth' });
@@ -76,8 +73,11 @@ export function HomeScrollRail({
       <div
         ref={ref}
         className={cn(
-          '-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 snap-x snap-mandatory',
+          '-mx-4 overflow-x-auto overscroll-x-contain px-4 pb-1 snap-x snap-mandatory',
           '[&::-webkit-scrollbar]:hidden [scrollbar-width:none]',
+          rows === 2
+            ? 'grid grid-flow-col grid-rows-2 gap-3 auto-cols-[calc((100%-0.75rem)/2)] sm:auto-cols-[minmax(170px,calc((100%-0.75rem)/2))]'
+            : 'flex gap-3',
           className,
         )}
       >
@@ -110,14 +110,20 @@ export function HomeScrollRail({
 export function HomeScrollRailItem({
   children,
   className,
+  /** Slightly wider cards (e.g. stores) */
+  size = 'default',
 }: {
   children: ReactNode;
   className?: string;
+  size?: 'default' | 'store';
 }) {
   return (
     <div
       className={cn(
-        'w-[min(58vw,200px)] shrink-0 snap-start sm:w-[200px] md:w-[220px]',
+        'shrink-0 snap-start min-w-0',
+        size === 'store'
+          ? 'w-full min-w-[min(48vw,220px)] sm:min-w-[220px] md:min-w-[240px]'
+          : 'w-full',
         className,
       )}
     >

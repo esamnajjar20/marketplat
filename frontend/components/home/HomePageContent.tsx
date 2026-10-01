@@ -15,10 +15,8 @@ import { HomeBusyBoundary } from '@/components/home/HomeBusyBoundary';
 import { LazySection } from '@/components/shared/LazySection';
 
 /**
- * Homepage body (UI-HOME-01 + UI-HOME-02 + desktop polish).
- *
- * Mobile: single column, paid featured first in EagerHomeSections.
- * Desktop (lg+): secondary rails sit in a 2-column grid to reduce length.
+ * Homepage body — single consistent stack on mobile and desktop.
+ * Horizontal rails (2×2 visible) handle density; no duplicate layouts per breakpoint.
  */
 export function HomePageContent() {
   return (
@@ -26,32 +24,30 @@ export function HomePageContent() {
       <HomeBusyBoundary>
         <EagerHomeSections />
 
-        <div className="mt-4 space-y-6 sm:mt-8 sm:space-y-8 lg:space-y-10">
+        <div className="mt-4 space-y-6 sm:mt-8 sm:space-y-8">
           <LazySection minHeight={280} rootMargin="40px 0px" whenIdle>
             <ForYouMixedSection />
           </LazySection>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
-            <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
-              <RecentProductsSection />
-            </LazySection>
-            <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
-              <HomeServicesSection />
-            </LazySection>
-          </div>
+          <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
+            <RecentProductsSection />
+          </LazySection>
+
+          <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
+            <HomeServicesSection />
+          </LazySection>
 
           <LazySection minHeight={280} rootMargin="56px 0px" whenIdle>
             <FeaturedStoresSection />
           </LazySection>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
-            <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
-              <PromotedProductsSection />
-            </LazySection>
-            <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
-              <NearbyProvidersSection />
-            </LazySection>
-          </div>
+          <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
+            <PromotedProductsSection />
+          </LazySection>
+
+          <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
+            <NearbyProvidersSection />
+          </LazySection>
         </div>
 
         <div className="mx-auto mt-5 max-w-7xl space-y-3 px-3 sm:mt-10 sm:space-y-4 sm:px-4">
