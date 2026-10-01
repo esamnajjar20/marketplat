@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Sparkle } from 'lucide-react';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
@@ -9,24 +10,33 @@ import { useProductRecommendations } from '@/hooks/queries/useRecommendations';
 const DISPLAY_COUNT = 8;
 
 interface Props {
-  /** Excludes the product currently in view — see StoreProducts.tsx's
-   * `?product=` deep link, this app's only "product detail" moment. */
+  /** Excludes the product currently in view. */
   excludeProductId?: string;
+  /**
+   * When set (product detail page), hide products from the same store so this
+   * rail does not duplicate "منتجات من نفس المتجر".
+   */
+  excludeStoreId?: string;
 }
 
 /**
- * "منتجات قد تعجبك" — integrated into StoreProducts.tsx's product
- * context (see that file's own comment on why there is no dedicated
- * /products/:id route to attach this to instead). Renders nothing
- * until a product is actually highlighted via `?product=` — see the
- * `enabled` gate below, same reasoning RelatedAds only makes sense
- * once there's a reference ad.
+ * "منتجات قد تعجبك" — category / personalized recommendations.
+ * On product detail, pass excludeStoreId so same-store items stay only in
+ * the dedicated "منتجات من نفس المتجر" section.
  */
-export function ProductRecommendations({ excludeProductId }: Props) {
+export function ProductRecommendations({ excludeProductId, excludeStoreId }: Props) {
   const { data, isLoading, isError, refetch } = useProductRecommendations(
-    { limit: DISPLAY_COUNT, excludeProductId },
-    { enabled: Boolean(excludeProductId) }
+    { limit: DISPLAY_COUNT + 6, excludeProductId },
+    { enabled: Boolean(excludeProductId) },
   );
+
+  const items = useMemo(() => {
+    const list = data ?? [];
+    const filtered = excludeStoreId
+      ? list.filter((p) => p.storeId !== excludeStoreId)
+      : list;
+    return filtered.slice(0, DISPLAY_COUNT);
+  }, [data, excludeStoreId]);
 
   if (!excludeProductId) return null;
 
@@ -34,7 +44,7 @@ export function ProductRecommendations({ excludeProductId }: Props) {
     <RecommendationRail
       title="منتجات قد تعجبك"
       icon={<Sparkle className="h-4 w-4 text-muted-foreground" />}
-      items={data}
+      items={items}
       isLoading={isLoading}
       isError={isError}
       refetch={refetch}

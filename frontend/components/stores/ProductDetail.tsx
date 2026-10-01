@@ -86,7 +86,7 @@ export function ProductDetail({ product, related = [] }: Props) {
 
   return (
     <>
-      <div className="flex flex-col gap-6 pb-sticky-contact md:flex-row md:gap-8">
+      <div className="flex flex-col gap-6 md:flex-row md:gap-8">
         {/* Gallery + description */}
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
           <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
@@ -195,6 +195,9 @@ export function ProductDetail({ product, related = [] }: Props) {
             </p>
           </section>
 
+          {/* المتجر مباشرة تحت الوصف — الوصول عبر الشعار/الاسم */}
+          <StorePanel store={store} />
+
           {related.length > 0 && (
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">منتجات من نفس المتجر</h2>
@@ -206,57 +209,22 @@ export function ProductDetail({ product, related = [] }: Props) {
             </section>
           )}
 
-          <ProductRecommendations excludeProductId={product.id} />
+          {/* توصيات من متاجر أخرى فقط — حتى لا تتكرر مع قسم نفس المتجر */}
+          <ProductRecommendations
+            excludeProductId={product.id}
+            excludeStoreId={product.storeId}
+          />
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar — سعر وإجراءات فقط (بدون sticky) */}
         <aside className="hidden w-full shrink-0 space-y-4 lg:block lg:w-1/3">
-          <div className="sticky top-20 space-y-4">
-            <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
-              <PriceBlock product={product} displayPrice={displayPrice} hasDiscount={hasDiscount} />
-              <h1 className="text-xl font-bold leading-snug">{product.name}</h1>
-              <MetaRow product={product} />
-              <ActionRow product={product} shareUrl={shareUrl} />
-            </div>
-            <StorePanel store={store} />
+          <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+            <PriceBlock product={product} displayPrice={displayPrice} hasDiscount={hasDiscount} />
+            <h1 className="text-xl font-bold leading-snug">{product.name}</h1>
+            <MetaRow product={product} />
+            <ActionRow product={product} shareUrl={shareUrl} />
           </div>
         </aside>
-      </div>
-
-      {/* Mobile: معلومات المتجر — نفس أسلوب بطاقة البائع في الإعلان */}
-      <div className="md:hidden">
-        <StorePanel store={store} />
-      </div>
-
-      {/* Mobile sticky CTA — sits above BottomNav (see .sticky-contact-bar) */}
-      <div className="sticky-contact-bar border-t border-border/80 bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-background/90 md:hidden">
-        <div className="mx-auto flex max-w-lg gap-2">
-          {store.phone && (
-            <Button asChild variant="outline" className="min-h-[48px] flex-1 font-semibold">
-              <a href={`tel:${store.phone}`}>
-                <Phone className="h-4 w-4" aria-hidden />
-                اتصال
-              </a>
-            </Button>
-          )}
-          {store.sellerProfile?.userId && (
-            <MessageUserButtonGate
-              targetUserId={store.sellerProfile.userId}
-              size="default"
-              variant="default"
-              label="راسل المتجر"
-              className="min-h-[48px] flex-[1.4] gap-2 font-semibold"
-            />
-          )}
-          {!store.sellerProfile?.userId && (
-            <Button asChild className="min-h-[48px] flex-[1.4] font-semibold">
-              <Link href={ROUTES.storeDetail(store.slug || store.id)}>
-                <StoreIcon className="h-4 w-4" aria-hidden />
-                زيارة المتجر
-              </Link>
-            </Button>
-          )}
-        </div>
       </div>
 
       {/* Lightbox */}
@@ -423,9 +391,6 @@ function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
             className="w-full gap-2 font-semibold"
           />
         )}
-        <Button asChild variant="ghost" className="w-full text-muted-foreground">
-          <Link href={ROUTES.storeDetail(store.slug || store.id)}>عرض صفحة المتجر</Link>
-        </Button>
         {/* UNIFY-PAYMENTS-STORES: read from sellerProfile — store no
             longer has its own paymentMethods column.
             BUGFIX: sellerProfile can be null (a store whose owner

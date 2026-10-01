@@ -7,7 +7,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
 import { SellerCard } from '@/components/ads/SellerCard';
-import { StickyContactBar } from '@/components/ads/StickyContactBar';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
@@ -181,7 +180,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </p>
         </div>
       )}
-    <div className="flex flex-col md:flex-row gap-6 md:gap-8 pb-sticky-contact">
+    <div className="flex flex-col md:flex-row gap-6 md:gap-8 ">
       {/* LEFT: images + details */}
       <div className="flex-1 md:w-2/3 min-w-0 space-y-6">
 
@@ -410,7 +409,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
       {/* RIGHT: price + seller + safety tips (desktop only — mobile
           equivalents are rendered inline above, in reading order) */}
       <aside className="hidden md:flex md:w-1/3 flex-col gap-6">
-        <div className="sticky top-24 space-y-6">
+        <div className="space-y-6">
           <div className="rounded-2xl bg-card shadow-md p-6 space-y-1">
             <div className="text-sm text-muted-foreground">السعر المطلوب</div>
             <div className="text-3xl font-bold text-primary">{formatPrice(ad.price)}</div>
@@ -497,13 +496,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </div>
         </div>
       )}
-
-      <StickyContactBar
-        adId={ad.id}
-        price={ad.price}
-        isNegotiable={ad.isNegotiable}
-        seller={ad.user}
-      />
     </div>
     </>
   );

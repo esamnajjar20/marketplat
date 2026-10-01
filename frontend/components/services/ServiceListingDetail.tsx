@@ -256,10 +256,17 @@ export function ServiceListingDetail({ listing, action }: Props) {
             </div>
           )}
 
-          {/* Provider — mobile (desktop has sidebar) */}
-          <div className="md:hidden">
-            <h2 className="mb-2 text-sm font-semibold">مقدم الخدمة</h2>
-            <ProviderContactCard listing={listing} />
+          {/* CTA + Provider — mobile (desktop has sidebar) */}
+          <div className="space-y-3 md:hidden">
+            {action ? (
+              <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+                {action}
+              </div>
+            ) : null}
+            <div>
+              <h2 className="mb-2 text-sm font-semibold">مقدم الخدمة</h2>
+              <ProviderContactCard listing={listing} />
+            </div>
           </div>
 
           <div className="flex justify-end">
@@ -269,7 +276,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
         {/* ── Desktop sidebar ── */}
         <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[300px]">
-          <div className="sticky top-20 space-y-4">
+          <div className="space-y-4">
             {action && (
               <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
                 {action}
@@ -280,15 +287,6 @@ export function ServiceListingDetail({ listing, action }: Props) {
         </aside>
       </div>
 
-      {/* Mobile sticky: request only (message is on provider card above) */}
-      {action && (
-        <div
-          className="fixed inset-x-0 bottom-16 z-30 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden"
-          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-        >
-          {action}
-        </div>
-      )}
 
       {lightbox && (
         <div
