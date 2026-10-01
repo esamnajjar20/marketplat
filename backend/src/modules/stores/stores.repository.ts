@@ -11,7 +11,15 @@ export type StoreWithSeller = Prisma.StoreDetailsGetPayload<{
 export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
   include: {
     sellerProfile: true;
-    _count: { select: { followers: true; products: true } };
+    // PHASE1-STOREFRONT: only ACTIVE products — pending/deleted
+    // inventory must not inflate the public "منتج" stat on the
+    // storefront or directory cards.
+    _count: {
+      select: {
+        followers: true;
+        products: { where: { status: 'ACTIVE' } };
+      };
+    };
   };
 }>;
 
@@ -36,7 +44,15 @@ const storeListInclude = {
 
 const storeWithSellerAndCounts = {
   sellerProfile: true,
-  _count: { select: { followers: true, products: true } },
+  // PHASE1-STOREFRONT: mirror the type above — public surfaces only
+  // count ACTIVE products so the header/stat card matches the
+  // products the visitor can actually browse.
+  _count: {
+    select: {
+      followers: true,
+      products: { where: { status: 'ACTIVE' } },
+    },
+  },
 } as const;
 
 export const storesRepository = {

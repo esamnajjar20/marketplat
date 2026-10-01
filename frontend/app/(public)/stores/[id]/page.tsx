@@ -25,11 +25,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const store = await getCachedStore(id);
     // CLEANUP-STORES-NULL-01: was store.data.data!.name — replace
     // with explicit guard so a malformed payload cannot crash SSR.
-    const name = store.data.data?.name;
+    const data = store.data.data;
+    const name = data?.name;
     if (!name) return { title: 'متجر' };
+    // PHASE1-STOREFRONT: richer SEO — description + OG image from
+    // cover (fallback logo) so WhatsApp/Facebook previews show the
+    // store identity instead of the generic platform card.
+    const description =
+      data.description?.trim().slice(0, 160) ||
+      `تصفّح منتجات متجر ${name}${data.city ? ` في ${data.city}` : ''}`;
+    const image = data.coverImageUrl || data.logoUrl || undefined;
     return buildMetadata({
       title: `${name} — متجر`,
-      path: `/stores/${id}`,
+      description,
+      path: `/stores/${data.slug || id}`,
+      image,
     });
   } catch {
     return { title: 'متجر' };
@@ -76,7 +86,10 @@ export default async function StorePage({ params }: Props) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <div className="container mx-auto max-w-3xl space-y-8 px-4 py-6">
+    // PHASE1-STOREFRONT: widen from max-w-3xl → max-w-5xl so the
+    // product grid and tabs breathe on tablet/desktop without losing
+    // the centered mobile-first feel.
+    <div className="container mx-auto max-w-5xl space-y-8 px-4 py-6">
       {/* SW-SEO-JSONLD-STORE-01: LocalBusiness/Store schema. Phone and
           address are present on StoreDetails, so Google can surface a
           store card with contact info and location. */}
@@ -107,7 +120,8 @@ export default async function StorePage({ params }: Props) {
         <StoreStorefront
           storeId={store.id}
           storeName={store.name}
-          ownerUserId={store.sellerProfile.userId}
+          ownerUserId={store.sellerProfile?.userId ?? ''}
+          store={store}
         />
       </Suspense>
 

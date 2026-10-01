@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Package } from 'lucide-react';
+import { Package, Search, X } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -38,7 +38,22 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
   const highlightId = sp.get('product');
   const sortKey = sp.get('sort') ?? 'newest';
   const sortOpt = SORT_OPTIONS.find((o) => o.value === sortKey) ?? SORT_OPTIONS[0]!;
+  // PHASE1-STOREFRONT: in-store product search via URL `q`
+  const searchFromUrl = (sp.get('q') ?? '').trim();
   const highlightRef = useRef<HTMLDivElement>(null);
+  const [searchInput, setSearchInput] = useState(searchFromUrl);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchInput(searchFromUrl);
+  }, [searchFromUrl]);
+
+  // STOREFRONT-SEARCH-CLEANUP-01: cancel pending debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   const { data, isLoading, isError, refetch } = useProducts({
     storeId,
@@ -46,6 +61,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
     limit: 12,
     sortBy: sortOpt.sortBy,
     sortOrder: sortOpt.sortOrder,
+    ...(searchFromUrl ? { search: searchFromUrl } : {}),
     ...(offersOnly ? { hasPromotion: true } : {}),
   });
 
@@ -80,6 +96,30 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
     router.push(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, { scroll: false });
   }
 
+  const applySearch = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(sp.toString());
+      const trimmed = value.trim();
+      if (trimmed) params.set('q', trimmed);
+      else params.delete('q');
+      params.delete('productsPage');
+      router.push(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, { scroll: false });
+    },
+    [router, sp, storeId],
+  );
+
+  function onSearchChange(value: string) {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => applySearch(value), 350);
+  }
+
+  function clearSearch() {
+    setSearchInput('');
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    applySearch('');
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
@@ -101,6 +141,40 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
 
   return (
     <div className="space-y-4">
+      {!offersOnly && (
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                applySearch(searchInput);
+              }
+            }}
+            placeholder="ابحث داخل منتجات هذا المتجر..."
+            aria-label="بحث في منتجات المتجر"
+            className="h-10 w-full rounded-full border border-border/80 bg-card pe-10 ps-10 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="مسح البحث"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="ترتيب المنتجات">
           {SORT_OPTIONS.map((opt) => (
@@ -133,11 +207,19 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
       {items.length === 0 ? (
         <EmptyState
           icon={<Package className="h-10 w-10" />}
-          title={offersOnly ? 'لا عروض نشطة حاليًا' : 'لا توجد منتجات'}
+          title={
+            offersOnly
+              ? 'لا عروض نشطة حاليًا'
+              : searchFromUrl
+                ? 'لا نتائج لهذا البحث'
+                : 'لا توجد منتجات'
+          }
           description={
             offersOnly
               ? 'لم يضف هذا المتجر عروضًا سارية الآن'
-              : 'لم يضف هذا المتجر أي منتج بعد'
+              : searchFromUrl
+                ? `لم يُعثر على منتجات تطابق «${searchFromUrl}»`
+                : 'لم يضف هذا المتجر أي منتج بعد'
           }
         />
       ) : (
