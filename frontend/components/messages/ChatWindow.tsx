@@ -503,7 +503,7 @@ export function ChatWindow({ conversationId }: Props) {
                     </div>
                   )}
                 <div
-                  className={cn('group flex flex-col gap-1 max-w-[85%]', isMine ? 'items-end self-end' : 'items-start self-start')}
+                  className={cn('group flex flex-col gap-1 max-w-[min(92%,28rem)] sm:max-w-[min(88%,32rem)]', isMine ? 'items-end self-end' : 'items-start self-start')}
                 >
                   <div className="flex items-center gap-1">
                     {isMine && !isDeleted && !isLocalOnly && (

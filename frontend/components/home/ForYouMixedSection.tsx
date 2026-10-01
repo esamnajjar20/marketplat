@@ -22,6 +22,7 @@ import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/a
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import type { AdListItem } from '@/types/ad.types';
 import type { ProductWithStore } from '@/types/product.types';
 import type { ServiceListingWithProvider } from '@/types/service.types';
@@ -102,6 +103,36 @@ const PER_TYPE = 8;
  * - Always backfills from recent ads/products/services so the rail
  *   never shows a single lonely card when the market has content.
  */
+
+const TYPE_BADGE: Record<'ad' | 'product' | 'service', { label: string; className: string }> = {
+  ad: { label: 'إعلان', className: 'bg-accent text-accent-foreground' },
+  product: { label: 'منتج', className: 'bg-emerald-600 text-white' },
+  service: { label: 'خدمة', className: 'bg-blue-600 text-white' },
+};
+
+function MixedCardShell({
+  kind,
+  children,
+}: {
+  kind: 'ad' | 'product' | 'service';
+  children: React.ReactNode;
+}) {
+  const badge = TYPE_BADGE[kind];
+  return (
+    <div className="relative h-full">
+      <span
+        className={cn(
+          'absolute top-2 start-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-bold shadow-sm',
+          badge.className,
+        )}
+      >
+        {badge.label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 export function ForYouMixedSection() {
   const dataSaver = useDataSaver();
   const target = dataSaver ? 8 : HOME_TARGET;
@@ -259,13 +290,15 @@ export function ForYouMixedSection() {
               key={`${item.kind}-${item.data.id}`}
               size={item.kind === 'ad' ? 'wide' : 'default'}
             >
-              {item.kind === 'ad' ? (
-                <AdCard ad={item.data} density="compact" />
-              ) : item.kind === 'product' ? (
-                <ProductCard product={item.data} density="compact" />
-              ) : (
-                <ServiceListingCard listing={item.data} density="compact" />
-              )}
+              <MixedCardShell kind={item.kind}>
+                {item.kind === 'ad' ? (
+                  <AdCard ad={item.data} density="compact" />
+                ) : item.kind === 'product' ? (
+                  <ProductCard product={item.data} density="compact" />
+                ) : (
+                  <ServiceListingCard listing={item.data} density="compact" />
+                )}
+              </MixedCardShell>
             </HomeScrollRailItem>
           ))}
         </HomeScrollRail>

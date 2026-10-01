@@ -48,12 +48,10 @@ export const ACTIVITY_GROUP = {
   href: ROUTES.activity,
   icon: History,
   children: [
-    // ACTIVITY-HUB-01 tabs
+    // ACTIVITY-HUB-01 tabs — إعلاناتي/طلباتي live as primary links elsewhere
+    // (seller "إعلاناتي", REQUESTS_GROUP / SERVICES_GROUP) to avoid duplicates.
     { label: 'سجل النشاط', href: ROUTES.activity },
-    { label: 'إعلاناتي', href: ROUTES.myAds },
-    { label: 'طلباتي', href: ROUTES.myServiceRequests },
     { label: 'بلاغاتي', href: ROUTES.myReports },
-    // Other personal surfaces (own routes / other hubs)
     { label: 'المفضلة', href: ROUTES.favorites },
     { label: 'عمليات البحث المحفوظة', href: ROUTES.savedSearches },
   ],

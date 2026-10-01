@@ -180,7 +180,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
       } finally {
         setUploading(false);
       }
-      requestAnimationFrame(() => textareaRef.current?.focus());
+      // Keep keyboard open on mobile: avoid focus thrash (blur→focus).
+      keepComposerFocus();
       return;
     }
 
@@ -200,7 +201,20 @@ export function MessageInput({ conversationId, disabled }: Props) {
         onSuccess: () => setLastSendError(null),
       },
     );
-    requestAnimationFrame(() => textareaRef.current?.focus());
+    keepComposerFocus();
+  }
+
+  /** Re-focus without forcing the soft keyboard to cycle closed/open. */
+  function keepComposerFocus() {
+    const el = textareaRef.current;
+    if (!el) return;
+    // If something else already took focus (e.g. file picker), don't steal it.
+    const active = document.activeElement;
+    if (active && active !== el && active !== document.body && !el.contains(active)) {
+      return;
+    }
+    // Synchronous focus keeps iOS/Android keyboard stable after form submit.
+    el.focus({ preventScroll: true });
   }
 
   if (disabled) {
@@ -247,7 +261,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
               type="button"
               onClick={() => {
                 setBody(label);
-                requestAnimationFrame(() => textareaRef.current?.focus());
+                keepComposerFocus();
               }}
               className="snap-start shrink-0 rounded-full border border-border/80 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors min-h-10 hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
             >

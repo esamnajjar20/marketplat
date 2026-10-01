@@ -21,6 +21,7 @@ import { interleaveMixed } from '@/components/home/ForYouMixedSection';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 const PAGE_LIMIT = 36;
 const PER_TYPE = 16;
@@ -46,6 +47,13 @@ function mergeWithFallback<T extends { id: string }>(
 /**
  * Full-page "اقتراحات لك" — same logic as the home rail, higher limits, 2-col grid.
  */
+
+const TYPE_BADGE: Record<'ad' | 'product' | 'service', { label: string; className: string }> = {
+  ad: { label: 'إعلان', className: 'bg-accent text-accent-foreground' },
+  product: { label: 'منتج', className: 'bg-emerald-600 text-white' },
+  service: { label: 'خدمة', className: 'bg-blue-600 text-white' },
+};
+
 export function SuggestionsPageClient() {
   const isAuth = useAuthStore(selectIsAuthenticated);
   const isHydrated = useAuthStore(selectIsHydrated);
@@ -156,20 +164,27 @@ export function SuggestionsPageClient() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => {
-            if (item.kind === 'ad') {
-              return <AdCard key={`ad-${item.data.id}`} ad={item.data} density="compact" />;
-            }
-            if (item.kind === 'product') {
-              return (
-                <ProductCard key={`product-${item.data.id}`} product={item.data} density="compact" />
+            const badge = TYPE_BADGE[item.kind];
+            const inner =
+              item.kind === 'ad' ? (
+                <AdCard ad={item.data} density="compact" />
+              ) : item.kind === 'product' ? (
+                <ProductCard product={item.data} density="compact" />
+              ) : (
+                <ServiceListingCard listing={item.data} density="compact" />
               );
-            }
             return (
-              <ServiceListingCard
-                key={`service-${item.data.id}`}
-                listing={item.data}
-                density="compact"
-              />
+              <div key={`${item.kind}-${item.data.id}`} className="relative">
+                <span
+                  className={cn(
+                    'absolute top-2 start-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-bold shadow-sm',
+                    badge.className,
+                  )}
+                >
+                  {badge.label}
+                </span>
+                {inner}
+              </div>
             );
           })}
         </div>

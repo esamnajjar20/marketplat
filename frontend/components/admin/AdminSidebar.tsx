@@ -159,7 +159,7 @@ function MobileDrawer() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-3 start-3 z-[70] p-2 rounded-md bg-card border shadow-sm"
+        className="md:hidden fixed top-3 left-3 z-[70] p-2 rounded-md bg-card border shadow-sm"
         aria-label="فتح القائمة"
       >
         <Menu className="h-5 w-5" />
@@ -169,7 +169,7 @@ function MobileDrawer() {
         open &&
         createPortal(
           <div
-            className="md:hidden fixed inset-0 z-[100] flex justify-start"
+            className="md:hidden fixed inset-0 z-[100]"
             role="dialog"
             aria-modal="true"
             aria-label="قائمة الإدارة"
@@ -178,7 +178,7 @@ function MobileDrawer() {
               className="absolute inset-0 bg-foreground/50 backdrop-blur-[2px]"
               onClick={() => setOpen(false)}
             />
-            <div className="relative z-[101] h-full w-64 max-w-[85vw] overflow-y-auto border-e border-border bg-card shadow-xl">
+            <div className="absolute inset-y-0 right-0 z-[101] h-full w-64 max-w-[85vw] overflow-y-auto border-s border-border bg-card shadow-xl">
               <button
                 onClick={() => setOpen(false)}
                 className="absolute top-3 end-3 z-[102] p-1 rounded-md hover:bg-muted"

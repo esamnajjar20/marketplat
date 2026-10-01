@@ -333,7 +333,7 @@ export function MobileNav() {
        * element (for the frosted sticky-nav effect) — and per the CSS
        * spec, any element with a filter/backdrop-filter other than
        * `none` becomes the containing block for its position: fixed
-       * descendants. So this drawer's `fixed inset-y-0 start-0` was
+       * descendants. So this drawer's `fixed inset-y-0 right-0` was
        * being positioned relative to the header's own box, not the
        * viewport — it opened pinned to the header's height instead of
        * covering the screen (visually: a strip trapped under the top
@@ -369,7 +369,7 @@ export function MobileNav() {
             id={NAV_ID}
             // FIX MOBILE-01: max-w-[85vw] — see identical fix in
             // ProtectedMobileNav.tsx.
-            className={`fixed inset-y-0 start-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
+            className={`fixed inset-y-0 right-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
               isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
