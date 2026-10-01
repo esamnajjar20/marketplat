@@ -22,6 +22,7 @@
  * produce — it doesn't trigger scoring itself.
  */
 
+import { adminPagination } from '@/lib/adminHubTabs';
 import { Fragment, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -269,7 +270,7 @@ export function AdminFraudTable() {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl="/admin/fraud" searchParams={Object.fromEntries(sp.entries())} />
+          {...adminPagination('fraud', sp)} />
       )}
 
       <ConfirmDialog

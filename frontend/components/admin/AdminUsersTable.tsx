@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { USER_ACTIVE_STATUS_VARIANT, USER_ACTIVE_STATUS_LABELS, userActiveKey } from '@/lib/userActiveStatus';
 import type { AdminUser, AssignableRole } from '@/types/admin.types';
 import type { UserRole } from '@/types/auth.types';
+import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 
 // Gap #20 (admin permission tiers): frontend mirror of the backend's
 // single source of truth (roleHierarchy.ts's canManageRole). This is
@@ -152,7 +153,7 @@ export function AdminUsersTable() {
     // SW-FIX-ADMIN-NAV-REPLACE: filters/search are refinements of the
     // same view — using push made Back require N presses to leave the
     // page after typing N searches. Matches AdminFilterBar's own replace.
-    router.replace(`/admin/users?${params.toString()}`);
+    router.replace(adminListHref('users', params));
   }
 
   function roleChangeCopy(nextRole: AssignableRole) {
@@ -487,7 +488,7 @@ export function AdminUsersTable() {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl="/admin/users" searchParams={Object.fromEntries(sp.entries())} />
+          {...adminPagination('users', sp)} />
       )}
 
       <ConfirmDialog

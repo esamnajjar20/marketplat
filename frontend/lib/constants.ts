@@ -126,28 +126,32 @@ export const ROUTES = {
     offline:       '/offline?tab=warming',
   },
   admin: {
+    // ADMIN-HUB-01: every admin section is a TAB of /admin now (see
+    // lib/adminHubTabs.ts). Never append '?x=y' to these — use
+    // adminTabHref(tab, {x:'y'}) instead. `dashboard` is the bare hub: a
+    // MODERATOR, who has no dashboard tab, lands on their default tab there.
     root:              '/admin',
-    dashboard:         '/admin/dashboard',
-    ads:               '/admin/ads',
-    users:             '/admin/users',
-    reports:           '/admin/reports',
-    categories:        '/admin/categories',
+    dashboard:         '/admin',
+    ads:               '/admin?tab=ads',
+    users:             '/admin?tab=users',
+    reports:           '/admin?tab=reports',
+    categories:        '/admin?tab=categories',
     // Epic 1.1: admin verify/suspend UI — was entirely missing.
-    sellers:           '/admin/sellers',
+    sellers:           '/admin?tab=sellers',
     // Epic 1.2: admin service-categories management — was entirely missing.
-    serviceCategories: '/admin/service-categories',
-    stores:            '/admin/stores',
-    productCategories: '/admin/product-categories',
-    auditLogs:         '/admin/audit-logs',
+    serviceCategories: '/admin?tab=service-categories',
+    stores:            '/admin?tab=stores',
+    productCategories: '/admin?tab=product-categories',
+    auditLogs:         '/admin?tab=audit-logs',
     // Gap #7 (product analytics): dashboard for GET /admin/analytics/summary.
-    analytics:         '/admin/analytics',
+    analytics:         '/admin?tab=analytics',
     // FRAUD-UI: /admin/fraud/* backend module had no reachable page.
-    fraud:             '/admin/fraud',
-    products:          '/admin/products',
-    serviceListings:   '/admin/service-listings',
-    openRequests:       '/admin/open-requests',
-    notifications:     '/admin/notifications',
-    system:            '/admin/system',
+    fraud:             '/admin?tab=fraud',
+    products:          '/admin?tab=products',
+    serviceListings:   '/admin?tab=service-listings',
+    openRequests:      '/admin?tab=open-requests',
+    notifications:     '/admin?tab=notifications',
+    system:            '/admin?tab=system',
   },
 } as const;
 

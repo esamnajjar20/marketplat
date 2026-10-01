@@ -49,7 +49,9 @@ let mockSearchParams = new URLSearchParams();
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush }),
+  // AdminUsersTable.search() uses router.replace (SW-FIX-ADMIN-NAV-REPLACE); the
+  // mock only had `push`, so this test could never pass. Both record here.
+  useRouter: () => ({ push: mockPush, replace: mockPush }),
 }));
 
 const mockToggleMutate = vi.fn();
@@ -371,7 +373,7 @@ describe('AdminUsersTable', () => {
       const input = screen.getByPlaceholderText('بحث بالاسم أو البريد…');
       await user.type(input, 'سارة{Enter}');
 
-      expect(mockPush).toHaveBeenCalledWith('/admin/users?q=%D8%B3%D8%A7%D8%B1%D8%A9');
+      expect(mockPush).toHaveBeenCalledWith('/admin?tab=users&q=%D8%B3%D8%A7%D8%B1%D8%A9');
     });
   });
 

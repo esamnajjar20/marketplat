@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
 import { REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import type { RequestStatus, RequestType } from '@/types/request.types';
+import { adminPagination } from '@/lib/adminHubTabs';
 
 type RequestRow = {
   id: string;
@@ -139,12 +140,11 @@ export function AdminOpenRequestsTable() {
       <Pagination
         totalPages={Number(totalPages) || 1}
         currentPage={page}
-        baseUrl="/admin/open-requests"
-        searchParams={{
+        {...adminPagination('open-requests', {
           q: q || undefined,
           status: status !== 'OPEN' ? status : undefined,
           type: type,
-        }}
+        })}
       />
       )}
 

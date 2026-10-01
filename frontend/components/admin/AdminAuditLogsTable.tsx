@@ -26,6 +26,7 @@ import { AUDIT_EVENT_LABELS } from '@/lib/constants';
 import { formatDateTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import type { AuditLog, AuditEventType } from '@/types/admin.types';
+import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 
 const AUDIT_EVENT_TYPES = Object.keys(AUDIT_EVENT_LABELS) as AuditEventType[];
 
@@ -163,7 +164,7 @@ export function AdminAuditLogsTable() {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set(key, value); else params.delete(key);
     params.delete('page');
-    router.replace(`/admin/audit-logs?${params.toString()}`);
+    router.replace(adminListHref('audit-logs', params));
   }
 
   return (
@@ -357,8 +358,7 @@ export function AdminAuditLogsTable() {
         <Pagination
           totalPages={totalPages}
           currentPage={page}
-          baseUrl="/admin/audit-logs"
-          searchParams={Object.fromEntries(sp.entries())}
+          {...adminPagination('audit-logs', sp)}
         />
       )}
 

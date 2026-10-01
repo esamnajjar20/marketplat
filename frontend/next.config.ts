@@ -145,7 +145,21 @@ const nextConfig: NextConfig = {
       { source: '/saved-ads', destination: '/offline?tab=saved' },
       { source: '/downloads', destination: '/offline?tab=saved' },
     ];
+    // ADMIN-HUB-01: the 17 admin pages are tabs of /admin now. Only these exact
+    // paths — /admin/debug/warming stays a route. Next forwards the incoming
+    // query string (e.g. ?status=PENDING from an old bookmark) to the destination.
+    const adminTabs = [
+      'ads', 'users', 'sellers', 'stores', 'reports', 'fraud', 'products',
+      'service-listings', 'open-requests', 'categories', 'service-categories',
+      'product-categories', 'notifications', 'audit-logs', 'analytics', 'system',
+    ];
     return [
+      { source: '/admin/dashboard', destination: '/admin', permanent: false },
+      ...adminTabs.map((tab) => ({
+        source: `/admin/${tab}`,
+        destination: `/admin?tab=${tab}`,
+        permanent: false,
+      })),
       ...tabs.map((tab) => ({
         source: `/my-store/${tab}`,
         destination: `/my-store?tab=${tab}`,

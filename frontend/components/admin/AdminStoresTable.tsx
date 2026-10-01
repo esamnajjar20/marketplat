@@ -45,6 +45,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
 import type { AdminStoreStatus } from '@/types/admin.types';
+import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 
 const STATUS_TABS: { value: AdminStoreStatus | 'ALL'; label: string }[] = [
   { value: 'PENDING', label: 'قيد المراجعة' },
@@ -152,7 +153,7 @@ export function AdminStoresTable() {
       if (value) params.set(key, value); else params.delete(key);
     }
     params.delete('page');
-    router.replace(`/admin/stores?${params.toString()}`);
+    router.replace(adminListHref('stores', params));
   }
 
   return (
@@ -425,7 +426,7 @@ export function AdminStoresTable() {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl="/admin/stores" searchParams={Object.fromEntries(sp.entries())} />
+          {...adminPagination('stores', sp)} />
       )}
 
       <ConfirmDialog

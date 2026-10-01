@@ -1,5 +1,6 @@
 'use client';
 
+import { adminPagination } from '@/lib/adminHubTabs';
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Package, Pause, Trash2 } from 'lucide-react';
@@ -210,8 +211,7 @@ export function AdminProductsTable() {
         <Pagination
           totalPages={totalPages}
           currentPage={page}
-          baseUrl="/admin/products"
-          searchParams={Object.fromEntries(sp.entries())}
+          {...adminPagination('products', sp)}
         />
       )}
 

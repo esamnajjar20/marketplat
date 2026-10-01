@@ -16,6 +16,7 @@
  * a confirmation the same way promote/demote to ADMIN does).
  */
 
+import { adminPagination } from '@/lib/adminHubTabs';
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShieldOff, ShieldCheck, BadgeCheck, BadgeX, Star, Search } from 'lucide-react';
@@ -337,7 +338,7 @@ export function AdminSellersTable() {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl="/admin/sellers" searchParams={Object.fromEntries(sp.entries())} />
+          {...adminPagination('sellers', sp)} />
       )}
 
       <ConfirmDialog

@@ -53,7 +53,7 @@ export function AdminHeader() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border/80 bg-background/90 px-4 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
-      <Link prefetch={false} href="/admin/dashboard" className="font-bold text-sm text-primary">
+      <Link prefetch={false} href={ROUTES.admin.dashboard} className="font-bold text-sm text-primary">
         سوق غزة — إدارة
       </Link>
       <div className="flex items-center gap-2">

@@ -8,7 +8,8 @@
  *    approval — issue #1), "فئات المنتجات" (product categories), "سجل
  *    العمليات" (Audit Logs), and "التحليلات" (Gap #7 — product analytics).
  *  - Active-state: aria-current="page" set on the link matching the current pathname
- *  - Active-state: startsWith match for nested routes (e.g. /admin/ads/123)
+ *  - Active-state: the link whose ?tab= matches (bare /admin = dashboard for
+ *    ADMIN+, ads for a MODERATOR)
  *  - Mobile drawer: closed by default, opens on hamburger click, closes on
  *    backdrop click, closes on X click, closes when a nav link is clicked
  *  - Desktop sidebar is always present in the DOM (visibility controlled by CSS)
@@ -20,10 +21,14 @@ import { setupUser } from '@/test-support/user-event';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAuthStore } from '@/store/auth.store';
 
-const mockUsePathname = vi.fn(() => '/admin/dashboard');
+// ADMIN-HUB-01: every section is a tab of /admin (?tab=…), so the active state
+// now depends on BOTH the pathname and the search params.
+const mockUsePathname = vi.fn(() => '/admin');
+let mockSearch = '';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => mockUsePathname(),
+  useSearchParams: () => new URLSearchParams(mockSearch),
 }));
 
 vi.mock('@/hooks/queries/useAdmin', () => ({
@@ -80,7 +85,8 @@ vi.mock('next/link', () => ({
 
 describe('AdminSidebar', () => {
   beforeEach(() => {
-    mockUsePathname.mockReturnValue('/admin/dashboard');
+    mockUsePathname.mockReturnValue('/admin');
+    mockSearch = '';
     mockActor('ADMIN');
   });
 
@@ -106,32 +112,32 @@ describe('AdminSidebar', () => {
     expect(within(desktopNav).getByText('صحة النظام')).toBeInTheDocument();
   });
 
-  it('links to /admin/categories for the فئات الإعلانات item (report item #6 fix)', () => {
+  it('links to /admin?tab=categories for the فئات الإعلانات item (report item #6 fix)', () => {
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const link = within(desktopNav).getByText('فئات الإعلانات').closest('a');
-    expect(link).toHaveAttribute('href', '/admin/categories');
+    expect(link).toHaveAttribute('href', '/admin?tab=categories');
   });
 
-  it('links to /admin/sellers for the البائعون item (Epic 1.1)', () => {
+  it('links to /admin?tab=sellers for the البائعون item (Epic 1.1)', () => {
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const link = within(desktopNav).getByText('البائعون').closest('a');
-    expect(link).toHaveAttribute('href', '/admin/sellers');
+    expect(link).toHaveAttribute('href', '/admin?tab=sellers');
   });
 
-  it('links to /admin/service-categories for the فئات الخدمات item (Epic 1.2)', () => {
+  it('links to /admin?tab=service-categories for the فئات الخدمات item (Epic 1.2)', () => {
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const link = within(desktopNav).getByText('فئات الخدمات').closest('a');
-    expect(link).toHaveAttribute('href', '/admin/service-categories');
+    expect(link).toHaveAttribute('href', '/admin?tab=service-categories');
   });
 
-  it('links to /admin/audit-logs for the سجل العمليات item', () => {
+  it('links to /admin?tab=audit-logs for the سجل العمليات item', () => {
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const link = within(desktopNav).getByText('سجل العمليات').closest('a');
-    expect(link).toHaveAttribute('href', '/admin/audit-logs');
+    expect(link).toHaveAttribute('href', '/admin?tab=audit-logs');
   });
 
   it('renders the "لوحة الإدارة" section heading', () => {
@@ -141,46 +147,54 @@ describe('AdminSidebar', () => {
 
   // ── Active-state highlighting ───────────────────────────────────────
 
-  it('marks the dashboard link as active on /admin/dashboard', () => {
-    mockUsePathname.mockReturnValue('/admin/dashboard');
+  it('marks the dashboard link as active on the bare /admin hub', () => {
+    mockUsePathname.mockReturnValue('/admin');
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const link = within(desktopNav).getByText('الرئيسية').closest('a');
     expect(link).toHaveAttribute('aria-current', 'page');
   });
 
-  it('marks the ads link as active on /admin/ads', () => {
-    mockUsePathname.mockReturnValue('/admin/ads');
+  it('marks the ads link as active on /admin?tab=ads', () => {
+    mockUsePathname.mockReturnValue('/admin');
+    mockSearch = 'tab=ads';
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const link = within(desktopNav).getByText('الإعلانات').closest('a');
     expect(link).toHaveAttribute('aria-current', 'page');
+    // ...and only that link
+    expect(within(desktopNav).getByText('الرئيسية').closest('a')).not.toHaveAttribute('aria-current');
   });
 
-  it('marks the ads link as active on a nested route /admin/ads/123 (startsWith match)', () => {
-    mockUsePathname.mockReturnValue('/admin/ads/123');
+  it('keeps the tab active while the list carries its own filters (?tab=ads&status=ACTIVE&page=2)', () => {
+    mockUsePathname.mockReturnValue('/admin');
+    mockSearch = 'tab=ads&status=ACTIVE&page=2';
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
-    const link = within(desktopNav).getByText('الإعلانات').closest('a');
-    expect(link).toHaveAttribute('aria-current', 'page');
+    expect(within(desktopNav).getByText('الإعلانات').closest('a')).toHaveAttribute('aria-current', 'page');
   });
 
   it('does not mark unrelated links as active', () => {
-    mockUsePathname.mockReturnValue('/admin/dashboard');
+    mockUsePathname.mockReturnValue('/admin');
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
     const usersLink = within(desktopNav).getByText('المستخدمون').closest('a');
     expect(usersLink).not.toHaveAttribute('aria-current');
   });
 
-  it('does not false-positive match /admin/ads-extra as active for /admin/ads', () => {
-    // startsWith(href + '/') requires the separator, so a route name that
-    // merely starts with the same prefix string must not match.
-    mockUsePathname.mockReturnValue('/admin/ads-extra');
+  it('marks nothing active outside the hub (e.g. /admin/debug/warming)', () => {
+    mockUsePathname.mockReturnValue('/admin/debug/warming');
     render(<AdminSidebar />);
     const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
-    const adsLink = within(desktopNav).getByText('الإعلانات').closest('a');
-    expect(adsLink).not.toHaveAttribute('aria-current');
+    expect(within(desktopNav).queryAllByRole('link').filter((a) => a.hasAttribute('aria-current'))).toHaveLength(0);
+  });
+
+  it('an unknown ?tab= falls back to the dashboard', () => {
+    mockUsePathname.mockReturnValue('/admin');
+    mockSearch = 'tab=nope';
+    render(<AdminSidebar />);
+    const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
+    expect(within(desktopNav).getByText('الرئيسية').closest('a')).toHaveAttribute('aria-current', 'page');
   });
 
   // ── Icon accessibility ───────────────────────────────────────────────
@@ -189,7 +203,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(15); // one per nav link — NAV_LINKS now has 15 entries
+    expect(hiddenIcons?.length).toBe(18); // 17 nav links (NAV_LINKS) + the search-box icon
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────
@@ -258,7 +272,7 @@ describe('AdminSidebar', () => {
 
   // ── Gap #20 (admin permission tiers): MODERATOR link filtering ──────
 
-  describe('MODERATOR tier — only sees ads and reports', () => {
+  describe('MODERATOR tier — only the sections the backend gates at MODERATOR', () => {
     beforeEach(() => {
       mockActor('MODERATOR');
     });
@@ -281,19 +295,31 @@ describe('AdminSidebar', () => {
       expect(within(desktopNav).queryByText('التحليلات')).not.toBeInTheDocument();
     });
 
-    it('renders only 5 icons for a MODERATOR (one per visible link)', () => {
-      // Untiered links: الإعلانات, البلاغات, مكافحة الاحتيال, المنتجات,
-      // الخدمات — 5, not 3 (fraud/products/service-listings were added
-      // without tierRequired after this test was first written).
-      const { container } = render(<AdminSidebar />);
-      const desktopAside = container.querySelector('aside');
-      const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-      expect(hiddenIcons?.length).toBe(5);
+    it('shows exactly the six MODERATOR sections (incl. الطلبات المفتوحة — gated MODERATOR in the backend)', () => {
+      // lib/adminHubTabs.ts MODERATOR_ADMIN_TABS is the single source of truth.
+      render(<AdminSidebar />);
+      const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
+      const labels = within(desktopNav).getAllByRole('link').map((a) => a.textContent);
+      expect(labels).toEqual([
+        'الإعلانات',
+        'البلاغات',
+        'مكافحة الاحتيال',
+        'المنتجات',
+        'الخدمات',
+        'الطلبات المفتوحة',
+      ]);
+    });
+
+    it('a MODERATOR on the bare /admin hub sees the ads link active (their default tab)', () => {
+      mockUsePathname.mockReturnValue('/admin');
+      render(<AdminSidebar />);
+      const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
+      expect(within(desktopNav).getByText('الإعلانات').closest('a')).toHaveAttribute('aria-current', 'page');
     });
   });
 
   describe('ADMIN and SUPER_ADMIN tiers — see every link (unchanged from pre-Gap-20 behavior)', () => {
-    it('an ADMIN actor sees all 11 links', () => {
+    it('an ADMIN actor sees all 17 links', () => {
       mockActor('ADMIN');
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
@@ -301,7 +327,7 @@ describe('AdminSidebar', () => {
       expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
     });
 
-    it('a SUPER_ADMIN actor sees all 11 links', () => {
+    it('a SUPER_ADMIN actor sees all 17 links', () => {
       mockActor('SUPER_ADMIN');
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];

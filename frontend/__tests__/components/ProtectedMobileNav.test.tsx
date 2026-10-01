@@ -450,7 +450,7 @@ describe('ProtectedMobileNav', () => {
       isAdmin = true;
       render(<ProtectedMobileNav />);
       expect(screen.getByText('لوحة الإدارة').closest('a')?.getAttribute('href')).toBe(
-        '/admin/dashboard',
+        '/admin',
       );
     });
   });

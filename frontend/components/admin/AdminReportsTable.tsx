@@ -19,6 +19,7 @@ import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/consta
 import { formatRelativeTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
+import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 
 const REPORT_STATUSES = ['PENDING', 'RESOLVED', 'DISMISSED'] as const;
 
@@ -165,7 +166,7 @@ export function AdminReportsTable() {
           <button key={val} onClick={() => {
             const params = new URLSearchParams(sp.toString());
             params.set('status', val); params.delete('page');
-            router.push(`/admin/reports?${params.toString()}`);
+            router.push(adminListHref('reports', params));
           }}
             aria-pressed={status === val}
             className={`text-sm px-3 py-1 rounded-full transition-colors
@@ -184,7 +185,7 @@ export function AdminReportsTable() {
         <button onClick={() => {
           const params = new URLSearchParams(sp.toString());
           params.delete('targetType'); params.delete('page');
-          router.push(`/admin/reports?${params.toString()}`);
+          router.push(adminListHref('reports', params));
         }}
           aria-pressed={!targetType}
           className={`text-sm px-3 py-1 rounded-full transition-colors
@@ -195,7 +196,7 @@ export function AdminReportsTable() {
           <button key={val} onClick={() => {
             const params = new URLSearchParams(sp.toString());
             params.set('targetType', val); params.delete('page');
-            router.push(`/admin/reports?${params.toString()}`);
+            router.push(adminListHref('reports', params));
           }}
             aria-pressed={targetType === val}
             className={`text-sm px-3 py-1 rounded-full transition-colors
@@ -387,7 +388,7 @@ export function AdminReportsTable() {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl="/admin/reports" searchParams={Object.fromEntries(sp.entries())} />
+          {...adminPagination('reports', sp)} />
       )}
 
       <ConfirmDialog

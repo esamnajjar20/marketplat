@@ -7,76 +7,66 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
   HeartPulse, ListOrdered, Bell, Search } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
+import { canOpenAdminTab, isAdminTabActive, type AdminTab } from '@/lib/adminHubTabs';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 
-// Gap #20 (admin permission tiers): tierRequired marks the links a
-// MODERATOR cannot reach — anything gated ADMIN+ on the backend
-// (admin.routes.ts: sellers/stores/users/broadcast/stats, plus every
-// other admin sub-module, none of which loosened their existing
-// requireAdmin gate). Ads and reports stay open to MODERATOR — the
-// backend explicitly kept ads-moderation and reports at the
-// MODERATOR tier. Undefined means "any admin-tier role can see this".
+// ADMIN-HUB-01: every link is a TAB of /admin (lib/adminHubTabs.ts). Which
+// tabs a MODERATOR may see is decided there (canOpenAdminTab) — one list
+// instead of the tierRequired flags that used to be mirrored here and in the
+// admin layout (and had drifted). badgeKey = live ops-queue counter.
 const NAV_LINKS = [
-  { href: ROUTES.admin.dashboard,         label: 'الرئيسية',       icon: LayoutDashboard, tierRequired: 'ADMIN' as const },
-  { href: ROUTES.admin.ads,               label: 'الإعلانات',      icon: ShoppingBag },
-  { href: ROUTES.admin.users,             label: 'المستخدمون',     icon: Users,           tierRequired: 'ADMIN' as const },
+  { tab: 'dashboard' as AdminTab, href: ROUTES.admin.dashboard,         label: 'الرئيسية',       icon: LayoutDashboard },
+  { tab: 'ads' as AdminTab, href: ROUTES.admin.ads,               label: 'الإعلانات',      icon: ShoppingBag },
+  { tab: 'users' as AdminTab, href: ROUTES.admin.users,             label: 'المستخدمون',     icon: Users },
   // EPIC 1.1: was entirely missing — see AdminSellersTable.tsx.
-  { href: ROUTES.admin.sellers,           label: 'البائعون',       icon: UserCheck,       tierRequired: 'ADMIN' as const, badgeKey: 'pendingSellers' as const },
+  { tab: 'sellers' as AdminTab, href: ROUTES.admin.sellers,           label: 'البائعون',       icon: UserCheck, badgeKey: 'pendingSellers' as const },
   // AUDIT-FIX (issue #1): was entirely missing — see AdminStoresTable.tsx.
   // Without this link, POST /stores had a working PENDING→ACTIVE
   // transition server-side but zero discoverable path to it.
-  { href: ROUTES.admin.stores,            label: 'المتاجر',        icon: Store,           tierRequired: 'ADMIN' as const, badgeKey: 'pendingStores' as const },
-  { href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag, badgeKey: 'openReports' as const },
+  { tab: 'stores' as AdminTab, href: ROUTES.admin.stores,            label: 'المتاجر',        icon: Store, badgeKey: 'pendingStores' as const },
+  { tab: 'reports' as AdminTab, href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag, badgeKey: 'openReports' as const },
   // FRAUD-UI: fraud.routes.ts gates /admin/fraud at MODERATOR+ (same
   // tier as ads/reports above), same backend requireMinRole call —
   // no tierRequired, so a MODERATOR sees this link too.
-  { href: ROUTES.admin.fraud,             label: 'مكافحة الاحتيال', icon: ShieldAlert, badgeKey: 'unreviewedFraud' as const },
-  { href: ROUTES.admin.products,          label: 'المنتجات',       icon: Package },
-  { href: ROUTES.admin.serviceListings,   label: 'الخدمات',        icon: Wrench },
-  { href: ROUTES.admin.openRequests,      label: 'الطلبات المفتوحة', icon: ListOrdered },
-  { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree,      tierRequired: 'ADMIN' as const },
+  { tab: 'fraud' as AdminTab, href: ROUTES.admin.fraud,             label: 'مكافحة الاحتيال', icon: ShieldAlert, badgeKey: 'unreviewedFraud' as const },
+  { tab: 'products' as AdminTab, href: ROUTES.admin.products,          label: 'المنتجات',       icon: Package },
+  { tab: 'service-listings' as AdminTab, href: ROUTES.admin.serviceListings,   label: 'الخدمات',        icon: Wrench },
+  { tab: 'open-requests' as AdminTab, href: ROUTES.admin.openRequests,      label: 'الطلبات المفتوحة', icon: ListOrdered },
+  { tab: 'categories' as AdminTab, href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
-  { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench,          tierRequired: 'ADMIN' as const },
+  { tab: 'service-categories' as AdminTab, href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench },
   // Audit fix: was entirely missing despite full backend CRUD + a
   // mandatory role in ProductForm — see AdminProductCategoriesTree.tsx.
-  { href: ROUTES.admin.productCategories, label: 'فئات المنتجات',  icon: Package,         tierRequired: 'ADMIN' as const },
-  { href: ROUTES.admin.notifications,     label: 'الإشعارات',      icon: Bell,            tierRequired: 'ADMIN' as const },
+  { tab: 'product-categories' as AdminTab, href: ROUTES.admin.productCategories, label: 'فئات المنتجات',  icon: Package },
+  { tab: 'notifications' as AdminTab, href: ROUTES.admin.notifications,     label: 'الإشعارات',      icon: Bell },
   // Audit Logs: GET /admin/audit-logs — see AdminAuditLogsTable.tsx.
-  { href: ROUTES.admin.auditLogs,         label: 'سجل العمليات',   icon: ScrollText,      tierRequired: 'ADMIN' as const },
+  { tab: 'audit-logs' as AdminTab, href: ROUTES.admin.auditLogs,         label: 'سجل العمليات',   icon: ScrollText },
   // Gap #7 (product analytics): GET /admin/analytics/summary — see
   // AdminAnalyticsDashboard.tsx.
-  { href: ROUTES.admin.analytics,         label: 'التحليلات',      icon: BarChart3,       tierRequired: 'ADMIN' as const },
-  { href: ROUTES.admin.system,            label: 'صحة النظام',     icon: HeartPulse,      tierRequired: 'ADMIN' as const },
+  { tab: 'analytics' as AdminTab, href: ROUTES.admin.analytics,         label: 'التحليلات',      icon: BarChart3 },
+  { tab: 'system' as AdminTab, href: ROUTES.admin.system,            label: 'صحة النظام',     icon: HeartPulse },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const sp       = useSearchParams();
   const user     = useAuthStore(selectUser);
   const { data: queue } = useAdminOpsQueue();
   const [filter, setFilter] = useState('');
-  // FIX SIDEBAR-ROLE-GATE-01: the previous check was
-  // `!isModerator || !('tierRequired' in link)` -- which meant any role
-  // OTHER than MODERATOR (including USER, and including `undefined`
-  // during the brief pre-hydration window) saw every link. The
-  // middleware protects /admin so USER/undefined never actually land
-  // here, but "every link shows" is the wrong default for a nav whose
-  // own doc comment (lines 14-20) encodes the ADMIN/MODERATOR tier
-  // split. Fail closed instead: only show the nav to a recognized
-  // admin-tier role, mirroring the backend's requireMinRole gate.
-  const role = user?.role;
-  const isModerator = role === 'MODERATOR';
-  const isAdmin     = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const isAdminTier = isAdmin || isModerator;
+  // FIX SIDEBAR-ROLE-GATE-01: fail closed — only a recognized admin-tier role
+  // sees any link (canOpenAdminTab is false for an unknown / missing role).
+  // ADMIN-HUB-01: the tier table itself lives in lib/adminHubTabs.ts.
+  const role   = user?.role;
+  const search = sp.toString() ? `?${sp.toString()}` : '';
 
   const links = NAV_LINKS
-    .filter(() => isAdminTier)
-    .filter((link) => !isModerator || !('tierRequired' in link))
+    .filter((link) => canOpenAdminTab(link.tab, role))
     .filter((link) => !filter.trim() || link.label.includes(filter.trim()));
 
   return (
@@ -101,7 +91,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       )}
       {links.map((link) => {
         const { href, label, icon: Icon } = link;
-        const isActive = pathname === href || pathname.startsWith(href + '/');
+        const isActive = isAdminTabActive(pathname, search, link.tab, role);
         const badgeKey = 'badgeKey' in link ? (link.badgeKey as
           'openReports' | 'pendingStores' | 'pendingSellers' | 'unreviewedFraud' | undefined) : undefined;
         const badge =

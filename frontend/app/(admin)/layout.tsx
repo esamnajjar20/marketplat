@@ -14,7 +14,7 @@
  */
 'use client';
 
-import { useEffect }    from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast }        from 'sonner';
 import {
@@ -31,25 +31,13 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader }  from '@/components/admin/AdminHeader';
 import { PageTransition } from '@/components/shared/PageTransition';
 
-// Gap #20 (admin permission tiers): the only two sections a MODERATOR
-// can reach — mirrors AdminSidebar's own tierRequired filter and the
-// backend's requireMinRole(MODERATOR) gate on ads/reports/fraud.
-// Kept as prefixes (not exact matches) so nested routes like
-// /admin/ads/123 are covered too.
-const MODERATOR_ALLOWED_PREFIXES = [
-  ROUTES.admin.root,
-  ROUTES.admin.ads,
-  ROUTES.admin.reports,
-  ROUTES.admin.fraud,
-  ROUTES.admin.products,
-  ROUTES.admin.serviceListings,
-];
-
+// Gap #20 (admin permission tiers) / ADMIN-HUB-01: every admin section is a tab
+// of the /admin hub now, so the page-level gate only has to admit the hub
+// itself; WHICH tabs a MODERATOR may open is decided in lib/adminHubTabs.ts and
+// enforced by AdminTabsHub (and, for real, by the backend's requireMinRole).
+// Anything else under /admin (e.g. /admin/debug/warming) is ADMIN-only.
 function isAllowedForModerator(pathname: string): boolean {
-  if (pathname === ROUTES.admin.root) return true;
-  return MODERATOR_ALLOWED_PREFIXES.some(
-    (prefix) => prefix !== ROUTES.admin.root && (pathname === prefix || pathname.startsWith(`${prefix}/`)),
-  );
+  return pathname === ROUTES.admin.root;
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -111,7 +99,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-surface-1">
-      <AdminSidebar />
+      {/* useSearchParams() inside needs a Suspense boundary. */}
+      <Suspense fallback={null}>
+        <AdminSidebar />
+      </Suspense>
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}

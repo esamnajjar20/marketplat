@@ -1,19 +1,24 @@
-/**
- * /admin — root alias, redirects to /admin/dashboard.
- *
- * REORG-09: every in-app entry point (UserMenu, MobileNav,
- * ProtectedMobileNav) already links straight to ROUTES.admin.dashboard,
- * so this route was never hit by normal navigation — but it also never
- * had a page.tsx, so typing /admin directly (bookmark, address bar,
- * external link) 404'd. Same pattern as the /ads/[id]/edit legacy
- * redirect: a bare forwarding page, not new content.
- *
- * Server-side redirect (no params, no client state needed) rather than
- * a useEffect round-trip.
- */
-import { redirect } from 'next/navigation';
-import { ROUTES } from '@/lib/constants';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { AdminTabsHub } from '@/components/admin/AdminTabsHub';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
+import { buildMetadata } from '@/lib/seo';
 
-export default function AdminRootPage() {
-  redirect(ROUTES.admin.dashboard);
+export const metadata: Metadata = buildMetadata({ title: 'لوحة الإدارة', noIndex: true });
+
+/**
+ * ADMIN-HUB-01: one route for the whole admin panel. The section lives in
+ * ?tab=… (lib/adminHubTabs.ts) and is resolved on the client
+ * (useSearchParams), so the HTML shell is identical for every tab. The old
+ * /admin/<section> URLs redirect here via next.config.ts. Bare /admin is the
+ * dashboard for ADMIN+ and the ads queue for a MODERATOR.
+ */
+export default function AdminPage() {
+  return (
+    <Suspense
+      fallback={<PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز لوحة الإدارة…" />}
+    >
+      <AdminTabsHub />
+    </Suspense>
+  );
 }

@@ -1,45 +1,36 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { FolderTree, Package, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
 
 const TABS = [
-  { href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree },
-  { href: ROUTES.admin.productCategories, label: 'فئات المنتجات',  icon: Package },
-  { href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench },
+  { id: 'categories', href: ROUTES.admin.categories, label: 'فئات الإعلانات', icon: FolderTree },
+  { id: 'product-categories', href: ROUTES.admin.productCategories, label: 'فئات المنتجات', icon: Package },
+  { id: 'service-categories', href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات', icon: Wrench },
 ] as const;
 
-/**
- * FIX P2-9: the report's complaint was that ads/products/services
- * categories live on three fully separate pages with no way to switch
- * between them without going back through the sidebar. Each of the
- * three routes stays real and independently linkable (AdminSidebar.tsx
- * still points at all three, and existing bookmarks/deep-links keep
- * working) — this just adds a shared tab strip at the top of each page
- * so switching category type is a single click instead of a sidebar
- * round-trip. Follows the same custom role="tablist" pattern
- * SearchTabs.tsx already established (no shadcn Tabs primitive is
- * installed in this project), but as real links rather than client
- * state, since each type is a genuinely distinct page/tree/create-flow.
- */
-export function AdminCategoryTypeTabs() {
-  const pathname = usePathname();
+export type CategoryTypeTab = (typeof TABS)[number]['id'];
 
+/**
+ * FIX P2-9: ads / products / services categories each have their own tree and
+ * create-flow; this strip switches between them in one click instead of a
+ * sidebar round-trip. Follows the same custom role="tablist" pattern
+ * SearchTabs.tsx established (no shadcn Tabs primitive is installed).
+ *
+ * ADMIN-HUB-01: the three used to be separate pages and this component read
+ * usePathname() to find its active tab. They are tabs of /admin now, so the
+ * hub passes `active` explicitly — no router hooks needed here.
+ */
+export function AdminCategoryTypeTabs({ active }: { active: CategoryTypeTab }) {
   return (
     <div role="tablist" aria-label="نوع الفئات" className="flex gap-1 overflow-x-auto border-b">
       {TABS.map((tab) => {
-        // FIX CAT-TABS-ACTIVE-PARITY-01: matches the isActive rule
-        // AdminSidebar already uses (exact OR prefix), so a future
-        // subroute under one of these three would highlight both
-        // surfaces consistently.
-        const isActive =
-          pathname === tab.href || pathname.startsWith(tab.href + '/');
+        const isActive = tab.id === active;
         return (
           <Link
-            key={tab.href}
+            key={tab.id}
             href={tab.href}
             role="tab"
             aria-selected={isActive}

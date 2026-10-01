@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Flag, Store, UserCheck, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { ROUTES } from '@/lib/constants';
+import { adminTabHref } from '@/lib/adminHubTabs';
 import { formatNumber } from '@/lib/formatters';
 import { ApiError } from '@/components/shared/ApiError';
 import { parseApiError } from '@/lib/errorParser';
@@ -26,7 +26,7 @@ const ITEMS: {
     key: 'openReports',
     label: 'بلاغات مفتوحة',
     hint: 'بانتظار المراجعة',
-    href: `${ROUTES.admin.reports}?status=PENDING`,
+    href: adminTabHref('reports', { status: 'PENDING' }),
     icon: Flag,
     accent: 'text-destructive bg-destructive/10',
   },
@@ -34,7 +34,7 @@ const ITEMS: {
     key: 'pendingStores',
     label: 'متاجر معلّقة',
     hint: 'بانتظار الموافقة',
-    href: `${ROUTES.admin.stores}?status=PENDING`,
+    href: adminTabHref('stores', { status: 'PENDING' }),
     icon: Store,
     accent: 'text-amber-600 bg-amber-500/10 dark:text-amber-400',
   },
@@ -42,7 +42,7 @@ const ITEMS: {
     key: 'pendingSellers',
     label: 'بائعون للتحقق',
     hint: 'طلب توثيق معلّق',
-    href: `${ROUTES.admin.sellers}?verification=PENDING`,
+    href: adminTabHref('sellers', { verification: 'PENDING' }),
     icon: UserCheck,
     accent: 'text-primary bg-primary/10',
   },
@@ -50,7 +50,7 @@ const ITEMS: {
     key: 'unreviewedFraud',
     label: 'إشارات احتيال',
     hint: 'لم تُراجع بعد',
-    href: `${ROUTES.admin.fraud}?reviewed=false`,
+    href: adminTabHref('fraud', { reviewed: 'false' }),
     icon: ShieldAlert,
     accent: 'text-orange-600 bg-orange-500/10 dark:text-orange-400',
   },

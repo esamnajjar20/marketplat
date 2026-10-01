@@ -32,6 +32,7 @@ import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 
 export function AdminAdsTable() {
   const sp     = useSearchParams();
@@ -123,7 +124,7 @@ export function AdminAdsTable() {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set('q', value); else params.delete('q');
     params.delete('page');
-    router.replace(`/admin/ads?${params.toString()}`);
+    router.replace(adminListHref('ads', params));
   }
 
   return (
@@ -148,7 +149,7 @@ export function AdminAdsTable() {
             const params = new URLSearchParams(sp.toString());
             if (value !== 'ALL') params.set('status', value); else params.delete('status');
             params.delete('page');
-            router.replace(`/admin/ads?${params.toString()}`);
+            router.replace(adminListHref('ads', params));
           }}
         >
           <SelectTrigger className="w-auto min-w-[10rem]">
@@ -392,7 +393,7 @@ export function AdminAdsTable() {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl="/admin/ads" searchParams={Object.fromEntries(sp.entries())} />
+          {...adminPagination('ads', sp)} />
       )}
 
       <ConfirmDialog

@@ -27,37 +27,39 @@ test.describe('Admin dashboard', () => {
   });
 
   test('the admin sidebar links to every admin section', async ({ page }) => {
-    await page.goto('/admin/dashboard');
+    // ADMIN-HUB-01: every section is a tab of /admin (?tab=…); the old
+    // /admin/<section> URLs only exist as redirects.
+    await page.goto('/admin');
 
     await expect(page.getByRole('link', { name: 'الرئيسية' })).toHaveAttribute(
       'href',
-      '/admin/dashboard',
+      '/admin',
     );
     await expect(page.getByRole('link', { name: 'الإعلانات' })).toHaveAttribute(
       'href',
-      '/admin/ads',
+      '/admin?tab=ads',
     );
     await expect(page.getByRole('link', { name: 'المستخدمون' })).toHaveAttribute(
       'href',
-      '/admin/users',
+      '/admin?tab=users',
     );
     await expect(page.getByRole('link', { name: 'البلاغات' })).toHaveAttribute(
       'href',
-      '/admin/reports',
+      '/admin?tab=reports',
     );
     await expect(page.getByRole('link', { name: 'فئات الإعلانات' })).toHaveAttribute(
       'href',
-      '/admin/categories',
+      '/admin?tab=categories',
     );
     // Epic 1.1: verify/suspend sellers admin UI — was entirely missing.
     await expect(page.getByRole('link', { name: 'البائعون' })).toHaveAttribute(
       'href',
-      '/admin/sellers',
+      '/admin?tab=sellers',
     );
     // Epic 1.2: service-categories admin UI — was entirely missing.
     await expect(page.getByRole('link', { name: 'فئات الخدمات' })).toHaveAttribute(
       'href',
-      '/admin/service-categories',
+      '/admin?tab=service-categories',
     );
   });
 });
