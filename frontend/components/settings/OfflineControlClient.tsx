@@ -404,8 +404,10 @@ export function OfflineControlClient() {
               disabled={warmingActive}
               aria-disabled={warmingActive}
               className={cn(
-                'flex w-full items-start gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/50',
-                mode === m && 'bg-primary/5',
+                'flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-colors',
+                mode === m
+                  ? 'border-primary/40 bg-primary/5 shadow-xs'
+                  : 'border-transparent hover:bg-muted/50',
                 warmingActive && 'opacity-60',
               )}
             >

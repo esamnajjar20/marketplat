@@ -4,7 +4,7 @@ import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadg
 
 /**
  * مركز المزامنة — يعرض:
- * - طلبات الطابور العامة (pending / failed)
+ * - عمليات بانتظار الإرسال العامة (pending / failed)
  * - مسودات الإعلانات المحلية
  * - زر مزامنة الآن
  */

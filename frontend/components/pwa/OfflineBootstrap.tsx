@@ -19,6 +19,8 @@ import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { setQueueReplayInFlight } from '@/lib/offlineWarmingPipeline';
+import { shouldAutoSyncNow } from '@/lib/offlineHubPrefs';
+import { logOfflineActivity } from '@/lib/offlineActivityLog';
 import {
   scheduleWarming,
   cancelScheduledWarming,
@@ -45,6 +47,18 @@ function safeFire(label: string, p: Promise<unknown>): void {
 
 /** SW replay ثم نشر المسودات — مع إعلام الـ pipeline أن الطابور مشغول. */
 function replayThenPublishDrafts(): void {
+  // PHASE-3: احترام إعداد «Wi‑Fi فقط» للمزامنة التلقائية
+  if (!shouldAutoSyncNow()) {
+    try {
+      logOfflineActivity(
+        'sync_skipped_wifi',
+        'تأجيل المزامنة التلقائية — الاتصال ليس Wi‑Fi أو توفير البيانات مفعّل',
+      );
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
   setQueueReplayInFlight(true);
   void requestQueueReplay()
     .catch((err) => console.warn('[offline] requestQueueReplay failed:', err))
@@ -59,6 +73,14 @@ function replayThenPublishDrafts(): void {
             if (r.sent > 0 || r.failed > 0) {
               console.warn('[offline] published drafts from local store:', r);
               toastDraftPublishResult(r);
+              try {
+                if (r.sent > 0) {
+                  logOfflineActivity('sync_ok', `تم إرسال ${r.sent} مسودة/عملية`);
+                }
+                if (r.failed > 0) {
+                  logOfflineActivity('sync_fail', `تعذّر إرسال ${r.failed}`);
+                }
+              } catch { /* ignore */ }
             }
           })
           .catch((err) => {
