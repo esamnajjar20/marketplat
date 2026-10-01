@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowRight, MapPin, Wallet, CalendarClock } from 'lucide-react';
+import { ArrowRight, MapPin, Wallet, CalendarClock, Clock, MessageSquare } from 'lucide-react';
 import { useRequestDetail } from '@/hooks/queries/useRequests';
 import { useCancelRequest } from '@/hooks/mutations/useRequestMutations';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
@@ -14,6 +14,8 @@ import {
   REQUEST_TYPE_LABEL,
   REQUEST_TYPE_VARIANT,
   formatRequestBudget,
+  formatOffersCount,
+  isRequestExpiringSoon,
 } from '@/lib/requestStatus';
 import { formatRelativeTime } from '@/lib/formatters';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -25,7 +27,6 @@ import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 export default function RequestDetailPage() {
   const params = useParams();
-  // CONFIRM-REQUEST-DETAIL-01: replace window.confirm with ConfirmDialog.
   const [confirmCancel, setConfirmCancel] = useState(false);
   const id = String(params.id ?? '');
   const { data: request, isLoading, isError } = useRequestDetail(id);
@@ -39,6 +40,7 @@ export default function RequestDetailPage() {
         <div className="h-4 w-24 animate-pulse rounded bg-muted" />
         <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
         <div className="h-24 animate-pulse rounded-xl bg-muted" />
+        <div className="h-32 animate-pulse rounded-xl bg-muted" />
       </div>
     );
   }
@@ -64,13 +66,18 @@ export default function RequestDetailPage() {
   const images = request.attachedImages ?? [];
   const budget = formatRequestBudget(request.budgetMin, request.budgetMax);
   const offers = request.offers ?? [];
+  const offersCount = offers.length;
   const hiddenForCompetition =
     !isOwner && offers.length === 0 && request.status === 'OPEN';
   const canOffer = isAuthenticated && !isOwner && request.status === 'OPEN';
   const loginHref = `${ROUTES.login}?from=${encodeURIComponent(`/requests/${id}`)}`;
+  const expiringSoon = isRequestExpiringSoon(request.expiresAt);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 px-3 py-4 pb-28 sm:space-y-6 sm:p-4 sm:pb-10" dir="rtl">
+    <div
+      className="mx-auto max-w-3xl space-y-5 px-3 py-4 pb-28 sm:space-y-6 sm:p-4 sm:pb-10"
+      dir="rtl"
+    >
       <div>
         <Link
           href={ROUTES.requests}
@@ -89,6 +96,15 @@ export default function RequestDetailPage() {
           <Badge variant={REQUEST_TYPE_VARIANT[request.type]}>
             {REQUEST_TYPE_LABEL[request.type]}
           </Badge>
+          {expiringSoon && request.status === 'OPEN' && (
+            <Badge
+              variant="outline"
+              className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            >
+              <Clock className="me-1 h-3.5 w-3.5" aria-hidden />
+              ينتهي قريبًا
+            </Badge>
+          )}
           {request.city && (
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="h-3.5 w-3.5" aria-hidden />
@@ -110,8 +126,32 @@ export default function RequestDetailPage() {
               ينتهي {new Date(request.expiresAt).toLocaleDateString('ar')}
             </span>
           )}
+          {request.status === 'OPEN' && (
+            <span className="inline-flex items-center gap-1">
+              <MessageSquare className="h-3.5 w-3.5" aria-hidden />
+              {formatOffersCount(offersCount)}
+            </span>
+          )}
         </div>
       </header>
+
+      {/* Value summary card */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="rounded-xl border border-border/80 bg-card p-3 shadow-xs">
+          <p className="text-2xs text-muted-foreground sm:text-xs">الميزانية</p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums">
+            {budget ?? 'مفتوحة'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border/80 bg-card p-3 shadow-xs">
+          <p className="text-2xs text-muted-foreground sm:text-xs">العروض</p>
+          <p className="mt-0.5 text-sm font-semibold">{formatOffersCount(offersCount)}</p>
+        </div>
+        <div className="col-span-2 rounded-xl border border-border/80 bg-card p-3 shadow-xs sm:col-span-1">
+          <p className="text-2xs text-muted-foreground sm:text-xs">المدينة</p>
+          <p className="mt-0.5 text-sm font-semibold">{request.city ?? 'غير محددة'}</p>
+        </div>
+      </div>
 
       <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs">
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
@@ -119,7 +159,7 @@ export default function RequestDetailPage() {
         </p>
         {budget && (
           <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
-            <Wallet className="h-4 w-4 text-muted-foreground" aria-hidden />
+            <Wallet className="h-4 w-4 text-primary" aria-hidden />
             الميزانية: {budget}
           </p>
         )}
@@ -127,13 +167,14 @@ export default function RequestDetailPage() {
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {images.map((url) => (
+          {images.map((src, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              key={url}
-              src={url}
-              alt=""
-              className="h-28 w-full rounded-xl object-cover border border-border/50 sm:h-32"
+              key={i}
+              src={src}
+              alt={`صورة مرفقة ${i + 1}`}
+              className="aspect-square w-full rounded-lg border object-cover"
+              loading="lazy"
             />
           ))}
         </div>
@@ -142,7 +183,7 @@ export default function RequestDetailPage() {
       {isOwner && request.status === 'OPEN' && (
         <div className="flex flex-wrap gap-2">
           <Button
-            variant="outline"
+            variant="destructive"
             className="min-h-11"
             disabled={cancel.isPending}
             onClick={() => setConfirmCancel(true)}
@@ -155,7 +196,6 @@ export default function RequestDetailPage() {
         </div>
       )}
 
-      {/* Desktop / inline offer form for logged-in non-owners */}
       {canOffer && (
         <div id="offer-form" className="scroll-mt-24">
           <RequestOfferForm requestId={id} myOffer={myOffer} />
@@ -164,7 +204,7 @@ export default function RequestDetailPage() {
 
       {!isAuthenticated && request.status === 'OPEN' && !isOwner && (
         <div className="hidden rounded-xl border border-dashed p-4 text-center sm:block">
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="mb-3 text-sm text-muted-foreground">
             سجّل الدخول لتقديم عرض على هذا الطلب
           </p>
           <Button asChild className="min-h-11">
@@ -174,7 +214,7 @@ export default function RequestDetailPage() {
       )}
 
       {!isOwner && request.status !== 'OPEN' && (
-        <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-3">
+        <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
           هذا الطلب لم يعد مفتوحًا لاستقبال عروض جديدة.
         </p>
       )}
@@ -187,21 +227,29 @@ export default function RequestDetailPage() {
         hiddenForCompetition={hiddenForCompetition}
       />
 
-      {/* Mobile sticky bottom CTA — above BottomNav (pb-16 layout) */}
+      {/* Mobile sticky CTA — budget + primary action */}
       {!isOwner && request.status === 'OPEN' && (
         <div
           className="fixed inset-x-0 bottom-16 z-20 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
-          {isAuthenticated ? (
-            <Button asChild className="h-12 w-full text-base">
-              <a href="#offer-form">قدّم عرضًا</a>
-            </Button>
-          ) : (
-            <Button asChild className="h-12 w-full text-base">
-              <Link href={loginHref}>سجّل الدخول لتقديم عرض</Link>
-            </Button>
-          )}
+          <div className="mx-auto flex max-w-3xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs text-muted-foreground">الميزانية</p>
+              <p className="truncate text-sm font-semibold tabular-nums">
+                {budget ?? 'مفتوحة'}
+              </p>
+            </div>
+            {isAuthenticated ? (
+              <Button asChild className="h-12 min-w-[9rem] flex-1 text-base sm:flex-none">
+                <a href="#offer-form">قدّم عرضًا</a>
+              </Button>
+            ) : (
+              <Button asChild className="h-12 min-w-[9rem] flex-1 text-base sm:flex-none">
+                <Link href={loginHref}>سجّل الدخول</Link>
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

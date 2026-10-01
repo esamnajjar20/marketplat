@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   ClipboardList,
@@ -12,14 +13,19 @@ import {
 } from 'lucide-react';
 import { useOpenRequests } from '@/hooks/queries/useRequests';
 import { ROUTES } from '@/lib/constants';
-import type { RequestType } from '@/types/request.types';
+import type { RequestListItem, RequestType } from '@/types/request.types';
 import { Button } from '@/components/shared/ui/Button';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestCard } from '@/components/requests/RequestCard';
-import { RequestFilters } from '@/components/requests/RequestFilters';
+import {
+  RequestFilters,
+  parseRequestSort,
+  type RequestSort,
+} from '@/components/requests/RequestFilters';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
+import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import { cn } from '@/lib/utils';
 
 const TYPE_CHIPS: Array<{
@@ -37,18 +43,57 @@ function buildTypeHref(
   type: RequestType | undefined,
   city?: string,
   q?: string,
+  sort?: RequestSort,
 ): string {
   const params = new URLSearchParams();
   if (type) params.set('type', type);
   if (city) params.set('city', city);
   if (q) params.set('q', q);
+  if (sort && sort !== 'newest') params.set('sort', sort);
   const qs = params.toString();
   return qs ? `${ROUTES.requests}?${qs}` : ROUTES.requests;
 }
 
-/**
- * صفحة سوق الطلبات المخصّصة — تصفّح الطلبات المفتوحة وتقديم العروض.
- */
+function emptyDescription(opts: {
+  type?: RequestType;
+  city?: string;
+  q?: string;
+}): string {
+  const parts: string[] = [];
+  if (opts.type) parts.push(`نوع «${REQUEST_TYPE_LABEL[opts.type]}»`);
+  if (opts.city) parts.push(`مدينة «${opts.city}»`);
+  if (opts.q) parts.push(`بحث «${opts.q}»`);
+  if (parts.length === 0) {
+    return 'كن أول من ينشر طلبًا — أو عد لاحقًا لرؤية الطلبات الجديدة.';
+  }
+  return `لا نتائج لـ ${parts.join(' · ')}. جرّب مسح الفلاتر أو نشر طلب جديد.`;
+}
+
+function budgetScore(r: RequestListItem): number {
+  const max = r.budgetMax != null && r.budgetMax !== '' ? Number(r.budgetMax) : NaN;
+  const min = r.budgetMin != null && r.budgetMin !== '' ? Number(r.budgetMin) : NaN;
+  if (Number.isFinite(max)) return max;
+  if (Number.isFinite(min)) return min;
+  return -1;
+}
+
+function sortRequests(items: RequestListItem[], sort: RequestSort): RequestListItem[] {
+  if (sort === 'newest' || items.length <= 1) return items;
+  const copy = [...items];
+  if (sort === 'expiring') {
+    copy.sort((a, b) => {
+      const ta = a.expiresAt ? new Date(a.expiresAt).getTime() : Number.POSITIVE_INFINITY;
+      const tb = b.expiresAt ? new Date(b.expiresAt).getTime() : Number.POSITIVE_INFINITY;
+      return ta - tb;
+    });
+  } else if (sort === 'budget_high') {
+    copy.sort((a, b) => budgetScore(b) - budgetScore(a));
+  } else if (sort === 'fewest_offers') {
+    copy.sort((a, b) => (a._count?.offers ?? 0) - (b._count?.offers ?? 0));
+  }
+  return copy;
+}
+
 export function RequestsPageClient() {
   const searchParams = useSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
@@ -59,6 +104,7 @@ export function RequestsPageClient() {
       : undefined;
   const city = searchParams.get('city') || undefined;
   const q = searchParams.get('q') || undefined;
+  const sort = parseRequestSort(searchParams.get('sort'));
 
   const { data, isLoading, isFetching, isError, refetch } = useOpenRequests({
     type,
@@ -68,10 +114,18 @@ export function RequestsPageClient() {
     limit: 20,
   });
 
-  const items = Array.isArray(data?.data) ? data.data : [];
+  const itemsRaw = Array.isArray(data?.data) ? data.data : [];
+  const items = useMemo(() => sortRequests(itemsRaw, sort), [itemsRaw, sort]);
+
   const meta = (
     data as
-      | { meta?: { pagination?: { totalPages?: number; total?: number }; totalPages?: number; total?: number } }
+      | {
+          meta?: {
+            pagination?: { totalPages?: number; total?: number };
+            totalPages?: number;
+            total?: number;
+          };
+        }
       | undefined
   )?.meta;
   const totalPages = meta?.pagination?.totalPages ?? meta?.totalPages ?? 1;
@@ -81,35 +135,43 @@ export function RequestsPageClient() {
     type,
     city,
     q,
+    sort: sort !== 'newest' ? sort : undefined,
   };
+
+  const hasActiveFilters = Boolean(type || city || q || sort !== 'newest');
 
   return (
     <div className="min-h-[50vh] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-10">
-      {/* Hero */}
-      <div className="border-b border-primary/10 bg-gradient-to-b from-primary/[0.08] to-transparent">
-        <div className="container mx-auto max-w-7xl space-y-4 px-3 py-6 sm:px-4 sm:py-8">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1.5">
+      <div className="border-b border-primary/10 bg-gradient-to-b from-primary/[0.09] via-primary/[0.04] to-transparent">
+        <div className="container mx-auto max-w-7xl space-y-5 px-3 py-6 sm:px-4 sm:py-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1 space-y-2">
               <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
                 <ClipboardList className="h-3.5 w-3.5" aria-hidden />
                 سوق الطلبات
               </p>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">الطلبات المفتوحة</h1>
-              <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
-                شوف شو الناس بتدور عليه وقدّم عرضك — أو انشر احتياجك وخلّي العروض تجيك.
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+                اطلب ما تحتاجه — وقدّم عرضك
+              </h1>
+              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+                تصفّح الطلبات المفتوحة للخدمات والمنتجات والإيجار، وقدّم عرضك مباشرة
+                لصاحب الطلب.
               </p>
               {!isLoading && typeof total === 'number' && total > 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {total.toLocaleString('ar')} طلب مفتوح
+                <p className="text-xs font-medium text-foreground/80">
+                  <span className="tabular-nums text-primary">
+                    {total.toLocaleString('ar')}
+                  </span>{' '}
+                  طلب مفتوح الآن
                 </p>
               ) : null}
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" className="min-h-10 gap-1.5" asChild>
+              <Button size="sm" className="min-h-10 gap-1.5 shadow-sm" asChild>
                 <Link href={ROUTES.requestNew}>
                   <Plus className="h-4 w-4" aria-hidden />
-                  أضف طلباً
+                  أضف طلبًا
                 </Link>
               </Button>
               <Button variant="outline" size="sm" className="min-h-10" asChild>
@@ -118,17 +180,9 @@ export function RequestsPageClient() {
               <Button variant="outline" size="sm" className="min-h-10" asChild>
                 <Link href={ROUTES.myRequestOffers}>عروضي</Link>
               </Button>
-              <Link
-                href={ROUTES.home}
-                className="inline-flex items-center gap-1 self-center text-sm font-medium text-primary hover:underline"
-              >
-                الرئيسية
-                <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
-              </Link>
             </div>
           </div>
 
-          {/* Quick type chips */}
           <div
             className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="group"
@@ -139,12 +193,12 @@ export function RequestsPageClient() {
               return (
                 <Link
                   key={label}
-                  href={buildTypeHref(value, city, q)}
+                  href={buildTypeHref(value, city, q, sort)}
                   className={cn(
                     'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
                     active
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-card text-foreground hover:border-primary/40',
+                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border/80 bg-card/90 text-foreground hover:border-primary/40 hover:bg-muted/40',
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden />
@@ -156,9 +210,14 @@ export function RequestsPageClient() {
         </div>
       </div>
 
-      {/* Body */}
       <div className="container mx-auto max-w-7xl space-y-4 px-3 py-5 sm:px-4 sm:py-6">
-        <RequestFilters type={type} city={city} q={q} />
+        <RequestFilters type={type} city={city} q={q} sort={sort} hideTypeChips />
+
+        {sort === 'budget_high' || sort === 'fewest_offers' || sort === 'expiring' ? (
+          <p className="text-2xs text-muted-foreground sm:text-xs" role="note">
+            الترتيب يُطبَّق على نتائج هذه الصفحة فقط (حتى 20 طلباً). للفرز الشامل على كل السوق يلزم دعم من الخادم لاحقاً.
+          </p>
+        ) : null}
 
         <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} />
 
@@ -166,7 +225,7 @@ export function RequestsPageClient() {
 
         {isError ? (
           <EmptyState
-            title="تعذّر التحميل"
+            title="تعذّر تحميل الطلبات"
             description="تحقق من الاتصال ثم أعد المحاولة."
             action={
               <Button variant="outline" onClick={() => void refetch()}>
@@ -180,19 +239,29 @@ export function RequestsPageClient() {
           items.length === 0 ? (
             <EmptyState
               icon={<ClipboardList className="h-8 w-8" />}
-              title="لا طلبات مطابقة"
-              description="غيّر الفلاتر أو انشر أول طلب."
+              title={hasActiveFilters ? 'لا طلبات مطابقة' : 'لا طلبات مفتوحة بعد'}
+              description={emptyDescription({ type, city, q })}
               action={
-                <Button asChild>
-                  <Link href={ROUTES.requestNew}>نشر طلب</Link>
-                </Button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {hasActiveFilters ? (
+                    <Button variant="outline" asChild>
+                      <Link href={ROUTES.requests}>مسح الفلاتر</Link>
+                    </Button>
+                  ) : null}
+                  <Button asChild>
+                    <Link href={ROUTES.requestNew}>
+                      <Plus className="me-1.5 h-4 w-4" aria-hidden />
+                      نشر طلب
+                    </Link>
+                  </Button>
+                </div>
               }
             />
           ) : (
             <ul
               className={cn(
                 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3',
-                isFetching && !isLoading && 'opacity-80',
+                isFetching && !isLoading && 'opacity-80 transition-opacity',
               )}
             >
               {items.map((r) => (
@@ -208,6 +277,13 @@ export function RequestsPageClient() {
           baseUrl={ROUTES.requests}
           searchParams={spRecord}
         />
+
+        <div className="flex items-center justify-center gap-3 pt-2 text-sm text-muted-foreground sm:hidden">
+          <Link href={ROUTES.home} className="inline-flex items-center gap-1 hover:text-foreground">
+            الرئيسية
+            <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
+          </Link>
+        </div>
       </div>
     </div>
   );

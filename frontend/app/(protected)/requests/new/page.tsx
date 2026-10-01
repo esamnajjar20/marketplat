@@ -21,6 +21,8 @@ import { ROUTES } from '@/lib/constants';
  * sit inside Suspense. The boundary is placed at the route level (not
  * inside the component) so its fallback renders in the page shell and
  * the rest of the layout stays interactive while it resolves.
+ *
+ * UX: Stepper من 4 خطوات داخل CreateRequestForm.
  */
 export default function NewRequestPage() {
   return (
@@ -34,9 +36,8 @@ export default function NewRequestPage() {
           سوق الطلبات
         </Link>
         <h1 className="mt-3 text-xl font-bold tracking-tight">نشر طلب / احتياج</h1>
-        <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-          صف ما تبحث عنه (خدمة، منتج، أو إيجار) واستقبل عروضًا من البائعين ومقدّمي
-          الخدمة.
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          أربع خطوات بسيطة: اختر النوع، اكتب التفاصيل، حدّد الميزانية، ثم راجع وانشر.
         </p>
       </div>
       <Suspense

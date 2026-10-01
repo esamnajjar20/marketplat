@@ -50,12 +50,48 @@ export const REQUEST_TYPE_VARIANT: Record<
   RENTAL: 'outline',
 };
 
+/**
+ * تنسيق ميزانية الطلب بالعربية مع رمز العملة.
+ * أمثلة: "100 – 200 ₪" | "من 50 ₪" | "حتى 300 ₪" | null
+ */
 export function formatRequestBudget(
   min?: string | number | null,
   max?: string | number | null,
 ): string | null {
-  if (min == null && max == null) return null;
-  const a = min != null && min !== '' ? String(min) : '—';
-  const b = max != null && max !== '' ? String(max) : '—';
-  return `${a} – ${b}`;
+  const hasMin = min != null && min !== '';
+  const hasMax = max != null && max !== '';
+  if (!hasMin && !hasMax) return null;
+
+  const fmt = (v: string | number) => {
+    const n = typeof v === 'number' ? v : Number(v);
+    if (Number.isFinite(n)) {
+      return `${n.toLocaleString('ar')} ₪`;
+    }
+    return `${v} ₪`;
+  };
+
+  if (hasMin && hasMax) {
+    if (String(min) === String(max)) return fmt(min!);
+    return `${fmt(min!)} – ${fmt(max!)}`;
+  }
+  if (hasMin) return `من ${fmt(min!)}`;
+  return `حتى ${fmt(max!)}`;
+}
+
+/** هل الطلب ينتهي خلال 48 ساعة؟ */
+export function isRequestExpiringSoon(expiresAt?: string | null, withinMs = 48 * 60 * 60 * 1000): boolean {
+  if (!expiresAt) return false;
+  const t = new Date(expiresAt).getTime();
+  if (Number.isNaN(t)) return false;
+  const remaining = t - Date.now();
+  return remaining > 0 && remaining <= withinMs;
+}
+
+/** نص عربي لعدد العروض */
+export function formatOffersCount(count: number): string {
+  if (count === 0) return 'لا عروض بعد';
+  if (count === 1) return 'عرض واحد';
+  if (count === 2) return 'عرضان';
+  if (count >= 3 && count <= 10) return `${count} عروض`;
+  return `${count} عرضًا`;
 }
