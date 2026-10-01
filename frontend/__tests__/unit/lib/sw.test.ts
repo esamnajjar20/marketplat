@@ -370,7 +370,7 @@ describe('sw.js — service worker logic', () => {
   });
 
   describe('isPersonalShellRoute (FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01 — narrow shell-cache exception within the protected-page set)', () => {
-    it('matches every route on sw.js\'s own exact + prefix list (messages, notifications, dashboard, favorites, my-ads, saved-searches, activity, settings*, my-store*, my-services*, service-broadcasts*, my-requests*, profile/:id)', () => {
+    it('matches every route on sw.js\'s own exact + prefix list (messages, notifications, dashboard, favorites, my-ads, saved-searches, activity, settings*, my-store*, my-services*, profile/:id)', () => {
       const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
       const paths = [
         '/messages',
@@ -390,14 +390,17 @@ describe('sw.js — service worker logic', () => {
         '/my-store/inventory',
         '/my-services',
         '/my-services/123/edit',
-        '/service-broadcasts',
-        '/service-broadcasts/quotes',
-        '/my-requests',
-        '/my-requests/1',
         '/profile/some-user-id',
       ];
       for (const pathname of paths) {
         expect(isPersonalShellRoute(new URL(`https://example.com${pathname}`))).toBe(true);
+      }
+    });
+
+    it('no longer matches routes whose pages were removed (service-broadcasts*, legacy /my-requests)', () => {
+      const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
+      for (const pathname of ['/service-broadcasts', '/service-broadcasts/quotes', '/my-requests', '/my-requests/1']) {
+        expect(isPersonalShellRoute(new URL(`https://example.com${pathname}`))).toBe(false);
       }
     });
 

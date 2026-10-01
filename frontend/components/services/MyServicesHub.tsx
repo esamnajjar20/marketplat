@@ -128,12 +128,6 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
               الطلبات المفتوحة
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myServiceProviderAnalytics}>
-              <BarChart3 className="h-4 w-4" />
-              الإحصائيات
-            </Link>
-          </Button>
         </div>
       </section>
     </div>

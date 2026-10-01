@@ -13,6 +13,8 @@
  * Pure module (no React, no browser globals) so it is unit-testable.
  */
 
+import { createHubTabs, type HubExtraParams } from '@/lib/hubTabs';
+
 export const MY_SERVICES_TABS = ['overview', 'requests', 'appointments', 'analytics'] as const;
 export type MyServicesTab = (typeof MY_SERVICES_TABS)[number];
 
@@ -27,39 +29,24 @@ export const LEGACY_MY_SERVICES_PATH_TO_TAB: Readonly<Record<string, MyServicesT
   '/my-services/analytics': 'analytics',
 };
 
+const hub = createHubTabs<MyServicesTab>({
+  tabs: MY_SERVICES_TABS,
+  defaultTab: DEFAULT_MY_SERVICES_TAB,
+  hubPath: MY_SERVICES_HUB_PATH,
+  legacyPathToTab: LEGACY_MY_SERVICES_PATH_TO_TAB,
+});
+
 export function isMyServicesTab(value: unknown): value is MyServicesTab {
-  return typeof value === 'string' && (MY_SERVICES_TABS as readonly string[]).includes(value);
+  return hub.isTab(value);
 }
 
 /** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
-export function resolveMyServicesTab(
-  search: string,
-  pathname = MY_SERVICES_HUB_PATH,
-): MyServicesTab | null {
-  try {
-    const fromQuery = new URLSearchParams(search).get('tab');
-    if (isMyServicesTab(fromQuery)) return fromQuery;
-  } catch {
-    /* malformed query — ignore */
-  }
-  return LEGACY_MY_SERVICES_PATH_TO_TAB[pathname.replace(/\/+$/, '') || '/'] ?? null;
-}
+export const resolveMyServicesTab = hub.resolveTab;
 
 /** `/my-services?tab=requests` (+ optional extra params, e.g. status). The
  * overview tab is the bare `/my-services`. */
-export function myServicesTabHref(
-  tab: MyServicesTab,
-  extra?: Record<string, string | number | undefined>,
-): string {
-  const params = new URLSearchParams();
-  if (tab !== DEFAULT_MY_SERVICES_TAB) params.set('tab', tab);
-  if (extra) {
-    for (const [k, v] of Object.entries(extra)) {
-      if (v !== undefined && v !== '' && k !== 'tab') params.set(k, String(v));
-    }
-  }
-  const qs = params.toString();
-  return qs ? `${MY_SERVICES_HUB_PATH}?${qs}` : MY_SERVICES_HUB_PATH;
+export function myServicesTabHref(tab: MyServicesTab, extra?: HubExtraParams): string {
+  return hub.tabHref(tab, extra);
 }
 
 /**
@@ -67,8 +54,4 @@ export function myServicesTabHref(
  * tab key survives. Per-tab list state (page, status, q …) must not leak
  * from one tab into another.
  */
-export function searchForTabSwitch(tab: MyServicesTab): string {
-  const href = myServicesTabHref(tab);
-  const i = href.indexOf('?');
-  return i === -1 ? '' : href.slice(i);
-}
+export const searchForTabSwitch = hub.searchForTabSwitch;

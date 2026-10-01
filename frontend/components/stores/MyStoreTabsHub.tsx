@@ -6,7 +6,8 @@
  * Tabs: نظرة عامة · المنتجات · المجموعات · العروض · المخزون · الفريق ·
  * الإحصائيات · الإعدادات. (See lib/myStoreHubTabs.ts for what is NOT a tab.)
  *
- * Same deliberate choices as components/offline/OfflineHub.tsx:
+ * Shell (tab bar, replaceState switching, in-place links) lives in
+ * components/shared/hub/TabsHub.tsx. Deliberate choices, as in OfflineHub:
  *  - Tab bodies are STATICALLY imported, never next/dynamic. The warming
  *    engine caches only the chunks referenced by the route's HTML; a lazy
  *    tab would be blank the first time it is opened offline.
@@ -21,9 +22,8 @@
  *    the tab you left.
  */
 
-import { Suspense, useCallback, useEffect, useState } from 'react'; // MY-STORE-TAB-STATE-FIX-01
+import { Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import {
   BarChart3,
   Boxes,
@@ -35,7 +35,7 @@ import {
   Tag,
   Users,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { ROUTES } from '@/lib/constants';
 import { Button } from '@/components/shared/ui/Button';
 import { MyStoreHub } from '@/components/stores/MyStoreHub';
@@ -166,106 +166,18 @@ function TabBody({ tab }: { tab: MyStoreTab }) {
 }
 
 export function MyStoreTabsHub() {
-  const sp = useSearchParams();
-  const urlTab: MyStoreTab =
-    resolveMyStoreTab(sp.toString() ? `?${sp.toString()}` : '') ?? DEFAULT_MY_STORE_TAB;
-
-  // MY-STORE-TAB-STATE-FIX-01: Next.js does NOT reliably re-render on
-  // history.replaceState (its router only syncs on push/replace via the
-  // Link/Router APIs). Keeping a local tab state alongside the URL is what
-  // makes the click actually switch the panel; the useEffect below keeps
-  // the state in sync when the URL changes externally (deep link, back/
-  // forward, or a Link inside the panel that we couldn't intercept).
-  const [active, setActive] = useState<MyStoreTab>(urlTab);
-
-  useEffect(() => {
-    setActive(urlTab);
-  }, [urlTab]);
-
-  const writeUrl = useCallback((search: string) => {
-    try {
-      window.history.replaceState(window.history.state, '', `${MY_STORE_HUB_PATH}${search}`);
-    } catch {
-      /* non-fatal */
-    }
-  }, []);
-
-  const select = useCallback(
-    (tab: MyStoreTab) => {
-      writeUrl(searchForTabSwitch(tab));
-      setActive(tab);              // ← MY-STORE-TAB-STATE-FIX-01: re-render
-      window.scrollTo({ top: 0 });
-    },
-    [writeUrl],
-  );
-
-  // Links inside a tab that target /my-store (e.g. "المنتجات ← العروض",
-  // `?tab=promotions&productId=…`) are applied in place: no RSC request.
-  const onPanelClickCapture = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-        return;
-      }
-      const a = (e.target as HTMLElement).closest?.('a');
-      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
-      try {
-        const url = new URL(a.href, window.location.href);
-        if (url.origin !== window.location.origin) return;
-        if (url.pathname.replace(/\/+$/, '') !== MY_STORE_HUB_PATH) return;
-        e.preventDefault();
-        e.stopPropagation();
-        writeUrl(url.search);
-        const next = resolveMyStoreTab(url.search) ?? DEFAULT_MY_STORE_TAB;
-        setActive(next);            // ← MY-STORE-TAB-STATE-FIX-01
-        window.scrollTo({ top: 0 });
-      } catch {
-        /* unparsable link — let the browser handle it */
-      }
-    },
-    [writeUrl],
-  );
-
   return (
-    <section aria-label="لوحة المتجر" className="w-full text-start">
-      <div
-        role="tablist"
-        aria-label="أقسام لوحة المتجر"
-        className="sticky top-0 z-10 -mx-1 mb-4 flex gap-1 overflow-x-auto bg-background/95 px-1 py-2 backdrop-blur"
-      >
-        {MY_STORE_TABS.map((tab) => {
-          const { label, Icon } = TAB_META[tab];
-          const selected = tab === active;
-          return (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              id={`my-store-tab-${tab}`}
-              aria-selected={selected}
-              aria-controls={`my-store-panel-${tab}`}
-              onClick={() => select(tab)}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                selected
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Icon className="h-4 w-4" aria-hidden={true} />
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div
-        role="tabpanel"
-        id={`my-store-panel-${active}`}
-        aria-labelledby={`my-store-tab-${active}`}
-        onClickCapture={onPanelClickCapture}
-      >
-        <TabBody tab={active} />
-      </div>
-    </section>
+    <TabsHub<MyStoreTab>
+      idPrefix="my-store"
+      sectionLabel="لوحة المتجر"
+      tabListLabel="أقسام لوحة المتجر"
+      hubPath={MY_STORE_HUB_PATH}
+      tabs={MY_STORE_TABS}
+      defaultTab={DEFAULT_MY_STORE_TAB}
+      meta={TAB_META}
+      resolveTab={resolveMyStoreTab}
+      searchForTabSwitch={searchForTabSwitch}
+      renderTab={(tab) => <TabBody tab={tab} />}
+    />
   );
 }

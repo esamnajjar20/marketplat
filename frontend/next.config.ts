@@ -131,6 +131,20 @@ const nextConfig: NextConfig = {
       { source: '/settings/seller', destination: '/settings?tab=profile&section=seller' },
       { source: '/settings/service-provider', destination: '/settings?tab=profile&section=service' },
     ];
+    // OFFLINE-HUB-01: storage / sync / drafts / offline are tabs of the merged
+    // /offline hub. These used to be four page.tsx files whose only job was
+    // `redirect(...)`; one config entry each does the same without a route
+    // module. Do NOT add these paths to the warming lists: a redirecting route
+    // always fails atomic warming (`html-…-redirected`).
+    const offlineHubRedirects = [
+      { source: '/settings/drafts', destination: '/offline?tab=drafts' },
+      { source: '/settings/sync', destination: '/offline?tab=sync' },
+      { source: '/settings/storage', destination: '/offline?tab=storage' },
+      { source: '/settings/offline', destination: '/offline?tab=warming' },
+      // Public-side aliases of the same hub (were redirect-only page.tsx files).
+      { source: '/saved-ads', destination: '/offline?tab=saved' },
+      { source: '/downloads', destination: '/offline?tab=saved' },
+    ];
     return [
       ...tabs.map((tab) => ({
         source: `/my-store/${tab}`,
@@ -143,6 +157,11 @@ const nextConfig: NextConfig = {
         permanent: false,
       })),
       ...settingsTabs.map(({ source, destination }) => ({
+        source,
+        destination,
+        permanent: false,
+      })),
+      ...offlineHubRedirects.map(({ source, destination }) => ({
         source,
         destination,
         permanent: false,

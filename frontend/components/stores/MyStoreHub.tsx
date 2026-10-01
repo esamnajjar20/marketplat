@@ -163,12 +163,6 @@ function HubBody({ store }: { store: StoreDetails }) {
               المجموعات
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStoreAnalytics}>
-              <BarChart3 className="h-4 w-4" />
-              الإحصائيات
-            </Link>
-          </Button>
         </div>
       </section>
 

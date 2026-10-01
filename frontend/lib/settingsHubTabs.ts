@@ -17,6 +17,8 @@
  * Pure module (no React, no browser globals) so it is unit-testable.
  */
 
+import { createHubTabs, type HubExtraParams } from '@/lib/hubTabs';
+
 export const SETTINGS_TABS = [
   'profile',
   'security',
@@ -47,8 +49,19 @@ export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 
 export const DEFAULT_PROFILE_SECTION: ProfileSection = 'personal';
 
+const hub = createHubTabs<SettingsTab>({
+  tabs: SETTINGS_TABS,
+  defaultTab: DEFAULT_SETTINGS_TAB,
+  hubPath: SETTINGS_HUB_PATH,
+  legacyPathToTab: LEGACY_SETTINGS_PATH_TO_TAB,
+  // The default section is the bare profile tab.
+  normalizeParams: (params) => {
+    if (params.get('section') === DEFAULT_PROFILE_SECTION) params.delete('section');
+  },
+});
+
 export function isSettingsTab(value: unknown): value is SettingsTab {
-  return typeof value === 'string' && (SETTINGS_TABS as readonly string[]).includes(value);
+  return hub.isTab(value);
 }
 
 export function isProfileSection(value: unknown): value is ProfileSection {
@@ -56,18 +69,7 @@ export function isProfileSection(value: unknown): value is ProfileSection {
 }
 
 /** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
-export function resolveSettingsTab(
-  search: string,
-  pathname = SETTINGS_HUB_PATH,
-): SettingsTab | null {
-  try {
-    const fromQuery = new URLSearchParams(search).get('tab');
-    if (isSettingsTab(fromQuery)) return fromQuery;
-  } catch {
-    /* malformed query — ignore */
-  }
-  return LEGACY_SETTINGS_PATH_TO_TAB[pathname.replace(/\/+$/, '') || '/'] ?? null;
-}
+export const resolveSettingsTab = hub.resolveTab;
 
 /** Profile section from `?section=…` or legacy path. */
 export function resolveProfileSection(
@@ -90,31 +92,15 @@ export function resolveProfileSection(
  * `/settings?tab=security` (+ optional section for profile).
  * The profile tab (default) is the bare `/settings` when no section is set.
  */
-export function settingsTabHref(
-  tab: SettingsTab,
-  extra?: Record<string, string | number | undefined>,
-): string {
-  const params = new URLSearchParams();
-  if (tab !== DEFAULT_SETTINGS_TAB) params.set('tab', tab);
-  if (extra) {
-    for (const [k, v] of Object.entries(extra)) {
-      if (v !== undefined && v !== '' && k !== 'tab') params.set(k, String(v));
-    }
-  }
-  if (params.get('section') === DEFAULT_PROFILE_SECTION) params.delete('section');
-  const qs = params.toString();
-  return qs ? `${SETTINGS_HUB_PATH}?${qs}` : SETTINGS_HUB_PATH;
+export function settingsTabHref(tab: SettingsTab, extra?: HubExtraParams): string {
+  return hub.tabHref(tab, extra);
 }
 
 /**
  * Query string to use when SWITCHING to `tab` from the current one: only the
  * tab key survives (and section is dropped when leaving profile).
  */
-export function searchForTabSwitch(tab: SettingsTab): string {
-  const href = settingsTabHref(tab);
-  const i = href.indexOf('?');
-  return i === -1 ? '' : href.slice(i);
-}
+export const searchForTabSwitch = hub.searchForTabSwitch;
 
 /** Href for a profile internal section while staying on the profile tab. */
 export function settingsProfileSectionHref(section: ProfileSection): string {

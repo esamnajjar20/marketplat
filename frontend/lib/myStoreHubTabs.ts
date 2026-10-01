@@ -13,6 +13,8 @@
  * Pure module (no React, no browser globals) so it is unit-testable.
  */
 
+import { createHubTabs, type HubExtraParams } from '@/lib/hubTabs';
+
 export const MY_STORE_TABS = [
   'overview',
   'products',
@@ -40,36 +42,24 @@ export const LEGACY_MY_STORE_PATH_TO_TAB: Readonly<Record<string, MyStoreTab>> =
   '/my-store/settings': 'settings',
 };
 
+const hub = createHubTabs<MyStoreTab>({
+  tabs: MY_STORE_TABS,
+  defaultTab: DEFAULT_MY_STORE_TAB,
+  hubPath: MY_STORE_HUB_PATH,
+  legacyPathToTab: LEGACY_MY_STORE_PATH_TO_TAB,
+});
+
 export function isMyStoreTab(value: unknown): value is MyStoreTab {
-  return typeof value === 'string' && (MY_STORE_TABS as readonly string[]).includes(value);
+  return hub.isTab(value);
 }
 
 /** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
-export function resolveMyStoreTab(search: string, pathname = MY_STORE_HUB_PATH): MyStoreTab | null {
-  try {
-    const fromQuery = new URLSearchParams(search).get('tab');
-    if (isMyStoreTab(fromQuery)) return fromQuery;
-  } catch {
-    /* malformed query — ignore */
-  }
-  return LEGACY_MY_STORE_PATH_TO_TAB[pathname.replace(/\/+$/, '') || '/'] ?? null;
-}
+export const resolveMyStoreTab = hub.resolveTab;
 
 /** `/my-store?tab=products` (+ optional extra params, e.g. productId). The
  * overview tab is the bare `/my-store`. */
-export function myStoreTabHref(
-  tab: MyStoreTab,
-  extra?: Record<string, string | number | undefined>,
-): string {
-  const params = new URLSearchParams();
-  if (tab !== DEFAULT_MY_STORE_TAB) params.set('tab', tab);
-  if (extra) {
-    for (const [k, v] of Object.entries(extra)) {
-      if (v !== undefined && v !== '' && k !== 'tab') params.set(k, String(v));
-    }
-  }
-  const qs = params.toString();
-  return qs ? `${MY_STORE_HUB_PATH}?${qs}` : MY_STORE_HUB_PATH;
+export function myStoreTabHref(tab: MyStoreTab, extra?: HubExtraParams): string {
+  return hub.tabHref(tab, extra);
 }
 
 /**
@@ -77,8 +67,4 @@ export function myStoreTabHref(
  * tab key survives. Per-tab list state (page, status, availability, q …) must
  * not leak from products into inventory, etc.
  */
-export function searchForTabSwitch(tab: MyStoreTab): string {
-  const href = myStoreTabHref(tab);
-  const i = href.indexOf('?');
-  return i === -1 ? '' : href.slice(i);
-}
+export const searchForTabSwitch = hub.searchForTabSwitch;

@@ -14,6 +14,8 @@
  * Pure module (no React, no browser globals) so it is unit-testable.
  */
 
+import { createHubTabs, type HubExtraParams } from '@/lib/hubTabs';
+
 export const ACTIVITY_TABS = ['timeline', 'ads', 'requests', 'reports'] as const;
 export type ActivityTab = (typeof ACTIVITY_TABS)[number];
 
@@ -29,49 +31,30 @@ export const LEGACY_ACTIVITY_PATH_TO_TAB: Readonly<Record<string, ActivityTab>> 
   '/my-reports': 'reports',
 };
 
+const hub = createHubTabs<ActivityTab>({
+  tabs: ACTIVITY_TABS,
+  defaultTab: DEFAULT_ACTIVITY_TAB,
+  hubPath: ACTIVITY_HUB_PATH,
+  legacyPathToTab: LEGACY_ACTIVITY_PATH_TO_TAB,
+});
+
 export function isActivityTab(value: unknown): value is ActivityTab {
-  return typeof value === 'string' && (ACTIVITY_TABS as readonly string[]).includes(value);
+  return hub.isTab(value);
 }
 
 /** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
-export function resolveActivityTab(
-  search: string,
-  pathname = ACTIVITY_HUB_PATH,
-): ActivityTab | null {
-  try {
-    const fromQuery = new URLSearchParams(search).get('tab');
-    if (isActivityTab(fromQuery)) return fromQuery;
-  } catch {
-    /* malformed query — ignore */
-  }
-  return LEGACY_ACTIVITY_PATH_TO_TAB[pathname.replace(/\/+$/, '') || '/'] ?? null;
-}
+export const resolveActivityTab = hub.resolveTab;
 
 /**
  * `/activity?tab=ads` (+ optional extra params). The timeline tab is the
  * bare `/activity`.
  */
-export function activityTabHref(
-  tab: ActivityTab,
-  extra?: Record<string, string | number | undefined>,
-): string {
-  const params = new URLSearchParams();
-  if (tab !== DEFAULT_ACTIVITY_TAB) params.set('tab', tab);
-  if (extra) {
-    for (const [k, v] of Object.entries(extra)) {
-      if (v !== undefined && v !== '' && k !== 'tab') params.set(k, String(v));
-    }
-  }
-  const qs = params.toString();
-  return qs ? `${ACTIVITY_HUB_PATH}?${qs}` : ACTIVITY_HUB_PATH;
+export function activityTabHref(tab: ActivityTab, extra?: HubExtraParams): string {
+  return hub.tabHref(tab, extra);
 }
 
 /**
  * Query string when SWITCHING to `tab`: only the tab key survives.
  * Per-tab list state (page, status, q …) must not leak across tabs.
  */
-export function searchForTabSwitch(tab: ActivityTab): string {
-  const href = activityTabHref(tab);
-  const i = href.indexOf('?');
-  return i === -1 ? '' : href.slice(i);
-}
+export const searchForTabSwitch = hub.searchForTabSwitch;

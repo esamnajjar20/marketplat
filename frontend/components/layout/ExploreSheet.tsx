@@ -1,35 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  Search,
-  ListOrdered,
-  Package,
-  Wrench,
-  Store,
-  Users,
-  Trophy,
-  ClipboardList,
-  ChevronLeft,
-} from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
+import { BROWSE_LINKS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 /**
  * BottomNav "استكشاف" sheet — discovery only (no account hubs).
  * Phase 2: denser list with chevrons + safe-area padding; prefetch off.
  */
-const EXPLORE_LINKS = [
-  { label: 'بحث شامل', href: ROUTES.search, icon: Search },
-  { label: 'الإعلانات', href: ROUTES.ads, icon: ListOrdered },
-  { label: 'المنتجات', href: ROUTES.products, icon: Package },
-  { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
-  { label: 'سوق الطلبات', href: ROUTES.requests, icon: ClipboardList },
-  { label: 'المتاجر', href: ROUTES.stores, icon: Store },
-  { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
-  { label: 'أفضل البائعين', href: ROUTES.sellersRanking, icon: Trophy },
-] as const;
+// Derived from BROWSE_LINKS (lib/navigation.ts) so the discovery list exists
+// in one place: same entries and order, minus "الرئيسية" (the bottom nav already
+// has it), with the search entry labelled "بحث شامل" in this sheet.
+const EXPLORE_LINKS = BROWSE_LINKS.filter((l) => l.href !== ROUTES.home).map((l) =>
+  l.href === ROUTES.search ? { ...l, label: 'بحث شامل' } : l,
+);
 
 export function ExploreSheet({
   open,

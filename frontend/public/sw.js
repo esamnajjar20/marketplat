@@ -542,43 +542,24 @@ function isPersonalShellRoute(url) {
     // عبر useMySellerProfile بعد الـhydration — لا بيانات مستخدم مُخصَّصة
     // مخبوزة بالـHTML/RSC نفسه.
     '/ads/create',
+    // SETTINGS/MY-STORE/MY-SERVICES-HUB-01 + OFFLINE-HUB-01: the old sub-pages
+    // (/settings/security, /my-store/products, …) are 307 redirects into the hub
+    // routes below; the prefix checks further down still cover any stray
+    // sub-path, so they are no longer listed one by one. /service-broadcasts*
+    // and /my-requests were removed with their pages (T780 / ACTIVITY-HUB-01).
     '/settings',
-    '/settings/profile',
-    '/settings/security',
-    '/settings/sessions',
-    '/settings/notifications',
-    '/settings/seller',
-    '/settings/service-provider',
-    '/settings/blocked-users',
-    '/settings/storage',
-    '/settings/sync',
     '/my-store',
-    '/my-store/inventory',
-    '/my-store/members',
-    '/my-store/products',
-    '/my-store/promotions',
-    '/my-store/collections',
-    '/my-store/analytics',
-    '/my-store/settings',
     '/my-services',
-    '/my-services/requests',
-    '/my-services/appointments',
-    '/my-services/analytics',
-    '/service-broadcasts',
-    '/service-broadcasts/quotes',
     '/requests',
     '/requests/me',
     '/requests/offers',
-    '/my-requests',
   ];
   if (exact.includes(path)) return true;
   if (path.startsWith('/messages/')) return true;
   if (path.startsWith('/settings/')) return true;
   if (path.startsWith('/my-store/')) return true;
   if (path.startsWith('/my-services/')) return true;
-  if (path.startsWith('/service-broadcasts/')) return true;
   if (path.startsWith('/requests/')) return true;
-  if (path.startsWith('/my-requests/')) return true;
   if (path.startsWith('/my-ads/')) return true;
   // صفحة حسابي /profile/:id — شكل فقط؛ يُمسَح عند logout
   if (path.startsWith('/profile/')) return true;
