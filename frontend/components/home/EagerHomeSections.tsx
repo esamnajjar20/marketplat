@@ -5,20 +5,14 @@ import { HomeDiscoverHero } from './HomeDiscoverHero';
 import { HomeContextStrip } from './HomeContextStrip';
 import { FeaturedCarousel } from './FeaturedCarousel';
 import { CategoriesRow } from './CategoriesRow';
-import { HomeAboveFold } from './HomeAboveFold';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
- * Above-the-fold homepage block (UI-HOME-01).
- *
- * Order (paid featured first):
- * 1. Compact hero (publish / explore)
- * 2. Context strip (city + activity)
- * 3. Featured carousel — paid placement
- * 4. Admin categories (with type badge: ad / product / service)
- * 5. Latest organic ads
- *
- * Type shortcuts (إعلانات/منتجات/خدمات/متاجر) removed — categories come from admin only.
+ * Above-the-fold:
+ * 1. Hero / welcome
+ * 2. Context strip
+ * 3. ⭐ Paid featured carousel
+ * (ForYou + organic rails live in HomePageContent right after this.)
  */
 export function EagerHomeSections() {
   const homepage = useHomepage();
@@ -33,12 +27,7 @@ export function EagerHomeSections() {
           <Skeleton className="aspect-video w-full rounded-2xl md:aspect-[21/9] lg:aspect-[3/1]" />
           <div className="flex gap-2 overflow-hidden">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-20 shrink-0 rounded-xl" />
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[4/3] rounded-xl" />
+              <Skeleton key={i} className="h-14 w-20 shrink-0 rounded-xl" />
             ))}
           </div>
         </div>
@@ -54,17 +43,12 @@ export function EagerHomeSections() {
         <HomeContextStrip />
       </div>
 
-      {/* Paid featured — first primary content block */}
       <div className="container mx-auto max-w-7xl px-3 pt-2.5 sm:px-4 sm:pt-3">
         <FeaturedCarousel />
       </div>
 
       <div className="container mx-auto max-w-7xl px-3 pt-2.5 sm:px-4 sm:pt-3">
         <CategoriesRow />
-      </div>
-
-      <div className="mt-0.5 sm:mt-1">
-        <HomeAboveFold />
       </div>
     </>
   );

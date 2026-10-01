@@ -26,7 +26,7 @@ export function RecentAds() {
     return (
       <HomeScrollRail>
         {Array.from({ length: 6 }).map((_, i) => (
-          <HomeScrollRailItem key={i}>
+          <HomeScrollRailItem key={i} size="wide">
             <AdCardSkeleton />
           </HomeScrollRailItem>
         ))}
@@ -78,7 +78,7 @@ export function RecentAds() {
   return (
     <HomeScrollRail className="stagger-fade-in">
       {items.data.map((ad, i) => (
-        <HomeScrollRailItem key={ad.id}>
+        <HomeScrollRailItem key={ad.id} size="wide">
           <AdCard ad={ad} priority={i < 2} density="compact" />
         </HomeScrollRailItem>
       ))}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { AdCard } from '@/components/ads/AdCard';
@@ -14,54 +14,37 @@ import {
   useServiceRecommendations,
   useMixedRecommendations,
 } from '@/hooks/queries/useRecommendations';
+import { useAds } from '@/hooks/queries/useAds';
+import { useProducts } from '@/hooks/queries/useProducts';
+import { useServiceListings } from '@/hooks/queries/useServiceListings';
+import { interleaveMixed } from '@/components/home/ForYouMixedSection';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
-import type { AdListItem } from '@/types/ad.types';
-import type { ProductWithStore } from '@/types/product.types';
-import type { ServiceListingWithProvider } from '@/types/service.types';
 
-type MixedItem =
-  | { kind: 'ad'; data: AdListItem }
-  | { kind: 'product'; data: ProductWithStore }
-  | { kind: 'service'; data: ServiceListingWithProvider };
+const PAGE_LIMIT = 36;
+const PER_TYPE = 16;
 
-function interleaveMixed(
-  ads: AdListItem[],
-  products: ProductWithStore[],
-  services: ServiceListingWithProvider[],
+function mergeWithFallback<T extends { id: string }>(
+  preferred: T[] | null | undefined,
+  fallback: T[] | null | undefined,
   limit: number,
-): MixedItem[] {
-  const queues: MixedItem[][] = [
-    ads.map((data) => ({ kind: 'ad' as const, data })),
-    products.map((data) => ({ kind: 'product' as const, data })),
-    services.map((data) => ({ kind: 'service' as const, data })),
-  ];
-  const idx = [0, 0, 0];
-  const out: MixedItem[] = [];
-
-  while (out.length < limit) {
-    let placed = false;
-    for (let q = 0; q < queues.length && out.length < limit; q += 1) {
-      const queue = queues[q];
-      const i = idx[q] ?? 0;
-      const item = queue?.[i];
-      if (item !== undefined) {
-        out.push(item);
-        idx[q] = i + 1;
-        placed = true;
-      }
+): T[] {
+  const out: T[] = [];
+  const seen = new Set<string>();
+  for (const list of [preferred ?? [], fallback ?? []]) {
+    for (const item of list) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push(item);
+      if (out.length >= limit) return out;
     }
-    if (!placed) break;
   }
   return out;
 }
 
-const PAGE_LIMIT = 36;
-const PER_TYPE = 12;
-
 /**
- * صفحة "اقتراحات لك" — نفس منطق ForYouMixedSection لكن بحد أعلى وعرض شبكة كاملة.
+ * Full-page "اقتراحات لك" — same logic as the home rail, higher limits, 2-col grid.
  */
 export function SuggestionsPageClient() {
   const isAuth = useAuthStore(selectIsAuthenticated);
@@ -75,36 +58,59 @@ export function SuggestionsPageClient() {
     { limit: PER_TYPE, ...cityParam },
     { enabled: ready && isAuth, scope: 'user' },
   );
-  const guestOpts = { enabled: ready && !isAuth, scope: 'guest' } as const;
+  const guestOpts = { enabled: ready && !isAuth, scope: 'guest' as const };
   const adsQ = useRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
   const productsQ = useProductRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
   const servicesQ = useServiceRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
 
-  const adsData = isAuth ? mixedQ.data?.ads : adsQ.data;
-  const productsData = isAuth ? mixedQ.data?.products : productsQ.data;
-  const servicesData = isAuth ? mixedQ.data?.services : servicesQ.data;
-
-  const anyLoading = isAuth
-    ? mixedQ.isLoading
-    : adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading;
-  const anyData = Boolean(adsData?.length || productsData?.length || servicesData?.length);
-
-  const [graceExpired, setGraceExpired] = useState(false);
-  const waitingOnSlowOne = ready && anyLoading && anyData;
-  useEffect(() => {
-    if (!waitingOnSlowOne) return;
-    const t = setTimeout(() => setGraceExpired(true), 1500);
-    return () => clearTimeout(t);
-  }, [waitingOnSlowOne]);
-
-  const showLoading = !ready || (anyLoading && !anyData) || (waitingOnSlowOne && !graceExpired);
-
-  const items = interleaveMixed(
-    adsData ?? [],
-    productsData ?? [],
-    servicesData ?? [],
-    PAGE_LIMIT,
+  const fallbackAds = useAds(
+    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
+    { enabled: ready, disableOfflineCache: true },
   );
+  const fallbackProducts = useProducts(
+    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
+    { enabled: ready },
+  );
+  const fallbackServices = useServiceListings(
+    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
+    { enabled: ready },
+  );
+
+  const recAds = isAuth ? mixedQ.data?.ads : adsQ.data;
+  const recProducts = isAuth ? mixedQ.data?.products : productsQ.data;
+  const recServices = isAuth ? mixedQ.data?.services : servicesQ.data;
+
+  const ads = mergeWithFallback(Array.isArray(recAds) ? recAds : [], fallbackAds.data?.items, PER_TYPE);
+  const products = mergeWithFallback(
+    Array.isArray(recProducts) ? recProducts : [],
+    fallbackProducts.data?.items,
+    PER_TYPE,
+  );
+  const services = mergeWithFallback(
+    Array.isArray(recServices) ? recServices : [],
+    fallbackServices.data?.items,
+    PER_TYPE,
+  );
+
+  const items = useMemo(
+    () => interleaveMixed(ads, products, services, PAGE_LIMIT),
+    [ads, products, services],
+  );
+
+  const loading =
+    !ready ||
+    (isAuth ? mixedQ.isLoading : adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading) ||
+    (items.length === 0 &&
+      (fallbackAds.isLoading || fallbackProducts.isLoading || fallbackServices.isLoading));
+
+  const [grace, setGrace] = useState(false);
+  useEffect(() => {
+    if (items.length === 0) return;
+    const t = setTimeout(() => setGrace(true), 800);
+    return () => clearTimeout(t);
+  }, [items.length]);
+
+  const showLoading = loading && items.length === 0 && !grace;
 
   return (
     <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 sm:px-4 sm:py-8">
@@ -112,7 +118,7 @@ export function SuggestionsPageClient() {
         <div className="space-y-1">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            مخصّص
+            {isAuth ? 'مخصّص' : 'رائج'}
           </p>
           <h1 className="text-xl font-bold sm:text-2xl">اقتراحات لك</h1>
           <p className="text-sm text-muted-foreground">
@@ -140,12 +146,9 @@ export function SuggestionsPageClient() {
         <EmptyState
           icon={<Sparkles className="h-8 w-8" />}
           title="لا اقتراحات حالياً"
-          description="ستظهر هنا اقتراحات مناسبة عند توفر المزيد من المحتوى."
+          description="ستظهر هنا اقتراحات عند توفر محتوى في السوق."
           action={
-            <Link
-              href={ROUTES.ads}
-              className="text-sm font-medium text-primary hover:underline"
-            >
+            <Link href={ROUTES.ads} className="text-sm font-medium text-primary hover:underline">
               تصفّح الإعلانات
             </Link>
           }

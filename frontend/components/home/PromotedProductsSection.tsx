@@ -61,9 +61,9 @@ export function PromotedProductsSection() {
     <SectionHeader
       tone="featured"
       eyebrow="لا تفوّتها"
-      title="عروض مميزة"
+      title="الأكثر ترويجًا"
       icon={<Flame className="h-3.5 w-3.5" />}
-      cta={{ href: `${ROUTES.products}?hasPromotion=true`, label: 'عرض الكل ←' }}
+      cta={{ href: ROUTES.promoted, label: 'عرض الكل ←' }}
     />
   );
 

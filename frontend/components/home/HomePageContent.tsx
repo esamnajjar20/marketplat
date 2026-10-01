@@ -7,6 +7,7 @@ import { HomeSafeBuyingTips } from '@/components/home/HomeSafeBuyingTips';
 import { HomeGuestPublishBar } from '@/components/home/HomeGuestPublishBar';
 import { ForYouMixedSection } from '@/components/home/ForYouMixedSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
+import { HomeAboveFold } from '@/components/home/HomeAboveFold';
 import { HomeServicesSection } from '@/components/home/HomeServicesSection';
 import { FeaturedStoresSection } from '@/components/home/FeaturedStoresSection';
 import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
@@ -15,8 +16,16 @@ import { HomeBusyBoundary } from '@/components/home/HomeBusyBoundary';
 import { LazySection } from '@/components/shared/LazySection';
 
 /**
- * Homepage body — single consistent stack on mobile and desktop.
- * Horizontal rails (2×2 visible) handle density; no duplicate layouts per breakpoint.
+ * Homepage stack (Marketplace-first discovery):
+ * 1. Above-fold (hero + ⭐ featured)
+ * 2. 🎯 مخصص لك  — immediately after paid
+ * 3. 🛍 أحدث المنتجات
+ * 4. 📢 أحدث الإعلانات
+ * 5. 🔧 أحدث الخدمات
+ * 6. 🏪 أحدث المتاجر
+ * 7. 📍 بالقرب منك
+ * 8. 🔥 الأكثر ترويجًا (end)
+ * 9. Trust / tips
  */
 export function HomePageContent() {
   return (
@@ -24,29 +33,36 @@ export function HomePageContent() {
       <HomeBusyBoundary>
         <EagerHomeSections />
 
-        <div className="mt-4 space-y-6 sm:mt-8 sm:space-y-8">
-          <LazySection minHeight={280} rootMargin="40px 0px" whenIdle>
+        <div className="mt-3 space-y-5 sm:mt-6 sm:space-y-8">
+          {/* 🎯 right after paid featured */}
+          <LazySection minHeight={240} rootMargin="20px 0px" whenIdle={false}>
             <ForYouMixedSection />
           </LazySection>
 
-          <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
+          <LazySection minHeight={240} rootMargin="40px 0px" whenIdle>
             <RecentProductsSection />
           </LazySection>
 
-          <LazySection minHeight={280} rootMargin="48px 0px" whenIdle>
+          {/* 📢 ads below For You + products */}
+          <LazySection minHeight={240} rootMargin="40px 0px" whenIdle>
+            <HomeAboveFold />
+          </LazySection>
+
+          <LazySection minHeight={240} rootMargin="48px 0px" whenIdle>
             <HomeServicesSection />
           </LazySection>
 
-          <LazySection minHeight={280} rootMargin="56px 0px" whenIdle>
+          <LazySection minHeight={240} rootMargin="56px 0px" whenIdle>
             <FeaturedStoresSection />
           </LazySection>
 
-          <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
-            <PromotedProductsSection />
+          <LazySection minHeight={220} rootMargin="64px 0px" whenIdle>
+            <NearbyProvidersSection />
           </LazySection>
 
-          <LazySection minHeight={240} rootMargin="80px 0px" whenIdle>
-            <NearbyProvidersSection />
+          {/* 🔥 most promoted — last commercial rail */}
+          <LazySection minHeight={220} rootMargin="80px 0px" whenIdle>
+            <PromotedProductsSection />
           </LazySection>
         </div>
 

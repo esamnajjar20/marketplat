@@ -28,6 +28,7 @@ export const ROUTES = {
   adEdit:        (id: string)   => `/my-ads/${id}/edit`,
   categories:    '/categories',
   suggestions:   '/suggestions',
+  promoted:      '/promoted',
   category:      (slug: string) => `/categories/${slug}`,
   userProfile:   (id: string)   => `/profile/${id}`,
   sellerProfile: (id: string)   => `/sellers/${id}`,

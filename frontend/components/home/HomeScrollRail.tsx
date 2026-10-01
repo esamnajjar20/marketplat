@@ -5,21 +5,16 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Horizontal browse strip used by type sections on the homepage.
- *
- * Layout: 2 cards visible across the width, 2 rows tall (grid-flow-col grid-rows-2),
- * so the user sees a 2×2 block and can swipe sideways for more.
- * On md+ screens prev/next arrows appear when the strip overflows.
+ * Horizontal discovery rail for the homepage.
+ * Single row — ~2 cards visible on phone, swipe for more.
+ * (2×2 grids belong on list/search pages, not home discovery.)
  */
 export function HomeScrollRail({
   children,
   className,
-  rows = 2,
 }: {
   children: ReactNode;
   className?: string;
-  /** Number of rows in the horizontal grid (default 2 for 2×2 visible). */
-  rows?: 1 | 2;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [canPrev, setCanPrev] = useState(false);
@@ -73,11 +68,8 @@ export function HomeScrollRail({
       <div
         ref={ref}
         className={cn(
-          '-mx-4 overflow-x-auto overscroll-x-contain px-4 pb-1 snap-x snap-mandatory',
+          '-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 snap-x snap-mandatory',
           '[&::-webkit-scrollbar]:hidden [scrollbar-width:none]',
-          rows === 2
-            ? 'grid grid-flow-col grid-rows-2 gap-3 auto-cols-[calc((100%-0.75rem)/2)] sm:auto-cols-[minmax(170px,calc((100%-0.75rem)/2))]'
-            : 'flex gap-3',
           className,
         )}
       >
@@ -110,23 +102,20 @@ export function HomeScrollRail({
 export function HomeScrollRailItem({
   children,
   className,
-  /** Slightly wider cards (e.g. stores) */
+  /** Wider cards for ads / stores on home rails */
   size = 'default',
 }: {
   children: ReactNode;
   className?: string;
-  size?: 'default' | 'store';
+  size?: 'default' | 'wide' | 'store';
 }) {
+  const width =
+    size === 'wide' || size === 'store'
+      ? 'w-[min(62vw,220px)] sm:w-[210px] md:w-[230px]'
+      : 'w-[min(48vw,180px)] sm:w-[180px] md:w-[200px]';
+
   return (
-    <div
-      className={cn(
-        'shrink-0 snap-start min-w-0',
-        size === 'store'
-          ? 'w-full min-w-[min(48vw,220px)] sm:min-w-[220px] md:min-w-[240px]'
-          : 'w-full',
-        className,
-      )}
-    >
+    <div className={cn('shrink-0 snap-start', width, className)}>
       {children}
     </div>
   );
