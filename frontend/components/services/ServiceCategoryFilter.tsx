@@ -123,6 +123,36 @@ export function ServiceCategoryFilter() {
           />
         </div>
       </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الترتيب</label>
+        <Select
+          value={`${sp.get('sortBy') || 'createdAt'}:${sp.get('sortOrder') || 'desc'}`}
+          onValueChange={(v) => {
+            const [sortBy, sortOrder] = v.split(':');
+            update('sortBy', sortBy === 'createdAt' ? '' : (sortBy ?? ''));
+            // Always set sortOrder explicitly when non-default pair
+            const params = new URLSearchParams(sp.toString());
+            if (sortBy && sortBy !== 'createdAt') params.set('sortBy', sortBy);
+            else params.delete('sortBy');
+            if (sortOrder && sortOrder !== 'desc') params.set('sortOrder', sortOrder);
+            else params.delete('sortOrder');
+            params.delete('page');
+            router.push(`${ROUTES.services}?${params.toString()}`);
+          }}
+        >
+          <SelectTrigger className="w-full"><SelectValue placeholder="الأحدث" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="createdAt:desc">الأحدث</SelectItem>
+            <SelectItem value="createdAt:asc">الأقدم</SelectItem>
+            <SelectItem value="price:asc">السعر: من الأقل</SelectItem>
+            <SelectItem value="price:desc">السعر: من الأعلى</SelectItem>
+            <SelectItem value="views:desc">الأكثر مشاهدة</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
     </div>
   );
 }
+

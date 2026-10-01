@@ -5,6 +5,7 @@ import { LocateFixed, Wrench } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
 import { ServiceCategoryFilter } from '@/components/services/ServiceCategoryFilter';
+import { ServiceFiltersSheet } from '@/components/services/ServiceFiltersSheet';
 import { ServiceListingsGrid } from '@/components/services/ServiceListingsGrid';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
@@ -25,6 +26,11 @@ export default function ServicesPage() {
           <LocateFixed className="h-4 w-4" aria-hidden />
           مقدمو الخدمة
         </Link>
+      }
+      toolbar={
+        <Suspense>
+          <ServiceFiltersSheet />
+        </Suspense>
       }
       sidebar={
         <Suspense>
