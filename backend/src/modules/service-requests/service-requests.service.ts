@@ -15,6 +15,8 @@ import { serviceListingsRepository } from '../service-listings/service-listings.
 import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { activityService, activityTemplates } from '../activity';
+import { notificationEvents } from '../notifications/notifications.service';
+import { logger } from '../../shared/utils/logger';
 import { blockedUsersService } from '../blocked-users';
 
 // services-design.md §5-§7: single source of truth for legal status
@@ -161,6 +163,16 @@ export const serviceRequestsService = {
       ...activityTemplates.serviceRequestCreated(request.id, listing.title),
     });
 
+    // Fire-and-forget: tell the provider a request arrived. `provider`
+    // can be null only if the listing's provider row vanished mid-flight.
+    if (provider) {
+      notificationEvents
+        .onServiceRequestCreated(provider.sellerProfile.userId, request.id, listing.title, customerId)
+        .catch((err) =>
+          logger.error('Failed to create SERVICE_REQUEST_NEW notification', { err, requestId: request.id })
+        );
+    }
+
     return request;
   },
 
@@ -265,7 +277,7 @@ export const serviceRequestsService = {
       );
     }
 
-    return prisma.$transaction(async tx => {
+    const updatedRequest = await prisma.$transaction(async tx => {
       const result = await serviceRequestsRepository.transitionStatus(
         tx,
         requestId,
@@ -310,5 +322,26 @@ export const serviceRequestsService = {
 
       return updated;
     });
+
+    // Fire-and-forget AFTER commit: tell the OTHER party. A notification
+    // must never be sent for a transition that was rolled back, and a
+    // failed notification must never fail a transition that succeeded.
+    const recipientRole: Actor = isProvider ? 'customer' : 'provider';
+    const recipientUserId = isProvider
+      ? request.customerId
+      : request.listing.provider.sellerProfile.userId;
+    notificationEvents
+      .onServiceRequestStatusChanged(
+        recipientUserId,
+        recipientRole,
+        requestId,
+        request.listing.title,
+        action
+      )
+      .catch((err) =>
+        logger.error('Failed to create SERVICE_REQUEST_UPDATE notification', { err, requestId })
+      );
+
+    return updatedRequest;
   },
 };

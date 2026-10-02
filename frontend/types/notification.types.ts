@@ -26,7 +26,10 @@ export type NotificationType =
   | 'NEW_REQUEST_OFFER'
   | 'REQUEST_OFFER_ACCEPTED'
   | 'NEW_SERVICE_QUOTE'
-  | 'SERVICE_QUOTE_ACCEPTED';
+  | 'SERVICE_QUOTE_ACCEPTED'
+  | 'SERVICE_REQUEST_NEW'
+  | 'SERVICE_REQUEST_UPDATE'
+  | 'APPOINTMENT_UPDATE';
 
 /** Per-type deep-link payload — only relevant keys are present per type. */
 export interface NotificationData {
@@ -41,6 +44,7 @@ export interface NotificationData {
   quoteId?: string;
   requestId?: string;
   offerId?: string;
+  status?: string;
   memberId?: string;
   event?: 'started' | 'expiring' | 'expired';
   /** Set by dailyNotificationDigest job */

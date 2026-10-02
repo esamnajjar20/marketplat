@@ -13,7 +13,7 @@ jest.mock('../../src/shared/utils/pushService', () => ({
 }));
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
-    user: { findMany: jest.fn() },
+    user: { findMany: jest.fn(), findUnique: jest.fn() },
     notification: { groupBy: jest.fn(), count: jest.fn() },
   },
 }));
@@ -403,6 +403,140 @@ describe('notificationEvents', () => {
         url: '/stores/store-1',
         tag: 'store-store-1',
       });
+    });
+  });
+});
+
+describe('notificationEvents — service requests & appointments', () => {
+  const findUnique = () => prisma.user.findUnique as jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // One mock serves both the preference lookup and the name lookup.
+    findUnique().mockResolvedValue({ notificationPreferences: {}, name: 'سارة' });
+    (notificationsRepository.create as jest.Mock).mockImplementation(async (input) => ({ id: 'n-1', ...input }));
+  });
+
+  describe('onServiceRequestCreated', () => {
+    it('creates SERVICE_REQUEST_NEW for the provider with the customer name and a request link', async () => {
+      await notificationEvents.onServiceRequestCreated('provider-1', 'req-1', 'سباكة', 'customer-1');
+
+      expect(notificationsRepository.create).toHaveBeenCalledWith({
+        userId: 'provider-1',
+        type: 'SERVICE_REQUEST_NEW',
+        title: 'طلب خدمة جديد',
+        body: 'سارة أرسل طلبًا على "سباكة"',
+        data: { requestId: 'req-1' },
+      });
+      expect(pushService.notifyUser).toHaveBeenCalledWith(
+        'provider-1',
+        expect.objectContaining({ url: '/service-requests/req-1' })
+      );
+    });
+
+    it('skips everything when the provider turned serviceQuotes off', async () => {
+      findUnique().mockResolvedValue({ notificationPreferences: { serviceQuotes: false }, name: 'سارة' });
+
+      const result = await notificationEvents.onServiceRequestCreated('provider-1', 'req-1', 'سباكة', 'customer-1');
+
+      expect(result).toBeNull();
+      expect(notificationsRepository.create).not.toHaveBeenCalled();
+      expect(pushService.notifyUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onServiceRequestStatusChanged', () => {
+    it.each(['ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])(
+      'notifies the customer on %s and carries the status in data',
+      async (status) => {
+        await notificationEvents.onServiceRequestStatusChanged('customer-1', 'customer', 'req-1', 'سباكة', status);
+
+        expect(notificationsRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: 'customer-1',
+            type: 'SERVICE_REQUEST_UPDATE',
+            data: { requestId: 'req-1', status },
+          })
+        );
+      }
+    );
+
+    it('tells the provider when the customer cancels, with provider-side wording', async () => {
+      await notificationEvents.onServiceRequestStatusChanged('provider-1', 'provider', 'req-1', 'سباكة', 'CANCELLED');
+
+      expect(notificationsRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ body: 'ألغى العميل طلبه على "سباكة"' })
+      );
+    });
+
+    it('sends nothing for a status the recipient has no copy for (e.g. provider + ACCEPTED)', async () => {
+      const result = await notificationEvents.onServiceRequestStatusChanged(
+        'provider-1',
+        'provider',
+        'req-1',
+        'سباكة',
+        'ACCEPTED'
+      );
+
+      expect(result).toBeNull();
+      expect(notificationsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('respects the serviceQuotes preference', async () => {
+      findUnique().mockResolvedValue({ notificationPreferences: { serviceQuotes: false } });
+
+      const result = await notificationEvents.onServiceRequestStatusChanged(
+        'customer-1',
+        'customer',
+        'req-1',
+        'سباكة',
+        'COMPLETED'
+      );
+
+      expect(result).toBeNull();
+      expect(notificationsRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onAppointmentChanged', () => {
+    const start = new Date('2026-10-05T10:00:00.000Z');
+
+    it('creates APPOINTMENT_UPDATE for a booking and links to the request', async () => {
+      await notificationEvents.onAppointmentChanged('customer-1', 'req-1', 'سباكة', 'booked', start);
+
+      expect(notificationsRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'customer-1',
+          type: 'APPOINTMENT_UPDATE',
+          title: 'تم حجز موعد',
+          data: { requestId: 'req-1' },
+        })
+      );
+      expect(pushService.notifyUser).toHaveBeenCalledWith(
+        'customer-1',
+        expect.objectContaining({ url: '/service-requests/req-1' })
+      );
+    });
+
+    it('uses cancellation wording for a cancelled appointment', async () => {
+      await notificationEvents.onAppointmentChanged('customer-1', 'req-1', 'سباكة', 'cancelled', start);
+
+      expect(notificationsRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'تم إلغاء الموعد' })
+      );
+    });
+  });
+
+  describe('getMyNotifications category "services"', () => {
+    it('includes the three new types so the UI filter shows them', async () => {
+      (notificationsRepository.findManyForUser as jest.Mock).mockResolvedValue({ notifications: [], total: 0 });
+
+      await notificationsService.getMyNotifications('user-1', { category: 'services' });
+
+      const types = (notificationsRepository.findManyForUser as jest.Mock).mock.calls[0][1].types as string[];
+      expect(types).toEqual(
+        expect.arrayContaining(['SERVICE_REQUEST_NEW', 'SERVICE_REQUEST_UPDATE', 'APPOINTMENT_UPDATE'])
+      );
     });
   });
 });

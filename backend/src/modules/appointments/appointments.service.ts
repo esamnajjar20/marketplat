@@ -13,6 +13,8 @@ import { serviceProvidersRepository } from '../service-providers/service-provide
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
 import { activityService, activityTemplates } from '../activity';
 import { blockedUsersService } from '../blocked-users';
+import { notificationEvents } from '../notifications/notifications.service';
+import { logger } from '../../shared/utils/logger';
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
@@ -49,8 +51,10 @@ export const appointmentsService = {
   ): Promise<Appointment> => {
     const provider = await requireOwnProvider(userId);
 
+    let linkedRequest: Awaited<ReturnType<typeof serviceRequestsRepository.findById>> = null;
     if (input.requestId) {
       const request = await serviceRequestsRepository.findById(input.requestId);
+      linkedRequest = request;
       if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
       if (request.listing.providerId !== provider.id) {
         throw new ForbiddenError('This request does not belong to your listings.', 'NOT_YOUR_SERVICE_REQUEST');
@@ -105,6 +109,20 @@ export const appointmentsService = {
         ...activityTemplates.appointmentBooked(appointment.id, appointment.scheduledStart),
       });
 
+      if (linkedRequest) {
+        notificationEvents
+          .onAppointmentChanged(
+            linkedRequest.customerId,
+            linkedRequest.id,
+            linkedRequest.listing.title,
+            'booked',
+            appointment.scheduledStart
+          )
+          .catch((err) =>
+            logger.error('Failed to create APPOINTMENT_UPDATE notification', { err, appointmentId: appointment.id })
+          );
+      }
+
       return appointment;
     });
   },
@@ -149,6 +167,27 @@ export const appointmentsService = {
         userId,
         ...activityTemplates.appointmentCancelled(updated.id, updated.scheduledStart),
       });
+
+      if (updated.requestId) {
+        const linkedRequestId = updated.requestId;
+        // Fire-and-forget: the lookup AND the notification both live
+        // inside the try so neither can fail an already-saved cancel.
+        void (async () => {
+          try {
+            const linked = await serviceRequestsRepository.findById(linkedRequestId);
+            if (!linked) return;
+            await notificationEvents.onAppointmentChanged(
+              linked.customerId,
+              linked.id,
+              linked.listing.title,
+              'cancelled',
+              updated.scheduledStart
+            );
+          } catch (err) {
+            logger.error('Failed to create APPOINTMENT_UPDATE notification', { err, appointmentId: updated.id });
+          }
+        })();
+      }
     }
 
     return updated;

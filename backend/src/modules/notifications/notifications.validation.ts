@@ -35,6 +35,9 @@ const notificationTypeEnum = z.enum([
   'STORE_MEMBER_INVITED',
   'NEW_SERVICE_QUOTE',
   'SERVICE_QUOTE_ACCEPTED',
+  'SERVICE_REQUEST_NEW',
+  'SERVICE_REQUEST_UPDATE',
+  'APPOINTMENT_UPDATE',
 ]);
 
 /** فئة واجهة المستخدم → مجموعة أنواع (نفس تجميع الواجهة). */
@@ -58,6 +61,9 @@ export const NOTIFICATION_CATEGORY_TYPES = {
     'REQUEST_OFFER_ACCEPTED',
     'NEW_SERVICE_QUOTE',
     'SERVICE_QUOTE_ACCEPTED',
+    'SERVICE_REQUEST_NEW',
+    'SERVICE_REQUEST_UPDATE',
+    'APPOINTMENT_UPDATE',
   ],
   system: [
     'PROMOTION',

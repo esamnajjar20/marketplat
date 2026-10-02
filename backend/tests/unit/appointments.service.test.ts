@@ -4,6 +4,7 @@ import { sellersRepository } from '../../src/modules/sellers/sellers.repository'
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
 import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
 import { redis } from '../../src/config/redis';
+import { notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
@@ -13,6 +14,13 @@ jest.mock('../../src/modules/appointments/appointments.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
 jest.mock('../../src/modules/service-requests/service-requests.repository');
+jest.mock('../../src/modules/notifications/notifications.service', () => ({
+  notificationEvents: {
+    onServiceRequestCreated: jest.fn(),
+    onServiceRequestStatusChanged: jest.fn(),
+    onAppointmentChanged: jest.fn(),
+  },
+}));
 
 const userId = 'user-1';
 const sellerProfile = { id: 'seller-1', userId } as any;
@@ -31,6 +39,11 @@ const mockAppointment = {
 describe('appointmentsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
+    // Re-armed every test: restoreAllMocks/clearAllMocks in this suite can
+    // drop the resolved value, and the services call .catch() on the result.
+    (notificationEvents.onServiceRequestCreated as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onServiceRequestStatusChanged as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onAppointmentChanged as jest.Mock).mockResolvedValue(null);
     (redis as any).__clear();
     (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(sellerProfile);
     (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(provider);
@@ -103,6 +116,36 @@ describe('appointmentsService', () => {
       });
 
       expect(result).toEqual(mockAppointment);
+    });
+
+    it('notifies the request\'s customer when an appointment is booked for their request', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'req-1',
+        customerId: 'customer-1',
+        status: 'ACCEPTED',
+        listing: { providerId: provider.id, title: 'Plumbing' },
+      });
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await appointmentsService.createAppointment(userId, { ...input, requestId: 'req-1' });
+
+      expect(notificationEvents.onAppointmentChanged).toHaveBeenCalledWith(
+        'customer-1',
+        'req-1',
+        'Plumbing',
+        'booked',
+        mockAppointment.scheduledStart
+      );
+    });
+
+    it('does not notify anyone for a direct booking with no requestId', async () => {
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await appointmentsService.createAppointment(userId, input);
+
+      expect(notificationEvents.onAppointmentChanged).not.toHaveBeenCalled();
     });
 
     it('creates an appointment with no requestId (direct booking)', async () => {
@@ -280,6 +323,60 @@ describe('appointmentsService', () => {
         expect(appointmentsRepository.updateStatus).toHaveBeenCalledWith('appt-1', status);
       }
     );
+
+    it('notifies the request\'s customer when a linked appointment is cancelled', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAppointment, requestId: 'req-1' });
+      (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        requestId: 'req-1',
+        status: 'CANCELLED',
+      });
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'req-1',
+        customerId: 'customer-1',
+        listing: { title: 'Plumbing' },
+      });
+
+      await appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'CANCELLED');
+      await new Promise((resolve) => setImmediate(resolve)); // let the fire-and-forget lookup settle
+
+      expect(notificationEvents.onAppointmentChanged).toHaveBeenCalledWith(
+        'customer-1',
+        'req-1',
+        'Plumbing',
+        'cancelled',
+        mockAppointment.scheduledStart
+      );
+    });
+
+    it('still saves the cancellation when the notification lookup throws', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAppointment, requestId: 'req-1' });
+      (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        requestId: 'req-1',
+        status: 'CANCELLED',
+      });
+      (serviceRequestsRepository.findById as jest.Mock).mockRejectedValue(new Error('db down'));
+
+      await expect(
+        appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'CANCELLED')
+      ).resolves.toMatchObject({ status: 'CANCELLED' });
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    it('does not notify for COMPLETED or NO_SHOW even when linked to a request', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAppointment, requestId: 'req-1' });
+      (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        requestId: 'req-1',
+        status: 'COMPLETED',
+      });
+
+      await appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'COMPLETED');
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(notificationEvents.onAppointmentChanged).not.toHaveBeenCalled();
+    });
   });
 
   describe('getAvailability', () => {

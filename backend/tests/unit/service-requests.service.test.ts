@@ -3,6 +3,7 @@ import { serviceRequestsRepository } from '../../src/modules/service-requests/se
 import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
 import { prisma } from '../../src/config/prisma';
+import { notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
@@ -10,10 +11,18 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/service-listings/service-listings.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
+jest.mock('../../src/modules/notifications/notifications.service', () => ({
+  notificationEvents: {
+    onServiceRequestCreated: jest.fn(),
+    onServiceRequestStatusChanged: jest.fn(),
+    onAppointmentChanged: jest.fn(),
+  },
+}));
 
 const mockListing = {
   id: 'listing-1',
   providerId: 'provider-1',
+  title: 'Plumbing',
   status: 'ACTIVE',
 };
 
@@ -23,7 +32,14 @@ const mockProvider = {
 };
 
 describe('ServiceRequestsService', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Re-armed every test: restoreAllMocks/clearAllMocks in this suite can
+    // drop the resolved value, and the services call .catch() on the result.
+    (notificationEvents.onServiceRequestCreated as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onServiceRequestStatusChanged as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onAppointmentChanged as jest.Mock).mockResolvedValue(null);
+  });
   afterEach(() => jest.restoreAllMocks());
 
   describe('createRequest — self-dealing guard (audit finding #1)', () => {
@@ -60,6 +76,37 @@ describe('ServiceRequestsService', () => {
         'listing-1',
         expect.objectContaining({ details: 'test' })
       );
+    });
+
+    it('notifies the provider (not the customer) that a new request arrived', async () => {
+      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
+      (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(mockProvider);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
+      (serviceRequestsRepository.create as jest.Mock).mockResolvedValue({ id: 'req-1' });
+
+      await serviceRequestsService.createRequest('customer-user-2', {
+        listingId: 'listing-1',
+        details: 'test',
+      } as any);
+
+      expect(notificationEvents.onServiceRequestCreated).toHaveBeenCalledWith(
+        'seller-user-1',
+        'req-1',
+        'Plumbing',
+        'customer-user-2'
+      );
+    });
+
+    it('still creates the request when the notification fails', async () => {
+      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
+      (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(mockProvider);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
+      (serviceRequestsRepository.create as jest.Mock).mockResolvedValue({ id: 'req-1' });
+      (notificationEvents.onServiceRequestCreated as jest.Mock).mockRejectedValue(new Error('push down'));
+
+      await expect(
+        serviceRequestsService.createRequest('customer-user-2', { listingId: 'listing-1', details: 'test' } as any)
+      ).resolves.toEqual({ id: 'req-1' });
     });
 
     it('still rejects self-dealing even if the provider lookup omits sellerProfile mismatch by ID rather than userId', async () => {

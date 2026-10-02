@@ -3,6 +3,7 @@ import { serviceRequestsRepository } from '../../src/modules/service-requests/se
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
+import { notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
@@ -10,6 +11,13 @@ import { ConflictError } from '../../src/shared/errors/ConflictError';
 jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/notifications/notifications.service', () => ({
+  notificationEvents: {
+    onServiceRequestCreated: jest.fn(),
+    onServiceRequestStatusChanged: jest.fn(),
+    onAppointmentChanged: jest.fn(),
+  },
+}));
 jest.mock('../../src/config/prisma', () => ({
   prisma: { $transaction: jest.fn() },
 }));
@@ -24,6 +32,7 @@ const buildRequest = (overrides: Partial<any> = {}) => ({
   status: 'PENDING',
   listing: {
     id: 'listing-1',
+    title: 'Plumbing',
     provider: { id: 'provider-1', sellerProfile: { id: 'seller-profile-1', userId: providerUserId } },
   },
   ...overrides,
@@ -32,6 +41,11 @@ const buildRequest = (overrides: Partial<any> = {}) => ({
 describe('serviceRequestsService — additional coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Re-armed every test: restoreAllMocks/clearAllMocks in this suite can
+    // drop the resolved value, and the services call .catch() on the result.
+    (notificationEvents.onServiceRequestCreated as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onServiceRequestStatusChanged as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onAppointmentChanged as jest.Mock).mockResolvedValue(null);
     (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb({}));
     (serviceRequestsRepository.countTerminalStatsByProviderId as jest.Mock).mockResolvedValue({
       completed: 0,
@@ -198,7 +212,9 @@ describe('serviceRequestsService — additional coverage', () => {
       const mockTx = { serviceRequest: { findUniqueOrThrow: jest.fn().mockResolvedValue(updated) } };
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
 
-      const result = await serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED');
+      const result = await serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED', {
+        quotedPrice: 50,
+      });
 
       expect(result).toEqual(updated);
       expect(serviceRequestsRepository.transitionStatus).toHaveBeenCalledWith(
@@ -206,8 +222,67 @@ describe('serviceRequestsService — additional coverage', () => {
         requestId,
         'PENDING',
         'ACCEPTED',
-        undefined
+        { quotedPrice: 50 }
       );
+    });
+
+    it('notifies the customer when the provider accepts', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(buildRequest());
+      (serviceRequestsRepository.transitionStatus as jest.Mock).mockResolvedValue({ count: 1 });
+      const mockTx = { serviceRequest: { findUniqueOrThrow: jest.fn().mockResolvedValue(buildRequest({ status: 'ACCEPTED' })) } };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
+
+      await serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED', { quotedPrice: 50 });
+
+      expect(notificationEvents.onServiceRequestStatusChanged).toHaveBeenCalledWith(
+        customerId,
+        'customer',
+        requestId,
+        'Plumbing',
+        'ACCEPTED'
+      );
+    });
+
+    it('notifies the provider (not the customer) when the customer cancels', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(buildRequest({ status: 'ACCEPTED' }));
+      (serviceRequestsRepository.transitionStatus as jest.Mock).mockResolvedValue({ count: 1 });
+      const mockTx = { serviceRequest: { findUniqueOrThrow: jest.fn().mockResolvedValue(buildRequest({ status: 'CANCELLED' })) } };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
+
+      await serviceRequestsService.respondToRequest(customerId, requestId, 'CANCELLED');
+
+      expect(notificationEvents.onServiceRequestStatusChanged).toHaveBeenCalledWith(
+        providerUserId,
+        'provider',
+        requestId,
+        'Plumbing',
+        'CANCELLED'
+      );
+    });
+
+    it('does NOT notify when the conditional update loses the race (count 0)', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(buildRequest());
+      (serviceRequestsRepository.transitionStatus as jest.Mock).mockResolvedValue({ count: 0 });
+      const mockTx = { serviceRequest: { findUniqueOrThrow: jest.fn() } };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
+
+      await expect(
+        serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED', { quotedPrice: 50 })
+      ).rejects.toThrow();
+      expect(notificationEvents.onServiceRequestStatusChanged).not.toHaveBeenCalled();
+    });
+
+    it('still returns the updated request when the notification fails', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(buildRequest());
+      (serviceRequestsRepository.transitionStatus as jest.Mock).mockResolvedValue({ count: 1 });
+      const updated = buildRequest({ status: 'ACCEPTED' });
+      const mockTx = { serviceRequest: { findUniqueOrThrow: jest.fn().mockResolvedValue(updated) } };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
+      (notificationEvents.onServiceRequestStatusChanged as jest.Mock).mockRejectedValue(new Error('push down'));
+
+      await expect(
+        serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED', { quotedPrice: 50 })
+      ).resolves.toEqual(updated);
     });
 
     it('allows the customer to cancel from ACCEPTED (either-party transition)', async () => {

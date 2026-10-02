@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Users,
   Wrench,
+  CalendarClock,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -40,6 +41,9 @@ export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   STORE_MEMBER_INVITED: Users,
   NEW_SERVICE_QUOTE: Wrench,
   SERVICE_QUOTE_ACCEPTED: Wrench,
+  SERVICE_REQUEST_NEW: Wrench,
+  SERVICE_REQUEST_UPDATE: Wrench,
+  APPOINTMENT_UPDATE: CalendarClock,
 };
 
 export const TYPE_LABEL: Record<NotificationType, string> = {
@@ -60,6 +64,9 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   STORE_MEMBER_INVITED: 'دعوة متجر',
   NEW_SERVICE_QUOTE: 'عرض سعر خدمة',
   SERVICE_QUOTE_ACCEPTED: 'قبول عرض خدمة',
+  SERVICE_REQUEST_NEW: 'طلب خدمة جديد',
+  SERVICE_REQUEST_UPDATE: 'تحديث طلب خدمة',
+  APPOINTMENT_UPDATE: 'موعد',
 };
 
 export type NotificationCategoryId =
@@ -101,6 +108,9 @@ export const NOTIFICATION_CATEGORIES: {
       'REQUEST_OFFER_ACCEPTED',
       'NEW_SERVICE_QUOTE',
       'SERVICE_QUOTE_ACCEPTED',
+      'SERVICE_REQUEST_NEW',
+      'SERVICE_REQUEST_UPDATE',
+      'APPOINTMENT_UPDATE',
     ],
   },
   {
@@ -150,6 +160,15 @@ export function hrefFor(notification: Notification): string | null {
   if (notification.type === 'NEW_SERVICE_QUOTE' || notification.type === 'SERVICE_QUOTE_ACCEPTED') {
     if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
     if (d?.broadcastId) return `/service-requests/${d.broadcastId}`;
+    return ROUTES.notifications;
+  }
+  if (
+    notification.type === 'SERVICE_REQUEST_NEW' ||
+    notification.type === 'SERVICE_REQUEST_UPDATE' ||
+    notification.type === 'APPOINTMENT_UPDATE'
+  ) {
+    // Same detail page for both parties — the backend authorizes either.
+    if (d?.requestId) return ROUTES.serviceRequestDetail(d.requestId);
     return ROUTES.notifications;
   }
   if (notification.type === 'STORE_NEW_PRODUCT') {

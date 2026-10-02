@@ -92,7 +92,15 @@ export const notificationsService = {
           'PROMOTION_STATUS_CHANGE',
           'STORE_MEMBER_INVITED',
         ],
-        services: ['NEW_SERVICE_QUOTE', 'SERVICE_QUOTE_ACCEPTED', 'NEW_REQUEST_OFFER', 'REQUEST_OFFER_ACCEPTED'],
+        services: [
+          'NEW_SERVICE_QUOTE',
+          'SERVICE_QUOTE_ACCEPTED',
+          'NEW_REQUEST_OFFER',
+          'REQUEST_OFFER_ACCEPTED',
+          'SERVICE_REQUEST_NEW',
+          'SERVICE_REQUEST_UPDATE',
+          'APPOINTMENT_UPDATE',
+        ],
         system: [
           'PROMOTION',
           'WEEKLY_AD_VIEWS_REPORT',
@@ -313,6 +321,36 @@ async function fanOutSameContentNotification(
     recipients.map((userId) => ({ userId, type, title, body, data }))
   );
 }
+
+type ServiceRequestActor = 'customer' | 'provider';
+
+/** Arabic copy per status. `to` is the party being notified. */
+const SERVICE_REQUEST_COPY: Record<
+  string,
+  Partial<Record<ServiceRequestActor, { title: string; body: (t: string) => string }>>
+> = {
+  ACCEPTED: { customer: { title: 'تم قبول طلبك', body: (t) => `قبل مقدم الخدمة طلبك على "${t}" — اطّلع على السعر المقترح` } },
+  REJECTED: { customer: { title: 'تم رفض طلبك', body: (t) => `اعتذر مقدم الخدمة عن طلبك على "${t}"` } },
+  IN_PROGRESS: { customer: { title: 'بدأ تنفيذ طلبك', body: (t) => `بدأ مقدم الخدمة العمل على طلبك "${t}"` } },
+  COMPLETED: { customer: { title: 'اكتمل طلبك', body: (t) => `اكتمل طلبك "${t}" — يمكنك الآن تقييم الخدمة` } },
+  // CANCELLED is symmetrical: the recipient is whoever did NOT cancel.
+  CANCELLED: {
+    customer: { title: 'تم إلغاء الطلب', body: (t) => `ألغى مقدم الخدمة الطلب على "${t}"` },
+    provider: { title: 'تم إلغاء الطلب', body: (t) => `ألغى العميل طلبه على "${t}"` },
+  },
+};
+
+const formatGazaDateTime = (d: Date): string => {
+  try {
+    return new Intl.DateTimeFormat('ar', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Gaza',
+    }).format(d);
+  } catch {
+    return d.toISOString();
+  }
+};
 
 export const notificationEvents = {
   /** conversations.service.ts's sendMessage calls this after a message
@@ -624,6 +662,95 @@ export const notificationEvents = {
       title,
       body,
       data: { requestId, offerId },
+    });
+  },
+
+  /** Provider is notified a customer opened a request on their listing. */
+  onServiceRequestCreated: async (
+    providerUserId: string,
+    requestId: string,
+    listingTitle: string,
+    customerId: string
+  ) => {
+    if (!(await userAllowsPref(providerUserId, 'serviceQuotes'))) return null;
+    const customerName =
+      (await prisma.user.findUnique({ where: { id: customerId }, select: { name: true } }))?.name ??
+      'عميل';
+    const title = 'طلب خدمة جديد';
+    const body = `${customerName} أرسل طلبًا على "${listingTitle}"`;
+    void pushService.notifyUser(providerUserId, {
+      title,
+      body,
+      url: `/service-requests/${requestId}`,
+      tag: `service-request-${requestId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: providerUserId,
+      type: 'SERVICE_REQUEST_NEW',
+      title,
+      body,
+      data: { requestId },
+    });
+  },
+
+  /** The OTHER party (not the actor) is told the request changed state.
+   * Statuses without copy for that recipient (e.g. a customer never
+   * receives "PENDING") are skipped silently. */
+  onServiceRequestStatusChanged: async (
+    recipientUserId: string,
+    recipientRole: ServiceRequestActor,
+    requestId: string,
+    listingTitle: string,
+    status: string
+  ) => {
+    const copy = SERVICE_REQUEST_COPY[status]?.[recipientRole];
+    if (!copy) return null;
+    if (!(await userAllowsPref(recipientUserId, 'serviceQuotes'))) return null;
+    const title = copy.title;
+    const body = copy.body(listingTitle);
+    void pushService.notifyUser(recipientUserId, {
+      title,
+      body,
+      url: `/service-requests/${requestId}`,
+      tag: `service-request-${requestId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: recipientUserId,
+      type: 'SERVICE_REQUEST_UPDATE',
+      title,
+      body,
+      data: { requestId, status },
+    });
+  },
+
+  /** Customer is told an appointment tied to their request was booked
+   * or cancelled by the provider. */
+  onAppointmentChanged: async (
+    customerUserId: string,
+    requestId: string,
+    listingTitle: string,
+    kind: 'booked' | 'cancelled',
+    scheduledStart: Date
+  ) => {
+    if (!(await userAllowsPref(customerUserId, 'serviceQuotes'))) return null;
+    const when = formatGazaDateTime(scheduledStart);
+    const title = kind === 'booked' ? 'تم حجز موعد' : 'تم إلغاء الموعد';
+    const body =
+      kind === 'booked'
+        ? `تم تحديد موعد لطلبك "${listingTitle}" — ${when}`
+        : `أُلغي الموعد المحدد لطلبك "${listingTitle}" (${when})`;
+    void pushService.notifyUser(customerUserId, {
+      title,
+      body,
+      url: `/service-requests/${requestId}`,
+      tag: `service-request-${requestId}`,
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: customerUserId,
+      type: 'APPOINTMENT_UPDATE',
+      title,
+      body,
+      data: { requestId },
     });
   },
 };

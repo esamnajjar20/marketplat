@@ -222,6 +222,18 @@ export function useNotificationStream(options?: Options) {
                 void queryClient.invalidateQueries({
                   queryKey: queryKeys.notifications.unreadCount(),
                 });
+                // Service-request / appointment notifications mean the
+                // request page or the lists behind it are now stale —
+                // refresh them so an open page updates without waiting
+                // for a manual reload.
+                if (
+                  payload.notificationType === 'SERVICE_REQUEST_NEW' ||
+                  payload.notificationType === 'SERVICE_REQUEST_UPDATE' ||
+                  payload.notificationType === 'APPOINTMENT_UPDATE'
+                ) {
+                  void queryClient.invalidateQueries({ queryKey: ['service-requests'] });
+                  void queryClient.invalidateQueries({ queryKey: ['appointments'] });
+                }
               }
 
               onEventRef.current?.(payload);

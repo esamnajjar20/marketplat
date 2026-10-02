@@ -1396,6 +1396,15 @@ enum NotificationType {
   // rather than adding a new one, consistent with other store-scoped
   // notifications above (STORE_NEW_PRODUCT etc.).
   STORE_MEMBER_INVITED
+  // SERVICE-REQUEST-NOTIFICATIONS: the ServiceRequest lifecycle
+  // (provider: new request / customer cancelled; customer: accepted /
+  // rejected / in progress / completed / provider cancelled) and
+  // appointment booked/cancelled for a customer's request. Reuse the
+  // existing `serviceQuotes` preference key. `data` always includes
+  // { requestId }; SERVICE_REQUEST_UPDATE also carries { status }.
+  SERVICE_REQUEST_NEW
+  SERVICE_REQUEST_UPDATE
+  APPOINTMENT_UPDATE
 }
 
 // Gap #10 ("نشاطي"): every distinct event type the personal activity
