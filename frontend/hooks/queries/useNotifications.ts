@@ -18,20 +18,7 @@ import {
   saveUnreadCountCache,
 } from '@/lib/notificationsCache';
 import type { NotificationsQuery } from '@/types/notification.types';
-import type { PaginationMeta } from '@/types/api.types';
-
-/** ميتا افتراضية لبيانات القراءة بدون اتصال — لا صفحات أخرى معروفة فعليًا،
- * فقط ما هو محفوظ محليًا. */
-function offlineMeta(count: number): PaginationMeta {
-  return {
-    total: count,
-    page: 1,
-    limit: count,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  };
-}
+import { offlineMeta } from '@/lib/apiPagination';
 
 /**
  * GET /notifications — powers NotificationsDropdown's list.

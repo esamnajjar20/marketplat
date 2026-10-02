@@ -5,10 +5,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { DataSaverToggle } from '@/components/shared/DataSaverToggle';
-import { useDataSaver } from '@/hooks/useDataSaver';
+import { useDataSaverControls } from '@/lib/useDataSaver';
 
-vi.mock('@/hooks/useDataSaver', () => ({
-  useDataSaver: vi.fn(),
+vi.mock('@/lib/useDataSaver', () => ({
+  useDataSaverControls: vi.fn(),
 }));
 
 describe('DataSaverToggle', () => {
@@ -16,7 +16,7 @@ describe('DataSaverToggle', () => {
 
   beforeEach(() => {
     setEnabled.mockReset();
-    vi.mocked(useDataSaver).mockReturnValue({
+    vi.mocked(useDataSaverControls).mockReturnValue({
       enabled: false,
       setEnabled,
     });
@@ -41,7 +41,7 @@ describe('DataSaverToggle', () => {
   });
 
   it('shows checked when enabled', () => {
-    vi.mocked(useDataSaver).mockReturnValue({ enabled: true, setEnabled });
+    vi.mocked(useDataSaverControls).mockReturnValue({ enabled: true, setEnabled });
     render(<DataSaverToggle />);
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
   });

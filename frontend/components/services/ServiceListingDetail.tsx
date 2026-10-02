@@ -9,14 +9,10 @@ import { ReportServiceButton } from '@/components/services/ReportServiceButton';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { ProviderContactCard } from '@/components/services/ProviderContactCard';
 import { ROUTES, APP_URL } from '@/lib/constants';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
-import type {
-  ServiceListingWithProvider,
-  ServicePricingType,
-  ServiceLocationType,
-} from '@/types/service.types';
+import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';
 
 interface Props {
   listing: ServiceListingWithProvider;
@@ -29,12 +25,6 @@ const LOCATION_LABELS: Record<ServiceLocationType, string> = {
   AT_PROVIDER: 'لدى مقدم الخدمة',
   REMOTE: 'عن بُعد',
 };
-
-function formatServicePrice(pricingType: ServicePricingType, price: string | null): string {
-  if (pricingType === 'NEGOTIABLE' || !price) return 'حسب الاتفاق';
-  const formatted = formatPrice(price);
-  return pricingType === 'STARTING_FROM' ? `يبدأ من ${formatted}` : formatted;
-}
 
 export function ServiceListingDetail({ listing, action }: Props) {
   const [now, setNow] = useState<number | null>(null);

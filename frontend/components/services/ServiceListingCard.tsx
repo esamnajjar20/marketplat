@@ -7,7 +7,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/ui/badge';
 import { BadgeCheck, Clock, MapPin, Star } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import {
   getListThumbnailUrl,
   getPlaceholderUrl,
@@ -17,11 +17,7 @@ import {
 } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import type {
-  ServiceListingWithProvider,
-  ServiceAvailability,
-  ServicePricingType,
-} from '@/types/service.types';
+import type { ServiceListingWithProvider, ServiceAvailability } from '@/types/service.types';
 
 interface Props {
   listing: ServiceListingWithProvider;
@@ -41,12 +37,6 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
   BUSY: 'مشغول',
   UNAVAILABLE: 'غير متاح',
 };
-
-function formatServicePrice(pricingType: ServicePricingType, price: string | null): string {
-  if (pricingType === 'NEGOTIABLE' || !price) return 'حسب الاتفاق';
-  const formatted = formatPrice(price);
-  return pricingType === 'STARTING_FROM' ? `يبدأ من ${formatted}` : formatted;
-}
 
 /**
  * Service listing card — unified Badge + typography (Phase 3+).

@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { Eye, Users, UserPlus, Package, Tag, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/ui/Card';
+import { StatCard } from '@/components/shared/ui/StatCard';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useMyStoreAnalytics } from '@/hooks/queries/useStores';
@@ -17,30 +18,6 @@ import type { ParsedError } from '@/lib/errorParser';
  * there's no honest number to show. Every tile here reads from data
  * that already existed before this endpoint.
  */
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Eye;
-  label: string;
-  value: number;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-          <Icon className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="text-2xl font-bold leading-none">{(value ?? 0).toLocaleString('ar')}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function MyStoreAnalytics() {
   const { data: analytics, isLoading, isError, error, refetch } = useMyStoreAnalytics();
 

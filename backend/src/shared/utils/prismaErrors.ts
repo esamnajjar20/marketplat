@@ -25,3 +25,12 @@ export const handlePrismaError = (error: unknown): never => {
   }
   throw error;
 };
+
+/**
+ * True when `err` is a Prisma known request error with the given code
+ * (e.g. 'P2002' unique violation, 'P2003' FK violation, 'P2025' not found).
+ * Use in catch blocks that need to branch on a specific code; use
+ * handlePrismaError when the default P2002/P2025 translation is enough.
+ */
+export const isPrismaError = (err: unknown, code: string): boolean =>
+  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;

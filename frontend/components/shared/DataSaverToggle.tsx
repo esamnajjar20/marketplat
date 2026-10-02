@@ -1,7 +1,7 @@
 'use client';
 
 import { WifiOff } from 'lucide-react';
-import { useDataSaver } from '@/hooks/useDataSaver';
+import { useDataSaverControls } from '@/lib/useDataSaver';
 import { cn } from '@/lib/utils';
 
 /**
@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
  * Mounted on settings/profile and optionally near ThemeToggle.
  */
 export function DataSaverToggle({ className }: { className?: string }) {
-  const { enabled, setEnabled } = useDataSaver();
+  const { enabled, setEnabled } = useDataSaverControls();
 
   return (
     <button

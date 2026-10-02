@@ -16,12 +16,8 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { Report, ReportTargetType, Prisma } from '@prisma/client';
-
-// FIX D-08: same pattern already used in favoritesService — distinguishes
-// a genuine duplicate-report race from any other unexpected DB error.
-const isPrismaError = (err: unknown, code: string): boolean =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+import { Report, ReportTargetType } from '@prisma/client';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 const TARGET_LABEL: Record<ReportTargetType, string> = {
   AD: 'ad',

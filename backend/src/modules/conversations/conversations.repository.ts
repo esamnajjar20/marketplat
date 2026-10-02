@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, Conversation, Message } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {
@@ -28,9 +29,6 @@ export type ConversationListItem = ConversationWithRelations & {
   unreadCount: number;
   lastMessage: Message | null;
 };
-
-const isPrismaError = (err: unknown, code: string): boolean =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
 
 const conversationWithRelations = {
   // Epic 5: ad is nullable on the row itself (adId String?) — the

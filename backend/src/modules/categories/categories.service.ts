@@ -1,18 +1,11 @@
 import { categoriesRepository, CategoryWithChildren } from './categories.repository';
-import { Category, Prisma } from '@prisma/client';
+import { Category } from '@prisma/client';
 import { CreateCategoryInput, UpdateCategoryInput } from './categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
-
-// FIX D-23: same pattern already used in favoritesService/reportsService —
-// createCategory/updateCategory do a check-then-write on name/nameAr/slug
-// uniqueness without catching the resulting P2002 race. Admin-only, very
-// low-traffic operations, so this is a low-severity gap in practice, but
-// applying the same defensive pattern consistently costs nothing here.
-const isPrismaError = (err: unknown, code: string): boolean =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 // FIX CATEGORIES-CACHE-VERSION-01: versioned key. Warmup/cache-aside never
 // overwrite an existing key, so a deploy that changes the payload shape would

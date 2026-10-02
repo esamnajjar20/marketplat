@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { Eye, ListChecks, Clock, CheckCircle2, CalendarClock, Wallet, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/ui/Card';
+import { StatCard } from '@/components/shared/ui/StatCard';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useState } from 'react';
@@ -19,30 +20,6 @@ import type { ParsedError } from '@/lib/errorParser';
  * revenue tile is included: ServiceRequest.agreedPrice is a real
  * existing field (no Order model gap here the way stores have).
  */
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Eye;
-  label: string;
-  value: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-          <Icon className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="text-2xl font-bold leading-none">{value}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function MyServiceProviderAnalytics() {
   const [period, setPeriod] = useState<'7d' | '30d' | 'all'>('all');
   const { data: analytics, isLoading, isError, error, refetch } = useMyServiceProviderAnalytics(period);

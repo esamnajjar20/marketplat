@@ -92,12 +92,6 @@ export const serviceCategoriesRepository = {
   countChildren: async (id: string): Promise<number> =>
     prisma.serviceCategory.count({ where: { parentId: id } }),
 
-  // T443 companion — a category referenced by an active broadcast is
-  // also unsafe to hard-delete (FK constraint on
-  // ServiceRequestBroadcast.categoryId). Same shape as countListings.
-  countBroadcasts: async (id: string): Promise<number> =>
-    prisma.serviceRequestBroadcast.count({ where: { categoryId: id } }),
-
   // T510 — findBySlug is only ever called from the public
   // getServiceCategoryBySlug, so isActive is enforced directly rather
   // than adding a parallel findPublicBySlug.

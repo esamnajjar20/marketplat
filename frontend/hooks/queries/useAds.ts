@@ -27,24 +27,13 @@ import {
 } from '@/store/auth.store';
 import { CACHE_TTL } from '@/lib/constants';
 import type { AdSearchParams, AdSearchQuery, AdListItem } from '@/types/ad.types';
-import type { PaginationMeta } from '@/types/api.types';
+import { offlineMeta } from '@/lib/apiPagination';
 import {
   getOfflineList,
   saveOfflineList,
   OFFLINE_LIST_KEYS,
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
-
-function offlineMeta(count: number): PaginationMeta {
-  return {
-    total: count,
-    page: 1,
-    limit: count,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  };
-}
 
 
 /** GET /ads — paginated + filtered list */

@@ -72,3 +72,18 @@ export function unwrapData<T>(response: AxiosResponse<ApiResponse<T>>): T {
   }
   return response.data.data;
 }
+
+/**
+ * ميتا افتراضية لبيانات القراءة بدون اتصال — لا صفحات أخرى معروفة فعليًا،
+ * فقط ما هو محفوظ محليًا.
+ */
+export function offlineMeta(count: number): PaginationMeta {
+  return {
+    total: count,
+    page: 1,
+    limit: count,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  };
+}

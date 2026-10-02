@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { AdStatus, AuditEventType, ReportStatus, Role, Prisma, ServiceBroadcastStatus } from '@prisma/client';
+import { AdStatus, AuditEventType, ReportStatus, Role, Prisma } from '@prisma/client';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { NotFoundError }   from '../../shared/errors/NotFoundError';
 import { ForbiddenError }  from '../../shared/errors/ForbiddenError';

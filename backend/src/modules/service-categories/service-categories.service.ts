@@ -2,18 +2,13 @@ import {
   serviceCategoriesRepository,
   ServiceCategoryWithChildren,
 } from './service-categories.repository';
-import { ServiceCategory, Prisma } from '@prisma/client';
+import { ServiceCategory } from '@prisma/client';
 import { CreateServiceCategoryInput, UpdateServiceCategoryInput } from './service-categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
-
-// Same defensive check-then-write-race pattern as categoriesService
-// (D-23) — admin-only, low-traffic, applied consistently rather than
-// left as a gap here.
-const isPrismaError = (err: unknown, code: string): boolean =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 // FIX CATEGORIES-CACHE-VERSION-01: versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
@@ -194,21 +189,17 @@ export const serviceCategoriesService = {
     }
 
     // T443 — same guard the sibling modules have: a category with
-    // subcategories (children.parentId) or referenced by a broadcast
-    // would hit the FK constraint on delete.
+    // subcategories (children.parentId) would hit the FK constraint
+    // on delete.
     const childrenCount = await serviceCategoriesRepository.countChildren(id);
     if (childrenCount > 0) {
       throw new BadRequestError(`Cannot delete category with ${childrenCount} subcategories`);
-    }
-    const broadcastsCount = await serviceCategoriesRepository.countBroadcasts(id);
-    if (broadcastsCount > 0) {
-      throw new BadRequestError(`Cannot delete category referenced by ${broadcastsCount} broadcasts`);
     }
 
     try {
       await serviceCategoriesRepository.delete(id);
     } catch (err) {
-      // T444 — the counts above are advisory; a child/broadcast can
+      // T444 — the counts above are advisory; a child can
       // appear between the count and the delete. P2003 -> 400,
       // P2025 -> 404.
       if (isPrismaError(err, 'P2003')) {

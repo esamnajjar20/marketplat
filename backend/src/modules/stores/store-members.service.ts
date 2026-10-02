@@ -254,8 +254,6 @@ export const storeMembersService = {
       throw e;
     }
 
-    // AuditEventType.STORE_MEMBER_INVITED must exist in schema (see
-    // schema-patch.md + migration). Without it this file won't compile.
     await auditLog({
       event: AuditEvent.STORE_MEMBER_INVITED,
       userId: actorUserId,

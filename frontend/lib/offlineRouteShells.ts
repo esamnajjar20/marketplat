@@ -71,6 +71,7 @@ import { getAverageRequestMs } from './connectionQuality';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { reportProgress } from './warmingProgress';
 import { reportWarmingFailure } from './offlineWarmingReport';
+import { fetchWithTimeout as sharedFetchWithTimeout } from './fetchTimeout';
 import { STATIC_CACHE_NAME, PERSONAL_SHELL_CACHE_NAME } from '@/lib/cacheVersion';
 
 // PROXY-WARMING: transient staging area for atomic per-route warming.
@@ -444,11 +445,7 @@ function fetchWithTimeout(
   options: RequestInit = {},
   timeoutMs: number = shellTimeoutMs(),
 ): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
-    clearTimeout(timer),
-  );
+  return sharedFetchWithTimeout(url, options, timeoutMs);
 }
 
 /**

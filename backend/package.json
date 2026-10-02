@@ -43,8 +43,7 @@
     "report:cleanup-tokens": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupExpiredTokens.ts",
     "report:cleanup-failed-tasks": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupFailedBackgroundTasks.ts",
     "report:demote-stale-boosts": "ts-node-dev --transpile-only --exit-child src/scripts/demoteStaleAdBoosts.ts",
-    "report:expire-open-requests": "ts-node-dev --transpile-only --exit-child src/scripts/expireOpenRequests.ts",
-    "report:migrate-service-broadcasts-to-requests": "ts-node-dev --transpile-only --exit-child src/scripts/migrateServiceBroadcastsToRequests.ts"
+    "report:expire-open-requests": "ts-node-dev --transpile-only --exit-child src/scripts/expireOpenRequests.ts"
   },
   "lint-staged": {
     "src/**/*.ts": [

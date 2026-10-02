@@ -11,24 +11,13 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { ActivityQuery, UserActivity } from '@/types/activity.types';
-import type { PaginationMeta } from '@/types/api.types';
+import { offlineMeta } from '@/lib/apiPagination';
 import {
   getOfflineList,
   saveOfflineList,
   OFFLINE_LIST_KEYS,
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
-
-function offlineMeta(count: number): PaginationMeta {
-  return {
-    total: count,
-    page: 1,
-    limit: count,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  };
-}
 
 /** GET /activity — آخر النشاط مع كاش أوفلاين محدود. */
 export function useMyActivity(params?: ActivityQuery) {

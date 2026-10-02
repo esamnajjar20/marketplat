@@ -11,13 +11,12 @@
 ## What was NOT touched
 
 - `ServiceRequest` — directed request to a specific service listing
-- `ServiceRequestBroadcast` / `ServiceQuote` — existing service-only open feed
 - No `offererRole` column
 - `budgetMin` / `budgetMax` nullable
 
 ## Accept offer (service layer — required pattern)
 
-Mirror `service-broadcasts.service.ts` `acceptQuote`:
+Required pattern (conditional update guards against double-accept):
 
 ```ts
 await prisma.$transaction(async (tx) => {
@@ -44,13 +43,6 @@ String without Prisma FK. Service validates against:
 - `SERVICE` → `ServiceCategory`
 - `PRODUCT` → product category tree
 - `RENTAL` → ad/category tree used for rentals
-
-## Next code modules (not in this migration)
-
-- `backend/src/modules/requests/` — repository, service, validation, routes
-- Mount at `/requests` in `routes.ts`
-- Rate limits separate from `createServiceBroadcastRateLimit`
-- Notifications: reuse patterns of `onNewServiceQuote` / `onServiceQuoteAccepted`
 
 ## Migration
 
@@ -80,15 +72,6 @@ Mount: `GET|POST /requests` …
 Files: `backend/src/modules/requests/*`
 
 Rate limits: `createOpenRequestRateLimit` (10/h), `submitRequestOfferRateLimit` (30/h)
-
-### Not yet
-
-- Category existence check per type
-- Stricter eligibility for PRODUCT/RENTAL offerers
-- Dedicated notification types
-- Cron to mark EXPIRED
-- Frontend UI
-
 
 ## Category validation (service)
 

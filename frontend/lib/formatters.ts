@@ -5,6 +5,8 @@
  *           Uses parseFloat() safely and returns '--' for null/NaN.
  */
 
+import type { ServicePricingType } from '@/types/service.types';
+
 // ── Number ────────────────────────────────────────────────────────
 
 /**
@@ -47,6 +49,19 @@ export function formatPrice(
     ' ' +
     currency
   );
+}
+
+/**
+ * Service listing price label: "حسب الاتفاق" for NEGOTIABLE / missing price,
+ * "يبدأ من X" for STARTING_FROM, otherwise the plain formatted price.
+ */
+export function formatServicePrice(
+  pricingType: ServicePricingType,
+  price: string | null,
+): string {
+  if (pricingType === 'NEGOTIABLE' || !price) return 'حسب الاتفاق';
+  const formatted = formatPrice(price);
+  return pricingType === 'STARTING_FROM' ? `يبدأ من ${formatted}` : formatted;
 }
 
 /** Returns the raw numeric value from a price string, or null if invalid. */

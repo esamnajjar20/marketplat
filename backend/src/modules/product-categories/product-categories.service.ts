@@ -2,15 +2,13 @@ import {
   productCategoriesRepository,
   ProductCategoryWithChildren,
 } from './product-categories.repository';
-import { ProductCategory, Prisma } from '@prisma/client';
+import { ProductCategory } from '@prisma/client';
 import { CreateProductCategoryInput, UpdateProductCategoryInput } from './product-categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
-
-const isPrismaError = (err: unknown, code: string): boolean =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 // FIX CATEGORIES-CACHE-VERSION-01: versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).

@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import {
   blockedUsersRepository,
   UserBlockWithBlockedUser,
@@ -8,9 +7,7 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-
-const isPrismaError = (err: unknown, code: string): boolean =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 export const blockedUsersService = {
   /**

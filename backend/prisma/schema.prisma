@@ -177,9 +177,8 @@ model User {
   savedSearches               SavedSearch[]
   serviceRequestsAsCustomer   ServiceRequest[]          @relation("ServiceRequestsAsCustomer")
   serviceReviewsGiven         ServiceReview[]           @relation("ServiceReviewsGiven")
-  serviceBroadcastsAsCustomer ServiceRequestBroadcast[] @relation("ServiceBroadcastsAsCustomer")
   // Open marketplace requests (PRODUCT/SERVICE/RENTAL) — separate from
-  // ServiceRequest (directed) and ServiceRequestBroadcast (service-only legacy path).
+  // ServiceRequest (directed to a listing).
   requestsAsCustomer          Request[]                 @relation("RequestsAsCustomer")
   requestOffersMade           RequestOffer[]            @relation("RequestOffersAsOfferer")
   storeFollows                StoreFollower[]
@@ -551,7 +550,6 @@ model ServiceProviderDetails {
   updatedAt              DateTime            @updatedAt
   appointments           Appointment[]
   listings               ServiceListing[]
-  quotes                 ServiceQuote[]
   sellerProfile          SellerProfile       @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
 
   @@index([availabilityStatus])
@@ -577,7 +575,6 @@ model ServiceCategory {
   parent     ServiceCategory?          @relation("ServiceCategoryParent", fields: [parentId], references: [id])
   children   ServiceCategory[]         @relation("ServiceCategoryParent")
   listings   ServiceListing[]
-  broadcasts ServiceRequestBroadcast[]
 
   @@index([parentId])
   @@map("service_categories")
@@ -687,49 +684,12 @@ model ServiceReview {
 // — see service-broadcasts.service.ts's acceptQuote — rather than
 // this model growing its own duplicate booking/appointment machinery.
 // ---------------------------------------------------------------------
-enum ServiceBroadcastStatus {
-  OPEN
-  ACCEPTED
-  CANCELLED
-}
-
-enum ServiceQuoteStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  WITHDRAWN
-}
-
-model ServiceRequestBroadcast {
-  id              String                 @id @default(cuid())
-  customerId      String
-  categoryId      String
-  title           String
-  description     String                 @db.VarChar(1000)
-  city            String?
-  attachedImages  String[]
-  status          ServiceBroadcastStatus @default(OPEN)
-  acceptedQuoteId String?                @unique
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  customer        User                   @relation("ServiceBroadcastsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
-  category        ServiceCategory        @relation(fields: [categoryId], references: [id])
-  quotes          ServiceQuote[]         @relation("BroadcastQuotes")
-  acceptedQuote   ServiceQuote?          @relation("AcceptedQuote", fields: [acceptedQuoteId], references: [id])
-
-  @@index([categoryId, status, createdAt])
-  @@index([customerId])
-  @@map("service_request_broadcasts")
-}
-
 // =============================================================================
-// Open Requests marketplace (option B) — NEW tables; does NOT replace
-// ServiceRequest (directed to a listing) or ServiceRequestBroadcast
-// (service-only open feed). Phase 1 types: SERVICE | PRODUCT | RENTAL.
+// Open Requests marketplace (option B) — does NOT replace ServiceRequest
+// (directed to a listing). Phase 1 types: SERVICE | PRODUCT | RENTAL.
 // Offerer is always User (offererUserId); no offererRole column.
 // budgetMin/budgetMax optional. Accept path must use a transaction with
-// conditional update on status=OPEN (same pattern as markAccepted on
-// service_request_broadcasts).
+// conditional update on status=OPEN.
 // =============================================================================
 
 enum RequestType {
@@ -806,27 +766,6 @@ model RequestOffer {
   @@index([offererUserId, status])
   @@index([requestId, status])
   @@map("request_offers")
-}
-
-model ServiceQuote {
-  id               String                   @id @default(cuid())
-  broadcastId      String
-  providerId       String
-  price            Decimal                  @db.Decimal(10, 2)
-  message          String?                  @db.VarChar(1000)
-  durationEstimate String?
-  status           ServiceQuoteStatus       @default(PENDING)
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
-  broadcast        ServiceRequestBroadcast  @relation("BroadcastQuotes", fields: [broadcastId], references: [id], onDelete: Cascade)
-  provider         ServiceProviderDetails   @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  acceptedFor      ServiceRequestBroadcast? @relation("AcceptedQuote")
-
-  // One quote per provider per broadcast — a provider revises their
-  // own offer via PATCH, not by submitting a second competing row.
-  @@unique([broadcastId, providerId])
-  @@index([providerId, status])
-  @@map("service_quotes")
 }
 
 // ---------------------------------------------------------------------

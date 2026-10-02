@@ -33,21 +33,15 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
-import type { ServiceListingStatus, ServicePricingType } from '@/types/service.types';
+import type { ServiceListingStatus } from '@/types/service.types';
 
 const STATUS_LABELS: Record<ServiceListingStatus, string> = {
   ACTIVE: 'نشطة',
   PAUSED: 'متوقفة',
   DELETED: 'محذوفة',
 };
-
-function formatServicePrice(pricingType: ServicePricingType, price: string | null): string {
-  if (pricingType === 'NEGOTIABLE' || !price) return 'حسب الاتفاق';
-  const formatted = formatPrice(price);
-  return pricingType === 'STARTING_FROM' ? `يبدأ من ${formatted}` : formatted;
-}
 
 export function MyServiceListingsList() {
   const router = useRouter();

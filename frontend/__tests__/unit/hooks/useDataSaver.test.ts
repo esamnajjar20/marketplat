@@ -3,9 +3,11 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useDataSaver } from '@/hooks/useDataSaver';
 import { hydrateDataSaver, isDataSaverEnabled, setDataSaverEnabled } from '@/lib/dataSaver';
-import { useDataSaver as useDataSaverFlag } from '@/lib/useDataSaver';
+import {
+  useDataSaverControls as useDataSaver,
+  useDataSaver as useDataSaverFlag,
+} from '@/lib/useDataSaver';
 
 vi.mock('@/lib/dataSaver', () => ({
   hydrateDataSaver: vi.fn(),

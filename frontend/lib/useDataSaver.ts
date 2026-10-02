@@ -9,8 +9,8 @@
  *    hydrated, so on a hard load of the settings page the toggle read `false`
  *    until some other component happened to call hydrateDataSaver()).
  *
- * Both now share `useDataSaverState` below; hooks/useDataSaver.ts re-exports
- * the controls variant for DataSaverToggle.
+ * Both now share `useDataSaverState` below; the controls variant
+ * (useDataSaverControls) is what DataSaverToggle uses.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -56,7 +56,7 @@ export function useDataSaver(): boolean {
   return useDataSaverState()[0];
 }
 
-/** Flag + setter — used by DataSaverToggle (re-exported from hooks/useDataSaver). */
+/** Flag + setter — used by DataSaverToggle. */
 export function useDataSaverControls() {
   const [enabled, setLocal] = useDataSaverState();
   const setEnabled = useCallback(

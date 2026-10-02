@@ -21,18 +21,7 @@ import {
   saveUnreadConversationCount,
   getUnreadConversationCount,
 } from '@/lib/offlineMessagesStore';
-import type { PaginationMeta } from '@/types/api.types';
-
-function offlineMeta(count: number): PaginationMeta {
-  return {
-    total: count,
-    page: 1,
-    limit: count,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  };
-}
+import { offlineMeta } from '@/lib/apiPagination';
 
 /** GET /conversations — مع تخزين IndexedDB للقراءة دون اتصال. */
 export function useMyConversations(params?: ConversationsQuery) {

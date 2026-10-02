@@ -8,7 +8,8 @@ import { GetFavoritesQuery, FAVORITE_QUERY_TYPE_MAP } from './favorites.validati
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { ActivityEntityType, FavoriteEntityType, Prisma } from '@prisma/client';
+import { ActivityEntityType, FavoriteEntityType } from '@prisma/client';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 // FEAT-FAVORITE-POLYMORPHIC PR1: the WIRE response of GET /favorites
 // (no ?type= param) is one of the 3 endpoints the compat-layer plan
@@ -68,9 +69,6 @@ const toGenericWireRecord = (row: FavoriteListRow): FavoriteEntityWireRecord | n
     entity: row.entity,
   };
 };
-
-const isPrismaError = (err: unknown, code: string): boolean =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
 
 // FEAT-FAVORITE-POLYMORPHIC PR2: FavoriteEntityType and
 // ActivityEntityType have the same 4 member names (AD/PRODUCT/
