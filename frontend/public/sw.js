@@ -387,7 +387,6 @@ function isProtectedPage(url) {
     '/requests/offers',
     '/activity',
     '/saved-searches',
-    '/service-broadcasts',
   ];
   return protectedPrefixes.some(
     (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),

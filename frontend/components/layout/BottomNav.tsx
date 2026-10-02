@@ -231,7 +231,7 @@ export function BottomNav() {
           </Link>
           {queuedCount > 0 && (
             <Link
-              href={ROUTES.settings.sync}
+              href={ROUTES.offline.sync}
               prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
               className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
@@ -254,7 +254,7 @@ export function BottomNav() {
           </button>
           {queuedCount > 0 && (
             <Link
-              href={ROUTES.settings.sync}
+              href={ROUTES.offline.sync}
               prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
               className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"

@@ -7,7 +7,7 @@ import { ROUTES } from '@/lib/constants';
 
 function goSyncCenter(): void {
   if (typeof window === 'undefined') return;
-  window.location.href = ROUTES.settings.sync;
+  window.location.href = ROUTES.offline.sync;
 }
 
 const SYNC_ACTION = {

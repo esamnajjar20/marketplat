@@ -67,7 +67,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!isResolved) return;
     if (!isAuthenticated) {
-      router.replace('/login?from=/admin');
+      // ROUTE-FIX-01: keep the current admin tab (?tab=…) across login.
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      router.replace(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.admin.root + search)}`);
       return;
     }
     if (!isAdminTier) {
@@ -78,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // The redirect itself was never the problem (the actual
       // protection is correct); only the missing explanation was.
       toast.error('هذه الصفحة مخصصة للمشرفين فقط');
-      router.replace('/dashboard');
+      router.replace(ROUTES.dashboard);
       return;
     }
     if (isOutOfScopeForModerator) {

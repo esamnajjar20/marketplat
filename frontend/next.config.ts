@@ -16,7 +16,13 @@
  *   browser — the backend origin should not be exposed this way for
  *   security and flexibility.
  *
- * FIX DEAD-09: removed the rewrites() block entirely. api/client.ts's
+ * ROUTE-FIX-01 NOTE: the DEAD-09 paragraph below is OUTDATED. The rewrites()
+ *   block is live again (PROXY-API-01): in the browser API_BASE_URL is the
+ *   relative '/api/v1' (lib/constants.ts), so this rewrite is what proxies
+ *   API calls to the backend and keeps the refreshToken cookie first-party.
+ *   Do NOT remove it on the strength of the DEAD-09 text.
+ *
+ * FIX DEAD-09 (historical, superseded): removed the rewrites() block entirely. api/client.ts's
  *   apiClient sets `baseURL: API_BASE_URL` directly (an absolute URL,
  *   e.g. http://localhost:5000/api/v1) rather than requesting a
  *   relative /api/v1/* path, so every real request bypassed this
@@ -184,6 +190,12 @@ const nextConfig: NextConfig = {
       { source: '/my-ads', destination: '/activity?tab=ads', permanent: false },
       { source: '/my-requests', destination: '/activity?tab=requests', permanent: false },
       { source: '/my-reports', destination: '/activity?tab=reports', permanent: false },
+      // ROUTE-FIX-01: the two legacy "edit my ad" aliases were client-side
+      // useEffect redirect pages (blank flash + extra JS). One config entry
+      // each does the same server-side. Canonical route: /my-ads/:id/edit
+      // (ROUTES.adEdit). /ads/create stays a real page (static beats :id).
+      { source: '/ads/:id/edit', destination: '/my-ads/:id/edit', permanent: false },
+      { source: '/my-ads/:id', destination: '/my-ads/:id/edit', permanent: false },
     ];
   },
 

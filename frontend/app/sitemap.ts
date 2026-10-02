@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { APP_URL, API_BASE_URL } from '@/lib/constants';
+import { APP_URL, API_BASE_URL, ROUTES } from '@/lib/constants';
 import type { PaginationMeta } from '@/types/api.types';
 
 /**
@@ -226,12 +226,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency:  'daily',
       priority:         1.0,
     },
-    {
-      url:              `${APP_URL}/search`,
-      lastModified:     new Date(),
-      changeFrequency:  'always',
-      priority:         0.8,
-    },
+    // ROUTE-FIX-01: /search removed — robots.ts disallows it (search result
+    // pages aren't canonical content), so listing it here contradicted that.
+    // Public browse hubs added instead.
+    ...[ROUTES.ads, ROUTES.products, ROUTES.services, ROUTES.stores, ROUTES.requests, ROUTES.serviceProviders]
+      .map((path) => ({
+        url:              `${APP_URL}${path}`,
+        lastModified:     new Date(),
+        changeFrequency:  'daily' as const,
+        priority:         0.8,
+      })),
     {
       url:              `${APP_URL}/categories`,
       lastModified:     new Date(),

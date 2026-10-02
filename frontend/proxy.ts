@@ -251,7 +251,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
 // (npx @next/codemod middleware-to-proxy) does exactly this.
 // Nothing about the function body changes; this is a rename.
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
   const tokenCookie = request.cookies.get('app_access_token')?.value ?? null;
   const decoded     = tokenCookie ? decodeToken(tokenCookie) : null;
@@ -312,7 +312,9 @@ export function proxy(request: NextRequest) {
   // 2. Protect authenticated routes.
   if (isProtected(pathname) && !isLoggedIn) {
     const url = new URL('/login', request.url);
-    url.searchParams.set('from', pathname);
+    // ROUTE-FIX-01: keep the query string so hub tabs (/my-store?tab=…)
+    // survive the login round-trip.
+    url.searchParams.set('from', pathname + search);
     return NextResponse.redirect(url);
   }
 
@@ -320,7 +322,7 @@ export function proxy(request: NextRequest) {
   if (isAdminRoute(pathname)) {
     if (!isLoggedIn) {
       const url = new URL('/login', request.url);
-      url.searchParams.set('from', pathname);
+      url.searchParams.set('from', pathname + search);
       return NextResponse.redirect(url);
     }
     if (!isAdmin) {

@@ -40,6 +40,7 @@ import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
 import { BottomNav }        from '@/components/layout/BottomNav';
 import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { PageTransition }   from '@/components/shared/PageTransition';
+import { ROUTES }           from '@/lib/constants';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -103,7 +104,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       } catch {
         /* ignore */
       }
-      router.replace(`/login?from=${encodeURIComponent(pathname)}`);
+      // ROUTE-FIX-01: keep ?tab=… so hub tabs survive the login round-trip.
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      router.replace(`${ROUTES.login}?from=${encodeURIComponent(pathname + search)}`);
     }, 900);
 
     return () => clearTimeout(timer);

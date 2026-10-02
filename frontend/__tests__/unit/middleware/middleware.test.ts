@@ -171,6 +171,14 @@ describe('middleware — protected routes, unauthenticated redirect', () => {
     expect(location).toContain(encodeURIComponent('/my-ads').replace(/%20/g, '+'));
   });
 
+  it('REGRESSION ROUTE-FIX-01: keeps the query string (hub tab) in ?from', () => {
+    const req = makeRequest('/my-store?tab=analytics');
+    const res = proxy(req);
+    const location = res.headers.get('Location') ?? '';
+    const from = new URL(location, 'http://localhost').searchParams.get('from');
+    expect(from).toBe('/my-store?tab=analytics');
+  });
+
   it('allows /dashboard with valid token', () => {
     const req = makeRequest('/dashboard', { token: VALID_TOKEN });
     const res = proxy(req);

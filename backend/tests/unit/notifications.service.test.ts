@@ -374,7 +374,7 @@ describe('notificationEvents', () => {
       expect(pushService.notifyUser).toHaveBeenCalledWith('u1', {
         title: 'خدمة جديدة تطابق بحثك المحفوظ',
         body: '"Home AC repair" يطابق بحثك المحفوظ "AC repair"',
-        url: '/service-listings/listing-1',
+        url: '/services/listing-1',
         tag: 'saved-search-search-1',
       });
       expect(notificationsRepository.createMany).toHaveBeenCalledWith([

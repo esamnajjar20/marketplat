@@ -36,12 +36,7 @@ export const ROUTES = {
   favorites:     '/favorites',
   sellersRanking: '/sellers/ranking',
   savedSearches: '/saved-searches',
-  // OFFLINE-HUB-01: /downloads and /saved-ads are tabs of /offline now.
-  downloads:     '/offline?tab=saved',
   savedPayments: '/saved-payments',
-  // PHASE-OFFLINE-AD-DETAIL: إعلانات محفوظة يدويًا للعمل بدون اتصال.
-  savedAds:      '/offline?tab=saved',
-  offlineHub:    '/offline',
   activity:      '/activity',
   // FEAT-REPORT-USER-STORE: "بلاغاتي" — a reporter's own filed reports.
   myReports:     '/activity?tab=reports',  // ACTIVITY-HUB-01
@@ -57,7 +52,7 @@ export const ROUTES = {
   myServiceCreate:      '/my-services/new',
   myServiceEdit:         (id: string) => `/my-services/${id}/edit`,
   // Epic 3.1: customer-side "my requests" list, and provider-side inbox.
-  myServiceRequests:     '/activity?tab=requests',  // ACTIVITY-HUB-01
+  myServiceRequests:     '/activity?tab=requests',  // service requests I SENT to providers  // ACTIVITY-HUB-01
   // MY-SERVICES-HUB-01: these three are TABS of /my-services (see lib/myServicesHubTabs.ts).
   // Never append '?x=y' to them — use myServicesTabHref(tab, {x:'y'}) instead.
   incomingServiceRequests: '/my-services?tab=requests',
@@ -81,8 +76,9 @@ export const ROUTES = {
   requests: '/requests',
   request: (id: string) => `/requests/${id}`,
   requestNew: '/requests/new',
-  myRequests: '/requests/me',
-  myRequestOffers: '/requests/offers',
+  // Open-requests market: requests I POSTED (≠ myServiceRequests above).
+  myOpenRequests: '/requests/me',
+  myOpenRequestOffers: '/requests/offers',
   stores:               '/stores',
   storeDetail:           (id: string) => `/stores/${id}`,
   // FEAT-HOME-DISCOVERY: public cross-store products browse page —
@@ -108,6 +104,8 @@ export const ROUTES = {
   myFollowedStores:     '/my-store/followed',
   settings: {
     // SETTINGS-HUB-01 (SETTINGS-HUB-CONST-RESTORE): one route; tabs in ?tab=…
+    // `root` is the bare pathname (for pathname === comparisons), `profile` the
+    // default-tab href. Same URL today, different intent — keep both.
     root:          '/settings',
     profile:       '/settings',
     security:      '/settings?tab=security',
@@ -116,22 +114,28 @@ export const ROUTES = {
     seller:        '/settings?tab=profile&section=seller',
     serviceProvider: '/settings?tab=profile&section=service',
     blockedUsers:  '/settings?tab=blocked-users',
-    // OFFLINE-HUB-01: storage / sync / drafts / offline are hub tabs. Linking
-    // straight to the hub (not the legacy redirect) keeps soft navigation
-    // working with no network.
-    storage:       '/offline?tab=storage',
-    sync:          '/offline?tab=sync',
-    drafts:        '/offline?tab=drafts',
-    // SW-FIX-OFFLINE-NAV: /settings/offline existed as a page
-    // (Warming Engine user controls) but was never reachable
-    // from the UI — no ROUTES constant, no sidebar/mobile link.
-    offline:       '/offline?tab=warming',
+  },
+  // ROUTE-FIX-01: everything offline-related lives under one `offline` group
+  // (OFFLINE-HUB-01: /offline is one hub with ?tab=…). Previously
+  // settings.storage/sync/drafts/offline pointed at /offline but were named
+  // as if they lived under /settings, and downloads/savedAds were two keys
+  // for the same URL. Link straight to the hub (not the legacy /settings/*
+  // or /downloads redirects) so soft navigation works with no network.
+  offline: {
+    hub:     '/offline',
+    saved:   '/offline?tab=saved',   // was downloads + savedAds (/saved-ads, /downloads)
+    storage: '/offline?tab=storage',
+    sync:    '/offline?tab=sync',
+    drafts:  '/offline?tab=drafts',
+    // Warming Engine user controls (was settings.offline).
+    warming: '/offline?tab=warming',
   },
   admin: {
     // ADMIN-HUB-01: every admin section is a TAB of /admin now (see
     // lib/adminHubTabs.ts). Never append '?x=y' to these — use
     // adminTabHref(tab, {x:'y'}) instead. `dashboard` is the bare hub: a
     // MODERATOR, who has no dashboard tab, lands on their default tab there.
+    // `root` = pathname for comparisons, `dashboard` = href for the dashboard tab.
     root:              '/admin',
     dashboard:         '/admin',
     ads:               '/admin?tab=ads',

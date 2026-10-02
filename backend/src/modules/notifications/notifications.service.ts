@@ -428,7 +428,8 @@ export const notificationEvents = {
           };
         case 'service':
           return {
-            url: `/service-listings/${entity.id}`,
+            // ROUTE-FIX-01: was /service-listings/:id — no such frontend page (404).
+            url: `/services/${entity.id}`,
             entityData: { listingId: entity.id },
             title: 'خدمة جديدة تطابق بحثك المحفوظ',
           };

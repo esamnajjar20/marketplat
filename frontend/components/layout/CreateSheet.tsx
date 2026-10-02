@@ -119,7 +119,7 @@ export function CreateSheet({
 
         <div className="mt-2 border-t border-border/60 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
           <Link
-            href={ROUTES.settings.drafts}
+            href={ROUTES.offline.drafts}
             prefetch={false}
             onClick={() => onOpenChange(false)}
             className="flex min-h-11 items-center gap-2 rounded-xl px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"

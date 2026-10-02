@@ -99,7 +99,7 @@ function TabBody({ tab }: { tab: SettingsTab }) {
             <h1 className="text-xl font-bold">الملف الشخصي</h1>
             <div className="flex items-center gap-3">
               <Link
-                href={ROUTES.settings.drafts}
+                href={ROUTES.offline.drafts}
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
               >
                 <FileEdit className="h-4 w-4" />

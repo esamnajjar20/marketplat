@@ -64,12 +64,12 @@ export const ACTIVITY_GROUP = {
  */
 export const REQUESTS_GROUP = {
   label: 'طلباتي',
-  href: ROUTES.myRequests,
+  href: ROUTES.myOpenRequests,
   icon: ClipboardList,
   children: [
     { label: 'سوق الطلبات', href: ROUTES.requests },
-    { label: 'طلباتي المنشورة', href: ROUTES.myRequests },
-    { label: 'عروضي', href: ROUTES.myRequestOffers },
+    { label: 'طلباتي المنشورة', href: ROUTES.myOpenRequests },
+    { label: 'عروضي', href: ROUTES.myOpenRequestOffers },
   ],
 } as const;
 
@@ -119,7 +119,7 @@ export const SETTINGS_GROUP = {
     { label: 'الإشعارات', href: ROUTES.settings.notifications },
     { label: 'المستخدمون المحظورون', href: ROUTES.settings.blockedUsers },
     // OFFLINE-HUB-01: التخزين + المزامنة + العمل بدون إنترنت → مدخل واحد.
-    { label: 'مركز الأوفلاين', href: ROUTES.offlineHub },
+    { label: 'مركز الأوفلاين', href: ROUTES.offline.hub },
   ],
 } as const;
 

@@ -48,7 +48,7 @@ export default function MyRequestsPage() {
     if (s) p.set('status', s);
     p.set('page', '1');
     const qs = p.toString();
-    return qs ? `${ROUTES.myRequests}?${qs}` : ROUTES.myRequests;
+    return qs ? `${ROUTES.myOpenRequests}?${qs}` : ROUTES.myOpenRequests;
   }
 
   return (
@@ -121,7 +121,7 @@ export default function MyRequestsPage() {
       <Pagination
         totalPages={Number(totalPages) || 1}
         currentPage={page}
-        baseUrl={ROUTES.myRequests}
+        baseUrl={ROUTES.myOpenRequests}
         searchParams={{ status }}
       />
     </div>

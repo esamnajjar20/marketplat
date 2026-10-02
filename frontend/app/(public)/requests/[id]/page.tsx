@@ -191,7 +191,7 @@ export default function RequestDetailPage() {
             إلغاء الطلب
           </Button>
           <Button variant="ghost" className="min-h-11" asChild>
-            <Link href={ROUTES.myRequests}>طلباتي</Link>
+            <Link href={ROUTES.myOpenRequests}>طلباتي</Link>
           </Button>
         </div>
       )}

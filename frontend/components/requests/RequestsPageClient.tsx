@@ -151,10 +151,10 @@ export function RequestsPageClient() {
                 </Link>
               </Button>
               <Button variant="outline" size="sm" className="min-h-10" asChild>
-                <Link href={ROUTES.myRequests}>طلباتي</Link>
+                <Link href={ROUTES.myOpenRequests}>طلباتي</Link>
               </Button>
               <Button variant="outline" size="sm" className="min-h-10" asChild>
-                <Link href={ROUTES.myRequestOffers}>عروضي</Link>
+                <Link href={ROUTES.myOpenRequestOffers}>عروضي</Link>
               </Button>
             </div>
           </div>

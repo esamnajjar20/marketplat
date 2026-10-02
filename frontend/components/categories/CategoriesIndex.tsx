@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCategoryItems } from '@/hooks/queries/useCategoryItems';
 import { iconFor, TYPE_LABEL, type SourceType } from '@/lib/categoryItems';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
+import { ROUTES } from '@/lib/constants';
 
 const SECTIONS: Array<{ type: SourceType; title: string; hint: string }> = [
   { type: 'ad', title: 'فئات الإعلانات', hint: 'بيع وشراء واستئجار بين الأفراد' },
@@ -33,7 +34,7 @@ export function CategoriesIndex() {
     return (
       <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
         تعذّر تحميل الفئات الآن. حاول مرة أخرى بعد قليل، أو{' '}
-        <Link href="/search" className="font-semibold text-primary underline-offset-2 hover:underline">
+        <Link href={ROUTES.search} className="font-semibold text-primary underline-offset-2 hover:underline">
           ابحث مباشرة
         </Link>
         .

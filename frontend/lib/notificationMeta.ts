@@ -144,8 +144,8 @@ export function hrefFor(notification: Notification): string | null {
 
   if (notification.type === 'NEW_REQUEST_OFFER' || notification.type === 'REQUEST_OFFER_ACCEPTED') {
     const rid = d?.requestId;
-    if (rid) return `/requests/${rid}`;
-    return '/requests';
+    if (rid) return ROUTES.request(rid);
+    return ROUTES.requests;
   }
   if (notification.type === 'NEW_SERVICE_QUOTE' || notification.type === 'SERVICE_QUOTE_ACCEPTED') {
     if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
@@ -164,9 +164,13 @@ export function hrefFor(notification: Notification): string | null {
     notification.type === 'WEEKLY_STORE_VIEWS_REPORT' ||
     notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT'
   ) {
+    // ROUTE-FIX-01: mirror the push `url` the backend cron scripts send
+    // (weeklyAdViewsReport → /dashboard, weeklyStoreViewsReport →
+    // /my-store?tab=analytics, weeklyServiceViewsReport →
+    // /my-services?tab=analytics) so in-app and push taps land the same place.
     if (notification.type === 'WEEKLY_STORE_VIEWS_REPORT') return ROUTES.myStoreAnalytics;
-    if (notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT') return ROUTES.notifications;
-    return ROUTES.notifications;
+    if (notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT') return ROUTES.myServiceProviderAnalytics;
+    return ROUTES.dashboard;
   }
   if (notification.type === 'PROMOTION') {
     return ROUTES.home;

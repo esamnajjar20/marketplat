@@ -36,6 +36,7 @@ import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { formatNumber } from '@/lib/formatters';
 import { formatSyncEta } from '@/lib/connectionQuality';
 import { OfflineHub } from '@/components/offline/OfflineHub';
+import { ROUTES } from '@/lib/constants';
 import { resolveOfflineTab, type OfflineTab } from '@/lib/offlineHubTabs';
 
 export default function OfflinePage() {
@@ -252,7 +253,7 @@ export default function OfflinePage() {
       </Button>
 
       <Button variant="ghost" size="sm" asChild>
-        <Link href="/saved-payments">دفع وبطاقات محفوظة</Link>
+        <Link href={ROUTES.savedPayments}>دفع وبطاقات محفوظة</Link>
       </Button>
       </div>
 

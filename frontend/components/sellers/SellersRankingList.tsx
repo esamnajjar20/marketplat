@@ -98,7 +98,7 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
           </span>
           <div className="min-w-0 flex-1">
             <Link
-              href={ROUTES.userProfile?.(r.userId) ?? `/users/${r.userId}`}
+              href={ROUTES.userProfile(r.userId)}
               className="font-medium hover:underline"
             >
               {r.displayName}
