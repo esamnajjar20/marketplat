@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
+import { reportClientError } from '@/lib/errorReporter'; // ERR-BOUNDARY-REPORT-01
 
 interface Props {
   children: ReactNode;
@@ -28,10 +29,18 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // ERR-BOUNDARY-REPORT-01: previously this only logged in dev, so a
+    // real React render crash was invisible in production (Sentry never
+    // received it). Now always reported; the console.error stays for dev
+    // visibility only.
     if (process.env.NODE_ENV !== 'production') {
       // eslint-disable-next-line no-console
       console.error('ErrorBoundary', error, info);
     }
+    reportClientError(error, {
+      boundary: 'ErrorBoundary',
+      componentStack: info.componentStack,
+    });
   }
 
   private handleRetry = () => {

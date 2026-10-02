@@ -10,6 +10,7 @@ import type { ProductWithStore } from '@/types/product.types';
 import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 import { recordCatalogDownload } from '@/lib/downloadStorage';
 import { getAvatarUrl, getDetailImageUrl, getThumbnailUrl } from '@/lib/cloudinary';
+import { reportClientError } from '@/lib/errorReporter'; // CATALOG-DOWNLOAD-REPORT-01
 import { normalizePaymentMethods } from '@/lib/storePaymentMethods';
 import { fetchWithTimeout } from '@/lib/fetchTimeout'; // NETWORK-FETCH-TIMEOUT-01
 
@@ -466,7 +467,12 @@ export function DownloadStoreCatalogButton({
         html,
       });
     } catch (err) {
-      console.error('Failed to download store catalog', err);
+      // CATALOG-DOWNLOAD-REPORT-01: report to Sentry so a broken catalog
+      // export (image taint, OOM, etc.) is visible beyond the user's toast.
+      reportClientError(
+        err instanceof Error ? err : new Error(String(err)),
+        { tag: 'catalog-download', storeId },
+      );
       // SW-FIX-CATALOG-TOAST: alert() blocks the main thread and is
       // inconsistent with the rest of the app's toast-based feedback.
       toast.error('تعذّر تحميل الكتالوج. تأكد من الاتصال وحاول مرة أخرى.');
