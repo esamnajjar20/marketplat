@@ -8,6 +8,26 @@ import { prisma } from '../../config/prisma';
 import { TooManyRequestsError } from '../../shared/errors/TooManyRequestsError';
 import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
 import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
+import {
+  deviceFingerprint,
+  labelForNativePlatform,
+  labelFromUserAgent,
+} from '../../shared/utils/deviceLabel';
+
+export type DeviceKind = 'web' | 'native';
+
+export interface NotificationDevice {
+  id: string;
+  kind: DeviceKind;
+  /** User-visible name; null on rows registered before labels existed. */
+  label: string | null;
+  /** 'android' | 'ios' for native rows, null for browsers. */
+  platform: string | null;
+  /** sha256(endpoint|token) prefix — lets a client recognise its own row without the credential. */
+  fingerprint: string;
+  createdAt: Date;
+  lastSeenAt: Date;
+}
 
 /** Keys stored on User.notificationPreferences — must stay aligned with
  * frontend NotificationPreferences and users.validation.ts. */
@@ -211,6 +231,7 @@ export const notificationsService = {
             body,
             url: '/notifications',
             tag: 'platform-promotion',
+            type: 'PROMOTION',
           })
         )
         .catch(() => undefined);
@@ -223,8 +244,14 @@ export const notificationsService = {
   /** FIX PWA-PUSH-01: called from POST /notifications/push-subscriptions
    * — see notifications.repository.ts's upsertPushSubscription for why
    * this is an upsert-on-endpoint rather than a plain create. */
-  subscribeToPush: (userId: string, input: PushSubscriptionInput): Promise<void> =>
-    notificationsRepository.upsertPushSubscription(userId, input).then(() => undefined),
+  subscribeToPush: (
+    userId: string,
+    input: PushSubscriptionInput,
+    userAgent?: string
+  ): Promise<void> =>
+    notificationsRepository
+      .upsertPushSubscription(userId, input, labelFromUserAgent(userAgent))
+      .then(() => undefined),
 
   /** FIX PWA-PUSH-01: called from DELETE /notifications/push-subscriptions
    * — best-effort, see repository method's own doc comment on why a
@@ -270,7 +297,52 @@ export const notificationsService = {
   /** NEW — called from POST /notifications/fcm-tokens (Capacitor native
    * push registration). Mirrors subscribeToPush above. */
   registerFcmToken: (userId: string, input: RegisterFcmTokenInput): Promise<void> =>
-    notificationsRepository.upsertFcmDeviceToken(userId, input).then(() => undefined),
+    notificationsRepository
+      .upsertFcmDeviceToken(userId, input, labelForNativePlatform(input.platform))
+      .then(() => undefined),
+
+  /** GET /notifications/devices — every browser + native registration of the caller, newest activity first. */
+  listDevices: async (userId: string): Promise<NotificationDevice[]> => {
+    const [web, native] = await Promise.all([
+      pushSubscriptionsRepository.listForUser(userId),
+      fcmDeviceTokensRepository.listForUser(userId),
+    ]);
+    const devices: NotificationDevice[] = [
+      ...web.map((d) => ({
+        id: d.id,
+        kind: 'web' as const,
+        label: d.label,
+        platform: null,
+        fingerprint: deviceFingerprint(d.endpoint),
+        createdAt: d.createdAt,
+        lastSeenAt: d.lastSeenAt,
+      })),
+      ...native.map((d) => ({
+        id: d.id,
+        kind: 'native' as const,
+        label: d.label,
+        platform: d.platform,
+        fingerprint: deviceFingerprint(d.token),
+        createdAt: d.createdAt,
+        lastSeenAt: d.lastSeenAt,
+      })),
+    ];
+    return devices.sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime());
+  },
+
+  /** PATCH /notifications/devices/:kind/:id — rename one of the caller's devices. */
+  renameDevice: async (userId: string, kind: DeviceKind, id: string, label: string): Promise<void> => {
+    const repo = kind === 'web' ? pushSubscriptionsRepository : fcmDeviceTokensRepository;
+    const result = await repo.renameForUser(userId, id, label);
+    if (result.count === 0) throw new NotFoundError('Device not found', 'DEVICE_NOT_FOUND');
+  },
+
+  /** DELETE /notifications/devices/:kind/:id — stop pushing to one of the caller's devices. */
+  removeDevice: async (userId: string, kind: DeviceKind, id: string): Promise<void> => {
+    const repo = kind === 'web' ? pushSubscriptionsRepository : fcmDeviceTokensRepository;
+    const result = await repo.deleteByIdForUser(userId, id);
+    if (result.count === 0) throw new NotFoundError('Device not found', 'DEVICE_NOT_FOUND');
+  },
 
   /** NEW — called from DELETE /notifications/fcm-tokens. Mirrors
    * unsubscribeFromPush above (best-effort, 0-row result not treated as error). */
@@ -364,6 +436,7 @@ async function fanOutSameContentNotification(
       body,
       url: pushUrl,
       tag: pushTag,
+      type,
       ...(pushImage ? { image: pushImage } : {}),
     })
     .catch(() => {});
@@ -402,6 +475,12 @@ const formatGazaDateTime = (d: Date): string => {
   }
 };
 
+/** Running unread-message count stored on a NEW_MESSAGE row's `data.count`. */
+const unreadMessageCount = (data: unknown): number => {
+  const raw = data && typeof data === 'object' ? (data as Record<string, unknown>).count : undefined;
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+};
+
 export const notificationEvents = {
   /** conversations.service.ts's sendMessage calls this after a message
    * is created — notifies the OTHER party in the thread, never the
@@ -410,19 +489,26 @@ export const notificationEvents = {
     if (!(await userAllowsPref(recipientUserId, 'newMessage'))) return null;
     const title = 'رسالة جديدة';
     const body = `${senderName} أرسل لك رسالة`;
-    void pushService.notifyUser(recipientUserId, {
-      title,
-      body,
-      url: `/messages/${conversationId}`,
-      tag: `conversation-${conversationId}`,
-      urgent: true,
-    }).catch(() => {});
-    return notificationsRepository.createOrRefreshNewMessage({
+    // The in-app row is written first: it carries the running count of
+    // unread messages in this conversation (see createOrRefreshNewMessage),
+    // which the push banner needs for its grouped copy. A failed row write
+    // therefore no longer sends a push that points at nothing.
+    const row = await notificationsRepository.createOrRefreshNewMessage({
       userId: recipientUserId,
       conversationId,
       title,
       body,
     });
+    const count = unreadMessageCount(row.data);
+    void pushService.notifyUser(recipientUserId, {
+      title: count > 1 ? `${count} رسائل جديدة` : title,
+      body: count > 1 ? `${count} رسائل من ${senderName}` : body,
+      url: `/messages/${conversationId}`,
+      tag: `conversation-${conversationId}`,
+      urgent: true,
+      type: 'NEW_MESSAGE',
+    }).catch(() => {});
+    return row;
   },
 
   /** ads.service.ts's updateAd calls this after a price change on an ad
@@ -550,6 +636,7 @@ export const notificationEvents = {
           body: `"${entity.title}" يطابق بحثك المحفوظ "${label}"`,
           url,
           tag: `saved-search-${savedSearchId}`,
+          type: 'SAVED_SEARCH_MATCH',
         })
       )
     ).catch(() => {});

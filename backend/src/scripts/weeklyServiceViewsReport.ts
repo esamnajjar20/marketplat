@@ -86,6 +86,7 @@ async function main(): Promise<void> {
           body,
           url: '/my-services?tab=analytics',
           tag: 'weekly-service-views-report',
+          type: 'WEEKLY_SERVICE_VIEWS_REPORT',
         })
         .catch(() => {});
 

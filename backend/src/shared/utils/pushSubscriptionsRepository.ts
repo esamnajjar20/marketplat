@@ -31,6 +31,8 @@ export interface UpsertPushSubscriptionInput {
   endpoint: string;
   p256dh: string;
   auth: string;
+  /** Default device label for a NEW row only (see deviceLabel.ts). */
+  defaultLabel?: string | null;
 }
 
 export const pushSubscriptionsRepository = {
@@ -53,6 +55,7 @@ export const pushSubscriptionsRepository = {
         endpoint: input.endpoint,
         p256dh: input.p256dh,
         auth: input.auth,
+        label: input.defaultLabel ?? null,
       },
       // PUSH-OWNERSHIP-01: the endpoint is a secret URL only the device's
       // browser holds, so a successful authenticated POST proves the
@@ -60,12 +63,26 @@ export const pushSubscriptionsRepository = {
       // (user A logs out, user B logs in) the row must follow the
       // device — keeping A's userId meant B never received anything and
       // A kept receiving B's-device pushes.
+      // `label` is deliberately absent: a user-chosen name survives re-registration.
       update: {
         userId: input.userId,
         p256dh: input.p256dh,
         auth: input.auth,
+        lastSeenAt: new Date(),
       },
     }),
+
+  // ── Device list ───────────────────────────────────────────────────
+  // All three are scoped by userId in the WHERE clause (ownership-in-the-
+  // query, like deleteForUser) so an id guessed from another account is a no-op.
+  listForUser: (userId: string): Promise<PushSubscription[]> =>
+    prisma.pushSubscription.findMany({ where: { userId }, orderBy: { lastSeenAt: 'desc' } }),
+
+  renameForUser: (userId: string, id: string, label: string): Promise<Prisma.BatchPayload> =>
+    prisma.pushSubscription.updateMany({ where: { id, userId }, data: { label } }),
+
+  deleteByIdForUser: (userId: string, id: string): Promise<Prisma.BatchPayload> =>
+    prisma.pushSubscription.deleteMany({ where: { id, userId } }),
 
   // Scoped to userId so a caller can never delete someone else's
   // subscription by guessing/replaying an endpoint.

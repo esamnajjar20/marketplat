@@ -298,12 +298,23 @@ export const notificationsRepository = {
       orderBy: { createdAt: 'desc' },
     });
     if (existing) {
+      // data.count = unread messages folded into this row. Rows written
+      // before this field existed count as 1, so the first refresh yields 2.
+      const prev =
+        existing.data && typeof existing.data === 'object' && !Array.isArray(existing.data)
+          ? (existing.data as Record<string, unknown>)
+          : {};
+      const prevCount =
+        typeof prev.count === 'number' && Number.isFinite(prev.count) && prev.count >= 1
+          ? Math.floor(prev.count)
+          : 1;
       const updated = await prisma.notification.update({
         where: { id: existing.id },
         data: {
           title: input.title,
           body: input.body,
           createdAt: new Date(),
+          data: { ...prev, conversationId: input.conversationId, count: prevCount + 1 },
         },
       });
       await unreadNotificationsCache.invalidate(input.userId);
@@ -323,7 +334,7 @@ export const notificationsRepository = {
       type: 'NEW_MESSAGE',
       title: input.title,
       body: input.body,
-      data: { conversationId: input.conversationId },
+      data: { conversationId: input.conversationId, count: 1 },
     });
   },
 
@@ -368,13 +379,15 @@ export const notificationsRepository = {
   // it to that repository's flatter input shape.
   upsertPushSubscription: (
     userId: string,
-    input: PushSubscriptionInput
+    input: PushSubscriptionInput,
+    defaultLabel?: string | null
   ): Promise<PushSubscription> =>
     pushSubscriptionsRepository.upsert({
       userId,
       endpoint: input.endpoint,
       p256dh: input.keys.p256dh,
       auth: input.keys.auth,
+      defaultLabel,
     }),
 
   // Scoped to userId so a caller can never delete someone else's
@@ -396,12 +409,14 @@ export const notificationsRepository = {
   // push). See fcmDeviceTokensRepository.ts's own header.
   upsertFcmDeviceToken: (
     userId: string,
-    input: RegisterFcmTokenInput
+    input: RegisterFcmTokenInput,
+    defaultLabel?: string | null
   ): Promise<FcmDeviceToken> =>
     fcmDeviceTokensRepository.upsert({
       userId,
       token: input.token,
       platform: input.platform,
+      defaultLabel,
     }),
 
   deleteFcmDeviceToken: (userId: string, token: string): Promise<Prisma.BatchPayload> =>

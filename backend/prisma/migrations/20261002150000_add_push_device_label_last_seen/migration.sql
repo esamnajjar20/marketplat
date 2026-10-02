@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "push_subscriptions"
+  ADD COLUMN "label" VARCHAR(60),
+  ADD COLUMN "lastSeenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "fcm_device_tokens"
+  ADD COLUMN "label" VARCHAR(60),
+  ADD COLUMN "lastSeenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

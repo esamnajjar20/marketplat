@@ -28,6 +28,12 @@ vi.mock('@/hooks/mutations/useUpdateProfile', () => ({
   useUpdateNotificationPreferences: vi.fn(),
 }));
 
+// The device list owns its own data hooks (needs a QueryClient); it has its
+// own test file and is irrelevant to the preference toggles covered here.
+vi.mock('@/components/pwa/NotificationDevicesList', () => ({
+  NotificationDevicesList: () => null,
+}));
+
 const mockMutate = vi.fn();
 
 const FULL_PREFS = {

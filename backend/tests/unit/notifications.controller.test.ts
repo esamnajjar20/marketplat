@@ -174,7 +174,7 @@ describe('notificationsController', () => {
 
       await notificationsController.subscribeToPush(req, res, next);
 
-      expect(notificationsService.subscribeToPush).toHaveBeenCalledWith('user-1', validBody);
+      expect(notificationsService.subscribeToPush).toHaveBeenCalledWith('user-1', validBody, undefined);
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });

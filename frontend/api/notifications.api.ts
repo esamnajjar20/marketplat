@@ -7,7 +7,11 @@
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
-import type { Notification, NotificationsQuery } from '@/types/notification.types';
+import type {
+  Notification,
+  NotificationDevice,
+  NotificationsQuery,
+} from '@/types/notification.types';
 
 export const notificationsApi = {
   /** GET /notifications */
@@ -43,4 +47,16 @@ export const notificationsApi = {
   /** POST /notifications/push-test — devices = how many were targeted (0 = none registered). */
   sendTestPush: () =>
     apiClient.post<ApiResponse<{ devices: number }>>('/notifications/push-test'),
+
+  /** GET /notifications/devices — كل الأجهزة المسجّلة للإشعارات الخارجية. */
+  getDevices: () =>
+    apiClient.get<ApiResponse<NotificationDevice[]>>('/notifications/devices'),
+
+  /** PATCH /notifications/devices/:kind/:id — إعادة تسمية جهاز. */
+  renameDevice: (kind: NotificationDevice['kind'], id: string, label: string) =>
+    apiClient.patch<ApiResponse<void>>(`/notifications/devices/${kind}/${id}`, { label }),
+
+  /** DELETE /notifications/devices/:kind/:id — إيقاف الإشعارات على جهاز. */
+  removeDevice: (kind: NotificationDevice['kind'], id: string) =>
+    apiClient.delete<ApiResponse<void>>(`/notifications/devices/${kind}/${id}`),
 };

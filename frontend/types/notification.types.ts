@@ -71,3 +71,17 @@ export interface NotificationsQuery {
   /** فئة الواجهة: messages | favorites | stores | services | system */
   category?: 'messages' | 'favorites' | 'stores' | 'services' | 'system';
 }
+
+/** سجل جهاز واحد مسجَّل لاستلام الإشعارات الخارجية — GET /notifications/devices. */
+export interface NotificationDevice {
+  id: string;
+  /** web = متصفح/PWA، native = تطبيق Capacitor (FCM) */
+  kind: 'web' | 'native';
+  /** اسم يراه المستخدم؛ null للسجلات القديمة قبل إضافة الأسماء */
+  label: string | null;
+  platform: 'android' | 'ios' | null;
+  /** sha256(endpoint|token) أول 16 خانة — يعرّف الجهاز الحالي دون كشف بيانات الاعتماد */
+  fingerprint: string;
+  createdAt: string;
+  lastSeenAt: string;
+}

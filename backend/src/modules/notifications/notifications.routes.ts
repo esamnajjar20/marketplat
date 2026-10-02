@@ -55,3 +55,9 @@ notificationsRouter.delete(
   authenticate,
   notificationsController.unregisterFcmToken
 );
+
+// Device list (Phase 2 UX) — the caller's own browser + native registrations.
+// Three path segments for the id routes, so they cannot shadow '/:id/read'.
+notificationsRouter.get('/devices', authenticate, CACHE.NONE, notificationsController.listDevices);
+notificationsRouter.patch('/devices/:kind/:id', authenticate, notificationsController.renameDevice);
+notificationsRouter.delete('/devices/:kind/:id', authenticate, notificationsController.removeDevice);

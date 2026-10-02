@@ -7,6 +7,8 @@ import {
   deletePushSubscriptionSchema,
   registerFcmTokenSchema,
   deleteFcmTokenSchema,
+  deviceParamsSchema,
+  renameDeviceSchema,
 } from './notifications.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -76,7 +78,7 @@ export const notificationsController = {
     try {
       const user = requireUser(req);
       const { body } = createPushSubscriptionSchema.parse({ body: req.body });
-      await notificationsService.subscribeToPush(user.userId, body);
+      await notificationsService.subscribeToPush(user.userId, body, req.headers['user-agent']);
       res.status(201).json(successResponse('Push subscription saved'));
     } catch (error) {
       next(error);
@@ -130,6 +132,41 @@ export const notificationsController = {
       const { body } = deleteFcmTokenSchema.parse({ body: req.body });
       await notificationsService.unregisterFcmToken(user.userId, body.token);
       res.status(200).json(successResponse('Device unregistered from push'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** GET /notifications/devices */
+  listDevices: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const devices = await notificationsService.listDevices(user.userId);
+      res.status(200).json(successResponse('Devices fetched', devices));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** PATCH /notifications/devices/:kind/:id */
+  renameDevice: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params, body } = renameDeviceSchema.parse({ params: req.params, body: req.body });
+      await notificationsService.renameDevice(user.userId, params.kind, params.id, body.label);
+      res.status(200).json(successResponse('Device renamed'));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** DELETE /notifications/devices/:kind/:id */
+  removeDevice: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = deviceParamsSchema.parse({ params: req.params });
+      await notificationsService.removeDevice(user.userId, params.kind, params.id);
+      res.status(200).json(successResponse('Device removed'));
     } catch (error) {
       next(error);
     }

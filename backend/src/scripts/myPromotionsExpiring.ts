@@ -126,6 +126,7 @@ async function notifyFollowers(promotion: Promotion, productName: string): Promi
       body,
       url: `/stores/${promotion.storeId}`,
       tag: `store-promotion-${promotion.id}`,
+      type: 'STORE_PROMOTION_STARTED',
     })
     .catch(() => {});
 
@@ -161,6 +162,7 @@ async function notify(
       body,
       url: '/my-store?tab=promotions',
       tag: `promotion-${promotion.id}-${event}`,
+      type: 'PROMOTION_STATUS_CHANGE',
     })
     .catch(() => {});
 

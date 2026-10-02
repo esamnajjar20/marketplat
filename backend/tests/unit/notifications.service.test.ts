@@ -4,7 +4,12 @@ import { pushService } from '../../src/shared/utils/pushService';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { prisma } from '../../src/config/prisma';
 
+import { pushSubscriptionsRepository } from '../../src/shared/utils/pushSubscriptionsRepository';
+import { fcmDeviceTokensRepository } from '../../src/shared/utils/fcmDeviceTokensRepository';
+
 jest.mock('../../src/modules/notifications/notifications.repository');
+jest.mock('../../src/shared/utils/pushSubscriptionsRepository');
+jest.mock('../../src/shared/utils/fcmDeviceTokensRepository');
 jest.mock('../../src/shared/utils/pushService', () => ({
   pushService: {
     notifyUser: jest.fn().mockResolvedValue(undefined),
@@ -183,7 +188,66 @@ describe('notificationsService', () => {
       });
 
       await expect(notificationsService.subscribeToPush(userId, input)).resolves.toBeUndefined();
-      expect(notificationsRepository.upsertPushSubscription).toHaveBeenCalledWith(userId, input);
+      expect(notificationsRepository.upsertPushSubscription).toHaveBeenCalledWith(userId, input, null);
+    });
+
+    it('derives a default device label from the User-Agent', async () => {
+      (notificationsRepository.upsertPushSubscription as jest.Mock).mockResolvedValue({ id: 'sub-1' });
+      const ua =
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
+
+      await notificationsService.subscribeToPush(userId, input, ua);
+
+      expect(notificationsRepository.upsertPushSubscription).toHaveBeenCalledWith(
+        userId,
+        input,
+        'Chrome · Android'
+      );
+    });
+  });
+
+  describe('device list', () => {
+    const t1 = new Date('2026-10-01T10:00:00Z');
+    const t2 = new Date('2026-10-02T10:00:00Z');
+
+    it('merges browser and native registrations, newest activity first, without exposing credentials', async () => {
+      (pushSubscriptionsRepository.listForUser as jest.Mock).mockResolvedValue([
+        { id: 'w1', endpoint: 'https://push.example/secret-endpoint', label: 'Chrome · Android', createdAt: t1, lastSeenAt: t1 },
+      ]);
+      (fcmDeviceTokensRepository.listForUser as jest.Mock).mockResolvedValue([
+        { id: 'n1', token: 'secret-fcm-token', platform: 'android', label: null, createdAt: t1, lastSeenAt: t2 },
+      ]);
+
+      const devices = await notificationsService.listDevices(userId);
+
+      expect(devices.map((d) => d.id)).toEqual(['n1', 'w1']);
+      expect(devices[0]).toMatchObject({ kind: 'native', platform: 'android', label: null });
+      expect(devices[1]).toMatchObject({ kind: 'web', platform: null, label: 'Chrome · Android' });
+      for (const d of devices) {
+        expect(d.fingerprint).toMatch(/^[0-9a-f]{16}$/);
+        expect(JSON.stringify(d)).not.toContain('secret');
+      }
+    });
+
+    it('renames a web device scoped to the caller', async () => {
+      (pushSubscriptionsRepository.renameForUser as jest.Mock).mockResolvedValue({ count: 1 });
+      await expect(
+        notificationsService.renameDevice(userId, 'web', 'w1', 'هاتفي')
+      ).resolves.toBeUndefined();
+      expect(pushSubscriptionsRepository.renameForUser).toHaveBeenCalledWith(userId, 'w1', 'هاتفي');
+    });
+
+    it('rename/remove throw NotFoundError when the id is not the caller\'s', async () => {
+      (fcmDeviceTokensRepository.renameForUser as jest.Mock).mockResolvedValue({ count: 0 });
+      (fcmDeviceTokensRepository.deleteByIdForUser as jest.Mock).mockResolvedValue({ count: 0 });
+      await expect(notificationsService.renameDevice(userId, 'native', 'x', 'a')).rejects.toThrow(NotFoundError);
+      await expect(notificationsService.removeDevice(userId, 'native', 'x')).rejects.toThrow(NotFoundError);
+    });
+
+    it('removes a device by id', async () => {
+      (pushSubscriptionsRepository.deleteByIdForUser as jest.Mock).mockResolvedValue({ count: 1 });
+      await expect(notificationsService.removeDevice(userId, 'web', 'w1')).resolves.toBeUndefined();
+      expect(pushSubscriptionsRepository.deleteByIdForUser).toHaveBeenCalledWith(userId, 'w1');
     });
   });
 
@@ -259,7 +323,38 @@ describe('notificationEvents', () => {
         body: 'Sender Name أرسل لك رسالة',
         url: '/messages/conv-1',
         tag: 'conversation-conv-1',
+        urgent: true,
+        type: 'NEW_MESSAGE',
       });
+    });
+
+    it('groups the push copy once several unread messages share a conversation', async () => {
+      (notificationsRepository.createOrRefreshNewMessage as jest.Mock).mockResolvedValue({
+        id: 'notif-1',
+        data: { conversationId: 'conv-1', count: 3 },
+      });
+
+      await notificationEvents.onNewMessage('recipient-1', 'conv-1', 'أحمد');
+
+      expect(pushService.notifyUser).toHaveBeenCalledWith('recipient-1', {
+        title: '3 رسائل جديدة',
+        body: '3 رسائل من أحمد',
+        url: '/messages/conv-1',
+        tag: 'conversation-conv-1',
+        urgent: true,
+        type: 'NEW_MESSAGE',
+      });
+    });
+
+    it('does not push when the in-app row could not be written', async () => {
+      (notificationsRepository.createOrRefreshNewMessage as jest.Mock).mockRejectedValueOnce(
+        new Error('db down')
+      );
+
+      await expect(
+        notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name')
+      ).rejects.toThrow('db down');
+      expect(pushService.notifyUser).not.toHaveBeenCalled();
     });
 
     it('still creates the in-app notification even if the push send rejects', async () => {
@@ -331,6 +426,7 @@ describe('notificationEvents', () => {
         body: 'تم تحديث سعر "Ad Title"',
         url: '/ads/ad-1',
         tag: 'ad-ad-1',
+        type: 'FAV_AD_PRICE_CHANGED',
       });
     });
   });
@@ -364,12 +460,14 @@ describe('notificationEvents', () => {
         body: '"Ad Title" يطابق بحثك المحفوظ "iPhone في دير البلح"',
         url: '/ads/ad-1',
         tag: 'saved-search-search-1',
+        type: 'SAVED_SEARCH_MATCH',
       });
       expect(pushService.notifyUser).toHaveBeenCalledWith('u2', {
         title: 'إعلان جديد يطابق بحثك المحفوظ',
         body: '"Ad Title" يطابق بحثك المحفوظ "لابتوبات مستعملة"',
         url: '/ads/ad-1',
         tag: 'saved-search-search-2',
+        type: 'SAVED_SEARCH_MATCH',
       });
     });
 
@@ -387,6 +485,7 @@ describe('notificationEvents', () => {
         body: '"iPhone case" يطابق بحثك المحفوظ "Phone cases"',
         url: '/products/product-1',
         tag: 'saved-search-search-1',
+        type: 'SAVED_SEARCH_MATCH',
       });
       expect(notificationsRepository.createMany).toHaveBeenCalledWith([
         expect.objectContaining({ data: { productId: 'product-1', savedSearchId: 'search-1' } }),
@@ -407,6 +506,7 @@ describe('notificationEvents', () => {
         body: '"Home AC repair" يطابق بحثك المحفوظ "AC repair"',
         url: '/services/listing-1',
         tag: 'saved-search-search-1',
+        type: 'SAVED_SEARCH_MATCH',
       });
       expect(notificationsRepository.createMany).toHaveBeenCalledWith([
         expect.objectContaining({ data: { listingId: 'listing-1', savedSearchId: 'search-1' } }),
@@ -433,6 +533,7 @@ describe('notificationEvents', () => {
         body: 'متجر "متجري" أضاف منتجًا جديدًا: منتج جديد',
         url: '/stores/store-1',
         tag: 'store-store-1',
+        type: 'STORE_NEW_PRODUCT',
       });
     });
   });

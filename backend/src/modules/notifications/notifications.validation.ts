@@ -154,3 +154,19 @@ export const registerFcmTokenSchema = z.object({
 // FIX NOTIF-VALIDATION-DEDUP-01: unregisterFcmTokenSchema was a
 // byte-for-byte duplicate of deleteFcmTokenSchema (which is the one
 // notifications.controller.ts actually imports). Removed.
+
+// Device list (notification settings). `kind` selects which registration
+// table the id belongs to — ids are cuids from two different tables.
+export const deviceParamsSchema = z.object({
+  params: z.object({
+    kind: z.enum(['web', 'native']),
+    id: z.string().min(1).max(64),
+  }),
+});
+
+export const renameDeviceSchema = z.object({
+  params: deviceParamsSchema.shape.params,
+  body: z.object({
+    label: z.string().trim().min(1).max(60),
+  }),
+});

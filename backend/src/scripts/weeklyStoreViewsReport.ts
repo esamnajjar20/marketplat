@@ -73,6 +73,7 @@ async function main(): Promise<void> {
           body,
           url: '/my-store?tab=analytics',
           tag: 'weekly-store-views-report',
+          type: 'WEEKLY_STORE_VIEWS_REPORT',
         })
         .catch(() => {});
 

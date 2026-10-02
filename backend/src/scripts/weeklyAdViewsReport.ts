@@ -127,6 +127,7 @@ async function main(): Promise<void> {
           body,
           url: '/dashboard',
           tag: 'weekly-ad-views-report',
+          type: 'WEEKLY_AD_VIEWS_REPORT',
         })
         .catch(() => {});
 

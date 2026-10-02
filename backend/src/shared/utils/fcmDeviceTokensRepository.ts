@@ -12,6 +12,8 @@ export interface UpsertFcmDeviceTokenInput {
   userId: string;
   token: string;
   platform: string;
+  /** Default device label for a NEW row only (see deviceLabel.ts). */
+  defaultLabel?: string | null;
 }
 
 export const fcmDeviceTokensRepository = {
@@ -28,11 +30,27 @@ export const fcmDeviceTokensRepository = {
   upsert: (input: UpsertFcmDeviceTokenInput): Promise<FcmDeviceToken> =>
     prisma.fcmDeviceToken.upsert({
       where: { token: input.token },
-      create: { userId: input.userId, token: input.token, platform: input.platform },
+      create: {
+        userId: input.userId,
+        token: input.token,
+        platform: input.platform,
+        label: input.defaultLabel ?? null,
+      },
       // PUSH-OWNERSHIP-01: same device-follows-current-session rule as
       // pushSubscriptionsRepository.upsert (FCM token is per-installation).
-      update: { userId: input.userId, platform: input.platform },
+      // `label` is deliberately absent: a user-chosen name survives re-registration.
+      update: { userId: input.userId, platform: input.platform, lastSeenAt: new Date() },
     }),
+
+  // ── Device list — same ownership-in-the-WHERE shape as the web-push repo. ──
+  listForUser: (userId: string): Promise<FcmDeviceToken[]> =>
+    prisma.fcmDeviceToken.findMany({ where: { userId }, orderBy: { lastSeenAt: 'desc' } }),
+
+  renameForUser: (userId: string, id: string, label: string): Promise<Prisma.BatchPayload> =>
+    prisma.fcmDeviceToken.updateMany({ where: { id, userId }, data: { label } }),
+
+  deleteByIdForUser: (userId: string, id: string): Promise<Prisma.BatchPayload> =>
+    prisma.fcmDeviceToken.deleteMany({ where: { id, userId } }),
 
   deleteForUser: (userId: string, token: string): Promise<Prisma.BatchPayload> =>
     prisma.fcmDeviceToken.deleteMany({ where: { userId, token } }),

@@ -16,6 +16,7 @@ import { useUpdateNotificationPreferences } from '@/hooks/mutations/useUpdatePro
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
 import { PushNotificationToggle } from '@/components/pwa/PushNotificationToggle';
+import { NotificationDevicesList } from '@/components/pwa/NotificationDevicesList';
 import type { NotificationPreferences } from '@/types/user.types';
 import { cn } from '@/lib/utils';
 
@@ -231,6 +232,7 @@ export function NotificationSettingsForm() {
           />
         </div>
         <PushNotificationToggle />
+        <NotificationDevicesList />
       </section>
 
       {/* ─── 2 · المحتوى ─── */}

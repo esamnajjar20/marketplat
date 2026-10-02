@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/notifications.api';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/queryKeys';
+import type { NotificationDevice } from '@/types/notification.types';
 
 /**
  * PATCH /notifications/:id/read — fires when the caller clicks a
@@ -74,6 +76,36 @@ export function useDeleteAllReadNotifications() {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       const count = data?.count ?? 0;
       toast.success(count > 0 ? `تم حذف ${count} إشعاراً مقروءاً` : 'لا توجد إشعارات مقروءة');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/** PATCH /notifications/devices/:kind/:id — إعادة تسمية جهاز في قائمة الأجهزة. */
+export function useRenameNotificationDevice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (v: { kind: NotificationDevice['kind']; id: string; label: string }) =>
+      notificationsApi.renameDevice(v.kind, v.id, v.label),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.devices() });
+      toast.success('تم تحديث اسم الجهاز');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/** DELETE /notifications/devices/:kind/:id — إيقاف الإشعارات على جهاز واحد. */
+export function useRemoveNotificationDevice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (v: { kind: NotificationDevice['kind']; id: string }) =>
+      notificationsApi.removeDevice(v.kind, v.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.devices() });
+      toast.success('تم إيقاف الإشعارات على هذا الجهاز');
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });

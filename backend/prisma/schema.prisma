@@ -1154,6 +1154,12 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
+  // Device list (Phase 2 UX): `label` is the user-visible name — defaulted
+  // from the User-Agent on first registration, then owned by the user
+  // (re-registration never overwrites it). `lastSeenAt` is bumped each time
+  // the client re-registers the endpoint (app open / login sync).
+  label      String?  @db.VarChar(60)
+  lastSeenAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Every send fans out to "every subscription row for this user" —
@@ -1177,6 +1183,9 @@ model FcmDeviceToken {
   token     String   @unique @db.VarChar(500)
   platform  String   @db.VarChar(20) // 'android' | 'ios'
   createdAt DateTime @default(now())
+  // See PushSubscription.label / lastSeenAt.
+  label      String?  @db.VarChar(60)
+  lastSeenAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

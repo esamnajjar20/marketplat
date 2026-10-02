@@ -230,6 +230,7 @@ export const queryKeys = {
   notifications: {
     mine:        (params?: object) => ['notifications', 'me', params ?? {}] as const,
     unreadCount: ()                => ['notifications', 'unread-count'] as const,
+    devices:     ()                => ['notifications', 'devices'] as const,
   },
 
   // ── Blocked users ──────────────────────────────────────────────
