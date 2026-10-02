@@ -17,42 +17,17 @@ import {
 import { useAds } from '@/hooks/queries/useAds';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
-import { interleaveMixed } from '@/components/home/ForYouMixedSection';
+import { buildForYouFeed } from '@/lib/forYouFeed';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
-import { cn } from '@/lib/utils';
 
 const PAGE_LIMIT = 36;
 const PER_TYPE = 16;
 
-function mergeWithFallback<T extends { id: string }>(
-  preferred: T[] | null | undefined,
-  fallback: T[] | null | undefined,
-  limit: number,
-): T[] {
-  const out: T[] = [];
-  const seen = new Set<string>();
-  for (const list of [preferred ?? [], fallback ?? []]) {
-    for (const item of list) {
-      if (seen.has(item.id)) continue;
-      seen.add(item.id);
-      out.push(item);
-      if (out.length >= limit) return out;
-    }
-  }
-  return out;
-}
-
 /**
  * Full-page "اقتراحات لك" — same logic as the home rail, higher limits, 2-col grid.
  */
-
-const TYPE_BADGE: Record<'ad' | 'product' | 'service', { label: string; className: string }> = {
-  ad: { label: 'إعلان', className: 'bg-accent text-accent-foreground' },
-  product: { label: 'منتج', className: 'bg-emerald-600 text-white' },
-  service: { label: 'خدمة', className: 'bg-blue-600 text-white' },
-};
 
 export function SuggestionsPageClient() {
   const isAuth = useAuthStore(selectIsAuthenticated);
@@ -88,21 +63,31 @@ export function SuggestionsPageClient() {
   const recProducts = isAuth ? mixedQ.data?.products : productsQ.data;
   const recServices = isAuth ? mixedQ.data?.services : servicesQ.data;
 
-  const ads = mergeWithFallback(Array.isArray(recAds) ? recAds : [], fallbackAds.data?.items, PER_TYPE);
-  const products = mergeWithFallback(
-    Array.isArray(recProducts) ? recProducts : [],
-    fallbackProducts.data?.items,
-    PER_TYPE,
-  );
-  const services = mergeWithFallback(
-    Array.isArray(recServices) ? recServices : [],
-    fallbackServices.data?.items,
-    PER_TYPE,
-  );
+  const recAdsFeed = Array.isArray(recAds) ? recAds : undefined;
+  const recProductsFeed = Array.isArray(recProducts) ? recProducts : undefined;
+  const recServicesFeed = Array.isArray(recServices) ? recServices : undefined;
+  const fallbackAdItems = fallbackAds.data?.items;
+  const fallbackProductItems = fallbackProducts.data?.items;
+  const fallbackServiceItems = fallbackServices.data?.items;
 
   const items = useMemo(
-    () => interleaveMixed(ads, products, services, PAGE_LIMIT),
-    [ads, products, services],
+    () =>
+      buildForYouFeed(
+        {
+          ad: { ranked: recAdsFeed, fallback: fallbackAdItems },
+          product: { ranked: recProductsFeed, fallback: fallbackProductItems },
+          service: { ranked: recServicesFeed, fallback: fallbackServiceItems },
+        },
+        { limit: PAGE_LIMIT },
+      ),
+    [
+      recAdsFeed,
+      recProductsFeed,
+      recServicesFeed,
+      fallbackAdItems,
+      fallbackProductItems,
+      fallbackServiceItems,
+    ],
   );
 
   const loading =
@@ -147,7 +132,7 @@ export function SuggestionsPageClient() {
       {showLoading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <AdCardSkeleton key={i} />
+            <AdCardSkeleton key={i} density="compact" />
           ))}
         </div>
       ) : items.length === 0 ? (
@@ -163,30 +148,17 @@ export function SuggestionsPageClient() {
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {items.map((item) => {
-            const badge = TYPE_BADGE[item.kind];
-            const inner =
-              item.kind === 'ad' ? (
-                <AdCard ad={item.data} density="compact" />
+          {items.map((item) => (
+            <div key={`${item.kind}-${item.data.id}`} className="h-full">
+              {item.kind === 'ad' ? (
+                <AdCard ad={item.data} density="compact" showKind />
               ) : item.kind === 'product' ? (
-                <ProductCard product={item.data} density="compact" />
+                <ProductCard product={item.data} density="compact" showKind />
               ) : (
-                <ServiceListingCard listing={item.data} density="compact" />
-              );
-            return (
-              <div key={`${item.kind}-${item.data.id}`} className="relative">
-                <span
-                  className={cn(
-                    'absolute top-2 start-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-bold shadow-sm',
-                    badge.className,
-                  )}
-                >
-                  {badge.label}
-                </span>
-                {inner}
-              </div>
-            );
-          })}
+                <ServiceListingCard listing={item.data} density="compact" showKind />
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

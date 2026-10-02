@@ -47,7 +47,7 @@ export function ServiceProviderCard({ provider, className }: Props) {
       href={ROUTES.serviceProvider(provider.id)}
       prefetch={false}
       className={cn(
-        'group flex gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm',
+        'group flex h-full gap-3 rounded-2xl border border-border/80 bg-card p-3 shadow-sm',
         'transition-all duration-200 active:scale-[0.98]',
         'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
@@ -89,11 +89,17 @@ export function ServiceProviderCard({ provider, className }: Props) {
             {AVAILABILITY_LABEL[provider.availabilityStatus]}
           </Badge>
         </div>
-        <p className="line-clamp-1 text-sm text-muted-foreground">{provider.description}</p>
-        <div className="flex items-center gap-1 text-2xs text-muted-foreground sm:text-xs">
-          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="truncate">{provider.serviceAreaCities.join('، ')}</span>
-        </div>
+        {provider.description?.trim() ? (
+          <p className="line-clamp-1 text-xs text-muted-foreground sm:text-sm">
+            {provider.description}
+          </p>
+        ) : null}
+        {provider.serviceAreaCities.length > 0 ? (
+          <div className="flex items-center gap-1 text-2xs text-muted-foreground sm:text-xs">
+            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{provider.serviceAreaCities.join('، ')}</span>
+          </div>
+        ) : null}
         <p className="text-2xs text-muted-foreground sm:text-xs">
           {formatPhone(provider.contactPhone)}
         </p>

@@ -226,4 +226,13 @@ describe('AdCard', () => {
       expect(mockToggleMutate).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('showKind (mixed lists)', () => {
+    it('renders the "إعلان" chip only when showKind is set', () => {
+      const { rerender } = render(<AdCard ad={baseAd} />);
+      expect(screen.queryByText('إعلان')).not.toBeInTheDocument();
+      rerender(<AdCard ad={baseAd} showKind />);
+      expect(screen.getByText('إعلان')).toBeInTheDocument();
+    });
+  });
 });

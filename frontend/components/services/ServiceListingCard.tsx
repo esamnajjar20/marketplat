@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { CardKindBadge, useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { BadgeCheck, Clock, MapPin, Star } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -24,6 +25,8 @@ interface Props {
   className?: string;
   priority?: boolean;
   density?: 'default' | 'compact';
+  /** Mixed lists: show a "خدمة" chip inside the badge stack. */
+  showKind?: boolean;
 }
 
 const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
@@ -41,7 +44,13 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
 /**
  * Service listing card — unified Badge + typography (Phase 3+).
  */
-export function ServiceListingCard({ listing, className, priority = false, density = 'default' }: Props) {
+export function ServiceListingCard({
+  listing,
+  className,
+  priority = false,
+  density = 'default',
+  showKind = false,
+}: Props) {
   const compact = density === 'compact';
   const router = useRouter();
   const detailHref = ROUTES.serviceDetail(listing.id);
@@ -58,22 +67,8 @@ export function ServiceListingCard({ listing, className, priority = false, densi
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
   const isNegotiable = listing.pricingType === 'NEGOTIABLE' || !listing.price;
 
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-  }, []);
-
-  const ageHours =
-    now === null
-      ? Infinity
-      : (now - new Date(listing.createdAt).getTime()) / 3_600_000;
-  const timeColorClass =
-    ageHours < 24
-      ? 'text-success'
-      : ageHours < 24 * 7
-        ? 'text-warning'
-        : 'text-muted-foreground';
+  const now = useNowAfterMount();
+  const timeColorClass = freshnessClass(now, listing.createdAt);
 
   const providerLogo = getAvatarUrl(listing.provider.logoUrl ?? '', 32);
   const ratingRaw = listing.provider.sellerProfile?.averageRating;
@@ -133,6 +128,7 @@ export function ServiceListingCard({ listing, className, priority = false, densi
           />
 
           <div className="absolute top-2 start-2 z-[1] flex max-w-[70%] flex-col items-start gap-1">
+            {showKind && <CardKindBadge kind="service" />}
             <Badge size="xs" variant="overlay" className="gap-1.5">
               <span
                 className={cn(
@@ -147,7 +143,12 @@ export function ServiceListingCard({ listing, className, priority = false, densi
 
         <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-primary sm:text-xl">
+            <p
+              className={cn(
+                'font-mono font-bold tabular-nums tracking-tight text-primary',
+                compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl',
+              )}
+            >
               {priceLabel}
             </p>
             {isNegotiable && listing.pricingType === 'NEGOTIABLE' && (
@@ -220,7 +221,7 @@ export function ServiceListingCard({ listing, className, priority = false, densi
                   timeColorClass,
                 )}
               >
-                {now === null ? '—' : formatRelativeTime(listing.createdAt, now)}
+                {now === null ? TIME_PLACEHOLDER : formatRelativeTime(listing.createdAt, now)}
               </span>
             </div>
           </div>
@@ -231,7 +232,7 @@ export function ServiceListingCard({ listing, className, priority = false, densi
         entityType="SERVICE_LISTING"
         entityId={listing.id}
         size="sm"
-        className="absolute top-2 end-2 z-20 !h-9 !w-9 rounded-full bg-background/95 shadow-md backdrop-blur-md ring-1 ring-black/5"
+        className={`absolute top-2 end-2 z-20 !h-9 !w-9 rounded-full bg-background/95 shadow-md backdrop-blur-md ring-1 ring-black/5 ${HIT_AREA}`}
       />
     </div>
   );

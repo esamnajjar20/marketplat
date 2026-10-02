@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   ads: vi.fn(),
   products: vi.fn(),
   services: vi.fn(),
+  fbAds: vi.fn(),
+  fbProducts: vi.fn(),
+  fbServices: vi.fn(),
 }));
 
 vi.mock('@/hooks/queries/useRecommendations', () => ({
@@ -30,6 +33,9 @@ vi.mock('@/hooks/useBrowseCity', () => ({
   useBrowseCity: () => ({ city: 'غزة', isReady: true }),
 }));
 vi.mock('@/lib/useDataSaver', () => ({ useDataSaver: () => false }));
+vi.mock('@/hooks/queries/useAds', () => ({ useAds: mocks.fbAds }));
+vi.mock('@/hooks/queries/useProducts', () => ({ useProducts: mocks.fbProducts }));
+vi.mock('@/hooks/queries/useServiceListings', () => ({ useServiceListings: mocks.fbServices }));
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
@@ -77,6 +83,9 @@ beforeEach(() => {
   mocks.ads.mockReturnValue(query(undefined));
   mocks.products.mockReturnValue(query(undefined));
   mocks.services.mockReturnValue(query(undefined));
+  for (const fb of [mocks.fbAds, mocks.fbProducts, mocks.fbServices]) {
+    fb.mockReturnValue(query(undefined));
+  }
 });
 
 describe('ForYouMixedSection request count', () => {
@@ -92,7 +101,8 @@ describe('ForYouMixedSection request count', () => {
       expect(hook.mock.calls[0]?.[1]).toMatchObject({ enabled: false });
     }
     expect(screen.getAllByTestId('card')).toHaveLength(3);
-    expect(screen.getByText('مقترحات لك')).toBeTruthy();
+    expect(screen.getByText('مخصص لك')).toBeTruthy();
+    // ranked lists are full enough → no organic fallback request is allowed
   });
 
   it('guest: mixed is disabled; the three /home-seeded keys are read', () => {
@@ -123,6 +133,32 @@ describe('ForYouMixedSection request count', () => {
   it('passes the per-type limit and city to the mixed request', () => {
     mocks.isAuth = true;
     render(<ForYouMixedSection />);
-    expect(mocks.mixed.mock.calls[0]?.[0]).toEqual({ limit: 3, city: 'غزة' });
+    expect(mocks.mixed.mock.calls[0]?.[0]).toEqual({ limit: 12, city: 'غزة' });
+  });
+
+  it('shows many cards, mixed across all three types (not only ads)', () => {
+    mocks.isAuth = true;
+    const mk = (p: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: `${p}${i}` }));
+    mocks.mixed.mockReturnValue(
+      query({ ads: mk('a', 12), products: mk('p', 12), services: mk('s', 12) }),
+    );
+    render(<ForYouMixedSection />);
+    const texts = screen.getAllByTestId('card').map((c) => c.textContent ?? '');
+    expect(texts).toHaveLength(24);
+    for (const kind of ['ad-', 'product-', 'service-']) {
+      expect(texts.filter((t) => t.startsWith(kind)).length).toBeGreaterThanOrEqual(6);
+    }
+  });
+
+  it('fallback fetch is enabled only for a type whose ranked list is short', () => {
+    mocks.isAuth = true;
+    const mk = (p: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: `${p}${i}` }));
+    mocks.mixed.mockReturnValue(
+      query({ ads: mk('a', 12), products: mk('p', 12), services: mk('s', 2) }),
+    );
+    render(<ForYouMixedSection />);
+    expect(mocks.fbAds.mock.calls[0]?.[1]).toMatchObject({ enabled: false });
+    expect(mocks.fbProducts.mock.calls[0]?.[1]).toMatchObject({ enabled: false });
+    expect(mocks.fbServices.mock.calls[0]?.[1]).toMatchObject({ enabled: true });
   });
 });

@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { CardKindBadge, useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { PackageX, Clock3, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -28,6 +29,8 @@ interface Props {
   priority?: boolean;
   /** Homepage rails use compact; browse grids use default. */
   density?: 'default' | 'compact';
+  /** Mixed lists: show a "منتج" chip inside the badge stack. */
+  showKind?: boolean;
 }
 
 const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
@@ -39,7 +42,13 @@ const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
 /**
  * Product card — unified Badge + typography scale (Phase 3+).
  */
-export function ProductCard({ product, className, priority = false, density = 'default' }: Props) {
+export function ProductCard({
+  product,
+  className,
+  priority = false,
+  density = 'default',
+  showKind = false,
+}: Props) {
   const compact = density === 'compact';
   const router = useRouter();
   const detailHref = ROUTES.productDetail(product.id);
@@ -71,22 +80,8 @@ export function ProductCard({ product, className, priority = false, density = 'd
   const hasDiscount = discountPrice !== null;
   const outOfStock = product.availability === 'OUT_OF_STOCK';
 
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-  }, []);
-
-  const ageHours =
-    now === null
-      ? Infinity
-      : (now - new Date(product.createdAt).getTime()) / 3_600_000;
-  const timeColorClass =
-    ageHours < 24
-      ? 'text-success'
-      : ageHours < 24 * 7
-        ? 'text-warning'
-        : 'text-muted-foreground';
+  const now = useNowAfterMount();
+  const timeColorClass = freshnessClass(now, product.createdAt);
 
   const storeLogo = getAvatarUrl(product.store?.logoUrl ?? '', 32);
 
@@ -124,7 +119,11 @@ export function ProductCard({ product, className, priority = false, density = 'd
               'object-cover transition-transform duration-400 ease-out group-hover/card:scale-[1.04]',
               outOfStock && 'opacity-55',
             )}
-            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+            sizes={
+              compact
+                ? '(max-width:640px) 60vw, 220px'
+                : '(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw'
+            }
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
@@ -136,6 +135,8 @@ export function ProductCard({ product, className, priority = false, density = 'd
           />
 
           <div className="absolute top-2 start-2 z-[1] flex max-w-[70%] flex-col items-start gap-1">
+            {showKind && <CardKindBadge kind="product" />}
+            {/* Product rule (see ProductCard.test): the % badge is for a LIVE promotion only. */}
             {hasActivePromotion && discountPercentage !== null && (
               <Badge size="xs" variant="destructive">
                 خصم {discountPercentage}%
@@ -206,17 +207,14 @@ export function ProductCard({ product, className, priority = false, density = 'd
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-2">
-              <Badge size="sm" variant="secondary">
-                متجر
-              </Badge>
+            <div className="flex items-center justify-end gap-2">
               <span
                 className={cn(
                   'shrink-0 whitespace-nowrap text-2xs font-medium tabular-nums',
                   timeColorClass,
                 )}
               >
-                {now === null ? '—' : formatRelativeTime(product.createdAt, now)}
+                {now === null ? TIME_PLACEHOLDER : formatRelativeTime(product.createdAt, now)}
               </span>
             </div>
           </div>
@@ -227,7 +225,7 @@ export function ProductCard({ product, className, priority = false, density = 'd
         entityType="PRODUCT"
         entityId={product.id}
         size="sm"
-        className="absolute top-2 end-2 z-20 !h-9 !w-9 rounded-full bg-background/95 shadow-md backdrop-blur-md ring-1 ring-black/5"
+        className={`absolute top-2 end-2 z-20 !h-9 !w-9 rounded-full bg-background/95 shadow-md backdrop-blur-md ring-1 ring-black/5 ${HIT_AREA}`}
       />
     </div>
   );

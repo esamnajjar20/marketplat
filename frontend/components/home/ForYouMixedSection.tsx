@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, AlertTriangle } from 'lucide-react';
+import { Sparkles, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { AdCard } from '@/components/ads/AdCard';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
@@ -22,178 +22,96 @@ import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/a
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
-import { cn } from '@/lib/utils';
-import type { AdListItem } from '@/types/ad.types';
-import type { ProductWithStore } from '@/types/product.types';
-import type { ServiceListingWithProvider } from '@/types/service.types';
+import { buildForYouFeed } from '@/lib/forYouFeed';
 
-type MixedItem =
-  | { kind: 'ad'; data: AdListItem }
-  | { kind: 'product'; data: ProductWithStore }
-  | { kind: 'service'; data: ServiceListingWithProvider };
-
-/** Interleave: ad → product → service → repeat so the shelf feels mixed. */
-export function interleaveMixed(
-  ads: AdListItem[],
-  products: ProductWithStore[],
-  services: ServiceListingWithProvider[],
-  limit: number,
-): MixedItem[] {
-  const queues: MixedItem[][] = [
-    ads.map((data) => ({ kind: 'ad' as const, data })),
-    products.map((data) => ({ kind: 'product' as const, data })),
-    services.map((data) => ({ kind: 'service' as const, data })),
-  ];
-  const idx = [0, 0, 0];
-  const out: MixedItem[] = [];
-  const seen = new Set<string>();
-
-  while (out.length < limit) {
-    let placed = false;
-    for (let q = 0; q < queues.length && out.length < limit; q += 1) {
-      const queue = queues[q];
-      let i = idx[q] ?? 0;
-      while (i < (queue?.length ?? 0)) {
-        const item = queue![i]!;
-        i += 1;
-        const key = `${item.kind}-${item.data.id}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(item);
-        placed = true;
-        break;
-      }
-      idx[q] = i;
-    }
-    if (!placed) break;
-  }
-  return out;
-}
-
-/**
- * Merge recommendation arrays with organic fallbacks (recent lists).
- * Recommendations win order; fallbacks fill gaps so the rail is never sparse.
- */
-function mergeWithFallback<T extends { id: string }>(
-  preferred: T[] | null | undefined,
-  fallback: T[] | null | undefined,
-  limit: number,
-): T[] {
-  const out: T[] = [];
-  const seen = new Set<string>();
-  for (const list of [preferred ?? [], fallback ?? []]) {
-    for (const item of list) {
-      if (seen.has(item.id)) continue;
-      seen.add(item.id);
-      out.push(item);
-      if (out.length >= limit) return out;
-    }
-  }
-  return out;
-}
-
-const HOME_TARGET = 12;
-const PER_TYPE = 8;
+/** Cards shown / candidates fetched per type. Backend caps `limit` at 24 per type. */
+const HOME_TARGET = 24;
+const HOME_TARGET_SAVER = 12;
+const PER_TYPE = 12;
+const PER_TYPE_SAVER = 6;
 
 /**
  * "مخصص لك" — right after paid featured on the homepage.
  *
  * - Signed-in: mixed personalized API
  * - Guest: trending recommendations (seeded by /home when available)
- * - Always backfills from recent ads/products/services so the rail
- *   never shows a single lonely card when the market has content.
+ * - Cards are ordered by the server's interest ranking, mixed across
+ *   ads / products / services (see lib/forYouFeed.ts for the rules).
+ * - Organic "recent" lists are fetched ONLY for a type whose ranked list
+ *   came back short, and are placed after every ranked card.
  */
-
-const TYPE_BADGE: Record<'ad' | 'product' | 'service', { label: string; className: string }> = {
-  ad: { label: 'إعلان', className: 'bg-accent text-accent-foreground' },
-  product: { label: 'منتج', className: 'bg-emerald-600 text-white' },
-  service: { label: 'خدمة', className: 'bg-blue-600 text-white' },
-};
-
-function MixedCardShell({
-  kind,
-  children,
-}: {
-  kind: 'ad' | 'product' | 'service';
-  children: React.ReactNode;
-}) {
-  const badge = TYPE_BADGE[kind];
-  return (
-    <div className="relative h-full">
-      <span
-        className={cn(
-          'absolute top-2 start-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-bold shadow-sm',
-          badge.className,
-        )}
-      >
-        {badge.label}
-      </span>
-      {children}
-    </div>
-  );
-}
 
 export function ForYouMixedSection() {
   const dataSaver = useDataSaver();
-  const target = dataSaver ? 8 : HOME_TARGET;
+  const target = dataSaver ? HOME_TARGET_SAVER : HOME_TARGET;
+  const perType = dataSaver ? PER_TYPE_SAVER : PER_TYPE;
   const isAuth = useAuthStore(selectIsAuthenticated);
   const isHydrated = useAuthStore(selectIsHydrated);
   const { city, isReady } = useBrowseCity();
 
   const ready = isHydrated && isReady;
-  // Keep param object stable-ish: always pass limit so keys match /home seed
-  // when city is absent (seed uses { limit: 3 } historically — we also
-  // request a larger set and fill from organic lists).
   const cityParam = city ? { city } : {};
 
   const mixedQ = useMixedRecommendations(
-    { limit: PER_TYPE, ...cityParam },
+    { limit: perType, ...cityParam },
     { enabled: ready && isAuth, scope: 'user' },
   );
 
   // Guest: enable network even if /home seed missed (param mismatch / empty).
   const guestOpts = { enabled: ready && !isAuth, scope: 'guest' as const };
-  const adsQ = useRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
-  const productsQ = useProductRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
-  const servicesQ = useServiceRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
-
-  // Organic fallbacks — always on once ready (cheap lists; fill sparse recs).
-  const fallbackAds = useAds(
-    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
-    { enabled: ready, disableOfflineCache: true },
-  );
-  const fallbackProducts = useProducts(
-    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
-    { enabled: ready },
-  );
-  const fallbackServices = useServiceListings(
-    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
-    { enabled: ready },
-  );
+  const adsQ = useRecommendations({ limit: perType, ...cityParam }, guestOpts);
+  const productsQ = useProductRecommendations({ limit: perType, ...cityParam }, guestOpts);
+  const servicesQ = useServiceRecommendations({ limit: perType, ...cityParam }, guestOpts);
 
   const recAds = isAuth ? mixedQ.data?.ads : adsQ.data;
   const recProducts = isAuth ? mixedQ.data?.products : productsQ.data;
   const recServices = isAuth ? mixedQ.data?.services : servicesQ.data;
 
-  const ads = mergeWithFallback(
-    Array.isArray(recAds) ? recAds : [],
-    fallbackAds.data?.items,
-    PER_TYPE,
+  const recAdsLoading = isAuth ? mixedQ.isLoading : adsQ.isLoading;
+  const recProductsLoading = isAuth ? mixedQ.isLoading : productsQ.isLoading;
+  const recServicesLoading = isAuth ? mixedQ.isLoading : servicesQ.isLoading;
+
+  const countOf = (list: unknown) => (Array.isArray(list) ? list.length : 0);
+
+  // Organic fallbacks: only for a type whose ranked list is short (or failed),
+  // and only once its ranked request has settled — so the common case costs
+  // zero extra requests. Fallback cards always sort after ranked ones.
+  const fallbackAds = useAds(
+    { limit: perType, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
+    { enabled: ready && !recAdsLoading && countOf(recAds) < perType, disableOfflineCache: true },
   );
-  const products = mergeWithFallback(
-    Array.isArray(recProducts) ? recProducts : [],
-    fallbackProducts.data?.items,
-    PER_TYPE,
+  const fallbackProducts = useProducts(
+    { limit: perType, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
+    { enabled: ready && !recProductsLoading && countOf(recProducts) < perType },
   );
-  const services = mergeWithFallback(
-    Array.isArray(recServices) ? recServices : [],
-    fallbackServices.data?.items,
-    PER_TYPE,
+  const fallbackServices = useServiceListings(
+    { limit: perType, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
+    { enabled: ready && !recServicesLoading && countOf(recServices) < perType },
   );
 
+  const fallbackAdItems = fallbackAds.data?.items;
+  const fallbackProductItems = fallbackProducts.data?.items;
+  const fallbackServiceItems = fallbackServices.data?.items;
+
   const items = useMemo(
-    () => interleaveMixed(ads, products, services, target),
-    [ads, products, services, target],
+    () =>
+      buildForYouFeed(
+        {
+          ad: { ranked: recAds, fallback: fallbackAdItems },
+          product: { ranked: recProducts, fallback: fallbackProductItems },
+          service: { ranked: recServices, fallback: fallbackServiceItems },
+        },
+        { limit: target },
+      ),
+    [
+      recAds,
+      recProducts,
+      recServices,
+      fallbackAdItems,
+      fallbackProductItems,
+      fallbackServiceItems,
+      target,
+    ],
   );
 
   const recLoading = isAuth
@@ -256,8 +174,8 @@ export function ForYouMixedSection() {
       {showLoading ? (
         <HomeScrollRail>
           {Array.from({ length: 4 }).map((_, i) => (
-            <HomeScrollRailItem key={i}>
-              <AdCardSkeleton />
+            <HomeScrollRailItem key={i} size="wide">
+              <AdCardSkeleton density="compact" />
             </HomeScrollRailItem>
           ))}
         </HomeScrollRail>
@@ -286,21 +204,30 @@ export function ForYouMixedSection() {
       ) : (
         <HomeScrollRail className="stagger-fade-in">
           {items.map((item) => (
-            <HomeScrollRailItem
-              key={`${item.kind}-${item.data.id}`}
-              size={item.kind === 'ad' ? 'wide' : 'default'}
-            >
-              <MixedCardShell kind={item.kind}>
-                {item.kind === 'ad' ? (
-                  <AdCard ad={item.data} density="compact" />
-                ) : item.kind === 'product' ? (
-                  <ProductCard product={item.data} density="compact" />
-                ) : (
-                  <ServiceListingCard listing={item.data} density="compact" />
-                )}
-              </MixedCardShell>
+            // One width for every type: a rail mixing 180px and 220px cards
+            // looked jagged and cut product/service titles shorter than ads.
+            <HomeScrollRailItem key={`${item.kind}-${item.data.id}`} size="wide">
+              {item.kind === 'ad' ? (
+                <AdCard ad={item.data} density="compact" showKind />
+              ) : item.kind === 'product' ? (
+                <ProductCard product={item.data} density="compact" showKind />
+              ) : (
+                <ServiceListingCard listing={item.data} density="compact" showKind />
+              )}
             </HomeScrollRailItem>
           ))}
+          <HomeScrollRailItem>
+            <Link
+              href={ROUTES.suggestions}
+              prefetch={false}
+              className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/80 p-4 text-center text-sm font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-card active:scale-[0.98]"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <ChevronLeft className="h-5 w-5" aria-hidden />
+              </span>
+              عرض المزيد
+            </Link>
+          </HomeScrollRailItem>
         </HomeScrollRail>
       )}
 

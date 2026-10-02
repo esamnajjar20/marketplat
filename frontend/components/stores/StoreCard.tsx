@@ -5,6 +5,7 @@ import { BadgeCheck, Star, MapPin, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { HIT_AREA } from '@/components/shared/cards/cardTokens';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { StoreWithSeller } from '@/types/store.types';
 
@@ -19,14 +20,16 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
   const compact = density === 'compact';
   const avatar = getAvatarUrl(store.logoUrl ?? '', 96);
   const rating = parseFloat(store.sellerProfile.averageRating);
+  const hasRating = store.sellerProfile.totalRatings > 0 && Number.isFinite(rating);
+  const description = store.description?.trim();
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <Link
         href={ROUTES.storeDetail(store.id)}
         prefetch={false}
         className={cn(
-          'group flex rounded-xl border border-border/80 bg-card shadow-sm pe-11',
+          'group flex h-full rounded-2xl border border-border/80 bg-card shadow-sm pe-11',
           compact ? 'gap-2.5 p-2.5' : 'gap-3.5 p-3.5',
           'transition-all duration-200 active:scale-[0.98]',
           'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md',
@@ -61,13 +64,17 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
               />
             )}
           </div>
-          <p className="line-clamp-1 text-sm text-muted-foreground">{store.description}</p>
-          <div className="flex flex-wrap items-center gap-3 text-2xs text-muted-foreground sm:text-xs">
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {store.city}
-            </span>
-            {store.sellerProfile.totalRatings > 0 && (
+          {description ? (
+            <p className="line-clamp-1 text-xs text-muted-foreground sm:text-sm">{description}</p>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground sm:text-xs">
+            {store.city ? (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {store.city}
+              </span>
+            ) : null}
+            {hasRating && (
               <span className="flex items-center gap-1">
                 <Star className="h-3.5 w-3.5 fill-rating text-rating" aria-hidden />
                 {rating.toFixed(1)} ({store.sellerProfile.totalRatings})
@@ -81,7 +88,7 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
         entityType="STORE"
         entityId={store.id}
         size="sm"
-        className="absolute top-2 end-2"
+        className={`absolute top-2 end-2 ${HIT_AREA}`}
       />
     </div>
   );

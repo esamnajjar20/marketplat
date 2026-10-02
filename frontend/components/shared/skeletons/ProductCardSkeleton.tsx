@@ -1,13 +1,29 @@
 import { Skeleton } from '@/components/shared/ui/Skeleton';
+import { cn } from '@/lib/utils';
 
-export function ProductCardSkeleton() {
+/** هيكل بطاقة منتج — نفس نسبة الصورة والحشوة لـProductCard. */
+export function ProductCardSkeleton({ density = 'default' }: { density?: 'default' | 'compact' }) {
+  const compact = density === 'compact';
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
-      <Skeleton className="aspect-square w-full rounded-none" />
-      <div className="space-y-2 p-3">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
+      <div className="relative">
+        <Skeleton className={cn('w-full rounded-none', compact ? 'aspect-[3/2]' : 'aspect-[4/3]')} />
+        <Skeleton className="absolute end-2 top-2 h-9 w-9 rounded-full" />
+      </div>
+      <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>
+        <Skeleton className={cn('w-2/5', compact ? 'h-5' : 'h-6')} />
         <Skeleton className="h-3.5 w-4/5" />
-        <Skeleton className="h-4 w-1/3" />
-        <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="h-3.5 w-1/2" />
+        <div className="mt-auto space-y-1.5 border-t border-border/40 pt-2">
+          <Skeleton className="h-3 w-1/3" />
+          <div className="flex items-center gap-1.5">
+            <Skeleton className="h-5 w-5 rounded-full" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+          <div className="flex justify-end">
+            <Skeleton className="h-3 w-8" />
+          </div>
+        </div>
       </div>
     </div>
   );

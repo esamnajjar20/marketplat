@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onIntentPrefetch } from '@/lib/prefetchOnIntent';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { CardKindBadge, useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Heart, Star, BadgeCheck } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
@@ -37,6 +39,8 @@ interface Props {
    * so more of the next card peeks on mobile.
    */
   density?: 'default' | 'compact';
+  /** Mixed lists: show an "إعلان" chip inside the badge stack. */
+  showKind?: boolean;
 }
 
 /**
@@ -44,7 +48,7 @@ interface Props {
  * Favorite stays top-end; condition/featured stay top-start.
  * Hover lift uses isolation so cards don't stack over neighbours incorrectly.
  */
-export function AdCard({ ad, className, priority = false, density = 'default' }: Props) {
+export function AdCard({ ad, className, priority = false, density = 'default', showKind = false }: Props) {
   const compact = density === 'compact';
   const router = useRouter();
   const detailHref = ROUTES.adDetail(ad.id);
@@ -60,20 +64,8 @@ export function AdCard({ ad, className, priority = false, density = 'default' }:
   const isSold = ad.status === 'SOLD';
   const isNew = ad.condition === 'NEW';
 
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-  }, []);
-
-  const ageHours =
-    now === null ? Infinity : (now - new Date(ad.createdAt).getTime()) / 3_600_000;
-  const timeColorClass =
-    ageHours < 24
-      ? 'text-success'
-      : ageHours < 24 * 7
-        ? 'text-warning'
-        : 'text-muted-foreground';
+  const now = useNowAfterMount();
+  const timeColorClass = freshnessClass(now, ad.createdAt);
 
   const isAuth = useAuthStore(selectIsAuthenticated);
   const isFavorited = useIsFavorited(ad.id);
@@ -154,6 +146,7 @@ export function AdCard({ ad, className, priority = false, density = 'default' }:
 
           {/* Top-start badges — never share the end corner with the heart */}
           <div className="absolute top-2 start-2 z-[1] flex max-w-[70%] flex-col items-start gap-1">
+            {showKind && <CardKindBadge kind="ad" />}
             {ad.condition && (
               <Badge size="xs" variant={isNew ? 'overlay-success' : 'overlay'}>
                 {CONDITION_LABELS[ad.condition] ?? ad.condition}
@@ -250,7 +243,7 @@ export function AdCard({ ad, className, priority = false, density = 'default' }:
                   timeColorClass,
                 )}
               >
-                {now === null ? '—' : formatRelativeTime(ad.createdAt, now)}
+                {now === null ? TIME_PLACEHOLDER : formatRelativeTime(ad.createdAt, now)}
               </span>
             </div>
           </div>
@@ -267,6 +260,7 @@ export function AdCard({ ad, className, priority = false, density = 'default' }:
           aria-pressed={isFavorited}
           className={cn(
             'absolute top-2 end-2 z-20 flex h-9 w-9 items-center justify-center',
+            HIT_AREA,
             'rounded-full bg-background/95 shadow-md backdrop-blur-md',
             'ring-1 ring-black/5 transition-transform duration-150',
             'hover:scale-105 active:scale-90',

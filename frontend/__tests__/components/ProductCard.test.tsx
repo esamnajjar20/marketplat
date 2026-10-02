@@ -180,4 +180,19 @@ describe('ProductCard', () => {
     render(<ProductCard product={baseProduct} storeId="store-1" className="custom-class" />);
     expect(screen.getByRole('link')).toHaveClass('custom-class');
   });
+
+  describe('showKind (mixed lists)', () => {
+    it('renders the "منتج" chip only when showKind is set', () => {
+      const { rerender } = render(<ProductCard product={baseProduct} storeId="store-1" />);
+      expect(screen.queryByText('منتج')).not.toBeInTheDocument();
+      rerender(<ProductCard product={baseProduct} storeId="store-1" showKind />);
+      expect(screen.getByText('منتج')).toBeInTheDocument();
+    });
+
+    it('no longer renders the redundant static "متجر" chip in the footer', () => {
+      render(<ProductCard product={baseProduct} storeId="store-1" />);
+      expect(screen.queryByText('متجر')).not.toBeInTheDocument();
+      expect(screen.getByText('متجر تجريبي')).toBeInTheDocument();
+    });
+  });
 });
