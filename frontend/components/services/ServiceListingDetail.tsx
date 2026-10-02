@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { MapPin, Clock, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ReportServiceButton } from '@/components/services/ReportServiceButton';
@@ -300,8 +301,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
           >
             <X className="h-6 w-6" />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <SafeImg
             src={currentImg}
             alt={listing.title}
             className="max-h-[90vh] max-w-full object-contain"

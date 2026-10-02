@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
@@ -568,8 +569,7 @@ export function ChatWindow({ conversationId }: Props) {
                           className="mb-2 block overflow-hidden rounded-xl"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
+                          <SafeImg
                             src={message.imageUrl}
                             alt=""
                             className="max-h-56 max-w-full object-cover"

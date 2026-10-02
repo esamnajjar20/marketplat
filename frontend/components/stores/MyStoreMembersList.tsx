@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
+import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { Input } from '@/components/shared/ui/Input';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
@@ -163,8 +164,8 @@ function MemberRow({
         )}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
           {member.user.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <SafeImg
+              variant="avatar"
               src={member.user.avatarUrl}
               alt=""
               className="h-10 w-10 rounded-full object-cover"

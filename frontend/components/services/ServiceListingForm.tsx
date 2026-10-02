@@ -25,6 +25,7 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
+import { reconcileImages } from '@/lib/reconcileImages';
 import { MAX_IMAGES, ROUTES } from '@/lib/constants';;
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
@@ -338,38 +339,17 @@ export function ServiceListingForm({ mode, listing }: Props) {
     } satisfies UpdateServiceListingPayload;
 
     try {
-      const removedUrls = originalImages.filter(
-        (url) => !values.existingImages.includes(url),
+      // Shared with the other two entity forms — see lib/reconcileImages.ts
+      // for the ordering rules (EPIC 1.5 add-before-remove, Gap #11 reorder).
+      await reconcileImages(
+        { originalImages, existingImages: values.existingImages, newFiles: values.images },
+        {
+          addImages: (files) => addImages.mutateAsync({ id: currentListing.id, files }),
+          removeImage: (imageUrl) => removeImage.mutateAsync({ id: currentListing.id, imageUrl }),
+          reorderImages: (images) => reorderImages.mutateAsync({ id: currentListing.id, images }),
+          onUploadStart: () => setUploadProgress(0),
+        },
       );
-
-      const wouldGoToZero =
-        removedUrls.length > 0 && values.existingImages.length === 0;
-
-      if (wouldGoToZero && values.images.length > 0) {
-        setUploadProgress(0);
-        await addImages.mutateAsync({ id: currentListing.id, files: values.images });
-        for (const imageUrl of removedUrls) {
-          await removeImage.mutateAsync({ id: currentListing.id, imageUrl });
-        }
-      } else {
-        for (const imageUrl of removedUrls) {
-          await removeImage.mutateAsync({ id: currentListing.id, imageUrl });
-        }
-        if (values.images.length > 0) {
-          setUploadProgress(0);
-          await addImages.mutateAsync({ id: currentListing.id, files: values.images });
-        }
-      }
-
-      // Gap #11: mirrors AdForm's submitEdit — only the surviving
-      // existing images are reordered; new uploads stay appended at
-      // the end (backend's addImages ordering), so this stays a valid
-      // permutation without needing the just-uploaded files' URLs.
-      const survivingExisting = originalImages.filter((url) => values.existingImages.includes(url));
-      const reorderChanged = values.existingImages.some((url, i) => url !== survivingExisting[i]);
-      if (reorderChanged && values.existingImages.length > 1) {
-        await reorderImages.mutateAsync({ id: currentListing.id, images: values.existingImages });
-      }
     } catch (err) {
       const parsed = parseApiError(err);
       // T792 — a network failure here means update.mutate will also

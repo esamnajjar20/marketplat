@@ -12,6 +12,7 @@ import {
   MapPin, Eye, Package, ChevronRight, ChevronLeft, Phone, Store as StoreIcon, X,
 } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
@@ -243,8 +244,7 @@ export function ProductDetail({ product, related = [] }: Props) {
           >
             <X className="h-6 w-6" />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <SafeImg
             src={currentImg}
             alt={product.name}
             className="max-h-[90vh] max-w-full object-contain"

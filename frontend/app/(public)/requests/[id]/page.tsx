@@ -20,6 +20,7 @@ import {
 import { formatRelativeTime } from '@/lib/formatters';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
+import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { RequestOfferForm } from '@/components/requests/RequestOfferForm';
 import { RequestOffersList } from '@/components/requests/RequestOffersList';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -168,13 +169,11 @@ export default function RequestDetailPage() {
       {images.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {images.map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <SafeImg
               key={i}
               src={src}
               alt={`صورة مرفقة ${i + 1}`}
               className="aspect-square w-full rounded-lg border object-cover"
-              loading="lazy"
             />
           ))}
         </div>

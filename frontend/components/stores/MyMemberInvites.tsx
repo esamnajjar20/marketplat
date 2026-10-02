@@ -8,6 +8,7 @@
 import { Building2, Check, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
+import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyMemberInvites } from '@/hooks/queries/useStoreMembers';
 import { useAcceptStoreMemberInvite } from '@/hooks/mutations/useStoreMemberMutations';
@@ -28,8 +29,7 @@ function InviteCard({ invite }: { invite: StoreMember }) {
     <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden">
         {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt="" className="h-10 w-10 object-cover" />
+          <SafeImg src={logo} alt="" className="h-10 w-10 object-cover" />
         ) : (
           <Building2 className="h-5 w-5 text-muted-foreground" />
         )}

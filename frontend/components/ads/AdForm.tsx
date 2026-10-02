@@ -26,6 +26,7 @@ import { AdFormPreview } from '@/components/ads/AdFormPreview';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
+import { reconcileImages } from '@/lib/reconcileImages';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
 import { toast } from 'sonner';
 
@@ -394,48 +395,17 @@ export function AdForm({ mode, ad }: Props) {
     } satisfies UpdateAdPayload;
 
     try {
-      const removedUrls = originalImages.filter(
-        (url) => !values.existingImages.includes(url),
+      // Shared with the other two entity forms — see lib/reconcileImages.ts
+      // for the ordering rules (EPIC 1.5 add-before-remove, Gap #11 reorder).
+      await reconcileImages(
+        { originalImages, existingImages: values.existingImages, newFiles: values.images },
+        {
+          addImages: (files) => addImages.mutateAsync({ id: currentAd.id, files }),
+          removeImage: (imageUrl) => removeImage.mutateAsync({ id: currentAd.id, imageUrl }),
+          reorderImages: (images) => reorderImages.mutateAsync({ id: currentAd.id, images }),
+          onUploadStart: () => setUploadProgress(0),
+        },
       );
-
-      // EPIC 1.5: if removing these would leave the ad with zero images
-      // even momentarily, and the user has staged replacement uploads,
-      // add the replacements first so removeImage's min-1-image guard
-      // (backend) never sees a would-be-empty ad. Safe to reorder only
-      // in this specific case — reversing the order in general would
-      // risk momentarily exceeding addImages' 10-image cap instead.
-      const wouldGoToZero =
-        removedUrls.length > 0 && values.existingImages.length === 0;
-
-      if (wouldGoToZero && values.images.length > 0) {
-        setUploadProgress(0);
-        await addImages.mutateAsync({ id: currentAd.id, files: values.images });
-        for (const imageUrl of removedUrls) {
-          await removeImage.mutateAsync({ id: currentAd.id, imageUrl });
-        }
-      } else {
-        for (const imageUrl of removedUrls) {
-          await removeImage.mutateAsync({ id: currentAd.id, imageUrl });
-        }
-        if (values.images.length > 0) {
-          setUploadProgress(0);
-          await addImages.mutateAsync({ id: currentAd.id, files: values.images });
-        }
-      }
-
-      // Gap #11: values.existingImages already reflects the user's
-      // drag-and-drop reorder (survivors only, removedUrls already
-      // excluded above). Newly-uploaded files always land appended
-      // after existing images (see addImages' backend ordering), so
-      // reordering only the surviving existing images — leaving new
-      // uploads in their upload order at the end — keeps this call a
-      // valid permutation without needing to know the final Cloudinary
-      // URLs of files that were just uploaded above.
-      const survivingExisting = originalImages.filter((url) => values.existingImages.includes(url));
-      const reorderChanged = values.existingImages.some((url, i) => url !== survivingExisting[i]);
-      if (reorderChanged && values.existingImages.length > 1) {
-        await reorderImages.mutateAsync({ id: currentAd.id, images: values.existingImages });
-      }
     } catch (err) {
       // T792 — a network failure here means updateAd will also fail
       // offline. Firing it anyway lets useUpdateAd's onError save the
