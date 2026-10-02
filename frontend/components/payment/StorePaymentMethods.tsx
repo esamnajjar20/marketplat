@@ -72,9 +72,9 @@ export function StorePaymentMethods({
   const [selected, setSelected] = useState<StorePaymentMethod | null>(null);
   const [amount, setAmount] = useState('');
   const [copied, setCopied] = useState(false);
-  // FIX PAY-RECIPIENT-01: نفس خيار "تاجر / صديق" الموجود بخطوة USSD
-  // بالصفحة الرئيسية (PayWithQRDialog) — الافتراضي 'merchant' يحافظ على
-  // السلوك السابق لمن لا يغيّر الاختيار، لكنه الآن قابل للتبديل بدل ثابت.
+  // FIX PAY-RECIPIENT-01: خيار "تاجر / صديق" لعملية USSD — الافتراضي
+  // 'merchant' يحافظ على السلوك السابق لمن لا يغيّر الاختيار، لكنه قابل
+  // للتبديل بدل ثابت.
   const [recipient, setRecipient] = useState<'friend' | 'merchant'>('merchant');
 
   if (methods.length === 0) return null;

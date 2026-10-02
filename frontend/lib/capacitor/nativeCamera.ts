@@ -1,11 +1,9 @@
 /**
  * NEW — native camera/gallery access via @capacitor/camera.
  *
- * The web build already has a working camera path (getUserMedia in
- * components/payment/QrScannerCamera.tsx, plus plain
- * `<input type="file">` in ImageUpload.tsx, which Android/iOS browsers
- * already route to the native camera/gallery chooser). This file does
- * NOT replace either — it adds the option of the native picker sheet
+ * The web build already has a working camera path (`<input type="file">`
+ * in ImageUpload.tsx, which Android/iOS browsers already route to the
+ * native camera/gallery chooser). This file does NOT replace it — it adds the option of the native picker sheet
  * (Camera.getPhoto), which gives cleaner permission prompts and lets a
  * future caller skip the browser file-input UI entirely inside the
  * Capacitor shell. Not yet wired into ImageUpload.tsx — see
