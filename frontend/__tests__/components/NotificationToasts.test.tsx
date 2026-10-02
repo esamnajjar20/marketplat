@@ -82,6 +82,57 @@ describe('NotificationToasts', () => {
     expect(mockPush).toHaveBeenCalledWith(ROUTES.messages);
   });
 
+  it('deep-links NEW_MESSAGE to the exact conversation when data is present', () => {
+    render(<NotificationToasts />);
+
+    onEvent?.({
+      type: 'notification',
+      action: 'created',
+      notificationType: 'NEW_MESSAGE',
+      title: 'رسالة',
+      body: 'نص',
+      data: { conversationId: 'conv-9' },
+    } as never);
+
+    const action = (vi.mocked(toast).mock.calls[0][1] as { action: { onClick: () => void } }).action;
+    action.onClick();
+    expect(mockPush).toHaveBeenCalledWith(ROUTES.conversationDetail('conv-9'));
+  });
+
+  it('deep-links FAV_AD_SOLD to the ad', () => {
+    render(<NotificationToasts />);
+
+    onEvent?.({
+      type: 'notification',
+      action: 'created',
+      notificationType: 'FAV_AD_SOLD',
+      title: 'بيع',
+      body: 'x',
+      data: { adId: 'ad-3' },
+    } as never);
+
+    const action = (vi.mocked(toast).mock.calls[0][1] as { action: { onClick: () => void } }).action;
+    action.onClick();
+    expect(mockPush).toHaveBeenCalledWith(ROUTES.adDetail('ad-3'));
+  });
+
+  it('skips the toast when the user is already on the target page', () => {
+    window.history.pushState({}, '', ROUTES.conversationDetail('conv-open'));
+    render(<NotificationToasts />);
+
+    onEvent?.({
+      type: 'notification',
+      action: 'created',
+      notificationType: 'NEW_MESSAGE',
+      title: 'رسالة',
+      body: 'نص',
+      data: { conversationId: 'conv-open' },
+    } as never);
+
+    expect(toast).not.toHaveBeenCalled();
+    window.history.pushState({}, '', '/');
+  });
+
   it('ignores non-notification stream events', () => {
     render(<NotificationToasts />);
 

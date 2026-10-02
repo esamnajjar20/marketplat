@@ -39,6 +39,13 @@ export interface RegisterFcmTokenInput {
 // only have as many in-flight calls as they issue in parallel).
 const countInflight = new Map<string, Promise<number>>();
 
+/** Notification.data is Json? — only plain objects are deep-linkable. */
+function asLiveData(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 export const notificationsRepository = {
   create: async (input: CreateNotificationInput): Promise<Notification> => {
     const notification = await prisma.notification.create({ data: input });
@@ -50,6 +57,7 @@ export const notificationsRepository = {
       notificationType: notification.type,
       title: notification.title,
       body: notification.body,
+      data: asLiveData(notification.data),
     });
     return notification;
   },
@@ -104,14 +112,16 @@ export const notificationsRepository = {
     // stays a single publish call, and the mixed case degrades to
     // per-user publishes with each user's real content. Comparison is
     // on the three fields the SSE payload actually carries — if any
-    // future field is added to the payload, update the comparison too.
+    // future field is added to the payload, update the comparison too
+    // (`data` was added for toast deep links).
     const allSameContent =
       inputs.length > 0 &&
       inputs.every(
         (i) =>
           i.type === inputs[0].type &&
           i.title === inputs[0].title &&
-          i.body === inputs[0].body,
+          i.body === inputs[0].body &&
+          JSON.stringify(i.data ?? null) === JSON.stringify(inputs[0].data ?? null),
       );
 
     if (allSameContent) {
@@ -121,6 +131,7 @@ export const notificationsRepository = {
         notificationType: inputs[0].type,
         title: inputs[0].title,
         body: inputs[0].body,
+        data: asLiveData(inputs[0].data),
       });
     } else {
       // Mixed content: one publish per recipient with their own data.
@@ -134,6 +145,7 @@ export const notificationsRepository = {
             notificationType: input.type,
             title: input.title,
             body: input.body,
+            data: asLiveData(input.data),
           }),
         ),
       );
@@ -302,6 +314,7 @@ export const notificationsRepository = {
         notificationType: updated.type,
         title: updated.title,
         body: updated.body,
+        data: asLiveData(updated.data),
       });
       return updated;
     }

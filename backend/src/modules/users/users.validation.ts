@@ -94,7 +94,7 @@ export const updateNotificationPreferencesSchema = z.object({
     savedSearch: z.boolean().optional(),
     storeUpdates: z.boolean().optional(),
     serviceQuotes: z.boolean().optional(),
-    // Quiet hours (external push only; Asia/Gaza). Optional partial PATCH.
+    // Quiet hours (external push only; zone in quietHoursTimeZone, default Asia/Gaza). Optional partial PATCH.
     quietHoursEnabled: z.boolean().optional(),
     quietHoursStart: z
       .string()
@@ -105,6 +105,20 @@ export const updateNotificationPreferencesSchema = z.object({
       .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm')
       .optional(),
     quietHoursAllowUrgent: z.boolean().optional(),
+    // IANA zone (e.g. 'Asia/Gaza'); validated through Intl so junk never reaches
+    // the jsonb column. Missing → push service falls back to Asia/Gaza.
+    quietHoursTimeZone: z
+      .string()
+      .max(64)
+      .refine((tz) => {
+        try {
+          new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+          return true;
+        } catch {
+          return false;
+        }
+      }, 'Invalid time zone')
+      .optional(),
   }).refine(obj => Object.keys(obj).length > 0, {
     message: 'At least one preference must be provided',
   }),

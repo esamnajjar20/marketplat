@@ -98,6 +98,17 @@ export const notificationsController = {
     }
   },
 
+  /** POST /notifications/push-test — see notificationsService.sendTestPush. */
+  sendTestPush: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const result = await notificationsService.sendTestPush(user.userId);
+      res.status(200).json(successResponse('Test push processed', result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   /** NEW — POST /notifications/fcm-tokens, called from the Capacitor
    * shell's lib/capacitor/nativePush.ts registerNativePush() right
    * after PushNotifications.register() resolves a device token. */

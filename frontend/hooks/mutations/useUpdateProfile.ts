@@ -20,6 +20,7 @@
  */
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { usersApi }      from '@/api/users.api';
@@ -64,18 +65,69 @@ export function useUpdateProfile() {
  * (only the changed key needs to be sent) since each toggle in the form
  * fires its own save.
  */
-export function useUpdateNotificationPreferences() {
-  const queryClient = useQueryClient();
+const NOTIFICATION_PREFS_MUTATION_KEY = ['notification-preferences'] as const;
 
-  return useMutation({
+/**
+ * PATCH /users/me/notifications (partial).
+ *
+ * NOTIF-PREFS-UX-01:
+ *  - `silent` suppresses the per-call success toast. The settings screen fires
+ *    one PATCH per switch, so a toast each time was noise; the form shows a
+ *    single inline "saved" state instead. Errors are always toasted.
+ *  - The cache is patched optimistically-on-success (merge into the cached
+ *    `me`) and re-fetched only once the LAST in-flight PATCH settles. The old
+ *    invalidate-per-success let a slow earlier response overwrite a newer
+ *    toggle with stale server state.
+ */
+export function useUpdateNotificationPreferences(options?: { silent?: boolean }) {
+  const queryClient = useQueryClient();
+  const silent = options?.silent === true;
+  // Hook-level (not per-mutate-call) tracking: TanStack only fires per-call
+  // callbacks for the LAST mutate() on an observer, so counting there would
+  // leak when switches are flipped quickly.
+  const [pendingCount, setPendingCount] = useState(0);
+  const [justSaved, setJustSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+  }, []);
+
+  const mutation = useMutation({
+    mutationKey: NOTIFICATION_PREFS_MUTATION_KEY,
+    onMutate: () => {
+      setPendingCount((n) => n + 1);
+      setJustSaved(false);
+    },
     mutationFn: (patch: Partial<NotificationPreferences>) =>
       usersApi.updateNotificationPreferences(patch).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
-      toast.success('تم حفظ إعدادات الإشعارات');
+    onSuccess: (_data, patch) => {
+      queryClient.setQueryData(queryKeys.auth.me(), (old: unknown) => {
+        if (!old || typeof old !== 'object') return old;
+        const me = old as { notificationPreferences?: NotificationPreferences };
+        return {
+          ...me,
+          notificationPreferences: { ...me.notificationPreferences, ...patch },
+        };
+      });
+      if (!silent) toast.success('تم حفظ إعدادات الإشعارات');
+      setJustSaved(true);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setJustSaved(false), 2500);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: (err) => {
+      setJustSaved(false);
+      toast.error(parseApiError(err).message);
+    },
+    onSettled: () => {
+      setPendingCount((n) => Math.max(0, n - 1));
+      // This mutation is still counted while onSettled runs → <= 1 means "last one".
+      if (queryClient.isMutating({ mutationKey: NOTIFICATION_PREFS_MUTATION_KEY }) <= 1) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+      }
+    },
   });
+
+  return { ...mutation, pendingCount, justSaved };
 }
 
 /**

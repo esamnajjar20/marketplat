@@ -39,4 +39,8 @@ export const notificationsApi = {
   /** DELETE /notifications/read — remove all read notifications */
   deleteAllRead: () =>
     apiClient.delete<ApiResponse<{ count: number }>>('/notifications/read'),
+
+  /** POST /notifications/push-test — devices = how many were targeted (0 = none registered). */
+  sendTestPush: () =>
+    apiClient.post<ApiResponse<{ devices: number }>>('/notifications/push-test'),
 };

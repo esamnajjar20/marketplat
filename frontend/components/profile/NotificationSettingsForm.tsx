@@ -118,6 +118,17 @@ const DEFAULT_PREFS: NotificationPreferences = {
   quietHoursAllowUrgent: true,
 };
 
+/** Matches the server fallback in pushService.resolveQuietTimeZone. */
+const DEFAULT_QUIET_TIME_ZONE = 'Asia/Gaza';
+
+function getDeviceTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
 function SectionHeading({
   step,
   icon: Icon,
@@ -147,10 +158,15 @@ function SectionHeading({
 
 export function NotificationSettingsForm() {
   const { data: me, isLoading } = useMe();
-  const updatePrefs = useUpdateNotificationPreferences();
+  // NOTIF-PREFS-UX-01: one inline status instead of a toast per switch.
+  const updatePrefs = useUpdateNotificationPreferences({ silent: true });
+  const isSaving = (updatePrefs.pendingCount ?? 0) > 0;
+  const justSaved = Boolean(updatePrefs.justSaved) && !isSaving;
+  const deviceTimeZone = getDeviceTimeZone();
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [pendingKey, setPendingKey] = useState<PrefKey | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
+  const quietTimeZone = prefs.quietHoursTimeZone ?? DEFAULT_QUIET_TIME_ZONE;
 
   useEffect(() => {
     if (me?.notificationPreferences) {
@@ -228,7 +244,14 @@ export function NotificationSettingsForm() {
               subtitle={`أنواع التنبيهات داخل التطبيق وعلى الجهاز معاً · ${enabledCount}/${totalCount} مفعّل`}
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              role="status"
+              aria-live="polite"
+              className="min-w-[4.5rem] text-xs text-muted-foreground"
+            >
+              {isSaving ? 'جارٍ الحفظ…' : justSaved ? 'تم الحفظ ✓' : ''}
+            </span>
             <Button
               type="button"
               variant="outline"
@@ -314,7 +337,7 @@ export function NotificationSettingsForm() {
             step={3}
             icon={Moon}
             title="متى يصلك؟"
-            subtitle="ساعات الهدوء توقف إشعارات الجهاز في الليل. الإشعارات داخل التطبيق تُحفظ وتظهر عند فتحك للمنصة."
+            subtitle="ساعات الهدوء توقف إشعارات الجهاز فقط (لا تُؤجَّل، بل لا تُرسل). الإشعارات داخل التطبيق تُحفظ وتظهر عند فتحك للمنصة."
           />
         </div>
 
@@ -334,8 +357,14 @@ export function NotificationSettingsForm() {
               disabled={bulkPending}
               onClick={() => {
                 const next = !prefs.quietHoursEnabled;
-                setPrefs((p) => ({ ...p, quietHoursEnabled: next }));
-                updatePrefs.mutate({ quietHoursEnabled: next });
+                // First enable: pin the window to this device's zone so "22:00"
+                // means the user's 22:00, not the server's.
+                const pinZone = next && !prefs.quietHoursTimeZone && deviceTimeZone;
+                const patch: Partial<NotificationPreferences> = pinZone
+                  ? { quietHoursEnabled: next, quietHoursTimeZone: deviceTimeZone }
+                  : { quietHoursEnabled: next };
+                setPrefs((p) => ({ ...p, ...patch }));
+                updatePrefs.mutate(patch);
               }}
               className={cn(
                 'relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50',
@@ -380,6 +409,23 @@ export function NotificationSettingsForm() {
                     className="rounded-md border bg-background px-2 py-1.5 text-sm"
                   />
                 </label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-card px-3 py-3 text-xs text-muted-foreground sm:px-4">
+                <span>
+                  التوقيت المعتمد: <bdi className="font-medium text-foreground/80">{quietTimeZone}</bdi>
+                </span>
+                {deviceTimeZone && deviceTimeZone !== quietTimeZone && (
+                  <button
+                    type="button"
+                    className="text-primary underline-offset-2 hover:underline"
+                    onClick={() => {
+                      setPrefs((p) => ({ ...p, quietHoursTimeZone: deviceTimeZone }));
+                      updatePrefs.mutate({ quietHoursTimeZone: deviceTimeZone });
+                    }}
+                  >
+                    استخدم توقيت جهازي ({deviceTimeZone})
+                  </button>
+                )}
               </div>
               <div className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4">
                 <div className="min-w-0">

@@ -125,7 +125,10 @@ export const NOTIFICATION_CATEGORIES: {
   },
 ];
 
-export function hrefFor(notification: Notification): string | null {
+/** Minimal shape so live SSE payloads (no id/readAt) can be resolved too. */
+export type HrefSource = Pick<Notification, 'type' | 'data'>;
+
+export function hrefFor(notification: HrefSource): string | null {
   const d = notification.data;
   if (notification.type === 'NEW_MESSAGE' && d?.conversationId) {
     return ROUTES.conversationDetail(d.conversationId);

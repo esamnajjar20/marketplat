@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { Bell, BellOff, AlertTriangle, Smartphone } from 'lucide-react';
+import { Bell, BellOff, AlertTriangle, Smartphone, Send } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
   getPushSubscriptionState,
@@ -23,6 +23,9 @@ import {
   unregisterNativePush,
 } from '@/lib/capacitor/nativePush';
 import { toast } from 'sonner';
+import { notificationsApi } from '@/api/notifications.api';
+import { parseApiError } from '@/lib/errorParser';
+import { isStandaloneMode } from '@/lib/runtime/appMode';
 import { getRawVapidPublicKey } from '@/lib/env';
 import { secureGet, secureRemove, secureSet } from '@/lib/runtime/secureStorage';
 import { isPushOptedOut, setPushOptedOut } from '@/lib/runtime/pushPreference';
@@ -31,11 +34,48 @@ import { cn } from '@/lib/utils';
 type SubState = 'loading' | 'subscribed' | 'unsubscribed' | 'unsupported';
 type PermState = 'granted' | 'denied' | 'default' | 'unsupported' | 'loading';
 
+function isIosDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+}
+
 export function PushNotificationToggle() {
   const [state, setState] = useState<SubState>('loading');
   const [permission, setPermission] = useState<PermState>('loading');
   const [isNative, setIsNative] = useState<boolean | null>(null);
   const hasVapidKey = Boolean(getRawVapidPublicKey());
+  const [testing, setTesting] = useState(false);
+  const [onIos, setOnIos] = useState(false);
+  const [standalone, setStandalone] = useState(true);
+
+  useEffect(() => {
+    setOnIos(isIosDevice());
+    try {
+      setStandalone(isStandaloneMode());
+    } catch {
+      /* matchMedia unavailable (old WebView / test env) — keep default */
+    }
+  }, []);
+
+  // NOTIF-UX-TEST-01: lets the user verify the whole chain (permission →
+  // subscription → server → push service → SW) in one tap. "targeted" is
+  // all we can know server-side; the banner itself is the real confirmation.
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const res = await notificationsApi.sendTestPush();
+      const devices = res.data.data?.devices ?? 0;
+      if (devices === 0) {
+        toast.error('لا يوجد جهاز مسجّل لحسابك. أوقف الإشعارات ثم فعّلها من جديد.');
+      } else {
+        toast.success('أُرسل إشعار تجريبي — إن لم يظهر خلال ثوانٍ تحقق من إعدادات النظام.');
+      }
+    } catch (err) {
+      toast.error(parseApiError(err).message);
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -149,6 +189,25 @@ export function PushNotificationToggle() {
     }
   };
 
+  if (state === 'unsupported' && onIos && !standalone && isNative === false) {
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-card p-4 text-sm text-muted-foreground">
+        <Smartphone className="mt-0.5 h-5 w-5 shrink-0" />
+        <div>
+          <p className="font-medium text-foreground">فعّل الإشعارات على iPhone</p>
+          <ol className="mt-2 list-decimal space-y-1 ps-4 text-xs leading-relaxed">
+            <li>افتح الموقع في Safari ثم اضغط زر المشاركة.</li>
+            <li>اختر «إضافة إلى الشاشة الرئيسية».</li>
+            <li>افتح التطبيق من الشاشة الرئيسية وعد إلى هذه الصفحة.</li>
+          </ol>
+          <p className="mt-2 text-[11px]">
+            iOS لا يسمح بإشعارات الدفع إلا للتطبيقات المضافة للشاشة الرئيسية (iOS 16.4 أو أحدث).
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (state === 'unsupported' || (isNative === false && !hasVapidKey)) {
     return (
       <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-card p-4 text-sm text-muted-foreground">
@@ -223,17 +282,55 @@ export function PushNotificationToggle() {
         </Button>
       </div>
 
+      {/* شرح قبل طلب الإذن: لا يظهر بعد الرفض ولا بعد التفعيل */}
+      {!isChecking && !isOn && !isDenied && permission === 'default' && (
+        <div className="rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          <p className="font-medium text-foreground">ماذا سيحدث عند الضغط على «تفعيل»؟</p>
+          <ul className="mt-1.5 list-disc space-y-1 ps-4">
+            <li>سيطلب {isNative ? 'النظام' : 'المتصفح'} إذنك مرة واحدة.</li>
+            <li>لن نرسل إلا الأنواع التي تختارها في الخطوة التالية.</li>
+            <li>يمكنك الإيقاف في أي وقت من هذه الصفحة.</li>
+          </ul>
+        </div>
+      )}
+
+      {isOn && !isDenied && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">تأكد أن الإشعارات تصل إلى هذا الجهاز.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={testing}
+            onClick={() => void handleTest()}
+            className="gap-1.5"
+          >
+            <Send className="h-3.5 w-3.5 rtl:-scale-x-100" aria-hidden />
+            {testing ? 'جارٍ الإرسال…' : 'إرسال إشعار تجريبي'}
+          </Button>
+        </div>
+      )}
+
       {isDenied && (
         <div className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
           <p className="font-medium text-destructive">كيف تعيد تفعيل الإذن؟</p>
-          <ol className="mt-2 list-decimal space-y-1 ps-4">
-            <li>افتح إعدادات الموقع في المتصفح (أيقونة القفل بجانب الرابط).</li>
-            <li>ابحث عن «الإشعارات» وغيّرها إلى «السماح».</li>
-            <li>أعد تحميل الصفحة ثم اضغط «تفعيل».</li>
-          </ol>
-          <p className="mt-2 text-[11px]">
-            على الجوال: إعدادات النظام → التطبيقات → المتصفح → الإشعارات.
-          </p>
+          {onIos ? (
+            <ol className="mt-2 list-decimal space-y-1 ps-4">
+              <li>افتح تطبيق «الإعدادات» في iPhone ثم «الإشعارات».</li>
+              <li>اختر هذا التطبيق (أو Safari) وفعّل «السماح بالإشعارات».</li>
+              <li>ارجع إلى هنا واضغط «تفعيل».</li>
+            </ol>
+          ) : (
+            <>
+              <ol className="mt-2 list-decimal space-y-1 ps-4">
+                <li>افتح إعدادات الموقع في المتصفح (أيقونة القفل أو الإعدادات بجانب الرابط).</li>
+                <li>ابحث عن «الإشعارات» وغيّرها إلى «السماح».</li>
+                <li>أعد تحميل الصفحة ثم اضغط «تفعيل».</li>
+              </ol>
+              <p className="mt-2 text-[11px]">
+                على الجوال: إعدادات النظام → التطبيقات → المتصفح (أو التطبيق) → الإشعارات.
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>

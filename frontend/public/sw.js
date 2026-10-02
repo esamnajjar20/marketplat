@@ -2592,7 +2592,29 @@ self.addEventListener('sync', (event) => {
 });
 
 // ── Push Notifications ──────────────────────────────────────────
-// الحمولة المتوقَّعة من backend/.../pushService.ts: { title, body, url?, tag? }
+// الحمولة المتوقَّعة من backend/.../pushService.ts: { title, body, url?, tag?, image?, urgent?, type? }
+
+// NOTIF-SW-UX-01: type-specific action buttons. The type comes from the
+// payload when present; otherwise it is inferred from the tag prefix so older
+// servers / queued payloads keep working. Labels are Arabic (dir/lang below).
+function pushActionsFor(data) {
+  const tag = typeof data.tag === 'string' ? data.tag : '';
+  const type = typeof data.type === 'string' ? data.type : '';
+  const dismiss = { action: 'dismiss', title: 'تجاهل' };
+  if (type === 'NEW_MESSAGE' || tag.startsWith('conversation-')) {
+    return [{ action: 'open', title: 'رد' }, dismiss];
+  }
+  if (type === 'NEW_REQUEST_OFFER' || type === 'REQUEST_OFFER_ACCEPTED') {
+    return [{ action: 'open', title: 'عرض العرض' }, dismiss];
+  }
+  if (type === 'FAV_AD_SOLD' || type === 'FAV_AD_PRICE_CHANGED') {
+    return [{ action: 'open', title: 'عرض الإعلان' }, dismiss];
+  }
+  if (type === 'TEST') {
+    return [dismiss];
+  }
+  return [{ action: 'open', title: 'فتح' }, dismiss];
+}
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -2611,14 +2633,15 @@ self.addEventListener('push', (event) => {
     data: { url: targetUrl },
     icon: '/icon-192',
     badge: '/icon-192',
-    // Rich: optional large image (absolute https URL from payload)
-    ...(typeof data.image === 'string' && data.image.startsWith('http')
+    // Arabic-first UI: without these the OS may lay the banner out LTR.
+    dir: 'rtl',
+    lang: 'ar',
+    // Rich: optional large image — https only (http is blocked as mixed content
+    // and would be a tracking/downgrade vector).
+    ...(typeof data.image === 'string' && data.image.startsWith('https://')
       ? { image: data.image }
       : {}),
-    actions: [
-      { action: 'open', title: 'فتح' },
-      { action: 'dismiss', title: 'تجاهل' },
-    ],
+    actions: pushActionsFor(data),
   };
 
   // PUSH-PRESENCE-01: if the user is already looking at this very

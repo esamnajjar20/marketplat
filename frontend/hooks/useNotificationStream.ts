@@ -13,6 +13,7 @@ import { emitTypingEvent } from '@/lib/typingStore';
 import { useAuthStore, selectIsAuthenticated, selectAccessToken } from '@/store/auth.store';
 import { queryKeys } from '@/lib/queryKeys';
 import type { Message } from '@/types/conversation.types';
+import type { NotificationData } from '@/types/notification.types';
 
 export type LiveNotificationPayload = {
   type: 'notification';
@@ -21,6 +22,8 @@ export type LiveNotificationPayload = {
   notificationType?: string;
   title?: string;
   body?: string;
+  /** Per-type ids for deep links (see lib/notificationMeta.ts hrefFor). */
+  data?: NotificationData | null;
 };
 
 export type LiveMessageNewPayload = {

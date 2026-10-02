@@ -63,6 +63,10 @@ export interface PushPayload {
    * Used for new messages.
    */
   urgent?: boolean;
+  /** Notification kind (e.g. 'NEW_MESSAGE') — lets the SW pick type-specific actions. */
+  type?: string;
+  /** Skip quiet-hours suppression (explicit user-triggered test push only). */
+  bypassQuietHours?: boolean;
 }
 
 // web-push's send rejects with a statusCode on the error object for
@@ -94,15 +98,29 @@ function isGoneError(err: unknown): boolean {
   return statusCode === 404 || statusCode === 410;
 }
 
-/** Local time "HH:mm" in Asia/Gaza (Palestine) for quiet-hours checks. */
-function currentTimeInGaza(): { hours: number; minutes: number } {
+const DEFAULT_QUIET_TZ = 'Asia/Gaza';
+
+/** Returns `tz` if it is a valid IANA zone, otherwise the platform default. */
+export function resolveQuietTimeZone(tz: unknown): string {
+  if (typeof tz !== 'string' || tz.length === 0 || tz.length > 64) return DEFAULT_QUIET_TZ;
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+    return tz;
+  } catch {
+    return DEFAULT_QUIET_TZ;
+  }
+}
+
+/** Local wall-clock time in the given IANA zone, for quiet-hours checks. */
+function currentTimeIn(timeZone: string): { hours: number; minutes: number } {
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Gaza',
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
   }).formatToParts(new Date());
-  const hours = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  // Some ICU builds render midnight as "24" with hour12:false.
+  const hours = Number(parts.find((p) => p.type === 'hour')?.value ?? '0') % 24;
   const minutes = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
   return { hours, minutes };
 }
@@ -140,7 +158,7 @@ async function isInQuietHoursBlockingPush(userId: string, urgent?: boolean): Pro
 
     const start = parseHm(prefs.quietHoursStart, '22:00');
     const end = parseHm(prefs.quietHoursEnd, '08:00');
-    const { hours, minutes } = currentTimeInGaza();
+    const { hours, minutes } = currentTimeIn(resolveQuietTimeZone(prefs.quietHoursTimeZone));
     const now = hours * 60 + minutes;
     const startMin = start.h * 60 + start.m;
     const endMin = end.h * 60 + end.m;
@@ -222,7 +240,7 @@ export const pushService = {
     // fcmPushService.ts). Fire-and-forget here too, matching this
     // whole function's own contract with ITS callers.
     // Quiet hours: skip both channels when blocking (in-app still written by caller).
-    if (await isInQuietHoursBlockingPush(userId, payload.urgent)) {
+    if (!payload.bypassQuietHours && (await isInQuietHoursBlockingPush(userId, payload.urgent))) {
       logger.info('[PUSH SKIPPED — quiet hours]', { userId, title: payload.title });
       return;
     }
@@ -262,6 +280,7 @@ export const pushService = {
         tag: payload.tag,
         image: payload.image,
         urgent: payload.urgent,
+        type: payload.type,
       });
 
       // FIX PUSH-TTL-AND-URGENCY-01: web-push's default TTL is 0, which

@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useNotificationStream, type LiveStreamPayload } from '@/hooks/useNotificationStream';
 import { ROUTES } from '@/lib/constants';
+import { hrefFor } from '@/lib/notificationMeta';
 import type { NotificationType } from '@/types/notification.types';
 
 // FIX NOTIF-TOAST-CRITICAL-SYNC-01: the Open Requests marketplace
@@ -38,8 +39,20 @@ export function NotificationToasts() {
       if (!event.notificationType || !CRITICAL.has(event.notificationType)) return;
 
       const type = event.notificationType as NotificationType;
-      let href: string = ROUTES.notifications;
-      if (type === 'NEW_MESSAGE') href = ROUTES.messages;
+      // Deep link from the event's own data; fall back to the old coarse
+      // targets when an older server (or a uniform fan-out) sends no data.
+      const href: string =
+        hrefFor({ type, data: event.data ?? null }) ??
+        (type === 'NEW_MESSAGE' ? ROUTES.messages : ROUTES.notifications);
+
+      // Already looking at the target → the toast would only cover it.
+      if (typeof window !== 'undefined') {
+        try {
+          if (window.location.pathname === new URL(href, window.location.origin).pathname) return;
+        } catch {
+          /* malformed href — show the toast */
+        }
+      }
 
       toast(event.title ?? 'إشعار جديد', {
         description: event.body,

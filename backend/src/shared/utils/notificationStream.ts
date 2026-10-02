@@ -20,6 +20,9 @@ export type LiveStreamEvent =
       notificationType?: NotificationType | string;
       title?: string;
       body?: string;
+      /** Small per-type payload (conversationId, adId, requestId…) so the client
+       * can deep-link without a refetch. Mirrors Notification.data. */
+      data?: Record<string, unknown> | null;
     }
   | {
       type: 'message:new';

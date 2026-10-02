@@ -5,6 +5,9 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { pushService } from '../../shared/utils/pushService';
 import { prisma } from '../../config/prisma';
+import { TooManyRequestsError } from '../../shared/errors/TooManyRequestsError';
+import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
+import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
 
 /** Keys stored on User.notificationPreferences — must stay aligned with
  * frontend NotificationPreferences and users.validation.ts. */
@@ -66,6 +69,10 @@ async function userAllowsPref(userId: string, key: PrefKey): Promise<boolean> {
   if (!user) return false;
   return readPref(user.notificationPreferences, key);
 }
+
+// Per-process cooldown (best-effort; resets on restart / not shared across instances).
+const TEST_PUSH_COOLDOWN_MS = 20_000;
+const testPushLastSent = new Map<string, number>();
 
 export const notificationsService = {
   getMyNotifications: async (
@@ -224,6 +231,41 @@ export const notificationsService = {
    * 0-row result isn't treated as NotFound here (unlike markRead). */
   unsubscribeFromPush: (userId: string, endpoint: string): Promise<void> =>
     notificationsRepository.deletePushSubscription(userId, endpoint).then(() => undefined),
+
+  /**
+   * POST /notifications/push-test — explicit "send me a test" from settings.
+   * Bypasses quiet hours (the user asked for it) but is rate-limited per user.
+   * Returns how many devices were targeted; 0 means nothing is registered, so
+   * the UI can say so instead of waiting for a banner that will never come.
+   * Note: "targeted" ≠ "delivered" — the push service gives no device receipt.
+   */
+  sendTestPush: async (userId: string): Promise<{ devices: number }> => {
+    const now = Date.now();
+    const last = testPushLastSent.get(userId) ?? 0;
+    if (now - last < TEST_PUSH_COOLDOWN_MS) {
+      throw new TooManyRequestsError('Test push was sent recently', 'TEST_PUSH_COOLDOWN');
+    }
+    const [web, native] = await Promise.all([
+      pushSubscriptionsRepository.findManyByUserId(userId),
+      fcmDeviceTokensRepository.findManyByUserId(userId),
+    ]);
+    const devices = web.length + native.length;
+    if (devices === 0) return { devices: 0 };
+    testPushLastSent.set(userId, now);
+    if (testPushLastSent.size > 5000) {
+      for (const [k, t] of testPushLastSent) if (now - t > TEST_PUSH_COOLDOWN_MS) testPushLastSent.delete(k);
+    }
+    await pushService.notifyUser(userId, {
+      title: 'إشعار تجريبي',
+      body: 'إذا ظهر لك هذا الإشعار فإشعارات هذا الجهاز تعمل.',
+      url: '/notifications',
+      tag: 'push-test',
+      urgent: true,
+      bypassQuietHours: true,
+      type: 'TEST',
+    });
+    return { devices };
+  },
 
   /** NEW — called from POST /notifications/fcm-tokens (Capacitor native
    * push registration). Mirrors subscribeToPush above. */

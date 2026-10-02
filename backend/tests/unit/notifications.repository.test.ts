@@ -61,6 +61,34 @@ describe('notificationsRepository', () => {
     });
   });
 
+  describe('SSE payload carries deep-link data', () => {
+    it('create publishes notification.data (plain objects only)', async () => {
+      const { publishNotificationEvent } = jest.requireMock(
+        '../../src/shared/utils/notificationStream',
+      );
+      (prisma.notification.create as jest.Mock).mockResolvedValue({
+        id: 'n1',
+        type: 'NEW_MESSAGE',
+        title: 't',
+        body: 'b',
+        data: { conversationId: 'conv-1' },
+      });
+
+      await notificationsRepository.create({
+        userId,
+        type: 'NEW_MESSAGE' as const,
+        title: 't',
+        body: 'b',
+        data: { conversationId: 'conv-1' },
+      });
+
+      expect(publishNotificationEvent).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({ data: { conversationId: 'conv-1' } }),
+      );
+    });
+  });
+
   describe('createMany', () => {
     it('fans out a createMany call with every input row', async () => {
       const inputs = [
